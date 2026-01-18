@@ -1,0 +1,94 @@
+# Project Scorecard Configuration
+# Migrated from legacy Params sheet
+
+targets:
+  defect_density: 3          # defects per 100 tasks
+  escaped_rate: 0.01         # escapes per 100 tasks
+  mttr_hours: 24             # mean time to recover
+  spi: 1                     # schedule performance index target
+  cpi: 1                     # cost performance index target
+  lead_time_days: 3          # max lead time in days
+  flow_efficiency: 0.4       # target flow efficiency (0-1)
+  high_vuln_count: 0         # max high vulns >30d (0 = strict mode)
+  gov_exceptions: 2          # max governance exceptions
+  pr_no_review_ratio: 0.02   # max PRs without review ratio
+
+weights:
+  # Global dimension weights (must sum to 1)
+  global:
+    time: 0.12
+    cost: 0.10
+    quality: 0.18
+    value: 0.10
+    satisfaction: 0.12
+    flow: 0.15
+    engineering: 0.18
+    risk: 0.05
+
+  # P_time weights (must sum to 1)
+  time:
+    spi: 0.6
+    milestones: 0.4
+
+  # P_cost weights (must sum to 1)
+  cost:
+    cpi: 0.7
+    variance: 0.3
+
+  # P_quality weights (must sum to 1)
+  quality:
+    defect_density: 0.05
+    escaped_rate: 0.20
+    mttr: 0.05
+    story_review: 0.30
+    governance: 0.30
+    pr_review: 0.10
+
+  # P_value weights (must sum to 1)
+  value:
+    okr_impact: 1.0
+
+  # P_satisfaction weights (must sum to 1)
+  satisfaction:
+    client_survey: 0.8
+    pm_estimation: 0.2
+
+  # Client survey question weights (must sum to 1)
+  client_survey:
+    understanding: 0.12
+    proactivity: 0.12
+    communication: 0.10
+    time: 0.14
+    response: 0.10
+    quality: 0.24
+    expectations: 0.12
+    recommend: 0.06
+
+  # P_flow weights (must sum to 1)
+  flow:
+    lead_time: 0.4
+    flow_efficiency: 0.3
+    commitment_reliability: 0.3
+
+  # P_engineering weights (must sum to 1)
+  engineering:
+    test_maturity: 0.5
+    pr_review: 0.2
+    architecture: 0.3
+
+  # P_risk weights (must sum to 1)
+  risk:
+    pr_no_review: 0.5
+    high_vulns: 0.5
+
+  # Test maturity weights (must sum to 1)
+  test_maturity:
+    e2e: 0.4
+    unit: 0.1
+    accessibility: 0.1
+    security: 0.2
+    frontend: 0.2
+
+constants:
+  sev1_cap: 60       # Max P_quality if Sev1 incident occurred
+  grace_days: 3      # Grace period for milestone delivery
