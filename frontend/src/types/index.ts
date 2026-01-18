@@ -1,0 +1,163 @@
+export interface Project {
+  id: string;
+  name: string;
+  jira_project_key: string | null;
+  github_repo: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectCreate {
+  name: string;
+  jira_project_key?: string;
+  github_repo?: string;
+}
+
+export interface DimensionScores {
+  p_time: number;
+  p_cost: number;
+  p_quality: number;
+  p_value: number;
+  p_satisfaction: number;
+  p_flow: number;
+  p_engineering: number;
+  p_risk: number;
+}
+
+export interface FinalScore {
+  score: number;
+  dimensions: DimensionScores;
+  weights_applied: Record<string, number>;
+}
+
+export interface Indicators {
+  spi: number | null;
+  on_time_milestones: number | null;
+  cpi: number | null;
+  budget_variance: number | null;
+  defect_density: number | null;
+  escaped_rate: number | null;
+  mttr_hours: number | null;
+  governance_compliance: number | null;
+  lead_time_days: number | null;
+  flow_efficiency: number | null;
+  commitment_reliability: number | null;
+  pr_review_ratio: number | null;
+  prs_without_review: number | null;
+  high_vulns: number | null;
+  test_maturity: number | null;
+  arch_checklist: number | null;
+  story_review_ratio: number | null;
+  okr_impact: number | null;
+  pm_satisfaction: number | null;
+  client_satisfaction: number | null;
+}
+
+export interface ScoreResponse {
+  indicators: Indicators;
+  scores: FinalScore;
+}
+
+export interface ScoringConfig {
+  targets: {
+    defect_density: number;
+    escaped_rate: number;
+    mttr_hours: number;
+    spi: number;
+    cpi: number;
+    lead_time_days: number;
+    flow_efficiency: number;
+    high_vuln_count: number;
+    gov_exceptions: number;
+    pr_no_review_ratio: number;
+  };
+  global_weights: {
+    time: number;
+    cost: number;
+    quality: number;
+    value: number;
+    satisfaction: number;
+    flow: number;
+    engineering: number;
+    risk: number;
+  };
+  constants: {
+    sev1_cap: number;
+    grace_days: number;
+  };
+  weight_validation: Record<string, boolean>;
+}
+
+export type StrategicImpact = 'low' | 'medium' | 'high' | 'transformational';
+
+export interface Milestone {
+  name: string;
+  planned_date: string;
+  actual_date?: string;
+  criticality_weight: number;
+}
+
+export interface EVMData {
+  budget_total: number;
+  cost_to_date: number;
+  percent_completed: number;
+  percent_planned: number;
+}
+
+export interface MetricsCreate {
+  period_start: string;
+  period_end: string;
+  evm_data?: EVMData;
+  milestones?: Milestone[];
+  jira_defects?: {
+    bugs_closed: number;
+    tasks_completed: number;
+    escaped_defects: number;
+    mttr_hours?: number;
+    incidents_count: number;
+  };
+  flow_metrics?: {
+    lead_time_days?: number;
+    flow_efficiency?: number;
+    commitment_reliability?: number;
+    total_stories: number;
+    stories_with_reviewer: number;
+  };
+  github_metrics?: {
+    prs_without_review: number;
+    total_merged_prs: number;
+    pr_review_ratio?: number;
+    high_severity_vulns: number;
+  };
+  test_maturity?: {
+    e2e?: number;
+    unit?: number;
+    accessibility?: number;
+    security?: number;
+    frontend?: number;
+  };
+  architecture?: {
+    docs_up_to_date: boolean;
+    iac_implemented: boolean;
+    adrs_maintained: boolean;
+    diagrams_updated: boolean;
+  };
+  pm_satisfaction?: {
+    delivery_complaints: 'yes' | 'no' | '-';
+    design_complaints: 'yes' | 'no' | '-';
+    overall_estimation?: number;
+  };
+  client_survey?: {
+    understanding?: number;
+    proactivity?: number;
+    communication?: number;
+    delivery_time?: number;
+    response_time?: number;
+    quality?: number;
+    expectations?: number;
+    recommend?: number;
+  };
+  strategic_impact?: StrategicImpact;
+  governance_exceptions?: number;
+  sev1_incident: boolean;
+}
