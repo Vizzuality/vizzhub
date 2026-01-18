@@ -1,5 +1,6 @@
 """Test configuration and fixtures."""
 
+import os
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -11,7 +12,10 @@ from app.config import ScoringConfig, get_scoring_config
 from app.database import Base, get_db
 from app.main import app
 
-TEST_DATABASE_URL = "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test"
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test",
+)
 
 
 @pytest.fixture(scope="session")

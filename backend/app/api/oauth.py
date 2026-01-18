@@ -1,0 +1,179 @@
+"""OAuth endpoints for external service authentication."""
+
+import logging
+
+from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import RedirectResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.api.deps import CurrentUser, DBSession
+from app.core.oauth_state import OAuthStateManager
+from app.core.security_logger import (
+    log_oauth_state_validation_failed,
+    log_oauth_token_issued,
+    log_oauth_token_refresh,
+    log_suspicious_activity,
+)
+from app.services.oauth_service import OAuthService
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)
+
+
+@router.get("/jira/authorize")
+@limiter.limit("10/minute")
+async def authorize_jira(request: Request) -> RedirectResponse:
+    """
+    Initiate Jira OAuth flow with CSRF protection.
+
+    Redirects user to Atlassian authorization page with state parameter.
+    """
+    # Generate state token for CSRF protection
+    state = OAuthStateManager.generate_state()
+
+    # Get authorization URL with state
+    authorization_url = OAuthService.get_jira_authorization_url(state=state)
+
+    # Store state in session for validation in callback
+    request.session["oauth_state"] = state
+
+    return RedirectResponse(url=authorization_url)
+
+
+@router.get("/jira/callback")
+@limiter.limit("10/minute")
+async def jira_callback(
+    request: Request,
+    code: str = Query(..., description="Authorization code from Jira"),
+    state: str = Query(..., description="State parameter for CSRF protection"),
+    db: DBSession = None,
+) -> dict[str, str]:
+    """
+    Handle Jira OAuth callback with state validation and CSRF protection.
+
+    Validates state parameter, exchanges authorization code for access token.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+
+    try:
+        # Validate state parameter from session
+        stored_state = request.session.get("oauth_state")
+        if not stored_state or stored_state != state:
+            log_oauth_state_validation_failed(
+                client_ip, "State mismatch - possible CSRF attack"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid state parameter",
+            )
+
+        # Clear used state from session
+        request.session.pop("oauth_state", None)
+
+        # Validate state token hasn't been used before
+        if not OAuthStateManager.validate_state(state):
+            log_oauth_state_validation_failed(
+                client_ip, "State token expired or already used"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired state token",
+            )
+
+        # Exchange authorization code for token
+        async with db.begin():
+            token = await OAuthService.exchange_jira_code_for_token(code, db)
+
+        # Log successful OAuth token issuance
+        log_oauth_token_issued("jira", "system", client_ip)
+
+        # Return minimal response (no sensitive data)
+        return {
+            "status": "success",
+            "message": "Jira authorization successful",
+        }
+
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        logger.exception("Database error during OAuth callback")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authorization failed",
+        )
+    except Exception as e:
+        logger.exception("OAuth callback failed")
+        log_suspicious_activity(f"OAuth callback error: {type(e).__name__}", client_ip)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authorization failed",
+        )
+
+
+@router.get("/jira/status")
+@limiter.limit("30/minute")
+async def jira_oauth_status(
+    request: Request, current_user: CurrentUser, db: DBSession
+) -> dict[str, bool]:
+    """
+    Check Jira OAuth token status.
+
+    Returns only authentication status - no sensitive data exposed.
+    Requires authentication.
+    """
+    token = await OAuthService.get_valid_jira_token(db)
+
+    # Return minimal information only
+    return {
+        "authenticated": token is not None,
+    }
+
+
+@router.post("/jira/refresh")
+@limiter.limit("10/minute")
+async def refresh_jira_token(
+    request: Request, current_user: CurrentUser, db: DBSession
+) -> dict[str, str]:
+    """
+    Manually refresh Jira access token.
+
+    Requires authentication.
+    Returns success message if refresh was successful.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+
+    try:
+        async with db.begin():
+            token = await OAuthService.refresh_jira_token(db)
+
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No Jira token found",
+            )
+
+        # Log token refresh
+        log_oauth_token_refresh("jira", current_user.user_id, client_ip)
+
+        return {
+            "status": "success",
+            "message": "Token refreshed successfully",
+        }
+
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        logger.exception("Database error during token refresh")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Token refresh failed",
+        )
+    except Exception as e:
+        logger.exception("Token refresh failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token refresh failed",
+        )

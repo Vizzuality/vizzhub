@@ -94,3 +94,4 @@ dmypy.json
 # Local development
 *.sqlite
 *.db
+.env.docker

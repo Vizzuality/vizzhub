@@ -3,8 +3,10 @@ from enum import Enum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
-from sqlalchemy import JSON, ForeignKey, String
+from sqlalchemy import DateTime, JSON, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from app.database import Base
 
@@ -118,9 +120,11 @@ class MetricsDB(Base):
 
     __tablename__ = "metrics"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    project_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("projects.id"), nullable=False
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False
     )
     period_start: Mapped[date] = mapped_column(nullable=False)
     period_end: Mapped[date] = mapped_column(nullable=False)
@@ -136,7 +140,9 @@ class MetricsDB(Base):
     strategic_impact: Mapped[str | None] = mapped_column(String(50), nullable=True)
     governance_exceptions: Mapped[int | None] = mapped_column(nullable=True)
     sev1_incident: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class MetricsCreate(BaseModel):
@@ -165,5 +171,4 @@ class Metrics(MetricsCreate):
     project_id: UUID
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}

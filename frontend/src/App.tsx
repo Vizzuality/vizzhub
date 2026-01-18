@@ -1,10 +1,50 @@
-import { Routes, Route, Link } from 'react-router-dom';
+/**
+ * Main Application Component
+ *
+ * Authentication Flow:
+ * - Development mode: BYPASS_AUTH=true allows unauthenticated access
+ * - Production mode: Requires Google OAuth authentication
+ * - Login page shown when not authenticated (and BYPASS_AUTH is false)
+ * - AuthProvider wraps entire app to manage auth state
+ *
+ * TODO: Set BYPASS_AUTH to false when Google OAuth is implemented
+ */
+
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { LayoutDashboard, FolderKanban, Settings } from 'lucide-react';
+import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import ProjectList from './pages/ProjectList';
+import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import SettingsPage from './pages/Settings';
+import Login from './pages/Login';
 
-function App(): JSX.Element {
+// Development mode: bypass authentication
+// TODO: Set to false when Google OAuth is implemented
+const BYPASS_AUTH = true;
+
+function AppContent(): JSX.Element {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  // In development mode or if authenticated, show the main app
+  if (!BYPASS_AUTH && !isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="min-h-screen flex">
       <aside className="w-64 bg-white border-r border-gray-200 p-6">
@@ -39,12 +79,21 @@ function App(): JSX.Element {
       <main className="flex-1 p-8">
         <Routes>
           <Route path="/" element={<ProjectList />} />
-          <Route path="/projects" element={<ProjectList />} />
+          <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
+  );
+}
+
+function App(): JSX.Element {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

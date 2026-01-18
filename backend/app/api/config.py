@@ -1,8 +1,10 @@
 """Configuration endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
-from app.api.deps import ScoringConfigDep
+from app.api.deps import CurrentUser, ScoringConfigDep
 from app.models.config import (
     ConstantsConfig,
     GlobalWeights,
@@ -11,11 +13,15 @@ from app.models.config import (
 )
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("", response_model=ScoringConfigModel)
-async def get_scoring_config(config: ScoringConfigDep) -> ScoringConfigModel:
-    """Get current scoring configuration."""
+@limiter.limit("100/minute")
+async def get_scoring_config(
+    request: Request, current_user: CurrentUser, config: ScoringConfigDep
+) -> ScoringConfigModel:
+    """Get current scoring configuration. Requires authentication."""
     return ScoringConfigModel(
         targets=TargetsConfig(
             defect_density=config.get_target("defect_density"),
@@ -48,8 +54,11 @@ async def get_scoring_config(config: ScoringConfigDep) -> ScoringConfigModel:
 
 
 @router.get("/validate")
-async def validate_config(config: ScoringConfigDep) -> dict[str, bool | dict]:
-    """Validate that all weight groups sum to 1."""
+@limiter.limit("100/minute")
+async def validate_config(
+    request: Request, current_user: CurrentUser, config: ScoringConfigDep
+) -> dict[str, bool | dict]:
+    """Validate that all weight groups sum to 1. Requires authentication."""
     validation = config.validate_weights()
     all_valid = all(validation.values())
     return {

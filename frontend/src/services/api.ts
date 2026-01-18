@@ -2,10 +2,13 @@ import axios from 'axios';
 import type {
   Project,
   ProjectCreate,
+  ProjectUpdate,
   ScoreResponse,
   ScoringConfig,
   MetricsCreate,
 } from '../types';
+
+const TOKEN_STORAGE_KEY = 'auth_token';
 
 const api = axios.create({
   baseURL: '/api',
@@ -13,6 +16,48 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+/**
+ * Request interceptor: Add JWT token to Authorization header
+ *
+ * IMPORTANT: Development mode - backend bypasses auth
+ * Token is only added if it exists in localStorage
+ * Production: All protected routes will require valid JWT
+ */
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+/**
+ * Response interceptor: Handle authentication errors
+ *
+ * On 401 Unauthorized:
+ * - Clear stored token
+ * - Redirect to login page
+ * - User must re-authenticate via Google OAuth
+ */
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem('auth_user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  },
+);
 
 export const projectsApi = {
   list: async (): Promise<Project[]> => {
@@ -30,8 +75,13 @@ export const projectsApi = {
     return response.data;
   },
 
-  update: async (id: string, data: Partial<ProjectCreate>): Promise<Project> => {
+  update: async (id: string, data: ProjectUpdate): Promise<Project> => {
     const response = await api.patch<Project>(`/projects/${id}`, data);
+    return response.data;
+  },
+
+  replace: async (id: string, data: ProjectCreate): Promise<Project> => {
+    const response = await api.put<Project>(`/projects/${id}`, data);
     return response.data;
   },
 
@@ -79,6 +129,13 @@ export const configApi = {
     const response = await api.get<{ valid: boolean; groups: Record<string, boolean> }>(
       '/config/validate',
     );
+    return response.data;
+  },
+};
+
+export const collectApi = {
+  collectJiraMetrics: async (projectId: string): Promise<MetricsCreate> => {
+    const response = await api.post<MetricsCreate>(`/collect/project/${projectId}/jira`);
     return response.data;
   },
 };

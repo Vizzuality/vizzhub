@@ -8,16 +8,30 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard"
+    database_url: str = ""
     debug: bool = False
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: list[str] = []
 
+    # Security
+    jwt_secret_key: str = ""
+    session_secret_key: str = ""
+
+    # Legacy Jira auth (API Token - still supported for simple setups)
     jira_base_url: str = ""
     jira_email: str = ""
     jira_api_token: str = ""
 
+    # OAuth 2.0 for Jira (recommended)
+    jira_oauth_client_id: str = ""
+    jira_oauth_client_secret: str = ""
+    jira_oauth_redirect_uri: str = ""
+    jira_oauth_scopes: str = ""
+
+    # GitHub
     github_token: str = ""
     github_org: str = ""
+    github_oauth_client_id: str = ""
+    github_oauth_client_secret: str = ""
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -25,6 +39,21 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             import json
             return json.loads(v)
+        return v
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins_production(cls, v: list[str], info) -> list[str]:
+        """Validate CORS origins - reject localhost in production."""
+        debug = info.data.get("debug", False)
+        if not debug:
+            # Production mode - reject localhost origins
+            for origin in v:
+                if "localhost" in origin or "127.0.0.1" in origin:
+                    raise ValueError(
+                        f"Localhost origin '{origin}' not allowed in production mode. "
+                        "Set DEBUG=true for development or update CORS_ORIGINS."
+                    )
         return v
 
     class Config:

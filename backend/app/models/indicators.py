@@ -2,8 +2,10 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from app.database import Base
 
@@ -13,12 +15,14 @@ class IndicatorsDB(Base):
 
     __tablename__ = "indicators"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    metrics_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("metrics.id"), nullable=False
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
     )
-    project_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("projects.id"), nullable=False
+    metrics_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
 
     spi: Mapped[float | None] = mapped_column(nullable=True)
@@ -42,7 +46,9 @@ class IndicatorsDB(Base):
     pm_satisfaction: Mapped[float | None] = mapped_column(nullable=True)
     client_satisfaction: Mapped[float | None] = mapped_column(nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class IndicatorsCreate(BaseModel):
@@ -114,5 +120,4 @@ class Indicators(IndicatorsCreate):
     project_id: UUID
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}

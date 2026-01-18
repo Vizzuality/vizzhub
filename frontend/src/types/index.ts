@@ -3,6 +3,8 @@ export interface Project {
   name: string;
   jira_project_key: string | null;
   github_repo: string | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -11,6 +13,16 @@ export interface ProjectCreate {
   name: string;
   jira_project_key?: string;
   github_repo?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface ProjectUpdate {
+  name?: string;
+  jira_project_key?: string;
+  github_repo?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface DimensionScores {

@@ -13,6 +13,7 @@ from app.models.metrics import (
     PMSatisfaction,
     TestMaturity,
 )
+from app.models.oauth import OAuthToken, OAuthTokenDB
 from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 from app.models.scores import DimensionScores, FinalScore, ScoreResult
 
@@ -30,6 +31,8 @@ __all__ = [
     "Metrics",
     "MetricsCreate",
     "Milestone",
+    "OAuthToken",
+    "OAuthTokenDB",
     "PMSatisfaction",
     "Project",
     "ProjectCreate",

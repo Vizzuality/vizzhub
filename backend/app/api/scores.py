@@ -2,11 +2,13 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 
-from app.api.deps import DBSession, ScoringConfigDep
+from app.api.deps import CurrentUser, DBSession, ScoringConfigDep
 from app.core.exceptions import MetricsNotFoundError, ProjectNotFoundError
 from app.models.indicators import IndicatorsCreate
 from app.models.metrics import (
@@ -29,6 +31,7 @@ from app.services.calculators.final_score import FinalScoreCalculator
 from app.services.normalizers.indicators import IndicatorNormalizer
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class ScoreRequest(BaseModel):
@@ -46,8 +49,11 @@ class ScoreResponse(BaseModel):
 
 
 @router.post("/calculate", response_model=ScoreResponse)
+@limiter.limit("30/minute")
 async def calculate_scores(
+    http_request: Request,
     request: ScoreRequest,
+    current_user: CurrentUser,
     config: ScoringConfigDep,
 ) -> ScoreResponse:
     """Calculate scores from provided metrics (ad-hoc, not stored)."""
@@ -70,8 +76,11 @@ async def calculate_scores(
 
 
 @router.get("/project/{project_id}", response_model=ScoreResponse)
+@limiter.limit("100/minute")
 async def get_project_scores(
+    request: Request,
     project_id: UUID,
+    current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
 ) -> ScoreResponse:

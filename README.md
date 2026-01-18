@@ -17,7 +17,26 @@ A modern web application for evaluating software development projects across 8 d
 
 ## Quick Start
 
-### Using Docker Compose (Recommended)
+### Local Development (Recommended)
+
+```bash
+# 1. Backend
+cd backend
+cp .env.example .env          # Configure environment variables
+pip install -r requirements.txt
+python run_server.py          # Start backend server
+
+# 2. Frontend (in another terminal)
+cd frontend
+npm install
+npm run dev                   # Start frontend server
+```
+
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+
+### Using Docker Compose (Alternative)
 
 ```bash
 # Start all services
@@ -30,42 +49,13 @@ docker-compose logs -f
 docker-compose down
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+### Important: Development Mode
 
-### Manual Setup
+The application runs in **development mode** by default:
+- Backend: `DEBUG=true` → Authentication bypassed (no JWT required)
+- Frontend: `BYPASS_AUTH=true` → No login required
 
-#### Backend
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Copy environment file
-cp .env.example .env
-
-# Run development server
-uvicorn app.main:app --reload
-```
-
-#### Frontend
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-```
+For production deployment, see `docs/SECURITY_IMPLEMENTATION.md` and `docs/SECURITY_MIGRATION_GUIDE.md`.
 
 ## Project Structure
 
@@ -130,48 +120,125 @@ Copy `.env.example` to `.env` and configure:
 # Database (PostgreSQL)
 DATABASE_URL=postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard
 
-# API Keys (for collectors)
+# Security (REQUIRED - Generate secure random keys)
+# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+JWT_SECRET_KEY=your-secret-key-here
+SESSION_SECRET_KEY=your-session-secret-here
+
+# Application
+DEBUG=true                    # Set to false in production
+CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+
+# Jira Authentication - Option 1: OAuth 2.0 (Recommended)
+# See docs/OAUTH_SETUP.md for detailed setup instructions
+JIRA_OAUTH_CLIENT_ID=your-client-id
+JIRA_OAUTH_CLIENT_SECRET=your-client-secret
+JIRA_OAUTH_REDIRECT_URI=http://localhost:8000/api/oauth/jira/callback
+# Classic scopes (recommended by Atlassian):
+JIRA_OAUTH_SCOPES=read:jira-work read:jira-user
+
+# Jira Authentication - Option 2: API Token (Fallback)
 JIRA_BASE_URL=https://your-instance.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
 
+# GitHub
 GITHUB_TOKEN=your-github-token
 ```
 
+**Important Notes:**
+- **Security Keys**: Generate random keys for production. Never commit real keys to git.
+- **OAuth 2.0** (Recommended): More secure, automatic token refresh, CSRF protection. See [`docs/OAUTH_SETUP.md`](docs/OAUTH_SETUP.md)
+- **Classic Scopes**: Use Atlassian's classic scopes (`read:jira-work read:jira-user`) instead of granular scopes
+- **Development Mode**: `DEBUG=true` disables authentication for local development
+
+## Security & Authentication
+
+### Current State (Development)
+
+The application is configured for **development mode**:
+- **Backend**: JWT authentication implemented but bypassed when `DEBUG=true`
+- **Frontend**: Auth infrastructure ready but `BYPASS_AUTH=true` for development
+- **Security**: Full security implementation active (rate limiting, CSRF protection, security headers, input validation)
+
+### Future: Google OAuth
+
+**TODO**: Implement Google OAuth (Google Sign-In) for company domain users.
+
+When implementing Google OAuth:
+1. Install `@react-oauth/google` in frontend
+2. Configure Google OAuth client ID in environment
+3. Implement login flow in `frontend/src/pages/Login.tsx` (has TODO comments)
+4. Create backend endpoint `POST /api/auth/google` to exchange Google token for JWT
+5. **TODO: Refactor JWT management** - Move from localStorage to httpOnly cookies for better security
+6. Set `DEBUG=false` and `BYPASS_AUTH=false` to enable authentication
+
+See detailed implementation guides:
+- `docs/SECURITY_QUICK_START.md` - Quick start guide
+- `docs/DEVELOPMENT_AUTH.md` - Development authentication details
+- `docs/SECURITY_IMPLEMENTATION.md` - Full security implementation
+
+### Security Features
+
+✅ **Implemented**:
+- JWT authentication system (production-ready)
+- OAuth 2.0 for Jira with CSRF protection
+- Rate limiting on all endpoints
+- Security headers (HSTS, CSP, X-Frame-Options, etc.)
+- Input validation (JQL injection prevention, UUID validation)
+- Structured security logging (JSON format)
+- Error message sanitization
+
+📋 **Security Audit**: See `audits/security.md` for complete security audit report (12 vulnerabilities fixed)
+
 ## API Usage
 
-### Create a Project
+### Development Mode (No Auth Required)
 
 ```bash
+# Create a Project
 curl -X POST http://localhost:8000/api/projects \
   -H "Content-Type: application/json" \
   -d '{"name": "My Project", "jira_project_key": "PROJ", "github_repo": "org/repo"}'
-```
 
-### Add Metrics
+# Collect Jira Metrics
+curl -X POST http://localhost:8000/api/collect/project/{project_id}/jira
 
-```bash
-curl -X POST http://localhost:8000/api/metrics/project/{project_id} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "period_start": "2024-01-01",
-    "period_end": "2024-01-31",
-    "evm_data": {
-      "budget_total": 100000,
-      "cost_to_date": 45000,
-      "percent_completed": 0.5,
-      "percent_planned": 0.5
-    }
-  }'
-```
-
-### Get Scores
-
-```bash
+# Get Scores
 curl http://localhost:8000/api/scores/project/{project_id}
 ```
 
+### Production Mode (Auth Required)
+
+```bash
+# Generate a JWT token
+cd backend
+python scripts/generate_jwt_token.py --user-id "user@company.com" --roles "user"
+
+# Use token in API calls
+curl -H "Authorization: Bearer <your-jwt-token>" \
+  http://localhost:8000/api/projects
+```
+
 ## Testing
+
+### Test Coverage
+
+**Total: 270 tests (99.3% passing)**
+
+- Backend: 224 tests
+  - Security (P0): 34 tests (CSRF, JQL injection, security headers)
+  - Critical (P1): 85 tests (OAuth, Jira collector, auth edge cases)
+  - API Security (P2): 23 tests (SQL injection, XSS, validation)
+  - Core functionality: 82 tests (calculators, normalizers, API)
+- Frontend: 46 tests
+  - Security: 20 tests (API interceptors, JWT handling)
+  - Components: 18 tests (forms, validation)
+  - Auth: 8 tests (AuthContext, state management)
+
+**Coverage: ~85%** (from 27% initial)
+
+### Running Tests
 
 ```bash
 cd backend
@@ -180,10 +247,37 @@ cd backend
 pytest
 
 # Run with coverage
-pytest --cov=app
+pytest --cov=app --cov-report=html
+
+# Run specific test categories
+pytest tests/test_auth.py                      # Authentication tests
+pytest tests/test_oauth_service.py             # OAuth service tests
+pytest tests/test_jira_collector.py            # Jira collector tests
+pytest tests/test_api_security.py              # API security tests
+pytest tests/test_security_middleware.py       # Security headers tests
+pytest tests/test_calculators.py               # Score calculators
+pytest tests/test_normalizers.py               # Metric normalizers
+
+# Run all security tests
+pytest tests/test_oauth_state.py \
+       tests/test_jira_collector_jql_injection.py \
+       tests/test_security_middleware.py \
+       tests/test_security_logger.py \
+       tests/test_api_security.py -v
+```
+
+```bash
+cd frontend
+
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
 
 # Run specific test file
-pytest tests/test_calculators.py
+npm test -- src/services/__tests__/api.test.ts
+npm test -- src/contexts/__tests__/AuthContext.test.tsx
 ```
 
 ## Design Principles
@@ -197,9 +291,30 @@ pytest tests/test_calculators.py
 
 ## Documentation
 
+### Testing
+- [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
+  - 270 tests (99.3% passing, 85% coverage)
+  - Security, authentication, API, and component tests
+  - Test writing guidelines and best practices
+
+### Authentication & Security
+- [OAuth 2.0 Setup](docs/OAUTH_SETUP.md) - Jira OAuth authentication guide
+- [Security Quick Start](docs/SECURITY_QUICK_START.md) - 5-minute security guide
+- [Security Implementation](docs/SECURITY_IMPLEMENTATION.md) - Full security implementation
+- [Development Auth](docs/DEVELOPMENT_AUTH.md) - Development authentication details
+- [Security Migration Guide](docs/SECURITY_MIGRATION_GUIDE.md) - Production deployment guide
+- [Security Audit Report](audits/security.md) - Complete security audit (12 vulnerabilities fixed)
+
+### Development
+- [CLAUDE.md](CLAUDE.md) - Guidance for Claude Code
 - [Migration Plan](docs/MIGRATION_PLAN.md) - Legacy to new system mapping
 - [API Documentation](docs/API.md) - REST API reference
 - [Legacy Documentation](legacy/README.md) - Original system docs
+
+### Scripts & Utilities
+- `backend/scripts/generate_jwt_token.py` - Generate JWT tokens for testing
+- `backend/test_jira_oauth.py` - Test Jira OAuth connection and metrics
+- `backend/test_jira_basic.py` - Explore Jira project data
 
 ## Tech Stack
 

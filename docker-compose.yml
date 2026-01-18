@@ -1,12 +1,17 @@
+# WARNING: This docker-compose.yml is for LOCAL DEVELOPMENT ONLY
+# DO NOT use this configuration in production
+# For production, use proper secrets management (AWS Secrets Manager, Vault, etc.)
+# and environment-specific configuration files
+
 version: '3.8'
 
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: scorecard
-      POSTGRES_PASSWORD: scorecard
-      POSTGRES_DB: scorecard
+      POSTGRES_USER: ${DB_USER:-scorecard}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-scorecard}
+      POSTGRES_DB: ${DB_NAME:-scorecard}
     ports:
       - "5432:5432"
     volumes:
@@ -24,9 +29,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://scorecard:scorecard@db:5432/scorecard
-      - DEBUG=true
-      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-scorecard}:${DB_PASSWORD:-scorecard}@db:5432/${DB_NAME:-scorecard}
+      - DEBUG=${DEBUG:-true}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
     volumes:
       - ./backend:/app
     depends_on:
