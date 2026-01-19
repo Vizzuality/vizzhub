@@ -128,9 +128,8 @@ export default function ProjectDetail(): JSX.Element {
                   Edit
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="destructive"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                 >
                   <Trash2 className="w-5 h-5 mr-2" />
                   Delete
@@ -182,7 +181,7 @@ export default function ProjectDetail(): JSX.Element {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
