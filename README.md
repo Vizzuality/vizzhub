@@ -17,39 +17,90 @@ A modern web application for evaluating software development projects across 8 d
 
 ## Quick Start
 
+### Prerequisites
+
+- **Python 3.11+** (backend)
+- **Node.js 18+** and npm (frontend)
+- **PostgreSQL 16** (database)
+
 ### Local Development (Recommended)
 
-```bash
-# 1. Backend
-cd backend
-cp .env.example .env          # Configure environment variables
-pip install -r requirements.txt
-python run_server.py          # Start backend server
+#### 1. Database Setup
 
-# 2. Frontend (in another terminal)
-cd frontend
-npm install
-npm run dev                   # Start frontend server
+```bash
+# Install and start PostgreSQL
+# macOS (Homebrew):
+brew install postgresql@16
+brew services start postgresql@16
+
+# Create database and user
+psql postgres
+CREATE DATABASE scorecard;
+CREATE USER scorecard WITH PASSWORD 'scorecard';
+GRANT ALL PRIVILEGES ON DATABASE scorecard TO scorecard;
+\q
 ```
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+#### 2. Backend Setup
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env and set:
+# - DATABASE_URL=postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard
+# - JWT_SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+# - SESSION_SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+
+# Run database migrations (if any)
+# alembic upgrade head
+
+# Start backend server
+python run_server.py
+```
+
+Backend will run on **http://localhost:8000**
+- API Docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+#### 3. Frontend Setup
+
+```bash
+# In a new terminal
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+Frontend will run on **http://localhost:5173**
 
 ### Using Docker Compose (Alternative)
 
 ```bash
-# Start all services
+# Start all services (PostgreSQL, backend, frontend)
 docker-compose up -d
 
 # View logs
-docker-compose logs -f
+docker-compose logs -f backend
+docker-compose logs -f frontend
 
 # Stop services
 docker-compose down
 ```
 
-### Important: Development Mode
+### Development Mode
 
 The application runs in **development mode** by default:
 - Backend: `DEBUG=true` → Authentication bypassed (no JWT required)
@@ -222,24 +273,9 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## Testing
 
-### Test Coverage
+**Total: 312 tests (100% passing) | Coverage: ~85%**
 
-**Total: 312 tests (100% passing)**
-
-- Backend: 216 tests
-  - Security: 95 tests (OAuth, CSRF, JQL injection, security headers, logging)
-  - API: 53 tests (projects, metrics, scores, collectors, validation)
-  - Core: 68 tests (calculators, normalizers, auth)
-- Frontend: 96 tests
-  - Components: 70 tests (ScoreCard, ProjectCard, forms, validation)
-  - Hooks: 18 tests (useProjects, useMetrics, useCollectors)
-  - Auth: 8 tests (AuthContext, state management)
-
-**Coverage: ~85%** (from 27% initial)
-
-### Running Tests
-
-#### Backend Tests (216 tests)
+### Backend Tests
 
 ```bash
 cd backend
@@ -257,38 +293,27 @@ pytest --cov=app --cov-report=html        # Generate HTML coverage report
 pytest --cov=app --cov-report=term        # Show coverage in terminal
 
 # Run specific test files
-pytest tests/test_auth.py                 # Authentication (17 tests)
-pytest tests/test_oauth_service.py        # OAuth service (17 tests)
-pytest tests/test_jira_collector.py       # Jira collector (25 tests)
-pytest tests/test_api_security.py         # API security (23 tests)
-pytest tests/test_security_middleware.py  # Security headers (13 tests)
-pytest tests/test_calculators.py          # Score calculators (17 tests)
-pytest tests/test_normalizers.py          # Metric normalizers (29 tests)
+pytest tests/test_auth.py                 # Authentication tests
+pytest tests/test_oauth_service.py        # OAuth service tests
+pytest tests/test_jira_collector.py       # Jira collector tests
+pytest tests/test_api_security.py         # API security tests
+pytest tests/test_calculators.py          # Score calculators
+pytest tests/test_normalizers.py          # Metric normalizers
 
-# Run by test class
+# Run by test class or pattern
 pytest tests/test_auth.py::TestTokenValidation  # Specific test class
-pytest -k "test_jwt"                            # Run tests matching pattern
-
-# Run all security tests (95 tests)
-pytest tests/test_oauth_state.py \
-       tests/test_oauth_service.py \
-       tests/test_oauth_api.py \
-       tests/test_jira_collector_jql_injection.py \
-       tests/test_security_middleware.py \
-       tests/test_security_logger.py \
-       tests/test_api_security.py \
-       tests/test_auth.py -v
+pytest -k "test_jwt"                            # Tests matching pattern
 ```
 
-**Note**: Tests automatically create and drop test database tables for each test. Ensure PostgreSQL is running and the test database exists.
+**Note**: Tests automatically create and drop test database tables. Ensure PostgreSQL is running and the test database exists.
 
-#### Frontend Tests (96 tests)
+### Frontend Tests
 
 ```bash
 cd frontend
 
-# Run all tests (96 tests)
-npm test                                  # Run all tests in watch mode
+# Run all tests
+npm test                                  # Run all 96 tests in watch mode
 npm test -- --run                         # Run once without watch
 npm test -- --reporter=verbose            # Verbose output
 
@@ -301,7 +326,7 @@ npm test -- src/contexts/__tests__/AuthContext.test.tsx
 npm test -- src/components/ScoreCard/__tests__/ScoreCard.test.tsx
 
 # Run tests matching pattern
-npm test -- -t "ScoreCard"               # Run tests with "ScoreCard" in name
+npm test -- -t "ScoreCard"               # Tests with "ScoreCard" in name
 ```
 
 ## Design Principles
@@ -317,9 +342,6 @@ npm test -- -t "ScoreCard"               # Run tests with "ScoreCard" in name
 
 ### Testing
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
-  - 312 tests (100% passing, 85% coverage)
-  - Security, authentication, API, and component tests
-  - Test writing guidelines and best practices
 
 ### Authentication & Security
 - [OAuth 2.0 Setup](docs/OAUTH_SETUP.md) - Jira OAuth authentication guide
