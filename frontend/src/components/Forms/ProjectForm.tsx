@@ -164,13 +164,18 @@ export default function ProjectForm({
       <div className="flex justify-end gap-2 pt-4">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           onClick={onCancel}
           disabled={isLoading}
+          className="border border-input"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isLoading}>
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
           {getSubmitButtonText(isLoading, isEditMode)}
         </Button>
       </div>
