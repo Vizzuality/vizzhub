@@ -51,8 +51,8 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
           <Radar
             name="Score"
             dataKey="score"
-            stroke="#2563eb"
-            fill="#3b82f6"
+            stroke="hsl(346.8 77.2% 49.8%)"
+            fill="hsl(346.8 77.2% 49.8%)"
             fillOpacity={0.5}
           />
           <Tooltip

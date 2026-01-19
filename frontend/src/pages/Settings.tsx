@@ -87,8 +87,8 @@ export default function Settings(): JSX.Element {
               <div className="flex items-center gap-2 mb-4">
               {validation.valid ? (
                 <>
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
-                  <span className="text-green-700 dark:text-green-400">All weight groups are valid</span>
+                  <CheckCircle className="w-5 h-5 text-primary" />
+                  <span className="text-primary">All weight groups are valid</span>
                 </>
               ) : (
                 <>
@@ -102,7 +102,7 @@ export default function Settings(): JSX.Element {
                 <div key={group} className="flex items-center justify-between">
                   <span className="text-muted-foreground capitalize">{group}</span>
                   {valid ? (
-                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-500" />
+                    <CheckCircle className="w-4 h-4 text-primary" />
                   ) : (
                     <XCircle className="w-4 h-4 text-destructive" />
                   )}

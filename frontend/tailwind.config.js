@@ -9,25 +9,15 @@ export default {
   	extend: {
   		colors: {
   			primary: {
-  				'50': '#eff6ff',
-  				'100': '#dbeafe',
-  				'200': '#bfdbfe',
-  				'300': '#93c5fd',
-  				'400': '#60a5fa',
-  				'500': '#3b82f6',
-  				'600': '#2563eb',
-  				'700': '#1d4ed8',
-  				'800': '#1e40af',
-  				'900': '#1e3a8a',
   				DEFAULT: 'hsl(var(--primary))',
   				foreground: 'hsl(var(--primary-foreground))'
   			},
   			score: {
-  				excellent: '#22c55e',
-  				good: '#84cc16',
-  				average: '#eab308',
-  				poor: '#f97316',
-  				critical: '#ef4444'
+  				excellent: 'hsl(346.8 77.2% 49.8%)',
+  				good: 'hsl(340 75% 58%)',
+  				average: 'hsl(330 70% 65%)',
+  				poor: 'hsl(10 78% 58%)',
+  				critical: 'hsl(0 84% 60%)'
   			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
