@@ -1,5 +1,5 @@
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import String, Text, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.orm import Mapped, mapped_column
@@ -63,3 +63,19 @@ class ScoringConfigModel(BaseModel):
     global_weights: GlobalWeights
     constants: ConstantsConfig
     weight_validation: dict[str, bool]
+
+
+class ConfigParameterResponse(BaseModel):
+    id: int
+    category: str
+    name: str
+    value: Decimal
+    unit: str | None
+    notes: str | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConfigParameterUpdate(BaseModel):
+    name: str
+    value: Decimal
