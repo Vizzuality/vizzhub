@@ -95,3 +95,6 @@ dmypy.json
 *.sqlite
 *.db
 .env.docker
+
+# Git worktrees
+.worktrees/
