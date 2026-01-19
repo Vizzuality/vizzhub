@@ -94,9 +94,25 @@ async def validation_exception_handler(
     # Return sanitized response based on environment
     if settings.debug:
         # Development - return detailed errors
+        # Sanitize errors to ensure JSON serializability
+        errors = []
+        for error in exc.errors():
+            sanitized_error = {
+                "type": error.get("type"),
+                "loc": error.get("loc"),
+                "msg": error.get("msg"),
+                "input": error.get("input"),
+            }
+            # Convert ctx values to strings if present
+            if "ctx" in error:
+                sanitized_error["ctx"] = {
+                    k: str(v) for k, v in error["ctx"].items()
+                }
+            errors.append(sanitized_error)
+
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": exc.errors()},
+            content={"detail": errors},
         )
     else:
         # Production - return generic error

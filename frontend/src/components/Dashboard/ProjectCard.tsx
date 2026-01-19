@@ -1,18 +1,10 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight, Github, BarChart3, Calendar } from 'lucide-react';
 import type { Project } from '../../types';
+import { formatDate } from '../../utils/formatters';
 
 interface ProjectCardProps {
   project: Project;
-}
-
-function formatDate(dateString: string | null): string {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 export default function ProjectCard({ project }: ProjectCardProps): JSX.Element {

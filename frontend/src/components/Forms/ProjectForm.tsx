@@ -1,6 +1,13 @@
 import { useForm } from 'react-hook-form';
 import type { Project, ProjectCreate } from '../../types';
 
+function getSubmitButtonText(isLoading: boolean, isEditMode: boolean): string {
+  if (isLoading) {
+    return isEditMode ? 'Saving...' : 'Creating...';
+  }
+  return isEditMode ? 'Save Changes' : 'Create Project';
+}
+
 interface ProjectFormData {
   name: string;
   jira_project_key: string;
@@ -166,13 +173,7 @@ export default function ProjectForm({
           Cancel
         </button>
         <button type="submit" className="btn-primary" disabled={isLoading}>
-          {isLoading
-            ? isEditMode
-              ? 'Saving...'
-              : 'Creating...'
-            : isEditMode
-              ? 'Save Changes'
-              : 'Create Project'}
+          {getSubmitButtonText(isLoading, isEditMode)}
         </button>
       </div>
     </form>

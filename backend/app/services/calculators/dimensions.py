@@ -55,11 +55,11 @@ class CostCalculator(BaseCalculator):
         cpi_target = self._get_target("cpi")
 
         cpi_normalized = self._normalize_to_target(indicators.cpi, cpi_target)
-
-        if indicators.budget_variance is None:
-            variance_normalized = NEUTRAL_VALUE
-        else:
-            variance_normalized = max(0.0, 1.0 - indicators.budget_variance)
+        variance_normalized = (
+            NEUTRAL_VALUE
+            if indicators.budget_variance is None
+            else max(0.0, 1.0 - indicators.budget_variance)
+        )
 
         score = w_cpi * cpi_normalized + w_variance * variance_normalized
         return self._to_score(score)
@@ -166,12 +166,11 @@ class SatisfactionCalculator(BaseCalculator):
 
         pm_score = self._safe_value(indicators.pm_satisfaction)
 
-        if indicators.client_satisfaction is not None:
-            client_score = indicators.client_satisfaction
-            score = w_client * client_score + w_pm * pm_score
-        else:
-            score = pm_score
+        if indicators.client_satisfaction is None:
+            return self._to_score(pm_score)
 
+        client_score = indicators.client_satisfaction
+        score = w_client * client_score + w_pm * pm_score
         return self._to_score(score)
 
 

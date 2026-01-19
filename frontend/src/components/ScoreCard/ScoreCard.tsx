@@ -5,20 +5,22 @@ interface ScoreCardProps {
   title?: string;
 }
 
+type ScoreLevel = 'excellent' | 'good' | 'average' | 'poor' | 'critical';
+
+function getScoreLevel(score: number): ScoreLevel {
+  if (score >= 80) return 'excellent';
+  if (score >= 60) return 'good';
+  if (score >= 40) return 'average';
+  if (score >= 20) return 'poor';
+  return 'critical';
+}
+
 function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-score-excellent';
-  if (score >= 60) return 'text-score-good';
-  if (score >= 40) return 'text-score-average';
-  if (score >= 20) return 'text-score-poor';
-  return 'text-score-critical';
+  return `text-score-${getScoreLevel(score)}`;
 }
 
 function getScoreBgColor(score: number): string {
-  if (score >= 80) return 'bg-score-excellent';
-  if (score >= 60) return 'bg-score-good';
-  if (score >= 40) return 'bg-score-average';
-  if (score >= 20) return 'bg-score-poor';
-  return 'bg-score-critical';
+  return `bg-score-${getScoreLevel(score)}`;
 }
 
 export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardProps): JSX.Element {

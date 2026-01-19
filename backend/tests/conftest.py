@@ -1,6 +1,17 @@
 """Test configuration and fixtures."""
 
 import os
+
+# CRITICAL: Set test environment variables BEFORE any app imports
+# This ensures the settings object is initialized with test values
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+os.environ.setdefault("DEBUG", "true")
+os.environ.setdefault("SESSION_SECRET_KEY", "test-session-secret-key-for-testing")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test"
+)
+
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -32,12 +43,15 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         expire_on_commit=False,
     )
 
+    # Ensure clean state: drop all tables first, then create
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session_maker() as session:
         yield session
 
+    # Cleanup after test
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -50,6 +64,19 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+
+    # Reset rate limiter state before each test
+    # Each API router has its own limiter instance that needs to be reset
+    from app.main import limiter as main_limiter
+    from app.api import projects, metrics, collectors, scores, config, oauth
+
+    main_limiter.reset()
+    projects.limiter.reset()
+    metrics.limiter.reset()
+    collectors.limiter.reset()
+    scores.limiter.reset()
+    config.limiter.reset()
+    oauth.limiter.reset()
 
     async with AsyncClient(
         transport=ASGITransport(app=app),

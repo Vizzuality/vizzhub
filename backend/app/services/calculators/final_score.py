@@ -71,26 +71,19 @@ class FinalScoreCalculator:
             p_risk=self.risk_calc.calculate(indicators, total_prs),
         )
 
-        weights = {
-            "time": self.config.get_global_weight("time"),
-            "cost": self.config.get_global_weight("cost"),
-            "quality": self.config.get_global_weight("quality"),
-            "value": self.config.get_global_weight("value"),
-            "satisfaction": self.config.get_global_weight("satisfaction"),
-            "flow": self.config.get_global_weight("flow"),
-            "engineering": self.config.get_global_weight("engineering"),
-            "risk": self.config.get_global_weight("risk"),
-        }
+        dimension_names = [
+            "time", "cost", "quality", "value",
+            "satisfaction", "flow", "engineering", "risk",
+        ]
+        weights = {name: self.config.get_global_weight(name) for name in dimension_names}
 
-        final = (
-            weights["time"] * dimensions.p_time
-            + weights["cost"] * dimensions.p_cost
-            + weights["quality"] * dimensions.p_quality
-            + weights["value"] * dimensions.p_value
-            + weights["satisfaction"] * dimensions.p_satisfaction
-            + weights["flow"] * dimensions.p_flow
-            + weights["engineering"] * dimensions.p_engineering
-            + weights["risk"] * dimensions.p_risk
+        dimension_scores = [
+            dimensions.p_time, dimensions.p_cost, dimensions.p_quality, dimensions.p_value,
+            dimensions.p_satisfaction, dimensions.p_flow, dimensions.p_engineering, dimensions.p_risk,
+        ]
+        final = sum(
+            weights[name] * score
+            for name, score in zip(dimension_names, dimension_scores)
         )
 
         return FinalScore(

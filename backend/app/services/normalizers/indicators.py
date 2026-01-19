@@ -197,18 +197,26 @@ class IndicatorNormalizer:
             return None
 
         weights = self.config.weights.get("test_maturity", {})
+        default_weights = {
+            "e2e": 0.4,
+            "unit": 0.1,
+            "accessibility": 0.1,
+            "security": 0.2,
+            "frontend": 0.2,
+        }
+        field_mapping = [
+            (test.e2e, "e2e"),
+            (test.unit, "unit"),
+            (test.accessibility, "accessibility"),
+            (test.security, "security"),
+            (test.frontend, "frontend"),
+        ]
+
         total = 0.0
-
-        def score(val: int | None, weight: float) -> float:
-            if val is None:
-                return NEUTRAL_VALUE * weight
-            return (val / 5.0) * weight
-
-        total += score(test.e2e, weights.get("e2e", 0.4))
-        total += score(test.unit, weights.get("unit", 0.1))
-        total += score(test.accessibility, weights.get("accessibility", 0.1))
-        total += score(test.security, weights.get("security", 0.2))
-        total += score(test.frontend, weights.get("frontend", 0.2))
+        for value, key in field_mapping:
+            weight = weights.get(key, default_weights[key])
+            normalized = value / 5.0 if value is not None else NEUTRAL_VALUE
+            total += normalized * weight
 
         return round(total, 2)
 
@@ -251,18 +259,15 @@ class IndicatorNormalizer:
         if pm is None:
             return None
 
-        def complaint_score(status: ComplaintStatus) -> float:
-            if status == ComplaintStatus.NO:
-                return 1.0
-            elif status == ComplaintStatus.YES:
-                return 0.4
-            return 0.75
+        complaint_scores = {
+            ComplaintStatus.NO: 1.0,
+            ComplaintStatus.YES: 0.4,
+        }
+        default_complaint_score = 0.75
 
-        delivery_score = complaint_score(pm.delivery_complaints)
-        design_score = complaint_score(pm.design_complaints)
-        overall_score = (
-            pm.overall_estimation / 5.0 if pm.overall_estimation else NEUTRAL_VALUE
-        )
+        delivery_score = complaint_scores.get(pm.delivery_complaints, default_complaint_score)
+        design_score = complaint_scores.get(pm.design_complaints, default_complaint_score)
+        overall_score = pm.overall_estimation / 5.0 if pm.overall_estimation else NEUTRAL_VALUE
 
         return round(0.3 * delivery_score + 0.3 * design_score + 0.4 * overall_score, 2)
 
@@ -272,24 +277,25 @@ class IndicatorNormalizer:
             return None
 
         weights = self.config.weights.get("client_survey", {})
+        field_mapping = [
+            (survey.understanding, "understanding"),
+            (survey.proactivity, "proactivity"),
+            (survey.communication, "communication"),
+            (survey.delivery_time, "time"),
+            (survey.response_time, "response"),
+            (survey.quality, "quality"),
+            (survey.expectations, "expectations"),
+            (survey.recommend, "recommend"),
+        ]
+
         total = 0.0
         weight_sum = 0.0
 
-        def add_score(val: int | None, key: str) -> None:
-            nonlocal total, weight_sum
+        for value, key in field_mapping:
             weight = weights.get(key, 0.0)
-            if val is not None:
-                total += (val / 5.0) * weight
+            if value is not None:
+                total += (value / 5.0) * weight
                 weight_sum += weight
-
-        add_score(survey.understanding, "understanding")
-        add_score(survey.proactivity, "proactivity")
-        add_score(survey.communication, "communication")
-        add_score(survey.delivery_time, "time")
-        add_score(survey.response_time, "response")
-        add_score(survey.quality, "quality")
-        add_score(survey.expectations, "expectations")
-        add_score(survey.recommend, "recommend")
 
         if weight_sum <= 0:
             return None
