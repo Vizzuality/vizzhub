@@ -1,16 +1,19 @@
 """Configuration endpoints."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.api.deps import CurrentUser, ScoringConfigDep
+from app.api.deps import CurrentUser, DBSession, ScoringConfigDep
 from app.models.config import (
+    ConfigParameterResponse,
+    ConfigParameterUpdate,
     ConstantsConfig,
     GlobalWeights,
     ScoringConfigModel,
     TargetsConfig,
 )
+from app.services.config_service import ConfigService
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -56,12 +59,42 @@ async def get_scoring_config(
 @router.get("/validate")
 @limiter.limit("100/minute")
 async def validate_config(
-    request: Request, current_user: CurrentUser, config: ScoringConfigDep
-) -> dict[str, bool | dict]:
+    request: Request, current_user: CurrentUser, db: DBSession
+) -> dict[str, bool | list[str]]:
     """Validate that all weight groups sum to 1. Requires authentication."""
-    validation = config.validate_weights()
-    all_valid = all(validation.values())
-    return {
-        "valid": all_valid,
-        "groups": validation,
-    }
+    errors = await ConfigService.validate_weight_groups(db)
+    return {"valid": len(errors) == 0, "errors": errors}
+
+
+@router.get("/parameters")
+@limiter.limit("100/minute")
+async def get_config_parameters(
+    request: Request, current_user: CurrentUser, db: DBSession
+) -> dict[str, list[ConfigParameterResponse]]:
+    """Get all config parameters grouped by category. Requires authentication."""
+    parameters = await ConfigService.get_all_parameters(db)
+
+    # Convert to response models
+    response = {}
+    for category, params in parameters.items():
+        response[category] = [
+            ConfigParameterResponse.model_validate(p) for p in params
+        ]
+
+    return response
+
+
+@router.put("/parameters")
+@limiter.limit("10/minute")
+async def update_config_parameters(
+    request: Request,
+    current_user: CurrentUser,
+    db: DBSession,
+    updates: list[ConfigParameterUpdate],
+) -> dict[str, str]:
+    """Update multiple config parameters. Validates weight groups. Requires authentication."""
+    try:
+        await ConfigService.update_parameters(db, updates)
+        return {"status": "success"}
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
