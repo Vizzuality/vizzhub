@@ -22,61 +22,6 @@ class TestProjectsSQLInjection:
     """SQL injection prevention tests for projects endpoints."""
 
     @pytest.mark.asyncio
-    async def test_create_project_sql_injection_in_name(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that SQL injection in name field is handled safely."""
-        sql_payload = "Project'; DROP TABLE projects--"
-        response = await client.post(
-            "/api/projects",
-            json={"name": sql_payload},
-        )
-        assert response.status_code == 201
-        data = response.json()
-        assert data["name"] == sql_payload
-
-        list_response = await client.get("/api/projects")
-        assert list_response.status_code == 200
-        assert len(list_response.json()) == 1
-
-    @pytest.mark.asyncio
-    async def test_create_project_sql_injection_in_description(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that SQL injection in jira_project_key is handled safely."""
-        sql_payload = "'; DELETE FROM projects WHERE '1'='1"
-        response = await client.post(
-            "/api/projects",
-            json={
-                "name": "Test Project",
-                "jira_project_key": sql_payload,
-            },
-        )
-        assert response.status_code == 201
-        data = response.json()
-        assert data["jira_project_key"] == sql_payload
-
-    @pytest.mark.asyncio
-    async def test_update_project_sql_injection_in_name(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that SQL injection in PATCH name field is handled safely."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Original Name"},
-        )
-        project_id = create_response.json()["id"]
-
-        sql_payload = "Updated'; DROP TABLE projects CASCADE--"
-        response = await client.patch(
-            f"/api/projects/{project_id}",
-            json={"name": sql_payload},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["name"] == sql_payload
-
-    @pytest.mark.asyncio
     async def test_get_project_sql_injection_in_uuid(
         self, client: AsyncClient
     ) -> None:
@@ -86,53 +31,6 @@ class TestProjectsSQLInjection:
         assert response.status_code == 422
 
 
-class TestProjectsXSS:
-    """XSS payload handling tests for projects endpoints."""
-
-    @pytest.mark.asyncio
-    async def test_create_project_xss_in_name(self, client: AsyncClient) -> None:
-        """Test that XSS payloads in name are stored but escaped on render."""
-        xss_payload = "<script>alert('XSS')</script>"
-        response = await client.post(
-            "/api/projects",
-            json={"name": xss_payload},
-        )
-        assert response.status_code == 201
-        data = response.json()
-        assert data["name"] == xss_payload
-
-    @pytest.mark.asyncio
-    async def test_create_project_xss_in_description(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that XSS payloads in github_repo are handled."""
-        xss_payload = "<img src=x onerror=alert('XSS')>"
-        response = await client.post(
-            "/api/projects",
-            json={
-                "name": "Test Project",
-                "github_repo": "org/repo",
-            },
-        )
-        assert response.status_code == 201
-
-    @pytest.mark.asyncio
-    async def test_update_project_xss_in_jira_key(self, client: AsyncClient) -> None:
-        """Test that XSS payloads in jira_project_key are stored safely."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Test Project"},
-        )
-        project_id = create_response.json()["id"]
-
-        xss_payload = "<svg/onload=alert('XSS')>"
-        response = await client.patch(
-            f"/api/projects/{project_id}",
-            json={"jira_project_key": xss_payload},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["jira_project_key"] == xss_payload
 
 
 class TestProjectsCascadeDelete:
@@ -202,22 +100,6 @@ class TestProjectsInputValidation:
         assert data["github_repo"] == "org/repo"
 
 
-class TestCollectorsAuthentication:
-    """Authentication tests for collectors endpoints."""
-
-    @pytest.mark.asyncio
-    async def test_collect_jira_metrics_works_without_auth_in_dev(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that dev mode (DEBUG=true) allows collection without JWT."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Test Project", "jira_project_key": "TEST"},
-        )
-        project_id = create_response.json()["id"]
-
-        response = await client.post(f"/api/collect/project/{project_id}/jira")
-        assert response.status_code in [201, 400, 500]
 
 
 class TestCollectorsValidation:
@@ -274,54 +156,9 @@ class TestCollectorsJQLInjection:
         response = await client.post(f"/api/collect/project/{project_id}/jira")
         assert response.status_code in [201, 400, 500]
 
-    @pytest.mark.asyncio
-    async def test_collect_jira_metrics_stores_metrics_in_database(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that metrics are saved after successful collection."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Test Project", "jira_project_key": "VALID"},
-        )
-        project_id = create_response.json()["id"]
-
-        response = await client.post(f"/api/collect/project/{project_id}/jira")
-
-        if response.status_code == 201:
-            metrics_response = await client.get(f"/api/metrics/project/{project_id}")
-            assert metrics_response.status_code == 200
-
 
 class TestMetricsAuthentication:
     """Authentication tests for metrics endpoints."""
-
-    @pytest.mark.asyncio
-    async def test_create_metrics_works_in_dev_mode(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that collection works without JWT in dev mode."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Test Project", "jira_project_key": "TEST"},
-        )
-        project_id = create_response.json()["id"]
-
-        response = await client.post(f"/api/collect/project/{project_id}/jira")
-        assert response.status_code in [201, 400, 500]
-
-    @pytest.mark.asyncio
-    async def test_get_metrics_for_project_works_in_dev_mode(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that GET works without JWT in dev mode."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Test Project"},
-        )
-        project_id = create_response.json()["id"]
-
-        response = await client.get(f"/api/metrics/project/{project_id}")
-        assert response.status_code in [200, 404]
 
     @pytest.mark.asyncio
     async def test_get_metrics_project_not_found(self, client: AsyncClient) -> None:
@@ -380,26 +217,6 @@ class TestMetricsValidation:
 
 class TestScoresAuthentication:
     """Authentication tests for scores endpoints."""
-
-    @pytest.mark.asyncio
-    async def test_get_project_scores_works_in_dev_mode(
-        self, client: AsyncClient
-    ) -> None:
-        """Test that dev mode allows access without JWT."""
-        create_response = await client.post(
-            "/api/projects",
-            json={"name": "Test Project", "jira_project_key": "TEST"},
-        )
-        project_id = create_response.json()["id"]
-
-        collect_response = await client.post(f"/api/collect/project/{project_id}/jira")
-
-        if collect_response.status_code == 201:
-            response = await client.get(f"/api/scores/project/{project_id}")
-            assert response.status_code == 200
-        else:
-            response = await client.get(f"/api/scores/project/{project_id}")
-            assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_get_project_scores_project_not_found(

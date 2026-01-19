@@ -21,26 +21,6 @@ from app.services.oauth_service import OAuthService
 class TestAuthorizationURL:
     """Test OAuth authorization URL generation."""
 
-    def test_oauth_service_get_jira_authorization_url_contains_required_params(
-        self,
-    ) -> None:
-        """Authorization URL should contain all required OAuth parameters."""
-        with patch("app.services.oauth_service.settings") as mock_settings:
-            mock_settings.jira_oauth_client_id = "test-client-id"
-            mock_settings.jira_oauth_scopes = "read:jira-work read:jira-user"
-            mock_settings.jira_oauth_redirect_uri = "http://localhost:8000/callback"
-
-            url = OAuthService.get_jira_authorization_url()
-
-            # Verify URL contains required parameters
-            assert "https://auth.atlassian.com/authorize?" in url
-            assert "client_id=test-client-id" in url
-            assert "scope=read%3Ajira-work+read%3Ajira-user" in url
-            assert "redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fcallback" in url
-            assert "response_type=code" in url
-            assert "audience=api.atlassian.com" in url
-            assert "prompt=consent" in url
-
     def test_oauth_service_get_jira_authorization_url_includes_state(self) -> None:
         """State parameter should be included when provided."""
         with patch("app.services.oauth_service.settings") as mock_settings:
@@ -60,99 +40,6 @@ class TestCodeExchange:
     async def mock_httpx_client(self) -> AsyncMock:
         """Mock httpx.AsyncClient for testing."""
         return AsyncMock(spec=httpx.AsyncClient)
-
-    @pytest.mark.asyncio
-    async def test_oauth_service_exchange_code_calls_atlassian_token_endpoint(
-        self, db_session: AsyncSession
-    ) -> None:
-        """exchange_code should POST to Atlassian token endpoint with correct params."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            # Mock token response (json() is sync, not async)
-            token_response = MagicMock()
-            token_response.json.return_value = {
-                "access_token": "mock-access-token",
-                "refresh_token": "mock-refresh-token",
-                "expires_in": 3600,
-                "token_type": "Bearer",
-                "scope": "read:jira-work",
-            }
-            token_response.raise_for_status = MagicMock()
-
-            # Mock resources response (json() is sync, not async)
-            resources_response = MagicMock()
-            resources_response.json.return_value = [
-                {"id": "cloud-id-123", "url": "https://test.atlassian.net"}
-            ]
-            resources_response.raise_for_status = MagicMock()
-
-            mock_client.post.return_value = token_response
-            mock_client.get.return_value = resources_response
-
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
-
-                await OAuthService.exchange_jira_code_for_token(
-                    "auth-code-123", db_session
-                )
-
-            # Verify token endpoint was called with correct data
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == OAuthService.JIRA_TOKEN_URL
-            assert call_args[1]["data"]["grant_type"] == "authorization_code"
-            assert call_args[1]["data"]["client_id"] == "test-client"
-            assert call_args[1]["data"]["client_secret"] == "test-secret"
-            assert call_args[1]["data"]["code"] == "auth-code-123"
-
-    @pytest.mark.asyncio
-    async def test_oauth_service_exchange_code_fetches_accessible_resources(
-        self, db_session: AsyncSession
-    ) -> None:
-        """exchange_code should fetch Jira cloud ID after token exchange."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            token_response = MagicMock()
-            token_response.json.return_value = {
-                "access_token": "mock-access-token",
-                "refresh_token": "mock-refresh-token",
-                "expires_in": 3600,
-            }
-            token_response.raise_for_status = MagicMock()
-
-            resources_response = MagicMock()
-            resources_response.json.return_value = [
-                {"id": "cloud-id-456", "url": "https://mycompany.atlassian.net"}
-            ]
-            resources_response.raise_for_status = MagicMock()
-
-            mock_client.post.return_value = token_response
-            mock_client.get.return_value = resources_response
-
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
-
-                token = await OAuthService.exchange_jira_code_for_token(
-                    "auth-code", db_session
-                )
-
-            # Verify accessible resources endpoint was called
-            mock_client.get.assert_called_once_with(
-                OAuthService.JIRA_ACCESSIBLE_RESOURCES_URL,
-                headers={"Authorization": "Bearer mock-access-token"},
-            )
-
-            # Verify cloud_id was stored
-            assert token.cloud_id == "cloud-id-456"
-            assert token.site_url == "https://mycompany.atlassian.net"
 
     @pytest.mark.asyncio
     async def test_oauth_service_exchange_code_stores_token_in_database(

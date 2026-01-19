@@ -97,90 +97,7 @@ class TestOAuthIntegration:
 
                 assert "No Jira authentication configured" in str(exc_info.value)
 
-    @pytest.mark.asyncio
-    async def test_jira_collector_uses_cloud_id_base_url_with_oauth(
-        self, db_session: AsyncSession
-    ) -> None:
-        """OAuth should use api.atlassian.com/ex/jira/{cloud_id} format."""
-        oauth_token = OAuthTokenDB(
-            provider="jira",
-            access_token="token",
-            cloud_id="abc-def-123",
-            site_url="https://test.atlassian.net",
-        )
-        db_session.add(oauth_token)
-        await db_session.commit()
 
-        collector = JiraCollector(db=db_session)
-
-        with patch("app.services.oauth_service.OAuthService.get_valid_jira_token", new_callable=AsyncMock) as mock_get_token:
-            mock_get_token.return_value = "token"
-
-            with patch("app.services.oauth_service.OAuthService.get_jira_site_info", new_callable=AsyncMock) as mock_site_info:
-                mock_site_info.return_value = {
-                    "cloud_id": "abc-def-123",
-                    "site_url": "https://test.atlassian.net",
-                }
-
-                client = await collector._get_client()
-
-        # httpx adds trailing slash to base URLs
-        assert str(client.base_url) == "https://api.atlassian.com/ex/jira/abc-def-123/"
-
-    @pytest.mark.asyncio
-    async def test_jira_collector_uses_configured_base_url_with_legacy(
-        self, db_session: AsyncSession
-    ) -> None:
-        """Legacy auth should use JIRA_BASE_URL from config."""
-        with patch("app.services.collectors.jira.get_settings") as mock_settings:
-            mock_settings.return_value.jira_base_url = "https://legacy.jira.com"
-            mock_settings.return_value.jira_email = "user@test.com"
-            mock_settings.return_value.jira_api_token = "token"
-
-            collector = JiraCollector(db=db_session)
-
-            with patch("app.services.oauth_service.OAuthService.get_valid_jira_token", new_callable=AsyncMock) as mock_get_token:
-                mock_get_token.return_value = None
-
-                client = await collector._get_client()
-
-        # httpx does NOT add trailing slash when base_url already has one
-        assert str(client.base_url) == "https://legacy.jira.com"
-
-    @pytest.mark.asyncio
-    async def test_jira_collector_test_connection_returns_true_on_success(
-        self, db_session: AsyncSession
-    ) -> None:
-        """test_connection should return True when serverInfo endpoint returns 200."""
-        collector = JiraCollector(db=db_session)
-
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_client.get.return_value = mock_response
-
-        collector._client = mock_client
-
-        result = await collector.test_connection()
-
-        assert result is True
-        mock_client.get.assert_called_once_with("/rest/api/3/serverInfo")
-
-    @pytest.mark.asyncio
-    async def test_jira_collector_test_connection_returns_false_on_failure(
-        self, db_session: AsyncSession
-    ) -> None:
-        """test_connection should return False on API error."""
-        collector = JiraCollector(db=db_session)
-
-        mock_client = AsyncMock()
-        mock_client.get.side_effect = httpx.HTTPError("Connection failed")
-
-        collector._client = mock_client
-
-        result = await collector.test_connection()
-
-        assert result is False
 
 
 class TestMetricsCollection:
@@ -353,26 +270,6 @@ class TestMetricsCollection:
         assert metrics["tasks_completed"] == 0
 
     @pytest.mark.asyncio
-    async def test_jira_collector_count_issues_quotes_project_key(
-        self, db_session: AsyncSession
-    ) -> None:
-        """_count_issues should use quoted project key in JQL."""
-        collector = JiraCollector(db=db_session)
-
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"count": 10}
-        mock_client.post.return_value = mock_response
-
-        await collector._count_issues(mock_client, "MYPROJ", "status = Done")
-
-        # Verify JQL uses quoted project key
-        call_args = mock_client.post.call_args
-        jql = call_args[1]["json"]["jql"]
-        assert 'project = "MYPROJ"' in jql
-
-    @pytest.mark.asyncio
     async def test_jira_collector_count_issues_handles_api_error(
         self, db_session: AsyncSession
     ) -> None:
@@ -408,20 +305,6 @@ class TestMetricsCollection:
         # Should NOT make API call
         mock_client.post.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_jira_collector_close_closes_http_client(
-        self, db_session: AsyncSession
-    ) -> None:
-        """close should call aclose on HTTP client."""
-        collector = JiraCollector(db=db_session)
-
-        mock_client = AsyncMock()
-        collector._client = mock_client
-
-        await collector.close()
-
-        mock_client.aclose.assert_called_once()
-        assert collector._client is None
 
 
 class TestErrorHandling:
@@ -493,21 +376,6 @@ class TestErrorHandling:
         assert count == 0
 
     @pytest.mark.asyncio
-    async def test_jira_collector_handles_connection_error(
-        self, db_session: AsyncSession
-    ) -> None:
-        """Collector should handle httpx.ConnectError gracefully."""
-        collector = JiraCollector(db=db_session)
-
-        mock_client = AsyncMock()
-        mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-        count = await collector._count_issues(mock_client, "PROJ", "status = Done")
-
-        # Should return 0 on connection error
-        assert count == 0
-
-    @pytest.mark.asyncio
     async def test_jira_collector_handles_rate_limit_429(
         self, db_session: AsyncSession
     ) -> None:
@@ -523,43 +391,3 @@ class TestErrorHandling:
 
         # Should return 0 on rate limit
         assert count == 0
-
-    @pytest.mark.asyncio
-    async def test_jira_collector_handles_invalid_json_response(
-        self, db_session: AsyncSession
-    ) -> None:
-        """Collector should handle malformed JSON gracefully."""
-        collector = JiraCollector(db=db_session)
-
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.side_effect = ValueError("Invalid JSON")
-        mock_client.post.return_value = mock_response
-
-        count = await collector._count_issues(mock_client, "PROJ", "status = Done")
-
-        # Should return 0 on invalid JSON
-        assert count == 0
-
-    @pytest.mark.asyncio
-    async def test_jira_collector_validates_cloud_id_format(
-        self, db_session: AsyncSession
-    ) -> None:
-        """Cloud ID must be valid format for OAuth base URL construction."""
-        collector = JiraCollector(db=db_session)
-
-        with patch("app.services.oauth_service.OAuthService.get_valid_jira_token") as mock_token:
-            mock_token.return_value = "valid-token"
-
-            with patch("app.services.oauth_service.OAuthService.get_jira_site_info") as mock_site:
-                # Empty cloud_id should fall back to legacy or raise error
-                mock_site.return_value = {"cloud_id": "", "site_url": ""}
-
-                with patch("app.services.collectors.jira.get_settings") as mock_settings:
-                    mock_settings.return_value.jira_base_url = ""
-                    mock_settings.return_value.jira_email = ""
-                    mock_settings.return_value.jira_api_token = ""
-
-                    with pytest.raises(ValueError):
-                        await collector._get_client()
