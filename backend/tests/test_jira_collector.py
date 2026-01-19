@@ -12,6 +12,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ConfigurationError
 from app.models.oauth import OAuthTokenDB
 from app.services.collectors.jira import JiraCollector
 from app.services.oauth_service import OAuthService
@@ -81,7 +82,7 @@ class TestOAuthIntegration:
     async def test_jira_collector_raises_error_when_no_auth(
         self, db_session: AsyncSession
     ) -> None:
-        """Collector should raise ValueError if neither OAuth nor legacy configured."""
+        """Collector should raise ConfigurationError if neither OAuth nor legacy configured."""
         collector = JiraCollector(db=db_session)
 
         with patch("app.services.oauth_service.OAuthService.get_valid_jira_token") as mock_get_token:
@@ -92,7 +93,7 @@ class TestOAuthIntegration:
                 mock_settings.return_value.jira_email = ""
                 mock_settings.return_value.jira_api_token = ""
 
-                with pytest.raises(ValueError) as exc_info:
+                with pytest.raises(ConfigurationError) as exc_info:
                     await collector._get_client()
 
                 assert "No Jira authentication configured" in str(exc_info.value)
@@ -357,7 +358,7 @@ class TestErrorHandling:
                 mock_settings.return_value.jira_email = ""
                 mock_settings.return_value.jira_api_token = ""
 
-                with pytest.raises(ValueError):
+                with pytest.raises(ConfigurationError):
                     await collector._get_client()
 
     @pytest.mark.asyncio

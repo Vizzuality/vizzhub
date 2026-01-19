@@ -130,6 +130,23 @@ class TestCollectorsValidation:
         assert "jira project key" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
+    async def test_collect_jira_metrics_no_authentication_configured(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that error occurs when no Jira authentication is configured."""
+        create_response = await client.post(
+            "/api/projects",
+            json={"name": "Project With Jira Key", "jira_project_key": "TEST"},
+        )
+        project_id = create_response.json()["id"]
+
+        response = await client.post(f"/api/collect/project/{project_id}/jira")
+        assert response.status_code == 503
+        detail = response.json()["detail"].lower()
+        assert "authentication" in detail or "configured" in detail or "authorized" in detail
+        assert "project key format" not in detail
+
+    @pytest.mark.asyncio
     async def test_collect_jira_metrics_invalid_uuid_format(
         self, client: AsyncClient
     ) -> None:
@@ -154,7 +171,7 @@ class TestCollectorsJQLInjection:
         project_id = create_response.json()["id"]
 
         response = await client.post(f"/api/collect/project/{project_id}/jira")
-        assert response.status_code in [201, 400, 500]
+        assert response.status_code in [201, 400, 500, 503]
 
 
 class TestMetricsAuthentication:

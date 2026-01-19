@@ -9,7 +9,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
-from app.core.exceptions import ProjectNotFoundError
+from app.core.exceptions import ConfigurationError, ProjectNotFoundError
 from app.models.metrics import Metrics, MetricsDB
 from app.models.project import ProjectDB
 from app.services.collectors.jira import JiraCollector
@@ -61,6 +61,9 @@ async def collect_jira_metrics(
     collector = JiraCollector(db=db)
     try:
         raw_metrics = await collector.collect(project.jira_project_key)
+    except ConfigurationError:
+        await collector.close()
+        raise
     except ValueError as e:
         # Invalid project key format
         raise HTTPException(

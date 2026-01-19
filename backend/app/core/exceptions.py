@@ -22,7 +22,7 @@ class MetricsNotFoundError(HTTPException):
 class ConfigurationError(HTTPException):
     def __init__(self, message: str):
         super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Configuration error: {message}",
         )
 

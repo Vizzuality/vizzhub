@@ -14,7 +14,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { AppLayout } from './components/layout/AppLayout';
-import ProjectList from './pages/ProjectList';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import SettingsPage from './pages/Settings';
@@ -49,7 +48,7 @@ function AppContent(): JSX.Element {
     <Routes>
       {/* Routes with navbar */}
       <Route element={<AppLayout />}>
-        <Route path="/" element={<ProjectList />} />
+        <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/settings" element={<SettingsPage />} />

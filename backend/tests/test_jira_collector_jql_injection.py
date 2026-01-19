@@ -48,15 +48,24 @@ class TestJiraCollectorValidateProjectKey:
         collector._validate_project_key("MY_PROJECT")
         collector._validate_project_key("A_B_C")
 
-    def test_jira_collector_validate_project_key_rejects_lowercase(self) -> None:
-        """Lowercase project key should be rejected."""
+    def test_jira_collector_validate_project_key_accepts_lowercase(self) -> None:
+        """Lowercase project key should be accepted (Jira supports both)."""
         collector = JiraCollector()
 
-        with pytest.raises(ValueError) as exc_info:
-            collector._validate_project_key("proj")
+        # Should not raise exception
+        collector._validate_project_key("proj")
+        collector._validate_project_key("fip")
+        collector._validate_project_key("myproject")
 
-        assert "Invalid project key format" in str(exc_info.value)
-        assert "proj" in str(exc_info.value)
+    def test_jira_collector_validate_project_key_accepts_mixed_case(self) -> None:
+        """Mixed case project key should be accepted."""
+        collector = JiraCollector()
+
+        # Should not raise exception
+        collector._validate_project_key("Proj")
+        collector._validate_project_key("FiP")
+        collector._validate_project_key("MyProject")
+        collector._validate_project_key("Abc123")
 
     def test_jira_collector_validate_project_key_rejects_special_chars(self) -> None:
         """Project key with SQL injection attempt should be rejected."""

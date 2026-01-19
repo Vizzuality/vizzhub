@@ -118,6 +118,42 @@ All weights and targets are in `backend/scoring_config.yaml`. Weight groups must
 
 PostgreSQL with async SQLAlchemy. Tables: `projects`, `metrics`, `oauth_tokens`. Indicators and scores are computed, not persisted.
 
+### Database Transactions with FastAPI
+
+**CRITICAL**: FastAPI's `DBSession` dependency manages transactions automatically.
+
+❌ **WRONG** - Manual transaction conflicts with dependency:
+```python
+async with db.begin():
+    result = await some_db_operation(db)
+```
+
+✅ **CORRECT** - Let dependency handle transactions:
+```python
+result = await some_db_operation(db)
+await db.commit()  # Only if needed explicitly
+```
+
+**Why**: The `DBSession` dependency already wraps the request in a transaction context. Adding `async with db.begin()` creates a nested transaction conflict that triggers:
+```
+sqlalchemy.exc.InvalidRequestError: Can't operate on closed transaction inside context manager.
+```
+
+**Exception**: Only use manual `db.begin()` if you're NOT using the DBSession dependency (e.g., in background tasks or scripts outside FastAPI request context).
+
+**Example from codebase** (`oauth.py`):
+```python
+# OAuth callback handler
+async def jira_callback(
+    db: DBSession,  # ← This already manages transactions
+    code: str,
+) -> dict:
+    # ❌ WRONG: async with db.begin():
+    token = await OAuthService.exchange_jira_code_for_token(code, db)
+    await db.commit()  # ✅ Explicit commit when needed
+    return {"status": "success"}
+```
+
 ### Configuration Best Practices
 
 **CRITICAL**: Never hardcode configuration values in `backend/app/config.py`.

@@ -9,6 +9,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import CurrentUser, DBSession
+from app.config import get_settings
 from app.core.oauth_state import OAuthStateManager
 from app.core.security_logger import (
     log_oauth_state_validation_failed,
@@ -84,8 +85,8 @@ async def jira_callback(
             )
 
         # Exchange authorization code for token
-        async with db.begin():
-            token = await OAuthService.exchange_jira_code_for_token(code, db)
+        token = await OAuthService.exchange_jira_code_for_token(code, db)
+        await db.commit()
 
         # Log successful OAuth token issuance
         log_oauth_token_issued("jira", "system", client_ip)
@@ -107,9 +108,14 @@ async def jira_callback(
     except Exception as e:
         logger.exception("OAuth callback failed")
         log_suspicious_activity(f"OAuth callback error: {type(e).__name__}", client_ip)
+
+        # In development, show actual error for debugging
+        settings = get_settings()
+        detail = f"Authorization failed: {str(e)}" if settings.debug else "Authorization failed"
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Authorization failed",
+            detail=detail,
         )
 
 

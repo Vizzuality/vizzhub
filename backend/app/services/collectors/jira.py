@@ -18,6 +18,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.exceptions import ConfigurationError
 from app.services.collectors.base import BaseCollector
 from app.services.oauth_service import OAuthService
 
@@ -56,10 +57,17 @@ class JiraCollector(BaseCollector):
                 auth = (self.settings.jira_email, self.settings.jira_api_token)
 
             if not base_url:
-                raise ValueError(
-                    "No Jira authentication configured. "
-                    "Either set up OAuth or provide JIRA_BASE_URL, JIRA_EMAIL, and JIRA_API_TOKEN"
-                )
+                # Check if OAuth is configured but not authorized
+                if self.settings.jira_oauth_client_id:
+                    raise ConfigurationError(
+                        "Jira OAuth is configured but not authorized. "
+                        "Please complete the OAuth flow at /api/oauth/jira/authorize"
+                    )
+                else:
+                    raise ConfigurationError(
+                        "No Jira authentication configured. "
+                        "Either set up OAuth or provide JIRA_BASE_URL, JIRA_EMAIL, and JIRA_API_TOKEN"
+                    )
 
             self._client = httpx.AsyncClient(
                 base_url=base_url,
@@ -129,12 +137,12 @@ class JiraCollector(BaseCollector):
         Raises:
             ValueError: If project key contains invalid characters
         """
-        # Jira project keys: uppercase letters, numbers, hyphens, underscores
+        # Jira project keys: letters (upper/lowercase), numbers, hyphens, underscores
         # Typically 2-10 characters
-        if not re.match(r"^[A-Z0-9_-]{1,20}$", project_key):
+        if not re.match(r"^[A-Za-z0-9_-]{1,20}$", project_key):
             raise ValueError(
                 f"Invalid project key format: {project_key}. "
-                "Project keys must contain only uppercase letters, numbers, hyphens, and underscores."
+                "Project keys must contain only letters, numbers, hyphens, and underscores."
             )
 
     async def _count_issues(
