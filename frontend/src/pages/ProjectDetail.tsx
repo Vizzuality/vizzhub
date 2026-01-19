@@ -282,28 +282,28 @@ export default function ProjectDetail(): JSX.Element {
             <CardContent className="space-y-4">
             {metrics.jira_defects && (
               <div>
-                <h3 className="text-base font-medium mb-2">Jira Defects</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-base">
-                  <div>
-                    <span className="text-muted-foreground">Bugs Closed:</span>
-                    <span className="ml-2 font-medium">{metrics.jira_defects.bugs_closed}</span>
+                <h3 className="text-base font-medium mb-3">Jira Defects</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Bugs Closed</span>
+                    <span className="text-base font-medium">{metrics.jira_defects.bugs_closed}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Tasks Completed:</span>
-                    <span className="ml-2 font-medium">{metrics.jira_defects.tasks_completed}</span>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Tasks Completed</span>
+                    <span className="text-base font-medium">{metrics.jira_defects.tasks_completed}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Escaped Defects:</span>
-                    <span className="ml-2 font-medium">{metrics.jira_defects.escaped_defects}</span>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Escaped Defects</span>
+                    <span className="text-base font-medium">{metrics.jira_defects.escaped_defects}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Incidents:</span>
-                    <span className="ml-2 font-medium">{metrics.jira_defects.incidents_count}</span>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Incidents</span>
+                    <span className="text-base font-medium">{metrics.jira_defects.incidents_count}</span>
                   </div>
                   {metrics.jira_defects.mttr_hours !== null && (
-                    <div>
-                      <span className="text-muted-foreground">MTTR (hours):</span>
-                      <span className="ml-2 font-medium">{metrics.jira_defects.mttr_hours}</span>
+                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                      <span className="text-sm text-muted-foreground">MTTR (hours)</span>
+                      <span className="text-base font-medium">{metrics.jira_defects.mttr_hours}</span>
                     </div>
                   )}
                 </div>
@@ -312,32 +312,32 @@ export default function ProjectDetail(): JSX.Element {
 
             {metrics.flow_metrics && (
               <div>
-                <h3 className="text-base font-medium mb-2">Flow Metrics</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-base">
-                  <div>
-                    <span className="text-muted-foreground">Total Stories:</span>
-                    <span className="ml-2 font-medium">{metrics.flow_metrics.total_stories}</span>
+                <h3 className="text-base font-medium mb-3">Flow Metrics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Total Stories</span>
+                    <span className="text-base font-medium">{metrics.flow_metrics.total_stories}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Stories with Reviewer:</span>
-                    <span className="ml-2 font-medium">{metrics.flow_metrics.stories_with_reviewer}</span>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Stories with Reviewer</span>
+                    <span className="text-base font-medium">{metrics.flow_metrics.stories_with_reviewer}</span>
                   </div>
                   {metrics.flow_metrics.lead_time_days !== null && (
-                    <div>
-                      <span className="text-muted-foreground">Lead Time (days):</span>
-                      <span className="ml-2 font-medium">{metrics.flow_metrics.lead_time_days}</span>
+                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                      <span className="text-sm text-muted-foreground">Lead Time (days)</span>
+                      <span className="text-base font-medium">{metrics.flow_metrics.lead_time_days}</span>
                     </div>
                   )}
                   {metrics.flow_metrics.flow_efficiency !== null && metrics.flow_metrics.flow_efficiency !== undefined && (
-                    <div>
-                      <span className="text-muted-foreground">Flow Efficiency:</span>
-                      <span className="ml-2 font-medium">{(metrics.flow_metrics.flow_efficiency * 100).toFixed(1)}%</span>
+                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                      <span className="text-sm text-muted-foreground">Flow Efficiency</span>
+                      <span className="text-base font-medium">{(metrics.flow_metrics.flow_efficiency * 100).toFixed(1)}%</span>
                     </div>
                   )}
                   {metrics.flow_metrics.commitment_reliability !== null && metrics.flow_metrics.commitment_reliability !== undefined && (
-                    <div>
-                      <span className="text-muted-foreground">Commitment Reliability:</span>
-                      <span className="ml-2 font-medium">{(metrics.flow_metrics.commitment_reliability * 100).toFixed(1)}%</span>
+                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                      <span className="text-sm text-muted-foreground">Commitment Reliability</span>
+                      <span className="text-base font-medium">{(metrics.flow_metrics.commitment_reliability * 100).toFixed(1)}%</span>
                     </div>
                   )}
                 </div>
