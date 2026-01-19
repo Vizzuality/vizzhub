@@ -27,13 +27,13 @@ describe('ProjectCard', () => {
   it('renders Jira project key when provided', () => {
     renderWithRouter(<ProjectCard project={mockProject} />);
 
-    expect(screen.getByText('TEST')).toBeDefined();
+    expect(screen.getByText(/Jira: TEST/)).toBeDefined();
   });
 
   it('renders GitHub repo when provided', () => {
     renderWithRouter(<ProjectCard project={mockProject} />);
 
-    expect(screen.getByText('org/test-repo')).toBeDefined();
+    expect(screen.getByText(/GitHub: org\/test-repo/)).toBeDefined();
   });
 
   it('does not render Jira key when not provided', () => {
@@ -80,7 +80,7 @@ describe('ProjectCard', () => {
 
     renderWithRouter(<ProjectCard project={projectWithStartDate} />);
 
-    const dateText = screen.getByText(/Started Jan 1, 2026/);
+    const dateText = screen.getByText(/Jan 1, 2026/);
     expect(dateText).toBeDefined();
   });
 
@@ -93,7 +93,7 @@ describe('ProjectCard', () => {
 
     renderWithRouter(<ProjectCard project={projectWithEndDate} />);
 
-    const dateText = screen.getByText(/Ends Mar 31, 2026/);
+    const dateText = screen.getByText(/Mar 31, 2026/);
     expect(dateText).toBeDefined();
   });
 

@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, Github, BarChart3, Calendar } from 'lucide-react';
+import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '../../types';
 import { formatDate } from '../../utils/formatters';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 interface ProjectCardProps {
   project: Project;
@@ -11,38 +18,46 @@ export default function ProjectCard({ project }: ProjectCardProps): JSX.Element 
   const hasDateRange = project.start_date || project.end_date;
 
   return (
-    <Link
-      to={`/projects/${project.id}`}
-      className="card hover:shadow-md transition-shadow duration-200 flex items-center justify-between"
-    >
-      <div className="flex-1">
-        <h3 className="font-semibold text-gray-900">{project.name}</h3>
-        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <CardTitle className="text-xl">{project.name}</CardTitle>
+      </CardHeader>
+
+      <CardContent>
+        <div className="space-y-2 text-sm text-muted-foreground">
           {project.jira_project_key && (
-            <span className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              {project.jira_project_key}
-            </span>
+              <span>Jira: {project.jira_project_key}</span>
+            </div>
           )}
           {project.github_repo && (
-            <span className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <Github className="w-4 h-4" />
-              {project.github_repo}
-            </span>
+              <span>GitHub: {project.github_repo}</span>
+            </div>
           )}
           {hasDateRange && (
-            <span className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              {project.start_date && project.end_date
-                ? `${formatDate(project.start_date)} - ${formatDate(project.end_date)}`
-                : project.start_date
-                  ? `Started ${formatDate(project.start_date)}`
-                  : `Ends ${formatDate(project.end_date)}`}
-            </span>
+              <span>
+                {project.start_date && formatDate(project.start_date)}
+                {project.start_date && project.end_date && ' - '}
+                {project.end_date && formatDate(project.end_date)}
+              </span>
+            </div>
           )}
         </div>
-      </div>
-      <ChevronRight className="w-5 h-5 text-gray-400" />
-    </Link>
+      </CardContent>
+
+      <CardFooter>
+        <Link
+          to={`/projects/${project.id}`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          View Details →
+        </Link>
+      </CardFooter>
+    </Card>
   );
 }
