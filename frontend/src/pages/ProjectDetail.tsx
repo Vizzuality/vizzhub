@@ -131,7 +131,7 @@ export default function ProjectDetail(): JSX.Element {
                 <Button
                   variant="ghost"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="border border-input text-destructive hover:bg-destructive/10"
+                  className="border border-input text-destructive hover:bg-destructive hover:text-destructive-foreground"
                 >
                   <Trash2 className="w-5 h-5 mr-2" />
                   Delete
