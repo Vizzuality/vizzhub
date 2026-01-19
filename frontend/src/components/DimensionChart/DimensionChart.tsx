@@ -8,6 +8,12 @@ import {
   Tooltip,
 } from 'recharts';
 import type { DimensionScores } from '../../types';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 interface DimensionChartProps {
   scores: DimensionScores;
@@ -32,9 +38,12 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
   }));
 
   return (
-    <div className="card">
-      <h3 className="text-lg font-semibold text-gray-700 mb-4">Dimension Breakdown</h3>
-      <ResponsiveContainer width="100%" height={350}>
+    <Card>
+      <CardHeader>
+        <CardTitle>Dimension Breakdown</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={350}>
         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
           <PolarGrid />
           <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12 }} />
@@ -51,9 +60,9 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
               if (active && payload && payload.length) {
                 const item = payload[0].payload as { dimension: string; score: number };
                 return (
-                  <div className="bg-white shadow-lg rounded-lg p-2 border">
+                  <div className="bg-background shadow-lg rounded-lg p-2 border">
                     <p className="font-medium">{item.dimension}</p>
-                    <p className="text-primary-600">{item.score}/100</p>
+                    <p className="text-primary">{item.score}/100</p>
                   </div>
                 );
               }
@@ -62,6 +71,7 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
           />
         </RadarChart>
       </ResponsiveContainer>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
