@@ -220,12 +220,30 @@ export default function ProjectDetail(): JSX.Element {
       {collectJiraMetrics.isError && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-red-50 border-red-200">
+          <Card className="bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
             <CardContent className="pt-6">
-              <p className="font-medium text-red-800">Failed to collect metrics</p>
-              <p className="text-sm mt-1 text-red-700">
+              <p className="font-medium text-red-800 dark:text-red-200">Failed to collect metrics</p>
+              <p className="text-sm mt-1 text-red-700 dark:text-red-300">
                 {collectJiraMetrics.error?.message || 'An unknown error occurred'}
               </p>
+              {collectJiraMetrics.error?.message?.includes('authentication') && (
+                <div className="mt-3 p-3 bg-red-100 dark:bg-red-900 rounded border border-red-300 dark:border-red-700">
+                  <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+                    OAuth not configured
+                  </p>
+                  <p className="text-xs text-red-800 dark:text-red-200 mb-2">
+                    You need to authorize Jira OAuth to collect metrics. This only needs to be done once.
+                  </p>
+                  <a
+                    href="http://localhost:8000/api/oauth/jira/authorize"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-xs font-medium text-primary hover:underline"
+                  >
+                    → Authorize Jira OAuth
+                  </a>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

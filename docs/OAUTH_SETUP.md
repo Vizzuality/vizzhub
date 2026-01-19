@@ -20,11 +20,13 @@ This guide explains how to configure OAuth 2.0 authentication for Jira and GitHu
    - **Permissions/Scopes** (under "Jira API" - use **Classic scopes** tab):
      - `read:jira-work` (read issues, projects, boards, and execute JQL searches)
      - `read:jira-user` (read user information)
+     - `offline_access` (**REQUIRED** - enables refresh tokens for automatic token renewal)
 
    **Important Notes**:
    - Use the **Classic** tab, not Granular scopes (classic scopes are recommended by Atlassian)
    - Do NOT add scopes from "User Identity API" (like `read:me`)
    - Classic scopes provide the necessary permissions for JQL searches and issue access
+   - **`offline_access` is mandatory** - without it, tokens cannot be refreshed and you'll need to re-authorize every hour
 4. Click **Add** under **Authorization** section
 5. Set **Callback URL**: `http://localhost:8000/api/oauth/jira/callback`
    - For production: Use your production URL (e.g., `https://scorecard.company.com/api/oauth/jira/callback`)
@@ -43,8 +45,8 @@ Add to `backend/.env`:
 JIRA_OAUTH_CLIENT_ID=your-client-id-here
 JIRA_OAUTH_CLIENT_SECRET=your-client-secret-here
 JIRA_OAUTH_REDIRECT_URI=http://localhost:8000/api/oauth/jira/callback
-# Classic scopes (recommended):
-JIRA_OAUTH_SCOPES=read:jira-work read:jira-user
+# Classic scopes (REQUIRED - must include offline_access):
+JIRA_OAUTH_SCOPES=read:jira-work read:jira-user offline_access
 ```
 
 ### Step 4: Run Database Migration
@@ -145,12 +147,38 @@ curl -X POST http://localhost:8000/api/oauth/jira/refresh
 **Cause**: OAuth token doesn't have the required scopes for the API endpoint.
 
 **Solution**:
-1. Verify you're using **Classic scopes** (`read:jira-work read:jira-user`)
+1. Verify you're using **Classic scopes** (`read:jira-work read:jira-user offline_access`)
 2. Go to Atlassian Developer Console → Your App → Permissions
 3. Make sure you selected scopes from the **Classic** tab, not Granular
 4. Re-authorize the app after changing scopes: `/api/oauth/jira/authorize`
 
 **Note**: The `/rest/api/3/search` endpoint requires `read:jira-work` classic scope for JQL searches.
+
+### "OAuth not configured" or "Need to re-authorize after server restart" error
+
+**Cause**: Missing `offline_access` scope - tokens cannot be refreshed automatically.
+
+**Symptoms**:
+- Token expires after 1 hour
+- Need to re-authorize every time server restarts
+- Database shows `refresh_token` is NULL
+
+**Solution**:
+1. Check `.env` file includes `offline_access` in scopes:
+   ```bash
+   JIRA_OAUTH_SCOPES=read:jira-work read:jira-user offline_access
+   ```
+2. Go to Atlassian Developer Console → Your App → Permissions
+3. Add `offline_access` scope (it's in the "Classic scopes" tab)
+4. Restart backend server to load new scopes
+5. **Re-authorize the app**: Visit `/api/oauth/jira/authorize`
+6. Verify refresh token exists:
+   ```bash
+   psql -U scorecard -d scorecard -h localhost -c "SELECT provider, expires_at, refresh_token IS NOT NULL as has_refresh_token FROM oauth_tokens;"
+   ```
+   Should show `has_refresh_token = t` (true)
+
+**Why this happens**: Without `offline_access`, Atlassian doesn't send a refresh_token in the OAuth response. The access_token expires after 1 hour and cannot be renewed automatically.
 
 ## Production Deployment
 
