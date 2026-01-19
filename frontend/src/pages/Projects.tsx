@@ -4,6 +4,13 @@ import { useProjects, useCreateProject } from '../hooks/useProjects';
 import ProjectCard from '../components/Dashboard/ProjectCard';
 import ProjectForm from '../components/Forms/ProjectForm';
 import type { ProjectCreate } from '../types';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 export default function Projects(): JSX.Element {
   const [showForm, setShowForm] = useState(false);
@@ -18,43 +25,49 @@ export default function Projects(): JSX.Element {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-red-500 p-4">
-        Error loading projects: {error.message}
-      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-destructive">Error loading projects: {error.message}</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="w-4 h-4 mr-2" />
           Create Project
-        </button>
+        </Button>
       </div>
 
+      {/* Create Form */}
       {showForm && (
-        <div className="card mb-6">
-          <h2 className="text-lg font-semibold mb-4">Create New Project</h2>
-          <ProjectForm
-            onSubmit={handleCreate}
-            onCancel={() => setShowForm(false)}
-            isLoading={createProject.isPending}
-          />
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create New Project</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProjectForm
+              onSubmit={handleCreate}
+              onCancel={() => setShowForm(false)}
+              isLoading={createProject.isPending}
+            />
+          </CardContent>
+        </Card>
       )}
 
+      {/* Projects List */}
       {projects && projects.length > 0 ? (
         <div className="grid gap-4">
           {projects.map((project) => (
@@ -62,12 +75,14 @@ export default function Projects(): JSX.Element {
           ))}
         </div>
       ) : (
-        <div className="card text-center py-12">
-          <p className="text-gray-500 mb-4">No projects yet</p>
-          <button onClick={() => setShowForm(true)} className="btn-primary">
-            Create your first project
-          </button>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground mb-4">No projects yet</p>
+            <Button onClick={() => setShowForm(true)}>
+              Create your first project
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
