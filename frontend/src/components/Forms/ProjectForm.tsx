@@ -1,5 +1,8 @@
 import { useForm } from 'react-hook-form';
 import type { Project, ProjectCreate } from '../../types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 function getSubmitButtonText(isLoading: boolean, isEditMode: boolean): string {
   if (isLoading) {
@@ -61,42 +64,39 @@ export default function ProjectForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      <div>
-        <label htmlFor="name" className="label">
+      <div className="space-y-2">
+        <Label htmlFor="name">
           Project Name *
-        </label>
-        <input
+        </Label>
+        <Input
           id="name"
           type="text"
-          className="input"
           {...register('name', { required: 'Project name is required' })}
         />
         {errors.name && (
-          <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+          <p className="text-sm text-destructive">{errors.name.message}</p>
         )}
       </div>
 
-      <div>
-        <label htmlFor="jira_project_key" className="label">
+      <div className="space-y-2">
+        <Label htmlFor="jira_project_key">
           Jira Project Key
-        </label>
-        <input
+        </Label>
+        <Input
           id="jira_project_key"
           type="text"
-          className="input"
           placeholder="e.g., PROJ"
           {...register('jira_project_key')}
         />
       </div>
 
-      <div>
-        <label htmlFor="github_repo" className="label">
+      <div className="space-y-2">
+        <Label htmlFor="github_repo">
           GitHub Repository
-        </label>
-        <input
+        </Label>
+        <Input
           id="github_repo"
           type="text"
-          className="input"
           placeholder="e.g., owner/repo"
           {...register('github_repo', {
             pattern: {
@@ -106,19 +106,18 @@ export default function ProjectForm({
           })}
         />
         {errors.github_repo && (
-          <p className="text-sm text-red-500 mt-1">{errors.github_repo.message}</p>
+          <p className="text-sm text-destructive">{errors.github_repo.message}</p>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="start_date" className="label">
+        <div className="space-y-2">
+          <Label htmlFor="start_date">
             Start Date
-          </label>
-          <input
+          </Label>
+          <Input
             id="start_date"
             type="date"
-            className="input"
             min="2020-01-01"
             max="2099-12-31"
             {...register('start_date', {
@@ -129,18 +128,17 @@ export default function ProjectForm({
             })}
           />
           {errors.start_date && (
-            <p className="text-sm text-red-500 mt-1">{errors.start_date.message}</p>
+            <p className="text-sm text-destructive">{errors.start_date.message}</p>
           )}
         </div>
 
-        <div>
-          <label htmlFor="end_date" className="label">
+        <div className="space-y-2">
+          <Label htmlFor="end_date">
             End Date
-          </label>
-          <input
+          </Label>
+          <Input
             id="end_date"
             type="date"
-            className="input"
             min="2020-01-01"
             max="2099-12-31"
             {...register('end_date', {
@@ -158,23 +156,23 @@ export default function ProjectForm({
             })}
           />
           {errors.end_date && (
-            <p className="text-sm text-red-500 mt-1">{errors.end_date.message}</p>
+            <p className="text-sm text-destructive">{errors.end_date.message}</p>
           )}
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-4">
-        <button
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
           type="button"
+          variant="outline"
           onClick={onCancel}
-          className="btn-secondary"
           disabled={isLoading}
         >
           Cancel
-        </button>
-        <button type="submit" className="btn-primary" disabled={isLoading}>
+        </Button>
+        <Button type="submit" disabled={isLoading}>
           {getSubmitButtonText(isLoading, isEditMode)}
-        </button>
+        </Button>
       </div>
     </form>
   );
