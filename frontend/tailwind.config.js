@@ -12,13 +12,6 @@ export default {
   				DEFAULT: 'hsl(var(--primary))',
   				foreground: 'hsl(var(--primary-foreground))'
   			},
-  			score: {
-  				excellent: 'hsl(346.8 77.2% 49.8%)',
-  				good: 'hsl(340 75% 58%)',
-  				average: 'hsl(330 70% 65%)',
-  				poor: 'hsl(10 78% 58%)',
-  				critical: 'hsl(0 84% 60%)'
-  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

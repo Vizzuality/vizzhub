@@ -11,22 +11,12 @@ interface ScoreCardProps {
   title?: string;
 }
 
-type ScoreLevel = 'excellent' | 'good' | 'average' | 'poor' | 'critical';
-
-function getScoreLevel(score: number): ScoreLevel {
-  if (score >= 80) return 'excellent';
-  if (score >= 60) return 'good';
-  if (score >= 40) return 'average';
-  if (score >= 20) return 'poor';
-  return 'critical';
+function getScoreColor(): string {
+  return 'text-primary';
 }
 
-function getScoreColor(score: number): string {
-  return `text-score-${getScoreLevel(score)}`;
-}
-
-function getScoreBgColor(score: number): string {
-  return `bg-score-${getScoreLevel(score)}`;
+function getScoreBgColor(): string {
+  return 'bg-primary';
 }
 
 export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardProps): JSX.Element {
@@ -39,9 +29,9 @@ export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardP
       <CardContent>
         <div className="flex items-center justify-center mb-6">
           <div
-            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor(score.score)} bg-opacity-20`}
+            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor()} bg-opacity-20`}
           >
-            <span className={`text-4xl font-bold ${getScoreColor(score.score)}`}>
+            <span className={`text-4xl font-bold ${getScoreColor()}`}>
               {score.score}
             </span>
           </div>
@@ -71,7 +61,7 @@ function DimensionBadge({ label, score }: DimensionBadgeProps): JSX.Element {
   return (
     <div className="flex items-center justify-between p-2 bg-muted rounded-lg">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`font-semibold ${getScoreColor(score)}`}>{score}</span>
+      <span className={`font-semibold ${getScoreColor()}`}>{score}</span>
     </div>
   );
 }

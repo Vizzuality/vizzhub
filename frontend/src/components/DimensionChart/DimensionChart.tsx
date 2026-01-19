@@ -37,6 +37,11 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
     fullMark: 100,
   }));
 
+  // Get primary color from CSS variable
+  const primaryColor = typeof window !== 'undefined'
+    ? `hsl(${getComputedStyle(document.documentElement).getPropertyValue('--primary')})`
+    : 'hsl(346.8 77.2% 49.8%)';
+
   return (
     <Card>
       <CardHeader>
@@ -51,8 +56,8 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
           <Radar
             name="Score"
             dataKey="score"
-            stroke="hsl(346.8 77.2% 49.8%)"
-            fill="hsl(346.8 77.2% 49.8%)"
+            stroke={primaryColor}
+            fill={primaryColor}
             fillOpacity={0.5}
           />
           <Tooltip

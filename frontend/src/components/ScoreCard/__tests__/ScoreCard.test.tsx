@@ -66,83 +66,19 @@ describe('ScoreCard', () => {
     expect(screen.getByText('82')).toBeDefined();
   });
 
-  it('applies excellent color for score >= 80', () => {
-    const excellentScore: FinalScore = {
+  it('applies primary color to scores', () => {
+    const highScore: FinalScore = {
       score: 87,
       dimensions: mockScore.dimensions,
       weights_applied: {},
     };
 
-    const { container } = render(<ScoreCard score={excellentScore} />);
+    const { container } = render(<ScoreCard score={highScore} />);
 
     const scoreElement = screen.getByText('87');
-    expect(scoreElement.className).toContain('text-score-excellent');
+    expect(scoreElement.className).toContain('text-primary');
 
-    const bgElement = container.querySelector('.bg-score-excellent');
-    expect(bgElement).toBeDefined();
-  });
-
-  it('applies good color for score between 60-79', () => {
-    const goodScore: FinalScore = {
-      score: 72,
-      dimensions: mockScore.dimensions,
-      weights_applied: {},
-    };
-
-    const { container } = render(<ScoreCard score={goodScore} />);
-
-    const scoreElement = screen.getByText('72');
-    expect(scoreElement.className).toContain('text-score-good');
-
-    const bgElement = container.querySelector('.bg-score-good');
-    expect(bgElement).toBeDefined();
-  });
-
-  it('applies average color for score between 40-59', () => {
-    const averageScore: FinalScore = {
-      score: 50,
-      dimensions: mockScore.dimensions,
-      weights_applied: {},
-    };
-
-    const { container } = render(<ScoreCard score={averageScore} />);
-
-    const scoreElement = screen.getByText('50');
-    expect(scoreElement.className).toContain('text-score-average');
-
-    const bgElement = container.querySelector('.bg-score-average');
-    expect(bgElement).toBeDefined();
-  });
-
-  it('applies poor color for score between 20-39', () => {
-    const poorScore: FinalScore = {
-      score: 30,
-      dimensions: mockScore.dimensions,
-      weights_applied: {},
-    };
-
-    const { container } = render(<ScoreCard score={poorScore} />);
-
-    const scoreElement = screen.getByText('30');
-    expect(scoreElement.className).toContain('text-score-poor');
-
-    const bgElement = container.querySelector('.bg-score-poor');
-    expect(bgElement).toBeDefined();
-  });
-
-  it('applies critical color for score < 20', () => {
-    const criticalScore: FinalScore = {
-      score: 15,
-      dimensions: mockScore.dimensions,
-      weights_applied: {},
-    };
-
-    const { container } = render(<ScoreCard score={criticalScore} />);
-
-    const scoreElement = screen.getByText('15');
-    expect(scoreElement.className).toContain('text-score-critical');
-
-    const bgElement = container.querySelector('.bg-score-critical');
+    const bgElement = container.querySelector('.bg-primary');
     expect(bgElement).toBeDefined();
   });
 
@@ -192,18 +128,18 @@ describe('ScoreCard', () => {
     expect(zeroElements.length).toBe(9);
   });
 
-  it('dimension badges show correct colors', () => {
+  it('dimension badges show primary color', () => {
     const mixedScore: FinalScore = {
-      score: 51, // Changed to avoid duplicate with p_quality
+      score: 51,
       dimensions: {
-        p_time: 90, // excellent
-        p_cost: 70, // good
-        p_quality: 50, // average
-        p_value: 30, // poor
-        p_satisfaction: 10, // critical
-        p_flow: 80, // excellent
-        p_engineering: 60, // good
-        p_risk: 40, // average
+        p_time: 90,
+        p_cost: 70,
+        p_quality: 50,
+        p_value: 30,
+        p_satisfaction: 10,
+        p_flow: 80,
+        p_engineering: 60,
+        p_risk: 40,
       },
       weights_applied: {},
     };
@@ -211,18 +147,12 @@ describe('ScoreCard', () => {
     render(<ScoreCard score={mixedScore} />);
 
     const timeScore = screen.getByText('90');
-    expect(timeScore.className).toContain('text-score-excellent');
+    expect(timeScore.className).toContain('text-primary');
 
     const costScore = screen.getByText('70');
-    expect(costScore.className).toContain('text-score-good');
+    expect(costScore.className).toContain('text-primary');
 
     const qualityScore = screen.getByText('50');
-    expect(qualityScore.className).toContain('text-score-average');
-
-    const valueScore = screen.getByText('30');
-    expect(valueScore.className).toContain('text-score-poor');
-
-    const satisfactionScore = screen.getByText('10');
-    expect(satisfactionScore.className).toContain('text-score-critical');
+    expect(qualityScore.className).toContain('text-primary');
   });
 });
