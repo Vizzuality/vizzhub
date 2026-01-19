@@ -31,7 +31,7 @@ export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardP
           <div
             className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor()}`}
           >
-            <span className={`text-4xl font-bold ${getScoreColor()}`}>
+            <span className={`text-5xl font-semibold ${getScoreColor()}`}>
               {score.score}
             </span>
           </div>
@@ -59,9 +59,9 @@ interface DimensionBadgeProps {
 
 function DimensionBadge({ label, score }: DimensionBadgeProps): JSX.Element {
   return (
-    <div className="flex items-center justify-between p-2 bg-muted rounded-lg">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`font-semibold ${getScoreColor()}`}>{score}</span>
+    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+      <span className="text-base text-muted-foreground">{label}</span>
+      <span className={`text-lg font-medium ${getScoreColor()}`}>{score}</span>
     </div>
   );
 }

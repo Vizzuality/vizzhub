@@ -21,7 +21,7 @@ export function AppLayout() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           {/* Logo and Desktop Navigation */}
           <div className="flex items-center gap-6">
-            <Link to="/projects" className="text-xl font-bold">
+            <Link to="/projects" className="text-xl font-semibold">
               Project Scorecard
             </Link>
 
@@ -30,7 +30,6 @@ export function AppLayout() {
               <Link to="/projects">
                 <Button
                   variant={isActive('/projects') ? 'secondary' : 'ghost'}
-                  size="sm"
                 >
                   Projects
                 </Button>
@@ -38,7 +37,6 @@ export function AppLayout() {
               <Link to="/settings">
                 <Button
                   variant={isActive('/settings') ? 'secondary' : 'ghost'}
-                  size="sm"
                 >
                   Settings
                 </Button>

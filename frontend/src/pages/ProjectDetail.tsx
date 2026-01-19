@@ -83,33 +83,33 @@ export default function ProjectDetail(): JSX.Element {
     <div className="space-y-6">
       <Link
         to="/projects"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-2 text-base text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-5 h-5" />
         Back to Projects
       </Link>
 
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
-            <div className="space-y-1 flex-1">
-              <CardTitle className="text-3xl">{project.name}</CardTitle>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="space-y-2 flex-1">
+              <CardTitle className="text-3xl font-semibold">{project.name}</CardTitle>
+              <div className="flex items-center gap-4 text-base text-muted-foreground">
                 {project.jira_project_key && (
                   <span className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
+                    <BarChart3 className="w-5 h-5" />
                     Jira: {project.jira_project_key}
                   </span>
                 )}
                 {project.github_repo && (
                   <span className="flex items-center gap-2">
-                    <Github className="w-4 h-4" />
+                    <Github className="w-5 h-5" />
                     GitHub: {project.github_repo}
                   </span>
                 )}
                 {hasDateRange && (
                   <span className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="w-5 h-5" />
                     {project.start_date && formatDate(project.start_date)}
                     {project.start_date && project.end_date && ' - '}
                     {project.end_date && formatDate(project.end_date)}
@@ -122,19 +122,17 @@ export default function ProjectDetail(): JSX.Element {
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setIsEditing(true)}
                 >
-                  <Pencil className="w-4 h-4 mr-2" />
+                  <Pencil className="w-5 h-5 mr-2" />
                   Edit
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setShowDeleteConfirm(true)}
                   className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-5 h-5 mr-2" />
                   Delete
                 </Button>
               </div>
@@ -264,7 +262,7 @@ export default function ProjectDetail(): JSX.Element {
         <>
           <Separator className="my-6" />
           <div>
-            <h2 className="text-2xl font-bold mb-4">Scores</h2>
+            <h2 className="text-2xl font-semibold mb-4">Scores</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ScoreCard score={scores.scores} />
               <DimensionChart scores={scores.scores.dimensions} />
@@ -283,8 +281,8 @@ export default function ProjectDetail(): JSX.Element {
             <CardContent className="space-y-4">
             {metrics.jira_defects && (
               <div>
-                <h3 className="text-sm font-medium mb-2">Jira Defects</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <h3 className="text-base font-medium mb-2">Jira Defects</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-base">
                   <div>
                     <span className="text-muted-foreground">Bugs Closed:</span>
                     <span className="ml-2 font-medium">{metrics.jira_defects.bugs_closed}</span>
@@ -313,8 +311,8 @@ export default function ProjectDetail(): JSX.Element {
 
             {metrics.flow_metrics && (
               <div>
-                <h3 className="text-sm font-medium mb-2">Flow Metrics</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <h3 className="text-base font-medium mb-2">Flow Metrics</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-base">
                   <div>
                     <span className="text-muted-foreground">Total Stories:</span>
                     <span className="ml-2 font-medium">{metrics.flow_metrics.total_stories}</span>

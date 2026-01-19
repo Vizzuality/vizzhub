@@ -20,26 +20,26 @@ export default function ProjectCard({ project }: ProjectCardProps): JSX.Element 
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
-        <CardTitle className="text-xl">{project.name}</CardTitle>
+        <CardTitle className="text-xl font-semibold">{project.name}</CardTitle>
       </CardHeader>
 
       <CardContent>
-        <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="space-y-2 text-base text-muted-foreground">
           {project.jira_project_key && (
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-5 h-5" />
               <span>Jira: {project.jira_project_key}</span>
             </div>
           )}
           {project.github_repo && (
             <div className="flex items-center gap-2">
-              <Github className="w-4 h-4" />
+              <Github className="w-5 h-5" />
               <span>GitHub: {project.github_repo}</span>
             </div>
           )}
           {hasDateRange && (
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-5 h-5" />
               <span>
                 {project.start_date && formatDate(project.start_date)}
                 {project.start_date && project.end_date && ' - '}
@@ -53,7 +53,7 @@ export default function ProjectCard({ project }: ProjectCardProps): JSX.Element 
       <CardFooter>
         <Link
           to={`/projects/${project.id}`}
-          className="text-sm font-medium text-primary hover:underline"
+          className="text-base font-medium text-primary hover:underline"
         >
           View Details →
         </Link>
