@@ -31,6 +31,7 @@
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^4.0.17",
     "autoprefixer": "^10.4.17",
     "axios-mock-adapter": "^1.22.0",
     "eslint": "^9.17.0",

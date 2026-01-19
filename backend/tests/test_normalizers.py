@@ -3,6 +3,7 @@
 import pytest
 
 from app.services.normalizers.base import (
+    MIN_DENOMINATOR,
     NEUTRAL_VALUE,
     normalize_budget_variance,
     normalize_count_to_ratio,
@@ -15,6 +16,8 @@ from app.services.normalizers.base import (
 
 
 class TestHigherIsBetter:
+    """Tests for normalize_higher_is_better function."""
+
     def test_normal_value(self) -> None:
         assert normalize_higher_is_better(0.8) == 0.8
 
@@ -30,8 +33,31 @@ class TestHigherIsBetter:
     def test_negative_returns_zero(self) -> None:
         assert normalize_higher_is_better(-0.5) == 0.0
 
+    def test_zero_value_returns_zero(self) -> None:
+        """Zero is a valid input and should be clamped to 0."""
+        assert normalize_higher_is_better(0.0) == 0.0
+
+    def test_exactly_at_cap(self) -> None:
+        """Value exactly at cap should not be capped."""
+        assert normalize_higher_is_better(1.0, cap=1.0) == 1.0
+
+    def test_custom_cap(self) -> None:
+        """Custom cap should be respected."""
+        assert normalize_higher_is_better(0.6, cap=0.8) == 0.6
+        assert normalize_higher_is_better(1.0, cap=0.8) == 0.8
+
+    def test_very_large_value(self) -> None:
+        """Very large values should be capped at 1.0."""
+        assert normalize_higher_is_better(1000000) == 1.0
+
+    def test_very_small_negative(self) -> None:
+        """Very small negative values should return 0."""
+        assert normalize_higher_is_better(-0.0001) == 0.0
+
 
 class TestLowerIsBetter:
+    """Tests for normalize_lower_is_better function."""
+
     def test_at_target(self) -> None:
         assert normalize_lower_is_better(3.0, 3.0) == 1.0
 
@@ -47,8 +73,40 @@ class TestLowerIsBetter:
     def test_none_returns_neutral(self) -> None:
         assert normalize_lower_is_better(None, 3.0) == NEUTRAL_VALUE
 
+    def test_none_returns_zero_when_no_neutral(self) -> None:
+        """When neutral_on_missing=False, None should return 0.0."""
+        assert normalize_lower_is_better(None, 3.0, neutral_on_missing=False) == 0.0
+
+    def test_negative_value_returns_one(self) -> None:
+        """Negative values should be treated as perfect score (edge case)."""
+        assert normalize_lower_is_better(-1.0, 3.0) == 1.0
+
+    def test_near_zero_target(self) -> None:
+        """Near-zero targets should still work correctly."""
+        assert normalize_lower_is_better(0.1, 0.01) == pytest.approx(0.1)
+
+    def test_zero_target(self) -> None:
+        """Zero target with non-zero value should return target/value ratio."""
+        assert normalize_lower_is_better(5.0, 0.0) == 0.0
+
+    def test_very_small_value_near_min_denominator(self) -> None:
+        """Values near MIN_DENOMINATOR should use MIN_DENOMINATOR as floor."""
+        result = normalize_lower_is_better(0.0005, 3.0)
+        expected = min(1.0, 3.0 / MIN_DENOMINATOR)
+        assert result == pytest.approx(expected)
+
+    def test_very_large_value_above_target(self) -> None:
+        """Very large values should return very small normalized scores."""
+        assert normalize_lower_is_better(1000.0, 3.0) == pytest.approx(0.003)
+
+    def test_very_large_target(self) -> None:
+        """Very large targets should make most values normalize to 1.0."""
+        assert normalize_lower_is_better(5.0, 1000.0) == 1.0
+
 
 class TestRatioToTarget:
+    """Tests for normalize_ratio_to_target function."""
+
     def test_at_target(self) -> None:
         assert normalize_ratio_to_target(1.0, 1.0) == 1.0
 
@@ -61,8 +119,38 @@ class TestRatioToTarget:
     def test_none_returns_neutral(self) -> None:
         assert normalize_ratio_to_target(None, 1.0) == NEUTRAL_VALUE
 
+    def test_none_returns_zero_when_no_neutral(self) -> None:
+        """When neutral_on_missing=False, None should return 0.0."""
+        assert normalize_ratio_to_target(None, 1.0, neutral_on_missing=False) == 0.0
+
+    def test_zero_target_with_positive_value(self) -> None:
+        """Zero target with positive value should return 1.0 (line 95)."""
+        assert normalize_ratio_to_target(0.5, 0.0) == 1.0
+
+    def test_zero_target_with_zero_value(self) -> None:
+        """Zero target with zero value should return NEUTRAL_VALUE (line 95)."""
+        assert normalize_ratio_to_target(0.0, 0.0) == NEUTRAL_VALUE
+
+    def test_negative_target(self) -> None:
+        """Negative target is treated as invalid (<=0 check)."""
+        assert normalize_ratio_to_target(0.5, -1.0) == 1.0
+
+    def test_negative_value_clamped_to_zero(self) -> None:
+        """Negative values should be clamped to 0.0."""
+        assert normalize_ratio_to_target(-0.5, 1.0) == 0.0
+
+    def test_very_small_ratio(self) -> None:
+        """Very small ratios should be preserved."""
+        assert normalize_ratio_to_target(0.001, 1.0) == pytest.approx(0.001)
+
+    def test_exactly_zero_value(self) -> None:
+        """Zero value with positive target should return 0.0."""
+        assert normalize_ratio_to_target(0.0, 1.0) == 0.0
+
 
 class TestStrictZeroTarget:
+    """Tests for normalize_strict_zero_target function."""
+
     def test_zero_value_returns_one(self) -> None:
         assert normalize_strict_zero_target(0) == 1.0
 
@@ -72,8 +160,30 @@ class TestStrictZeroTarget:
     def test_none_returns_neutral(self) -> None:
         assert normalize_strict_zero_target(None) == NEUTRAL_VALUE
 
+    def test_none_returns_zero_when_no_neutral(self) -> None:
+        """When neutral_on_missing=False, None should return 0.0."""
+        assert normalize_strict_zero_target(None, neutral_on_missing=False) == 0.0
+
+    def test_float_zero_returns_one(self) -> None:
+        """Float zero should be treated same as int zero."""
+        assert normalize_strict_zero_target(0.0) == 1.0
+
+    def test_very_small_positive_float_returns_zero(self) -> None:
+        """Even very small non-zero values fail strict zero check."""
+        assert normalize_strict_zero_target(0.0001) == 0.0
+
+    def test_negative_value_returns_zero(self) -> None:
+        """Negative values violate strict zero target."""
+        assert normalize_strict_zero_target(-1) == 0.0
+
+    def test_large_value_returns_zero(self) -> None:
+        """Any non-zero value fails strict zero target."""
+        assert normalize_strict_zero_target(1000) == 0.0
+
 
 class TestBudgetVariance:
+    """Tests for normalize_budget_variance function."""
+
     def test_on_budget(self) -> None:
         assert normalize_budget_variance(100, 100) == 0.0
 
@@ -89,8 +199,43 @@ class TestBudgetVariance:
     def test_none_returns_neutral(self) -> None:
         assert normalize_budget_variance(None, 100) == NEUTRAL_VALUE
 
+    def test_none_actual_cost_returns_neutral(self) -> None:
+        """None actual cost should return neutral."""
+        assert normalize_budget_variance(None, 100) == NEUTRAL_VALUE
+
+    def test_none_budget_returns_neutral(self) -> None:
+        """None budget should return neutral."""
+        assert normalize_budget_variance(100, None) == NEUTRAL_VALUE
+
+    def test_both_none_returns_neutral(self) -> None:
+        """Both None should return neutral."""
+        assert normalize_budget_variance(None, None) == NEUTRAL_VALUE
+
+    def test_none_returns_zero_when_no_neutral(self) -> None:
+        """When neutral_on_missing=False, None should return 0.0."""
+        assert normalize_budget_variance(None, 100, neutral_on_missing=False) == 0.0
+        assert normalize_budget_variance(100, None, neutral_on_missing=False) == 0.0
+
+    def test_negative_budget(self) -> None:
+        """Negative budget is invalid (<=0 check)."""
+        assert normalize_budget_variance(100, -50) == 0.0
+
+    def test_zero_actual_cost(self) -> None:
+        """Zero actual cost should return 0 variance (under budget)."""
+        assert normalize_budget_variance(0, 100) == 0.0
+
+    def test_massive_overrun(self) -> None:
+        """Massive budget overruns should be calculated correctly."""
+        assert normalize_budget_variance(500, 100) == pytest.approx(4.0)
+
+    def test_slight_overrun(self) -> None:
+        """Small overruns should be precise."""
+        assert normalize_budget_variance(101, 100) == pytest.approx(0.01)
+
 
 class TestGovernanceCompliance:
+    """Tests for normalize_governance_compliance function."""
+
     def test_no_exceptions(self) -> None:
         assert normalize_governance_compliance(0, 2) == 1.0
 
@@ -103,8 +248,39 @@ class TestGovernanceCompliance:
     def test_over_limit(self) -> None:
         assert normalize_governance_compliance(3, 2) == 0.0
 
+    def test_none_returns_neutral(self) -> None:
+        """None exceptions should return neutral (line 168)."""
+        assert normalize_governance_compliance(None, 2) == NEUTRAL_VALUE
+
+    def test_none_returns_zero_when_no_neutral(self) -> None:
+        """When neutral_on_missing=False, None should return 0.0 (line 168)."""
+        assert normalize_governance_compliance(None, 2, neutral_on_missing=False) == 0.0
+
+    def test_zero_target_with_no_exceptions(self) -> None:
+        """Zero target with zero exceptions should return 1.0 (line 170)."""
+        assert normalize_governance_compliance(0, 0) == 1.0
+
+    def test_zero_target_with_exceptions(self) -> None:
+        """Zero target with any exceptions should return 0.0 (line 170)."""
+        assert normalize_governance_compliance(1, 0) == 0.0
+
+    def test_negative_target(self) -> None:
+        """Negative target is invalid (<=0 check)."""
+        assert normalize_governance_compliance(0, -1) == 1.0
+
+    def test_negative_exceptions_gives_full_compliance(self) -> None:
+        """Negative exceptions (edge case) should give > 1.0, clamped by max."""
+        result = normalize_governance_compliance(-1, 2)
+        assert result == pytest.approx(1.5)
+
+    def test_fractional_exceptions(self) -> None:
+        """Fractional compliance calculations should work."""
+        assert normalize_governance_compliance(1, 4) == pytest.approx(0.75)
+
 
 class TestCountToRatio:
+    """Tests for normalize_count_to_ratio function."""
+
     def test_no_violations(self) -> None:
         assert normalize_count_to_ratio(0, 0.02, 100) == 1.0
 
@@ -113,3 +289,58 @@ class TestCountToRatio:
 
     def test_half_limit(self) -> None:
         assert normalize_count_to_ratio(1, 0.02, 100) == 0.5
+
+    def test_none_value_returns_neutral(self) -> None:
+        """None value should return neutral (line 197)."""
+        assert normalize_count_to_ratio(None, 0.02, 100) == NEUTRAL_VALUE
+
+    def test_none_value_returns_zero_when_no_neutral(self) -> None:
+        """When neutral_on_missing=False, None should return 0.0 (line 197)."""
+        assert normalize_count_to_ratio(None, 0.02, 100, neutral_on_missing=False) == 0.0
+
+    def test_none_total_with_zero_value(self) -> None:
+        """None total with zero value should return 1.0 (line 199)."""
+        assert normalize_count_to_ratio(0, 0.02, None) == 1.0
+
+    def test_none_total_with_positive_value(self) -> None:
+        """None total with positive value should return NEUTRAL_VALUE (line 199)."""
+        assert normalize_count_to_ratio(5, 0.02, None) == NEUTRAL_VALUE
+
+    def test_zero_total_with_zero_value(self) -> None:
+        """Zero total with zero value should return 1.0 (line 199)."""
+        assert normalize_count_to_ratio(0, 0.02, 0) == 1.0
+
+    def test_zero_total_with_positive_value(self) -> None:
+        """Zero total with positive value should return NEUTRAL_VALUE (line 199)."""
+        assert normalize_count_to_ratio(5, 0.02, 0) == NEUTRAL_VALUE
+
+    def test_zero_target_with_zero_value(self) -> None:
+        """Zero target with zero value should return 1.0 (line 202)."""
+        assert normalize_count_to_ratio(0, 0.0, 100) == 1.0
+
+    def test_zero_target_with_positive_value(self) -> None:
+        """Zero target with positive value should return 0.0 (line 202)."""
+        assert normalize_count_to_ratio(5, 0.0, 100) == 0.0
+
+    def test_negative_total(self) -> None:
+        """Negative total is invalid (<=0 check)."""
+        assert normalize_count_to_ratio(0, 0.02, -100) == 1.0
+
+    def test_over_limit(self) -> None:
+        """Values over limit should be clamped to 0.0."""
+        assert normalize_count_to_ratio(10, 0.02, 100) == 0.0
+
+    def test_negative_target(self) -> None:
+        """Negative target creates negative max_allowed (<=0 check)."""
+        assert normalize_count_to_ratio(0, -0.02, 100) == 1.0
+        assert normalize_count_to_ratio(5, -0.02, 100) == 0.0
+
+    def test_very_small_target(self) -> None:
+        """Very small targets should work correctly."""
+        assert normalize_count_to_ratio(1, 0.001, 100) == 0.0
+
+    def test_fractional_calculations(self) -> None:
+        """Fractional compliance should be calculated correctly."""
+        result = normalize_count_to_ratio(1, 0.1, 100)
+        expected = max(0.0, 1.0 - 1 / (100 * 0.1))
+        assert result == pytest.approx(expected)
