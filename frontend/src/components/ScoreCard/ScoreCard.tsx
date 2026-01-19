@@ -1,4 +1,10 @@
 import type { FinalScore } from '../../types';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 interface ScoreCardProps {
   score: FinalScore;
@@ -25,30 +31,34 @@ function getScoreBgColor(score: number): string {
 
 export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardProps): JSX.Element {
   return (
-    <div className="card">
-      <h3 className="text-lg font-semibold text-gray-700 mb-4">{title}</h3>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
 
-      <div className="flex items-center justify-center mb-6">
-        <div
-          className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor(score.score)} bg-opacity-20`}
-        >
-          <span className={`text-4xl font-bold ${getScoreColor(score.score)}`}>
-            {score.score}
-          </span>
+      <CardContent>
+        <div className="flex items-center justify-center mb-6">
+          <div
+            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor(score.score)} bg-opacity-20`}
+          >
+            <span className={`text-4xl font-bold ${getScoreColor(score.score)}`}>
+              {score.score}
+            </span>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <DimensionBadge label="Time" score={score.dimensions.p_time} />
-        <DimensionBadge label="Cost" score={score.dimensions.p_cost} />
-        <DimensionBadge label="Quality" score={score.dimensions.p_quality} />
-        <DimensionBadge label="Value" score={score.dimensions.p_value} />
-        <DimensionBadge label="Satisfaction" score={score.dimensions.p_satisfaction} />
-        <DimensionBadge label="Flow" score={score.dimensions.p_flow} />
-        <DimensionBadge label="Engineering" score={score.dimensions.p_engineering} />
-        <DimensionBadge label="Risk" score={score.dimensions.p_risk} />
-      </div>
-    </div>
+        <div className="grid grid-cols-2 gap-3">
+          <DimensionBadge label="Time" score={score.dimensions.p_time} />
+          <DimensionBadge label="Cost" score={score.dimensions.p_cost} />
+          <DimensionBadge label="Quality" score={score.dimensions.p_quality} />
+          <DimensionBadge label="Value" score={score.dimensions.p_value} />
+          <DimensionBadge label="Satisfaction" score={score.dimensions.p_satisfaction} />
+          <DimensionBadge label="Flow" score={score.dimensions.p_flow} />
+          <DimensionBadge label="Engineering" score={score.dimensions.p_engineering} />
+          <DimensionBadge label="Risk" score={score.dimensions.p_risk} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -59,8 +69,8 @@ interface DimensionBadgeProps {
 
 function DimensionBadge({ label, score }: DimensionBadgeProps): JSX.Element {
   return (
-    <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-      <span className="text-sm text-gray-600">{label}</span>
+    <div className="flex items-center justify-between p-2 bg-muted rounded-lg">
+      <span className="text-sm text-muted-foreground">{label}</span>
       <span className={`font-semibold ${getScoreColor(score)}`}>{score}</span>
     </div>
   );
