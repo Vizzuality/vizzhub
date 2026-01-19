@@ -1,4 +1,4 @@
-from app.models.config import ScoringConfigModel
+from app.models.config import ConfigParameter, ScoringConfigModel
 from app.models.indicators import Indicators, IndicatorsCreate
 from app.models.metrics import (
     ArchitectureChecklist,
@@ -20,6 +20,7 @@ from app.models.scores import DimensionScores, FinalScore, ScoreResult
 __all__ = [
     "ArchitectureChecklist",
     "ClientSurvey",
+    "ConfigParameter",
     "DimensionScores",
     "EVMData",
     "FinalScore",
