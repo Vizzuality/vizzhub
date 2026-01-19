@@ -80,7 +80,13 @@ cd frontend
 npm run dev      # Development server (http://localhost:5173)
 npm run build    # Production build
 npm run lint     # ESLint
-npm test         # Run tests
+npm test         # Run tests (77 total)
+
+# Theme (shadcn/tweakcn)
+# Current theme: https://tweakcn.com/r/themes/cmkliqxix000d04la3624132s
+# To regenerate theme CSS:
+pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/cmkliqxix000d04la3624132s
+# Theme uses OKLCH color space, Outfit font (sans), Fira Code font (mono)
 ```
 
 ## Architecture

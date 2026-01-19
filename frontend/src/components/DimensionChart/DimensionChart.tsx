@@ -39,8 +39,8 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
 
   // Get primary color from CSS variable
   const primaryColor = typeof window !== 'undefined'
-    ? `hsl(${getComputedStyle(document.documentElement).getPropertyValue('--primary')})`
-    : 'hsl(346.8 77.2% 49.8%)';
+    ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
+    : 'oklch(0.6726 0.2904 341.4084)';
 
   return (
     <Card>
