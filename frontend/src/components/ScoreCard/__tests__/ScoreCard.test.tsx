@@ -78,8 +78,9 @@ describe('ScoreCard', () => {
     const scoreElement = screen.getByText('87');
     expect(scoreElement.className).toContain('text-primary');
 
-    const bgElement = container.querySelector('.bg-primary');
-    expect(bgElement).toBeDefined();
+    // Check for bg-primary/20 (Tailwind opacity syntax)
+    const bgElements = container.querySelectorAll('[class*="bg-primary"]');
+    expect(bgElements.length).toBeGreaterThan(0);
   });
 
   it('renders perfect score (100)', () => {

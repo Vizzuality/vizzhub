@@ -16,7 +16,7 @@ function getScoreColor(): string {
 }
 
 function getScoreBgColor(): string {
-  return 'bg-primary';
+  return 'bg-primary/20';
 }
 
 export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardProps): JSX.Element {
@@ -29,7 +29,7 @@ export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardP
       <CardContent>
         <div className="flex items-center justify-center mb-6">
           <div
-            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor()} bg-opacity-20`}
+            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor()}`}
           >
             <span className={`text-4xl font-bold ${getScoreColor()}`}>
               {score.score}
