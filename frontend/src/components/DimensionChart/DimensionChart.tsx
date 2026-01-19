@@ -51,8 +51,8 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
         <ResponsiveContainer width="100%" height={350}>
         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
           <PolarGrid />
-          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12 }} />
-          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 14 }} />
+          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 12 }} />
           <Radar
             name="Score"
             dataKey="score"
