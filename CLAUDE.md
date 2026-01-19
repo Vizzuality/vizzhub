@@ -45,7 +45,7 @@ docker-compose down && docker-compose up -d --build
 cd backend
 
 # Run tests
-pytest                                        # All tests (270 total)
+pytest                                        # All backend tests (216 total)
 pytest tests/test_calculators.py              # Single file
 pytest tests/test_normalizers.py::TestLowerIsBetter  # Single class
 pytest -k "test_perfect_score"                # By name pattern

@@ -18,13 +18,13 @@
  * 5. Backend validates JWT for protected routes
  */
 
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthState, AuthContextType } from '../types/auth';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
 const USER_STORAGE_KEY = 'auth_user';
 
-const defaultAuthState: AuthState = {
+const DEFAULT_AUTH_STATE: AuthState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -36,8 +36,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>(defaultAuthState);
+export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
+  const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {

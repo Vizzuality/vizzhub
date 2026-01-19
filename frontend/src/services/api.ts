@@ -17,13 +17,6 @@ const api = axios.create({
   },
 });
 
-/**
- * Request interceptor: Add JWT token to Authorization header
- *
- * IMPORTANT: Development mode - backend bypasses auth
- * Token is only added if it exists in localStorage
- * Production: All protected routes will require valid JWT
- */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -32,23 +25,11 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
-/**
- * Response interceptor: Handle authentication errors
- *
- * On 401 Unauthorized:
- * - Clear stored token
- * - Redirect to login page
- * - User must re-authenticate via Google OAuth
- */
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem(TOKEN_STORAGE_KEY);

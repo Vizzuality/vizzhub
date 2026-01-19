@@ -9,15 +9,7 @@ import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import ProjectForm from '../components/Forms/ProjectForm';
 import type { ProjectCreate } from '../types';
-
-function formatDate(dateString: string | null): string {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+import { formatDate } from '../utils/formatters';
 
 export default function ProjectDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();

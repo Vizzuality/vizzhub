@@ -466,5 +466,5 @@ async def test_calculate_scores_adhoc(client: AsyncClient) -> None:
     data = response.json()
     assert "indicators" in data
     assert "scores" in data
-    assert "final_score" in data["scores"]
-    assert 0 <= data["scores"]["final_score"] <= 100
+    assert "score" in data["scores"]
+    assert 0 <= data["scores"]["score"] <= 100

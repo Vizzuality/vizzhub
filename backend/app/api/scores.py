@@ -51,8 +51,8 @@ class ScoreResponse(BaseModel):
 @router.post("/calculate", response_model=ScoreResponse)
 @limiter.limit("30/minute")
 async def calculate_scores(
-    http_request: Request,
-    request: ScoreRequest,
+    request: Request,
+    score_request: ScoreRequest,
     current_user: CurrentUser,
     config: ScoringConfigDep,
 ) -> ScoreResponse:
@@ -60,15 +60,15 @@ async def calculate_scores(
     normalizer = IndicatorNormalizer(config)
     calculator = FinalScoreCalculator(config)
 
-    indicators = normalizer.normalize_all(request.metrics)
+    indicators = normalizer.normalize_all(score_request.metrics)
 
     total_prs = None
-    if request.metrics.github_metrics:
-        total_prs = request.metrics.github_metrics.total_merged_prs
+    if score_request.metrics.github_metrics:
+        total_prs = score_request.metrics.github_metrics.total_merged_prs
 
     scores = calculator.calculate_all(
         indicators,
-        sev1_incident=request.sev1_incident,
+        sev1_incident=score_request.sev1_incident,
         total_prs=total_prs,
     )
 
