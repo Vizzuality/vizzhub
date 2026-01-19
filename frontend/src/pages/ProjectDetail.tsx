@@ -91,10 +91,10 @@ export default function ProjectDetail(): JSX.Element {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-2 flex-1">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="space-y-3 flex-1">
               <CardTitle className="text-3xl font-semibold">{project.name}</CardTitle>
-              <div className="flex items-center gap-4 text-base text-muted-foreground">
+              <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">
                 {project.jira_project_key && (
                   <span className="flex items-center gap-2">
                     <BarChart3 className="w-5 h-5" />
