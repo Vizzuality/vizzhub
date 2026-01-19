@@ -19,45 +19,42 @@ export default function ProjectCard({ project }: ProjectCardProps): JSX.Element 
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold">{project.name}</CardTitle>
-      </CardHeader>
-
-      <CardContent>
-        <div className="space-y-2 text-base text-muted-foreground">
-          {project.jira_project_key && (
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              <span>Jira: {project.jira_project_key}</span>
-            </div>
-          )}
-          {project.github_repo && (
-            <div className="flex items-center gap-2">
-              <Github className="w-5 h-5" />
-              <span>GitHub: {project.github_repo}</span>
-            </div>
-          )}
-          {hasDateRange && (
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              <span>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6">
+        <div className="flex-1 space-y-3">
+          <CardTitle className="text-xl font-semibold">{project.name}</CardTitle>
+          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">
+            {project.jira_project_key && (
+              <span className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Jira: {project.jira_project_key}
+              </span>
+            )}
+            {project.github_repo && (
+              <span className="flex items-center gap-2">
+                <Github className="w-5 h-5" />
+                GitHub: {project.github_repo}
+              </span>
+            )}
+            {hasDateRange && (
+              <span className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
                 {project.start_date && formatDate(project.start_date)}
                 {project.start_date && project.end_date && ' - '}
                 {project.end_date && formatDate(project.end_date)}
               </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </CardContent>
 
-      <CardFooter>
-        <Link
-          to={`/projects/${project.id}`}
-          className="text-base font-medium text-primary hover:underline"
-        >
-          View Details →
-        </Link>
-      </CardFooter>
+        <div className="md:flex-shrink-0">
+          <Link
+            to={`/projects/${project.id}`}
+            className="text-base font-medium text-primary hover:underline"
+          >
+            View Details →
+          </Link>
+        </div>
+      </div>
     </Card>
   );
 }
