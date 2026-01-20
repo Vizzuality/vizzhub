@@ -1,25 +1,18 @@
 export interface ConfigParameter {
-  name: string;
-  value: string;
-  unit?: string;
-  notes?: string;
-}
-
-export interface ConfigSection {
+  id: number;
   category: string;
-  parameters: ConfigParameter[];
+  name: string;
+  value: string;  // Decimal as string from API
+  unit: string | null;
+  notes: string | null;
 }
 
-export interface ConfigResponse {
-  targets: ConfigSection;
-  global_weights: ConfigSection;
-  constants: ConfigSection;
-  time_weights: ConfigSection;
-  cost_weights: ConfigSection;
-  quality_weights: ConfigSection;
-  value_weights: ConfigSection;
-  satisfaction_weights: ConfigSection;
-  flow_weights: ConfigSection;
-  engineering_weights: ConfigSection;
-  risk_weights: ConfigSection;
+export interface ConfigParameterUpdate {
+  name: string;
+  value: string;  // Decimal as string
+}
+
+export interface ValidationResponse {
+  valid: boolean;
+  errors: string[];
 }
