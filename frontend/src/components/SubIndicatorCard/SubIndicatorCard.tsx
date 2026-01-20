@@ -14,6 +14,8 @@ interface SubIndicatorCardProps {
   indicatorSuffix?: string;
   metrics: MetricItem[];
   description?: string;
+  target?: number | null;
+  lowerIsBetter?: boolean;
 }
 
 export default function SubIndicatorCard({
@@ -23,6 +25,8 @@ export default function SubIndicatorCard({
   indicatorSuffix = '%',
   metrics,
   description,
+  target,
+  lowerIsBetter = true,
 }: SubIndicatorCardProps): JSX.Element {
   const formattedValue = indicatorValue !== null
     ? indicatorValue.toFixed(1)
@@ -30,9 +34,13 @@ export default function SubIndicatorCard({
 
   const getIndicatorColor = (value: number | null): string => {
     if (value === null) return 'text-muted-foreground';
-    if (value <= 5) return 'text-green-600 dark:text-green-400';
-    if (value <= 10) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (target === null || target === undefined) {
+      return 'text-foreground';
+    }
+    const isGood = lowerIsBetter ? value <= target : value >= target;
+    return isGood
+      ? 'text-green-600 dark:text-green-400'
+      : 'text-red-600 dark:text-red-400';
   };
 
   return (
@@ -45,9 +53,16 @@ export default function SubIndicatorCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
-          <span className="text-sm font-medium text-muted-foreground">
-            {indicatorLabel}
-          </span>
+          <div className="space-y-1">
+            <span className="text-sm font-medium text-muted-foreground">
+              {indicatorLabel}
+            </span>
+            {target !== null && target !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                Target: {lowerIsBetter ? '≤' : '≥'}{target}{indicatorSuffix}
+              </p>
+            )}
+          </div>
           <span className={cn(
             'text-3xl font-bold',
             getIndicatorColor(indicatorValue)

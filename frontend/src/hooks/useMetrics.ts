@@ -13,8 +13,14 @@ export function useProjectMetrics(projectId: string) {
     queryKey: ['metrics', projectId],
     queryFn: async (): Promise<Metrics | null> => {
       try {
-        const response = await api.get<Metrics>(`/metrics/project/${projectId}/latest`);
-        return response.data;
+        const response = await api.get<Metrics[]>(`/metrics/project/${projectId}`);
+        if (response.data && response.data.length > 0) {
+          const sorted = response.data.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          return sorted[0];
+        }
+        return null;
       } catch {
         return null;
       }
