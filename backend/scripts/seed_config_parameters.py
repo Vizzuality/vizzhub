@@ -3,9 +3,10 @@
 import csv
 import asyncio
 import sys
+import argparse
 from pathlib import Path
 from decimal import Decimal
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Add parent directory to path to import app modules
@@ -15,11 +16,12 @@ from app.database import async_session_maker
 from app.models.config import ConfigParameter
 
 
-async def seed_config_parameters(db: AsyncSession | None = None) -> None:
+async def seed_config_parameters(db: AsyncSession | None = None, force: bool = False) -> None:
     """Seed config parameters from CSV if table is empty.
 
     Args:
         db: Optional database session. If not provided, creates its own session.
+        force: If True, truncate table before seeding.
     """
     should_close = db is None
     if db is None:
@@ -27,13 +29,19 @@ async def seed_config_parameters(db: AsyncSession | None = None) -> None:
         await db.__aenter__()
 
     try:
+        # Truncate if force flag is set
+        if force:
+            await db.execute(text("TRUNCATE TABLE config_parameters RESTART IDENTITY CASCADE"))
+            await db.commit()
+            print("✓ Table truncated")
+
         # Check if already seeded
         result = await db.execute(
             select(func.count()).select_from(ConfigParameter)
         )
         count = result.scalar()
 
-        if count > 0:
+        if count > 0 and not force:
             print(f"✓ Config parameters already seeded ({count} rows)")
             return
 
@@ -61,4 +69,8 @@ async def seed_config_parameters(db: AsyncSession | None = None) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_config_parameters())
+    parser = argparse.ArgumentParser(description="Seed config parameters from CSV")
+    parser.add_argument("--force", action="store_true", help="Truncate table before seeding")
+    args = parser.parse_args()
+
+    asyncio.run(seed_config_parameters(force=args.force))

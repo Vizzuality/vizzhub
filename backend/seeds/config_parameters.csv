@@ -30,14 +30,14 @@ Value Weights,W_value_roi,0.70,weight,ROI inside p_value
 Value Weights,W_value_okr,0.30,weight,OKR inside p_value
 Satisfaction Weights,W_sat_client,0.80,weight,final client satisfaction in P_satisfaction
 Satisfaction Weights,W_sat_pm,0.20,weight,PM estimation of client satisfaction  in P_satisfaction
-Satisfaction Weights,W_cs_understanding,0.12,weight,Client survey weight
-Satisfaction Weights,W_cs_proactivity,0.12,weight,Client survey weight
-Satisfaction Weights,W_cs_communication,0.10,weight,Client survey weight
-Satisfaction Weights,W_cs_time,0.14,weight,Client survey weight
-Satisfaction Weights,W_cs_response,0.10,weight,Client survey weight
-Satisfaction Weights,W_cs_quality,0.24,weight,Client survey weight
-Satisfaction Weights,W_cs_expect,0.12,weight,Client survey weight
-Satisfaction Weights,W_cs_recommend,0.06,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_understanding,0.12,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_proactivity,0.12,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_communication,0.10,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_time,0.14,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_response,0.10,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_quality,0.24,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_expect,0.12,weight,Client survey weight
+Satisfaction Handsoff Weights,W_cs_recommend,0.06,weight,Client survey weight
 Efficiency Weights,W_flow_lt,0.40,weight,time in P_efficiency
 Efficiency Weights,W_flow_fe,0.30,weight,for flow efficiencye in P_efficiency
 Efficiency Weights,W_flow_cr,0.30,weight,for commitment reliability in P_efficiency

@@ -1,10 +1,10 @@
 """Configuration endpoints."""
 
 from fastapi import APIRouter, HTTPException, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from pydantic import ValidationError
 
-from app.api.deps import CurrentUser, DBSession, ScoringConfigDep
+from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter
+from app.core.error_handler import ValidationErrorHandler
 from app.models.config import (
     ConfigParameterResponse,
     ConfigParameterUpdate,
@@ -16,7 +16,6 @@ from app.models.config import (
 from app.services.config_service import ConfigService
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("", response_model=ScoringConfigModel)
@@ -96,5 +95,5 @@ async def update_config_parameters(
     try:
         await ConfigService.update_parameters(db, updates)
         return {"status": "success"}
-    except ValueError as e:
-        raise HTTPException(400, detail=str(e))
+    except (ValidationError, ValueError, Exception) as e:
+        raise ValidationErrorHandler.to_http_exception(e)

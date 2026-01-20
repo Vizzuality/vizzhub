@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { useConfigParameters, useConfigValidation, useUpdateConfigParameters } from '../hooks/useConfig';
+import { useConfigParameters, useUpdateConfigParameters } from '../hooks/useConfig';
 import { useConfigEditor } from '../hooks/useConfigEditor';
-import { Pencil, Save, X, CheckCircle, XCircle } from 'lucide-react';
+import { Pencil, Save, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ConfigSection } from '../components/ConfigSection';
 import { WeightsSection } from '../components/WeightsSection';
+import { ErrorHandler } from '../utils/errorHandler';
 
 export default function Settings(): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
-  const { data: parameters, isLoading: configLoading } = useConfigParameters();
-  const { data: validation } = useConfigValidation();
+  const [saveError, setSaveError] = useState<{ title: string; message: string } | null>(null);
+  const { data: parameters, isLoading: configLoading, error } = useConfigParameters();
   const { mutateAsync: updateConfig } = useUpdateConfigParameters();
+
+  console.log('Settings Debug:', { parameters, configLoading, error });
 
   const {
     editedValues,
     updateValue,
+    updateNotes,
     validationErrors,
     canSave,
     getUpdates,
@@ -24,19 +27,29 @@ export default function Settings(): JSX.Element {
   } = useConfigEditor({ original: parameters });
 
   const handleSave = async (): Promise<void> => {
+    setSaveError(null);
     try {
       const updates = getUpdates();
+      console.log('Sending updates:', updates);
       await updateConfig(updates);
       setIsEditing(false);
       reset();
-    } catch (error) {
+      setSaveError(null);
+    } catch (error: any) {
       console.error('Failed to save configuration:', error);
+
+      const { title, message } = ErrorHandler.formatForDisplay(error);
+      setSaveError({ title, message });
+
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleCancel = (): void => {
     setIsEditing(false);
     reset();
+    setSaveError(null);
   };
 
   if (configLoading) {
@@ -48,7 +61,13 @@ export default function Settings(): JSX.Element {
   }
 
   if (!parameters) {
-    return <div className="text-destructive">Failed to load configuration</div>;
+    return (
+      <div className="text-destructive p-6">
+        <h2 className="text-xl font-semibold mb-2">Failed to load configuration</h2>
+        {error && <p className="text-sm">Error: {error.toString()}</p>}
+        <p className="text-sm mt-2">Check browser console for details</p>
+      </div>
+    );
   }
 
   return (
@@ -76,97 +95,176 @@ export default function Settings(): JSX.Element {
         </div>
       </div>
 
+      {saveError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{saveError.title}</AlertTitle>
+          <AlertDescription className="whitespace-pre-wrap mt-2">
+            {saveError.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isEditing && validationErrors.length > 0 && (
-        <Card className="bg-destructive/10 border-destructive">
-          <CardContent className="pt-6">
-            <h3 className="font-semibold mb-2">Validation Errors:</h3>
-            <ul className="list-disc list-inside space-y-1">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Validation Errors</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc list-inside space-y-1 mt-2">
               {validationErrors.map((error, idx) => (
-                <li key={idx} className="text-sm text-destructive">
+                <li key={idx} className="text-sm">
                   {error}
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
+          </AlertDescription>
+        </Alert>
       )}
 
-      <Tabs defaultValue="config">
-        <TabsList>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="validation">Validation</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="config" className="space-y-6">
-          {parameters.targets && (
+      <div className="space-y-6">
+          {parameters['Targets'] && (
             <ConfigSection
               title="Targets"
-              parameters={parameters.targets}
+              parameters={parameters['Targets']}
               isEditing={isEditing}
               editedValues={editedValues}
               onValueChange={updateValue}
+              onNotesChange={updateNotes}
             />
           )}
 
-          {parameters.constants && (
+          {parameters['Gates & Constants'] && (
             <ConfigSection
               title="Gates & Constants"
-              parameters={parameters.constants}
+              parameters={parameters['Gates & Constants']}
               isEditing={isEditing}
               editedValues={editedValues}
               onValueChange={updateValue}
+              onNotesChange={updateNotes}
             />
           )}
 
-          {parameters.global_weights && (
+          {parameters['Global Weights'] && (
             <WeightsSection
               title="Global Weights"
-              parameters={parameters.global_weights}
+              parameters={parameters['Global Weights']}
               isEditing={isEditing}
               editedValues={editedValues}
               onValueChange={updateValue}
+              onNotesChange={updateNotes}
             />
           )}
-        </TabsContent>
 
-        <TabsContent value="validation">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {validation?.valid ? (
-                  <>
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span>Configuration Valid</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-5 w-5 text-destructive" />
-                    <span>Validation Issues Found</span>
-                  </>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {validation?.groups && (
-                <div className="space-y-2">
-                  {Object.entries(validation.groups).map(([group, isValid]) => (
-                    <div key={group} className="flex items-center gap-2">
-                      {isValid ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className="capitalize">
-                        {group.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          {parameters['Quality Weights'] && (
+            <WeightsSection
+              title="Quality Weights"
+              parameters={parameters['Quality Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Time Weights'] && (
+            <WeightsSection
+              title="Time Weights"
+              parameters={parameters['Time Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Cost Weights'] && (
+            <WeightsSection
+              title="Cost Weights"
+              parameters={parameters['Cost Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Value Weights'] && (
+            <WeightsSection
+              title="Value Weights"
+              parameters={parameters['Value Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Satisfaction Weights'] && (
+            <WeightsSection
+              title="Satisfaction Weights"
+              parameters={parameters['Satisfaction Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Satisfaction Handsoff Weights'] && (
+            <WeightsSection
+              title="Satisfaction Handsoff Weights"
+              parameters={parameters['Satisfaction Handsoff Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Efficiency Weights'] && (
+            <WeightsSection
+              title="Efficiency Weights"
+              parameters={parameters['Efficiency Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Engineering Weights'] && (
+            <WeightsSection
+              title="Engineering Weights"
+              parameters={parameters['Engineering Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Risk Weights'] && (
+            <WeightsSection
+              title="Risk Weights"
+              parameters={parameters['Risk Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+
+          {parameters['Test Maturity Weights'] && (
+            <WeightsSection
+              title="Test Maturity Weights"
+              parameters={parameters['Test Maturity Weights']}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+              onNotesChange={updateNotes}
+            />
+          )}
+      </div>
     </div>
   );
 }

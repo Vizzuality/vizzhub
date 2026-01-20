@@ -153,7 +153,12 @@ async def test_update_config_parameters_rejects_invalid_weights(
     response = await client.put("/api/config/parameters", json=updates)
 
     assert response.status_code == 400
-    assert "Weight validation failed" in response.json()["detail"]
+    detail = response.json()["detail"]
+    # Check structured error response
+    if isinstance(detail, dict):
+        assert "Weight validation failed" in detail["message"]
+    else:
+        assert "Weight validation failed" in detail
 
 
 @pytest.mark.asyncio

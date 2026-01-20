@@ -10,6 +10,7 @@ export interface ConfigParameter {
 export interface ConfigParameterUpdate {
   name: string;
   value: string;  // Decimal as string
+  notes?: string | null;
 }
 
 export interface ValidationResponse {

@@ -6,7 +6,7 @@ export function useConfigParameters() {
   return useQuery<Record<string, ConfigParameter[]>>({
     queryKey: ['config', 'parameters'],
     queryFn: async () => {
-      const response = await api.get('/api/config/parameters');
+      const response = await api.get('/config/parameters');
       return response.data;
     },
   });
@@ -16,7 +16,7 @@ export function useConfigValidation() {
   return useQuery<ValidationResponse>({
     queryKey: ['config', 'validation'],
     queryFn: async () => {
-      const response = await api.get('/api/config/validate');
+      const response = await api.get('/config/validate');
       return response.data;
     },
   });
@@ -27,7 +27,7 @@ export function useUpdateConfigParameters() {
 
   return useMutation({
     mutationFn: async (updates: ConfigParameterUpdate[]) => {
-      const response = await api.put('/api/config/parameters', updates);
+      const response = await api.put('/config/parameters', updates);
       return response.data;
     },
     onSuccess: () => {
