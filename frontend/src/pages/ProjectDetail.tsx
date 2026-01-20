@@ -5,6 +5,7 @@ import { useProject, useReplaceProject, useDeleteProject } from '../hooks/usePro
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics } from '../hooks/useMetrics';
 import { useCollectJiraMetrics } from '../hooks/useCollectors';
+import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import ProjectForm from '../components/Forms/ProjectForm';
@@ -40,9 +41,15 @@ export default function ProjectDetail(): JSX.Element {
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
   const { data: metrics } = useProjectMetrics(id!);
+  const { data: config } = useConfigParameters();
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
   const collectJiraMetrics = useCollectJiraMetrics(id!);
+
+  const getTarget = (name: string): number | null => {
+    const param = config?.targets?.find((p) => p.name === name);
+    return param ? parseFloat(param.value) : null;
+  };
 
   const handleEdit = async (data: ProjectCreate): Promise<void> => {
     await replaceProject.mutateAsync(data);
@@ -285,6 +292,8 @@ export default function ProjectDetail(): JSX.Element {
                 indicatorLabel="Bugs per 100 tasks"
                 indicatorSuffix="%"
                 description="Ratio of bugs to completed tasks"
+                target={getTarget('defect_density')}
+                lowerIsBetter={true}
                 metrics={[
                   { label: 'Bugs Closed', value: metrics.jira_defects.bugs_closed },
                   { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },
