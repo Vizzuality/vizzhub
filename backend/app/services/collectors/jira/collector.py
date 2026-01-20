@@ -11,7 +11,6 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.collectors.base import BaseCollector
 from app.services.collectors.jira.client import JiraClient
 from app.services.collectors.jira.commitment_reliability import (
     collect_commitment_reliability,
@@ -24,7 +23,7 @@ from app.services.collectors.jira.mttr import collect_mttr
 from app.services.collectors.jira.story_review_ratio import collect_story_review_ratio
 
 
-class JiraCollector(BaseCollector):
+class JiraCollector:
     """Collects metrics from Jira API."""
 
     def __init__(self, db: AsyncSession | None = None) -> None:

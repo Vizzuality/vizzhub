@@ -14,10 +14,9 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
-from app.services.collectors.base import BaseCollector
 
 
-class GitHubCollector(BaseCollector):
+class GitHubCollector:
     """Collects metrics from GitHub API."""
 
     def __init__(self) -> None:
