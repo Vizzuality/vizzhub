@@ -124,6 +124,72 @@ class JiraClient:
 
         return 0
 
+    async def get_client(self) -> httpx.AsyncClient:
+        """Get the authenticated HTTP client (public method for indicator modules)."""
+        return await self._get_client()
+
+    async def search_issues(
+        self,
+        project_key: str,
+        jql_filter: str,
+        fields: list[str] | None = None,
+        max_results: int = 100,
+        skip_project_prefix: bool = False,
+    ) -> list[dict]:
+        """
+        Search issues matching a JQL query.
+
+        Args:
+            project_key: Jira project key (e.g., "PROJ")
+            jql_filter: JQL conditions
+            fields: Fields to return (default: key only)
+            max_results: Maximum number of issues to return
+            skip_project_prefix: If True, don't prepend project clause to JQL
+
+        Returns:
+            List of issue dictionaries
+        """
+        self.validate_project_key(project_key)
+
+        if skip_project_prefix:
+            jql = jql_filter
+        else:
+            jql = f'project = "{project_key}" AND {jql_filter}'
+
+        client = await self._get_client()
+        all_issues: list[dict] = []
+        page_token = None
+
+        try:
+            while len(all_issues) < max_results:
+                body: dict = {
+                    "jql": jql,
+                    "fields": fields or ["key"],
+                    "maxResults": min(100, max_results - len(all_issues)),
+                }
+                if page_token:
+                    body["pageToken"] = page_token
+
+                response = await client.post("/rest/api/3/search/jql", json=body)
+
+                if response.status_code != 200:
+                    break
+
+                data = response.json()
+                issues = data.get("issues", [])
+                all_issues.extend(issues)
+
+                page_token = data.get("nextPageToken")
+                if not page_token or not issues:
+                    break
+
+        except Exception as e:
+            import logging
+
+            logging.warning(f"Search issues exception: {jql}\nError: {e}")
+
+        return all_issues
+
     async def close(self) -> None:
         """Close the HTTP client."""
         if self._client:
