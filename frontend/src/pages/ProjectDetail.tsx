@@ -8,6 +8,7 @@ import { useCollectJiraMetrics } from '../hooks/useCollectors';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import ProjectForm from '../components/Forms/ProjectForm';
+import SubIndicatorCard from '../components/SubIndicatorCard';
 import type { ProjectCreate } from '../types';
 import { formatDate } from '../utils/formatters';
 import { Button } from '@/components/ui/button';
@@ -267,6 +268,28 @@ export default function ProjectDetail(): JSX.Element {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ScoreCard score={scores.scores} />
               <DimensionChart scores={scores.scores.dimensions} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {scores && metrics?.jira_defects && (
+        <>
+          <Separator className="my-6" />
+          <div>
+            <h2 className="text-2xl font-semibold mb-4">Sub-indicators</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <SubIndicatorCard
+                title="Defect Density"
+                indicatorValue={scores.indicators.defect_density}
+                indicatorLabel="Bugs per 100 tasks"
+                indicatorSuffix="%"
+                description="Ratio of bugs to completed tasks"
+                metrics={[
+                  { label: 'Bugs Closed', value: metrics.jira_defects.bugs_closed },
+                  { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },
+                ]}
+              />
             </div>
           </div>
         </>
