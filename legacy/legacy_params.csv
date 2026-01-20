@@ -1,0 +1,113 @@
+Targets,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+DefDensity_t,3.00,defects/100 tasks,Target max defect density. Used in P_quality (sub-indicator defect density). ≤ target scores 100%.
+Escaped_t,0.01,escapes/100 tasks,Target max escaped defects. Used in P_quality (sub-indicator escaped rate). ≤ target scores 100%.
+MTTR_t,24,hours,Target mean time to recover (hours). Used in P_quality (sub-indicator MTTR). ≤ target scores 100%.
+SPI_t,1,ratio,"Target schedule performance index. Used in P_time (sub-indicator SPI). Optional, default 1 = on track."
+CPI_t,1,ratio,"Target cost performance index. Used in P_cost (sub-indicator CPI). Optional, default 1 = on budget."
+LT_t,3.00,max days,Target maximum lead time. Used in P_flow (sub-indicator Lead Time)
+FE_t,0.40,ratio,Target ratio flow efficiency
+WIP_max,4.00,count,Max recommended Work In Progress items. Used in P_flow (sub-indicator WIP breaches). TBI.
+CFR_max,0.15,ratio,Deprecated. Previously used in Change Failure Rate.
+ROI_t,1.00,ratio,ROI target. Used in P_value (sub-indicator ROI).
+IaC_t,0.90,ratio,Target coverage for Infrastructure as Code. Used in P_engineering (sub-indicator IaC coverage).
+HighVuln_t,0.00,count,Target max high-severity vulnerabilities open >30 days (0 = strict compliance)
+CritRisk_t,0.00,count,Target max overdue critical risks at closure (0 = none tolerated)
+GovExc_t,2.00,count,Max tolerated exceptions. If < 2 score will always be 0 when there are excceptions
+PR_noReview_t,0.02,ratio,Target percentage of pull requests with no reviewer (min. 1 to 50)
+,,,
+,,,
+Quality Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_def,0.05,weight,Defect density  in P_quality
+W_esc,0.20,weight,Escaped rate  in P_quality
+W_mttr,0.05,weight,MTTR  in P_quality (Mean Time To Resolution)
+W_q_storyrev,0.30,weight,Stories without a reviewer in P_qauality
+W_qual_gov,0.30,weight,governance compliance in P_quality
+W_q_pr,0.10,weight,Pull request review ratio in P_quality
+,,,
+W_q_design,0.00,weight,Design quality in P_quality
+W_q_science,0.00,weight,Data science in P_quality
+,1.00,validator,
+,,,
+Time Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_time_spi,0.60,weight,SPI in P_time calculation
+W_time_milestones,0.40,weight,for OnTimeMilestones in P_time
+,1.00,validator,
+,,,
+Cost Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_cost_cpi,0.70,weight,CPI (cost efficiency) in P_cost
+W_cost_var,0.30,weight,Budget Variance (overrun %) in P_cost
+,1.00,validator,
+,,,
+Value Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_value_roi,0.70,weight,ROI inside p_value
+W_value_okr,0.30,weight,OKR inside p_value
+,1.00,validator,
+,,,
+Satisfaction Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_sat_client,0.80,weight,final client satisfaction in P_satisfaction
+W_sat_pm,0.20,weight,PM estimation of client satisfaction  in P_satisfaction
+,1.00,validator,
+W_cs_understanding,0.12,,Client survey weight
+W_cs_proactivity,0.12,,Client survey weight
+W_cs_communication,0.10,,Client survey weight
+W_cs_time,0.14,,Client survey weight
+W_cs_response,0.10,,Client survey weight
+W_cs_quality,0.24,,Client survey weight
+W_cs_expect,0.12,,Client survey weight
+W_cs_recommend,0.06,,Client survey weight
+,1.00,validator,
+,,,
+Efficiency Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_flow_lt,0.40,weight,time in P_efficiency
+W_flow_fe,0.30,weight,for flow efficiencye in P_efficiency
+W_flow_cr,0.30,weight,for commitment reliability in P_efficiency
+,1.00,validator,
+,,,
+Engineering Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_eng_test,0.50,weight,test maturity in P_engineering
+W_eng_pr,0.20,weight,PR review ratio in P_engineering
+W_eng_iac,0.00,weight,IaC coverage in P_engineering (Infrastructure as Code)
+W_eng_arch,0.30,weight,architecture checklist in P_engineering
+,1.00,validator,
+,,,
+Risk Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_risk_pr,0.50,weight,PR with no reviewer P_risk
+W_risk_vuln,0.50,weight,HighVuln_open_gt30d in P_risk
+W_risk_risks,0.00,weight,RisksCriticalOverdue in P_risk
+,1.00,,
+,,,
+Global Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_time,0.12,weight,P_time
+W_cost,0.10,weight,P_costs
+W_quality,0.18,weight,P_quality
+W_value,0.10,weight,P_value
+W_risk,0.05,weight,P_risk
+W_flow,0.15,weight,P_flow
+W_engineering,0.18,weight,P_engineering
+W_satisfaction,0.12,weight,P_satisfaction
+,1.00,validator,
+,,,
+Gates & Constants,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+Sev1_cap,60,points,max P_quality if Sev1
+GraceDays,3,days,schedule grace window
+Bonus_max,0.1,points,optional bonus cap (Top 5 projects)
+,,,
+Test Maturity Weights,,,
+Name (use as Named Range),Value,Unit/Type,Notes
+W_test_e2e,0.4,weight,
+W_test_unit,0.1,weight,
+W_test_access,0.1,weight,
+W_test_security,0.2,weight,
+W_test_frontend,0.2,weight,
+,1.00,validator,
