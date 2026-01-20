@@ -1,11 +1,6 @@
 import { useState } from 'react';
-import {
-  useScoringConfig,
-  useConfigValidation,
-  useUpdateConfigParameters,
-} from '../hooks/useScores';
+import { useConfigParameters, useConfigValidation, useUpdateConfigParameters } from '../hooks/useConfig';
 import { useConfigEditor } from '../hooks/useConfigEditor';
-import { transformConfigToParameters } from '../utils/configTransform';
 import { Pencil, Save, X, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,11 +10,9 @@ import { WeightsSection } from '../components/WeightsSection';
 
 export default function Settings(): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
-  const { data: config, isLoading: configLoading } = useScoringConfig();
+  const { data: parameters, isLoading: configLoading } = useConfigParameters();
   const { data: validation } = useConfigValidation();
   const { mutateAsync: updateConfig } = useUpdateConfigParameters();
-
-  const parameters = transformConfigToParameters(config);
 
   const {
     editedValues,
@@ -54,7 +47,7 @@ export default function Settings(): JSX.Element {
     );
   }
 
-  if (!config) {
+  if (!parameters) {
     return <div className="text-destructive">Failed to load configuration</div>;
   }
 
