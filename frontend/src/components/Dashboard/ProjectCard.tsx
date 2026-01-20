@@ -2,13 +2,7 @@ import { Link } from 'react-router-dom';
 import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '../../types';
 import { formatDate } from '../../utils/formatters';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardTitle } from '@/components/ui/card';
 
 interface ProjectCardProps {
   project: Project;
