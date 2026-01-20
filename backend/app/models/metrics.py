@@ -49,7 +49,7 @@ class EVMData(BaseModel):
 class JiraDefectMetrics(BaseModel):
     """Defect and incident metrics from Jira."""
 
-    bugs_closed: int = Field(..., ge=0)
+    bugs_total: int = Field(..., ge=0)
     tasks_completed: int = Field(..., ge=0)
     escaped_defects: int = Field(default=0, ge=0)
     mttr_hours: float | None = Field(default=None, ge=0)

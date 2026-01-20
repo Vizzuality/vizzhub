@@ -59,7 +59,7 @@ class JiraCollector:
 
         return {
             # defect_density
-            "bugs_closed": defect_data["bugs_closed"],
+            "bugs_total": defect_data["bugs_total"],
             "tasks_completed": defect_data["tasks_completed"],
             # escaped_rate
             "escaped_defects": escaped_data["escaped_defects"],

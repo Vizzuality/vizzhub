@@ -119,12 +119,12 @@ class TestMetricsCollection:
     async def test_jira_collector_collect_returns_bug_counts(
         self, db_session: AsyncSession
     ) -> None:
-        """collect should return bugs_closed count."""
+        """collect should return bugs_total count."""
         collector = JiraCollector(db=db_session)
         self._mock_jira_client(collector)
 
         async def count_side_effect(project, jql):
-            if "type = Bug AND statusCategory = Done" in jql:
+            if jql == "type = Bug":
                 return 42
             return 0
 
@@ -132,7 +132,7 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("TEST")
 
-        assert metrics["bugs_closed"] == 42
+        assert metrics["bugs_total"] == 42
 
     @pytest.mark.asyncio
     async def test_jira_collector_collect_returns_task_counts(
@@ -204,7 +204,7 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("EMPTY")
 
-        assert metrics["bugs_closed"] == 0
+        assert metrics["bugs_total"] == 0
         assert metrics["tasks_completed"] == 0
         assert metrics["escaped_defects"] == 0
         assert metrics["total_stories"] == 0
@@ -219,7 +219,7 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("ERROR")
 
-        assert metrics["bugs_closed"] == 0
+        assert metrics["bugs_total"] == 0
         assert metrics["tasks_completed"] == 0
 
 
