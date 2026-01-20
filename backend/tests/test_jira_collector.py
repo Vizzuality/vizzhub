@@ -109,25 +109,28 @@ class TestOAuthIntegration:
 class TestMetricsCollection:
     """Test Jira metrics collection functionality."""
 
+    def _mock_jira_client(self, collector: JiraCollector) -> None:
+        """Set up common mocks for JiraClient methods."""
+        collector._jira_client.count_issues = AsyncMock(return_value=0)
+        collector._jira_client.search_issues = AsyncMock(return_value=[])
+        collector._jira_client.get_client = AsyncMock()
+
     @pytest.mark.asyncio
     async def test_jira_collector_collect_returns_bug_counts(
         self, db_session: AsyncSession
     ) -> None:
         """collect should return bugs_closed count."""
         collector = JiraCollector(db=db_session)
+        self._mock_jira_client(collector)
 
-        with patch.object(
-            collector._jira_client, "count_issues", new_callable=AsyncMock
-        ) as mock_count:
+        async def count_side_effect(project, jql):
+            if "type = Bug AND statusCategory = Done" in jql:
+                return 42
+            return 0
 
-            async def count_side_effect(project, jql):
-                if "type = Bug AND statusCategory = Done" in jql:
-                    return 42
-                return 0
+        collector._jira_client.count_issues.side_effect = count_side_effect
 
-            mock_count.side_effect = count_side_effect
-
-            metrics = await collector.collect("TEST")
+        metrics = await collector.collect("TEST")
 
         assert metrics["bugs_closed"] == 42
 
@@ -137,19 +140,16 @@ class TestMetricsCollection:
     ) -> None:
         """collect should return tasks_completed count."""
         collector = JiraCollector(db=db_session)
+        self._mock_jira_client(collector)
 
-        with patch.object(
-            collector._jira_client, "count_issues", new_callable=AsyncMock
-        ) as mock_count:
+        async def count_side_effect(project, jql):
+            if "type in (Story, Task, Sub-task) AND statusCategory = Done" in jql:
+                return 128
+            return 0
 
-            async def count_side_effect(project, jql):
-                if "type in (Story, Task, Sub-task) AND statusCategory = Done" in jql:
-                    return 128
-                return 0
+        collector._jira_client.count_issues.side_effect = count_side_effect
 
-            mock_count.side_effect = count_side_effect
-
-            metrics = await collector.collect("PROJ")
+        metrics = await collector.collect("PROJ")
 
         assert metrics["tasks_completed"] == 128
 
@@ -159,21 +159,18 @@ class TestMetricsCollection:
     ) -> None:
         """collect should return story counts."""
         collector = JiraCollector(db=db_session)
+        self._mock_jira_client(collector)
 
-        with patch.object(
-            collector._jira_client, "count_issues", new_callable=AsyncMock
-        ) as mock_count:
+        async def count_side_effect(project, jql):
+            if jql == "type = Story AND status = Done":
+                return 50
+            if "reviewers IS NOT EMPTY" in jql:
+                return 45
+            return 0
 
-            async def count_side_effect(project, jql):
-                if jql == "type = Story":
-                    return 50
-                if "Reviewer" in jql:
-                    return 45
-                return 0
+        collector._jira_client.count_issues.side_effect = count_side_effect
 
-            mock_count.side_effect = count_side_effect
-
-            metrics = await collector.collect("STORY")
+        metrics = await collector.collect("STORY")
 
         assert metrics["total_stories"] == 50
         assert metrics["stories_with_reviewer"] == 45
@@ -184,19 +181,16 @@ class TestMetricsCollection:
     ) -> None:
         """collect should return escaped_defects count."""
         collector = JiraCollector(db=db_session)
+        self._mock_jira_client(collector)
 
-        with patch.object(
-            collector._jira_client, "count_issues", new_callable=AsyncMock
-        ) as mock_count:
+        async def count_side_effect(project, jql):
+            if "Environment" in jql and "Staging" in jql:
+                return 7
+            return 0
 
-            async def count_side_effect(project, jql):
-                if "Environment" in jql and "Staging" in jql:
-                    return 7
-                return 0
+        collector._jira_client.count_issues.side_effect = count_side_effect
 
-            mock_count.side_effect = count_side_effect
-
-            metrics = await collector.collect("ESC")
+        metrics = await collector.collect("ESC")
 
         assert metrics["escaped_defects"] == 7
 
@@ -204,15 +198,11 @@ class TestMetricsCollection:
     async def test_jira_collector_collect_handles_empty_project(
         self, db_session: AsyncSession
     ) -> None:
-        """collect should return zeros for empty project."""
+        """collect should return zeros/None for empty project."""
         collector = JiraCollector(db=db_session)
+        self._mock_jira_client(collector)
 
-        with patch.object(
-            collector._jira_client, "count_issues", new_callable=AsyncMock
-        ) as mock_count:
-            mock_count.return_value = 0
-
-            metrics = await collector.collect("EMPTY")
+        metrics = await collector.collect("EMPTY")
 
         assert metrics["bugs_closed"] == 0
         assert metrics["tasks_completed"] == 0
@@ -225,13 +215,9 @@ class TestMetricsCollection:
     ) -> None:
         """collect should return zeros on JQL error."""
         collector = JiraCollector(db=db_session)
+        self._mock_jira_client(collector)
 
-        with patch.object(
-            collector._jira_client, "count_issues", new_callable=AsyncMock
-        ) as mock_count:
-            mock_count.return_value = 0
-
-            metrics = await collector.collect("ERROR")
+        metrics = await collector.collect("ERROR")
 
         assert metrics["bugs_closed"] == 0
         assert metrics["tasks_completed"] == 0
