@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scoresApi, configApi } from '../services/api';
 
 export function useProjectScores(projectId: string) {
@@ -28,5 +28,26 @@ export function useConfigValidation() {
   return useQuery({
     queryKey: ['config', 'validation'],
     queryFn: configApi.validate,
+  });
+}
+
+export function useConfigParameters() {
+  return useQuery({
+    queryKey: ['config', 'parameters'],
+    queryFn: configApi.getParameters,
+  });
+}
+
+export function useUpdateConfigParameters() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (updates: Array<{ name: string; value: string }>) =>
+      configApi.updateParameters(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] });
+      queryClient.invalidateQueries({ queryKey: ['config', 'parameters'] });
+      queryClient.invalidateQueries({ queryKey: ['config', 'validation'] });
+    },
   });
 }

@@ -1,13 +1,50 @@
 import { useState } from 'react';
-import { useScoringConfig } from '../hooks/useScores';
-import { Pencil, Save, X } from 'lucide-react';
+import {
+  useScoringConfig,
+  useConfigValidation,
+  useUpdateConfigParameters,
+} from '../hooks/useScores';
+import { useConfigEditor } from '../hooks/useConfigEditor';
+import { transformConfigToParameters } from '../utils/configTransform';
+import { Pencil, Save, X, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ConfigSection } from '../components/ConfigSection';
+import { WeightsSection } from '../components/WeightsSection';
 
 export default function Settings(): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const { data: config, isLoading: configLoading } = useScoringConfig();
+  const { data: validation } = useConfigValidation();
+  const { mutateAsync: updateConfig } = useUpdateConfigParameters();
+
+  const parameters = transformConfigToParameters(config);
+
+  const {
+    editedValues,
+    updateValue,
+    validationErrors,
+    canSave,
+    getUpdates,
+    reset,
+  } = useConfigEditor({ original: parameters });
+
+  const handleSave = async (): Promise<void> => {
+    try {
+      const updates = getUpdates();
+      await updateConfig(updates);
+      setIsEditing(false);
+      reset();
+    } catch (error) {
+      console.error('Failed to save configuration:', error);
+    }
+  };
+
+  const handleCancel = (): void => {
+    setIsEditing(false);
+    reset();
+  };
 
   if (configLoading) {
     return (
@@ -28,15 +65,11 @@ export default function Settings(): JSX.Element {
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button
-                variant="ghost"
-                onClick={() => setIsEditing(false)}
-                className="border"
-              >
+              <Button variant="ghost" onClick={handleCancel} className="border">
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button onClick={() => setIsEditing(false)}>
+              <Button onClick={handleSave} disabled={!canSave}>
                 <Save className="h-4 w-4 mr-2" />
                 Save Changes
               </Button>
@@ -50,21 +83,94 @@ export default function Settings(): JSX.Element {
         </div>
       </div>
 
+      {isEditing && validationErrors.length > 0 && (
+        <Card className="bg-destructive/10 border-destructive">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-2">Validation Errors:</h3>
+            <ul className="list-disc list-inside space-y-1">
+              {validationErrors.map((error, idx) => (
+                <li key={idx} className="text-sm text-destructive">
+                  {error}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="config">
         <TabsList>
           <TabsTrigger value="config">Configuration</TabsTrigger>
           <TabsTrigger value="validation">Validation</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="config">
-          <Card className="p-6">
-            <p className="text-muted-foreground">Configuration content coming soon...</p>
-          </Card>
+        <TabsContent value="config" className="space-y-6">
+          {parameters.targets && (
+            <ConfigSection
+              title="Targets"
+              parameters={parameters.targets}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+            />
+          )}
+
+          {parameters.constants && (
+            <ConfigSection
+              title="Gates & Constants"
+              parameters={parameters.constants}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+            />
+          )}
+
+          {parameters.global_weights && (
+            <WeightsSection
+              title="Global Weights"
+              parameters={parameters.global_weights}
+              isEditing={isEditing}
+              editedValues={editedValues}
+              onValueChange={updateValue}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="validation">
-          <Card className="p-6">
-            <p className="text-muted-foreground">Validation content coming soon...</p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {validation?.valid ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span>Configuration Valid</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-5 w-5 text-destructive" />
+                    <span>Validation Issues Found</span>
+                  </>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {validation?.groups && (
+                <div className="space-y-2">
+                  {Object.entries(validation.groups).map(([group, isValid]) => (
+                    <div key={group} className="flex items-center gap-2">
+                      {isValid ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      <span className="capitalize">
+                        {group.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

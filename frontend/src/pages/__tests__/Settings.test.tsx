@@ -15,6 +15,20 @@ vi.mock('../../hooks/useScores', () => ({
   useConfigValidation: () => ({
     data: null,
   }),
+  useUpdateConfigParameters: () => ({
+    mutateAsync: vi.fn(),
+  }),
+}));
+
+vi.mock('../../hooks/useConfigEditor', () => ({
+  useConfigEditor: () => ({
+    editedValues: new Map(),
+    updateValue: vi.fn(),
+    validationErrors: [],
+    canSave: false,
+    getUpdates: vi.fn(() => []),
+    reset: vi.fn(),
+  }),
 }));
 
 const queryClient = new QueryClient({
