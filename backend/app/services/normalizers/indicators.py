@@ -132,7 +132,7 @@ class IndicatorNormalizer:
             return None
         if jira.tasks_completed <= 0:
             return 0.0
-        return (jira.bugs_closed / jira.tasks_completed) * 100
+        return (jira.bugs_total / jira.tasks_completed) * 100
 
     def _calculate_escaped_rate(self, jira: JiraDefectMetrics | None) -> float | None:
         """Calculate escaped defect rate per 100 tasks."""

@@ -298,7 +298,7 @@ export default function ProjectDetail(): JSX.Element {
                 lowerIsBetter={true}
                 formula="(Bugs / Tasks) × 100"
                 metrics={[
-                  { label: 'Bugs Closed', value: metrics.jira_defects.bugs_closed },
+                  { label: 'Bugs', value: metrics.jira_defects.bugs_total },
                   { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },
                 ]}
               />
@@ -320,8 +320,8 @@ export default function ProjectDetail(): JSX.Element {
                 <h3 className="text-base font-medium mb-3">Jira Defects</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Bugs Closed</span>
-                    <span className="text-base font-medium">{metrics.jira_defects.bugs_closed}</span>
+                    <span className="text-sm text-muted-foreground">Bugs</span>
+                    <span className="text-base font-medium">{metrics.jira_defects.bugs_total}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <span className="text-sm text-muted-foreground">Tasks Completed</span>

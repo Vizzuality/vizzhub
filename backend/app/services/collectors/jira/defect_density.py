@@ -4,10 +4,10 @@ defect_density - Defects per 100 resolved tasks
 == SPEC ==
 
 Formula:
-    defect_density = (bugs_resolved / tasks_resolved) × 100
+    defect_density = (bugs_total / tasks_completed) × 100
 
 JQL Queries:
-    bugs:  project = "KEY" AND type = Bug AND statusCategory = Done
+    bugs:  project = "KEY" AND type = Bug
     tasks: project = "KEY" AND type in (Story, Task, Sub-task) AND statusCategory = Done
 
 Data Source:
@@ -20,8 +20,8 @@ Normalization:
     Lower is better: min(1, target / max(value, 0.001))
 
 Edge Cases:
-    - No tasks resolved: defect_density = 0 (can't have defects without work)
-    - No bugs resolved: defect_density = 0 (perfect score)
+    - No tasks completed: defect_density = 0 (can't have defects without work)
+    - No bugs: defect_density = 0 (perfect score)
     - No Jira data: defect_density = None (neutral in score calculation)
 
 == END SPEC ==
@@ -42,11 +42,11 @@ async def collect_defect_density(client: "JiraClient", project_key: str) -> dict
         project_key: Jira project key (e.g., "PROJ")
 
     Returns:
-        dict with bugs_closed and tasks_completed counts
+        dict with bugs_total and tasks_completed counts
     """
-    bugs_closed = await client.count_issues(
+    bugs_total = await client.count_issues(
         project_key,
-        "type = Bug AND statusCategory = Done",
+        "type = Bug",
     )
 
     tasks_completed = await client.count_issues(
@@ -55,22 +55,22 @@ async def collect_defect_density(client: "JiraClient", project_key: str) -> dict
     )
 
     return {
-        "bugs_closed": bugs_closed,
+        "bugs_total": bugs_total,
         "tasks_completed": tasks_completed,
     }
 
 
-def calculate_defect_density(bugs_closed: int, tasks_completed: int) -> float | None:
+def calculate_defect_density(bugs_total: int, tasks_completed: int) -> float | None:
     """
     Calculate defect density from raw counts.
 
     Args:
-        bugs_closed: Number of resolved bugs
-        tasks_completed: Number of resolved tasks (Story, Task, Sub-task)
+        bugs_total: Total number of bugs in project
+        tasks_completed: Number of completed tasks (Story, Task, Sub-task)
 
     Returns:
         Defects per 100 tasks, or None if no data
     """
     if tasks_completed <= 0:
         return 0.0
-    return (bugs_closed / tasks_completed) * 100
+    return (bugs_total / tasks_completed) * 100

@@ -122,7 +122,7 @@ export interface MetricsCreate {
   evm_data?: EVMData;
   milestones?: Milestone[];
   jira_defects?: {
-    bugs_closed: number;
+    bugs_total: number;
     tasks_completed: number;
     escaped_defects: number;
     mttr_hours?: number;

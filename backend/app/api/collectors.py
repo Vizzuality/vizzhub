@@ -79,7 +79,7 @@ async def collect_jira_metrics(
 
     # Map raw metrics to database structure
     jira_defects = {
-        "bugs_closed": raw_metrics.get("bugs_closed", 0),
+        "bugs_total": raw_metrics.get("bugs_total", 0),
         "tasks_completed": raw_metrics.get("tasks_completed", 0),
         "escaped_defects": raw_metrics.get("escaped_defects", 0),
         "mttr_hours": raw_metrics.get("mttr_hours"),
