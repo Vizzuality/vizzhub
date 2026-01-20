@@ -47,7 +47,9 @@ export default function ProjectDetail(): JSX.Element {
   const collectJiraMetrics = useCollectJiraMetrics(id!);
 
   const getTarget = (name: string): number | null => {
-    const param = config?.targets?.find((p) => p.name === name);
+    const targets = config?.['Targets'];
+    if (!targets) return null;
+    const param = targets.find((p) => p.name === name);
     return param ? parseFloat(param.value) : null;
   };
 
@@ -292,8 +294,9 @@ export default function ProjectDetail(): JSX.Element {
                 indicatorLabel="Bugs per 100 tasks"
                 indicatorSuffix="%"
                 description="Ratio of bugs to completed tasks"
-                target={getTarget('defect_density')}
+                target={getTarget('DefDensity_t')}
                 lowerIsBetter={true}
+                formula="(Bugs / Tasks) × 100"
                 metrics={[
                   { label: 'Bugs Closed', value: metrics.jira_defects.bugs_closed },
                   { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },

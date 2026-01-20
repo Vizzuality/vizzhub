@@ -87,7 +87,7 @@ async def get_project_scores(
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
-        .order_by(MetricsDB.period_end.desc())
+        .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
         .limit(1)
     )
     metrics_db = result.scalar_one_or_none()
@@ -127,7 +127,7 @@ async def get_project_score_history(
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
-        .order_by(MetricsDB.period_end.desc())
+        .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
         .limit(limit)
     )
     metrics_list = result.scalars().all()
