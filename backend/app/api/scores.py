@@ -4,11 +4,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, ScoringConfigDep
+from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError, ProjectNotFoundError
 from app.models.indicators import IndicatorsCreate
 from app.models.metrics import (
@@ -31,7 +29,6 @@ from app.services.calculators.final_score import FinalScoreCalculator
 from app.services.normalizers.indicators import IndicatorNormalizer
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 class ScoreRequest(BaseModel):
@@ -85,11 +82,7 @@ async def get_project_scores(
     config: ScoringConfigDep,
 ) -> ScoreResponse:
     """Calculate scores from a project's latest metrics."""
-    result = await db.execute(
-        select(ProjectDB).where(ProjectDB.id == str(project_id))
-    )
-    if result.scalar_one_or_none() is None:
-        raise ProjectNotFoundError(str(project_id))
+    await get_project_or_404(db, project_id)
 
     result = await db.execute(
         select(MetricsDB)
@@ -129,11 +122,7 @@ async def get_project_score_history(
     limit: int = 10,
 ) -> list[ScoreResponse]:
     """Get score history for a project."""
-    result = await db.execute(
-        select(ProjectDB).where(ProjectDB.id == str(project_id))
-    )
-    if result.scalar_one_or_none() is None:
-        raise ProjectNotFoundError(str(project_id))
+    await get_project_or_404(db, project_id)
 
     result = await db.execute(
         select(MetricsDB)

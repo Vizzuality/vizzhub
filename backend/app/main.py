@@ -6,9 +6,9 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from pydantic import ValidationError
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api import collectors as collectors_router
@@ -17,7 +17,9 @@ from app.api import metrics as metrics_router
 from app.api import oauth as oauth_router
 from app.api import projects as projects_router
 from app.api import scores as scores_router
+from app.api.deps import limiter
 from app.config import get_settings
+from app.core.error_handler import ValidationErrorHandler
 from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import init_db
 
@@ -29,9 +31,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
-
-# Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -86,40 +85,25 @@ app.add_middleware(
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """Handle validation errors with sanitized responses."""
+    """Handle validation errors with user-friendly messages."""
     # Log full details server-side
     logger.error(f"Validation error on {request.method} {request.url}")
     logger.error(f"Errors: {exc.errors()}")
 
-    # Return sanitized response based on environment
-    if settings.debug:
-        # Development - return detailed errors
-        # Sanitize errors to ensure JSON serializability
-        errors = []
-        for error in exc.errors():
-            sanitized_error = {
-                "type": error.get("type"),
-                "loc": error.get("loc"),
-                "msg": error.get("msg"),
-                "input": error.get("input"),
-            }
-            # Convert ctx values to strings if present
-            if "ctx" in error:
-                sanitized_error["ctx"] = {
-                    k: str(v) for k, v in error["ctx"].items()
-                }
-            errors.append(sanitized_error)
+    # Use centralized error handler to format message
+    message = ValidationErrorHandler.format_pydantic_error(exc)
 
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": errors},
-        )
-    else:
-        # Production - return generic error
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": "Invalid request data"},
-        )
+    # Return user-friendly error response
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,  # Use 400 instead of 422 for consistency
+        content={
+            "detail": {
+                "error": "Validation Error",
+                "message": message,
+                "type": "validation_error",
+            }
+        },
+    )
 
 
 @app.exception_handler(Exception)

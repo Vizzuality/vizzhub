@@ -1,43 +1,7 @@
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
-
-from app.database import Base
-
-
-class ScoresDB(Base):
-    """SQLAlchemy model for dimension scores."""
-
-    __tablename__ = "scores"
-
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
-    indicators_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("indicators.id", ondelete="CASCADE"), nullable=False
-    )
-    project_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
-    )
-
-    p_time: Mapped[int] = mapped_column(nullable=False)
-    p_cost: Mapped[int] = mapped_column(nullable=False)
-    p_quality: Mapped[int] = mapped_column(nullable=False)
-    p_value: Mapped[int] = mapped_column(nullable=False)
-    p_satisfaction: Mapped[int] = mapped_column(nullable=False)
-    p_flow: Mapped[int] = mapped_column(nullable=False)
-    p_engineering: Mapped[int] = mapped_column(nullable=False)
-    p_risk: Mapped[int] = mapped_column(nullable=False)
-    final_score: Mapped[int] = mapped_column(nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
 
 
 class DimensionScores(BaseModel):

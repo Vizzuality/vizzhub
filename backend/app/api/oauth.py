@@ -4,11 +4,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, limiter
 from app.config import get_settings
 from app.core.oauth_state import OAuthStateManager
 from app.core.security_logger import (
@@ -21,7 +19,6 @@ from app.services.oauth_service import OAuthService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/jira/authorize")
@@ -152,8 +149,8 @@ async def refresh_jira_token(
     client_ip = request.client.host if request.client else "unknown"
 
     try:
-        async with db.begin():
-            token = await OAuthService.refresh_jira_token(db)
+        token = await OAuthService.refresh_jira_token(db)
+        await db.commit()
 
         if not token:
             raise HTTPException(

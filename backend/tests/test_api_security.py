@@ -28,7 +28,7 @@ class TestProjectsSQLInjection:
         """Test that SQL injection in UUID parameter returns 422."""
         sql_payload = "'; DROP TABLE projects--"
         response = await client.get(f"/api/projects/{sql_payload}")
-        assert response.status_code == 422
+        assert response.status_code == 400
 
 
 
@@ -152,7 +152,7 @@ class TestCollectorsValidation:
     ) -> None:
         """Test that invalid UUID format returns 422."""
         response = await client.post("/api/collect/project/not-a-uuid/jira")
-        assert response.status_code == 422
+        assert response.status_code == 400
 
 
 class TestCollectorsJQLInjection:
@@ -209,7 +209,7 @@ class TestMetricsValidation:
                 "sev1_incident": False,
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_create_metrics_invalid_evm_data_structure(
@@ -229,7 +229,7 @@ class TestMetricsValidation:
                 "sev1_incident": False,
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
 
 class TestScoresAuthentication:

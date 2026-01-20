@@ -3,16 +3,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
 from app.core.exceptions import ProjectNotFoundError
 from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("", response_model=list[Project])
@@ -51,10 +48,7 @@ async def get_project(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> Project:
     """Get a project by ID. Requires authentication."""
-    result = await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise ProjectNotFoundError(str(project_id))
+    project = await get_project_or_404(db, project_id)
     return Project.model_validate(project)
 
 
@@ -68,10 +62,7 @@ async def update_project(
     db: DBSession,
 ) -> Project:
     """Partially update a project. Requires authentication."""
-    result = await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise ProjectNotFoundError(str(project_id))
+    project = await get_project_or_404(db, project_id)
 
     update_data = update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -92,10 +83,7 @@ async def replace_project(
     db: DBSession,
 ) -> Project:
     """Fully replace a project. Requires authentication."""
-    result = await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise ProjectNotFoundError(str(project_id))
+    project = await get_project_or_404(db, project_id)
 
     project.name = project_data.name
     project.jira_project_key = project_data.jira_project_key
@@ -114,9 +102,6 @@ async def delete_project(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> None:
     """Delete a project. Requires authentication."""
-    result = await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise ProjectNotFoundError(str(project_id))
+    project = await get_project_or_404(db, project_id)
 
     await db.delete(project)

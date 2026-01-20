@@ -79,7 +79,7 @@ class TestOAuthJiraCallback:
         response = await client.get("/api/oauth/jira/callback?code=test-code")
 
         # Should be validation error (422) for missing required parameter
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_oauth_jira_callback_code_exchange_success(

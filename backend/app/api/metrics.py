@@ -3,17 +3,14 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError, ProjectNotFoundError
 from app.models.metrics import Metrics, MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/project/{project_id}", response_model=list[Metrics])
@@ -22,11 +19,7 @@ async def list_project_metrics(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> list[Metrics]:
     """List all metrics for a project. Requires authentication."""
-    result = await db.execute(
-        select(ProjectDB).where(ProjectDB.id == str(project_id))
-    )
-    if result.scalar_one_or_none() is None:
-        raise ProjectNotFoundError(str(project_id))
+    await get_project_or_404(db, project_id)
 
     result = await db.execute(
         select(MetricsDB)
@@ -47,11 +40,7 @@ async def create_metrics(
     db: DBSession,
 ) -> Metrics:
     """Create new metrics for a project. Requires authentication."""
-    result = await db.execute(
-        select(ProjectDB).where(ProjectDB.id == str(project_id))
-    )
-    if result.scalar_one_or_none() is None:
-        raise ProjectNotFoundError(str(project_id))
+    await get_project_or_404(db, project_id)
 
     db_metrics = MetricsDB(
         project_id=str(project_id),

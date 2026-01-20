@@ -18,7 +18,7 @@ sleep 2
 echo ""
 echo "📊 Ejecutando seed de config_parameters..."
 cd "$BACKEND_DIR"
-python scripts/seed_config_parameters.py
+python scripts/seed_config_parameters.py "$@"
 
 echo ""
 echo "🚀 Iniciando backend del worktree..."
