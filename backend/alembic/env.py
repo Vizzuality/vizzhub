@@ -9,10 +9,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.database import Base
-from app.models.indicators import IndicatorsDB
 from app.models.metrics import MetricsDB
 from app.models.project import ProjectDB
-from app.models.scores import ScoresDB
 
 config = context.config
 

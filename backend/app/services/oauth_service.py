@@ -80,9 +80,6 @@ class OAuthService:
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
         # Delete existing Jira token (single instance)
-        await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-        )
         result = await db.execute(
             select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
         )

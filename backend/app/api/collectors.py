@@ -4,18 +4,15 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
 from app.core.exceptions import ConfigurationError, ProjectNotFoundError
 from app.models.metrics import Metrics, MetricsDB
 from app.models.project import ProjectDB
 from app.services.collectors.jira import JiraCollector
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post(
@@ -45,10 +42,7 @@ async def collect_jira_metrics(
         HTTPException: If project has no Jira key or collection fails
     """
     # Get project
-    result = await db.execute(select(ProjectDB).where(ProjectDB.id == str(project_id)))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise ProjectNotFoundError(str(project_id))
+    project = await get_project_or_404(db, project_id)
 
     # Check if project has Jira key
     if not project.jira_project_key:

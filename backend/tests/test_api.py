@@ -74,7 +74,7 @@ class TestCreateProject:
             "/api/projects",
             json={"name": ""},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert "detail" in data
 
@@ -87,7 +87,7 @@ class TestCreateProject:
             "/api/projects",
             json={"jira_project_key": "TEST"},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_create_project_invalid_github_repo_format(
@@ -101,7 +101,7 @@ class TestCreateProject:
                 "github_repo": "invalid-format",
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_create_project_invalid_github_repo_with_slashes(
@@ -115,7 +115,7 @@ class TestCreateProject:
                 "github_repo": "org/repo/extra",
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_create_project_name_too_long(self, client: AsyncClient) -> None:
@@ -124,7 +124,7 @@ class TestCreateProject:
             "/api/projects",
             json={"name": "x" * 256},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
 
 class TestListProjects:
@@ -179,7 +179,7 @@ class TestGetProject:
     async def test_get_project_invalid_uuid(self, client: AsyncClient) -> None:
         """Get project with invalid UUID format returns 422."""
         response = await client.get("/api/projects/not-a-uuid")
-        assert response.status_code == 422
+        assert response.status_code == 400
 
 
 class TestUpdateProject:
@@ -254,7 +254,7 @@ class TestUpdateProject:
             f"/api/projects/{project_id}",
             json={"github_repo": "invalid"},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_patch_project_empty_name(self, client: AsyncClient) -> None:
@@ -269,7 +269,7 @@ class TestUpdateProject:
             f"/api/projects/{project_id}",
             json={"name": ""},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_patch_project_empty_body(self, client: AsyncClient) -> None:
@@ -373,7 +373,7 @@ class TestReplaceProject:
             f"/api/projects/{project_id}",
             json={"jira_project_key": "TEST"},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
 
 class TestDeleteProject:

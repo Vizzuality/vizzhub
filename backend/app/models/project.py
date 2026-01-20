@@ -10,6 +10,26 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
+def validate_github_repo_format(value: str | None) -> str | None:
+    """
+    Validate GitHub repo format.
+
+    Args:
+        value: GitHub repo string or None
+
+    Returns:
+        Validated repo string or None
+
+    Raises:
+        ValueError: If repo format is invalid
+    """
+    if value is not None and "/" not in value:
+        raise ValueError("GitHub repo must be in format: owner/repo")
+    if value is not None and value.count("/") != 1:
+        raise ValueError("GitHub repo must be in format: owner/repo")
+    return value
+
+
 class ProjectDB(Base):
     """SQLAlchemy model for projects."""
 
@@ -43,11 +63,7 @@ class ProjectBase(BaseModel):
     @field_validator("github_repo")
     @classmethod
     def validate_github_repo(cls, v: str | None) -> str | None:
-        if v is not None and "/" not in v:
-            raise ValueError("GitHub repo must be in format: owner/repo")
-        if v is not None and v.count("/") != 1:
-            raise ValueError("GitHub repo must be in format: owner/repo")
-        return v
+        return validate_github_repo_format(v)
 
     @model_validator(mode="after")
     def validate_dates(self) -> "ProjectBase":
@@ -78,11 +94,7 @@ class ProjectUpdate(BaseModel):
     @field_validator("github_repo")
     @classmethod
     def validate_github_repo(cls, v: str | None) -> str | None:
-        if v is not None and "/" not in v:
-            raise ValueError("GitHub repo must be in format: owner/repo")
-        if v is not None and v.count("/") != 1:
-            raise ValueError("GitHub repo must be in format: owner/repo")
-        return v
+        return validate_github_repo_format(v)
 
 
 class Project(ProjectBase):

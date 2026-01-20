@@ -1,54 +1,7 @@
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
-
-from app.database import Base
-
-
-class IndicatorsDB(Base):
-    """SQLAlchemy model for normalized indicators."""
-
-    __tablename__ = "indicators"
-
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
-    metrics_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False
-    )
-    project_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
-    )
-
-    spi: Mapped[float | None] = mapped_column(nullable=True)
-    on_time_milestones: Mapped[float | None] = mapped_column(nullable=True)
-    cpi: Mapped[float | None] = mapped_column(nullable=True)
-    budget_variance: Mapped[float | None] = mapped_column(nullable=True)
-    defect_density: Mapped[float | None] = mapped_column(nullable=True)
-    escaped_rate: Mapped[float | None] = mapped_column(nullable=True)
-    mttr_hours: Mapped[float | None] = mapped_column(nullable=True)
-    governance_compliance: Mapped[float | None] = mapped_column(nullable=True)
-    lead_time_days: Mapped[float | None] = mapped_column(nullable=True)
-    flow_efficiency: Mapped[float | None] = mapped_column(nullable=True)
-    commitment_reliability: Mapped[float | None] = mapped_column(nullable=True)
-    pr_review_ratio: Mapped[float | None] = mapped_column(nullable=True)
-    prs_without_review: Mapped[int | None] = mapped_column(nullable=True)
-    high_vulns: Mapped[int | None] = mapped_column(nullable=True)
-    test_maturity: Mapped[float | None] = mapped_column(nullable=True)
-    arch_checklist: Mapped[float | None] = mapped_column(nullable=True)
-    story_review_ratio: Mapped[float | None] = mapped_column(nullable=True)
-    okr_impact: Mapped[float | None] = mapped_column(nullable=True)
-    pm_satisfaction: Mapped[float | None] = mapped_column(nullable=True)
-    client_satisfaction: Mapped[float | None] = mapped_column(nullable=True)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
 
 
 class IndicatorsCreate(BaseModel):
