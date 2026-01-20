@@ -72,7 +72,17 @@ class ConfigService:
         # Check each group sums to 1.0
         for category, total in grouped.items():
             if abs(total - Decimal("1.0")) > Decimal("0.001"):
-                errors.append(f"{category} sum is {total}, expected 1.0")
+                diff = total - Decimal("1.0")
+                if diff > 0:
+                    errors.append(
+                        f"{category}: Sum is {float(total):.4f}, which is {float(diff):.4f} over 1.0. "
+                        f"Please decrease weights by {float(diff):.4f} total."
+                    )
+                else:
+                    errors.append(
+                        f"{category}: Sum is {float(total):.4f}, which is {float(abs(diff)):.4f} under 1.0. "
+                        f"Please increase weights by {float(abs(diff)):.4f} total."
+                    )
 
         return errors
 
@@ -81,18 +91,31 @@ class ConfigService:
         db: AsyncSession, updates: list[ConfigParameterUpdate]
     ) -> None:
         """Update parameters and validate weight groups."""
-        # Update values
+        # Update values and notes
         for update in updates:
             result = await db.execute(
                 select(ConfigParameter).where(ConfigParameter.name == update.name)
             )
-            param = result.scalar_one()
+            param = result.scalar_one_or_none()
+
+            if param is None:
+                raise ValueError(
+                    f"Parameter '{update.name}' not found in configuration. "
+                    f"Please refresh the page and try again."
+                )
+
             param.value = update.value
+            if update.notes is not None:
+                param.notes = update.notes
 
         # Validate before commit
         errors = await ConfigService.validate_weight_groups(db)
         if errors:
             await db.rollback()
-            raise ValueError(f"Weight validation failed: {errors}")
+            error_list = "\n• ".join(errors)
+            raise ValueError(
+                f"Weight validation failed:\n• {error_list}\n\n"
+                f"Please adjust the weights so each group sums to exactly 1.0"
+            )
 
         await db.commit()

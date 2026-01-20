@@ -1,38 +1,45 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { ConfigParameter } from '../types/config';
+import type { ConfigParameter, ConfigParameterUpdate } from '../types/config';
+
+interface EditedParameter {
+  value?: string;
+  notes?: string | null;
+}
 
 interface UseConfigEditorProps {
   original: Record<string, ConfigParameter[]> | undefined;
 }
 
 interface UseConfigEditorReturn {
-  editedValues: Map<string, string>;
+  editedValues: Map<string, EditedParameter>;
   updateValue: (name: string, value: string) => void;
+  updateNotes: (name: string, notes: string) => void;
   validationErrors: string[];
   hasChanges: boolean;
   canSave: boolean;
-  getUpdates: () => Array<{ name: string; value: string }>;
+  getUpdates: () => ConfigParameterUpdate[];
   reset: () => void;
 }
 
 const WEIGHT_CATEGORIES = [
-  'global_weights',
-  'quality_weights',
-  'time_weights',
-  'cost_weights',
-  'value_weights',
-  'satisfaction_weights',
-  'flow_weights',
-  'engineering_weights',
-  'risk_weights',
-  'test_maturity_weights',
+  'Global Weights',
+  'Quality Weights',
+  'Time Weights',
+  'Cost Weights',
+  'Value Weights',
+  'Satisfaction Weights',
+  'Satisfaction Handsoff Weights',
+  'Efficiency Weights',
+  'Engineering Weights',
+  'Risk Weights',
+  'Test Maturity Weights',
 ];
 
 const TOLERANCE = 0.001;
 
 function validateWeights(
   original: Record<string, ConfigParameter[]> | undefined,
-  changes: Map<string, string>,
+  changes: Map<string, EditedParameter>,
 ): string[] {
   if (!original) {
     return [];
@@ -48,8 +55,8 @@ function validateWeights(
 
     let sum = 0;
     parameters.forEach((param) => {
-      const editedValue = changes.get(param.name);
-      const value = editedValue !== undefined ? parseFloat(editedValue) : parseFloat(param.value);
+      const edited = changes.get(param.name);
+      const value = edited?.value !== undefined ? parseFloat(edited.value) : parseFloat(param.value);
 
       if (isNaN(value)) {
         errors.push(`Invalid number for ${param.name}`);
@@ -69,12 +76,22 @@ function validateWeights(
 }
 
 export function useConfigEditor({ original }: UseConfigEditorProps): UseConfigEditorReturn {
-  const [editedValues, setEditedValues] = useState<Map<string, string>>(new Map());
+  const [editedValues, setEditedValues] = useState<Map<string, EditedParameter>>(new Map());
 
   const updateValue = useCallback((name: string, value: string): void => {
     setEditedValues((prev) => {
       const next = new Map(prev);
-      next.set(name, value);
+      const existing = next.get(name) || {};
+      next.set(name, { ...existing, value });
+      return next;
+    });
+  }, []);
+
+  const updateNotes = useCallback((name: string, notes: string): void => {
+    setEditedValues((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(name) || {};
+      next.set(name, { ...existing, notes });
       return next;
     });
   }, []);
@@ -87,9 +104,37 @@ export function useConfigEditor({ original }: UseConfigEditorProps): UseConfigEd
   const hasChanges = editedValues.size > 0;
   const canSave = hasChanges && validationErrors.length === 0;
 
-  const getUpdates = useCallback((): Array<{ name: string; value: string }> => {
-    return Array.from(editedValues.entries()).map(([name, value]) => ({ name, value }));
-  }, [editedValues]);
+  const getUpdates = useCallback((): ConfigParameterUpdate[] => {
+    if (!original) return [];
+
+    const updates: ConfigParameterUpdate[] = [];
+
+    editedValues.forEach((edited, name) => {
+      // Find original parameter to get current value/notes if not edited
+      let originalParam: ConfigParameter | undefined;
+      for (const params of Object.values(original)) {
+        originalParam = params.find(p => p.name === name);
+        if (originalParam) break;
+      }
+
+      if (originalParam) {
+        // Always include value (required by backend)
+        const update: ConfigParameterUpdate = {
+          name,
+          value: edited.value ?? originalParam.value,
+        };
+
+        // Include notes if they were edited
+        if (edited.notes !== undefined) {
+          update.notes = edited.notes;
+        }
+
+        updates.push(update);
+      }
+    });
+
+    return updates;
+  }, [editedValues, original]);
 
   const reset = useCallback((): void => {
     setEditedValues(new Map());
@@ -98,6 +143,7 @@ export function useConfigEditor({ original }: UseConfigEditorProps): UseConfigEd
   return {
     editedValues,
     updateValue,
+    updateNotes,
     validationErrors,
     hasChanges,
     canSave,
