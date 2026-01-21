@@ -17,7 +17,6 @@ from app.services.collectors.jira.commitment_reliability import (
 )
 from app.services.collectors.jira.defect_density import collect_defect_density
 from app.services.collectors.jira.escaped_rate import collect_escaped_rate
-from app.services.collectors.jira.flow_efficiency import collect_flow_efficiency
 from app.services.collectors.jira.lead_time import collect_lead_time
 from app.services.collectors.jira.mttr import collect_mttr
 from app.services.collectors.jira.story_review_ratio import collect_story_review_ratio
@@ -55,7 +54,6 @@ class JiraCollector:
             self._jira_client, project_key
         )
         lead_time_data = await collect_lead_time(self._jira_client, project_key)
-        flow_data = await collect_flow_efficiency(self._jira_client, project_key)
 
         return {
             # defect_density
@@ -73,8 +71,7 @@ class JiraCollector:
             "commitment_reliability": commitment_data["commitment_reliability"],
             # lead_time
             "lead_time_days": lead_time_data["lead_time_days"],
-            # flow_efficiency
-            "flow_efficiency": flow_data["flow_efficiency"],
+            "lead_time_sample_size": lead_time_data["sample_size"],
         }
 
     async def close(self) -> None:

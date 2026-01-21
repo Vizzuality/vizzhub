@@ -30,9 +30,6 @@ class IndicatorsCreate(BaseModel):
     lead_time_days: float | None = Field(
         default=None, ge=0, description="Average lead time in days"
     )
-    flow_efficiency: float | None = Field(
-        default=None, ge=0, le=1, description="Active time / total time"
-    )
     commitment_reliability: float | None = Field(
         default=None, ge=0, le=1, description="Completed / committed ratio"
     )

@@ -116,7 +116,7 @@ Content-Type: application/json
   },
   "flow_metrics": {
     "lead_time_days": 2.5,
-    "flow_efficiency": 0.45,
+    "lead_time_sample_size": 150,
     "commitment_reliability": 0.9,
     "total_stories": 50,
     "stories_with_reviewer": 48
@@ -204,7 +204,7 @@ Content-Type: application/json
     "mttr_hours": 4.5,
     "governance_compliance": 1.0,
     "lead_time_days": 2.5,
-    "flow_efficiency": 0.45,
+    "lead_time_sample_size": 150,
     "commitment_reliability": 0.9,
     "pr_review_ratio": 0.97,
     "prs_without_review": 2,
@@ -275,8 +275,7 @@ GET /config
     "mttr_hours": 24,
     "spi": 1,
     "cpi": 1,
-    "lead_time_days": 3,
-    "flow_efficiency": 0.4,
+    "lead_time_days": 5,
     "high_vuln_count": 0,
     "gov_exceptions": 2,
     "pr_no_review_ratio": 0.02

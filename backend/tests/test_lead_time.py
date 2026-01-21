@@ -1,7 +1,9 @@
 """Tests for lead_time indicator.
 
 Tests cover:
-- Collection from Jira API
+- Collection from Jira API using changelog
+- Finding first In Progress transition
+- Fallback to created date
 - Business days calculation
 - Edge cases (no issues, missing dates)
 """
@@ -13,6 +15,7 @@ import pytest
 
 from app.services.collectors.jira.lead_time import (
     _business_days_diff,
+    _find_first_in_progress,
     collect_lead_time,
 )
 
@@ -22,7 +25,7 @@ class TestCollectLeadTime:
 
     @pytest.mark.asyncio
     async def test_collect_lead_time_calls_correct_jql(self) -> None:
-        """Should query resolved issues from last 90 days."""
+        """Should query resolved issues from last 90 days with changelog."""
         mock_client = AsyncMock()
         mock_client.search_issues = AsyncMock(return_value=[])
 
@@ -33,8 +36,8 @@ class TestCollectLeadTime:
         jql = call_args[0][1]
 
         assert "statusCategory = Done" in jql
-        assert "resolutiondate >= -90d" in jql
         assert "type IN (Story, Task, Bug)" in jql
+        assert call_args.kwargs.get("expand") == ["changelog"]
 
     @pytest.mark.asyncio
     async def test_collect_lead_time_no_issues(self) -> None:
@@ -48,21 +51,77 @@ class TestCollectLeadTime:
         assert result["sample_size"] == 0
 
     @pytest.mark.asyncio
+    async def test_collect_lead_time_uses_in_progress_from_changelog(self) -> None:
+        """Should use first In Progress transition from changelog."""
+        mock_client = AsyncMock()
+        mock_client.search_issues = AsyncMock(return_value=[
+            {
+                "fields": {
+                    "created": "2026-01-15T09:00:00+00:00",  # Created Wednesday
+                    "resolutiondate": "2026-01-20T18:00:00+00:00",  # Resolved Monday
+                },
+                "changelog": {
+                    "histories": [
+                        {
+                            "created": "2026-01-17T09:00:00+00:00",  # In Progress Friday
+                            "items": [
+                                {"field": "status", "toString": "In Progress"}
+                            ]
+                        }
+                    ]
+                }
+            },
+        ])
+
+        result = await collect_lead_time(mock_client, "TEST")
+
+        assert result["sample_size"] == 1
+        # Friday to Monday = 2 business days
+        assert result["lead_time_days"] == 2.0
+
+    @pytest.mark.asyncio
+    async def test_collect_lead_time_skips_without_in_progress(self) -> None:
+        """Should skip issues without In Progress transition (no fallback)."""
+        mock_client = AsyncMock()
+        mock_client.search_issues = AsyncMock(return_value=[
+            {
+                "fields": {
+                    "created": "2026-01-20T09:00:00+00:00",
+                    "resolutiondate": "2026-01-20T18:00:00+00:00",
+                },
+                "changelog": {
+                    "histories": []  # No status transitions
+                }
+            },
+        ])
+
+        result = await collect_lead_time(mock_client, "TEST")
+
+        assert result["sample_size"] == 0
+        assert result["lead_time_days"] is None
+
+    @pytest.mark.asyncio
     async def test_collect_lead_time_calculates_average(self) -> None:
         """Should calculate average lead time in business days."""
         mock_client = AsyncMock()
         mock_client.search_issues = AsyncMock(return_value=[
             {
                 "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",  # Monday
-                    "resolutiondate": "2026-01-20T18:00:00+00:00",  # Same day
-                }
+                    "created": "2026-01-19T09:00:00+00:00",
+                    "resolutiondate": "2026-01-20T18:00:00+00:00",
+                },
+                "changelog": {"histories": [
+                    {"created": "2026-01-20T09:00:00+00:00", "items": [{"field": "status", "toString": "In Progress"}]}
+                ]}
             },
             {
                 "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",  # Monday
-                    "resolutiondate": "2026-01-21T18:00:00+00:00",  # Tuesday
-                }
+                    "created": "2026-01-19T09:00:00+00:00",
+                    "resolutiondate": "2026-01-21T18:00:00+00:00",
+                },
+                "changelog": {"histories": [
+                    {"created": "2026-01-20T09:00:00+00:00", "items": [{"field": "status", "toString": "In Progress"}]}
+                ]}
             },
         ])
 
@@ -75,21 +134,112 @@ class TestCollectLeadTime:
 
     @pytest.mark.asyncio
     async def test_collect_lead_time_skips_invalid_dates(self) -> None:
-        """Should skip issues with missing dates."""
+        """Should skip issues with missing dates or no In Progress."""
         mock_client = AsyncMock()
         mock_client.search_issues = AsyncMock(return_value=[
             {"fields": {"created": "2026-01-20T09:00:00+00:00", "resolutiondate": None}},
             {
                 "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",
+                    "created": "2026-01-19T09:00:00+00:00",
                     "resolutiondate": "2026-01-20T18:00:00+00:00",
-                }
+                },
+                "changelog": {"histories": [
+                    {"created": "2026-01-20T09:00:00+00:00", "items": [{"field": "status", "toString": "In Progress"}]}
+                ]}
             },
         ])
 
         result = await collect_lead_time(mock_client, "TEST")
 
         assert result["sample_size"] == 1
+
+
+class TestFindFirstInProgress:
+    """Test _find_first_in_progress function."""
+
+    def test_finds_in_progress_transition(self) -> None:
+        """Should find first In Progress transition."""
+        issue = {
+            "changelog": {
+                "histories": [
+                    {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "items": [{"field": "status", "toString": "In Progress"}]
+                    }
+                ]
+            }
+        }
+
+        result = _find_first_in_progress(issue)
+
+        assert result is not None
+        assert result.day == 20
+
+    def test_finds_first_when_multiple_transitions(self) -> None:
+        """Should find the earliest In Progress transition."""
+        issue = {
+            "changelog": {
+                "histories": [
+                    {
+                        "created": "2026-01-22T09:00:00+00:00",
+                        "items": [{"field": "status", "toString": "In Progress"}]
+                    },
+                    {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "items": [{"field": "status", "toString": "In Development"}]
+                    }
+                ]
+            }
+        }
+
+        result = _find_first_in_progress(issue)
+
+        assert result is not None
+        assert result.day == 20  # Should pick the earlier date
+
+    def test_recognizes_various_in_progress_statuses(self) -> None:
+        """Should recognize various In Progress status names."""
+        for status_name in ["In Progress", "in development", "Development", "WIP", "Work In Progress", "Code Review", "qa"]:
+            issue = {
+                "changelog": {
+                    "histories": [
+                        {
+                            "created": "2026-01-20T09:00:00+00:00",
+                            "items": [{"field": "status", "toString": status_name}]
+                        }
+                    ]
+                }
+            }
+            result = _find_first_in_progress(issue)
+            assert result is not None, f"Should recognize '{status_name}'"
+
+    def test_returns_none_when_no_in_progress(self) -> None:
+        """Should return None if no In Progress transition found."""
+        issue = {
+            "changelog": {
+                "histories": [
+                    {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "items": [{"field": "status", "toString": "Done"}]
+                    }
+                ]
+            }
+        }
+
+        result = _find_first_in_progress(issue)
+
+        assert result is None
+
+    def test_returns_none_when_no_changelog(self) -> None:
+        """Should return None if no changelog."""
+        issue = {}
+        assert _find_first_in_progress(issue) is None
+
+        issue = {"changelog": {}}
+        assert _find_first_in_progress(issue) is None
+
+        issue = {"changelog": {"histories": []}}
+        assert _find_first_in_progress(issue) is None
 
 
 class TestBusinessDaysDiff:

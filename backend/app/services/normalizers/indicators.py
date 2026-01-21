@@ -51,7 +51,6 @@ class IndicatorNormalizer:
                 metrics.governance_exceptions
             ),
             lead_time_days=self._get_lead_time(metrics.flow_metrics),
-            flow_efficiency=self._get_flow_efficiency(metrics.flow_metrics),
             commitment_reliability=self._get_commitment_reliability(
                 metrics.flow_metrics
             ),
@@ -160,12 +159,6 @@ class IndicatorNormalizer:
         if flow is None:
             return None
         return flow.lead_time_days
-
-    def _get_flow_efficiency(self, flow: FlowMetrics | None) -> float | None:
-        """Get flow efficiency ratio."""
-        if flow is None:
-            return None
-        return flow.flow_efficiency
 
     def _get_commitment_reliability(self, flow: FlowMetrics | None) -> float | None:
         """Get commitment reliability ratio."""

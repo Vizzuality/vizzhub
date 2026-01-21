@@ -20,7 +20,6 @@ from app.services.collectors.jira.escaped_rate import (
     calculate_escaped_rate,
     collect_escaped_rate,
 )
-from app.services.collectors.jira.flow_efficiency import collect_flow_efficiency
 from app.services.collectors.jira.lead_time import collect_lead_time
 from app.services.collectors.jira.mttr import collect_mttr
 from app.services.collectors.jira.story_review_ratio import (
@@ -47,6 +46,4 @@ __all__ = [
     "collect_commitment_reliability",
     # lead_time
     "collect_lead_time",
-    # flow_efficiency
-    "collect_flow_efficiency",
 ]

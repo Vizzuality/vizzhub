@@ -60,7 +60,7 @@ class FlowMetrics(BaseModel):
     """Flow metrics from Jira."""
 
     lead_time_days: float | None = Field(default=None, ge=0)
-    flow_efficiency: float | None = Field(default=None, ge=0, le=1)
+    lead_time_sample_size: int = Field(default=0, ge=0)
     commitment_reliability: float | None = Field(default=None, ge=0, le=1)
     total_stories: int = Field(default=0, ge=0)
     stories_with_reviewer: int = Field(default=0, ge=0)
