@@ -302,6 +302,20 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },
                 ]}
               />
+              <SubIndicatorCard
+                title="Escaped Rate"
+                indicatorValue={scores.indicators.escaped_rate}
+                indicatorLabel="Escaped per 100 tasks"
+                indicatorSuffix="%"
+                description="Bugs found in Staging/Production"
+                target={getTarget('Escaped_t')}
+                lowerIsBetter={true}
+                formula="(Escaped / Tasks) × 100"
+                metrics={[
+                  { label: 'Escaped Defects', value: metrics.jira_defects.escaped_defects },
+                  { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },
+                ]}
+              />
             </div>
           </div>
         </>
