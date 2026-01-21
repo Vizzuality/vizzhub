@@ -31,7 +31,7 @@ async def create_project(
     """Create a new project. Requires authentication."""
     db_project = ProjectDB(
         name=project.name,
-        jira_project_key=project.jira_project_key,
+        jira_project_key=project.jira_project_key.upper() if project.jira_project_key else None,
         github_repo=project.github_repo,
         start_date=project.start_date,
         end_date=project.end_date,
@@ -66,6 +66,8 @@ async def update_project(
 
     update_data = update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        if field == "jira_project_key" and value:
+            value = value.upper()
         setattr(project, field, value)
 
     await db.flush()
@@ -86,7 +88,7 @@ async def replace_project(
     project = await get_project_or_404(db, project_id)
 
     project.name = project_data.name
-    project.jira_project_key = project_data.jira_project_key
+    project.jira_project_key = project_data.jira_project_key.upper() if project_data.jira_project_key else None
     project.github_repo = project_data.github_repo
     project.start_date = project_data.start_date
     project.end_date = project_data.end_date

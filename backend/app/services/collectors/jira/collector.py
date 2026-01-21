@@ -69,6 +69,9 @@ class JiraCollector:
             "stories_with_reviewer": story_review_data["stories_with_reviewer"],
             # commitment_reliability
             "commitment_reliability": commitment_data["commitment_reliability"],
+            "committed_issues": commitment_data["committed_issues"],
+            "single_sprint_issues": commitment_data["single_sprint_issues"],
+            "multi_sprint_issues": commitment_data["multi_sprint_issues"],
             # lead_time
             "lead_time_days": lead_time_data["lead_time_days"],
             "lead_time_sample_size": lead_time_data["sample_size"],

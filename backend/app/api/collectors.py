@@ -90,6 +90,9 @@ async def collect_jira_metrics(
         "lead_time_days": raw_metrics.get("lead_time_days"),
         "lead_time_sample_size": raw_metrics.get("lead_time_sample_size", 0),
         "commitment_reliability": raw_metrics.get("commitment_reliability"),
+        "committed_issues": raw_metrics.get("committed_issues", 0),
+        "single_sprint_issues": raw_metrics.get("single_sprint_issues", 0),
+        "multi_sprint_issues": raw_metrics.get("multi_sprint_issues", 0),
         "total_stories": raw_metrics.get("total_stories", 0),
         "stories_with_reviewer": raw_metrics.get("stories_with_reviewer", 0),
     }

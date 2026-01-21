@@ -118,6 +118,9 @@ Content-Type: application/json
     "lead_time_days": 2.5,
     "lead_time_sample_size": 150,
     "commitment_reliability": 0.9,
+    "committed_issues": 330,
+    "single_sprint_issues": 107,
+    "multi_sprint_issues": 223,
     "total_stories": 50,
     "stories_with_reviewer": 48
   },

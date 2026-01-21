@@ -130,6 +130,9 @@ export interface MetricsCreate {
     lead_time_days?: number;
     lead_time_sample_size?: number;
     commitment_reliability?: number;
+    committed_issues?: number;
+    single_sprint_issues?: number;
+    multi_sprint_issues?: number;
     total_stories: number;
     stories_with_reviewer: number;
   };

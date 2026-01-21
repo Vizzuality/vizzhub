@@ -342,6 +342,21 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Issues', value: metrics.flow_metrics?.lead_time_sample_size ?? null },
                 ]}
               />
+              <SubIndicatorCard
+                title="Commitment Reliability"
+                indicatorValue={scores.indicators.commitment_reliability !== null ? scores.indicators.commitment_reliability * 100 : null}
+                indicatorLabel="Single-sprint ratio"
+                indicatorSuffix="%"
+                description="Issues completed in original sprint"
+                target={100}
+                lowerIsBetter={false}
+                formula="single_sprint / committed"
+                metrics={[
+                  { label: 'Committed', value: metrics.flow_metrics?.committed_issues ?? null },
+                  { label: 'Single Sprint', value: metrics.flow_metrics?.single_sprint_issues ?? null },
+                  { label: 'Multi Sprint', value: metrics.flow_metrics?.multi_sprint_issues ?? null },
+                ]}
+              />
             </div>
           </div>
         </>
