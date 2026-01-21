@@ -380,8 +380,7 @@ export default function ProjectDetail(): JSX.Element {
             )}
 
             <div className="text-xs text-muted-foreground pt-2 border-t">
-              <p>Period: {formatDate(metrics.period_start)} - {formatDate(metrics.period_end)}</p>
-              <p>Last updated: {new Date(metrics.created_at).toLocaleString()}</p>
+              <p>Data as of: {new Date(metrics.created_at).toLocaleString()}</p>
             </div>
             </CardContent>
           </Card>
