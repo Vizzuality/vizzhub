@@ -62,6 +62,9 @@ class FlowMetrics(BaseModel):
     lead_time_days: float | None = Field(default=None, ge=0)
     lead_time_sample_size: int = Field(default=0, ge=0)
     commitment_reliability: float | None = Field(default=None, ge=0, le=1)
+    committed_issues: int = Field(default=0, ge=0)
+    single_sprint_issues: int = Field(default=0, ge=0)
+    multi_sprint_issues: int = Field(default=0, ge=0)
     total_stories: int = Field(default=0, ge=0)
     stories_with_reviewer: int = Field(default=0, ge=0)
 

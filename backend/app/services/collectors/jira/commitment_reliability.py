@@ -108,11 +108,10 @@ async def collect_commitment_reliability(
 async def _get_scrum_board(client: "JiraClient", project_key: str) -> dict | None:
     """Get the first scrum board for a project."""
     http_client = await client.get_client()
-    agile_base = str(http_client.base_url).replace("/rest/api/3", "/rest/agile/1.0")
 
     try:
         response = await http_client.get(
-            f"{agile_base}/board",
+            "/rest/agile/1.0/board",
             params={"projectKeyOrId": project_key, "type": "scrum", "maxResults": 1},
         )
         if response.status_code == 200:
@@ -127,7 +126,6 @@ async def _get_scrum_board(client: "JiraClient", project_key: str) -> dict | Non
 async def _get_closed_sprints(client: "JiraClient", board_id: int) -> list[dict]:
     """Get all closed sprints for a board."""
     http_client = await client.get_client()
-    agile_base = str(http_client.base_url).replace("/rest/api/3", "/rest/agile/1.0")
 
     sprints = []
     start_at = 0
@@ -136,7 +134,7 @@ async def _get_closed_sprints(client: "JiraClient", board_id: int) -> list[dict]
     while True:
         try:
             response = await http_client.get(
-                f"{agile_base}/board/{board_id}/sprint",
+                f"/rest/agile/1.0/board/{board_id}/sprint",
                 params={"state": "closed", "startAt": start_at, "maxResults": batch_size},
             )
             if response.status_code != 200:
