@@ -316,6 +316,19 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Tasks Completed', value: metrics.jira_defects.tasks_completed },
                 ]}
               />
+              <SubIndicatorCard
+                title="MTTR"
+                indicatorValue={scores.indicators.mttr_hours}
+                indicatorLabel="Business hours"
+                indicatorSuffix="h"
+                description="Mean Time To Repair"
+                target={getTarget('MTTR_t')}
+                lowerIsBetter={true}
+                formula="avg(resolved - created)"
+                metrics={[
+                  { label: 'Incidents', value: metrics.jira_defects.incidents_count },
+                ]}
+              />
             </div>
           </div>
         </>
