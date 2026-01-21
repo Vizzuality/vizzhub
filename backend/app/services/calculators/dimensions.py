@@ -189,23 +189,17 @@ class FlowCalculator(BaseCalculator):
 
     def calculate(self, indicators: IndicatorsCreate) -> int:
         w_lead_time = self._get_weight("lead_time")
-        w_flow_eff = self._get_weight("flow_efficiency")
         w_commitment = self._get_weight("commitment_reliability")
 
         lt_target = self._get_target("lead_time_days")
-        fe_target = self._get_target("flow_efficiency")
 
         lead_time_norm = self._normalize_to_target(
             indicators.lead_time_days, lt_target, lower_is_better=True
-        )
-        flow_eff_norm = self._normalize_to_target(
-            indicators.flow_efficiency, fe_target
         )
         commitment_norm = self._safe_value(indicators.commitment_reliability)
 
         score = (
             w_lead_time * lead_time_norm
-            + w_flow_eff * flow_eff_norm
             + w_commitment * commitment_norm
         )
         return self._to_score(score)

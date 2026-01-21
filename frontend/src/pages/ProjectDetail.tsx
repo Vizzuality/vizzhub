@@ -329,6 +329,19 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Incidents', value: metrics.jira_defects.incidents_count },
                 ]}
               />
+              <SubIndicatorCard
+                title="Lead Time"
+                indicatorValue={scores.indicators.lead_time_days}
+                indicatorLabel="Business days"
+                indicatorSuffix="d"
+                description="In Progress → Done"
+                target={getTarget('LT_t')}
+                lowerIsBetter={true}
+                formula="avg(done - in_progress)"
+                metrics={[
+                  { label: 'Issues', value: metrics.flow_metrics?.lead_time_sample_size ?? null },
+                ]}
+              />
             </div>
           </div>
         </>
@@ -388,12 +401,6 @@ export default function ProjectDetail(): JSX.Element {
                     <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                       <span className="text-sm text-muted-foreground">Lead Time (days)</span>
                       <span className="text-base font-medium">{metrics.flow_metrics.lead_time_days}</span>
-                    </div>
-                  )}
-                  {metrics.flow_metrics.flow_efficiency !== null && metrics.flow_metrics.flow_efficiency !== undefined && (
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm text-muted-foreground">Flow Efficiency</span>
-                      <span className="text-base font-medium">{(metrics.flow_metrics.flow_efficiency * 100).toFixed(1)}%</span>
                     </div>
                   )}
                   {metrics.flow_metrics.commitment_reliability !== null && metrics.flow_metrics.commitment_reliability !== undefined && (

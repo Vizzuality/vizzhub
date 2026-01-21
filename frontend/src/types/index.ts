@@ -52,7 +52,6 @@ export interface Indicators {
   mttr_hours: number | null;
   governance_compliance: number | null;
   lead_time_days: number | null;
-  flow_efficiency: number | null;
   commitment_reliability: number | null;
   pr_review_ratio: number | null;
   prs_without_review: number | null;
@@ -78,7 +77,6 @@ export interface ScoringConfig {
     spi: number;
     cpi: number;
     lead_time_days: number;
-    flow_efficiency: number;
     high_vuln_count: number;
     gov_exceptions: number;
     pr_no_review_ratio: number;
@@ -130,7 +128,7 @@ export interface MetricsCreate {
   };
   flow_metrics?: {
     lead_time_days?: number;
-    flow_efficiency?: number;
+    lead_time_sample_size?: number;
     commitment_reliability?: number;
     total_stories: number;
     stories_with_reviewer: number;

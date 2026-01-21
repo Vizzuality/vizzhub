@@ -30,7 +30,6 @@ class TargetsConfig(BaseModel):
     spi: float
     cpi: float
     lead_time_days: float
-    flow_efficiency: float
     high_vuln_count: int
     gov_exceptions: int
     pr_no_review_ratio: float

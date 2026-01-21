@@ -4,8 +4,7 @@ Targets,Escaped_t,0.01,escapes/100 tasks,Target max escaped defects. Used in P_q
 Targets,MTTR_t,24,hours,Target mean time to recover (hours). Used in P_quality (sub-indicator MTTR). ≤ target scores 100%.
 Targets,SPI_t,1,ratio,"Target schedule performance index. Used in P_time (sub-indicator SPI). Optional, default 1 = on track."
 Targets,CPI_t,1,ratio,"Target cost performance index. Used in P_cost (sub-indicator CPI). Optional, default 1 = on budget."
-Targets,LT_t,3.00,max days,Target maximum lead time. Used in P_flow (sub-indicator Lead Time)
-Targets,FE_t,0.40,ratio,Target ratio flow efficiency
+Targets,LT_t,5.00,max days,Target maximum lead time in business days. Used in P_flow (sub-indicator Lead Time)
 Targets,WIP_max,4.00,count,Max recommended Work In Progress items. Used in P_flow (sub-indicator WIP breaches). TBI.
 Targets,CFR_max,0.15,ratio,Deprecated. Previously used in Change Failure Rate.
 Targets,ROI_t,1.00,ratio,ROI target. Used in P_value (sub-indicator ROI).
@@ -38,9 +37,8 @@ Satisfaction Handsoff Weights,W_cs_response,0.10,weight,Client survey weight
 Satisfaction Handsoff Weights,W_cs_quality,0.24,weight,Client survey weight
 Satisfaction Handsoff Weights,W_cs_expect,0.12,weight,Client survey weight
 Satisfaction Handsoff Weights,W_cs_recommend,0.06,weight,Client survey weight
-Efficiency Weights,W_flow_lt,0.40,weight,time in P_efficiency
-Efficiency Weights,W_flow_fe,0.30,weight,for flow efficiencye in P_efficiency
-Efficiency Weights,W_flow_cr,0.30,weight,for commitment reliability in P_efficiency
+Efficiency Weights,W_flow_lt,0.60,weight,Lead time in P_flow
+Efficiency Weights,W_flow_cr,0.40,weight,Commitment reliability in P_flow
 Engineering Weights,W_eng_test,0.50,weight,test maturity in P_engineering
 Engineering Weights,W_eng_pr,0.20,weight,PR review ratio in P_engineering
 Engineering Weights,W_eng_iac,0.00,weight,IaC coverage in P_engineering (Infrastructure as Code)

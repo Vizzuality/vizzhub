@@ -32,7 +32,6 @@ async def get_scoring_config(
             spi=config.get_target("spi"),
             cpi=config.get_target("cpi"),
             lead_time_days=config.get_target("lead_time_days"),
-            flow_efficiency=config.get_target("flow_efficiency"),
             high_vuln_count=int(config.get_target("high_vuln_count")),
             gov_exceptions=int(config.get_target("gov_exceptions")),
             pr_no_review_ratio=config.get_target("pr_no_review_ratio"),

@@ -88,7 +88,7 @@ async def collect_jira_metrics(
 
     flow_metrics = {
         "lead_time_days": raw_metrics.get("lead_time_days"),
-        "flow_efficiency": raw_metrics.get("flow_efficiency"),
+        "lead_time_sample_size": raw_metrics.get("lead_time_sample_size", 0),
         "commitment_reliability": raw_metrics.get("commitment_reliability"),
         "total_stories": raw_metrics.get("total_stories", 0),
         "stories_with_reviewer": raw_metrics.get("stories_with_reviewer", 0),

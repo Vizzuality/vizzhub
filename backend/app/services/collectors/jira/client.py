@@ -135,6 +135,7 @@ class JiraClient:
         fields: list[str] | None = None,
         max_results: int = 100,
         skip_project_prefix: bool = False,
+        expand: list[str] | None = None,
     ) -> list[dict]:
         """
         Search issues matching a JQL query.
@@ -145,6 +146,7 @@ class JiraClient:
             fields: Fields to return (default: key only)
             max_results: Maximum number of issues to return
             skip_project_prefix: If True, don't prepend project clause to JQL
+            expand: List of expansions (e.g., ["changelog"])
 
         Returns:
             List of issue dictionaries
@@ -167,6 +169,8 @@ class JiraClient:
                     "fields": fields or ["key"],
                     "maxResults": min(100, max_results - len(all_issues)),
                 }
+                if expand:
+                    body["expand"] = ",".join(expand)
                 if page_token:
                     body["pageToken"] = page_token
 
