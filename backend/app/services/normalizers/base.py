@@ -178,15 +178,15 @@ def normalize_count_to_ratio(
     neutral_on_missing: bool = True,
 ) -> float:
     """
-    Normalize a count metric to a ratio target.
+    Normalize a count metric to a percentage target.
 
-    Used for PRs without review where target is a ratio but value is a count.
+    Used for PRs without review where target is a percentage but value is a count.
 
-    Formula: max(0, 1 - count / (total * target))
+    Formula: max(0, 1 - count / (total * target / 100))
 
     Args:
         value: The count value
-        target: Target ratio (e.g., 0.02 for 2%)
+        target: Target percentage (e.g., 2 for 2%)
         total: Total count for ratio calculation
         neutral_on_missing: Return neutral if value is None
 
@@ -197,7 +197,7 @@ def normalize_count_to_ratio(
         return NEUTRAL_VALUE if neutral_on_missing else 0.0
     if total is None or total <= 0:
         return 1.0 if value == 0 else NEUTRAL_VALUE
-    max_allowed = total * target
+    max_allowed = total * target / 100
     if max_allowed <= 0:
         return 1.0 if value == 0 else 0.0
     return max(0.0, 1.0 - value / max_allowed)

@@ -85,8 +85,6 @@ class TestOAuthIntegration:
         self, db_session: AsyncSession
     ) -> None:
         """Collector should raise ConfigurationError if neither OAuth nor legacy configured."""
-        collector = JiraCollector(db=db_session)
-
         with patch(
             "app.services.collectors.jira.client.OAuthService.get_valid_jira_token"
         ) as mock_get_token:
@@ -99,6 +97,9 @@ class TestOAuthIntegration:
                 mock_settings.return_value.jira_email = ""
                 mock_settings.return_value.jira_api_token = ""
                 mock_settings.return_value.jira_oauth_client_id = ""
+
+                # Create collector inside patches so settings are mocked
+                collector = JiraCollector(db=db_session)
 
                 with pytest.raises(ConfigurationError) as exc_info:
                     await collector._jira_client._get_client()

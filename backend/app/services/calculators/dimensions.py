@@ -259,7 +259,8 @@ class RiskCalculator(BaseCalculator):
         elif total_prs is None or total_prs <= 0:
             pr_norm = 1.0 if indicators.prs_without_review == 0 else NEUTRAL_VALUE
         else:
-            max_allowed = total_prs * pr_target
+            # pr_target is now in percentage format (e.g., 2 means 2%)
+            max_allowed = total_prs * pr_target / 100
             if max_allowed <= 0:
                 pr_norm = 1.0 if indicators.prs_without_review == 0 else 0.0
             else:

@@ -20,7 +20,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 65  # Total parameters from CSV
+    assert count == 63  # Total parameters from CSV
 
     # Verify specific parameter
     result = await db_session.execute(
@@ -29,7 +29,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
     param = result.scalar_one()
     assert param.category == "Targets"
     assert param.value == 3.00
-    assert param.unit == "defects/100 tasks"
+    assert param.unit == "%"
 
 
 @pytest.mark.asyncio
@@ -43,9 +43,9 @@ async def test_seed_config_parameters_is_idempotent(db_session: AsyncSession):
     await seed_config_parameters(db_session)
     await seed_config_parameters(db_session)
 
-    # Verify only 65 records
+    # Verify only 63 records
     result = await db_session.execute(
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 65
+    assert count == 63

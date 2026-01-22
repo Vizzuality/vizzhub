@@ -1,18 +1,18 @@
 category,name,value,unit,notes
-Targets,DefDensity_t,3.00,defects/100 tasks,Target max defect density. Used in P_quality (sub-indicator defect density). ≤ target scores 100%.
-Targets,Escaped_t,0.01,escapes/100 tasks,Target max escaped defects. Used in P_quality (sub-indicator escaped rate). ≤ target scores 100%.
+Targets,DefDensity_t,3,%,Target max defect density per 100 tasks (3%). Used in P_quality. ≤ target scores 100%.
+Targets,Escaped_t,1,%,Target max escaped defects per 100 tasks (1%). Used in P_quality. ≤ target scores 100%.
 Targets,MTTR_t,24,hours,Target mean time to recover (hours). Used in P_quality (sub-indicator MTTR). ≤ target scores 100%.
 Targets,SPI_t,1,ratio,"Target schedule performance index. Used in P_time (sub-indicator SPI). Optional, default 1 = on track."
 Targets,CPI_t,1,ratio,"Target cost performance index. Used in P_cost (sub-indicator CPI). Optional, default 1 = on budget."
-Targets,LT_t,5.00,max days,Target maximum lead time in business days. Used in P_flow (sub-indicator Lead Time)
+Targets,LT_t,3,days,Target maximum lead time in business days. Used in P_flow (sub-indicator Lead Time)
 Targets,WIP_max,4.00,count,Max recommended Work In Progress items. Used in P_flow (sub-indicator WIP breaches). TBI.
-Targets,CFR_max,0.15,ratio,Deprecated. Previously used in Change Failure Rate.
+Targets,CFR_max,15,%,Deprecated. Previously used in Change Failure Rate.
 Targets,ROI_t,1.00,ratio,ROI target. Used in P_value (sub-indicator ROI).
-Targets,IaC_t,0.90,ratio,Target coverage for Infrastructure as Code. Used in P_engineering (sub-indicator IaC coverage).
+Targets,IaC_t,90,%,Target coverage for Infrastructure as Code (90%). Used in P_engineering.
 Targets,HighVuln_t,0.00,count,Target max high-severity vulnerabilities open >30 days (0 = strict compliance)
 Targets,CritRisk_t,0.00,count,Target max overdue critical risks at closure (0 = none tolerated)
 Targets,GovExc_t,2.00,count,Max tolerated exceptions. If < 2 score will always be 0 when there are excceptions
-Targets,PR_noReview_t,0.02,ratio,Target percentage of pull requests with no reviewer (min. 1 to 50)
+Targets,PR_noReview_t,2,%,Target max PRs without review (2%). Used in P_risk.
 Quality Weights,W_def,0.05,weight,Defect density  in P_quality
 Quality Weights,W_esc,0.20,weight,Escaped rate  in P_quality
 Quality Weights,W_mttr,0.05,weight,MTTR  in P_quality (Mean Time To Resolution)

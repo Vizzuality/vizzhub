@@ -279,40 +279,47 @@ class TestGovernanceCompliance:
 
 
 class TestCountToRatio:
-    """Tests for normalize_count_to_ratio function."""
+    """Tests for normalize_count_to_ratio function.
+
+    Note: target is now in percentage format (e.g., 2 means 2%).
+    Formula: max_allowed = total * target / 100
+    """
 
     def test_no_violations(self) -> None:
-        assert normalize_count_to_ratio(0, 0.02, 100) == 1.0
+        # 2% of 100 = 2 allowed, 0 violations = perfect score
+        assert normalize_count_to_ratio(0, 2, 100) == 1.0
 
     def test_at_limit(self) -> None:
-        assert normalize_count_to_ratio(2, 0.02, 100) == 0.0
+        # 2% of 100 = 2 allowed, 2 violations = 0 score
+        assert normalize_count_to_ratio(2, 2, 100) == 0.0
 
     def test_half_limit(self) -> None:
-        assert normalize_count_to_ratio(1, 0.02, 100) == 0.5
+        # 2% of 100 = 2 allowed, 1 violation = 0.5 score
+        assert normalize_count_to_ratio(1, 2, 100) == 0.5
 
     def test_none_value_returns_neutral(self) -> None:
         """None value should return neutral (line 197)."""
-        assert normalize_count_to_ratio(None, 0.02, 100) == NEUTRAL_VALUE
+        assert normalize_count_to_ratio(None, 2, 100) == NEUTRAL_VALUE
 
     def test_none_value_returns_zero_when_no_neutral(self) -> None:
         """When neutral_on_missing=False, None should return 0.0 (line 197)."""
-        assert normalize_count_to_ratio(None, 0.02, 100, neutral_on_missing=False) == 0.0
+        assert normalize_count_to_ratio(None, 2, 100, neutral_on_missing=False) == 0.0
 
     def test_none_total_with_zero_value(self) -> None:
         """None total with zero value should return 1.0 (line 199)."""
-        assert normalize_count_to_ratio(0, 0.02, None) == 1.0
+        assert normalize_count_to_ratio(0, 2, None) == 1.0
 
     def test_none_total_with_positive_value(self) -> None:
         """None total with positive value should return NEUTRAL_VALUE (line 199)."""
-        assert normalize_count_to_ratio(5, 0.02, None) == NEUTRAL_VALUE
+        assert normalize_count_to_ratio(5, 2, None) == NEUTRAL_VALUE
 
     def test_zero_total_with_zero_value(self) -> None:
         """Zero total with zero value should return 1.0 (line 199)."""
-        assert normalize_count_to_ratio(0, 0.02, 0) == 1.0
+        assert normalize_count_to_ratio(0, 2, 0) == 1.0
 
     def test_zero_total_with_positive_value(self) -> None:
         """Zero total with positive value should return NEUTRAL_VALUE (line 199)."""
-        assert normalize_count_to_ratio(5, 0.02, 0) == NEUTRAL_VALUE
+        assert normalize_count_to_ratio(5, 2, 0) == NEUTRAL_VALUE
 
     def test_zero_target_with_zero_value(self) -> None:
         """Zero target with zero value should return 1.0 (line 202)."""
@@ -324,23 +331,26 @@ class TestCountToRatio:
 
     def test_negative_total(self) -> None:
         """Negative total is invalid (<=0 check)."""
-        assert normalize_count_to_ratio(0, 0.02, -100) == 1.0
+        assert normalize_count_to_ratio(0, 2, -100) == 1.0
 
     def test_over_limit(self) -> None:
         """Values over limit should be clamped to 0.0."""
-        assert normalize_count_to_ratio(10, 0.02, 100) == 0.0
+        # 2% of 100 = 2 allowed, 10 violations = 0 score
+        assert normalize_count_to_ratio(10, 2, 100) == 0.0
 
     def test_negative_target(self) -> None:
         """Negative target creates negative max_allowed (<=0 check)."""
-        assert normalize_count_to_ratio(0, -0.02, 100) == 1.0
-        assert normalize_count_to_ratio(5, -0.02, 100) == 0.0
+        assert normalize_count_to_ratio(0, -2, 100) == 1.0
+        assert normalize_count_to_ratio(5, -2, 100) == 0.0
 
     def test_very_small_target(self) -> None:
         """Very small targets should work correctly."""
-        assert normalize_count_to_ratio(1, 0.001, 100) == 0.0
+        # 0.1% of 100 = 0.1 allowed, 1 violation exceeds limit
+        assert normalize_count_to_ratio(1, 0.1, 100) == 0.0
 
     def test_fractional_calculations(self) -> None:
         """Fractional compliance should be calculated correctly."""
-        result = normalize_count_to_ratio(1, 0.1, 100)
-        expected = max(0.0, 1.0 - 1 / (100 * 0.1))
+        # 10% of 100 = 10 allowed, 1 violation = 1 - 1/10 = 0.9
+        result = normalize_count_to_ratio(1, 10, 100)
+        expected = max(0.0, 1.0 - 1 / 10)
         assert result == pytest.approx(expected)
