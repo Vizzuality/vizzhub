@@ -128,6 +128,15 @@ export const collectApi = {
     const response = await api.post<MetricsCreate>(`/collect/project/${projectId}/jira`);
     return response.data;
   },
+
+  collectGitHubMetrics: async (projectId: string): Promise<MetricsCreate> => {
+    const response = await api.post<MetricsCreate>(
+      `/collect/project/${projectId}/github`,
+      {},
+      { timeout: 60000 },
+    );
+    return response.data;
+  },
 };
 
 export default api;
