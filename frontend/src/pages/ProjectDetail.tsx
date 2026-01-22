@@ -459,7 +459,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorValue={metrics.github_metrics.pr_size_median}
                   indicatorLabel="Median lines changed"
                   indicatorSuffix=" lines"
-                  description="Median PR size (additions + deletions)"
+                  description="DORA metric: Median PR size (additions + deletions)"
                   target={getTarget('PR_size_t')}
                   lowerIsBetter={true}
                   formula="median(additions + deletions)"
@@ -474,7 +474,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorValue={metrics.github_metrics.review_turnaround_hours}
                   indicatorLabel="Median hours to first review"
                   indicatorSuffix="h"
-                  description="Time from PR creation to first review"
+                  description="DORA metric: Time from PR creation to first review"
                   target={getTarget('review_turnaround_t')}
                   lowerIsBetter={true}
                   formula="median(first_review - pr_created)"
