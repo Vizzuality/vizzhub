@@ -36,10 +36,23 @@ export interface DimensionScores {
   p_risk: number;
 }
 
+export interface DoraScore {
+  score: number | null;
+  classification: string | null;
+  metrics: {
+    deployment_frequency: number | null;
+    lead_time: number | null;
+    change_failure_rate: number | null;
+    mttr: number | null;
+  };
+  available_metrics: number;
+}
+
 export interface FinalScore {
   score: number;
   dimensions: DimensionScores;
   weights_applied: Record<string, number>;
+  dora: DoraScore | null;
 }
 
 export interface Indicators {

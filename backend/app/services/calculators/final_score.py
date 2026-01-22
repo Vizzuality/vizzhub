@@ -6,7 +6,7 @@ Weighted aggregate of all dimension scores.
 
 from app.config import ScoringConfig, get_scoring_config
 from app.models.indicators import IndicatorsCreate
-from app.models.scores import DimensionScores, FinalScore
+from app.models.scores import DimensionScores, DoraScore, FinalScore
 from app.services.calculators.dimensions import (
     CostCalculator,
     EngineeringCalculator,
@@ -17,6 +17,7 @@ from app.services.calculators.dimensions import (
     TimeCalculator,
     ValueCalculator,
 )
+from app.services.calculators.dora import DoraScoreCalculator
 
 
 class FinalScoreCalculator:
@@ -42,6 +43,7 @@ class FinalScoreCalculator:
         self.flow_calc = FlowCalculator(self.config)
         self.engineering_calc = EngineeringCalculator(self.config)
         self.risk_calc = RiskCalculator(self.config)
+        self.dora_calc = DoraScoreCalculator(self.config)
 
     def calculate_all(
         self,
@@ -86,10 +88,20 @@ class FinalScoreCalculator:
             for name, score in zip(dimension_names, dimension_scores)
         )
 
+        # Calculate separate DORA score
+        dora_result = self.dora_calc.calculate(indicators)
+        dora_score = DoraScore(
+            score=dora_result["score"],
+            classification=dora_result["classification"],
+            metrics=dora_result["metrics"],
+            available_metrics=dora_result["available_metrics"],
+        )
+
         return FinalScore(
             score=round(min(100, max(0, final))),
             dimensions=dimensions,
             weights_applied=weights,
+            dora=dora_score,
         )
 
     def calculate_single_dimension(
