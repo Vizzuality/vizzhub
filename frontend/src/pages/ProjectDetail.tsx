@@ -426,44 +426,25 @@ export default function ProjectDetail(): JSX.Element {
                 ]}
               />
               {metrics.github_metrics && (
-                <>
-                  <SubIndicatorCard
-                    title="PR Review Ratio"
-                    indicatorValue={
-                      metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined
-                        ? metrics.github_metrics.pr_review_ratio * 100
-                        : null
-                    }
-                    indicatorLabel="Review rate"
-                    indicatorSuffix="%"
-                    description="PRs merged with review"
-                    target={100 - (getTarget('PR_noReview_t') ?? 0)}
-                    lowerIsBetter={false}
-                    formula="(reviewed / total) × 100"
-                    metrics={[
-                      { label: 'With Review', value: metrics.github_metrics.total_merged_prs - metrics.github_metrics.prs_without_review },
-                      { label: 'Total Merged', value: metrics.github_metrics.total_merged_prs },
-                    ]}
-                  />
-                  <SubIndicatorCard
-                    title="PRs Without Review"
-                    indicatorValue={
-                      metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined
-                        ? (1 - metrics.github_metrics.pr_review_ratio) * 100
-                        : null
-                    }
-                    indicatorLabel="Without review rate"
-                    indicatorSuffix="%"
-                    description="PRs merged without review"
-                    target={getTarget('PR_noReview_t')}
-                    lowerIsBetter={true}
-                    formula="(without_review / total) × 100"
-                    metrics={[
-                      { label: 'Without Review', value: metrics.github_metrics.prs_without_review },
-                      { label: 'Total Merged', value: metrics.github_metrics.total_merged_prs },
-                    ]}
-                  />
-                </>
+                <SubIndicatorCard
+                  title="PR Review Coverage"
+                  indicatorValue={
+                    metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined
+                      ? metrics.github_metrics.pr_review_ratio * 100
+                      : null
+                  }
+                  indicatorLabel="Review coverage"
+                  indicatorSuffix="%"
+                  description="PRs reviewed before merge"
+                  target={100 - (getTarget('PR_noReview_t') ?? 0)}
+                  lowerIsBetter={false}
+                  formula="(reviewed / total) × 100"
+                  metrics={[
+                    { label: 'Reviewed', value: metrics.github_metrics.total_merged_prs - metrics.github_metrics.prs_without_review },
+                    { label: 'Total Merged', value: metrics.github_metrics.total_merged_prs },
+                    { label: 'Without Review', value: metrics.github_metrics.prs_without_review },
+                  ]}
+                />
               )}
             </div>
           </div>
