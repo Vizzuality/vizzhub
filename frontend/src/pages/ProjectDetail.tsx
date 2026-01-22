@@ -428,17 +428,20 @@ export default function ProjectDetail(): JSX.Element {
               {metrics.github_metrics && (
                 <SubIndicatorCard
                   title="PRs Without Review"
-                  indicatorValue={scores.indicators.prs_without_review}
-                  indicatorLabel="PRs merged without review"
-                  indicatorSuffix=""
-                  description="PRs merged to target branches without review"
+                  indicatorValue={
+                    metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined
+                      ? (1 - metrics.github_metrics.pr_review_ratio) * 100
+                      : null
+                  }
+                  indicatorLabel="Without review rate"
+                  indicatorSuffix="%"
+                  description="PRs merged without review"
                   target={getTarget('PR_noReview_t')}
                   lowerIsBetter={true}
-                  formula="merged_prs - reviewed_prs"
+                  formula="(without_review / total) × 100"
                   metrics={[
                     { label: 'Without Review', value: metrics.github_metrics.prs_without_review },
                     { label: 'Total Merged', value: metrics.github_metrics.total_merged_prs },
-                    { label: 'Review Ratio', value: metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined ? Math.round(metrics.github_metrics.pr_review_ratio * 100) : null, suffix: '%' },
                   ]}
                 />
               )}

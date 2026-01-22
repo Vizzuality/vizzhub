@@ -2,16 +2,16 @@
 # Migrated from legacy Params sheet
 
 targets:
-  defect_density: 3          # defects per 100 tasks
-  escaped_rate: 0.01         # escapes per 100 tasks
-  mttr_hours: 24             # mean time to recover
+  defect_density: 3          # defects per 100 tasks (3%)
+  escaped_rate: 1            # escapes per 100 tasks (1%)
+  mttr_hours: 24             # mean time to recover in hours
   spi: 1                     # schedule performance index target
   cpi: 1                     # cost performance index target
-  lead_time_days: 3          # max lead time in days
-  flow_efficiency: 0.4       # target flow efficiency (0-1)
+  lead_time_days: 3          # max lead time in business days
+  flow_efficiency: 40        # target flow efficiency (40%)
   high_vuln_count: 0         # max high vulns >30d (0 = strict mode)
   gov_exceptions: 2          # max governance exceptions
-  pr_no_review_ratio: 0.02   # max PRs without review ratio
+  pr_no_review_ratio: 2      # max PRs without review (2%)
 
 weights:
   # Global dimension weights (must sum to 1)
@@ -66,9 +66,8 @@ weights:
 
   # P_flow weights (must sum to 1)
   flow:
-    lead_time: 0.4
-    flow_efficiency: 0.3
-    commitment_reliability: 0.3
+    lead_time: 0.6
+    commitment_reliability: 0.4
 
   # P_engineering weights (must sum to 1)
   engineering:
