@@ -12,3 +12,15 @@ export function useCollectJiraMetrics(projectId: string) {
     },
   });
 }
+
+export function useCollectGitHubMetrics(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => collectApi.collectGitHubMetrics(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+    },
+  });
+}

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics } from '../hooks/useMetrics';
-import { useCollectJiraMetrics } from '../hooks/useCollectors';
+import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
@@ -37,6 +37,8 @@ export default function ProjectDetail(): JSX.Element {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
+  const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
@@ -45,6 +47,7 @@ export default function ProjectDetail(): JSX.Element {
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
   const collectJiraMetrics = useCollectJiraMetrics(id!);
+  const collectGitHubMetrics = useCollectGitHubMetrics(id!);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -63,8 +66,14 @@ export default function ProjectDetail(): JSX.Element {
     navigate('/projects');
   };
 
-  const handleCollectMetrics = async (): Promise<void> => {
+  const handleCollectJiraMetrics = async (): Promise<void> => {
+    setDismissedJiraSuccess(false);
     await collectJiraMetrics.mutateAsync();
+  };
+
+  const handleCollectGitHubMetrics = async (): Promise<void> => {
+    setDismissedGitHubSuccess(false);
+    await collectGitHubMetrics.mutateAsync();
   };
 
   if (projectLoading) {
@@ -151,20 +160,38 @@ export default function ProjectDetail(): JSX.Element {
           </div>
         </CardHeader>
 
-        {project.jira_project_key && !isEditing && (
-          <CardContent>
-            <Button
-              onClick={handleCollectMetrics}
-              disabled={collectJiraMetrics.isPending}
-            >
-              <RefreshCw
-                className={cn(
-                  'w-4 h-4 mr-2',
-                  collectJiraMetrics.isPending && 'animate-spin'
-                )}
-              />
-              {collectJiraMetrics.isPending ? 'Collecting...' : 'Collect Metrics'}
-            </Button>
+        {(project.jira_project_key || project.github_repo) && !isEditing && (
+          <CardContent className="flex gap-2">
+            {project.jira_project_key && (
+              <Button
+                onClick={handleCollectJiraMetrics}
+                disabled={collectJiraMetrics.isPending}
+                variant="outline"
+              >
+                <RefreshCw
+                  className={cn(
+                    'w-4 h-4 mr-2',
+                    collectJiraMetrics.isPending && 'animate-spin'
+                  )}
+                />
+                {collectJiraMetrics.isPending ? 'Collecting Jira...' : 'Collect Jira'}
+              </Button>
+            )}
+            {project.github_repo && (
+              <Button
+                onClick={handleCollectGitHubMetrics}
+                disabled={collectGitHubMetrics.isPending}
+                variant="outline"
+              >
+                <Github
+                  className={cn(
+                    'w-4 h-4 mr-2',
+                    collectGitHubMetrics.isPending && 'animate-spin'
+                  )}
+                />
+                {collectGitHubMetrics.isPending ? 'Collecting GitHub...' : 'Collect GitHub'}
+              </Button>
+            )}
           </CardContent>
         )}
 
@@ -258,12 +285,53 @@ export default function ProjectDetail(): JSX.Element {
         </>
       )}
 
-      {collectJiraMetrics.isSuccess && (
+      {collectJiraMetrics.isSuccess && !dismissedJiraSuccess && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="pt-6 text-green-800">
-              Metrics collected successfully! Scores are being calculated...
+          <Card className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+            <CardContent className="pt-6 flex items-center justify-between">
+              <span className="text-green-800 dark:text-green-200">
+                Jira metrics collected successfully! Scores are being calculated...
+              </span>
+              <button
+                onClick={() => setDismissedJiraSuccess(true)}
+                className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {collectGitHubMetrics.isError && (
+        <>
+          <Separator className="my-6" />
+          <Card className="bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+            <CardContent className="pt-6">
+              <p className="font-medium text-red-800 dark:text-red-200">Failed to collect GitHub metrics</p>
+              <p className="text-sm mt-1 text-red-700 dark:text-red-300">
+                {collectGitHubMetrics.error?.message || 'An unknown error occurred'}
+              </p>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {collectGitHubMetrics.isSuccess && !dismissedGitHubSuccess && (
+        <>
+          <Separator className="my-6" />
+          <Card className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+            <CardContent className="pt-6 flex items-center justify-between">
+              <span className="text-green-800 dark:text-green-200">
+                GitHub metrics collected successfully! Scores are being calculated...
+              </span>
+              <button
+                onClick={() => setDismissedGitHubSuccess(true)}
+                className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </CardContent>
           </Card>
         </>
@@ -357,6 +425,23 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Multi Sprint', value: metrics.flow_metrics?.multi_sprint_issues ?? null },
                 ]}
               />
+              {metrics.github_metrics && (
+                <SubIndicatorCard
+                  title="PRs Without Review"
+                  indicatorValue={scores.indicators.prs_without_review}
+                  indicatorLabel="PRs merged without review"
+                  indicatorSuffix=""
+                  description="PRs merged to target branches without review"
+                  target={getTarget('PR_noReview_t')}
+                  lowerIsBetter={true}
+                  formula="merged_prs - reviewed_prs"
+                  metrics={[
+                    { label: 'Without Review', value: metrics.github_metrics.prs_without_review },
+                    { label: 'Total Merged', value: metrics.github_metrics.total_merged_prs },
+                    { label: 'Review Ratio', value: metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined ? Math.round(metrics.github_metrics.pr_review_ratio * 100) : null, suffix: '%' },
+                  ]}
+                />
+              )}
             </div>
           </div>
         </>
@@ -424,6 +509,32 @@ export default function ProjectDetail(): JSX.Element {
                       <span className="text-base font-medium">{(metrics.flow_metrics.commitment_reliability * 100).toFixed(1)}%</span>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {metrics.github_metrics && (
+              <div>
+                <h3 className="text-base font-medium mb-3">GitHub Metrics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">PRs Without Review</span>
+                    <span className="text-base font-medium">{metrics.github_metrics.prs_without_review}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Total Merged PRs</span>
+                    <span className="text-base font-medium">{metrics.github_metrics.total_merged_prs}</span>
+                  </div>
+                  {metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined && (
+                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                      <span className="text-sm text-muted-foreground">PR Review Ratio</span>
+                      <span className="text-base font-medium">{(metrics.github_metrics.pr_review_ratio * 100).toFixed(1)}%</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">High Severity Vulns</span>
+                    <span className="text-base font-medium">{metrics.github_metrics.high_severity_vulns}</span>
+                  </div>
                 </div>
               </div>
             )}

@@ -10,6 +10,7 @@ from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
 from app.core.exceptions import ConfigurationError, ProjectNotFoundError
 from app.models.metrics import Metrics, MetricsDB
 from app.models.project import ProjectDB
+from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector
 
 router = APIRouter()
@@ -110,3 +111,94 @@ async def collect_jira_metrics(
     await db.flush()
     await db.refresh(db_metrics)
     return Metrics.model_validate(db_metrics)
+
+
+@router.post(
+    "/project/{project_id}/github",
+    response_model=Metrics,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("10/minute")
+async def collect_github_metrics(
+    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
+) -> Metrics:
+    """
+    Collect metrics from GitHub for a project and update latest metrics record.
+
+    Requires authentication.
+
+    Args:
+        project_id: UUID of the project
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        Updated metrics object
+
+    Raises:
+        ProjectNotFoundError: If project doesn't exist
+        HTTPException: If project has no GitHub repo or collection fails
+    """
+    project = await get_project_or_404(db, project_id)
+
+    if not project.github_repo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project does not have a GitHub repository configured",
+        )
+
+    collector = GitHubCollector()
+    try:
+        raw_metrics = await collector.collect(project.github_repo)
+    except ConfigurationError:
+        await collector.close()
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid repository format",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to collect metrics from GitHub",
+        ) from e
+    finally:
+        await collector.close()
+
+    github_metrics = {
+        "prs_without_review": raw_metrics.get("prs_without_review", 0),
+        "total_merged_prs": raw_metrics.get("total_merged_prs", 0),
+        "pr_review_ratio": raw_metrics.get("pr_review_ratio"),
+        "high_severity_vulns": raw_metrics.get("high_severity_vulns", 0),
+    }
+
+    # Get the most recent metrics record for this project
+    result = await db.execute(
+        select(MetricsDB)
+        .where(MetricsDB.project_id == str(project_id))
+        .order_by(MetricsDB.created_at.desc())
+        .limit(1)
+    )
+    existing_metrics = result.scalar_one_or_none()
+
+    if existing_metrics:
+        existing_metrics.github_metrics = github_metrics
+        await db.flush()
+        await db.refresh(existing_metrics)
+        return Metrics.model_validate(existing_metrics)
+    else:
+        now = datetime.now(timezone.utc)
+        period_start = project.start_date or now.date()
+        period_end = now.date()
+
+        db_metrics = MetricsDB(
+            project_id=str(project_id),
+            period_start=period_start,
+            period_end=period_end,
+            github_metrics=github_metrics,
+        )
+        db.add(db_metrics)
+        await db.flush()
+        await db.refresh(db_metrics)
+        return Metrics.model_validate(db_metrics)
