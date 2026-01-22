@@ -161,36 +161,43 @@ export default function ProjectDetail(): JSX.Element {
         </CardHeader>
 
         {(project.jira_project_key || project.github_repo) && !isEditing && (
-          <CardContent className="flex gap-2">
-            {project.jira_project_key && (
-              <Button
-                onClick={handleCollectJiraMetrics}
-                disabled={collectJiraMetrics.isPending}
-                variant="outline"
-              >
-                <RefreshCw
-                  className={cn(
-                    'w-4 h-4 mr-2',
-                    collectJiraMetrics.isPending && 'animate-spin'
-                  )}
-                />
-                {collectJiraMetrics.isPending ? 'Collecting Jira...' : 'Collect Jira'}
-              </Button>
-            )}
-            {project.github_repo && (
-              <Button
-                onClick={handleCollectGitHubMetrics}
-                disabled={collectGitHubMetrics.isPending}
-                variant="outline"
-              >
-                <Github
-                  className={cn(
-                    'w-4 h-4 mr-2',
-                    collectGitHubMetrics.isPending && 'animate-spin'
-                  )}
-                />
-                {collectGitHubMetrics.isPending ? 'Collecting GitHub...' : 'Collect GitHub'}
-              </Button>
+          <CardContent className="flex items-center gap-4">
+            <div className="flex gap-2">
+              {project.jira_project_key && (
+                <Button
+                  onClick={handleCollectJiraMetrics}
+                  disabled={collectJiraMetrics.isPending}
+                  variant="outline"
+                >
+                  <RefreshCw
+                    className={cn(
+                      'w-4 h-4 mr-2',
+                      collectJiraMetrics.isPending && 'animate-spin'
+                    )}
+                  />
+                  {collectJiraMetrics.isPending ? 'Collecting Jira...' : 'Collect Jira'}
+                </Button>
+              )}
+              {project.github_repo && (
+                <Button
+                  onClick={handleCollectGitHubMetrics}
+                  disabled={collectGitHubMetrics.isPending}
+                  variant="outline"
+                >
+                  <Github
+                    className={cn(
+                      'w-4 h-4 mr-2',
+                      collectGitHubMetrics.isPending && 'animate-spin'
+                    )}
+                  />
+                  {collectGitHubMetrics.isPending ? 'Collecting GitHub...' : 'Collect GitHub'}
+                </Button>
+              )}
+            </div>
+            {metrics && (
+              <span className="text-sm text-muted-foreground">
+                Last collected: {new Date(metrics.created_at).toLocaleString()}
+              </span>
             )}
           </CardContent>
         )}
@@ -354,7 +361,7 @@ export default function ProjectDetail(): JSX.Element {
         <>
           <Separator className="my-6" />
           <div>
-            <h2 className="text-2xl font-semibold mb-4">Sub-indicators</h2>
+            <h2 className="text-2xl font-semibold mb-4">Metrics</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <SubIndicatorCard
                 title="Defect Density"
@@ -446,110 +453,72 @@ export default function ProjectDetail(): JSX.Element {
                   ]}
                 />
               )}
+              {metrics.github_metrics && metrics.github_metrics.pr_size_median !== null && metrics.github_metrics.pr_size_median !== undefined && (
+                <SubIndicatorCard
+                  title="PR Size"
+                  indicatorValue={metrics.github_metrics.pr_size_median}
+                  indicatorLabel="Median lines changed"
+                  indicatorSuffix=" lines"
+                  description="Median PR size (additions + deletions)"
+                  target={getTarget('PR_size_t')}
+                  lowerIsBetter={true}
+                  formula="median(additions + deletions)"
+                  metrics={[
+                    { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                  ]}
+                />
+              )}
+              {metrics.github_metrics && metrics.github_metrics.review_turnaround_hours !== null && metrics.github_metrics.review_turnaround_hours !== undefined && (
+                <SubIndicatorCard
+                  title="Review Turnaround"
+                  indicatorValue={metrics.github_metrics.review_turnaround_hours}
+                  indicatorLabel="Median hours to first review"
+                  indicatorSuffix="h"
+                  description="Time from PR creation to first review"
+                  target={getTarget('review_turnaround_t')}
+                  lowerIsBetter={true}
+                  formula="median(first_review - pr_created)"
+                  metrics={[
+                    { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                  ]}
+                />
+              )}
+              {metrics.github_metrics && metrics.github_metrics.release_count_90d !== null && metrics.github_metrics.release_count_90d !== undefined && (
+                <SubIndicatorCard
+                  title="Deployment Frequency"
+                  indicatorValue={metrics.github_metrics.release_count_90d}
+                  indicatorLabel="Releases in 90 days"
+                  indicatorSuffix=" releases"
+                  description="DORA metric: How often deployments occur"
+                  target={90}
+                  lowerIsBetter={false}
+                  formula="count(releases in 90d)"
+                  metrics={[
+                    { label: 'Per Day', value: metrics.github_metrics.deployment_frequency != null ? parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2)) : null },
+                  ]}
+                />
+              )}
+              {metrics.github_metrics && metrics.github_metrics.change_failure_rate !== null && metrics.github_metrics.change_failure_rate !== undefined && (
+                <SubIndicatorCard
+                  title="Change Failure Rate"
+                  indicatorValue={metrics.github_metrics.change_failure_rate}
+                  indicatorLabel="Failure rate"
+                  indicatorSuffix="%"
+                  description="DORA metric: Releases requiring hotfix"
+                  target={getTarget('CFR_t')}
+                  lowerIsBetter={true}
+                  formula="(failed / total) × 100"
+                  metrics={[
+                    { label: 'Total Releases', value: metrics.github_metrics.total_releases ?? null },
+                    { label: 'Failed Releases', value: metrics.github_metrics.failed_releases ?? null },
+                  ]}
+                />
+              )}
             </div>
           </div>
         </>
       )}
 
-      {metrics && (
-        <>
-          <Separator className="my-6" />
-          <Card>
-            <CardHeader>
-              <CardTitle>Collected Metrics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-            {metrics.jira_defects && (
-              <div>
-                <h3 className="text-base font-medium mb-3">Jira Defects</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Bugs</span>
-                    <span className="text-base font-medium">{metrics.jira_defects.bugs_total}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Tasks Completed</span>
-                    <span className="text-base font-medium">{metrics.jira_defects.tasks_completed}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Escaped Defects</span>
-                    <span className="text-base font-medium">{metrics.jira_defects.escaped_defects}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Incidents</span>
-                    <span className="text-base font-medium">{metrics.jira_defects.incidents_count}</span>
-                  </div>
-                  {metrics.jira_defects.mttr_hours !== null && (
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm text-muted-foreground">MTTR (hours)</span>
-                      <span className="text-base font-medium">{metrics.jira_defects.mttr_hours}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {metrics.flow_metrics && (
-              <div>
-                <h3 className="text-base font-medium mb-3">Flow Metrics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Total Stories</span>
-                    <span className="text-base font-medium">{metrics.flow_metrics.total_stories}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Stories with Reviewer</span>
-                    <span className="text-base font-medium">{metrics.flow_metrics.stories_with_reviewer}</span>
-                  </div>
-                  {metrics.flow_metrics.lead_time_days !== null && (
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm text-muted-foreground">Lead Time (days)</span>
-                      <span className="text-base font-medium">{metrics.flow_metrics.lead_time_days}</span>
-                    </div>
-                  )}
-                  {metrics.flow_metrics.commitment_reliability !== null && metrics.flow_metrics.commitment_reliability !== undefined && (
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm text-muted-foreground">Commitment Reliability</span>
-                      <span className="text-base font-medium">{(metrics.flow_metrics.commitment_reliability * 100).toFixed(1)}%</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {metrics.github_metrics && (
-              <div>
-                <h3 className="text-base font-medium mb-3">GitHub Metrics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">PRs Without Review</span>
-                    <span className="text-base font-medium">{metrics.github_metrics.prs_without_review}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">Total Merged PRs</span>
-                    <span className="text-base font-medium">{metrics.github_metrics.total_merged_prs}</span>
-                  </div>
-                  {metrics.github_metrics.pr_review_ratio !== null && metrics.github_metrics.pr_review_ratio !== undefined && (
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm text-muted-foreground">PR Review Ratio</span>
-                      <span className="text-base font-medium">{(metrics.github_metrics.pr_review_ratio * 100).toFixed(1)}%</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-muted-foreground">High Severity Vulns</span>
-                    <span className="text-base font-medium">{metrics.github_metrics.high_severity_vulns}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="text-xs text-muted-foreground pt-2 border-t">
-              <p>Data as of: {new Date(metrics.created_at).toLocaleString()}</p>
-            </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
     </div>
   );
 }

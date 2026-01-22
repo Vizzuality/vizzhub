@@ -76,6 +76,13 @@ class GitHubMetrics(BaseModel):
     total_merged_prs: int = Field(default=0, ge=0)
     pr_review_ratio: float | None = Field(default=None, ge=0, le=1)
     high_severity_vulns: int = Field(default=0, ge=0, description="High vulns >30d")
+    pr_size_median: float | None = Field(default=None, ge=0, description="Median PR size in lines")
+    review_turnaround_hours: float | None = Field(default=None, ge=0, description="Median hours to first review")
+    deployment_frequency: float | None = Field(default=None, ge=0, description="Releases per day (90d)")
+    release_count_90d: int = Field(default=0, ge=0, description="Number of releases in last 90 days")
+    change_failure_rate: float | None = Field(default=None, ge=0, description="Change failure rate % (DORA)")
+    total_releases: int = Field(default=0, ge=0, description="Total releases for CFR calculation")
+    failed_releases: int = Field(default=0, ge=0, description="Releases followed by patch/hotfix")
 
 
 class TestMaturity(BaseModel):

@@ -62,6 +62,10 @@ export interface Indicators {
   okr_impact: number | null;
   pm_satisfaction: number | null;
   client_satisfaction: number | null;
+  pr_size_median: number | null;
+  review_turnaround_hours: number | null;
+  deployment_frequency: number | null;
+  change_failure_rate: number | null;
 }
 
 export interface ScoreResponse {
@@ -80,6 +84,10 @@ export interface ScoringConfig {
     high_vuln_count: number;
     gov_exceptions: number;
     pr_no_review_ratio: number;
+    pr_size_lines: number;
+    review_turnaround_hours: number;
+    deployment_frequency: number;
+    change_failure_rate: number;
   };
   global_weights: {
     time: number;
@@ -141,6 +149,13 @@ export interface MetricsCreate {
     total_merged_prs: number;
     pr_review_ratio?: number;
     high_severity_vulns: number;
+    pr_size_median?: number;
+    review_turnaround_hours?: number;
+    deployment_frequency?: number;
+    release_count_90d?: number;
+    change_failure_rate?: number;
+    total_releases?: number;
+    failed_releases?: number;
   };
   test_maturity?: {
     e2e?: number;
