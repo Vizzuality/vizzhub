@@ -17,12 +17,25 @@ class DimensionScores(BaseModel):
     p_risk: int = Field(..., ge=0, le=100, description="Risk posture score")
 
 
+class DoraScore(BaseModel):
+    """DORA metrics score (separate from main score)."""
+
+    score: int | None = Field(None, ge=0, le=100, description="DORA score 0-100")
+    classification: str | None = Field(None, description="Elite/High/Medium/Low")
+    metrics: dict[str, float | None] = Field(
+        default_factory=dict,
+        description="Individual DORA metric scores (0-1)",
+    )
+    available_metrics: int = Field(0, description="Number of DORA metrics with data")
+
+
 class FinalScore(BaseModel):
     """Final weighted aggregate score."""
 
     score: int = Field(..., ge=0, le=100)
     dimensions: DimensionScores
     weights_applied: dict[str, float]
+    dora: DoraScore | None = Field(None, description="Separate DORA score")
 
 
 class ScoreResult(BaseModel):

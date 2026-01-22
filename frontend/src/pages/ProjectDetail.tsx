@@ -354,6 +354,72 @@ export default function ProjectDetail(): JSX.Element {
               <DimensionChart scores={scores.scores.dimensions} />
             </div>
           </div>
+
+          {scores.scores.dora && scores.scores.dora.score !== null && (
+            <>
+              <Separator className="my-6" />
+              <div>
+                <h2 className="text-2xl font-semibold mb-4">DORA Score</h2>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <div className="text-5xl font-bold">{scores.scores.dora.score}</div>
+                        <div>
+                          <span className={cn(
+                            "inline-block px-3 py-1 rounded-full text-sm font-medium",
+                            scores.scores.dora.classification === "Elite" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                            scores.scores.dora.classification === "High" && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                            scores.scores.dora.classification === "Medium" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                            scores.scores.dora.classification === "Low" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                          )}>
+                            {scores.scores.dora.classification}
+                          </span>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {scores.scores.dora.available_metrics} of 4 metrics available
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Deployment Frequency</p>
+                        <p className="text-lg font-semibold">
+                          {scores.scores.dora.metrics.deployment_frequency !== null
+                            ? `${(scores.scores.dora.metrics.deployment_frequency * 100).toFixed(0)}%`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Lead Time</p>
+                        <p className="text-lg font-semibold">
+                          {scores.scores.dora.metrics.lead_time !== null
+                            ? `${(scores.scores.dora.metrics.lead_time * 100).toFixed(0)}%`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Change Failure Rate</p>
+                        <p className="text-lg font-semibold">
+                          {scores.scores.dora.metrics.change_failure_rate !== null
+                            ? `${(scores.scores.dora.metrics.change_failure_rate * 100).toFixed(0)}%`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">MTTR</p>
+                        <p className="text-lg font-semibold">
+                          {scores.scores.dora.metrics.mttr !== null
+                            ? `${(scores.scores.dora.metrics.mttr * 100).toFixed(0)}%`
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </>
       )}
 
