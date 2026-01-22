@@ -385,32 +385,32 @@ export default function ProjectDetail(): JSX.Element {
                       <div className="p-3 bg-muted rounded-lg">
                         <p className="text-xs text-muted-foreground mb-1">Deployment Frequency</p>
                         <p className="text-lg font-semibold">
-                          {scores.scores.dora.metrics.deployment_frequency !== null
-                            ? `${(scores.scores.dora.metrics.deployment_frequency * 100).toFixed(0)}%`
+                          {scores.indicators.deployment_frequency !== null
+                            ? `${scores.indicators.deployment_frequency.toFixed(2)}/day`
                             : "—"}
                         </p>
                       </div>
                       <div className="p-3 bg-muted rounded-lg">
                         <p className="text-xs text-muted-foreground mb-1">Lead Time</p>
                         <p className="text-lg font-semibold">
-                          {scores.scores.dora.metrics.lead_time !== null
-                            ? `${(scores.scores.dora.metrics.lead_time * 100).toFixed(0)}%`
+                          {scores.indicators.lead_time_days !== null
+                            ? `${scores.indicators.lead_time_days.toFixed(1)}d`
                             : "—"}
                         </p>
                       </div>
                       <div className="p-3 bg-muted rounded-lg">
                         <p className="text-xs text-muted-foreground mb-1">Change Failure Rate</p>
                         <p className="text-lg font-semibold">
-                          {scores.scores.dora.metrics.change_failure_rate !== null
-                            ? `${(scores.scores.dora.metrics.change_failure_rate * 100).toFixed(0)}%`
+                          {scores.indicators.change_failure_rate !== null
+                            ? `${scores.indicators.change_failure_rate.toFixed(1)}%`
                             : "—"}
                         </p>
                       </div>
                       <div className="p-3 bg-muted rounded-lg">
                         <p className="text-xs text-muted-foreground mb-1">MTTR</p>
                         <p className="text-lg font-semibold">
-                          {scores.scores.dora.metrics.mttr !== null
-                            ? `${(scores.scores.dora.metrics.mttr * 100).toFixed(0)}%`
+                          {scores.indicators.mttr_hours !== null
+                            ? `${scores.indicators.mttr_hours.toFixed(1)}h`
                             : "—"}
                         </p>
                       </div>
