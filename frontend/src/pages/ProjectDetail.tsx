@@ -365,27 +365,32 @@ export default function ProjectDetail(): JSX.Element {
             <>
               <Separator className="my-6" />
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <h2 className="text-2xl font-semibold">DORA Score</h2>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button className="text-muted-foreground hover:text-foreground transition-colors">
-                          <Info className="h-5 w-5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">
-                          <strong>DORA metrics</strong> measure software delivery performance.
-                          Defined by the DevOps Research and Assessment team, they track
-                          Deployment Frequency, Lead Time, Change Failure Rate, and MTTR.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                <h2 className="text-2xl font-semibold mb-4">DORA Score</h2>
                 <Card>
-                  <CardContent className="pt-6">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Performance</CardTitle>
+                        <p className="text-sm text-muted-foreground">DevOps Research and Assessment</p>
+                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button className="text-muted-foreground hover:text-foreground transition-colors">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="text-sm">
+                              <strong>DORA metrics</strong> measure software delivery performance.
+                              They track Deployment Frequency, Lead Time, Change Failure Rate, and MTTR.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-4">
                         <div className="text-5xl font-bold">{scores.scores.dora.score}</div>
