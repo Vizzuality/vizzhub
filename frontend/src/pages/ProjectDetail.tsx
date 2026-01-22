@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics } from '../hooks/useMetrics';
@@ -30,6 +30,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export default function ProjectDetail(): JSX.Element {
@@ -359,7 +365,25 @@ export default function ProjectDetail(): JSX.Element {
             <>
               <Separator className="my-6" />
               <div>
-                <h2 className="text-2xl font-semibold mb-4">DORA Score</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <h2 className="text-2xl font-semibold">DORA Score</h2>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="text-muted-foreground hover:text-foreground transition-colors">
+                          <Info className="h-5 w-5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">
+                          <strong>DORA metrics</strong> measure software delivery performance.
+                          Defined by the DevOps Research and Assessment team, they track
+                          Deployment Frequency, Lead Time, Change Failure Rate, and MTTR.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between mb-6">
