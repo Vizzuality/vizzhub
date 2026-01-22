@@ -45,6 +45,10 @@ def perfect_indicators() -> IndicatorsCreate:
         okr_impact=1.0,
         pm_satisfaction=1.0,
         client_satisfaction=1.0,
+        pr_size_median=100.0,
+        review_turnaround_hours=4.0,
+        deployment_frequency=2.0,
+        change_failure_rate=0.0,
     )
 
 

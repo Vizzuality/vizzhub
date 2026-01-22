@@ -76,6 +76,7 @@ class QualityCalculator(BaseCalculator):
     - MTTR (inverted, lower is better)
     - PR review ratio (direct, higher is better)
     - Story review ratio (direct, higher is better)
+    - Change failure rate (inverted, lower is better) - DORA metric
 
     Special rule: If Sev1 incident occurred, cap score at Sev1_cap (60).
     """
@@ -94,10 +95,12 @@ class QualityCalculator(BaseCalculator):
         w_story_review = self._get_weight("story_review")
         w_governance = self._get_weight("governance")
         w_pr_review = self._get_weight("pr_review")
+        w_cfr = self._get_weight("change_failure_rate")
 
         defect_target = self._get_target("defect_density")
         escaped_target = self._get_target("escaped_rate")
         mttr_target = self._get_target("mttr_hours")
+        cfr_target = self._get_target("change_failure_rate")
 
         defect_norm = self._normalize_to_target(
             indicators.defect_density, defect_target, lower_is_better=True
@@ -111,6 +114,9 @@ class QualityCalculator(BaseCalculator):
         governance_norm = self._safe_value(indicators.governance_compliance)
         pr_review_norm = self._safe_value(indicators.pr_review_ratio)
         story_review_norm = self._safe_value(indicators.story_review_ratio)
+        cfr_norm = self._normalize_to_target(
+            indicators.change_failure_rate, cfr_target, lower_is_better=True
+        )
 
         score = (
             w_defect * defect_norm
@@ -119,6 +125,7 @@ class QualityCalculator(BaseCalculator):
             + w_governance * governance_norm
             + w_pr_review * pr_review_norm
             + w_story_review * story_review_norm
+            + w_cfr * cfr_norm
         )
 
         final_score = self._to_score(score)
@@ -180,8 +187,10 @@ class FlowCalculator(BaseCalculator):
 
     Components:
     - Lead time (inverted, lower is better)
-    - Flow efficiency (normalized to target)
     - Commitment reliability (direct, higher is better)
+    - PR size (inverted, lower is better)
+    - Review turnaround (inverted, lower is better)
+    - Deployment frequency (direct, higher is better)
     """
 
     dimension_name = "flow"
@@ -190,17 +199,35 @@ class FlowCalculator(BaseCalculator):
     def calculate(self, indicators: IndicatorsCreate) -> int:
         w_lead_time = self._get_weight("lead_time")
         w_commitment = self._get_weight("commitment_reliability")
+        w_pr_size = self._get_weight("pr_size")
+        w_review_turnaround = self._get_weight("review_turnaround")
+        w_deployment_freq = self._get_weight("deployment_frequency")
 
         lt_target = self._get_target("lead_time_days")
+        pr_size_target = self._get_target("pr_size_lines")
+        review_turnaround_target = self._get_target("review_turnaround_hours")
+        deployment_freq_target = self._get_target("deployment_frequency")
 
         lead_time_norm = self._normalize_to_target(
             indicators.lead_time_days, lt_target, lower_is_better=True
         )
         commitment_norm = self._safe_value(indicators.commitment_reliability)
+        pr_size_norm = self._normalize_to_target(
+            indicators.pr_size_median, pr_size_target, lower_is_better=True
+        )
+        review_turnaround_norm = self._normalize_to_target(
+            indicators.review_turnaround_hours, review_turnaround_target, lower_is_better=True
+        )
+        deployment_freq_norm = self._normalize_to_target(
+            indicators.deployment_frequency, deployment_freq_target, lower_is_better=False
+        )
 
         score = (
             w_lead_time * lead_time_norm
             + w_commitment * commitment_norm
+            + w_pr_size * pr_size_norm
+            + w_review_turnaround * review_turnaround_norm
+            + w_deployment_freq * deployment_freq_norm
         )
         return self._to_score(score)
 

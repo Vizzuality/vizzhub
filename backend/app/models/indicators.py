@@ -60,6 +60,18 @@ class IndicatorsCreate(BaseModel):
     client_satisfaction: float | None = Field(
         default=None, ge=0, le=1, description="Client survey score"
     )
+    pr_size_median: float | None = Field(
+        default=None, ge=0, description="Median PR size in lines"
+    )
+    review_turnaround_hours: float | None = Field(
+        default=None, ge=0, description="Median hours to first review"
+    )
+    deployment_frequency: float | None = Field(
+        default=None, ge=0, description="Releases per day (90d)"
+    )
+    change_failure_rate: float | None = Field(
+        default=None, ge=0, description="Change failure rate % (DORA)"
+    )
 
 
 class Indicators(IndicatorsCreate):

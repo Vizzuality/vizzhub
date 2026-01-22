@@ -63,6 +63,10 @@ class IndicatorNormalizer:
             okr_impact=self._normalize_okr_impact(metrics.strategic_impact),
             pm_satisfaction=self._normalize_pm_satisfaction(metrics.pm_satisfaction),
             client_satisfaction=self._normalize_client_survey(metrics.client_survey),
+            pr_size_median=self._get_pr_size_median(metrics.github_metrics),
+            review_turnaround_hours=self._get_review_turnaround_hours(metrics.github_metrics),
+            deployment_frequency=self._get_deployment_frequency(metrics.github_metrics),
+            change_failure_rate=self._get_change_failure_rate(metrics.github_metrics),
         )
 
     def _normalize_spi(self, evm: EVMData | None) -> float | None:
@@ -294,3 +298,27 @@ class IndicatorNormalizer:
             return None
 
         return round(total / weight_sum, 2) if weight_sum < 1.0 else round(total, 2)
+
+    def _get_pr_size_median(self, github: GitHubMetrics | None) -> float | None:
+        """Get median PR size in lines."""
+        if github is None:
+            return None
+        return github.pr_size_median
+
+    def _get_review_turnaround_hours(self, github: GitHubMetrics | None) -> float | None:
+        """Get median review turnaround time in hours."""
+        if github is None:
+            return None
+        return github.review_turnaround_hours
+
+    def _get_deployment_frequency(self, github: GitHubMetrics | None) -> float | None:
+        """Get deployment frequency (releases per day)."""
+        if github is None:
+            return None
+        return github.deployment_frequency
+
+    def _get_change_failure_rate(self, github: GitHubMetrics | None) -> float | None:
+        """Get change failure rate (%)."""
+        if github is None:
+            return None
+        return github.change_failure_rate

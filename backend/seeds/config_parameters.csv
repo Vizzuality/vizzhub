@@ -13,12 +13,17 @@ Targets,HighVuln_t,0.00,count,Target max high-severity vulnerabilities open >30 
 Targets,CritRisk_t,0.00,count,Target max overdue critical risks at closure (0 = none tolerated)
 Targets,GovExc_t,2.00,count,Max tolerated exceptions. If < 2 score will always be 0 when there are excceptions
 Targets,PR_noReview_t,2,%,Target max PRs without review (2%). Used in P_risk.
+Targets,PR_size_t,400,lines,Target median PR size. Used in P_flow. ≤ target scores 100%.
+Targets,review_turnaround_t,24,hours,Target review turnaround time. Used in P_flow. ≤ target scores 100%.
+Targets,deployment_freq_t,1,per day,Target deployment frequency (DORA). Used in P_flow. ≥ target scores 100%.
+Targets,CFR_t,15,%,Target change failure rate (DORA). Used in P_quality. ≤ target scores 100%.
 Quality Weights,W_def,0.05,weight,Defect density  in P_quality
-Quality Weights,W_esc,0.20,weight,Escaped rate  in P_quality
+Quality Weights,W_esc,0.15,weight,Escaped rate  in P_quality
 Quality Weights,W_mttr,0.05,weight,MTTR  in P_quality (Mean Time To Resolution)
-Quality Weights,W_q_storyrev,0.30,weight,Stories without a reviewer in P_qauality
-Quality Weights,W_qual_gov,0.30,weight,governance compliance in P_quality
+Quality Weights,W_q_storyrev,0.25,weight,Stories without a reviewer in P_qauality
+Quality Weights,W_qual_gov,0.25,weight,governance compliance in P_quality
 Quality Weights,W_q_pr,0.10,weight,Pull request review ratio in P_quality
+Quality Weights,W_qual_cfr,0.15,weight,Change failure rate in P_quality (DORA)
 Quality Weights,W_q_design,0.00,weight,Design quality in P_quality
 Quality Weights,W_q_science,0.00,weight,Data science in P_quality
 Time Weights,W_time_spi,0.60,weight,SPI in P_time calculation
@@ -37,8 +42,11 @@ Satisfaction Handsoff Weights,W_cs_response,0.10,weight,Client survey weight
 Satisfaction Handsoff Weights,W_cs_quality,0.24,weight,Client survey weight
 Satisfaction Handsoff Weights,W_cs_expect,0.12,weight,Client survey weight
 Satisfaction Handsoff Weights,W_cs_recommend,0.06,weight,Client survey weight
-Efficiency Weights,W_flow_lt,0.60,weight,Lead time in P_flow
-Efficiency Weights,W_flow_cr,0.40,weight,Commitment reliability in P_flow
+Efficiency Weights,W_flow_lt,0.35,weight,Lead time in P_flow
+Efficiency Weights,W_flow_cr,0.25,weight,Commitment reliability in P_flow
+Efficiency Weights,W_flow_prsize,0.15,weight,PR size in P_flow
+Efficiency Weights,W_flow_review,0.10,weight,Review turnaround in P_flow
+Efficiency Weights,W_flow_deploy,0.15,weight,Deployment frequency in P_flow
 Engineering Weights,W_eng_test,0.50,weight,test maturity in P_engineering
 Engineering Weights,W_eng_pr,0.20,weight,PR review ratio in P_engineering
 Engineering Weights,W_eng_iac,0.00,weight,IaC coverage in P_engineering (Infrastructure as Code)

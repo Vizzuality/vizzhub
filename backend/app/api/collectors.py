@@ -171,6 +171,13 @@ async def collect_github_metrics(
         "total_merged_prs": raw_metrics.get("total_merged_prs", 0),
         "pr_review_ratio": raw_metrics.get("pr_review_ratio"),
         "high_severity_vulns": raw_metrics.get("high_severity_vulns", 0),
+        "pr_size_median": raw_metrics.get("pr_size_median"),
+        "review_turnaround_hours": raw_metrics.get("review_turnaround_hours"),
+        "deployment_frequency": raw_metrics.get("deployment_frequency"),
+        "release_count_90d": raw_metrics.get("release_count_90d", 0),
+        "change_failure_rate": raw_metrics.get("change_failure_rate"),
+        "total_releases": raw_metrics.get("total_releases", 0),
+        "failed_releases": raw_metrics.get("failed_releases", 0),
     }
 
     # Get the most recent metrics record for this project
