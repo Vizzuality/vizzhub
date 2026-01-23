@@ -17,6 +17,7 @@ Targets,PR_size_t,400,lines,Target median PR size. Used in P_flow. ≤ target sc
 Targets,review_turnaround_t,24,hours,Target review turnaround time. Used in P_flow. ≤ target scores 100%.
 Targets,deployment_freq_t,1,per day,Target deployment frequency (DORA). Used in P_flow. ≥ target scores 100%.
 Targets,CFR_t,15,%,Target change failure rate (DORA). Used in P_quality. ≤ target scores 100%.
+Targets,post_contract_t,3,count,Target max tasks created >30 days after contract end. Used in P_quality. ≤ target scores 100%.
 Quality Weights,W_def,0.05,weight,Defect density  in P_quality
 Quality Weights,W_esc,0.15,weight,Escaped rate  in P_quality
 Quality Weights,W_mttr,0.05,weight,MTTR  in P_quality (Mean Time To Resolution)
