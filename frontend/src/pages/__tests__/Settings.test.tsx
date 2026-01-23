@@ -3,17 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Settings from '../Settings';
 
-vi.mock('../../hooks/useScores', () => ({
-  useScoringConfig: () => ({
+vi.mock('../../hooks/useConfig', () => ({
+  useConfigParameters: () => ({
     data: {
-      targets: {},
-      global_weights: {},
-      constants: {},
+      'Targets': [],
+      'Global Weights': [],
     },
     isLoading: false,
-  }),
-  useConfigValidation: () => ({
-    data: null,
+    error: null,
   }),
   useUpdateConfigParameters: () => ({
     mutateAsync: vi.fn(),
@@ -48,16 +45,10 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('Settings', () => {
-  it('renders Configuration tab', () => {
+  it('renders Settings heading', () => {
     renderWithProviders(<Settings />);
 
-    expect(screen.getByText('Configuration')).toBeInTheDocument();
-  });
-
-  it('renders Validation tab', () => {
-    renderWithProviders(<Settings />);
-
-    expect(screen.getByText('Validation')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
   it('renders Edit Configuration button when not editing', () => {

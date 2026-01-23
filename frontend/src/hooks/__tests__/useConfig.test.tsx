@@ -58,7 +58,7 @@ describe('useConfig hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data).toEqual(mockData);
-    expect(api.get).toHaveBeenCalledWith('/api/config/parameters');
+    expect(api.get).toHaveBeenCalledWith('/config/parameters');
   });
 
   it('useConfigValidation fetches validation status', async () => {
@@ -73,7 +73,7 @@ describe('useConfig hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data).toEqual(mockData);
-    expect(api.get).toHaveBeenCalledWith('/api/config/validate');
+    expect(api.get).toHaveBeenCalledWith('/config/validate');
   });
 
   it('useUpdateConfigParameters updates parameters and invalidates queries', async () => {
@@ -102,7 +102,7 @@ describe('useConfig hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(api.put).toHaveBeenCalledWith('/api/config/parameters', mockUpdates);
+    expect(api.put).toHaveBeenCalledWith('/config/parameters', mockUpdates);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['config'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['scores'] });
   });
