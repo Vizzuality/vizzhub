@@ -5,7 +5,7 @@ by generating, validating, and managing one-time-use state tokens.
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -38,9 +38,9 @@ class TestOAuthStateGenerate:
         OAuthStateManager._states.clear()
 
         # Generate state and capture time
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         state = OAuthStateManager.generate_state()
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
 
         # Token should be in storage
         assert state in OAuthStateManager._states
@@ -80,7 +80,7 @@ class TestOAuthStateValidate:
         # Clear and manually add expired token
         OAuthStateManager._states.clear()
         expired_state = "expired-token"
-        OAuthStateManager._states[expired_state] = datetime.utcnow() - timedelta(
+        OAuthStateManager._states[expired_state] = datetime.now(timezone.utc) - timedelta(
             minutes=1
         )
 
@@ -125,8 +125,8 @@ class TestOAuthStateCleanup:
         OAuthStateManager._states.clear()
         expired1 = "expired-1"
         expired2 = "expired-2"
-        OAuthStateManager._states[expired1] = datetime.utcnow() - timedelta(minutes=5)
-        OAuthStateManager._states[expired2] = datetime.utcnow() - timedelta(
+        OAuthStateManager._states[expired1] = datetime.now(timezone.utc) - timedelta(minutes=5)
+        OAuthStateManager._states[expired2] = datetime.now(timezone.utc) - timedelta(
             minutes=15
         )
 
@@ -144,8 +144,8 @@ class TestOAuthStateCleanup:
         OAuthStateManager._states.clear()
         expired = "expired-token"
         valid = "valid-token"
-        OAuthStateManager._states[expired] = datetime.utcnow() - timedelta(minutes=1)
-        OAuthStateManager._states[valid] = datetime.utcnow() + timedelta(minutes=5)
+        OAuthStateManager._states[expired] = datetime.now(timezone.utc) - timedelta(minutes=1)
+        OAuthStateManager._states[valid] = datetime.now(timezone.utc) + timedelta(minutes=5)
 
         # Run cleanup
         removed_count = OAuthStateManager.cleanup_expired()
@@ -161,7 +161,7 @@ class TestOAuthStateCleanup:
         OAuthStateManager._states.clear()
         for i in range(5):
             token = f"expired-{i}"
-            OAuthStateManager._states[token] = datetime.utcnow() - timedelta(
+            OAuthStateManager._states[token] = datetime.now(timezone.utc) - timedelta(
                 minutes=i + 1
             )
 

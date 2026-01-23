@@ -1,7 +1,7 @@
 """OAuth state management for CSRF protection."""
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class OAuthStateManager:
@@ -25,7 +25,7 @@ class OAuthStateManager:
         """
         state = secrets.token_urlsafe(32)
         # Store with 10-minute expiration
-        OAuthStateManager._states[state] = datetime.utcnow() + timedelta(minutes=10)
+        OAuthStateManager._states[state] = datetime.now(timezone.utc) + timedelta(minutes=10)
         return state
 
     @staticmethod
@@ -43,7 +43,7 @@ class OAuthStateManager:
             return False
 
         expiry = OAuthStateManager._states[state]
-        if datetime.utcnow() > expiry:
+        if datetime.now(timezone.utc) > expiry:
             # Expired - remove and return False
             del OAuthStateManager._states[state]
             return False
@@ -60,7 +60,7 @@ class OAuthStateManager:
         Returns:
             Number of expired states removed
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expired = [s for s, exp in OAuthStateManager._states.items() if now > exp]
         for state in expired:
             del OAuthStateManager._states[state]

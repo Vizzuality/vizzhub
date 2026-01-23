@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 # Configure security logger
@@ -16,7 +16,7 @@ class SecurityEventHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         """Emit a structured security log event."""
         event = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": getattr(record, "event_type", "unknown"),
             "severity": record.levelname,
             "user_id": getattr(record, "user_id", None),
