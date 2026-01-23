@@ -167,7 +167,7 @@ class TestTokenValidation:
     @pytest.mark.asyncio
     async def test_get_current_user_expired_token_rejected(self) -> None:
         """Expired JWT should be rejected."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         from unittest.mock import patch
 
         from fastapi.security import HTTPAuthorizationCredentials
@@ -178,7 +178,7 @@ class TestTokenValidation:
         # Create expired token
         expired_payload = {
             "sub": "user-123",
-            "exp": datetime.utcnow() - timedelta(hours=1),
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
         expired_token = jwt.encode(expired_payload, "test-secret", algorithm="HS256")
 
