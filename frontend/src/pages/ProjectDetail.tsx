@@ -249,70 +249,6 @@ export default function ProjectDetail(): JSX.Element {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* EVM Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-muted-foreground" />
-              <CardTitle className="text-xl">Budget & Schedule</CardTitle>
-            </div>
-            {!isEditingEVM && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEditingEVM(true)}
-                className="border border-input"
-              >
-                <Pencil className="w-4 h-4 mr-2" />
-                {metrics?.evm_data ? 'Edit' : 'Add EVM Data'}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isEditingEVM ? (
-            <EVMForm
-              initialData={metrics?.evm_data}
-              onSubmit={handleUpdateEVM}
-              onCancel={() => setIsEditingEVM(false)}
-              isLoading={updateEVM.isPending}
-            />
-          ) : metrics?.evm_data ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Budget</p>
-                <p className="text-2xl font-semibold">
-                  ${metrics.evm_data.budget_total.toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Actual Cost</p>
-                <p className="text-2xl font-semibold">
-                  ${metrics.evm_data.cost_to_date.toLocaleString()}
-                </p>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Work Completed</p>
-                <p className="text-2xl font-semibold">
-                  {(metrics.evm_data.percent_completed * 100).toFixed(0)}%
-                </p>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Expected Progress</p>
-                <p className="text-2xl font-semibold">
-                  {(metrics.evm_data.percent_planned * 100).toFixed(0)}%
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">
-              No budget data available. Click "Add EVM Data" to enter budget and schedule information.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
       {scoresLoading && (
         <>
           <Separator className="my-6" />
@@ -431,6 +367,169 @@ export default function ProjectDetail(): JSX.Element {
               <ScoreCard score={scores.scores} />
               <DimensionChart scores={scores.scores.dimensions} />
             </div>
+          </div>
+
+          {/* EVM Section - Budget & Schedule */}
+          <Separator className="my-6" />
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold flex items-center gap-2">
+                <DollarSign className="w-6 h-6" />
+                Budget & Schedule
+              </h2>
+              {!isEditingEVM && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingEVM(true)}
+                  className="border border-input"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  {metrics?.evm_data ? 'Edit' : 'Add EVM Data'}
+                </Button>
+              )}
+            </div>
+            <Card>
+              <CardContent className="pt-6">
+                {isEditingEVM ? (
+                  <EVMForm
+                    initialData={metrics?.evm_data}
+                    onSubmit={handleUpdateEVM}
+                    onCancel={() => setIsEditingEVM(false)}
+                    isLoading={updateEVM.isPending}
+                  />
+                ) : metrics?.evm_data ? (
+                  <div className="space-y-4">
+                    {/* Input Values */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Total Budget</p>
+                        <p className="text-2xl font-semibold">
+                          ${metrics.evm_data.budget_total.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Actual Cost</p>
+                        <p className="text-2xl font-semibold">
+                          ${metrics.evm_data.cost_to_date.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Work Completed</p>
+                        <p className="text-2xl font-semibold">
+                          {(metrics.evm_data.percent_completed * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Expected Progress</p>
+                        <p className="text-2xl font-semibold">
+                          {(metrics.evm_data.percent_planned * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+                    {/* Calculated Values */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm text-muted-foreground">Earned Value (EV)</p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Budget × Work Completed</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <p className="text-xl font-semibold">
+                          ${(metrics.evm_data.budget_total * metrics.evm_data.percent_completed).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm text-muted-foreground">Schedule Performance (SPI)</p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Work Completed / Expected Progress</p>
+                                <p className="text-xs text-muted-foreground mt-1">&gt;1 = ahead, 1 = on track, &lt;1 = behind</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        {metrics.evm_data.percent_planned > 0 ? (
+                          <>
+                            <p className={cn(
+                              "text-xl font-semibold",
+                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 1 ? "text-green-600 dark:text-green-400" :
+                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 0.9 ? "text-yellow-600 dark:text-yellow-400" :
+                              "text-red-600 dark:text-red-400"
+                            )}>
+                              {(metrics.evm_data.percent_completed / metrics.evm_data.percent_planned).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {metrics.evm_data.percent_completed / metrics.evm_data.percent_planned > 1 ? 'Ahead of schedule' :
+                               metrics.evm_data.percent_completed / metrics.evm_data.percent_planned === 1 ? 'On schedule' : 'Behind schedule'}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xl font-semibold text-muted-foreground">—</p>
+                        )}
+                      </div>
+                      <div className="p-4 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm text-muted-foreground">Cost Performance (CPI)</p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Earned Value / Actual Cost</p>
+                                <p className="text-xs text-muted-foreground mt-1">&gt;1 = under budget, 1 = on budget, &lt;1 = over budget</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        {metrics.evm_data.cost_to_date > 0 ? (
+                          <>
+                            <p className={cn(
+                              "text-xl font-semibold",
+                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 1 ? "text-green-600 dark:text-green-400" :
+                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 0.9 ? "text-yellow-600 dark:text-yellow-400" :
+                              "text-red-600 dark:text-red-400"
+                            )}>
+                              {((metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {(metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date > 1 ? 'Under budget' :
+                               (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date === 1 ? 'On budget' : 'Over budget'}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xl font-semibold text-muted-foreground">—</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    No budget data available. Click "Add EVM Data" to enter budget and schedule information.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {scores.scores.dora && scores.scores.dora.score !== null && (
