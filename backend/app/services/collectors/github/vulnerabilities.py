@@ -85,22 +85,26 @@ async def _get_dependabot_alerts(
     Get open high/critical severity Dependabot alerts.
 
     Returns None if Dependabot is not enabled or access is denied.
+    Note: Dependabot API uses cursor-based pagination, not page numbers.
     """
     http_client = await client.get_client()
     all_alerts: list[dict] = []
-    page = 1
     per_page = 100
+    cursor: str | None = None
 
     while True:
         try:
+            params: dict = {
+                "state": "open",
+                "severity": "high,critical",
+                "per_page": per_page,
+            }
+            if cursor:
+                params["after"] = cursor
+
             response = await http_client.get(
                 f"/repos/{owner}/{repo}/dependabot/alerts",
-                params={
-                    "state": "open",
-                    "severity": "high,critical",
-                    "per_page": per_page,
-                    "page": page,
-                },
+                params=params,
             )
 
             if response.status_code == 403:
@@ -120,10 +124,19 @@ async def _get_dependabot_alerts(
 
             all_alerts.extend(alerts)
 
-            if len(alerts) < per_page:
+            # Check for next page via Link header
+            link_header = response.headers.get("Link", "")
+            if 'rel="next"' not in link_header:
                 break
 
-            page += 1
+            # Extract cursor from Link header
+            # Format: <url?after=cursor>; rel="next"
+            import re
+            match = re.search(r'after=([^&>]+)', link_header)
+            if match:
+                cursor = match.group(1)
+            else:
+                break
 
         except Exception:
             return None
