@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import type { MetricsCreate } from '../types';
+import type { MetricsCreate, EVMData } from '../types';
 
 interface Metrics extends MetricsCreate {
   id: string;
@@ -26,5 +26,51 @@ export function useProjectMetrics(projectId: string) {
       }
     },
     enabled: !!projectId,
+  });
+}
+
+export function useCreateMetrics(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (metrics: MetricsCreate): Promise<Metrics> => {
+      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+    },
+  });
+}
+
+export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (evmData: EVMData): Promise<Metrics> => {
+      const today = new Date().toISOString().split('T')[0];
+      const metrics: MetricsCreate = {
+        period_start: existingMetrics?.period_start ?? today,
+        period_end: today,
+        evm_data: evmData,
+        jira_defects: existingMetrics?.jira_defects,
+        flow_metrics: existingMetrics?.flow_metrics,
+        github_metrics: existingMetrics?.github_metrics,
+        test_maturity: existingMetrics?.test_maturity,
+        architecture: existingMetrics?.architecture,
+        pm_satisfaction: existingMetrics?.pm_satisfaction,
+        client_survey: existingMetrics?.client_survey,
+        strategic_impact: existingMetrics?.strategic_impact,
+        governance_exceptions: existingMetrics?.governance_exceptions,
+        sev1_incident: existingMetrics?.sev1_incident ?? false,
+      };
+      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+    },
   });
 }

@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, DollarSign } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import ProjectForm from '../components/Forms/ProjectForm';
+import EVMForm from '../components/Forms/EVMForm';
 import SubIndicatorCard from '../components/SubIndicatorCard';
-import type { ProjectCreate } from '../types';
+import type { ProjectCreate, EVMData } from '../types';
 import { formatDate } from '../utils/formatters';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,7 @@ export default function ProjectDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingEVM, setIsEditingEVM] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
@@ -54,6 +56,7 @@ export default function ProjectDetail(): JSX.Element {
   const deleteProject = useDeleteProject();
   const collectJiraMetrics = useCollectJiraMetrics(id!);
   const collectGitHubMetrics = useCollectGitHubMetrics(id!);
+  const updateEVM = useUpdateEVMData(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -80,6 +83,11 @@ export default function ProjectDetail(): JSX.Element {
   const handleCollectGitHubMetrics = async (): Promise<void> => {
     setDismissedGitHubSuccess(false);
     await collectGitHubMetrics.mutateAsync();
+  };
+
+  const handleUpdateEVM = async (data: EVMData): Promise<void> => {
+    await updateEVM.mutateAsync(data);
+    setIsEditingEVM(false);
   };
 
   if (projectLoading) {
@@ -240,6 +248,70 @@ export default function ProjectDetail(): JSX.Element {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* EVM Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-muted-foreground" />
+              <CardTitle className="text-xl">Budget & Schedule</CardTitle>
+            </div>
+            {!isEditingEVM && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingEVM(true)}
+                className="border border-input"
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                {metrics?.evm_data ? 'Edit' : 'Add EVM Data'}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isEditingEVM ? (
+            <EVMForm
+              initialData={metrics?.evm_data}
+              onSubmit={handleUpdateEVM}
+              onCancel={() => setIsEditingEVM(false)}
+              isLoading={updateEVM.isPending}
+            />
+          ) : metrics?.evm_data ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Budget</p>
+                <p className="text-2xl font-semibold">
+                  ${metrics.evm_data.budget_total.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Actual Cost</p>
+                <p className="text-2xl font-semibold">
+                  ${metrics.evm_data.cost_to_date.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Work Completed</p>
+                <p className="text-2xl font-semibold">
+                  {(metrics.evm_data.percent_completed * 100).toFixed(0)}%
+                </p>
+              </div>
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Expected Progress</p>
+                <p className="text-2xl font-semibold">
+                  {(metrics.evm_data.percent_planned * 100).toFixed(0)}%
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">
+              No budget data available. Click "Add EVM Data" to enter budget and schedule information.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {scoresLoading && (
         <>
