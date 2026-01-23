@@ -609,6 +609,22 @@ export default function ProjectDetail(): JSX.Element {
                   ]}
                 />
               )}
+              {metrics.github_metrics && (
+                <SubIndicatorCard
+                  title="Security Vulnerabilities"
+                  indicatorValue={metrics.github_metrics.high_severity_vulns}
+                  indicatorLabel="High/Critical open >30d"
+                  indicatorSuffix=""
+                  description="Dependabot alerts unaddressed for 30+ days"
+                  target={getTarget('high_vuln_t')}
+                  lowerIsBetter={true}
+                  formula="count(high/critical vulns >30d)"
+                  metrics={[
+                    { label: 'Total Open', value: metrics.github_metrics.high_severity_vulns_total ?? 0 },
+                    { label: 'Older than 30d', value: metrics.github_metrics.high_severity_vulns },
+                  ]}
+                />
+              )}
             </div>
           </div>
         </>

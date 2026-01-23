@@ -17,6 +17,7 @@ from app.services.collectors.github.deployment_frequency import (
 from app.services.collectors.github.pr_review import collect_pr_review
 from app.services.collectors.github.pr_size import collect_pr_size
 from app.services.collectors.github.review_turnaround import collect_review_turnaround
+from app.services.collectors.github.vulnerabilities import collect_vulnerabilities
 
 
 class GitHubCollector:
@@ -46,6 +47,7 @@ class GitHubCollector:
         review_turnaround_data = await collect_review_turnaround(self._client, repo_slug)
         deployment_freq_data = await collect_deployment_frequency(self._client, repo_slug)
         cfr_data = await collect_change_failure_rate(self._client, repo_slug)
+        vuln_data = await collect_vulnerabilities(self._client, repo_slug)
 
         return {
             # pr_review
@@ -63,8 +65,9 @@ class GitHubCollector:
             "change_failure_rate": cfr_data["change_failure_rate"],
             "total_releases": cfr_data["total_releases"],
             "failed_releases": cfr_data["failed_releases"],
-            # placeholder for future metrics
-            "high_severity_vulns": 0,
+            # vulnerabilities
+            "high_severity_vulns": vuln_data["high_severity_vulns"],
+            "high_severity_vulns_total": vuln_data["high_severity_vulns_total"],
         }
 
     async def close(self) -> None:
