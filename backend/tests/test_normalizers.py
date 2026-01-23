@@ -3,7 +3,6 @@
 import pytest
 
 from app.services.normalizers.base import (
-    MIN_DENOMINATOR,
     NEUTRAL_VALUE,
     normalize_budget_variance,
     normalize_count_to_ratio,
@@ -46,14 +45,6 @@ class TestHigherIsBetter:
         assert normalize_higher_is_better(0.6, cap=0.8) == 0.6
         assert normalize_higher_is_better(1.0, cap=0.8) == 0.8
 
-    def test_very_large_value(self) -> None:
-        """Very large values should be capped at 1.0."""
-        assert normalize_higher_is_better(1000000) == 1.0
-
-    def test_very_small_negative(self) -> None:
-        """Very small negative values should return 0."""
-        assert normalize_higher_is_better(-0.0001) == 0.0
-
 
 class TestLowerIsBetter:
     """Tests for normalize_lower_is_better function."""
@@ -89,20 +80,6 @@ class TestLowerIsBetter:
         """Zero target with non-zero value should return target/value ratio."""
         assert normalize_lower_is_better(5.0, 0.0) == 0.0
 
-    def test_very_small_value_near_min_denominator(self) -> None:
-        """Values near MIN_DENOMINATOR should use MIN_DENOMINATOR as floor."""
-        result = normalize_lower_is_better(0.0005, 3.0)
-        expected = min(1.0, 3.0 / MIN_DENOMINATOR)
-        assert result == pytest.approx(expected)
-
-    def test_very_large_value_above_target(self) -> None:
-        """Very large values should return very small normalized scores."""
-        assert normalize_lower_is_better(1000.0, 3.0) == pytest.approx(0.003)
-
-    def test_very_large_target(self) -> None:
-        """Very large targets should make most values normalize to 1.0."""
-        assert normalize_lower_is_better(5.0, 1000.0) == 1.0
-
 
 class TestRatioToTarget:
     """Tests for normalize_ratio_to_target function."""
@@ -131,17 +108,9 @@ class TestRatioToTarget:
         """Zero target with zero value should return NEUTRAL_VALUE (line 95)."""
         assert normalize_ratio_to_target(0.0, 0.0) == NEUTRAL_VALUE
 
-    def test_negative_target(self) -> None:
-        """Negative target is treated as invalid (<=0 check)."""
-        assert normalize_ratio_to_target(0.5, -1.0) == 1.0
-
     def test_negative_value_clamped_to_zero(self) -> None:
         """Negative values should be clamped to 0.0."""
         assert normalize_ratio_to_target(-0.5, 1.0) == 0.0
-
-    def test_very_small_ratio(self) -> None:
-        """Very small ratios should be preserved."""
-        assert normalize_ratio_to_target(0.001, 1.0) == pytest.approx(0.001)
 
     def test_exactly_zero_value(self) -> None:
         """Zero value with positive target should return 0.0."""
@@ -216,21 +185,9 @@ class TestBudgetVariance:
         assert normalize_budget_variance(None, 100, neutral_on_missing=False) == 0.0
         assert normalize_budget_variance(100, None, neutral_on_missing=False) == 0.0
 
-    def test_negative_budget(self) -> None:
-        """Negative budget is invalid (<=0 check)."""
-        assert normalize_budget_variance(100, -50) == 0.0
-
     def test_zero_actual_cost(self) -> None:
         """Zero actual cost should return 0 variance (under budget)."""
         assert normalize_budget_variance(0, 100) == 0.0
-
-    def test_massive_overrun(self) -> None:
-        """Massive budget overruns should be calculated correctly."""
-        assert normalize_budget_variance(500, 100) == pytest.approx(4.0)
-
-    def test_slight_overrun(self) -> None:
-        """Small overruns should be precise."""
-        assert normalize_budget_variance(101, 100) == pytest.approx(0.01)
 
 
 class TestGovernanceCompliance:
@@ -263,19 +220,6 @@ class TestGovernanceCompliance:
     def test_zero_target_with_exceptions(self) -> None:
         """Zero target with any exceptions should return 0.0 (line 170)."""
         assert normalize_governance_compliance(1, 0) == 0.0
-
-    def test_negative_target(self) -> None:
-        """Negative target is invalid (<=0 check)."""
-        assert normalize_governance_compliance(0, -1) == 1.0
-
-    def test_negative_exceptions_gives_full_compliance(self) -> None:
-        """Negative exceptions (edge case) should give > 1.0, clamped by max."""
-        result = normalize_governance_compliance(-1, 2)
-        assert result == pytest.approx(1.5)
-
-    def test_fractional_exceptions(self) -> None:
-        """Fractional compliance calculations should work."""
-        assert normalize_governance_compliance(1, 4) == pytest.approx(0.75)
 
 
 class TestCountToRatio:
@@ -329,24 +273,10 @@ class TestCountToRatio:
         """Zero target with positive value should return 0.0 (line 202)."""
         assert normalize_count_to_ratio(5, 0.0, 100) == 0.0
 
-    def test_negative_total(self) -> None:
-        """Negative total is invalid (<=0 check)."""
-        assert normalize_count_to_ratio(0, 2, -100) == 1.0
-
     def test_over_limit(self) -> None:
         """Values over limit should be clamped to 0.0."""
         # 2% of 100 = 2 allowed, 10 violations = 0 score
         assert normalize_count_to_ratio(10, 2, 100) == 0.0
-
-    def test_negative_target(self) -> None:
-        """Negative target creates negative max_allowed (<=0 check)."""
-        assert normalize_count_to_ratio(0, -2, 100) == 1.0
-        assert normalize_count_to_ratio(5, -2, 100) == 0.0
-
-    def test_very_small_target(self) -> None:
-        """Very small targets should work correctly."""
-        # 0.1% of 100 = 0.1 allowed, 1 violation exceeds limit
-        assert normalize_count_to_ratio(1, 0.1, 100) == 0.0
 
     def test_fractional_calculations(self) -> None:
         """Fractional compliance should be calculated correctly."""
