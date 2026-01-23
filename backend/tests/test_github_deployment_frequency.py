@@ -6,17 +6,9 @@ from datetime import datetime, timezone, timedelta
 
 from app.services.collectors.github.deployment_frequency import (
     collect_deployment_frequency,
-    _get_releases,
     LOOKBACK_DAYS,
 )
-
-
-@pytest.fixture
-def mock_client():
-    """Create a mock GitHubClient."""
-    client = MagicMock()
-    client.validate_repo_slug.return_value = ("owner", "repo")
-    return client
+from app.services.collectors.github.utils import get_releases
 
 
 def make_release(days_ago: int, draft: bool = False, prerelease: bool = False) -> dict:
@@ -33,33 +25,33 @@ def make_release(days_ago: int, draft: bool = False, prerelease: bool = False) -
 
 class TestCollectDeploymentFrequency:
     @pytest.mark.asyncio
-    async def test_returns_zero_when_no_releases(self, mock_client) -> None:
+    async def test_returns_zero_when_no_releases(self, mock_github_client) -> None:
         """Should return 0 frequency when no releases exist."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: [])
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_deployment_frequency(mock_client, "owner/repo")
+        result = await collect_deployment_frequency(mock_github_client, "owner/repo")
 
         assert result["deployment_frequency"] == 0.0
         assert result["release_count_90d"] == 0
 
     @pytest.mark.asyncio
-    async def test_calculates_frequency_correctly(self, mock_client) -> None:
+    async def test_calculates_frequency_correctly(self, mock_github_client) -> None:
         """Should calculate releases per day correctly."""
         mock_http = AsyncMock()
         # 10 releases in 90-day window
         releases = [make_release(i * 9) for i in range(10)]  # Every 9 days
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_deployment_frequency(mock_client, "owner/repo")
+        result = await collect_deployment_frequency(mock_github_client, "owner/repo")
 
         assert result["release_count_90d"] == 10
         assert result["deployment_frequency"] == pytest.approx(10 / LOOKBACK_DAYS, rel=0.01)
 
     @pytest.mark.asyncio
-    async def test_excludes_draft_releases(self, mock_client) -> None:
+    async def test_excludes_draft_releases(self, mock_github_client) -> None:
         """Should exclude draft releases from count."""
         mock_http = AsyncMock()
         releases = [
@@ -68,14 +60,14 @@ class TestCollectDeploymentFrequency:
             make_release(30, draft=False),
         ]
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_deployment_frequency(mock_client, "owner/repo")
+        result = await collect_deployment_frequency(mock_github_client, "owner/repo")
 
         assert result["release_count_90d"] == 2  # Only non-draft
 
     @pytest.mark.asyncio
-    async def test_includes_prereleases(self, mock_client) -> None:
+    async def test_includes_prereleases(self, mock_github_client) -> None:
         """Should include prereleases in count by default."""
         mock_http = AsyncMock()
         releases = [
@@ -84,14 +76,14 @@ class TestCollectDeploymentFrequency:
             make_release(30, prerelease=True),
         ]
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_deployment_frequency(mock_client, "owner/repo")
+        result = await collect_deployment_frequency(mock_github_client, "owner/repo")
 
         assert result["release_count_90d"] == 3  # All included
 
     @pytest.mark.asyncio
-    async def test_filters_releases_outside_window(self, mock_client) -> None:
+    async def test_filters_releases_outside_window(self, mock_github_client) -> None:
         """Should only count releases within 90-day window."""
         mock_http = AsyncMock()
         releases = [
@@ -101,27 +93,27 @@ class TestCollectDeploymentFrequency:
             make_release(120),  # Outside window
         ]
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_deployment_frequency(mock_client, "owner/repo")
+        result = await collect_deployment_frequency(mock_github_client, "owner/repo")
 
         assert result["release_count_90d"] == 2
 
 
 class TestGetReleases:
     @pytest.mark.asyncio
-    async def test_handles_api_error(self, mock_client) -> None:
+    async def test_handles_api_error(self, mock_github_client) -> None:
         """Should return empty list on API error."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=500)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await _get_releases(mock_client, "owner", "repo")
+        result = await get_releases(mock_github_client, "owner", "repo")
 
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_handles_pagination(self, mock_client) -> None:
+    async def test_handles_pagination(self, mock_github_client) -> None:
         """Should handle paginated results."""
         mock_http = AsyncMock()
         # First page returns 100 releases, second page returns 50
@@ -138,9 +130,9 @@ class TestGetReleases:
                 return MagicMock(status_code=200, json=lambda: second_page)
 
         mock_http.get = AsyncMock(side_effect=mock_get)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await _get_releases(mock_client, "owner", "repo")
+        result = await get_releases(mock_github_client, "owner", "repo")
 
         # Should have fetched multiple pages
         assert len(result) >= 100

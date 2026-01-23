@@ -14,10 +14,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.services.collectors.jira.lead_time import (
-    _business_days_diff,
     _find_first_in_progress,
     collect_lead_time,
 )
+from app.services.collectors.jira.utils import business_days_diff
 
 
 class TestCollectLeadTime:
@@ -249,30 +249,30 @@ class TestBusinessDaysDiff:
         """Should calculate fraction of a day."""
         start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
         end = datetime(2026, 1, 20, 18, 0, 0)    # Monday 6pm
-        assert _business_days_diff(start, end) == 1.0
+        assert business_days_diff(start, end) == 1.0
 
     def test_two_business_days(self) -> None:
         """Should calculate two full business days."""
         start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
         end = datetime(2026, 1, 21, 18, 0, 0)    # Tuesday 6pm
-        assert _business_days_diff(start, end) == 2.0
+        assert business_days_diff(start, end) == 2.0
 
     def test_skip_weekend(self) -> None:
         """Should skip weekend days."""
         start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
         end = datetime(2026, 1, 19, 18, 0, 0)    # Sunday 6pm
         # Only Friday counts = 1 day
-        assert _business_days_diff(start, end) == 1.0
+        assert business_days_diff(start, end) == 1.0
 
     def test_week_with_weekend(self) -> None:
         """Should calculate business days across weekend."""
         start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
         end = datetime(2026, 1, 20, 18, 0, 0)    # Monday 6pm
         # Friday + Monday = 2 days
-        assert _business_days_diff(start, end) == 2.0
+        assert business_days_diff(start, end) == 2.0
 
     def test_end_before_start(self) -> None:
         """Should return 0 if end is before start."""
         start = datetime(2026, 1, 20, 18, 0, 0)
         end = datetime(2026, 1, 20, 9, 0, 0)
-        assert _business_days_diff(start, end) == 0.0
+        assert business_days_diff(start, end) == 0.0

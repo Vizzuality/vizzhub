@@ -40,8 +40,10 @@ DORA Benchmarks:
 """
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import TYPE_CHECKING
+
+from app.services.collectors.github.utils import get_releases, parse_release_date
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
@@ -72,7 +74,7 @@ async def collect_change_failure_rate(
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    releases = await _get_releases(client, owner, repo)
+    releases = await get_releases(client, owner, repo, include_prereleases=True)
 
     if not releases:
         return {
@@ -90,7 +92,7 @@ async def collect_change_failure_rate(
 
     releases_sorted = sorted(
         releases,
-        key=lambda r: _parse_release_date(r),
+        key=lambda r: parse_release_date(r),
     )
 
     failed_releases = 0
@@ -125,8 +127,8 @@ def _is_failure_response(release: dict, next_release: dict) -> bool:
     1. It happens within PATCH_WINDOW_DAYS days
     2. AND (it's a semver patch OR it contains hotfix keywords)
     """
-    release_date = _parse_release_date(release)
-    next_date = _parse_release_date(next_release)
+    release_date = parse_release_date(release)
+    next_date = parse_release_date(next_release)
 
     if next_date - release_date > timedelta(days=PATCH_WINDOW_DAYS):
         return False
@@ -189,60 +191,3 @@ def _parse_semver(tag: str) -> tuple[int, int, int] | None:
         return int(match.group(1)), int(match.group(2)), int(match.group(3))
 
     return None
-
-
-async def _get_releases(
-    client: "GitHubClient",
-    owner: str,
-    repo: str,
-    max_results: int = 200,
-) -> list[dict]:
-    """Get releases from repository (excluding drafts)."""
-    http_client = await client.get_client()
-    releases: list[dict] = []
-    page = 1
-    per_page = 100
-
-    while len(releases) < max_results:
-        try:
-            response = await http_client.get(
-                f"/repos/{owner}/{repo}/releases",
-                params={
-                    "per_page": per_page,
-                    "page": page,
-                },
-            )
-
-            if response.status_code != 200:
-                break
-
-            page_releases = response.json()
-            if not page_releases:
-                break
-
-            for release in page_releases:
-                if not release.get("draft"):
-                    releases.append(release)
-                    if len(releases) >= max_results:
-                        break
-
-            if len(page_releases) < per_page:
-                break
-
-            page += 1
-
-        except Exception:
-            break
-
-    return releases
-
-
-def _parse_release_date(release: dict) -> datetime:
-    """Parse the release published date."""
-    published_at = release.get("published_at")
-    if published_at:
-        return datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-    created_at = release.get("created_at")
-    if created_at:
-        return datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-    return datetime.min.replace(tzinfo=timezone.utc)

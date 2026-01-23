@@ -5,34 +5,25 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.services.collectors.github.pr_size import (
     collect_pr_size,
-    _get_merged_prs,
     _get_pr_size,
-    TARGET_BRANCHES,
 )
-
-
-@pytest.fixture
-def mock_client():
-    """Create a mock GitHubClient."""
-    client = MagicMock()
-    client.validate_repo_slug.return_value = ("owner", "repo")
-    return client
+from app.services.collectors.github.utils import TARGET_BRANCHES
 
 
 class TestCollectPRSize:
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_merged_prs(self, mock_client) -> None:
+    async def test_returns_none_when_no_merged_prs(self, mock_github_client) -> None:
         """Should return None when no merged PRs exist."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: [])
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_pr_size(mock_client, "owner/repo")
+        result = await collect_pr_size(mock_github_client, "owner/repo")
 
         assert result["pr_size_median"] is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_target_branch_prs(self, mock_client) -> None:
+    async def test_returns_none_when_no_target_branch_prs(self, mock_github_client) -> None:
         """Should return None when PRs exist but none target main/dev branches."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(
@@ -41,14 +32,14 @@ class TestCollectPRSize:
                 {"number": 1, "merged_at": "2024-01-01T00:00:00Z", "base": {"ref": "feature-branch"}},
             ],
         )
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_pr_size(mock_client, "owner/repo")
+        result = await collect_pr_size(mock_github_client, "owner/repo")
 
         assert result["pr_size_median"] is None
 
     @pytest.mark.asyncio
-    async def test_calculates_median_correctly(self, mock_client) -> None:
+    async def test_calculates_median_correctly(self, mock_github_client) -> None:
         """Should calculate median PR size correctly."""
         mock_http = AsyncMock()
 
@@ -80,14 +71,14 @@ class TestCollectPRSize:
                 return response
 
         mock_http.get = AsyncMock(side_effect=mock_get)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_pr_size(mock_client, "owner/repo")
+        result = await collect_pr_size(mock_github_client, "owner/repo")
 
         assert result["pr_size_median"] == 300.0
 
     @pytest.mark.asyncio
-    async def test_filters_target_branches(self, mock_client) -> None:
+    async def test_filters_target_branches(self, mock_github_client) -> None:
         """Should only count PRs merged to target branches."""
         mock_http = AsyncMock()
 
@@ -112,9 +103,9 @@ class TestCollectPRSize:
                 return pr_detail_response
 
         mock_http.get = AsyncMock(side_effect=mock_get)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_pr_size(mock_client, "owner/repo")
+        result = await collect_pr_size(mock_github_client, "owner/repo")
 
         # Should have processed 2 PRs (main and develop), not the feature branch
         assert result["pr_size_median"] is not None
@@ -132,40 +123,40 @@ class TestTargetBranches:
 
 class TestGetPRSize:
     @pytest.mark.asyncio
-    async def test_returns_sum_of_additions_and_deletions(self, mock_client) -> None:
+    async def test_returns_sum_of_additions_and_deletions(self, mock_github_client) -> None:
         """Should return additions + deletions."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(
             status_code=200,
             json=lambda: {"additions": 150, "deletions": 50},
         )
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await _get_pr_size(mock_client, "owner", "repo", 1)
+        result = await _get_pr_size(mock_github_client, "owner", "repo", 1)
 
         assert result == 200
 
     @pytest.mark.asyncio
-    async def test_returns_none_on_missing_data(self, mock_client) -> None:
+    async def test_returns_none_on_missing_data(self, mock_github_client) -> None:
         """Should return None if additions/deletions missing."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(
             status_code=200,
             json=lambda: {"additions": 150},  # Missing deletions
         )
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await _get_pr_size(mock_client, "owner", "repo", 1)
+        result = await _get_pr_size(mock_github_client, "owner", "repo", 1)
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_on_api_error(self, mock_client) -> None:
+    async def test_returns_none_on_api_error(self, mock_github_client) -> None:
         """Should return None on API error."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=404)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await _get_pr_size(mock_client, "owner", "repo", 1)
+        result = await _get_pr_size(mock_github_client, "owner", "repo", 1)
 
         assert result is None

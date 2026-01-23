@@ -11,10 +11,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.collectors.jira.mttr import (
-    _business_hours_diff,
-    _parse_jira_datetime,
-    collect_mttr,
+from app.services.collectors.jira.mttr import collect_mttr
+from app.services.collectors.jira.utils import (
+    business_time_diff,
+    parse_jira_datetime,
 )
 
 
@@ -99,25 +99,25 @@ class TestParseJiraDatetime:
 
     def test_parse_iso_format(self) -> None:
         """Should parse ISO format with timezone."""
-        result = _parse_jira_datetime("2026-01-20T10:30:00+00:00")
+        result = parse_jira_datetime("2026-01-20T10:30:00+00:00")
         assert result == datetime(2026, 1, 20, 10, 30, 0, tzinfo=timezone.utc)
 
     def test_parse_z_suffix(self) -> None:
         """Should handle Z suffix."""
-        result = _parse_jira_datetime("2026-01-20T10:30:00Z")
+        result = parse_jira_datetime("2026-01-20T10:30:00Z")
         assert result == datetime(2026, 1, 20, 10, 30, 0, tzinfo=timezone.utc)
 
     def test_parse_none(self) -> None:
         """Should return None for None input."""
-        assert _parse_jira_datetime(None) is None
+        assert parse_jira_datetime(None) is None
 
     def test_parse_empty_string(self) -> None:
         """Should return None for empty string."""
-        assert _parse_jira_datetime("") is None
+        assert parse_jira_datetime("") is None
 
     def test_parse_invalid_format(self) -> None:
         """Should return None for invalid format."""
-        assert _parse_jira_datetime("not-a-date") is None
+        assert parse_jira_datetime("not-a-date") is None
 
 
 class TestBusinessHoursDiff:
@@ -127,36 +127,36 @@ class TestBusinessHoursDiff:
         """Should calculate hours within same business day."""
         start = datetime(2026, 1, 20, 9, 0, 0)  # Monday 9am
         end = datetime(2026, 1, 20, 17, 0, 0)    # Monday 5pm
-        assert _business_hours_diff(start, end) == 8.0
+        assert business_time_diff(start, end) == 8.0
 
     def test_partial_day(self) -> None:
         """Should calculate partial day hours."""
         start = datetime(2026, 1, 20, 10, 0, 0)  # Monday 10am
         end = datetime(2026, 1, 20, 14, 0, 0)    # Monday 2pm
-        assert _business_hours_diff(start, end) == 4.0
+        assert business_time_diff(start, end) == 4.0
 
     def test_skip_weekend(self) -> None:
         """Should skip weekend days."""
         start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
         end = datetime(2026, 1, 19, 17, 0, 0)    # Sunday 5pm
         # Only Friday counts (8 hours)
-        assert _business_hours_diff(start, end) == 8.0
+        assert business_time_diff(start, end) == 8.0
 
     def test_multiple_business_days(self) -> None:
         """Should calculate across multiple business days."""
         start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
         end = datetime(2026, 1, 21, 17, 0, 0)    # Tuesday 5pm
-        assert _business_hours_diff(start, end) == 16.0
+        assert business_time_diff(start, end) == 16.0
 
     def test_end_before_start(self) -> None:
         """Should return 0 if end is before start."""
         start = datetime(2026, 1, 20, 17, 0, 0)
         end = datetime(2026, 1, 20, 9, 0, 0)
-        assert _business_hours_diff(start, end) == 0.0
+        assert business_time_diff(start, end) == 0.0
 
     def test_outside_business_hours(self) -> None:
         """Should handle times outside business hours."""
         start = datetime(2026, 1, 20, 6, 0, 0)   # Monday 6am (before business)
         end = datetime(2026, 1, 20, 10, 0, 0)    # Monday 10am
         # Only 9am-10am counts = 1 hour
-        assert _business_hours_diff(start, end) == 1.0
+        assert business_time_diff(start, end) == 1.0

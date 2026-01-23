@@ -13,14 +13,6 @@ from app.services.collectors.github.change_failure_rate import (
 )
 
 
-@pytest.fixture
-def mock_client():
-    """Create a mock GitHubClient."""
-    client = MagicMock()
-    client.validate_repo_slug.return_value = ("owner", "repo")
-    return client
-
-
 def make_release(tag: str, name: str, days_ago: int) -> dict:
     """Helper to create a release dict."""
     published = datetime.now(timezone.utc) - timedelta(days=days_ago)
@@ -121,32 +113,32 @@ class TestIsFailureResponse:
 
 class TestCollectChangeFailureRate:
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_releases(self, mock_client) -> None:
+    async def test_returns_none_when_no_releases(self, mock_github_client) -> None:
         """Should return None when no releases exist."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: [])
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_change_failure_rate(mock_client, "owner/repo")
+        result = await collect_change_failure_rate(mock_github_client, "owner/repo")
 
         assert result["change_failure_rate"] is None
         assert result["total_releases"] == 0
 
     @pytest.mark.asyncio
-    async def test_returns_zero_for_single_release(self, mock_client) -> None:
+    async def test_returns_zero_for_single_release(self, mock_github_client) -> None:
         """Should return 0% for single release (no pairs to compare)."""
         mock_http = AsyncMock()
         releases = [make_release("v1.0.0", "First Release", 10)]
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_change_failure_rate(mock_client, "owner/repo")
+        result = await collect_change_failure_rate(mock_github_client, "owner/repo")
 
         assert result["change_failure_rate"] == 0.0
         assert result["total_releases"] == 1
 
     @pytest.mark.asyncio
-    async def test_calculates_failure_rate(self, mock_client) -> None:
+    async def test_calculates_failure_rate(self, mock_github_client) -> None:
         """Should calculate failure rate correctly."""
         mock_http = AsyncMock()
         # 3 releases: v1.0.0 -> v1.0.1 (failure), v1.0.1 -> v1.1.0 (not failure)
@@ -156,9 +148,9 @@ class TestCollectChangeFailureRate:
             make_release("v1.1.0", "Release 1.1.0", 5),  # Not failure (minor bump, >7 days)
         ]
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_change_failure_rate(mock_client, "owner/repo")
+        result = await collect_change_failure_rate(mock_github_client, "owner/repo")
 
         # 1 failure out of 2 pairs = 50%
         assert result["failed_releases"] == 1
