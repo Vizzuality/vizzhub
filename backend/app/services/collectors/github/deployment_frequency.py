@@ -37,6 +37,8 @@ DORA Benchmarks:
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
+from app.services.collectors.github.utils import get_releases, parse_release_date
+
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
 
@@ -61,13 +63,15 @@ async def collect_deployment_frequency(
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    releases = await _get_releases(client, owner, repo, include_prereleases)
+    releases = await get_releases(
+        client, owner, repo, include_prereleases=include_prereleases
+    )
 
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
 
     releases_in_period = [
         r for r in releases
-        if _parse_release_date(r) >= cutoff_date
+        if parse_release_date(r) >= cutoff_date
     ]
 
     release_count = len(releases_in_period)
@@ -78,64 +82,3 @@ async def collect_deployment_frequency(
         "deployment_frequency": round(frequency, 4),
         "release_count_90d": release_count,
     }
-
-
-async def _get_releases(
-    client: "GitHubClient",
-    owner: str,
-    repo: str,
-    include_prereleases: bool = True,
-    max_results: int = 200,
-) -> list[dict]:
-    """Get releases from repository."""
-    http_client = await client.get_client()
-    releases: list[dict] = []
-    page = 1
-    per_page = 100
-
-    while len(releases) < max_results:
-        try:
-            response = await http_client.get(
-                f"/repos/{owner}/{repo}/releases",
-                params={
-                    "per_page": per_page,
-                    "page": page,
-                },
-            )
-
-            if response.status_code != 200:
-                break
-
-            page_releases = response.json()
-            if not page_releases:
-                break
-
-            for release in page_releases:
-                if release.get("draft"):
-                    continue
-                if not include_prereleases and release.get("prerelease"):
-                    continue
-                releases.append(release)
-                if len(releases) >= max_results:
-                    break
-
-            if len(page_releases) < per_page:
-                break
-
-            page += 1
-
-        except Exception:
-            break
-
-    return releases
-
-
-def _parse_release_date(release: dict) -> datetime:
-    """Parse the release published date."""
-    published_at = release.get("published_at")
-    if published_at:
-        return datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-    created_at = release.get("created_at")
-    if created_at:
-        return datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-    return datetime.min.replace(tzinfo=timezone.utc)

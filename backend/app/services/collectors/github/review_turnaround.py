@@ -39,14 +39,17 @@ Industry Benchmarks:
 
 import asyncio
 import statistics
-from datetime import datetime
 from typing import TYPE_CHECKING
+
+from app.services.collectors.github.utils import (
+    MAX_CONCURRENT_REQUESTS,
+    filter_target_branch_prs,
+    get_merged_prs,
+    parse_github_datetime,
+)
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
-
-TARGET_BRANCHES = {"dev", "develop", "main", "master", "development"}
-MAX_CONCURRENT_REQUESTS = 20
 
 
 async def collect_review_turnaround(client: "GitHubClient", repo_slug: str) -> dict:
@@ -62,16 +65,12 @@ async def collect_review_turnaround(client: "GitHubClient", repo_slug: str) -> d
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    merged_prs = await _get_merged_prs(client, owner, repo)
+    merged_prs = await get_merged_prs(client, owner, repo)
 
     if not merged_prs:
         return {"review_turnaround_hours": None}
 
-    target_prs = [
-        pr
-        for pr in merged_prs
-        if (pr.get("base", {}).get("ref") or "").lower() in TARGET_BRANCHES
-    ]
+    target_prs = filter_target_branch_prs(merged_prs)
 
     if not target_prs:
         return {"review_turnaround_hours": None}
@@ -93,52 +92,6 @@ async def collect_review_turnaround(client: "GitHubClient", repo_slug: str) -> d
 
     median_hours = statistics.median(valid_turnarounds)
     return {"review_turnaround_hours": round(median_hours, 1)}
-
-
-async def _get_merged_prs(
-    client: "GitHubClient", owner: str, repo: str, max_results: int = 100
-) -> list[dict]:
-    """Get merged PRs from repository."""
-    http_client = await client.get_client()
-    merged_prs: list[dict] = []
-    page = 1
-    per_page = 100
-
-    while len(merged_prs) < max_results:
-        try:
-            response = await http_client.get(
-                f"/repos/{owner}/{repo}/pulls",
-                params={
-                    "state": "closed",
-                    "per_page": per_page,
-                    "page": page,
-                    "sort": "updated",
-                    "direction": "desc",
-                },
-            )
-
-            if response.status_code != 200:
-                break
-
-            prs = response.json()
-            if not prs:
-                break
-
-            for pr in prs:
-                if pr.get("merged_at"):
-                    merged_prs.append(pr)
-                    if len(merged_prs) >= max_results:
-                        break
-
-            if len(prs) < per_page:
-                break
-
-            page += 1
-
-        except Exception:
-            break
-
-    return merged_prs
 
 
 async def _get_pr_turnaround_hours(
@@ -169,16 +122,16 @@ async def _get_pr_turnaround_hours(
         if not reviews:
             return None
 
-        pr_created = datetime.fromisoformat(pr_created_at.replace("Z", "+00:00"))
+        pr_created = parse_github_datetime(pr_created_at)
+        if not pr_created:
+            return None
 
         first_review_time = None
         for review in reviews:
-            submitted_at = review.get("submitted_at")
-            if submitted_at:
-                review_time = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
-                if review_time > pr_created:
-                    if first_review_time is None or review_time < first_review_time:
-                        first_review_time = review_time
+            review_time = parse_github_datetime(review.get("submitted_at"))
+            if review_time and review_time > pr_created:
+                if first_review_time is None or review_time < first_review_time:
+                    first_review_time = review_time
 
         if first_review_time is None:
             return None

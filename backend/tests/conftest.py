@@ -85,3 +85,22 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def mock_github_client():
+    """Create a mock GitHubClient for testing GitHub collectors."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.validate_repo_slug.return_value = ("owner", "repo")
+    return client
+
+
+@pytest.fixture
+def mock_jira_client():
+    """Create a mock JiraClient for testing Jira collectors."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    return client

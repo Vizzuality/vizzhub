@@ -10,14 +10,6 @@ from app.services.collectors.github.review_turnaround import (
 )
 
 
-@pytest.fixture
-def mock_client():
-    """Create a mock GitHubClient."""
-    client = MagicMock()
-    client.validate_repo_slug.return_value = ("owner", "repo")
-    return client
-
-
 def make_pr(number: int, hours_ago_created: int) -> dict:
     """Helper to create a PR dict."""
     created = datetime.now(timezone.utc) - timedelta(hours=hours_ago_created)
@@ -41,18 +33,18 @@ def make_review(hours_ago: int) -> dict:
 
 class TestCollectReviewTurnaround:
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_prs(self, mock_client) -> None:
+    async def test_returns_none_when_no_prs(self, mock_github_client) -> None:
         """Should return None when no merged PRs exist."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: [])
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_review_turnaround(mock_client, "owner/repo")
+        result = await collect_review_turnaround(mock_github_client, "owner/repo")
 
         assert result["review_turnaround_hours"] is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_reviews(self, mock_client) -> None:
+    async def test_returns_none_when_no_reviews(self, mock_github_client) -> None:
         """Should return None when PRs have no reviews."""
         mock_http = AsyncMock()
 
@@ -67,14 +59,14 @@ class TestCollectReviewTurnaround:
             return pr_response
 
         mock_http.get = AsyncMock(side_effect=mock_get)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_review_turnaround(mock_client, "owner/repo")
+        result = await collect_review_turnaround(mock_github_client, "owner/repo")
 
         assert result["review_turnaround_hours"] is None
 
     @pytest.mark.asyncio
-    async def test_calculates_median_turnaround(self, mock_client) -> None:
+    async def test_calculates_median_turnaround(self, mock_github_client) -> None:
         """Should calculate median review turnaround time."""
         mock_http = AsyncMock()
 
@@ -103,15 +95,15 @@ class TestCollectReviewTurnaround:
             return MagicMock(status_code=200, json=lambda: [])
 
         mock_http.get = AsyncMock(side_effect=mock_get)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_review_turnaround(mock_client, "owner/repo")
+        result = await collect_review_turnaround(mock_github_client, "owner/repo")
 
         # Median of turnaround times should be around 4h
         assert result["review_turnaround_hours"] is not None
 
     @pytest.mark.asyncio
-    async def test_uses_first_review_only(self, mock_client) -> None:
+    async def test_uses_first_review_only(self, mock_github_client) -> None:
         """Should use first review time, not subsequent reviews."""
         mock_http = AsyncMock()
 
@@ -131,9 +123,9 @@ class TestCollectReviewTurnaround:
             return MagicMock(status_code=200, json=lambda: [])
 
         mock_http.get = AsyncMock(side_effect=mock_get)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
-        result = await collect_review_turnaround(mock_client, "owner/repo")
+        result = await collect_review_turnaround(mock_github_client, "owner/repo")
 
         # Should use earliest review time
         assert result["review_turnaround_hours"] is not None
@@ -141,19 +133,19 @@ class TestCollectReviewTurnaround:
 
 class TestGetPrTurnaroundHours:
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_reviews(self, mock_client) -> None:
+    async def test_returns_none_when_no_reviews(self, mock_github_client) -> None:
         """Should return None when PR has no reviews."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: [])
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
         pr = {"number": 1, "created_at": "2024-01-01T08:00:00Z"}
-        result = await _get_pr_turnaround_hours(mock_client, "owner", "repo", pr)
+        result = await _get_pr_turnaround_hours(mock_github_client, "owner", "repo", pr)
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_hours_to_first_review(self, mock_client) -> None:
+    async def test_returns_hours_to_first_review(self, mock_github_client) -> None:
         """Should return hours to the earliest review."""
         mock_http = AsyncMock()
         reviews = [
@@ -162,22 +154,22 @@ class TestGetPrTurnaroundHours:
             {"submitted_at": "2024-01-01T14:00:00Z", "state": "APPROVED"},
         ]
         mock_http.get.return_value = MagicMock(status_code=200, json=lambda: reviews)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
         pr = {"number": 1, "created_at": "2024-01-01T08:00:00Z"}
-        result = await _get_pr_turnaround_hours(mock_client, "owner", "repo", pr)
+        result = await _get_pr_turnaround_hours(mock_github_client, "owner", "repo", pr)
 
         assert result is not None
         assert result == 2.0  # 10:00 - 08:00 = 2 hours
 
     @pytest.mark.asyncio
-    async def test_handles_api_error(self, mock_client) -> None:
+    async def test_handles_api_error(self, mock_github_client) -> None:
         """Should return None on API error."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=500)
-        mock_client.get_client = AsyncMock(return_value=mock_http)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
         pr = {"number": 1, "created_at": "2024-01-01T08:00:00Z"}
-        result = await _get_pr_turnaround_hours(mock_client, "owner", "repo", pr)
+        result = await _get_pr_turnaround_hours(mock_github_client, "owner", "repo", pr)
 
         assert result is None
