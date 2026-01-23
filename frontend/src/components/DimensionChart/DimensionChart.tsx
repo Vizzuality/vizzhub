@@ -27,7 +27,7 @@ const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
   p_satisfaction: 'Satisfaction',
   p_flow: 'Flow',
   p_engineering: 'Engineering',
-  p_risk: 'Risk',
+  p_risk: 'Risk Mgmt',
 };
 
 export default function DimensionChart({ scores }: DimensionChartProps): JSX.Element {
