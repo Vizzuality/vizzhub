@@ -43,7 +43,7 @@ describe('useMetrics', () => {
         created_at: '2026-01-31T12:00:00Z',
       };
 
-      vi.mocked(api.get).mockResolvedValue({ data: mockMetrics });
+      vi.mocked(api.get).mockResolvedValue({ data: [mockMetrics] });
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -52,7 +52,7 @@ describe('useMetrics', () => {
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(result.current.data).toEqual(mockMetrics);
-      expect(api.get).toHaveBeenCalledWith(`/metrics/project/${projectId}/latest`);
+      expect(api.get).toHaveBeenCalledWith(`/metrics/project/${projectId}`);
     });
 
     it('returns null when no metrics found (404)', async () => {
@@ -111,7 +111,7 @@ describe('useMetrics', () => {
         created_at: '2026-01-31T12:00:00Z',
       };
 
-      vi.mocked(api.get).mockResolvedValue({ data: mockMetrics });
+      vi.mocked(api.get).mockResolvedValue({ data: [mockMetrics] });
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
