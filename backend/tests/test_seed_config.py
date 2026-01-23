@@ -20,7 +20,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 71  # Total parameters from CSV (includes 4 new DORA metrics)
+    assert count == 72  # Total parameters from CSV (includes 4 new DORA metrics)
 
     # Verify specific parameter
     result = await db_session.execute(
@@ -48,4 +48,4 @@ async def test_seed_config_parameters_is_idempotent(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 71
+    assert count == 72
