@@ -616,7 +616,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorLabel="High/Critical open >30d"
                   indicatorSuffix=""
                   description="Dependabot alerts unaddressed for 30+ days"
-                  target={getTarget('high_vuln_t')}
+                  target={getTarget('HighVuln_t')}
                   lowerIsBetter={true}
                   formula="count(high/critical vulns >30d)"
                   metrics={[
