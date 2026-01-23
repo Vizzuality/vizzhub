@@ -62,7 +62,7 @@ describe('ScoreCard', () => {
     expect(screen.getByText('Engineering')).toBeDefined();
     expect(screen.getByText('78')).toBeDefined();
 
-    expect(screen.getByText('Risk')).toBeDefined();
+    expect(screen.getByText('Risk Mgmt')).toBeDefined();
     expect(screen.getByText('82')).toBeDefined();
   });
 

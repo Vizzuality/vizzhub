@@ -45,7 +45,7 @@ export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardP
           <DimensionBadge label="Satisfaction" score={score.dimensions.p_satisfaction} />
           <DimensionBadge label="Flow" score={score.dimensions.p_flow} />
           <DimensionBadge label="Engineering" score={score.dimensions.p_engineering} />
-          <DimensionBadge label="Risk" score={score.dimensions.p_risk} />
+          <DimensionBadge label="Risk Mgmt" score={score.dimensions.p_risk} />
         </div>
       </CardContent>
     </Card>
