@@ -11,11 +11,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.models.metrics import JiraDefectMetrics
 from app.services.collectors.jira.mttr import collect_mttr
 from app.services.collectors.jira.utils import (
     business_time_diff,
     parse_jira_datetime,
 )
+from app.services.normalizers.indicators import IndicatorNormalizer
 
 
 class TestCollectMTTR:
@@ -160,3 +162,45 @@ class TestBusinessHoursDiff:
         end = datetime(2026, 1, 20, 10, 0, 0)    # Monday 10am
         # Only 9am-10am counts = 1 hour
         assert business_time_diff(start, end) == 1.0
+
+
+class TestMTTRNormalizer:
+    """Test MTTR normalization in IndicatorNormalizer."""
+
+    def test_no_incidents_returns_zero_mttr(self) -> None:
+        """When incidents_count is 0, MTTR should be 0 (perfect score)."""
+        normalizer = IndicatorNormalizer()
+        jira = JiraDefectMetrics(
+            bugs_total=5,
+            tasks_completed=100,
+            escaped_defects=0,
+            mttr_hours=None,  # No MTTR data
+            incidents_count=0,  # No incidents
+        )
+
+        result = normalizer._get_mttr(jira)
+
+        assert result == 0.0
+
+    def test_with_incidents_returns_mttr_value(self) -> None:
+        """When incidents exist, should return actual MTTR."""
+        normalizer = IndicatorNormalizer()
+        jira = JiraDefectMetrics(
+            bugs_total=5,
+            tasks_completed=100,
+            escaped_defects=0,
+            mttr_hours=12.5,
+            incidents_count=3,
+        )
+
+        result = normalizer._get_mttr(jira)
+
+        assert result == 12.5
+
+    def test_none_jira_returns_none(self) -> None:
+        """When jira data is None, should return None."""
+        normalizer = IndicatorNormalizer()
+
+        result = normalizer._get_mttr(None)
+
+        assert result is None

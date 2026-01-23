@@ -147,9 +147,11 @@ class IndicatorNormalizer:
         return (jira.escaped_defects / jira.tasks_completed) * 100
 
     def _get_mttr(self, jira: JiraDefectMetrics | None) -> float | None:
-        """Get MTTR in hours."""
+        """Get MTTR in hours. Returns 0 if no incidents (perfect score)."""
         if jira is None:
             return None
+        if jira.incidents_count == 0:
+            return 0.0
         return jira.mttr_hours
 
     def _normalize_governance(self, exceptions: int | None) -> float | None:
