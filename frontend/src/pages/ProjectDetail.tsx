@@ -623,6 +623,21 @@ export default function ProjectDetail(): JSX.Element {
                   ]}
                 />
               )}
+              {scores.indicators.post_contract_tasks !== null && (
+                <SubIndicatorCard
+                  title="Post-Contract Tasks"
+                  indicatorValue={scores.indicators.post_contract_tasks}
+                  indicatorLabel="Tasks after closure"
+                  indicatorSuffix=""
+                  description="New tasks created >30 days after contract end"
+                  target={getTarget('post_contract_t')}
+                  lowerIsBetter={true}
+                  formula="count(tasks created after end_date + 30d)"
+                  metrics={[
+                    { label: 'Contract End', value: project.end_date ? formatDate(project.end_date) : 'Not set' },
+                  ]}
+                />
+              )}
             </div>
           </div>
         </>

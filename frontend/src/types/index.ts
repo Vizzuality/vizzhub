@@ -79,6 +79,7 @@ export interface Indicators {
   review_turnaround_hours: number | null;
   deployment_frequency: number | null;
   change_failure_rate: number | null;
+  post_contract_tasks: number | null;
 }
 
 export interface ScoreResponse {
@@ -101,6 +102,7 @@ export interface ScoringConfig {
     review_turnaround_hours: number;
     deployment_frequency: number;
     change_failure_rate: number;
+    post_contract_tasks: number;
   };
   global_weights: {
     time: number;
@@ -146,6 +148,7 @@ export interface MetricsCreate {
     escaped_defects: number;
     mttr_hours?: number;
     incidents_count: number;
+    post_contract_tasks?: number;
   };
   flow_metrics?: {
     lead_time_days?: number;
