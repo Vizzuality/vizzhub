@@ -16,6 +16,7 @@ targets:
   review_turnaround_hours: 24  # target hours to first review
   deployment_frequency: 1    # target releases per day (DORA)
   change_failure_rate: 15    # target change failure rate % (DORA)
+  post_contract_tasks: 3     # max tasks created >30 days after contract end
 
 weights:
   # Global dimension weights (must sum to 1)
@@ -45,9 +46,10 @@ weights:
     escaped_rate: 0.15
     mttr: 0.05
     story_review: 0.25
-    governance: 0.25
+    governance: 0.20
     pr_review: 0.10
     change_failure_rate: 0.15
+    post_contract_tasks: 0.05
 
   # P_value weights (must sum to 1)
   value:

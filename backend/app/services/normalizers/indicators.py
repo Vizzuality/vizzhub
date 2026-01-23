@@ -67,6 +67,7 @@ class IndicatorNormalizer:
             review_turnaround_hours=self._get_review_turnaround_hours(metrics.github_metrics),
             deployment_frequency=self._get_deployment_frequency(metrics.github_metrics),
             change_failure_rate=self._get_change_failure_rate(metrics.github_metrics),
+            post_contract_tasks=self._get_post_contract_tasks(metrics.jira_defects),
         )
 
     def _normalize_spi(self, evm: EVMData | None) -> float | None:
@@ -322,3 +323,9 @@ class IndicatorNormalizer:
         if github is None:
             return None
         return github.change_failure_rate
+
+    def _get_post_contract_tasks(self, jira: JiraDefectMetrics | None) -> int | None:
+        """Get count of tasks created after contract end + 30 days."""
+        if jira is None:
+            return None
+        return jira.post_contract_tasks
