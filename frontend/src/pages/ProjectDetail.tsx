@@ -524,7 +524,6 @@ export default function ProjectDetail(): JSX.Element {
                 metrics={[
                   { label: 'Committed', value: metrics.flow_metrics?.committed_issues ?? null },
                   { label: 'Single Sprint', value: metrics.flow_metrics?.single_sprint_issues ?? null },
-                  { label: 'Multi Sprint', value: metrics.flow_metrics?.multi_sprint_issues ?? null },
                 ]}
               />
               {metrics.github_metrics && (
@@ -544,7 +543,6 @@ export default function ProjectDetail(): JSX.Element {
                   metrics={[
                     { label: 'Reviewed', value: metrics.github_metrics.total_merged_prs - metrics.github_metrics.prs_without_review },
                     { label: 'Total Merged', value: metrics.github_metrics.total_merged_prs },
-                    { label: 'Without Review', value: metrics.github_metrics.prs_without_review },
                   ]}
                 />
               )}
