@@ -55,7 +55,9 @@ async def collect_jira_metrics(
     # Collect metrics from Jira
     collector = JiraCollector(db=db)
     try:
-        raw_metrics = await collector.collect(project.jira_project_key)
+        raw_metrics = await collector.collect(
+            project.jira_project_key, end_date=project.end_date
+        )
     except ConfigurationError:
         await collector.close()
         raise
@@ -85,6 +87,7 @@ async def collect_jira_metrics(
         "escaped_defects": raw_metrics.get("escaped_defects", 0),
         "mttr_hours": raw_metrics.get("mttr_hours"),
         "incidents_count": raw_metrics.get("incidents_count", 0),
+        "post_contract_tasks": raw_metrics.get("post_contract_tasks"),
     }
 
     flow_metrics = {

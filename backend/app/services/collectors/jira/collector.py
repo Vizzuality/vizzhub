@@ -19,6 +19,7 @@ from app.services.collectors.jira.defect_density import collect_defect_density
 from app.services.collectors.jira.escaped_rate import collect_escaped_rate
 from app.services.collectors.jira.lead_time import collect_lead_time
 from app.services.collectors.jira.mttr import collect_mttr
+from app.services.collectors.jira.post_contract_tasks import collect_post_contract_tasks
 from app.services.collectors.jira.story_review_ratio import collect_story_review_ratio
 
 
@@ -54,6 +55,9 @@ class JiraCollector:
             self._jira_client, project_key
         )
         lead_time_data = await collect_lead_time(self._jira_client, project_key)
+        post_contract_data = await collect_post_contract_tasks(
+            self._jira_client, project_key, kwargs.get("end_date")
+        )
 
         return {
             # defect_density
@@ -75,6 +79,9 @@ class JiraCollector:
             # lead_time
             "lead_time_days": lead_time_data["lead_time_days"],
             "lead_time_sample_size": lead_time_data["sample_size"],
+            # post_contract_tasks
+            "post_contract_tasks": post_contract_data["post_contract_tasks"],
+            "post_contract_cutoff": post_contract_data["post_contract_cutoff"],
         }
 
     async def close(self) -> None:

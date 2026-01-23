@@ -77,6 +77,7 @@ class QualityCalculator(BaseCalculator):
     - PR review ratio (direct, higher is better)
     - Story review ratio (direct, higher is better)
     - Change failure rate (inverted, lower is better) - DORA metric
+    - Post-contract tasks (inverted, lower is better) - closure quality
 
     Special rule: If Sev1 incident occurred, cap score at Sev1_cap (60).
     """
@@ -96,11 +97,13 @@ class QualityCalculator(BaseCalculator):
         w_governance = self._get_weight("governance")
         w_pr_review = self._get_weight("pr_review")
         w_cfr = self._get_weight("change_failure_rate")
+        w_post_contract = self._get_weight("post_contract_tasks")
 
         defect_target = self._get_target("defect_density")
         escaped_target = self._get_target("escaped_rate")
         mttr_target = self._get_target("mttr_hours")
         cfr_target = self._get_target("change_failure_rate")
+        post_contract_target = self._get_target("post_contract_tasks")
 
         defect_norm = self._normalize_to_target(
             indicators.defect_density, defect_target, lower_is_better=True
@@ -117,6 +120,9 @@ class QualityCalculator(BaseCalculator):
         cfr_norm = self._normalize_to_target(
             indicators.change_failure_rate, cfr_target, lower_is_better=True
         )
+        post_contract_norm = self._normalize_to_target(
+            indicators.post_contract_tasks, post_contract_target, lower_is_better=True
+        )
 
         score = (
             w_defect * defect_norm
@@ -126,6 +132,7 @@ class QualityCalculator(BaseCalculator):
             + w_pr_review * pr_review_norm
             + w_story_review * story_review_norm
             + w_cfr * cfr_norm
+            + w_post_contract * post_contract_norm
         )
 
         final_score = self._to_score(score)

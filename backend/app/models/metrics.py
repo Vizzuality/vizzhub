@@ -54,6 +54,7 @@ class JiraDefectMetrics(BaseModel):
     escaped_defects: int = Field(default=0, ge=0)
     mttr_hours: float | None = Field(default=None, ge=0)
     incidents_count: int = Field(default=0, ge=0)
+    post_contract_tasks: int | None = Field(default=None, ge=0, description="Tasks created >30 days after contract end")
 
 
 class FlowMetrics(BaseModel):
