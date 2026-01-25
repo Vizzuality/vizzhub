@@ -47,7 +47,7 @@ async def create_metrics(
         period_start=metrics.period_start,
         period_end=metrics.period_end,
         evm_data=metrics.evm_data.model_dump() if metrics.evm_data else None,
-        milestones=[m.model_dump() for m in metrics.milestones] if metrics.milestones else None,
+        milestones=[m.model_dump(mode="json") for m in metrics.milestones] if metrics.milestones else None,
         jira_defects=metrics.jira_defects.model_dump() if metrics.jira_defects else None,
         flow_metrics=metrics.flow_metrics.model_dump() if metrics.flow_metrics else None,
         github_metrics=metrics.github_metrics.model_dump() if metrics.github_metrics else None,

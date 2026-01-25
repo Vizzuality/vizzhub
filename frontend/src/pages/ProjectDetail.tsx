@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, DollarSign } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, DollarSign, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import ProjectForm from '../components/Forms/ProjectForm';
 import EVMForm from '../components/Forms/EVMForm';
+import MilestonesForm from '../components/Forms/MilestonesForm';
 import SubIndicatorCard from '../components/SubIndicatorCard';
-import type { ProjectCreate, EVMData } from '../types';
+import type { ProjectCreate, EVMData, Milestone } from '../types';
 import { formatDate } from '../utils/formatters';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +45,8 @@ export default function ProjectDetail(): JSX.Element {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingEVM, setIsEditingEVM] = useState(false);
+  const [isEditingMilestones, setIsEditingMilestones] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
@@ -57,6 +60,7 @@ export default function ProjectDetail(): JSX.Element {
   const collectJiraMetrics = useCollectJiraMetrics(id!);
   const collectGitHubMetrics = useCollectGitHubMetrics(id!);
   const updateEVM = useUpdateEVMData(id!, metrics ?? null);
+  const updateMilestones = useUpdateMilestones(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -88,6 +92,31 @@ export default function ProjectDetail(): JSX.Element {
   const handleUpdateEVM = async (data: EVMData): Promise<void> => {
     await updateEVM.mutateAsync(data);
     setIsEditingEVM(false);
+  };
+
+  const handleUpdateMilestones = async (data: Milestone[]): Promise<void> => {
+    await updateMilestones.mutateAsync(data);
+    setIsEditingMilestones(false);
+  };
+
+  const handleDeleteMilestone = async (index: number): Promise<void> => {
+    if (!metrics?.milestones) return;
+    const updated = metrics.milestones.filter((_, i) => i !== index);
+    await updateMilestones.mutateAsync(updated);
+  };
+
+  const getMilestoneStatus = (milestone: Milestone): 'on-time' | 'late' | 'pending' => {
+    const today = new Date();
+    const planned = new Date(milestone.planned_date);
+    const graceDays = 3;
+    const graceDate = new Date(planned);
+    graceDate.setDate(graceDate.getDate() + graceDays);
+
+    if (milestone.actual_date) {
+      const actual = new Date(milestone.actual_date);
+      return actual <= graceDate ? 'on-time' : 'late';
+    }
+    return today > graceDate ? 'late' : 'pending';
   };
 
   if (projectLoading) {
@@ -427,8 +456,8 @@ export default function ProjectDetail(): JSX.Element {
                         </p>
                       </div>
                     </div>
-                    {/* Calculated Values */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Calculated Values + Milestones */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="p-4 bg-muted/50 rounded-lg border">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-sm text-muted-foreground">Earned Value (EV)</p>
@@ -461,7 +490,7 @@ export default function ProjectDetail(): JSX.Element {
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p className="text-sm">Work Completed / Expected Progress</p>
-                                <p className="text-xs text-muted-foreground mt-1">&gt;1 = ahead, 1 = on track, &lt;1 = behind</p>
+                                <p className="text-xs text-white/70 mt-1">&gt;1 = ahead, 1 = on track, &lt;1 = behind</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -497,7 +526,7 @@ export default function ProjectDetail(): JSX.Element {
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p className="text-sm">Earned Value / Actual Cost</p>
-                                <p className="text-xs text-muted-foreground mt-1">&gt;1 = under budget, 1 = on budget, &lt;1 = over budget</p>
+                                <p className="text-xs text-white/70 mt-1">&gt;1 = under budget, 1 = on budget, &lt;1 = over budget</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -521,7 +550,141 @@ export default function ProjectDetail(): JSX.Element {
                           <p className="text-xl font-semibold text-muted-foreground">—</p>
                         )}
                       </div>
+                      {/* Milestones Card */}
+                      <button
+                        onClick={() => setShowMilestones(!showMilestones)}
+                        className="p-4 bg-muted/50 rounded-lg border text-left hover:bg-muted/70 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">On-Time Milestones</p>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-muted-foreground">
+                                    <Info className="h-3 w-3" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-sm">On-time delivery rate</p>
+                                  <p className="text-xs text-white/70 mt-1">Target: 85%</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          {showMilestones ? (
+                            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        {scores.indicators.on_time_milestones !== null ? (
+                          <>
+                            <p className={cn(
+                              "text-xl font-semibold",
+                              scores.indicators.on_time_milestones >= 0.85 ? "text-green-600 dark:text-green-400" :
+                              scores.indicators.on_time_milestones >= 0.7 ? "text-yellow-600 dark:text-yellow-400" :
+                              "text-red-600 dark:text-red-400"
+                            )}>
+                              {(scores.indicators.on_time_milestones * 100).toFixed(0)}%
+                            </p>
+                            <div className="flex justify-between items-center">
+                              <p className="text-xs text-muted-foreground">
+                                {metrics?.milestones?.length || 0} milestone{(metrics?.milestones?.length || 0) !== 1 ? 's' : ''}
+                              </p>
+                              <p className="text-xs text-chart-3">expand to edit</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xl font-semibold text-muted-foreground">—</p>
+                            <div className="flex justify-between items-center">
+                              <p className="text-xs text-muted-foreground">No milestones</p>
+                              <p className="text-xs text-chart-3">expand to edit</p>
+                            </div>
+                          </>
+                        )}
+                      </button>
                     </div>
+
+                    {/* Expanded Milestones List */}
+                    {showMilestones && (
+                      <div className="mt-4">
+                        {isEditingMilestones ? (
+                          <MilestonesForm
+                            initialData={metrics?.milestones}
+                            onSubmit={handleUpdateMilestones}
+                            onCancel={() => setIsEditingMilestones(false)}
+                            isLoading={updateMilestones.isPending}
+                          />
+                        ) : (
+                          <>
+                            {metrics?.milestones && metrics.milestones.length > 0 ? (
+                              <div className="space-y-2">
+                                {metrics.milestones.map((milestone, index) => {
+                                  const status = getMilestoneStatus(milestone);
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg group"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {status === 'on-time' && (
+                                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                        )}
+                                        {status === 'late' && (
+                                          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                        )}
+                                        {status === 'pending' && (
+                                          <Clock className="w-5 h-5 text-muted-foreground" />
+                                        )}
+                                        <span className="font-medium">{milestone.name}</span>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm">
+                                        <span className="text-muted-foreground">
+                                          Planned: {new Date(milestone.planned_date).toLocaleDateString()}
+                                        </span>
+                                        <span className={cn(
+                                          milestone.actual_date
+                                            ? (status === 'on-time' ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
+                                            : (status === 'pending' ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
+                                        )}>
+                                          Actual: {milestone.actual_date
+                                            ? new Date(milestone.actual_date).toLocaleDateString()
+                                            : "--/--/----"}
+                                        </span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                          onClick={() => handleDeleteMilestone(index)}
+                                          disabled={updateMilestones.isPending}
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-muted-foreground">
+                                No milestones defined yet.
+                              </p>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsEditingMilestones(true)}
+                              className="mt-4 border border-input"
+                            >
+                              <Pencil className="w-4 h-4 mr-2" />
+                              {metrics?.milestones?.length ? 'Edit Milestones' : 'Add Milestones'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-muted-foreground">
