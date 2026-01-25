@@ -48,7 +48,7 @@ jobs:
         id: coverage
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://scorecard:scorecard@localhost:5432/scorecard
+          DATABASE_URL: postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard
           DEBUG: "true"
         run: |
           pytest --cov=app --cov-report=term-missing | tee coverage.txt
