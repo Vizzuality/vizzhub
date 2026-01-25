@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
@@ -55,6 +55,14 @@ export default function ProjectDetail(): JSX.Element {
     design_complaints: 'yes' | 'no' | '-';
     overall_estimation: string;
   }>({ delivery_complaints: '-', design_complaints: '-', overall_estimation: '' });
+  const [isEditingTestMaturity, setIsEditingTestMaturity] = useState(false);
+  const [testMaturityForm, setTestMaturityForm] = useState<{
+    e2e?: number;
+    unit?: number;
+    accessibility?: number;
+    security?: number;
+    frontend?: number;
+  }>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
@@ -71,6 +79,7 @@ export default function ProjectDetail(): JSX.Element {
   const updateMilestones = useUpdateMilestones(id!, metrics ?? null);
   const updateGovernance = useUpdateGovernance(id!, metrics ?? null);
   const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null);
+  const updateTestMaturity = useUpdateTestMaturity(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -1158,6 +1167,153 @@ export default function ProjectDetail(): JSX.Element {
                     >
                       <Pencil className="w-4 h-4 mr-2" />
                       {metrics?.pm_satisfaction ? 'Edit' : 'Add'} Estimation
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Test Maturity - Editable */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Test Maturity</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Automated testing coverage assessment
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-mono text-xs">weighted avg of 5 test types</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingTestMaturity ? (
+                      <div className="space-y-4">
+                        {([
+                          { key: 'e2e', label: 'E2E Tests' },
+                          { key: 'unit', label: 'Unit Tests' },
+                          { key: 'accessibility', label: 'Accessibility Tests' },
+                          { key: 'security', label: 'Security Tests' },
+                          { key: 'frontend', label: 'Frontend Tests' },
+                        ] as const).map(({ key, label }) => (
+                          <div key={key}>
+                            <label className="text-sm font-medium text-muted-foreground">{label}</label>
+                            <div className="flex gap-2 mt-2">
+                              {([
+                                { value: 0, label: 'None' },
+                                { value: 1, label: 'Minimal' },
+                                { value: 3, label: 'Adequate' },
+                                { value: 5, label: 'Comprehensive' },
+                              ]).map((option) => (
+                                <Button
+                                  key={option.value}
+                                  size="sm"
+                                  variant={testMaturityForm[key] === option.value ? 'default' : 'outline'}
+                                  onClick={() => setTestMaturityForm(prev => ({ ...prev, [key]: option.value }))}
+                                  className="flex-1"
+                                >
+                                  {option.label}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              await updateTestMaturity.mutateAsync(testMaturityForm);
+                              setIsEditingTestMaturity(false);
+                            }}
+                            disabled={updateTestMaturity.isPending}
+                          >
+                            {updateTestMaturity.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingTestMaturity(false);
+                              setTestMaturityForm(metrics?.test_maturity ?? {});
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Weighted score
+                          </span>
+                          <span className={cn(
+                            'text-3xl font-bold',
+                            scores.indicators.test_maturity === null
+                              ? 'text-muted-foreground'
+                              : scores.indicators.test_maturity >= 0.8
+                              ? 'text-green-600 dark:text-green-400'
+                              : scores.indicators.test_maturity >= 0.6
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-red-600 dark:text-red-400'
+                          )}>
+                            {scores.indicators.test_maturity !== null
+                              ? (scores.indicators.test_maturity * 100).toFixed(0) + '%'
+                              : '—'}
+                          </span>
+                        </div>
+                        {metrics?.test_maturity && (
+                          <div className="space-y-1 pt-2 border-t border-border/50">
+                            {([
+                              { key: 'e2e', label: 'E2E' },
+                              { key: 'unit', label: 'Unit' },
+                              { key: 'accessibility', label: 'Accessibility' },
+                              { key: 'security', label: 'Security' },
+                              { key: 'frontend', label: 'Frontend' },
+                            ] as const).map(({ key, label }) => {
+                              const value = metrics.test_maturity?.[key];
+                              const levelLabel = value === 0 ? 'None' : value === 1 ? 'Minimal' : value === 3 ? 'Adequate' : value === 5 ? 'Comprehensive' : '—';
+                              return (
+                                <div key={key} className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">{label}</span>
+                                  <span className={cn(
+                                    value === 5 ? 'text-green-600' :
+                                    value === 3 ? 'text-yellow-600' :
+                                    value === 1 ? 'text-orange-600' :
+                                    value === 0 ? 'text-red-600' : ''
+                                  )}>
+                                    {levelLabel}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isEditingTestMaturity && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setTestMaturityForm(metrics?.test_maturity ?? {});
+                        setIsEditingTestMaturity(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.test_maturity ? 'Edit' : 'Add'} Assessment
                     </Button>
                   )}
                 </CardContent>
