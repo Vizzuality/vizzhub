@@ -127,7 +127,6 @@ export interface Milestone {
   name: string;
   planned_date: string;
   actual_date?: string;
-  criticality_weight: number;
 }
 
 export interface EVMData {

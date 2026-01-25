@@ -19,7 +19,7 @@ class TimeCalculator(BaseCalculator):
 
     Components:
     - SPI normalized to target (capped at 1)
-    - On-time milestones ratio (already 0-1)
+    - On-time milestones ratio normalized to target (85%)
     """
 
     dimension_name = "time"
@@ -29,9 +29,12 @@ class TimeCalculator(BaseCalculator):
         w_spi = self._get_weight("spi")
         w_milestones = self._get_weight("milestones")
         spi_target = self._get_target("spi")
+        milestones_target = self._get_target("milestones_on_time") / 100  # Convert 85 to 0.85
 
         spi_normalized = self._normalize_to_target(indicators.spi, spi_target)
-        milestones_normalized = self._safe_value(indicators.on_time_milestones)
+        milestones_normalized = self._normalize_to_target(
+            indicators.on_time_milestones, milestones_target
+        )
 
         score = w_spi * spi_normalized + w_milestones * milestones_normalized
         return self._to_score(score)

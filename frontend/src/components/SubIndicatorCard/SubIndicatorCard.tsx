@@ -59,7 +59,16 @@ export default function SubIndicatorCard({
           <div>
             <CardTitle className="text-lg">{title}</CardTitle>
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="text-sm text-muted-foreground">
+                {description.includes('DORA') ? (
+                  <>
+                    <span className="text-chart-3">DORA</span>
+                    {description.replace('DORA', '')}
+                  </>
+                ) : (
+                  description
+                )}
+              </p>
             )}
           </div>
           {formula && (

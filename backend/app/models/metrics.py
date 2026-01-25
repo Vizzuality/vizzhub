@@ -30,7 +30,6 @@ class Milestone(BaseModel):
     name: str
     planned_date: date
     actual_date: date | None = None
-    criticality_weight: float = Field(default=1.0, ge=0)
 
 
 class EVMData(BaseModel):

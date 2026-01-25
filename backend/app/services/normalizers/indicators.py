@@ -94,39 +94,42 @@ class IndicatorNormalizer:
         return normalize_budget_variance(evm.cost_to_date, evm.budget_total, False)
 
     def _normalize_milestones(self, milestones: list[Milestone] | None) -> float | None:
-        """Calculate weighted on-time milestone ratio."""
+        """Calculate on-time milestone ratio.
+
+        A milestone is considered:
+        - Due: if it has actual_date OR today > planned_date + grace_days
+        - On-time: if actual_date <= planned_date + grace_days
+        - Late: if actual_date > planned_date + grace_days OR (due but no actual_date)
+
+        Returns ratio of on-time milestones (0-1).
+        """
         if not milestones:
             return None
+
+        from datetime import timedelta
 
         grace_days = int(self.config.get_constant("grace_days"))
         today = date.today()
 
-        total_weight = 0.0
-        weighted_on_time = 0.0
+        total_due = 0
+        on_time_count = 0
 
         for ms in milestones:
-            grace_date = ms.planned_date.replace(
-                day=ms.planned_date.day + grace_days
-            ) if hasattr(ms.planned_date, 'replace') else ms.planned_date
+            grace_date = ms.planned_date + timedelta(days=grace_days)
 
             is_due = ms.actual_date is not None or today > grace_date
             if not is_due:
                 continue
 
-            total_weight += ms.criticality_weight
+            total_due += 1
 
-            if ms.actual_date is not None:
-                is_on_time = ms.actual_date <= grace_date
-            else:
-                is_on_time = False
+            if ms.actual_date is not None and ms.actual_date <= grace_date:
+                on_time_count += 1
 
-            if is_on_time:
-                weighted_on_time += ms.criticality_weight
-
-        if total_weight <= 0:
+        if total_due == 0:
             return None
 
-        return weighted_on_time / total_weight
+        return on_time_count / total_due
 
     def _calculate_defect_density(
         self, jira: JiraDefectMetrics | None
