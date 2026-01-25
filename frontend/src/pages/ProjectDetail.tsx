@@ -719,127 +719,6 @@ export default function ProjectDetail(): JSX.Element {
             </Card>
           </div>
 
-          {scores.scores.dora && scores.scores.dora.score !== null && (
-            <>
-              <Separator className="my-6" />
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">DORA Score</h2>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">Performance</CardTitle>
-                        <p className="text-sm text-muted-foreground">DevOps Research and Assessment</p>
-                      </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Info className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-sm">
-                              <strong>DORA metrics</strong> measure software delivery performance.
-                              They track Deployment Frequency, Lead Time, Change Failure Rate, and MTTR.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="text-5xl font-bold">{scores.scores.dora.score}</div>
-                        <div>
-                          <span className={cn(
-                            "inline-block px-3 py-1 rounded-full text-sm font-medium",
-                            scores.scores.dora.classification === "Elite" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                            scores.scores.dora.classification === "High" && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-                            scores.scores.dora.classification === "Medium" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                            scores.scores.dora.classification === "Low" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                          )}>
-                            {scores.scores.dora.classification}
-                          </span>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {scores.scores.dora.available_metrics} of 4 metrics available
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* DORA Sub-indicators */}
-                {metrics?.github_metrics && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    {metrics.github_metrics.release_count_90d !== null && metrics.github_metrics.release_count_90d !== undefined && (
-                      <SubIndicatorCard
-                        title="Deployment Frequency"
-                        indicatorValue={metrics.github_metrics.release_count_90d}
-                        indicatorLabel="Releases in 90 days"
-                        indicatorSuffix=" releases"
-                        description="DORA metric: How often deployments occur"
-                        target={90}
-                        lowerIsBetter={false}
-                        formula="count(releases in 90d)"
-                        metrics={[
-                          { label: 'Per Day', value: metrics.github_metrics.deployment_frequency != null ? parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2)) : null },
-                        ]}
-                      />
-                    )}
-                    {metrics.github_metrics.review_turnaround_hours !== null && metrics.github_metrics.review_turnaround_hours !== undefined && (
-                      <SubIndicatorCard
-                        title="Lead Time (Review Turnaround)"
-                        indicatorValue={metrics.github_metrics.review_turnaround_hours}
-                        indicatorLabel="Median hours to first review"
-                        indicatorSuffix="h"
-                        description="DORA metric: Time from PR creation to first review"
-                        target={getTarget('review_turnaround_t')}
-                        lowerIsBetter={true}
-                        formula="median(first_review - pr_created)"
-                        metrics={[
-                          { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
-                        ]}
-                      />
-                    )}
-                    {metrics.github_metrics.change_failure_rate !== null && metrics.github_metrics.change_failure_rate !== undefined && (
-                      <SubIndicatorCard
-                        title="Change Failure Rate"
-                        indicatorValue={metrics.github_metrics.change_failure_rate}
-                        indicatorLabel="Failure rate"
-                        indicatorSuffix="%"
-                        description="DORA metric: Releases requiring hotfix"
-                        target={getTarget('CFR_t')}
-                        lowerIsBetter={true}
-                        formula="(failed / total) × 100"
-                        metrics={[
-                          { label: 'Total Releases', value: metrics.github_metrics.total_releases ?? null },
-                          { label: 'Failed Releases', value: metrics.github_metrics.failed_releases ?? null },
-                        ]}
-                      />
-                    )}
-                    {scores.indicators.mttr_hours !== null && (
-                      <SubIndicatorCard
-                        title="MTTR"
-                        indicatorValue={scores.indicators.mttr_hours}
-                        indicatorLabel="Mean Time to Recovery"
-                        indicatorSuffix="h"
-                        description="DORA metric: Time to restore service after incident"
-                        target={getTarget('MTTR_t')}
-                        lowerIsBetter={true}
-                        formula="avg(resolved_at - created_at)"
-                        metrics={[
-                          { label: 'Incidents', value: metrics.jira_defects?.incidents_count ?? 0 },
-                        ]}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </>
       )}
 
@@ -890,6 +769,22 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Incidents', value: metrics.jira_defects.incidents_count },
                 ]}
               />
+              {metrics.flow_metrics && (
+                <SubIndicatorCard
+                  title="Story Review Ratio"
+                  indicatorValue={scores.indicators.story_review_ratio !== null ? scores.indicators.story_review_ratio * 100 : null}
+                  indicatorLabel="Stories with reviewer"
+                  indicatorSuffix="%"
+                  description="User stories with assigned reviewer"
+                  target={100}
+                  lowerIsBetter={false}
+                  formula="(with_reviewer / total) × 100"
+                  metrics={[
+                    { label: 'With Reviewer', value: metrics.flow_metrics.stories_with_reviewer },
+                    { label: 'Total Stories', value: metrics.flow_metrics.total_stories },
+                  ]}
+                />
+              )}
               {/* Governance Compliance - Editable */}
               <Card>
                 <CardHeader className="pb-2">
@@ -1119,15 +1014,21 @@ export default function ProjectDetail(): JSX.Element {
                             'text-3xl font-bold',
                             scores.indicators.pm_satisfaction === null
                               ? 'text-muted-foreground'
-                              : scores.indicators.pm_satisfaction >= 0.8
+                              : scores.indicators.pm_satisfaction >= 0.9
                               ? 'text-green-600 dark:text-green-400'
-                              : scores.indicators.pm_satisfaction >= 0.6
+                              : scores.indicators.pm_satisfaction >= 0.7
                               ? 'text-yellow-600 dark:text-yellow-400'
                               : 'text-red-600 dark:text-red-400'
                           )}>
                             {scores.indicators.pm_satisfaction !== null
                               ? (scores.indicators.pm_satisfaction * 100).toFixed(0) + '%'
                               : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <span className="text-xs text-muted-foreground">KPI</span>
+                          <span className="text-sm text-foreground">
+                            ≥{getTarget('pm_satisfaction_t') ?? 90}%
                           </span>
                         </div>
                         {metrics?.pm_satisfaction && (
@@ -1269,15 +1170,21 @@ export default function ProjectDetail(): JSX.Element {
                             'text-3xl font-bold',
                             scores.indicators.test_maturity === null
                               ? 'text-muted-foreground'
-                              : scores.indicators.test_maturity >= 0.8
-                              ? 'text-green-600 dark:text-green-400'
                               : scores.indicators.test_maturity >= 0.6
+                              ? 'text-green-600 dark:text-green-400'
+                              : scores.indicators.test_maturity >= 0.4
                               ? 'text-yellow-600 dark:text-yellow-400'
                               : 'text-red-600 dark:text-red-400'
                           )}>
                             {scores.indicators.test_maturity !== null
                               ? (scores.indicators.test_maturity * 100).toFixed(0) + '%'
                               : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <span className="text-xs text-muted-foreground">KPI</span>
+                          <span className="text-sm text-foreground">
+                            ≥{getTarget('test_maturity_t') ?? 60}%
                           </span>
                         </div>
                         {metrics?.test_maturity && (
@@ -1421,15 +1328,21 @@ export default function ProjectDetail(): JSX.Element {
                             'text-3xl font-bold',
                             scores.indicators.arch_checklist === null
                               ? 'text-muted-foreground'
-                              : scores.indicators.arch_checklist >= 0.75
+                              : scores.indicators.arch_checklist >= 1.0
                               ? 'text-green-600 dark:text-green-400'
-                              : scores.indicators.arch_checklist >= 0.5
+                              : scores.indicators.arch_checklist >= 0.75
                               ? 'text-yellow-600 dark:text-yellow-400'
                               : 'text-red-600 dark:text-red-400'
                           )}>
                             {scores.indicators.arch_checklist !== null
                               ? (scores.indicators.arch_checklist * 100).toFixed(0) + '%'
                               : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <span className="text-xs text-muted-foreground">KPI</span>
+                          <span className="text-sm text-foreground">
+                            ≥{getTarget('architecture_t') ?? 100}%
                           </span>
                         </div>
                         {metrics?.architecture && (
@@ -1526,7 +1439,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorValue={metrics.github_metrics.pr_size_median}
                   indicatorLabel="Median lines changed"
                   indicatorSuffix=" lines"
-                  description="DORA metric: Median PR size (additions + deletions)"
+                  description="Median PR size (additions + deletions)"
                   target={getTarget('PR_size_t')}
                   lowerIsBetter={true}
                   formula="median(additions + deletions)"
@@ -1567,6 +1480,128 @@ export default function ProjectDetail(): JSX.Element {
                 />
               )}
             </div>
+          </div>
+        </>
+      )}
+
+      {scores && scores.scores.dora && scores.scores.dora.score !== null && (
+        <>
+          <Separator className="my-6" />
+          <div>
+            <h2 className="text-2xl font-semibold mb-4">DORA Score</h2>
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Performance</CardTitle>
+                    <p className="text-sm text-muted-foreground">DevOps Research and Assessment</p>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="text-muted-foreground hover:text-foreground transition-colors">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">
+                          <strong>DORA metrics</strong> measure software delivery performance.
+                          They track Deployment Frequency, Lead Time, Change Failure Rate, and MTTR.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="text-5xl font-bold">{scores.scores.dora.score}</div>
+                    <div>
+                      <span className={cn(
+                        "inline-block px-3 py-1 rounded-full text-sm font-medium",
+                        scores.scores.dora.classification === "Elite" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                        scores.scores.dora.classification === "High" && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                        scores.scores.dora.classification === "Medium" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                        scores.scores.dora.classification === "Low" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                      )}>
+                        {scores.scores.dora.classification}
+                      </span>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {scores.scores.dora.available_metrics} of 4 metrics available
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* DORA Sub-indicators */}
+            {metrics?.github_metrics && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                {metrics.github_metrics.release_count_90d !== null && metrics.github_metrics.release_count_90d !== undefined && (
+                  <SubIndicatorCard
+                    title="Deployment Frequency"
+                    indicatorValue={metrics.github_metrics.release_count_90d}
+                    indicatorLabel="Releases in 90 days"
+                    indicatorSuffix=" releases"
+                    description="DORA metric: How often deployments occur"
+                    target={90}
+                    lowerIsBetter={false}
+                    formula="count(releases in 90d)"
+                    metrics={[
+                      { label: 'Per Day', value: metrics.github_metrics.deployment_frequency != null ? parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2)) : null },
+                    ]}
+                  />
+                )}
+                {metrics.github_metrics.review_turnaround_hours !== null && metrics.github_metrics.review_turnaround_hours !== undefined && (
+                  <SubIndicatorCard
+                    title="Lead Time (Review Turnaround)"
+                    indicatorValue={metrics.github_metrics.review_turnaround_hours}
+                    indicatorLabel="Median hours to first review"
+                    indicatorSuffix="h"
+                    description="DORA metric: Time from PR creation to first review"
+                    target={getTarget('review_turnaround_t')}
+                    lowerIsBetter={true}
+                    formula="median(first_review - pr_created)"
+                    metrics={[
+                      { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                    ]}
+                  />
+                )}
+                {metrics.github_metrics.change_failure_rate !== null && metrics.github_metrics.change_failure_rate !== undefined && (
+                  <SubIndicatorCard
+                    title="Change Failure Rate"
+                    indicatorValue={metrics.github_metrics.change_failure_rate}
+                    indicatorLabel="Failure rate"
+                    indicatorSuffix="%"
+                    description="DORA metric: Releases requiring hotfix"
+                    target={getTarget('CFR_t')}
+                    lowerIsBetter={true}
+                    formula="(failed / total) × 100"
+                    metrics={[
+                      { label: 'Total Releases', value: metrics.github_metrics.total_releases ?? null },
+                      { label: 'Failed Releases', value: metrics.github_metrics.failed_releases ?? null },
+                    ]}
+                  />
+                )}
+                {scores.indicators.mttr_hours !== null && (
+                  <SubIndicatorCard
+                    title="MTTR"
+                    indicatorValue={scores.indicators.mttr_hours}
+                    indicatorLabel="Mean Time to Recovery"
+                    indicatorSuffix="h"
+                    description="DORA metric: Time to restore service after incident"
+                    target={getTarget('MTTR_t')}
+                    lowerIsBetter={true}
+                    formula="avg(resolved_at - created_at)"
+                    metrics={[
+                      { label: 'Incidents', value: metrics.jira_defects?.incidents_count ?? 0 },
+                    ]}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </>
       )}
