@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
-import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock, Flag, RotateCcw } from 'lucide-react';
+import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
@@ -12,7 +12,8 @@ import ProjectForm from '../components/Forms/ProjectForm';
 import EVMForm from '../components/Forms/EVMForm';
 import MilestonesForm from '../components/Forms/MilestonesForm';
 import SubIndicatorCard from '../components/SubIndicatorCard';
-import type { ProjectCreate, EVMData, Milestone } from '../types';
+import type { ProjectCreate, EVMData, Milestone, StrategicImpact } from '../types';
+import { Badge } from '@/components/ui/badge';
 import { formatDate } from '../utils/formatters';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,8 +72,22 @@ export default function ProjectDetail(): JSX.Element {
     diagrams_updated: false,
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
+  const [isEditingStrategicImpact, setIsEditingStrategicImpact] = useState(false);
+  const [strategicImpactValue, setStrategicImpactValue] = useState<StrategicImpact | ''>('');
+  const [isEditingClientSurvey, setIsEditingClientSurvey] = useState(false);
+  const [clientSurveyForm, setClientSurveyForm] = useState<{
+    understanding?: number;
+    proactivity?: number;
+    communication?: number;
+    delivery_time?: number;
+    response_time?: number;
+    quality?: number;
+    expectations?: number;
+    recommend?: number;
+  }>({});
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
@@ -88,6 +103,9 @@ export default function ProjectDetail(): JSX.Element {
   const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null);
   const updateTestMaturity = useUpdateTestMaturity(id!, metrics ?? null);
   const updateArchitecture = useUpdateArchitecture(id!, metrics ?? null);
+  const updateProjectStatus = useUpdateProjectStatus(id!);
+  const updateStrategicImpact = useUpdateStrategicImpact(id!, metrics ?? null);
+  const updateClientSurvey = useUpdateClientSurvey(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -182,7 +200,12 @@ export default function ProjectDetail(): JSX.Element {
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div className="space-y-3 flex-1">
-              <CardTitle className="text-3xl font-semibold">{project.name}</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-3xl font-semibold">{project.name}</CardTitle>
+                <Badge variant={project.status === 'finished' ? 'default' : 'secondary'} className={project.status === 'finished' ? 'bg-green-600 hover:bg-green-700' : ''}>
+                  {project.status === 'finished' ? 'Finished' : 'In Progress'}
+                </Badge>
+              </div>
               <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">
                 {project.jira_project_key && (
                   <span className="flex items-center gap-2">
@@ -209,6 +232,29 @@ export default function ProjectDetail(): JSX.Element {
 
             {!isEditing && (
               <div className="flex items-center gap-2">
+                {project.status === 'in_progress' ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowFinishDialog(true)}
+                    className="border border-input text-green-600 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-950"
+                    disabled={updateProjectStatus.isPending}
+                  >
+                    <Flag className="w-5 h-5 mr-2" />
+                    Mark as Finished
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={async () => {
+                      await updateProjectStatus.mutateAsync('in_progress');
+                    }}
+                    className="border border-input"
+                    disabled={updateProjectStatus.isPending}
+                  >
+                    <RotateCcw className="w-5 h-5 mr-2" />
+                    Reopen Project
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   onClick={() => setIsEditing(true)}
@@ -234,34 +280,60 @@ export default function ProjectDetail(): JSX.Element {
           <CardContent className="flex items-center gap-4">
             <div className="flex gap-2">
               {project.jira_project_key && (
-                <Button
-                  onClick={handleCollectJiraMetrics}
-                  disabled={collectJiraMetrics.isPending}
-                  variant="outline"
-                >
-                  <RefreshCw
-                    className={cn(
-                      'w-4 h-4 mr-2',
-                      collectJiraMetrics.isPending && 'animate-spin'
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          onClick={handleCollectJiraMetrics}
+                          disabled={collectJiraMetrics.isPending || project.status === 'finished'}
+                          variant="outline"
+                        >
+                          <RefreshCw
+                            className={cn(
+                              'w-4 h-4 mr-2',
+                              collectJiraMetrics.isPending && 'animate-spin'
+                            )}
+                          />
+                          {collectJiraMetrics.isPending ? 'Collecting Jira...' : 'Collect Jira'}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {project.status === 'finished' && (
+                      <TooltipContent>
+                        <p>Collectors disabled for finished projects</p>
+                      </TooltipContent>
                     )}
-                  />
-                  {collectJiraMetrics.isPending ? 'Collecting Jira...' : 'Collect Jira'}
-                </Button>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               {project.github_repo && (
-                <Button
-                  onClick={handleCollectGitHubMetrics}
-                  disabled={collectGitHubMetrics.isPending}
-                  variant="outline"
-                >
-                  <Github
-                    className={cn(
-                      'w-4 h-4 mr-2',
-                      collectGitHubMetrics.isPending && 'animate-spin'
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          onClick={handleCollectGitHubMetrics}
+                          disabled={collectGitHubMetrics.isPending || project.status === 'finished'}
+                          variant="outline"
+                        >
+                          <Github
+                            className={cn(
+                              'w-4 h-4 mr-2',
+                              collectGitHubMetrics.isPending && 'animate-spin'
+                            )}
+                          />
+                          {collectGitHubMetrics.isPending ? 'Collecting GitHub...' : 'Collect GitHub'}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {project.status === 'finished' && (
+                      <TooltipContent>
+                        <p>Collectors disabled for finished projects</p>
+                      </TooltipContent>
                     )}
-                  />
-                  {collectGitHubMetrics.isPending ? 'Collecting GitHub...' : 'Collect GitHub'}
-                </Button>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
             {metrics && (
@@ -300,6 +372,37 @@ export default function ProjectDetail(): JSX.Element {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Project as Finished?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>When you mark this project as finished:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Jira and GitHub collectors will be disabled</li>
+                  <li>Regular metric updates will be blocked</li>
+                  <li>End-of-project metrics will become available (Strategic Impact, Client Survey)</li>
+                  <li>You can reopen the project later if needed</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                await updateProjectStatus.mutateAsync('finished');
+                setShowFinishDialog(false);
+              }}
+              className="bg-green-600 text-white hover:bg-green-700"
+            >
+              Mark as Finished
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1602,6 +1705,306 @@ export default function ProjectDetail(): JSX.Element {
                 )}
               </div>
             )}
+          </div>
+        </>
+      )}
+
+      {/* End-of-Project Metrics Section - Only shown for finished projects */}
+      {project.status === 'finished' && (
+        <>
+          <Separator className="my-6" />
+          <div>
+            <h2 className="text-2xl font-semibold mb-4">End-of-Project Metrics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Strategic Impact Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Strategic Impact</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Business value delivered by the project
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-mono text-xs">Low=25, Medium=55, High=80, Transformational=100</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingStrategicImpact ? (
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Select strategic impact level
+                          </label>
+                          {([
+                            { value: 'low', label: 'Low', score: 25, description: 'Internal tooling, maintenance, isolated feature' },
+                            { value: 'medium', label: 'Medium', score: 55, description: 'Supports one team or process improvement' },
+                            { value: 'high', label: 'High', score: 80, description: 'Enables client delivery, product launch, or growth' },
+                            { value: 'transformational', label: 'Transformational', score: 100, description: 'Core strategic initiative, major partnership, innovation leap' },
+                          ] as const).map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setStrategicImpactValue(option.value)}
+                              className={cn(
+                                "w-full text-left p-3 rounded-lg border transition-colors",
+                                strategicImpactValue === option.value
+                                  ? "border-primary bg-primary/10"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{option.label}</span>
+                                <span className="text-xs text-muted-foreground">Score: {option.score}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (strategicImpactValue) {
+                                await updateStrategicImpact.mutateAsync(strategicImpactValue);
+                                setIsEditingStrategicImpact(false);
+                              }
+                            }}
+                            disabled={updateStrategicImpact.isPending || !strategicImpactValue}
+                          >
+                            {updateStrategicImpact.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingStrategicImpact(false);
+                              setStrategicImpactValue(metrics?.strategic_impact ?? '');
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Impact Level
+                          </span>
+                          <span className={cn(
+                            'text-2xl font-bold capitalize',
+                            !metrics?.strategic_impact
+                              ? 'text-muted-foreground'
+                              : metrics.strategic_impact === 'transformational'
+                              ? 'text-green-600 dark:text-green-400'
+                              : metrics.strategic_impact === 'high'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : metrics.strategic_impact === 'medium'
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-orange-600 dark:text-orange-400'
+                          )}>
+                            {metrics?.strategic_impact ?? '—'}
+                          </span>
+                        </div>
+                        {metrics?.strategic_impact && (
+                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                            <span className="text-xs text-muted-foreground">Score contribution</span>
+                            <span className="text-sm font-semibold">
+                              {metrics.strategic_impact === 'low' && '25'}
+                              {metrics.strategic_impact === 'medium' && '55'}
+                              {metrics.strategic_impact === 'high' && '80'}
+                              {metrics.strategic_impact === 'transformational' && '100'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isEditingStrategicImpact && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setStrategicImpactValue(metrics?.strategic_impact ?? '');
+                        setIsEditingStrategicImpact(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.strategic_impact ? 'Edit' : 'Set'} Strategic Impact
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Client Satisfaction Survey Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Client Satisfaction Survey</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        End-of-project client feedback (1-5 scale)
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm">
+                            Weighted average of 8 questions.
+                            Quality has highest weight (24%), followed by Time (14%).
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingClientSurvey ? (
+                      <div className="space-y-4">
+                        {([
+                          { key: 'understanding', label: 'Understanding of needs', weight: '12%' },
+                          { key: 'proactivity', label: 'Proactivity', weight: '12%' },
+                          { key: 'communication', label: 'Communication', weight: '10%' },
+                          { key: 'delivery_time', label: 'Delivery time', weight: '14%' },
+                          { key: 'response_time', label: 'Response time', weight: '10%' },
+                          { key: 'quality', label: 'Quality of deliverables', weight: '24%' },
+                          { key: 'expectations', label: 'Met expectations', weight: '12%' },
+                          { key: 'recommend', label: 'Would recommend', weight: '6%' },
+                        ] as const).map(({ key, label, weight }) => (
+                          <div key={key}>
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="text-sm font-medium text-muted-foreground">{label}</label>
+                              <span className="text-xs text-muted-foreground">Weight: {weight}</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <Button
+                                  key={value}
+                                  size="sm"
+                                  variant={clientSurveyForm[key] === value ? 'default' : 'outline'}
+                                  onClick={() => setClientSurveyForm(prev => ({ ...prev, [key]: value }))}
+                                  className="flex-1"
+                                >
+                                  {value}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              await updateClientSurvey.mutateAsync(clientSurveyForm);
+                              setIsEditingClientSurvey(false);
+                            }}
+                            disabled={updateClientSurvey.isPending}
+                          >
+                            {updateClientSurvey.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingClientSurvey(false);
+                              setClientSurveyForm(metrics?.client_survey ?? {});
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Weighted Score
+                          </span>
+                          <span className={cn(
+                            'text-3xl font-bold',
+                            scores?.indicators.client_satisfaction === null || scores?.indicators.client_satisfaction === undefined
+                              ? 'text-muted-foreground'
+                              : scores.indicators.client_satisfaction >= 0.8
+                              ? 'text-green-600 dark:text-green-400'
+                              : scores.indicators.client_satisfaction >= 0.6
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-red-600 dark:text-red-400'
+                          )}>
+                            {scores?.indicators.client_satisfaction !== null && scores?.indicators.client_satisfaction !== undefined
+                              ? (scores.indicators.client_satisfaction * 100).toFixed(0) + '%'
+                              : '—'}
+                          </span>
+                        </div>
+                        {metrics?.client_survey && (
+                          <div className="space-y-1 pt-2 border-t border-border/50 max-h-40 overflow-y-auto">
+                            {([
+                              { key: 'understanding', label: 'Understanding' },
+                              { key: 'proactivity', label: 'Proactivity' },
+                              { key: 'communication', label: 'Communication' },
+                              { key: 'delivery_time', label: 'Delivery time' },
+                              { key: 'response_time', label: 'Response time' },
+                              { key: 'quality', label: 'Quality' },
+                              { key: 'expectations', label: 'Expectations' },
+                              { key: 'recommend', label: 'Recommend' },
+                            ] as const).map(({ key, label }) => {
+                              const value = metrics.client_survey?.[key];
+                              return (
+                                <div key={key} className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">{label}</span>
+                                  <span className={cn(
+                                    value === 5 ? 'text-green-600' :
+                                    value === 4 ? 'text-blue-600' :
+                                    value === 3 ? 'text-yellow-600' :
+                                    value === 2 ? 'text-orange-600' :
+                                    value === 1 ? 'text-red-600' : ''
+                                  )}>
+                                    {value ?? '—'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isEditingClientSurvey && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setClientSurveyForm(metrics?.client_survey ?? {});
+                        setIsEditingClientSurvey(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.client_survey ? 'Edit' : 'Add'} Survey Results
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </>
       )}

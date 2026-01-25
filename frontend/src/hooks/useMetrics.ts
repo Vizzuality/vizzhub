@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import type { MetricsCreate, EVMData, Milestone } from '../types';
+import type { MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
 
 interface Metrics extends MetricsCreate {
   id: string;
@@ -245,6 +245,63 @@ export function useUpdateArchitecture(projectId: string, existingMetrics: Metric
         client_survey: existingMetrics?.client_survey,
         strategic_impact: existingMetrics?.strategic_impact,
         governance_exceptions: existingMetrics?.governance_exceptions,
+        sev1_incident: existingMetrics?.sev1_incident ?? false,
+      };
+      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+    },
+  });
+}
+
+export function useUpdateStrategicImpact(projectId: string, existingMetrics: Metrics | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (strategicImpact: StrategicImpact): Promise<Metrics> => {
+      const today = new Date().toISOString().split('T')[0];
+      const metrics: MetricsCreate = {
+        period_start: existingMetrics?.period_start ?? today,
+        period_end: today,
+        strategic_impact: strategicImpact,
+        client_survey: existingMetrics?.client_survey,
+        sev1_incident: existingMetrics?.sev1_incident ?? false,
+      };
+      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+    },
+  });
+}
+
+interface ClientSurveyInput {
+  understanding?: number;
+  proactivity?: number;
+  communication?: number;
+  delivery_time?: number;
+  response_time?: number;
+  quality?: number;
+  expectations?: number;
+  recommend?: number;
+}
+
+export function useUpdateClientSurvey(projectId: string, existingMetrics: Metrics | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (clientSurvey: ClientSurveyInput): Promise<Metrics> => {
+      const today = new Date().toISOString().split('T')[0];
+      const metrics: MetricsCreate = {
+        period_start: existingMetrics?.period_start ?? today,
+        period_end: today,
+        strategic_impact: existingMetrics?.strategic_impact,
+        client_survey: clientSurvey,
         sev1_incident: existingMetrics?.sev1_incident ?? false,
       };
       const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
