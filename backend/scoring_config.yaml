@@ -18,6 +18,9 @@ targets:
   deployment_frequency: 1    # target releases per day (DORA)
   change_failure_rate: 15    # target change failure rate % (DORA)
   post_contract_tasks: 3     # max tasks created >30 days after contract end
+  test_maturity: 60          # target test maturity score (60%)
+  architecture: 100          # target architecture checklist (100% = 4/4 items)
+  pm_satisfaction: 90        # target PM satisfaction score (90%)
 
 weights:
   # Global dimension weights (must sum to 1)

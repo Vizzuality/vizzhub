@@ -338,6 +338,18 @@ npm test -- -t "ScoreCard"               # Tests with "ScoreCard" in name
 5. **Weights must sum to 1** within each group
 6. **Inverted normalization** for "lower is better" metrics
 
+## Roadmap
+
+Future improvements to increase the tool's value:
+
+- [ ] **Project Context Types** - Add classification (greenfield/maintenance/rescue) with adjusted benchmarks per type
+- [ ] **Trend Visualization** - Show score evolution over time, not just snapshots. A 70 trending down is worse than 60 trending up
+- [ ] **Leading Indicators** - Add predictive metrics: sprint burndown health, blocker age, PR queue depth
+- [ ] **Team Health** - Integrate optional anonymous team surveys (burnout risk, morale)
+- [ ] **Early Warning Alerts** - Notifications when metrics cross configurable thresholds
+- [ ] **Historical Benchmarks** - Compare against agency historical averages, not just absolute targets
+- [ ] **Technical Debt Integration** - Connect with SonarQube or similar for code quality tracking
+
 ## Documentation
 
 ### Testing
