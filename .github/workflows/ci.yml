@@ -10,6 +10,8 @@ jobs:
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.coverage.outputs.percentage }}
 
     services:
       postgres:
@@ -43,25 +45,21 @@ jobs:
           pip install pytest-cov
 
       - name: Run tests with coverage
+        id: coverage
         working-directory: backend
         env:
           DATABASE_URL: postgresql://scorecard:scorecard@localhost:5432/scorecard
           DEBUG: "true"
         run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: backend/coverage.xml
-          flags: backend
-          name: backend-coverage
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          pytest --cov=app --cov-report=term-missing | tee coverage.txt
+          COVERAGE=$(grep "^TOTAL" coverage.txt | awk '{print $4}' | sed 's/%//')
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
 
   frontend:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.coverage.outputs.percentage }}
 
     steps:
       - uses: actions/checkout@v4
@@ -78,17 +76,12 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
+        id: coverage
         working-directory: frontend
-        run: npm test -- --run --coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: frontend/coverage/coverage-final.json
-          flags: frontend
-          name: frontend-coverage
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+        run: |
+          npm test -- --run --coverage | tee coverage.txt
+          COVERAGE=$(grep "All files" coverage.txt | awk '{print $4}' | head -1)
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
 
   build:
     name: Build
@@ -110,3 +103,22 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  coverage-badge:
+    name: Update Coverage Badge
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Create coverage badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: coverage.json
+          label: coverage
+          message: "${{ needs.backend.outputs.coverage }}% | ${{ needs.frontend.outputs.coverage }}%"
+          valColorRange: ${{ needs.backend.outputs.coverage }}
+          maxColorRange: 100
+          minColorRange: 0

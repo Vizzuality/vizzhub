@@ -1,7 +1,7 @@
 # Project Scorecard
 
 [![CI](https://github.com/Vizzuality/project-score-card/actions/workflows/ci.yml/badge.svg)](https://github.com/Vizzuality/project-score-card/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/Vizzuality/project-score-card/graph/badge.svg)](https://codecov.io/gh/Vizzuality/project-score-card)
+![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Vizzuality/GIST_ID/raw/coverage.json)
 
 A modern web application for evaluating software development projects across 8 dimensions. Migrated from Google Sheets + Google Apps Script to FastAPI + React.
 
