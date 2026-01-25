@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
@@ -63,6 +63,13 @@ export default function ProjectDetail(): JSX.Element {
     security?: number;
     frontend?: number;
   }>({});
+  const [isEditingArchitecture, setIsEditingArchitecture] = useState(false);
+  const [architectureForm, setArchitectureForm] = useState({
+    docs_up_to_date: false,
+    iac_implemented: false,
+    adrs_maintained: false,
+    diagrams_updated: false,
+  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
@@ -80,6 +87,7 @@ export default function ProjectDetail(): JSX.Element {
   const updateGovernance = useUpdateGovernance(id!, metrics ?? null);
   const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null);
   const updateTestMaturity = useUpdateTestMaturity(id!, metrics ?? null);
+  const updateArchitecture = useUpdateArchitecture(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -1314,6 +1322,153 @@ export default function ProjectDetail(): JSX.Element {
                     >
                       <Pencil className="w-4 h-4 mr-2" />
                       {metrics?.test_maturity ? 'Edit' : 'Add'} Assessment
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Architecture Checklist - Editable */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Architecture Checklist</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Documentation & infrastructure practices
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-mono text-xs">score = yes_count / 4</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingArchitecture ? (
+                      <div className="space-y-4">
+                        {([
+                          { key: 'docs_up_to_date', label: 'Architecture documentation is up to date', description: 'The overall structure of the system is clearly defined and reflects current implementation' },
+                          { key: 'iac_implemented', label: 'Infrastructure as Code implemented', description: 'All infrastructure is reproducible through code, ensuring consistency and version control' },
+                          { key: 'adrs_maintained', label: 'Architecture Decision Records maintained', description: 'Important technical decisions and their rationale are recorded' },
+                          { key: 'diagrams_updated', label: 'System/dependency diagrams updated', description: 'Relationships between services and modules are documented accurately' },
+                        ] as const).map(({ key, label, description }) => (
+                          <div key={key}>
+                            <label className="text-sm font-medium text-muted-foreground">{label}</label>
+                            <p className="text-xs text-muted-foreground mb-2">{description}</p>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant={architectureForm[key] === true ? 'default' : 'outline'}
+                                onClick={() => setArchitectureForm(prev => ({ ...prev, [key]: true }))}
+                                className="flex-1"
+                              >
+                                Yes
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={architectureForm[key] === false ? 'default' : 'outline'}
+                                onClick={() => setArchitectureForm(prev => ({ ...prev, [key]: false }))}
+                                className="flex-1"
+                              >
+                                No
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              await updateArchitecture.mutateAsync(architectureForm);
+                              setIsEditingArchitecture(false);
+                            }}
+                            disabled={updateArchitecture.isPending}
+                          >
+                            {updateArchitecture.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingArchitecture(false);
+                              setArchitectureForm(metrics?.architecture ?? {
+                                docs_up_to_date: false,
+                                iac_implemented: false,
+                                adrs_maintained: false,
+                                diagrams_updated: false,
+                              });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Score
+                          </span>
+                          <span className={cn(
+                            'text-3xl font-bold',
+                            scores.indicators.arch_checklist === null
+                              ? 'text-muted-foreground'
+                              : scores.indicators.arch_checklist >= 0.75
+                              ? 'text-green-600 dark:text-green-400'
+                              : scores.indicators.arch_checklist >= 0.5
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-red-600 dark:text-red-400'
+                          )}>
+                            {scores.indicators.arch_checklist !== null
+                              ? (scores.indicators.arch_checklist * 100).toFixed(0) + '%'
+                              : '—'}
+                          </span>
+                        </div>
+                        {metrics?.architecture && (
+                          <div className="space-y-1 pt-2 border-t border-border/50">
+                            {([
+                              { key: 'docs_up_to_date', label: 'Docs up to date' },
+                              { key: 'iac_implemented', label: 'IaC implemented' },
+                              { key: 'adrs_maintained', label: 'ADRs maintained' },
+                              { key: 'diagrams_updated', label: 'Diagrams updated' },
+                            ] as const).map(({ key, label }) => (
+                              <div key={key} className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">{label}</span>
+                                <span className={metrics.architecture?.[key] ? 'text-green-600' : 'text-red-600'}>
+                                  {metrics.architecture?.[key] ? 'Yes' : 'No'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isEditingArchitecture && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setArchitectureForm(metrics?.architecture ?? {
+                          docs_up_to_date: false,
+                          iac_implemented: false,
+                          adrs_maintained: false,
+                          diagrams_updated: false,
+                        });
+                        setIsEditingArchitecture(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.architecture ? 'Edit' : 'Add'} Checklist
                     </Button>
                   )}
                 </CardContent>
