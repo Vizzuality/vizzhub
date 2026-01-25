@@ -741,42 +741,75 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Deployment Frequency</p>
-                        <p className="text-lg font-semibold">
-                          {scores.indicators.deployment_frequency !== null
-                            ? `${scores.indicators.deployment_frequency.toFixed(2)}/day`
-                            : "—"}
-                        </p>
-                      </div>
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Lead Time</p>
-                        <p className="text-lg font-semibold">
-                          {scores.indicators.lead_time_days !== null
-                            ? `${scores.indicators.lead_time_days.toFixed(1)}d`
-                            : "—"}
-                        </p>
-                      </div>
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Change Failure Rate</p>
-                        <p className="text-lg font-semibold">
-                          {scores.indicators.change_failure_rate !== null
-                            ? `${scores.indicators.change_failure_rate.toFixed(1)}%`
-                            : "—"}
-                        </p>
-                      </div>
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">MTTR</p>
-                        <p className="text-lg font-semibold">
-                          {scores.indicators.mttr_hours !== null
-                            ? `${scores.indicators.mttr_hours.toFixed(1)}h`
-                            : "—"}
-                        </p>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
+
+                {/* DORA Sub-indicators */}
+                {metrics?.github_metrics && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    {metrics.github_metrics.release_count_90d !== null && metrics.github_metrics.release_count_90d !== undefined && (
+                      <SubIndicatorCard
+                        title="Deployment Frequency"
+                        indicatorValue={metrics.github_metrics.release_count_90d}
+                        indicatorLabel="Releases in 90 days"
+                        indicatorSuffix=" releases"
+                        description="DORA metric: How often deployments occur"
+                        target={90}
+                        lowerIsBetter={false}
+                        formula="count(releases in 90d)"
+                        metrics={[
+                          { label: 'Per Day', value: metrics.github_metrics.deployment_frequency != null ? parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2)) : null },
+                        ]}
+                      />
+                    )}
+                    {metrics.github_metrics.review_turnaround_hours !== null && metrics.github_metrics.review_turnaround_hours !== undefined && (
+                      <SubIndicatorCard
+                        title="Lead Time (Review Turnaround)"
+                        indicatorValue={metrics.github_metrics.review_turnaround_hours}
+                        indicatorLabel="Median hours to first review"
+                        indicatorSuffix="h"
+                        description="DORA metric: Time from PR creation to first review"
+                        target={getTarget('review_turnaround_t')}
+                        lowerIsBetter={true}
+                        formula="median(first_review - pr_created)"
+                        metrics={[
+                          { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                        ]}
+                      />
+                    )}
+                    {metrics.github_metrics.change_failure_rate !== null && metrics.github_metrics.change_failure_rate !== undefined && (
+                      <SubIndicatorCard
+                        title="Change Failure Rate"
+                        indicatorValue={metrics.github_metrics.change_failure_rate}
+                        indicatorLabel="Failure rate"
+                        indicatorSuffix="%"
+                        description="DORA metric: Releases requiring hotfix"
+                        target={getTarget('CFR_t')}
+                        lowerIsBetter={true}
+                        formula="(failed / total) × 100"
+                        metrics={[
+                          { label: 'Total Releases', value: metrics.github_metrics.total_releases ?? null },
+                          { label: 'Failed Releases', value: metrics.github_metrics.failed_releases ?? null },
+                        ]}
+                      />
+                    )}
+                    {scores.indicators.mttr_hours !== null && (
+                      <SubIndicatorCard
+                        title="MTTR"
+                        indicatorValue={scores.indicators.mttr_hours}
+                        indicatorLabel="Mean Time to Recovery"
+                        indicatorSuffix="h"
+                        description="DORA metric: Time to restore service after incident"
+                        target={getTarget('MTTR_t')}
+                        lowerIsBetter={true}
+                        formula="avg(resolved_at - created_at)"
+                        metrics={[
+                          { label: 'Incidents', value: metrics.jira_defects?.incidents_count ?? 0 },
+                        ]}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -889,52 +922,6 @@ export default function ProjectDetail(): JSX.Element {
                   formula="median(additions + deletions)"
                   metrics={[
                     { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
-                  ]}
-                />
-              )}
-              {metrics.github_metrics && metrics.github_metrics.review_turnaround_hours !== null && metrics.github_metrics.review_turnaround_hours !== undefined && (
-                <SubIndicatorCard
-                  title="Review Turnaround"
-                  indicatorValue={metrics.github_metrics.review_turnaround_hours}
-                  indicatorLabel="Median hours to first review"
-                  indicatorSuffix="h"
-                  description="DORA metric: Time from PR creation to first review"
-                  target={getTarget('review_turnaround_t')}
-                  lowerIsBetter={true}
-                  formula="median(first_review - pr_created)"
-                  metrics={[
-                    { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
-                  ]}
-                />
-              )}
-              {metrics.github_metrics && metrics.github_metrics.release_count_90d !== null && metrics.github_metrics.release_count_90d !== undefined && (
-                <SubIndicatorCard
-                  title="Deployment Frequency"
-                  indicatorValue={metrics.github_metrics.release_count_90d}
-                  indicatorLabel="Releases in 90 days"
-                  indicatorSuffix=" releases"
-                  description="DORA metric: How often deployments occur"
-                  target={90}
-                  lowerIsBetter={false}
-                  formula="count(releases in 90d)"
-                  metrics={[
-                    { label: 'Per Day', value: metrics.github_metrics.deployment_frequency != null ? parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2)) : null },
-                  ]}
-                />
-              )}
-              {metrics.github_metrics && metrics.github_metrics.change_failure_rate !== null && metrics.github_metrics.change_failure_rate !== undefined && (
-                <SubIndicatorCard
-                  title="Change Failure Rate"
-                  indicatorValue={metrics.github_metrics.change_failure_rate}
-                  indicatorLabel="Failure rate"
-                  indicatorSuffix="%"
-                  description="DORA metric: Releases requiring hotfix"
-                  target={getTarget('CFR_t')}
-                  lowerIsBetter={true}
-                  formula="(failed / total) × 100"
-                  metrics={[
-                    { label: 'Total Releases', value: metrics.github_metrics.total_releases ?? null },
-                    { label: 'Failed Releases', value: metrics.github_metrics.failed_releases ?? null },
                   ]}
                 />
               )}
