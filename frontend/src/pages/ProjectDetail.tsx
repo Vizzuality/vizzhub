@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
@@ -49,6 +49,12 @@ export default function ProjectDetail(): JSX.Element {
   const [showMilestones, setShowMilestones] = useState(false);
   const [isEditingGovernance, setIsEditingGovernance] = useState(false);
   const [governanceValue, setGovernanceValue] = useState<string>('');
+  const [isEditingPMSatisfaction, setIsEditingPMSatisfaction] = useState(false);
+  const [pmSatisfactionForm, setPMSatisfactionForm] = useState<{
+    delivery_complaints: 'yes' | 'no' | '-';
+    design_complaints: 'yes' | 'no' | '-';
+    overall_estimation: string;
+  }>({ delivery_complaints: '-', design_complaints: '-', overall_estimation: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
@@ -64,6 +70,7 @@ export default function ProjectDetail(): JSX.Element {
   const updateEVM = useUpdateEVMData(id!, metrics ?? null);
   const updateMilestones = useUpdateMilestones(id!, metrics ?? null);
   const updateGovernance = useUpdateGovernance(id!, metrics ?? null);
+  const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -971,6 +978,186 @@ export default function ProjectDetail(): JSX.Element {
                     >
                       <Pencil className="w-4 h-4 mr-2" />
                       {metrics?.governance_exceptions !== undefined && metrics?.governance_exceptions !== null ? 'Edit' : 'Add'} Exceptions
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              {/* PM Satisfaction Estimation - Editable */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Client Satisfaction (PM Est.)</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        PM estimation of client satisfaction
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-mono text-xs">0.3×delivery + 0.3×design + 0.4×overall</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingPMSatisfaction ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Has the client complained about delays or delivery quality?
+                          </label>
+                          <div className="flex gap-2 mt-2">
+                            {(['no', 'yes', '-'] as const).map((value) => (
+                              <Button
+                                key={value}
+                                size="sm"
+                                variant={pmSatisfactionForm.delivery_complaints === value ? 'default' : 'outline'}
+                                onClick={() => setPMSatisfactionForm(prev => ({ ...prev, delivery_complaints: value }))}
+                              >
+                                {value === '-' ? 'N/A' : value === 'no' ? 'No' : 'Yes'}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Has the client expressed unresolved dissatisfaction with design/implementation?
+                          </label>
+                          <div className="flex gap-2 mt-2">
+                            {(['no', 'yes', '-'] as const).map((value) => (
+                              <Button
+                                key={value}
+                                size="sm"
+                                variant={pmSatisfactionForm.design_complaints === value ? 'default' : 'outline'}
+                                onClick={() => setPMSatisfactionForm(prev => ({ ...prev, design_complaints: value }))}
+                              >
+                                {value === '-' ? 'N/A' : value === 'no' ? 'No' : 'Yes'}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Overall estimation of client satisfaction (1-5)
+                          </label>
+                          <div className="flex gap-2 mt-2">
+                            {[1, 2, 3, 4, 5].map((value) => (
+                              <Button
+                                key={value}
+                                size="sm"
+                                variant={pmSatisfactionForm.overall_estimation === value.toString() ? 'default' : 'outline'}
+                                onClick={() => setPMSatisfactionForm(prev => ({ ...prev, overall_estimation: value.toString() }))}
+                              >
+                                {value}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              await updatePMSatisfaction.mutateAsync({
+                                delivery_complaints: pmSatisfactionForm.delivery_complaints,
+                                design_complaints: pmSatisfactionForm.design_complaints,
+                                overall_estimation: pmSatisfactionForm.overall_estimation ? parseInt(pmSatisfactionForm.overall_estimation) : undefined,
+                              });
+                              setIsEditingPMSatisfaction(false);
+                            }}
+                            disabled={updatePMSatisfaction.isPending}
+                          >
+                            {updatePMSatisfaction.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingPMSatisfaction(false);
+                              setPMSatisfactionForm({
+                                delivery_complaints: metrics?.pm_satisfaction?.delivery_complaints ?? '-',
+                                design_complaints: metrics?.pm_satisfaction?.design_complaints ?? '-',
+                                overall_estimation: metrics?.pm_satisfaction?.overall_estimation?.toString() ?? '',
+                              });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Normalized score
+                          </span>
+                          <span className={cn(
+                            'text-3xl font-bold',
+                            scores.indicators.pm_satisfaction === null
+                              ? 'text-muted-foreground'
+                              : scores.indicators.pm_satisfaction >= 0.8
+                              ? 'text-green-600 dark:text-green-400'
+                              : scores.indicators.pm_satisfaction >= 0.6
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-red-600 dark:text-red-400'
+                          )}>
+                            {scores.indicators.pm_satisfaction !== null
+                              ? (scores.indicators.pm_satisfaction * 100).toFixed(0) + '%'
+                              : '—'}
+                          </span>
+                        </div>
+                        {metrics?.pm_satisfaction && (
+                          <div className="space-y-1 pt-2 border-t border-border/50">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Delivery complaints</span>
+                              <span className={cn(
+                                metrics.pm_satisfaction.delivery_complaints === 'no' ? 'text-green-600' :
+                                metrics.pm_satisfaction.delivery_complaints === 'yes' ? 'text-red-600' : ''
+                              )}>
+                                {metrics.pm_satisfaction.delivery_complaints === '-' ? 'N/A' : metrics.pm_satisfaction.delivery_complaints}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Design complaints</span>
+                              <span className={cn(
+                                metrics.pm_satisfaction.design_complaints === 'no' ? 'text-green-600' :
+                                metrics.pm_satisfaction.design_complaints === 'yes' ? 'text-red-600' : ''
+                              )}>
+                                {metrics.pm_satisfaction.design_complaints === '-' ? 'N/A' : metrics.pm_satisfaction.design_complaints}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Overall (1-5)</span>
+                              <span>{metrics.pm_satisfaction.overall_estimation ?? '—'}</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isEditingPMSatisfaction && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setPMSatisfactionForm({
+                          delivery_complaints: metrics?.pm_satisfaction?.delivery_complaints ?? '-',
+                          design_complaints: metrics?.pm_satisfaction?.design_complaints ?? '-',
+                          overall_estimation: metrics?.pm_satisfaction?.overall_estimation?.toString() ?? '',
+                        });
+                        setIsEditingPMSatisfaction(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.pm_satisfaction ? 'Edit' : 'Add'} Estimation
                     </Button>
                   )}
                 </CardContent>
