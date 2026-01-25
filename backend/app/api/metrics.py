@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
@@ -40,7 +40,20 @@ async def create_metrics(
     db: DBSession,
 ) -> Metrics:
     """Create new metrics for a project. Requires authentication."""
-    await get_project_or_404(db, project_id)
+    project = await get_project_or_404(db, project_id)
+
+    # For finished projects, only allow end-of-project metrics
+    if project.status == "finished":
+        metrics_dict = metrics.model_dump(exclude_unset=True)
+        allowed_fields = {"period_start", "period_end", "strategic_impact", "client_survey", "sev1_incident"}
+        provided_fields = set(metrics_dict.keys())
+        disallowed = provided_fields - allowed_fields
+
+        if disallowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Project is finished. Only end-of-project metrics (strategic_impact, client_survey) can be updated. Disallowed fields: {sorted(disallowed)}",
+            )
 
     db_metrics = MetricsDB(
         project_id=str(project_id),

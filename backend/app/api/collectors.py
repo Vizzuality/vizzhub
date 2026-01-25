@@ -45,6 +45,13 @@ async def collect_jira_metrics(
     # Get project
     project = await get_project_or_404(db, project_id)
 
+    # Block collection for finished projects
+    if project.status == "finished":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot collect metrics for finished projects. Reopen the project first.",
+        )
+
     # Check if project has Jira key
     if not project.jira_project_key:
         raise HTTPException(
@@ -143,6 +150,13 @@ async def collect_github_metrics(
         HTTPException: If project has no GitHub repo or collection fails
     """
     project = await get_project_or_404(db, project_id)
+
+    # Block collection for finished projects
+    if project.status == "finished":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot collect metrics for finished projects. Reopen the project first.",
+        )
 
     if not project.github_repo:
         raise HTTPException(
