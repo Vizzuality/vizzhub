@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, DollarSign, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones } from '../hooks/useMetrics';
@@ -402,10 +402,7 @@ export default function ProjectDetail(): JSX.Element {
           <Separator className="my-6" />
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold flex items-center gap-2">
-                <DollarSign className="w-6 h-6" />
-                Budget & Schedule
-              </h2>
+              <h2 className="text-2xl font-semibold">Budget & Schedule</h2>
               {!isEditingEVM && (
                 <Button
                   variant="ghost"
