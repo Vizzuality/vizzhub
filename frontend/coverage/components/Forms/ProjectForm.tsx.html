@@ -244,7 +244,13 @@
 <a name='L179'></a><a href='#L179'>179</a>
 <a name='L180'></a><a href='#L180'>180</a>
 <a name='L181'></a><a href='#L181'>181</a>
-<a name='L182'></a><a href='#L182'>182</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -390,11 +396,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">9x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -425,8 +426,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useForm } from 'react-hook-form';
 import type { Project, ProjectCreate } from '../../types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 &nbsp;
 function getSubmitButtonText(isLoading: boolean, isEditMode: boolean): string {
   if (isLoading) {
@@ -488,42 +497,39 @@ export default function ProjectForm({
 &nbsp;
   return (
     &lt;form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4"&gt;
-      &lt;div&gt;
-        &lt;label htmlFor="name" className="label"&gt;
+      &lt;div className="space-y-2"&gt;
+        &lt;Label htmlFor="name"&gt;
           Project Name *
-        &lt;/label&gt;
-        &lt;input
+        &lt;/Label&gt;
+        &lt;Input
           id="name"
           type="text"
-          className="input"
           {...register('name', { required: 'Project name is required' })}
         /&gt;
         {errors.name &amp;&amp; (
-          &lt;p className="text-sm text-red-500 mt-1"&gt;{errors.name.message}&lt;/p&gt;
+          &lt;p className="text-sm text-destructive"&gt;{errors.name.message}&lt;/p&gt;
         )}
       &lt;/div&gt;
 &nbsp;
-      &lt;div&gt;
-        &lt;label htmlFor="jira_project_key" className="label"&gt;
+      &lt;div className="space-y-2"&gt;
+        &lt;Label htmlFor="jira_project_key"&gt;
           Jira Project Key
-        &lt;/label&gt;
-        &lt;input
+        &lt;/Label&gt;
+        &lt;Input
           id="jira_project_key"
           type="text"
-          className="input"
           placeholder="e.g., PROJ"
           {...register('jira_project_key')}
         /&gt;
       &lt;/div&gt;
 &nbsp;
-      &lt;div&gt;
-        &lt;label htmlFor="github_repo" className="label"&gt;
+      &lt;div className="space-y-2"&gt;
+        &lt;Label htmlFor="github_repo"&gt;
           GitHub Repository
-        &lt;/label&gt;
-        &lt;input
+        &lt;/Label&gt;
+        &lt;Input
           id="github_repo"
           type="text"
-          className="input"
           placeholder="e.g., owner/repo"
           {...register('github_repo', {
             pattern: {
@@ -533,19 +539,18 @@ export default function ProjectForm({
           })}
         /&gt;
         {errors.github_repo &amp;&amp; (
-          &lt;p className="text-sm text-red-500 mt-1"&gt;{errors.github_repo.message}&lt;/p&gt;
+          &lt;p className="text-sm text-destructive"&gt;{errors.github_repo.message}&lt;/p&gt;
         )}
       &lt;/div&gt;
 &nbsp;
       &lt;div className="grid grid-cols-1 md:grid-cols-2 gap-4"&gt;
-        &lt;div&gt;
-          &lt;label htmlFor="start_date" className="label"&gt;
+        &lt;div className="space-y-2"&gt;
+          &lt;Label htmlFor="start_date"&gt;
             Start Date
-          &lt;/label&gt;
-          &lt;input
+          &lt;/Label&gt;
+          &lt;Input
             id="start_date"
             type="date"
-            className="input"
             min="2020-01-01"
             max="2099-12-31"
             {...register('start_date', {
@@ -556,18 +561,17 @@ export default function ProjectForm({
             })}
           /&gt;
           {errors.start_date &amp;&amp; (
-<span class="branch-1 cbranch-no" title="branch not covered" >            &lt;p className="text-sm text-red-500 mt-1"&gt;{errors.start_date.message}&lt;/p&gt;</span>
+<span class="branch-1 cbranch-no" title="branch not covered" >            &lt;p className="text-sm text-destructive"&gt;{errors.start_date.message}&lt;/p&gt;</span>
           )}
         &lt;/div&gt;
 &nbsp;
-        &lt;div&gt;
-          &lt;label htmlFor="end_date" className="label"&gt;
+        &lt;div className="space-y-2"&gt;
+          &lt;Label htmlFor="end_date"&gt;
             End Date
-          &lt;/label&gt;
-          &lt;input
+          &lt;/Label&gt;
+          &lt;Input
             id="end_date"
             type="date"
-            className="input"
             min="2020-01-01"
             max="2099-12-31"
             {...register('end_date', {
@@ -585,23 +589,28 @@ export default function ProjectForm({
             })}
           /&gt;
           {errors.end_date &amp;&amp; (
-            &lt;p className="text-sm text-red-500 mt-1"&gt;{errors.end_date.message}&lt;/p&gt;
+            &lt;p className="text-sm text-destructive"&gt;{errors.end_date.message}&lt;/p&gt;
           )}
         &lt;/div&gt;
       &lt;/div&gt;
 &nbsp;
-      &lt;div className="flex justify-end gap-3 pt-4"&gt;
-        &lt;button
+      &lt;div className="flex justify-end gap-2 pt-4"&gt;
+        &lt;Button
           type="button"
+          variant="ghost"
           onClick={onCancel}
-          className="btn-secondary"
           disabled={isLoading}
+          className="border border-input"
         &gt;
           Cancel
-        &lt;/button&gt;
-        &lt;button type="submit" className="btn-primary" disabled={isLoading}&gt;
+        &lt;/Button&gt;
+        &lt;Button
+          type="submit"
+          disabled={isLoading}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        &gt;
           {getSubmitButtonText(isLoading, isEditMode)}
-        &lt;/button&gt;
+        &lt;/Button&gt;
       &lt;/div&gt;
     &lt;/form&gt;
   );
@@ -613,7 +622,7 @@ export default function ProjectForm({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-19T12:08:27.165Z
+                at 2026-01-25T19:03:28.405Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
