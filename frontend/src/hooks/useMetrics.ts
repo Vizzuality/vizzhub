@@ -107,3 +107,35 @@ export function useUpdateMilestones(projectId: string, existingMetrics: Metrics 
     },
   });
 }
+
+export function useUpdateGovernance(projectId: string, existingMetrics: Metrics | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (governanceExceptions: number): Promise<Metrics> => {
+      const today = new Date().toISOString().split('T')[0];
+      const metrics: MetricsCreate = {
+        period_start: existingMetrics?.period_start ?? today,
+        period_end: today,
+        evm_data: existingMetrics?.evm_data,
+        milestones: existingMetrics?.milestones,
+        jira_defects: existingMetrics?.jira_defects,
+        flow_metrics: existingMetrics?.flow_metrics,
+        github_metrics: existingMetrics?.github_metrics,
+        test_maturity: existingMetrics?.test_maturity,
+        architecture: existingMetrics?.architecture,
+        pm_satisfaction: existingMetrics?.pm_satisfaction,
+        client_survey: existingMetrics?.client_survey,
+        strategic_impact: existingMetrics?.strategic_impact,
+        governance_exceptions: governanceExceptions,
+        sev1_incident: existingMetrics?.sev1_incident ?? false,
+      };
+      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+    },
+  });
+}

@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance } from '../hooks/useMetrics';
 import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
@@ -47,6 +47,8 @@ export default function ProjectDetail(): JSX.Element {
   const [isEditingEVM, setIsEditingEVM] = useState(false);
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
   const [showMilestones, setShowMilestones] = useState(false);
+  const [isEditingGovernance, setIsEditingGovernance] = useState(false);
+  const [governanceValue, setGovernanceValue] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
@@ -61,6 +63,7 @@ export default function ProjectDetail(): JSX.Element {
   const collectGitHubMetrics = useCollectGitHubMetrics(id!);
   const updateEVM = useUpdateEVMData(id!, metrics ?? null);
   const updateMilestones = useUpdateMilestones(id!, metrics ?? null);
+  const updateGovernance = useUpdateGovernance(id!, metrics ?? null);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -863,6 +866,115 @@ export default function ProjectDetail(): JSX.Element {
                   { label: 'Incidents', value: metrics.jira_defects.incidents_count },
                 ]}
               />
+              {/* Governance Compliance - Editable */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Governance Compliance</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Exceptions from latest peer review
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-mono text-xs">score = 1 - (exceptions / target)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingGovernance ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Number of unjustified exceptions
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={governanceValue}
+                            onChange={(e) => setGovernanceValue(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              const value = parseInt(governanceValue) || 0;
+                              await updateGovernance.mutateAsync(value);
+                              setIsEditingGovernance(false);
+                            }}
+                            disabled={updateGovernance.isPending}
+                          >
+                            {updateGovernance.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingGovernance(false);
+                              setGovernanceValue(metrics?.governance_exceptions?.toString() ?? '');
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Exceptions count
+                          </span>
+                          <span className={cn(
+                            'text-3xl font-bold',
+                            metrics?.governance_exceptions === undefined || metrics?.governance_exceptions === null
+                              ? 'text-muted-foreground'
+                              : metrics.governance_exceptions === 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : metrics.governance_exceptions <= (getTarget('GovExc_t') ?? 2)
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-red-600 dark:text-red-400'
+                          )}>
+                            {metrics?.governance_exceptions ?? '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <span className="text-xs text-muted-foreground">KPI</span>
+                          <span className="text-sm text-foreground">
+                            ≤{getTarget('GovExc_t') ?? 2} exceptions
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {!isEditingGovernance && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setGovernanceValue(metrics?.governance_exceptions?.toString() ?? '');
+                        setIsEditingGovernance(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.governance_exceptions !== undefined && metrics?.governance_exceptions !== null ? 'Edit' : 'Add'} Exceptions
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
               <SubIndicatorCard
                 title="Lead Time"
                 indicatorValue={scores.indicators.lead_time_days}
