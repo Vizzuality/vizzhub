@@ -45,10 +45,15 @@ docker-compose down && docker-compose up -d --build
 cd backend
 
 # Run tests
-pytest                                        # All backend tests (216 total)
+pytest                                        # All backend tests (458 total)
 pytest tests/test_calculators.py              # Single file
 pytest tests/test_normalizers.py::TestLowerIsBetter  # Single class
 pytest -k "test_perfect_score"                # By name pattern
+
+# Integration tests (36 tests - critical for regression prevention)
+pytest tests/test_integration.py              # All integration tests
+pytest tests/test_integration.py::TestScoresAPIIntegration  # Scores API
+pytest tests/test_integration.py::TestAuthMiddlewareIntegration  # Auth
 
 # Security tests
 pytest tests/test_auth.py                     # Authentication tests (17 tests)
@@ -119,6 +124,7 @@ All weights and targets are stored in the `config_parameters` database table. Th
 - Sev1 incidents cap P_quality at 60 points
 - Milestones have a grace period (default 3 days)
 - Disabled governance tools get penalized (score = 0), not neutral
+- **Metrics consolidation**: Multiple metrics records with same `period_end` are consolidated (`_consolidate_metrics` in `app/api/scores.py`). This handles multiple collector runs creating separate records.
 
 ### Database
 
@@ -250,6 +256,7 @@ app/
 
 scripts/              # Utility scripts (generate_jwt_token.py)
 tests/                # Pytest tests
+    test_integration.py   # Integration tests (scores API, auth, config, collectors)
 ```
 
 ### Frontend (`frontend/src/`)
