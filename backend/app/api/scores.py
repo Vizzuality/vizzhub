@@ -81,19 +81,31 @@ async def get_project_scores(
     db: DBSession,
     config: ScoringConfigDep,
 ) -> ScoreResponse:
-    """Calculate scores from a project's latest metrics."""
+    """Calculate scores from a project's latest metrics.
+
+    Since collectors create separate records, this endpoint consolidates
+    metrics from the same period_end date, taking the most recent non-null
+    value for each field.
+    """
     await get_project_or_404(db, project_id)
 
+    # Get all metrics for latest period_end to consolidate
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
         .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
-        .limit(1)
+        .limit(20)  # Get enough records to consolidate
     )
-    metrics_db = result.scalar_one_or_none()
-    if metrics_db is None:
+    metrics_list = result.scalars().all()
+    if not metrics_list:
         raise MetricsNotFoundError(str(project_id))
 
+    # Filter to same period_end as latest
+    latest_period_end = metrics_list[0].period_end
+    same_period = [m for m in metrics_list if m.period_end == latest_period_end]
+
+    # Consolidate metrics from same period
+    metrics_db = _consolidate_metrics(same_period)
     metrics = _db_to_metrics_create(metrics_db)
 
     normalizer = IndicatorNormalizer(config)
@@ -112,6 +124,40 @@ async def get_project_scores(
     )
 
     return ScoreResponse(indicators=indicators, scores=scores)
+
+
+def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
+    """Consolidate multiple metrics records, taking first non-null value for each field."""
+    if len(metrics_list) == 1:
+        return metrics_list[0]
+
+    # Start with the most recent record
+    base = metrics_list[0]
+
+    # Fields to consolidate (take first non-null)
+    fields = [
+        "evm_data", "milestones", "jira_defects", "flow_metrics",
+        "github_metrics", "test_maturity", "architecture",
+        "pm_satisfaction", "client_survey", "strategic_impact",
+        "governance_exceptions",
+    ]
+
+    for field in fields:
+        if getattr(base, field) is None:
+            for m in metrics_list[1:]:
+                value = getattr(m, field)
+                if value is not None:
+                    setattr(base, field, value)
+                    break
+
+    # Special handling for sev1_incident (True if any record has it)
+    if not base.sev1_incident:
+        for m in metrics_list[1:]:
+            if m.sev1_incident:
+                base.sev1_incident = True
+                break
+
+    return base
 
 
 @router.get("/project/{project_id}/history", response_model=list[ScoreResponse])

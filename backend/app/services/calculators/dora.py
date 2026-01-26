@@ -34,7 +34,7 @@ class DoraScoreCalculator:
         # 1. Deployment Frequency (higher is better)
         # Target: 1 per day, Elite: >1/day
         if indicators.deployment_frequency is not None:
-            target = self.config.targets.get("deployment_frequency", 1)
+            target = self.config.get_target("deployment_frequency")
             scores["deployment_frequency"] = min(1.0, indicators.deployment_frequency / target)
             available_metrics += 1
         else:
@@ -43,7 +43,7 @@ class DoraScoreCalculator:
         # 2. Lead Time for Changes (lower is better)
         # Target: 3 days, Elite: <1 day
         if indicators.lead_time_days is not None:
-            target = self.config.targets.get("lead_time_days", 3)
+            target = self.config.get_target("lead_time_days")
             scores["lead_time"] = min(1.0, target / max(indicators.lead_time_days, 0.001))
             available_metrics += 1
         else:
@@ -52,7 +52,7 @@ class DoraScoreCalculator:
         # 3. Change Failure Rate (lower is better)
         # Target: 15%, Elite: <15%
         if indicators.change_failure_rate is not None:
-            target = self.config.targets.get("change_failure_rate", 15)
+            target = self.config.get_target("change_failure_rate")
             if indicators.change_failure_rate == 0:
                 scores["change_failure_rate"] = 1.0
             else:
@@ -64,7 +64,7 @@ class DoraScoreCalculator:
         # 4. Mean Time to Recovery (lower is better)
         # Target: 24 hours, Elite: <1 hour
         if indicators.mttr_hours is not None:
-            target = self.config.targets.get("mttr_hours", 24)
+            target = self.config.get_target("mttr_hours")
             if indicators.mttr_hours == 0:
                 scores["mttr"] = 1.0
             else:

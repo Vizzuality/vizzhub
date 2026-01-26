@@ -105,13 +105,13 @@ Raw Metrics → Normalizers → Indicators (0-1) → Calculators → Scores (0-1
    - Missing data: return 0.5 (neutral)
    - Strict zero target: if target=0 and value>0, return 0
 
-3. **Calculators** (`services/calculators/`): Apply weights from `scoring_config.yaml` to produce 0-100 scores. Each dimension has its own calculator class.
+3. **Calculators** (`services/calculators/`): Apply weights from database configuration to produce 0-100 scores. Each dimension has its own calculator class.
 
 4. **FinalScoreCalculator**: Aggregates all 8 dimension scores using global weights.
 
 ### Configuration
 
-All weights and targets are in `backend/scoring_config.yaml`. Weight groups must sum to 1.0. The `ScoringConfig` class loads this and provides `validate_weights()`.
+All weights and targets are stored in the `config_parameters` database table. The seed file is `backend/seeds/config_parameters.csv`. Weight groups must sum to 1.0. The `ScoringConfig` class loads from DB at startup and provides `validate_weights()`. Use `get_target()`, `get_weight()`, and `get_constant()` methods to access config values.
 
 ### Key Design Rules
 
@@ -122,7 +122,7 @@ All weights and targets are in `backend/scoring_config.yaml`. Weight groups must
 
 ### Database
 
-PostgreSQL with async SQLAlchemy. Tables: `projects`, `metrics`, `oauth_tokens`. Indicators and scores are computed, not persisted.
+PostgreSQL with async SQLAlchemy. Tables: `projects`, `metrics`, `oauth_tokens`, `config_parameters`. Indicators and scores are computed, not persisted. Configuration is loaded from `config_parameters` at startup.
 
 ### Database Transactions with FastAPI
 

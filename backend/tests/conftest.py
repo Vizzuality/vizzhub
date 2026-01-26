@@ -1,6 +1,9 @@
 """Test configuration and fixtures."""
 
+import csv
 import os
+from decimal import Decimal
+from pathlib import Path
 
 # CRITICAL: Set test environment variables BEFORE any app imports
 # This ensures the settings object is initialized with test values
@@ -19,7 +22,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.config import ScoringConfig, get_scoring_config
+from app.config import ScoringConfig, set_scoring_config
 from app.database import Base, get_db
 from app.main import app
 
@@ -29,9 +32,24 @@ TEST_DATABASE_URL = os.environ.get(
 )
 
 
+def load_config_from_csv() -> dict[str, Decimal]:
+    """Load config parameters from CSV seed file for testing."""
+    csv_path = Path(__file__).parent.parent / "seeds" / "config_parameters.csv"
+    config_dict = {}
+    with open(csv_path, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            config_dict[row["name"]] = Decimal(row["value"])
+    return config_dict
+
+
 @pytest.fixture(scope="session")
 def scoring_config() -> ScoringConfig:
-    return get_scoring_config()
+    """Create a ScoringConfig loaded from CSV for testing."""
+    config_dict = load_config_from_csv()
+    config = ScoringConfig(config_dict)
+    set_scoring_config(config)
+    return config
 
 
 @pytest_asyncio.fixture
