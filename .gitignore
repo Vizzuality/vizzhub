@@ -98,3 +98,7 @@ dmypy.json
 
 # Git worktrees
 .worktrees/
+
+# Claude Code
+.claude/
+CLAUDE.md
