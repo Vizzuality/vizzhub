@@ -18,8 +18,9 @@ from app.services.calculators.final_score import FinalScoreCalculator
 
 
 @pytest.fixture
-def config() -> ScoringConfig:
-    return ScoringConfig()
+def config(scoring_config: ScoringConfig) -> ScoringConfig:
+    """Use the scoring_config fixture from conftest."""
+    return scoring_config
 
 
 @pytest.fixture

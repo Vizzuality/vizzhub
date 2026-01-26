@@ -199,14 +199,6 @@ class IndicatorNormalizer:
         if test is None:
             return None
 
-        weights = self.config.weights.get("test_maturity", {})
-        default_weights = {
-            "e2e": 0.4,
-            "unit": 0.1,
-            "accessibility": 0.1,
-            "security": 0.2,
-            "frontend": 0.2,
-        }
         field_mapping = [
             (test.e2e, "e2e"),
             (test.unit, "unit"),
@@ -217,7 +209,7 @@ class IndicatorNormalizer:
 
         total = 0.0
         for value, key in field_mapping:
-            weight = weights.get(key, default_weights[key])
+            weight = self.config.get_weight("test_maturity", key)
             normalized = value / 5.0 if value is not None else NEUTRAL_VALUE
             total += normalized * weight
 
@@ -279,7 +271,6 @@ class IndicatorNormalizer:
         if survey is None:
             return None
 
-        weights = self.config.weights.get("client_survey", {})
         field_mapping = [
             (survey.understanding, "understanding"),
             (survey.proactivity, "proactivity"),
@@ -295,7 +286,7 @@ class IndicatorNormalizer:
         weight_sum = 0.0
 
         for value, key in field_mapping:
-            weight = weights.get(key, 0.0)
+            weight = self.config.get_weight("client_survey", key)
             if value is not None:
                 total += (value / 5.0) * weight
                 weight_sum += weight

@@ -18,10 +18,11 @@ from app.api import oauth as oauth_router
 from app.api import projects as projects_router
 from app.api import scores as scores_router
 from app.api.deps import limiter
-from app.config import get_settings
+from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
 from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import init_db
+from scripts.seed_config_parameters import seed_config_parameters
 
 # Configure detailed logging
 logging.basicConfig(
@@ -45,6 +46,14 @@ async def lifespan(app: FastAPI) -> Any:
         logger.warning("=" * 80)
 
     await init_db()
+
+    # Seed config parameters from CSV if not already seeded
+    await seed_config_parameters()
+
+    # Load scoring config from database into memory
+    await load_scoring_config_from_db()
+    logger.info("Scoring configuration loaded from database")
+
     yield
 
 

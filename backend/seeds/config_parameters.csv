@@ -1,77 +1,68 @@
 category,name,value,unit,notes
-Targets,DefDensity_t,3,%,Target max defect density per 100 tasks (3%). Used in P_quality. ≤ target scores 100%.
-Targets,Escaped_t,1,%,Target max escaped defects per 100 tasks (1%). Used in P_quality. ≤ target scores 100%.
-Targets,MTTR_t,24,hours,Target mean time to recover (hours). Used in P_quality (sub-indicator MTTR). ≤ target scores 100%.
-Targets,SPI_t,1,ratio,"Target schedule performance index. Used in P_time (sub-indicator SPI). Optional, default 1 = on track."
-Targets,CPI_t,1,ratio,"Target cost performance index. Used in P_cost (sub-indicator CPI). Optional, default 1 = on budget."
-Targets,milestones_on_time_t,85,%,Target % of milestones completed on time (85%). Used in P_time. ≥ target scores 100%.
-Targets,LT_t,3,days,Target maximum lead time in business days. Used in P_flow (sub-indicator Lead Time)
-Targets,WIP_max,4.00,count,Max recommended Work In Progress items. Used in P_flow (sub-indicator WIP breaches). TBI.
-Targets,CFR_max,15,%,Deprecated. Previously used in Change Failure Rate.
-Targets,ROI_t,1.00,ratio,ROI target. Used in P_value (sub-indicator ROI).
-Targets,IaC_t,90,%,Target coverage for Infrastructure as Code (90%). Used in P_engineering.
-Targets,HighVuln_t,0.00,count,Target max high-severity vulnerabilities open >30 days (0 = strict compliance)
-Targets,CritRisk_t,0.00,count,Target max overdue critical risks at closure (0 = none tolerated)
-Targets,GovExc_t,2.00,count,Max tolerated exceptions. If < 2 score will always be 0 when there are excceptions
-Targets,PR_noReview_t,2,%,Target max PRs without review (2%). Used in P_risk.
-Targets,PR_size_t,400,lines,Target median PR size. Used in P_flow. ≤ target scores 100%.
-Targets,review_turnaround_t,24,hours,Target review turnaround time. Used in P_flow. ≤ target scores 100%.
-Targets,deployment_freq_t,1,per day,Target deployment frequency (DORA). Used in P_flow. ≥ target scores 100%.
-Targets,CFR_t,15,%,Target change failure rate (DORA). Used in P_quality. ≤ target scores 100%.
-Targets,post_contract_t,3,count,Target max tasks created >30 days after contract end. Used in P_quality. ≤ target scores 100%.
-Targets,test_maturity_t,60,%,Target test maturity score (60%). Used in P_engineering. ≥ target scores 100%.
-Targets,architecture_t,100,%,Target architecture checklist completion (100% = 4/4 items). Used in P_engineering. ≥ target scores 100%.
-Targets,pm_satisfaction_t,90,%,Target PM satisfaction score (90%). Used in P_satisfaction. ≥ target scores 100%.
-Quality Weights,W_def,0.05,weight,Defect density  in P_quality
-Quality Weights,W_esc,0.15,weight,Escaped rate  in P_quality
-Quality Weights,W_mttr,0.05,weight,MTTR  in P_quality (Mean Time To Resolution)
-Quality Weights,W_q_storyrev,0.25,weight,Stories without a reviewer in P_qauality
-Quality Weights,W_qual_gov,0.25,weight,governance compliance in P_quality
-Quality Weights,W_q_pr,0.10,weight,Pull request review ratio in P_quality
-Quality Weights,W_qual_cfr,0.15,weight,Change failure rate in P_quality (DORA)
-Quality Weights,W_q_design,0.00,weight,Design quality in P_quality
-Quality Weights,W_q_science,0.00,weight,Data science in P_quality
-Time Weights,W_time_spi,0.60,weight,SPI in P_time calculation
-Time Weights,W_time_milestones,0.40,weight,for OnTimeMilestones in P_time
-Cost Weights,W_cost_cpi,0.70,weight,CPI (cost efficiency) in P_cost
-Cost Weights,W_cost_var,0.30,weight,Budget Variance (overrun %) in P_cost
-Value Weights,W_value_roi,0.70,weight,ROI inside p_value
-Value Weights,W_value_okr,0.30,weight,OKR inside p_value
-Satisfaction Weights,W_sat_client,0.80,weight,final client satisfaction in P_satisfaction
-Satisfaction Weights,W_sat_pm,0.20,weight,PM estimation of client satisfaction  in P_satisfaction
-Satisfaction Handsoff Weights,W_cs_understanding,0.12,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_proactivity,0.12,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_communication,0.10,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_time,0.14,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_response,0.10,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_quality,0.24,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_expect,0.12,weight,Client survey weight
-Satisfaction Handsoff Weights,W_cs_recommend,0.06,weight,Client survey weight
-Efficiency Weights,W_flow_lt,0.35,weight,Lead time in P_flow
-Efficiency Weights,W_flow_cr,0.25,weight,Commitment reliability in P_flow
-Efficiency Weights,W_flow_prsize,0.15,weight,PR size in P_flow
-Efficiency Weights,W_flow_review,0.10,weight,Review turnaround in P_flow
-Efficiency Weights,W_flow_deploy,0.15,weight,Deployment frequency in P_flow
-Engineering Weights,W_eng_test,0.50,weight,test maturity in P_engineering
-Engineering Weights,W_eng_pr,0.20,weight,PR review ratio in P_engineering
-Engineering Weights,W_eng_iac,0.00,weight,IaC coverage in P_engineering (Infrastructure as Code)
-Engineering Weights,W_eng_arch,0.30,weight,architecture checklist in P_engineering
-Risk Weights,W_risk_pr,0.50,weight,PR with no reviewer P_risk
-Risk Weights,W_risk_vuln,0.50,weight,HighVuln_open_gt30d in P_risk
-Risk Weights,W_risk_risks,0.00,weight,RisksCriticalOverdue in P_risk
-Global Weights,W_time,0.12,weight,P_time
-Global Weights,W_cost,0.10,weight,P_costs
-Global Weights,W_quality,0.18,weight,P_quality
-Global Weights,W_value,0.10,weight,P_value
-Global Weights,W_risk,0.05,weight,P_risk
-Global Weights,W_flow,0.15,weight,P_flow
-Global Weights,W_engineering,0.18,weight,P_engineering
-Global Weights,W_satisfaction,0.12,weight,P_satisfaction
-Gates & Constants,Sev1_cap,60,points,max P_quality if Sev1
-Gates & Constants,GraceDays,3,days,schedule grace window
-Gates & Constants,Bonus_max,0.1,points,optional bonus cap (Top 5 projects)
-Test Maturity Weights,W_test_e2e,0.4,weight,
-Test Maturity Weights,W_test_unit,0.1,weight,
-Test Maturity Weights,W_test_access,0.1,weight,
-Test Maturity Weights,W_test_security,0.2,weight,
-Test Maturity Weights,W_test_frontend,0.2,weight,
+Targets,target_defect_density,3,%,Target max defect density per 100 tasks (3%). Used in P_quality.
+Targets,target_escaped_rate,1,%,Target max escaped defects per 100 tasks (1%). Used in P_quality.
+Targets,target_mttr_hours,24,hours,Target mean time to recover (hours). Used in P_quality.
+Targets,target_spi,1,ratio,Target schedule performance index. Used in P_time.
+Targets,target_cpi,1,ratio,Target cost performance index. Used in P_cost.
+Targets,target_milestones_on_time,85,%,Target % of milestones completed on time. Used in P_time.
+Targets,target_lead_time_days,3,days,Target maximum lead time in business days. Used in P_flow.
+Targets,target_flow_efficiency,40,%,Target flow efficiency. Currently unused.
+Targets,target_high_vuln_count,0,count,Target max high-severity vulnerabilities open >30 days (0 = strict mode). Used in P_risk.
+Targets,target_gov_exceptions,2,count,Max tolerated governance exceptions. Used in P_quality.
+Targets,target_pr_no_review_ratio,2,%,Target max PRs without review. Used in P_risk.
+Targets,target_pr_size_lines,400,lines,Target median PR size. Used in P_flow.
+Targets,target_review_turnaround_hours,24,hours,Target hours to first review. Used in P_flow.
+Targets,target_deployment_frequency,1,per day,Target deployment frequency (DORA). Used in P_flow.
+Targets,target_change_failure_rate,15,%,Target change failure rate (DORA). Used in P_quality.
+Targets,target_post_contract_tasks,3,count,Target max tasks created >30 days after contract end. Used in P_quality.
+Targets,target_test_maturity,60,%,Target test maturity score. Used in P_engineering.
+Targets,target_architecture,100,%,Target architecture checklist completion (4/4 items). Used in P_engineering.
+Targets,target_pm_satisfaction,90,%,Target PM satisfaction score. Used in P_satisfaction.
+Global Weights,weight_global_time,0.12,weight,P_time dimension weight in final score.
+Global Weights,weight_global_cost,0.10,weight,P_cost dimension weight in final score.
+Global Weights,weight_global_quality,0.18,weight,P_quality dimension weight in final score.
+Global Weights,weight_global_value,0.10,weight,P_value dimension weight in final score.
+Global Weights,weight_global_satisfaction,0.12,weight,P_satisfaction dimension weight in final score.
+Global Weights,weight_global_flow,0.15,weight,P_flow dimension weight in final score.
+Global Weights,weight_global_engineering,0.18,weight,P_engineering dimension weight in final score.
+Global Weights,weight_global_risk,0.05,weight,P_risk dimension weight in final score.
+Time Weights,weight_time_spi,0.60,weight,SPI weight in P_time calculation.
+Time Weights,weight_time_milestones,0.40,weight,On-time milestones weight in P_time calculation.
+Cost Weights,weight_cost_cpi,0.70,weight,CPI weight in P_cost calculation.
+Cost Weights,weight_cost_variance,0.30,weight,Budget variance weight in P_cost calculation.
+Quality Weights,weight_quality_defect_density,0.05,weight,Defect density weight in P_quality.
+Quality Weights,weight_quality_escaped_rate,0.15,weight,Escaped rate weight in P_quality.
+Quality Weights,weight_quality_mttr,0.05,weight,MTTR weight in P_quality.
+Quality Weights,weight_quality_story_review,0.25,weight,Story review weight in P_quality.
+Quality Weights,weight_quality_governance,0.20,weight,Governance compliance weight in P_quality.
+Quality Weights,weight_quality_pr_review,0.10,weight,PR review ratio weight in P_quality.
+Quality Weights,weight_quality_change_failure_rate,0.15,weight,Change failure rate weight in P_quality.
+Quality Weights,weight_quality_post_contract_tasks,0.05,weight,Post-contract tasks weight in P_quality.
+Value Weights,weight_value_okr_impact,1.00,weight,OKR impact weight in P_value.
+Satisfaction Weights,weight_satisfaction_client_survey,0.90,weight,Client survey weight in P_satisfaction.
+Satisfaction Weights,weight_satisfaction_pm_estimation,0.10,weight,PM estimation weight in P_satisfaction.
+Client Survey Weights,weight_survey_understanding,0.12,weight,Understanding question weight in client survey.
+Client Survey Weights,weight_survey_proactivity,0.12,weight,Proactivity question weight in client survey.
+Client Survey Weights,weight_survey_communication,0.10,weight,Communication question weight in client survey.
+Client Survey Weights,weight_survey_time,0.14,weight,Delivery time question weight in client survey.
+Client Survey Weights,weight_survey_response,0.10,weight,Response time question weight in client survey.
+Client Survey Weights,weight_survey_quality,0.24,weight,Quality question weight in client survey.
+Client Survey Weights,weight_survey_expectations,0.12,weight,Expectations question weight in client survey.
+Client Survey Weights,weight_survey_recommend,0.06,weight,Recommend question weight in client survey.
+Flow Weights,weight_flow_lead_time,0.35,weight,Lead time weight in P_flow.
+Flow Weights,weight_flow_commitment_reliability,0.25,weight,Commitment reliability weight in P_flow.
+Flow Weights,weight_flow_pr_size,0.15,weight,PR size weight in P_flow.
+Flow Weights,weight_flow_review_turnaround,0.10,weight,Review turnaround weight in P_flow.
+Flow Weights,weight_flow_deployment_frequency,0.15,weight,Deployment frequency weight in P_flow.
+Engineering Weights,weight_engineering_test_maturity,0.50,weight,Test maturity weight in P_engineering.
+Engineering Weights,weight_engineering_pr_review,0.20,weight,PR review ratio weight in P_engineering.
+Engineering Weights,weight_engineering_architecture,0.30,weight,Architecture checklist weight in P_engineering.
+Risk Weights,weight_risk_pr_no_review,0.50,weight,PRs without review weight in P_risk.
+Risk Weights,weight_risk_high_vulns,0.50,weight,High vulnerabilities weight in P_risk.
+Test Maturity Weights,weight_test_e2e,0.40,weight,E2E tests weight in test maturity.
+Test Maturity Weights,weight_test_unit,0.10,weight,Unit tests weight in test maturity.
+Test Maturity Weights,weight_test_accessibility,0.10,weight,Accessibility tests weight in test maturity.
+Test Maturity Weights,weight_test_security,0.20,weight,Security tests weight in test maturity.
+Test Maturity Weights,weight_test_frontend,0.20,weight,Frontend tests weight in test maturity.
+Constants,const_sev1_cap,60,points,Max P_quality score if Sev1 incident occurred.
+Constants,const_grace_days,3,days,Grace period for milestone delivery.

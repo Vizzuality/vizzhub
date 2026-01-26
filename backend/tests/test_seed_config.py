@@ -20,11 +20,11 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 76  # Total parameters from CSV (includes DORA metrics + milestones target + test_maturity/architecture/pm_satisfaction targets)
+    assert count == 67  # Total parameters from CSV
 
     # Verify specific parameter
     result = await db_session.execute(
-        select(ConfigParameter).where(ConfigParameter.name == "DefDensity_t")
+        select(ConfigParameter).where(ConfigParameter.name == "target_defect_density")
     )
     param = result.scalar_one()
     assert param.category == "Targets"
@@ -48,4 +48,4 @@ async def test_seed_config_parameters_is_idempotent(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 76
+    assert count == 67
