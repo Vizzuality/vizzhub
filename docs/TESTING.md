@@ -8,23 +8,25 @@ This document provides a comprehensive overview of the testing strategy, coverag
 
 ### Summary
 
-- **Total Tests**: 270 (268 passing, 2 with pre-existing issues)
-- **Success Rate**: 99.3%
-- **Code Coverage**: ~85% (increased from 27% initial)
+- **Total Tests**: 458 backend + 77 frontend = 535 total
+- **Success Rate**: 100% (3 xfail for pending features)
+- **Code Coverage**: ~85%
 
 ### Breakdown by Category
 
-#### Backend Tests (224 total)
+#### Backend Tests (458 total)
 
 | Category | Tests | Status | Description |
 |----------|-------|--------|-------------|
+| **Integration (P0)** | 36 | ✅ 100% | E2E flows: scores API, auth, config, collectors |
 | **Security (P0)** | 34 | ✅ 100% | CSRF protection, JQL injection, security headers |
-| **Critical (P1)** | 85 | ✅ 98.8% | OAuth, Jira collector, auth edge cases |
+| **Critical (P1)** | 85 | ✅ 100% | OAuth, Jira collector, auth edge cases |
 | **API Security (P2)** | 23 | ✅ 100% | SQL injection, XSS, input validation |
 | **Core Functionality** | 82 | ✅ 100% | Calculators, normalizers, API endpoints |
 
 **Detailed Breakdown:**
 
+- `test_integration.py` - 36 tests (E2E integration tests)
 - `test_oauth_state.py` - 10 tests (CSRF protection)
 - `test_jira_collector_jql_injection.py` - 11 tests (JQL injection prevention)
 - `test_security_middleware.py` - 13 tests (security headers)
@@ -107,6 +109,44 @@ This document provides a comprehensive overview of the testing strategy, coverag
 - Sanitized error messages (no sensitive data exposure)
 - Proper HTTP status codes (401, 403, 404, 422)
 - Structured security logging (JSON format)
+
+---
+
+## Integration Tests
+
+Integration tests (`test_integration.py`) verify complete end-to-end flows and catch issues that unit tests miss. **Run these before any major release.**
+
+### Coverage
+
+| Test Class | Tests | What It Verifies |
+|------------|-------|------------------|
+| `TestScoresAPIIntegration` | 4 | Scores endpoint, config from DB |
+| `TestConfigLoadingIntegration` | 4 | Weights, targets, constants from DB |
+| `TestCollectorsIntegration` | 1 | Metrics → scores pipeline |
+| `TestMetricsConsolidationIntegration` | 3 | Multiple metrics records merged |
+| `TestProjectStatusIntegration` | 4 | Project status affects collectors |
+| `TestNormalizersE2EIntegration` | 4 | Raw metrics → indicators → scores |
+| `TestOAuthE2EIntegration` | 3 | OAuth authorize, callback, status |
+| `TestCalculatorChainIntegration` | 3 | All 8 calculators work together |
+| `TestAuthMiddlewareIntegration` | 4 | JWT validation, dev bypass |
+| `TestRateLimitingIntegration` | 2 | Rate limit headers and enforcement |
+| `TestConfigHotReloadIntegration` | 2 | Config changes affect scores |
+| `TestErrorSanitizationIntegration` | 3 | No sensitive data in errors |
+| `TestCollectorPipelineIntegration` | 2 | Full Jira+GitHub → scores flow |
+
+### Running Integration Tests
+
+```bash
+# All integration tests
+pytest tests/test_integration.py -v
+
+# Specific test class
+pytest tests/test_integration.py::TestScoresAPIIntegration -v
+
+# Quick smoke test (most critical)
+pytest tests/test_integration.py::TestScoresAPIIntegration \
+       tests/test_integration.py::TestConfigLoadingIntegration -v
+```
 
 ---
 
@@ -290,6 +330,7 @@ it('fetches data from API', async () => {
 ```
 backend/tests/
 ├── conftest.py              # Fixtures and test configuration
+├── test_integration.py      # Integration tests (36 tests - CRITICAL)
 ├── test_auth.py             # Authentication tests
 ├── test_oauth_state.py      # CSRF protection tests
 ├── test_oauth_service.py    # OAuth service tests
@@ -395,12 +436,12 @@ Both tests are in non-critical areas and do not affect core functionality.
    - useMetrics hook
    - useScores hook
 
-5. **Integration Tests** (13 tests)
-   - End-to-end OAuth flow
-   - Complete metric collection flow
-   - Database persistence
+5. ~~**Integration Tests**~~ ✅ **DONE** (36 tests implemented)
+   - Scores API, config loading, OAuth E2E
+   - Auth middleware, rate limiting, error sanitization
+   - Collector pipeline, metrics consolidation
 
-**Estimated total:** ~61 additional tests to reach 100% coverage
+**Estimated remaining:** ~48 additional tests for edge cases
 
 ---
 
@@ -408,9 +449,9 @@ Both tests are in non-critical areas and do not affect core functionality.
 
 ### Test Execution Time
 
-- **Backend**: ~3 seconds for all 224 tests
-- **Frontend**: ~1 second for all 46 tests
-- **Total**: ~4 seconds for complete test suite
+- **Backend**: ~7 seconds for all 458 tests
+- **Frontend**: ~2 seconds for all 77 tests
+- **Total**: ~9 seconds for complete test suite
 
 ### Optimization Tips
 
@@ -441,6 +482,6 @@ Both tests are in non-critical areas and do not affect core functionality.
 
 ---
 
-**Last Updated**: 2026-01-18
-**Test Suite Version**: 1.0.0
+**Last Updated**: 2026-01-26
+**Test Suite Version**: 2.0.0
 **Maintained by**: Development Team
