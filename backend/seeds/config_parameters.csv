@@ -2,8 +2,8 @@ category,name,value,unit,notes
 Targets,target_defect_density,3,%,Target max defect density per 100 tasks (3%). Used in P_quality.
 Targets,target_escaped_rate,1,%,Target max escaped defects per 100 tasks (1%). Used in P_quality.
 Targets,target_mttr_hours,24,hours,Target mean time to recover (hours). Used in P_quality.
-Targets,target_spi,1,ratio,Target schedule performance index. Used in P_time.
-Targets,target_cpi,1,ratio,Target cost performance index. Used in P_cost.
+Targets,target_spi,0.8,ratio,Target schedule performance index (80%). Used in P_time.
+Targets,target_cpi,0.8,ratio,Target cost performance index (80%). Used in P_cost.
 Targets,target_milestones_on_time,85,%,Target % of milestones completed on time. Used in P_time.
 Targets,target_lead_time_days,3,days,Target maximum lead time in business days. Used in P_flow.
 Targets,target_flow_efficiency,40,%,Target flow efficiency. Currently unused.
@@ -18,13 +18,14 @@ Targets,target_post_contract_tasks,3,count,Target max tasks created >30 days aft
 Targets,target_test_maturity,60,%,Target test maturity score. Used in P_engineering.
 Targets,target_architecture,100,%,Target architecture checklist completion (4/4 items). Used in P_engineering.
 Targets,target_pm_satisfaction,90,%,Target PM satisfaction score. Used in P_satisfaction.
+Targets,target_client_satisfaction,80,%,Target client satisfaction survey score. Used in P_satisfaction.
 Global Weights,weight_global_time,0.12,weight,P_time dimension weight in final score.
 Global Weights,weight_global_cost,0.10,weight,P_cost dimension weight in final score.
-Global Weights,weight_global_quality,0.18,weight,P_quality dimension weight in final score.
-Global Weights,weight_global_value,0.10,weight,P_value dimension weight in final score.
+Global Weights,weight_global_quality,0.205,weight,P_quality dimension weight in final score.
+Global Weights,weight_global_value,0.05,weight,P_value dimension weight in final score.
 Global Weights,weight_global_satisfaction,0.12,weight,P_satisfaction dimension weight in final score.
 Global Weights,weight_global_flow,0.15,weight,P_flow dimension weight in final score.
-Global Weights,weight_global_engineering,0.18,weight,P_engineering dimension weight in final score.
+Global Weights,weight_global_engineering,0.205,weight,P_engineering dimension weight in final score.
 Global Weights,weight_global_risk,0.05,weight,P_risk dimension weight in final score.
 Time Weights,weight_time_spi,0.60,weight,SPI weight in P_time calculation.
 Time Weights,weight_time_milestones,0.40,weight,On-time milestones weight in P_time calculation.
