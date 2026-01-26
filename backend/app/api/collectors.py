@@ -108,13 +108,47 @@ async def collect_jira_metrics(
         "stories_with_reviewer": raw_metrics.get("stories_with_reviewer", 0),
     }
 
+    # Get existing metrics to preserve manually-entered fields
+    result = await db.execute(
+        select(MetricsDB)
+        .where(MetricsDB.project_id == str(project_id))
+        .order_by(MetricsDB.created_at.desc())
+        .limit(1)
+    )
+    existing_metrics = result.scalar_one_or_none()
+
+    # Preserve manually-entered fields from existing metrics
+    preserved_fields = {}
+    if existing_metrics:
+        preserved_fields = {
+            "evm_data": existing_metrics.evm_data,
+            "milestones": existing_metrics.milestones,
+            "governance_exceptions": existing_metrics.governance_exceptions,
+            "pm_satisfaction": existing_metrics.pm_satisfaction,
+            "test_maturity": existing_metrics.test_maturity,
+            "architecture_checklist": existing_metrics.architecture_checklist,
+            "strategic_impact": existing_metrics.strategic_impact,
+            "client_survey": existing_metrics.client_survey,
+            "sev1_incident": existing_metrics.sev1_incident,
+            "github_metrics": existing_metrics.github_metrics,
+        }
+
     db_metrics = MetricsDB(
         project_id=str(project_id),
         period_start=period_start,
         period_end=period_end,
         jira_defects=jira_defects,
         flow_metrics=flow_metrics,
-        sev1_incident=False,  # Default to False, can be updated later
+        sev1_incident=preserved_fields.get("sev1_incident", False),
+        evm_data=preserved_fields.get("evm_data"),
+        milestones=preserved_fields.get("milestones"),
+        governance_exceptions=preserved_fields.get("governance_exceptions"),
+        pm_satisfaction=preserved_fields.get("pm_satisfaction"),
+        test_maturity=preserved_fields.get("test_maturity"),
+        architecture_checklist=preserved_fields.get("architecture_checklist"),
+        strategic_impact=preserved_fields.get("strategic_impact"),
+        client_survey=preserved_fields.get("client_survey"),
+        github_metrics=preserved_fields.get("github_metrics"),
     )
 
     db.add(db_metrics)

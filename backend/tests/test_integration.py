@@ -199,7 +199,7 @@ class TestConfigLoadingIntegration:
         """Verify scoring config weights are loaded from database."""
         # These should match the CSV seed values
         assert scoring_config.get_weight("global", "time") == 0.12
-        assert scoring_config.get_weight("global", "quality") == 0.18
+        assert scoring_config.get_weight("global", "quality") == 0.205
         assert scoring_config.get_weight("global", "flow") == 0.15
 
     @pytest.mark.asyncio
@@ -1044,7 +1044,7 @@ class TestConfigHotReloadIntegration:
         """Verify config values match what's in CSV seed."""
         # These values should match config_parameters.csv
         assert scoring_config.get_weight("global", "time") == 0.12
-        assert scoring_config.get_weight("global", "quality") == 0.18
+        assert scoring_config.get_weight("global", "quality") == 0.205
         assert scoring_config.get_target("spi") == 1.0
         assert scoring_config.get_constant("sev1_cap") == 60.0
 

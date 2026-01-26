@@ -387,7 +387,7 @@ export default function ProjectDetail(): JSX.Element {
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Jira and GitHub collectors will be disabled</li>
                   <li>Regular metric updates will be blocked</li>
-                  <li>End-of-project metrics will become available (Strategic Impact, Client Survey)</li>
+                  <li>Client Satisfaction Survey will become editable</li>
                   <li>You can reopen the project later if needed</li>
                 </ul>
               </div>
@@ -606,74 +606,88 @@ export default function ProjectDetail(): JSX.Element {
                         </p>
                       </div>
                       <div className="p-4 bg-muted/50 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm text-muted-foreground">Schedule Performance (SPI)</p>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button className="text-muted-foreground">
-                                  <Info className="h-3 w-3" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="text-sm">Work Completed / Expected Progress</p>
-                                <p className="text-xs text-white/70 mt-1">&gt;1 = ahead, 1 = on track, &lt;1 = behind</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">Schedule Performance (SPI)</p>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button className="text-muted-foreground">
+                                    <Info className="h-3 w-3" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-sm">Work Completed / Expected Progress</p>
+                                  <p className="text-xs text-white/70 mt-1">&gt;1 = ahead, 1 = on track, &lt;1 = behind</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <span className="text-sm text-foreground">≥{((getTarget('target_spi') ?? 1) * 100).toFixed(0)}%</span>
                         </div>
-                        {metrics.evm_data.percent_planned > 0 ? (
-                          <>
-                            <p className={cn(
-                              "text-xl font-semibold",
-                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 1 ? "text-score-green" :
-                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 0.9 ? "text-score-yellow" :
-                              "text-score-red"
-                            )}>
-                              {(metrics.evm_data.percent_completed / metrics.evm_data.percent_planned).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {metrics.evm_data.percent_completed / metrics.evm_data.percent_planned > 1 ? 'Ahead of schedule' :
-                               metrics.evm_data.percent_completed / metrics.evm_data.percent_planned === 1 ? 'On schedule' : 'Behind schedule'}
-                            </p>
-                          </>
-                        ) : (
+                        {metrics.evm_data.percent_planned > 0 ? (() => {
+                          const spi = metrics.evm_data.percent_completed / metrics.evm_data.percent_planned;
+                          const spiTarget = getTarget('target_spi') ?? 0.8;
+                          return (
+                            <>
+                              <p className={cn(
+                                "text-xl font-semibold",
+                                spi >= spiTarget ? "text-score-green" :
+                                spi >= spiTarget * 0.9 ? "text-score-yellow" :
+                                "text-score-red"
+                              )}>
+                                {(spi * 100).toFixed(0)}%
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {spi > 1 ? 'Ahead of schedule' :
+                                 spi === 1 ? 'On schedule' : 'Behind schedule'}
+                              </p>
+                            </>
+                          );
+                        })() : (
                           <p className="text-xl font-semibold text-muted-foreground">—</p>
                         )}
                       </div>
                       <div className="p-4 bg-muted/50 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm text-muted-foreground">Cost Performance (CPI)</p>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button className="text-muted-foreground">
-                                  <Info className="h-3 w-3" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="text-sm">Earned Value / Actual Cost</p>
-                                <p className="text-xs text-white/70 mt-1">&gt;1 = under budget, 1 = on budget, &lt;1 = over budget</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">Cost Performance (CPI)</p>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button className="text-muted-foreground">
+                                    <Info className="h-3 w-3" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-sm">Earned Value / Actual Cost</p>
+                                  <p className="text-xs text-white/70 mt-1">&gt;1 = under budget, 1 = on budget, &lt;1 = over budget</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <span className="text-sm text-foreground">≥{((getTarget('target_cpi') ?? 1) * 100).toFixed(0)}%</span>
                         </div>
-                        {metrics.evm_data.cost_to_date > 0 ? (
-                          <>
-                            <p className={cn(
-                              "text-xl font-semibold",
-                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 1 ? "text-score-green" :
-                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 0.9 ? "text-score-yellow" :
-                              "text-score-red"
-                            )}>
-                              {((metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {(metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date > 1 ? 'Under budget' :
-                               (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date === 1 ? 'On budget' : 'Over budget'}
-                            </p>
-                          </>
-                        ) : (
+                        {metrics.evm_data.cost_to_date > 0 ? (() => {
+                          const cpi = (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date;
+                          const cpiTarget = getTarget('target_cpi') ?? 0.8;
+                          return (
+                            <>
+                              <p className={cn(
+                                "text-xl font-semibold",
+                                cpi >= cpiTarget ? "text-score-green" :
+                                cpi >= cpiTarget * 0.9 ? "text-score-yellow" :
+                                "text-score-red"
+                              )}>
+                                {(cpi * 100).toFixed(0)}%
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {cpi > 1 ? 'Under budget' :
+                                 cpi === 1 ? 'On budget' : 'Over budget'}
+                              </p>
+                            </>
+                          );
+                        })() : (
                           <p className="text-xl font-semibold text-muted-foreground">—</p>
                         )}
                       </div>
@@ -705,12 +719,14 @@ export default function ProjectDetail(): JSX.Element {
                             <ChevronDown className="w-4 h-4 text-muted-foreground" />
                           )}
                         </div>
-                        {scores.indicators.on_time_milestones !== null ? (
+                        {scores.indicators.on_time_milestones !== null ? (() => {
+                          const milestonesTarget = (getTarget('target_milestones_on_time') ?? 85) / 100;
+                          return (
                           <>
                             <p className={cn(
                               "text-xl font-semibold",
-                              scores.indicators.on_time_milestones >= 0.85 ? "text-score-green" :
-                              scores.indicators.on_time_milestones >= 0.7 ? "text-score-yellow" :
+                              scores.indicators.on_time_milestones >= milestonesTarget ? "text-score-green" :
+                              scores.indicators.on_time_milestones >= milestonesTarget * 0.9 ? "text-score-yellow" :
                               "text-score-red"
                             )}>
                               {(scores.indicators.on_time_milestones * 100).toFixed(0)}%
@@ -722,7 +738,8 @@ export default function ProjectDetail(): JSX.Element {
                               <p className="text-xs text-chart-3">expand to edit</p>
                             </div>
                           </>
-                        ) : (
+                          );
+                        })() : (
                           <>
                             <p className="text-xl font-semibold text-muted-foreground">—</p>
                             <div className="flex justify-between items-center">
@@ -1117,9 +1134,9 @@ export default function ProjectDetail(): JSX.Element {
                             'text-3xl font-bold',
                             scores.indicators.pm_satisfaction === null
                               ? 'text-muted-foreground'
-                              : scores.indicators.pm_satisfaction >= 0.9
+                              : scores.indicators.pm_satisfaction >= (getTarget('target_pm_satisfaction') ?? 90) / 100
                               ? 'text-score-green'
-                              : scores.indicators.pm_satisfaction >= 0.7
+                              : scores.indicators.pm_satisfaction >= (getTarget('target_pm_satisfaction') ?? 90) / 100 * 0.9
                               ? 'text-score-yellow'
                               : 'text-score-red'
                           )}>
@@ -1179,6 +1196,139 @@ export default function ProjectDetail(): JSX.Element {
                     >
                       <Pencil className="w-4 h-4 mr-2" />
                       {metrics?.pm_satisfaction ? 'Edit' : 'Add'} Estimation
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Strategic Impact Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Strategic Impact</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Business value delivered by the project
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-mono text-xs">Low=25, Medium=55, High=80, Transformational=100</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                    {isEditingStrategicImpact ? (
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Select strategic impact level
+                          </label>
+                          {([
+                            { value: 'low', label: 'Low', score: 25, description: 'Internal tooling, maintenance, isolated feature' },
+                            { value: 'medium', label: 'Medium', score: 55, description: 'Supports one team or process improvement' },
+                            { value: 'high', label: 'High', score: 80, description: 'Enables client delivery, product launch, or growth' },
+                            { value: 'transformational', label: 'Transformational', score: 100, description: 'Core strategic initiative, major partnership, innovation leap' },
+                          ] as const).map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setStrategicImpactValue(option.value)}
+                              className={cn(
+                                "w-full text-left p-3 rounded-lg border transition-colors",
+                                strategicImpactValue === option.value
+                                  ? "border-primary bg-primary/10"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{option.label}</span>
+                                <span className="text-xs text-muted-foreground">Score: {option.score}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (strategicImpactValue) {
+                                await updateStrategicImpact.mutateAsync(strategicImpactValue);
+                                setIsEditingStrategicImpact(false);
+                              }
+                            }}
+                            disabled={updateStrategicImpact.isPending || !strategicImpactValue}
+                          >
+                            {updateStrategicImpact.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingStrategicImpact(false);
+                              setStrategicImpactValue(metrics?.strategic_impact ?? '');
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Impact Level
+                          </span>
+                          <span className={cn(
+                            'text-2xl font-bold capitalize',
+                            !metrics?.strategic_impact
+                              ? 'text-muted-foreground'
+                              : metrics.strategic_impact === 'transformational'
+                              ? 'text-score-green'
+                              : metrics.strategic_impact === 'high'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : metrics.strategic_impact === 'medium'
+                              ? 'text-score-yellow'
+                              : 'text-orange-600 dark:text-orange-400'
+                          )}>
+                            {metrics?.strategic_impact ?? '—'}
+                          </span>
+                        </div>
+                        {metrics?.strategic_impact && (
+                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                            <span className="text-xs text-muted-foreground">Score contribution</span>
+                            <span className="text-sm font-semibold">
+                              {metrics.strategic_impact === 'low' && '25'}
+                              {metrics.strategic_impact === 'medium' && '55'}
+                              {metrics.strategic_impact === 'high' && '80'}
+                              {metrics.strategic_impact === 'transformational' && '100'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isEditingStrategicImpact && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setStrategicImpactValue(metrics?.strategic_impact ?? '');
+                        setIsEditingStrategicImpact(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      {metrics?.strategic_impact ? 'Edit' : 'Set'} Strategic Impact
                     </Button>
                   )}
                 </CardContent>
@@ -1273,9 +1423,9 @@ export default function ProjectDetail(): JSX.Element {
                             'text-3xl font-bold',
                             scores.indicators.test_maturity === null
                               ? 'text-muted-foreground'
-                              : scores.indicators.test_maturity >= 0.6
+                              : scores.indicators.test_maturity >= (getTarget('target_test_maturity') ?? 60) / 100
                               ? 'text-score-green'
-                              : scores.indicators.test_maturity >= 0.4
+                              : scores.indicators.test_maturity >= (getTarget('target_test_maturity') ?? 60) / 100 * 0.9
                               ? 'text-score-yellow'
                               : 'text-score-red'
                           )}>
@@ -1431,9 +1581,9 @@ export default function ProjectDetail(): JSX.Element {
                             'text-3xl font-bold',
                             scores.indicators.arch_checklist === null
                               ? 'text-muted-foreground'
-                              : scores.indicators.arch_checklist >= 1.0
+                              : scores.indicators.arch_checklist >= (getTarget('target_architecture') ?? 100) / 100
                               ? 'text-score-green'
-                              : scores.indicators.arch_checklist >= 0.75
+                              : scores.indicators.arch_checklist >= (getTarget('target_architecture') ?? 100) / 100 * 0.9
                               ? 'text-score-yellow'
                               : 'text-score-red'
                           )}>
@@ -1582,6 +1732,179 @@ export default function ProjectDetail(): JSX.Element {
                   ]}
                 />
               )}
+              {/* Client Satisfaction Survey - Muted when in progress */}
+              <Card className={cn(project.status === 'in_progress' && 'opacity-60')}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Client Satisfaction Survey</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {project.status === 'in_progress'
+                          ? 'Available when project is finished'
+                          : 'End-of-project client feedback (1-5 scale)'}
+                      </p>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm">
+                            Weighted average of 8 questions.
+                            Quality has highest weight (24%), followed by Time (14%).
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {project.status === 'in_progress' ? (
+                    <div className="p-4 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30 text-center">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">
+                        This survey will be available once the project is marked as finished
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                        {isEditingClientSurvey ? (
+                          <div className="space-y-4">
+                            {([
+                              { key: 'understanding', label: 'Understanding of needs', weight: '12%' },
+                              { key: 'proactivity', label: 'Proactivity', weight: '12%' },
+                              { key: 'communication', label: 'Communication', weight: '10%' },
+                              { key: 'delivery_time', label: 'Delivery time', weight: '14%' },
+                              { key: 'response_time', label: 'Response time', weight: '10%' },
+                              { key: 'quality', label: 'Quality of deliverables', weight: '24%' },
+                              { key: 'expectations', label: 'Met expectations', weight: '12%' },
+                              { key: 'recommend', label: 'Would recommend', weight: '6%' },
+                            ] as const).map(({ key, label, weight }) => (
+                              <div key={key}>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="text-sm font-medium text-muted-foreground">{label}</label>
+                                  <span className="text-xs text-muted-foreground">Weight: {weight}</span>
+                                </div>
+                                <div className="flex gap-1">
+                                  {[1, 2, 3, 4, 5].map((value) => (
+                                    <Button
+                                      key={value}
+                                      size="sm"
+                                      variant={clientSurveyForm[key] === value ? 'default' : 'outline'}
+                                      onClick={() => setClientSurveyForm(prev => ({ ...prev, [key]: value }))}
+                                      className="flex-1"
+                                    >
+                                      {value}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex gap-2 pt-2">
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  await updateClientSurvey.mutateAsync(clientSurveyForm);
+                                  setIsEditingClientSurvey(false);
+                                }}
+                                disabled={updateClientSurvey.isPending}
+                              >
+                                {updateClientSurvey.isPending ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setIsEditingClientSurvey(false);
+                                  setClientSurveyForm(metrics?.client_survey ?? {});
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-muted-foreground">
+                                Weighted Score
+                              </span>
+                              <span className={cn(
+                                'text-2xl font-bold',
+                                scores.indicators.client_satisfaction === null
+                                  ? 'text-muted-foreground'
+                                  : scores.indicators.client_satisfaction >= (getTarget('target_client_satisfaction') ?? 80) / 100
+                                  ? 'text-score-green'
+                                  : scores.indicators.client_satisfaction >= (getTarget('target_client_satisfaction') ?? 80) / 100 * 0.9
+                                  ? 'text-score-yellow'
+                                  : 'text-score-red'
+                              )}>
+                                {scores.indicators.client_satisfaction !== null
+                                  ? `${Math.round(scores.indicators.client_satisfaction * 100)}%`
+                                  : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                              <span className="text-xs text-muted-foreground">KPI</span>
+                              <span className="text-sm text-foreground">
+                                ≥{getTarget('target_client_satisfaction') ?? 80}%
+                              </span>
+                            </div>
+                            {metrics?.client_survey && (
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                                {([
+                                  { key: 'understanding', label: 'Understanding' },
+                                  { key: 'proactivity', label: 'Proactivity' },
+                                  { key: 'communication', label: 'Communication' },
+                                  { key: 'delivery_time', label: 'Delivery' },
+                                  { key: 'response_time', label: 'Response' },
+                                  { key: 'quality', label: 'Quality' },
+                                  { key: 'expectations', label: 'Expectations' },
+                                  { key: 'recommend', label: 'Recommend' },
+                                ] as const).map(({ key, label }) => {
+                                  const value = metrics.client_survey?.[key];
+                                  return (
+                                    <div key={key} className="flex justify-between text-xs">
+                                      <span className="text-muted-foreground">{label}</span>
+                                      <span className={cn(
+                                        value === 5 ? 'text-score-green' :
+                                        value === 4 ? 'text-blue-600' :
+                                        value === 3 ? 'text-score-yellow' :
+                                        value === 2 ? 'text-orange-600' :
+                                        value === 1 ? 'text-score-red' : ''
+                                      )}>
+                                        {value ?? '—'}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {!isEditingClientSurvey && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setClientSurveyForm(metrics?.client_survey ?? {});
+                            setIsEditingClientSurvey(true);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4 mr-2" />
+                          {metrics?.client_survey ? 'Edit' : 'Add'} Survey Results
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </>
@@ -1705,306 +2028,6 @@ export default function ProjectDetail(): JSX.Element {
                 )}
               </div>
             )}
-          </div>
-        </>
-      )}
-
-      {/* End-of-Project Metrics Section - Only shown for finished projects */}
-      {project.status === 'finished' && (
-        <>
-          <Separator className="my-6" />
-          <div>
-            <h2 className="text-2xl font-semibold mb-4">End-of-Project Metrics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Strategic Impact Card */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Strategic Impact</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Business value delivered by the project
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-mono text-xs">Low=25, Medium=55, High=80, Transformational=100</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingStrategicImpact ? (
-                      <div className="space-y-4">
-                        <div className="space-y-3">
-                          <label className="text-sm font-medium text-muted-foreground">
-                            Select strategic impact level
-                          </label>
-                          {([
-                            { value: 'low', label: 'Low', score: 25, description: 'Internal tooling, maintenance, isolated feature' },
-                            { value: 'medium', label: 'Medium', score: 55, description: 'Supports one team or process improvement' },
-                            { value: 'high', label: 'High', score: 80, description: 'Enables client delivery, product launch, or growth' },
-                            { value: 'transformational', label: 'Transformational', score: 100, description: 'Core strategic initiative, major partnership, innovation leap' },
-                          ] as const).map((option) => (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => setStrategicImpactValue(option.value)}
-                              className={cn(
-                                "w-full text-left p-3 rounded-lg border transition-colors",
-                                strategicImpactValue === option.value
-                                  ? "border-primary bg-primary/10"
-                                  : "border-border hover:border-primary/50"
-                              )}
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium">{option.label}</span>
-                                <span className="text-xs text-muted-foreground">Score: {option.score}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              if (strategicImpactValue) {
-                                await updateStrategicImpact.mutateAsync(strategicImpactValue);
-                                setIsEditingStrategicImpact(false);
-                              }
-                            }}
-                            disabled={updateStrategicImpact.isPending || !strategicImpactValue}
-                          >
-                            {updateStrategicImpact.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingStrategicImpact(false);
-                              setStrategicImpactValue(metrics?.strategic_impact ?? '');
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Impact Level
-                          </span>
-                          <span className={cn(
-                            'text-2xl font-bold capitalize',
-                            !metrics?.strategic_impact
-                              ? 'text-muted-foreground'
-                              : metrics.strategic_impact === 'transformational'
-                              ? 'text-score-green'
-                              : metrics.strategic_impact === 'high'
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : metrics.strategic_impact === 'medium'
-                              ? 'text-score-yellow'
-                              : 'text-orange-600 dark:text-orange-400'
-                          )}>
-                            {metrics?.strategic_impact ?? '—'}
-                          </span>
-                        </div>
-                        {metrics?.strategic_impact && (
-                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                            <span className="text-xs text-muted-foreground">Score contribution</span>
-                            <span className="text-sm font-semibold">
-                              {metrics.strategic_impact === 'low' && '25'}
-                              {metrics.strategic_impact === 'medium' && '55'}
-                              {metrics.strategic_impact === 'high' && '80'}
-                              {metrics.strategic_impact === 'transformational' && '100'}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isEditingStrategicImpact && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setStrategicImpactValue(metrics?.strategic_impact ?? '');
-                        setIsEditingStrategicImpact(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.strategic_impact ? 'Edit' : 'Set'} Strategic Impact
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Client Satisfaction Survey Card */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Client Satisfaction Survey</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        End-of-project client feedback (1-5 scale)
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="text-sm">
-                            Weighted average of 8 questions.
-                            Quality has highest weight (24%), followed by Time (14%).
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingClientSurvey ? (
-                      <div className="space-y-4">
-                        {([
-                          { key: 'understanding', label: 'Understanding of needs', weight: '12%' },
-                          { key: 'proactivity', label: 'Proactivity', weight: '12%' },
-                          { key: 'communication', label: 'Communication', weight: '10%' },
-                          { key: 'delivery_time', label: 'Delivery time', weight: '14%' },
-                          { key: 'response_time', label: 'Response time', weight: '10%' },
-                          { key: 'quality', label: 'Quality of deliverables', weight: '24%' },
-                          { key: 'expectations', label: 'Met expectations', weight: '12%' },
-                          { key: 'recommend', label: 'Would recommend', weight: '6%' },
-                        ] as const).map(({ key, label, weight }) => (
-                          <div key={key}>
-                            <div className="flex justify-between items-center mb-1">
-                              <label className="text-sm font-medium text-muted-foreground">{label}</label>
-                              <span className="text-xs text-muted-foreground">Weight: {weight}</span>
-                            </div>
-                            <div className="flex gap-1">
-                              {[1, 2, 3, 4, 5].map((value) => (
-                                <Button
-                                  key={value}
-                                  size="sm"
-                                  variant={clientSurveyForm[key] === value ? 'default' : 'outline'}
-                                  onClick={() => setClientSurveyForm(prev => ({ ...prev, [key]: value }))}
-                                  className="flex-1"
-                                >
-                                  {value}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              await updateClientSurvey.mutateAsync(clientSurveyForm);
-                              setIsEditingClientSurvey(false);
-                            }}
-                            disabled={updateClientSurvey.isPending}
-                          >
-                            {updateClientSurvey.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingClientSurvey(false);
-                              setClientSurveyForm(metrics?.client_survey ?? {});
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Weighted Score
-                          </span>
-                          <span className={cn(
-                            'text-3xl font-bold',
-                            scores?.indicators.client_satisfaction === null || scores?.indicators.client_satisfaction === undefined
-                              ? 'text-muted-foreground'
-                              : scores.indicators.client_satisfaction >= 0.8
-                              ? 'text-score-green'
-                              : scores.indicators.client_satisfaction >= 0.6
-                              ? 'text-score-yellow'
-                              : 'text-score-red'
-                          )}>
-                            {scores?.indicators.client_satisfaction !== null && scores?.indicators.client_satisfaction !== undefined
-                              ? (scores.indicators.client_satisfaction * 100).toFixed(0) + '%'
-                              : '—'}
-                          </span>
-                        </div>
-                        {metrics?.client_survey && (
-                          <div className="space-y-1 pt-2 border-t border-border/50 max-h-40 overflow-y-auto">
-                            {([
-                              { key: 'understanding', label: 'Understanding' },
-                              { key: 'proactivity', label: 'Proactivity' },
-                              { key: 'communication', label: 'Communication' },
-                              { key: 'delivery_time', label: 'Delivery time' },
-                              { key: 'response_time', label: 'Response time' },
-                              { key: 'quality', label: 'Quality' },
-                              { key: 'expectations', label: 'Expectations' },
-                              { key: 'recommend', label: 'Recommend' },
-                            ] as const).map(({ key, label }) => {
-                              const value = metrics.client_survey?.[key];
-                              return (
-                                <div key={key} className="flex justify-between text-xs">
-                                  <span className="text-muted-foreground">{label}</span>
-                                  <span className={cn(
-                                    value === 5 ? 'text-score-green' :
-                                    value === 4 ? 'text-blue-600' :
-                                    value === 3 ? 'text-score-yellow' :
-                                    value === 2 ? 'text-orange-600' :
-                                    value === 1 ? 'text-score-red' : ''
-                                  )}>
-                                    {value ?? '—'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isEditingClientSurvey && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setClientSurveyForm(metrics?.client_survey ?? {});
-                        setIsEditingClientSurvey(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.client_survey ? 'Edit' : 'Add'} Survey Results
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
           </div>
         </>
       )}
