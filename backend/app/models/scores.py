@@ -5,16 +5,16 @@ from pydantic import BaseModel, Field
 
 
 class DimensionScores(BaseModel):
-    """Individual dimension scores (0-100)."""
+    """Individual dimension scores (0-100 or None if no data)."""
 
-    p_time: int = Field(..., ge=0, le=100, description="Schedule adherence score")
-    p_cost: int = Field(..., ge=0, le=100, description="Budget adherence score")
-    p_quality: int = Field(..., ge=0, le=100, description="Product quality score")
-    p_value: int = Field(..., ge=0, le=100, description="Strategic value score")
-    p_satisfaction: int = Field(..., ge=0, le=100, description="Client satisfaction score")
-    p_flow: int = Field(..., ge=0, le=100, description="Flow & predictability score")
-    p_engineering: int = Field(..., ge=0, le=100, description="Engineering maturity score")
-    p_risk: int = Field(..., ge=0, le=100, description="Risk posture score")
+    p_time: int | None = Field(None, ge=0, le=100, description="Schedule adherence score")
+    p_cost: int | None = Field(None, ge=0, le=100, description="Budget adherence score")
+    p_quality: int | None = Field(None, ge=0, le=100, description="Product quality score")
+    p_value: int | None = Field(None, ge=0, le=100, description="Strategic value score")
+    p_satisfaction: int | None = Field(None, ge=0, le=100, description="Client satisfaction score")
+    p_flow: int | None = Field(None, ge=0, le=100, description="Flow & predictability score")
+    p_engineering: int | None = Field(None, ge=0, le=100, description="Engineering maturity score")
+    p_risk: int | None = Field(None, ge=0, le=100, description="Risk posture score")
 
 
 class DoraScore(BaseModel):

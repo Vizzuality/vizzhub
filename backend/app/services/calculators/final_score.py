@@ -54,6 +54,9 @@ class FinalScoreCalculator:
         """
         Calculate all dimension scores and final weighted score.
 
+        Dimensions with no data (None) are excluded and their weights
+        are redistributed among available dimensions.
+
         Args:
             indicators: Normalized indicator values
             sev1_incident: Whether a Sev1 incident occurred (caps P_quality)
@@ -77,18 +80,35 @@ class FinalScoreCalculator:
             "time", "cost", "quality", "value",
             "satisfaction", "flow", "engineering", "risk",
         ]
-        weights = {name: self.config.get_global_weight(name) for name in dimension_names}
-
         dimension_scores = [
             dimensions.p_time, dimensions.p_cost, dimensions.p_quality, dimensions.p_value,
             dimensions.p_satisfaction, dimensions.p_flow, dimensions.p_engineering, dimensions.p_risk,
         ]
-        final = sum(
-            weights[name] * score
-            for name, score in zip(dimension_names, dimension_scores)
-        )
 
-        # Calculate separate DORA score
+        config_weights = {name: self.config.get_global_weight(name) for name in dimension_names}
+
+        available = [
+            (name, score, config_weights[name])
+            for name, score in zip(dimension_names, dimension_scores)
+            if score is not None
+        ]
+        available_names = {name for name, _, _ in available}
+
+        if not available:
+            final = 0
+            weights = config_weights
+        else:
+            total_weight = sum(w for _, _, w in available)
+            weights = {
+                name: (
+                    config_weights[name] / total_weight
+                    if total_weight > 0 and name in available_names
+                    else 0.0
+                )
+                for name in dimension_names
+            }
+            final = sum(weights[name] * score for name, score, _ in available)
+
         dora_result = self.dora_calc.calculate(indicators)
         dora_score = DoraScore(
             score=dora_result["score"],
@@ -109,7 +129,7 @@ class FinalScoreCalculator:
         dimension: str,
         indicators: IndicatorsCreate,
         **kwargs: bool | int | None,
-    ) -> int:
+    ) -> int | None:
         """Calculate a single dimension score."""
         calculators = {
             "time": lambda: self.time_calc.calculate(indicators),

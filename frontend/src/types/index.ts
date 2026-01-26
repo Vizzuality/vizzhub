@@ -31,14 +31,14 @@ export interface ProjectUpdate {
 }
 
 export interface DimensionScores {
-  p_time: number;
-  p_cost: number;
-  p_quality: number;
-  p_value: number;
-  p_satisfaction: number;
-  p_flow: number;
-  p_engineering: number;
-  p_risk: number;
+  p_time: number | null;
+  p_cost: number | null;
+  p_quality: number | null;
+  p_value: number | null;
+  p_satisfaction: number | null;
+  p_flow: number | null;
+  p_engineering: number | null;
+  p_risk: number | null;
 }
 
 export interface DoraScore {

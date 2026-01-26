@@ -66,7 +66,7 @@ describe('ScoreCard', () => {
     expect(screen.getByText('82')).toBeDefined();
   });
 
-  it('applies primary color to scores', () => {
+  it('applies green color to high scores (>=80)', () => {
     const highScore: FinalScore = {
       score: 87,
       dimensions: mockScore.dimensions,
@@ -76,10 +76,9 @@ describe('ScoreCard', () => {
     const { container } = render(<ScoreCard score={highScore} />);
 
     const scoreElement = screen.getByText('87');
-    expect(scoreElement.className).toContain('text-primary');
+    expect(scoreElement.className).toContain('text-green-600');
 
-    // Check for bg-primary/20 (Tailwind opacity syntax)
-    const bgElements = container.querySelectorAll('[class*="bg-primary"]');
+    const bgElements = container.querySelectorAll('[class*="bg-green"]');
     expect(bgElements.length).toBeGreaterThan(0);
   });
 
@@ -129,7 +128,7 @@ describe('ScoreCard', () => {
     expect(zeroElements.length).toBe(9);
   });
 
-  it('dimension badges show primary color', () => {
+  it('dimension badges show color based on score value', () => {
     const mixedScore: FinalScore = {
       score: 51,
       dimensions: {
@@ -148,12 +147,34 @@ describe('ScoreCard', () => {
     render(<ScoreCard score={mixedScore} />);
 
     const timeScore = screen.getByText('90');
-    expect(timeScore.className).toContain('text-primary');
+    expect(timeScore.className).toContain('text-green-600');  // >=80 = green
 
     const costScore = screen.getByText('70');
-    expect(costScore.className).toContain('text-primary');
+    expect(costScore.className).toContain('text-yellow-600');  // >=60 = yellow
 
     const qualityScore = screen.getByText('50');
-    expect(qualityScore.className).toContain('text-primary');
+    expect(qualityScore.className).toContain('text-red-600');  // <60 = red
+  });
+
+  it('shows dash for null dimension scores', () => {
+    const partialScore: FinalScore = {
+      score: 50,
+      dimensions: {
+        p_time: 80,
+        p_cost: null,
+        p_quality: 70,
+        p_value: null,
+        p_satisfaction: 60,
+        p_flow: null,
+        p_engineering: 50,
+        p_risk: null,
+      },
+      weights_applied: {},
+    };
+
+    render(<ScoreCard score={partialScore} />);
+
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBe(4);  // 4 null dimensions
   });
 });

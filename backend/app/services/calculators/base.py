@@ -5,15 +5,24 @@ Design Principles:
 1. Calculators accept normalized indicators (0-1 scale)
 2. Apply weights from configuration
 3. Return 0-100 scores
-4. Handle missing data with neutral (0.5)
+4. Exclude missing data and redistribute weights (not neutral 0.5)
 5. Weights must sum to 1 within each group
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from app.config import ScoringConfig, get_scoring_config
 from app.models.indicators import IndicatorsCreate
-from app.services.normalizers.base import NEUTRAL_VALUE
+
+
+@dataclass
+class WeightedComponent:
+    """A component with its weight and normalized value."""
+
+    name: str
+    weight: float
+    value: float | None
 
 
 class BaseCalculator(ABC):
@@ -26,7 +35,7 @@ class BaseCalculator(ABC):
         self.config = config or get_scoring_config()
 
     @abstractmethod
-    def calculate(self, indicators: IndicatorsCreate) -> int:
+    def calculate(self, indicators: IndicatorsCreate) -> int | None:
         """
         Calculate dimension score from normalized indicators.
 
@@ -34,7 +43,7 @@ class BaseCalculator(ABC):
             indicators: Normalized indicator values (0-1 scale)
 
         Returns:
-            Dimension score (0-100)
+            Dimension score (0-100) or None if no data available
         """
         pass
 
@@ -46,18 +55,14 @@ class BaseCalculator(ABC):
         """Get target from configuration."""
         return self.config.get_target(name)
 
-    def _safe_value(self, value: float | None) -> float:
-        """Return value or neutral if None."""
-        return value if value is not None else NEUTRAL_VALUE
-
     def _normalize_to_target(
         self,
         value: float | None,
         target: float,
         lower_is_better: bool = False,
-    ) -> float:
+    ) -> float | None:
         """
-        Normalize a value to its target, returning 0-1.
+        Normalize a value to its target, returning 0-1 or None if missing.
 
         Args:
             value: Raw value
@@ -65,19 +70,78 @@ class BaseCalculator(ABC):
             lower_is_better: If True, use inverted normalization
 
         Returns:
-            Normalized value 0-1
+            Normalized value 0-1 or None if value is missing
         """
         if value is None:
-            return NEUTRAL_VALUE
+            return None
         if lower_is_better:
             if value <= 0:
                 return 1.0
             return min(1.0, target / max(value, 0.001))
         else:
             if target <= 0:
-                return 1.0 if value > 0 else NEUTRAL_VALUE
+                return 1.0 if value > 0 else None
             return min(1.0, value / target)
 
-    def _to_score(self, normalized: float) -> int:
+    def _normalize_to_target_legacy(
+        self,
+        value: float | None,
+        target: float,
+        lower_is_better: bool = False,
+    ) -> float:
+        """
+        Normalize a value to its target, using neutral (0.5) for missing values.
+
+        DEPRECATED: This method uses neutral value (0.5) for missing data.
+        New calculators should use _normalize_to_target with _weighted_average.
+        """
+        if value is None:
+            return 0.5
+        if lower_is_better:
+            if value <= 0:
+                return 1.0
+            return min(1.0, target / max(value, 0.001))
+        else:
+            if target <= 0:
+                return 1.0 if value > 0 else 0.5
+            return min(1.0, value / target)
+
+    def _weighted_average(self, components: list[WeightedComponent]) -> float | None:
+        """
+        Calculate weighted average, excluding missing components.
+
+        Missing components (value=None) are excluded and their weights
+        are redistributed among available components.
+
+        Args:
+            components: List of weighted components
+
+        Returns:
+            Weighted average (0-1) or None if all components are missing
+        """
+        available = [(c.weight, c.value) for c in components if c.value is not None]
+
+        if not available:
+            return None
+
+        total_weight = sum(w for w, _ in available)
+        if total_weight <= 0:
+            return None
+
+        weighted_sum = sum(w * v for w, v in available)
+        return weighted_sum / total_weight
+
+    def _safe_value(self, value: float | None, default: float = 0.5) -> float:
+        """
+        Return value or default if None.
+
+        DEPRECATED: This method uses neutral value (0.5) for missing data.
+        New calculators should use _weighted_average with WeightedComponent instead.
+        """
+        return value if value is not None else default
+
+    def _to_score(self, normalized: float | None) -> int | None:
         """Convert normalized value (0-1) to score (0-100)."""
+        if normalized is None:
+            return None
         return round(min(100, max(0, normalized * 100)))

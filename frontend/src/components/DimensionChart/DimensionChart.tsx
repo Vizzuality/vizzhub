@@ -30,10 +30,13 @@ const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
   p_risk: 'Risk Mgmt',
 };
 
+const NEUTRAL_SCORE = 80;
+
 export default function DimensionChart({ scores }: DimensionChartProps): JSX.Element {
   const data = Object.entries(scores).map(([key, value]) => ({
     dimension: DIMENSION_LABELS[key as keyof DimensionScores],
-    score: value,
+    score: value ?? NEUTRAL_SCORE,
+    isNeutral: value === null,
     fullMark: 100,
   }));
 
@@ -63,11 +66,15 @@ export default function DimensionChart({ scores }: DimensionChartProps): JSX.Ele
           <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
-                const item = payload[0].payload as { dimension: string; score: number };
+                const item = payload[0].payload as { dimension: string; score: number; isNeutral: boolean };
                 return (
                   <div className="bg-background shadow-lg rounded-lg p-2 border">
                     <p className="font-medium">{item.dimension}</p>
-                    <p className="text-primary">{item.score}/100</p>
+                    {item.isNeutral ? (
+                      <p className="text-muted-foreground">No data</p>
+                    ) : (
+                      <p className="text-primary">{item.score}/100</p>
+                    )}
                   </div>
                 );
               }
