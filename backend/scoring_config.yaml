@@ -60,9 +60,11 @@ weights:
     okr_impact: 1.0
 
   # P_satisfaction weights (must sum to 1)
+  # When client survey exists: 90% client + 10% PM
+  # When no client survey: 100% PM (as proxy during development)
   satisfaction:
-    client_survey: 0.8
-    pm_estimation: 0.2
+    client_survey: 0.9
+    pm_estimation: 0.1
 
   # Client survey question weights (must sum to 1)
   client_survey:
