@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import type { MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
 import { queryKeys } from './queryKeys';
@@ -51,7 +51,6 @@ function createMetricsMutation<T>(
   projectId: string,
   existingMetrics: Metrics | null,
   fieldName: MetricsField,
-  queryClient: QueryClient,
 ) {
   return async (value: T): Promise<Metrics> => {
     const today = new Date().toISOString().split('T')[0];
@@ -85,7 +84,7 @@ function useMetricsFieldMutation<T>(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createMetricsMutation<T>(projectId, existingMetrics, fieldName, queryClient),
+    mutationFn: createMetricsMutation<T>(projectId, existingMetrics, fieldName),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });

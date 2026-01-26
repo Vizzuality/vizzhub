@@ -30,7 +30,7 @@ const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
   p_risk: 'Risk Mgmt',
 };
 
-const NEUTRAL_SCORE = 80;
+const NEUTRAL_SCORE = 0;
 
 export default function DimensionChart({ scores }: DimensionChartProps): JSX.Element {
   const data = Object.entries(scores).map(([key, value]) => ({

@@ -1,7 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ScoreCard from '../ScoreCard';
 import type { FinalScore } from '../../../types';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+function renderWithProviders(component: React.ReactElement): ReturnType<typeof render> {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {component}
+    </QueryClientProvider>
+  );
+}
 
 describe('ScoreCard', () => {
   const mockScore: FinalScore = {
@@ -20,26 +37,26 @@ describe('ScoreCard', () => {
   };
 
   it('renders overall score', () => {
-    render(<ScoreCard score={mockScore} />);
+    renderWithProviders(<ScoreCard score={mockScore} />);
 
     expect(screen.getByText('73')).toBeDefined();
   });
 
   it('renders default title', () => {
-    render(<ScoreCard score={mockScore} />);
+    renderWithProviders(<ScoreCard score={mockScore} />);
 
     expect(screen.getByText('Overall Score')).toBeDefined();
   });
 
   it('renders custom title when provided', () => {
-    render(<ScoreCard score={mockScore} title="Project Performance" />);
+    renderWithProviders(<ScoreCard score={mockScore} title="Project Performance" />);
 
     expect(screen.getByText('Project Performance')).toBeDefined();
     expect(screen.queryByText('Overall Score')).toBeNull();
   });
 
   it('renders all dimension scores', () => {
-    render(<ScoreCard score={mockScore} />);
+    renderWithProviders(<ScoreCard score={mockScore} />);
 
     expect(screen.getByText('Time')).toBeDefined();
     expect(screen.getByText('80')).toBeDefined();
@@ -73,7 +90,7 @@ describe('ScoreCard', () => {
       weights_applied: {},
     };
 
-    const { container } = render(<ScoreCard score={highScore} />);
+    const { container } = renderWithProviders(<ScoreCard score={highScore} />);
 
     const scoreElement = screen.getByText('87');
     expect(scoreElement.className).toContain('text-score-green');
@@ -98,7 +115,7 @@ describe('ScoreCard', () => {
       weights_applied: {},
     };
 
-    render(<ScoreCard score={perfectScore} />);
+    renderWithProviders(<ScoreCard score={perfectScore} />);
 
     // Should find exactly 9 instances of "100": 1 overall + 8 dimensions
     const perfectScoreElements = screen.getAllByText('100');
@@ -121,7 +138,7 @@ describe('ScoreCard', () => {
       weights_applied: {},
     };
 
-    render(<ScoreCard score={zeroScore} />);
+    renderWithProviders(<ScoreCard score={zeroScore} />);
 
     // Should find exactly 9 instances of "0": 1 overall + 8 dimensions
     const zeroElements = screen.getAllByText('0');
@@ -144,7 +161,7 @@ describe('ScoreCard', () => {
       weights_applied: {},
     };
 
-    render(<ScoreCard score={mixedScore} />);
+    renderWithProviders(<ScoreCard score={mixedScore} />);
 
     const timeScore = screen.getByText('90');
     expect(timeScore.className).toContain('text-score-green');  // >=80 = green
@@ -172,7 +189,7 @@ describe('ScoreCard', () => {
       weights_applied: {},
     };
 
-    render(<ScoreCard score={partialScore} />);
+    renderWithProviders(<ScoreCard score={partialScore} />);
 
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBe(4);  // 4 null dimensions
