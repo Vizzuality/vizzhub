@@ -64,5 +64,7 @@ Test Maturity Weights,weight_test_unit,0.10,weight,Unit tests weight in test mat
 Test Maturity Weights,weight_test_accessibility,0.10,weight,Accessibility tests weight in test maturity.
 Test Maturity Weights,weight_test_security,0.20,weight,Security tests weight in test maturity.
 Test Maturity Weights,weight_test_frontend,0.20,weight,Frontend tests weight in test maturity.
-Constants,const_sev1_cap,60,points,Max P_quality score if Sev1 incident occurred.
-Constants,const_grace_days,3,days,Grace period for milestone delivery.
+Gates & Constants,const_sev1_cap,60,points,Max P_quality score if Sev1 incident occurred.
+Gates & Constants,const_grace_days,3,days,Grace period for milestone delivery.
+Gates & Constants,const_threshold_green,80,score,Score >= this value shows green (good).
+Gates & Constants,const_threshold_yellow,60,score,Score >= this value shows yellow (warning).

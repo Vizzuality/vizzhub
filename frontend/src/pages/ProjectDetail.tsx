@@ -974,7 +974,7 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground dark:text-primary">
+                          <span className="text-sm text-foreground">
                             ≤{getTarget('target_gov_exceptions') ?? 2} exceptions
                           </span>
                         </div>
@@ -1130,7 +1130,7 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground dark:text-primary">
+                          <span className="text-sm text-foreground">
                             ≥{getTarget('target_pm_satisfaction') ?? 90}%
                           </span>
                         </div>
@@ -1286,7 +1286,7 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground dark:text-primary">
+                          <span className="text-sm text-foreground">
                             ≥{getTarget('target_test_maturity') ?? 60}%
                           </span>
                         </div>
@@ -1444,7 +1444,7 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground dark:text-primary">
+                          <span className="text-sm text-foreground">
                             ≥{getTarget('target_architecture') ?? 100}%
                           </span>
                         </div>

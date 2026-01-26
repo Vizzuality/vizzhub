@@ -5,6 +5,7 @@ import { formatDate } from '../../utils/formatters';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useScoreThresholds } from '@/hooks/useConfig';
 
 interface ProjectCardProps {
   project: Project;
@@ -12,7 +13,7 @@ interface ProjectCardProps {
   score?: number | null;
 }
 
-function ScoreBadge({ score }: { score: number | null | undefined }): JSX.Element | null {
+function ScoreBadge({ score, thresholds }: { score: number | null | undefined; thresholds: { green: number; yellow: number } }): JSX.Element | null {
   if (score === null || score === undefined) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -23,8 +24,8 @@ function ScoreBadge({ score }: { score: number | null | undefined }): JSX.Elemen
   }
 
   const getScoreColor = (s: number): string => {
-    if (s >= 80) return 'text-score-green';
-    if (s >= 60) return 'text-score-yellow';
+    if (s >= thresholds.green) return 'text-score-green';
+    if (s >= thresholds.yellow) return 'text-score-yellow';
     return 'text-score-red';
   };
 
@@ -37,6 +38,7 @@ function ScoreBadge({ score }: { score: number | null | undefined }): JSX.Elemen
 }
 
 export default function ProjectCard({ project, viewMode = 'list', score }: ProjectCardProps): JSX.Element {
+  const thresholds = useScoreThresholds();
   const hasDateRange = project.start_date || project.end_date;
 
   if (viewMode === 'grid') {
@@ -54,7 +56,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <ScoreBadge score={score} />
+              <ScoreBadge score={score} thresholds={thresholds} />
             </div>
             <div className="space-y-1.5 text-sm text-muted-foreground">
               {project.jira_project_key && (
@@ -122,7 +124,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
         </div>
 
         <div className="flex items-center gap-6 md:flex-shrink-0">
-          <ScoreBadge score={score} />
+          <ScoreBadge score={score} thresholds={thresholds} />
           <Link
             to={`/projects/${project.id}`}
             className="text-base font-medium text-primary hover:underline"

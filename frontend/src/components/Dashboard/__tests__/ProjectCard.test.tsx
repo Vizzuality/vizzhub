@@ -1,11 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ProjectCard from '../ProjectCard';
 import type { Project } from '../../../types';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
 function renderWithRouter(component: React.ReactElement): ReturnType<typeof render> {
-  return render(<BrowserRouter>{component}</BrowserRouter>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>{component}</BrowserRouter>
+    </QueryClientProvider>
+  );
 }
 
 describe('ProjectCard', () => {
