@@ -77,7 +77,6 @@ class ScoringConfig:
         "cpi": "target_cpi",
         "milestones_on_time": "target_milestones_on_time",
         "lead_time_days": "target_lead_time_days",
-        "flow_efficiency": "target_flow_efficiency",
         "high_vuln_count": "target_high_vuln_count",
         "gov_exceptions": "target_gov_exceptions",
         "pr_no_review_ratio": "target_pr_no_review_ratio",
@@ -89,6 +88,7 @@ class ScoringConfig:
         "test_maturity": "target_test_maturity",
         "architecture": "target_architecture",
         "pm_satisfaction": "target_pm_satisfaction",
+        "client_satisfaction": "target_client_satisfaction",
     }
 
     _CONSTANT_NAMES = {

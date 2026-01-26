@@ -210,3 +210,35 @@ export interface MetricsCreate {
   governance_exceptions?: number;
   sev1_incident: boolean;
 }
+
+export interface PMSatisfaction {
+  delivery_complaints: 'yes' | 'no' | '-';
+  design_complaints: 'yes' | 'no' | '-';
+  overall_estimation?: number;
+}
+
+export interface TestMaturity {
+  e2e?: number;
+  unit?: number;
+  accessibility?: number;
+  security?: number;
+  frontend?: number;
+}
+
+export interface Architecture {
+  docs_up_to_date: boolean;
+  iac_implemented: boolean;
+  adrs_maintained: boolean;
+  diagrams_updated: boolean;
+}
+
+export interface ClientSurvey {
+  understanding?: number;
+  proactivity?: number;
+  communication?: number;
+  delivery_time?: number;
+  response_time?: number;
+  quality?: number;
+  expectations?: number;
+  recommend?: number;
+}

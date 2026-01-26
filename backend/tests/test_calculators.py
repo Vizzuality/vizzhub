@@ -88,9 +88,11 @@ class TestTimeCalculator:
 
     def test_partial_spi_with_perfect_milestones(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
+        # SPI=0.8 vs target=0.8 → normalized=1.0
+        # milestones=1.0 vs target=0.85 → normalized=1.0 (capped)
         indicators = IndicatorsCreate(spi=0.8, on_time_milestones=1.0)
         score = calc.calculate(indicators)
-        assert score == 88
+        assert score == 100
 
     def test_low_milestones_with_perfect_spi(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
@@ -133,9 +135,11 @@ class TestCostCalculator:
 
     def test_low_cpi_with_good_variance(self, config: ScoringConfig) -> None:
         calc = CostCalculator(config)
+        # CPI=0.8 vs target=0.8 → normalized=1.0
+        # variance=0.0 → normalized=1.0
         indicators = IndicatorsCreate(cpi=0.8, budget_variance=0.0)
         score = calc.calculate(indicators)
-        assert score == 86
+        assert score == 100
 
 
 class TestQualityCalculator:
@@ -232,21 +236,28 @@ class TestValueCalculator:
 class TestSatisfactionCalculator:
     def test_with_client_survey(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
+        # client=0.9 vs target=0.8 → normalized=1.0 (capped)
+        # pm=0.8 vs target=0.9 → normalized=0.889
+        # Score = 0.9 * 1.0 + 0.1 * 0.889 = 0.9889 → 99
         indicators = IndicatorsCreate(client_satisfaction=0.9, pm_satisfaction=0.8)
         score = calc.calculate(indicators)
-        assert score == 89  # 0.9 * 0.9 + 0.8 * 0.1 = 0.89
+        assert score == 99
 
     def test_pm_only(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
+        # pm=0.8 vs target=0.9 → normalized=0.889
+        # 100% weight redistributed to PM → 89
         indicators = IndicatorsCreate(pm_satisfaction=0.8)
         score = calc.calculate(indicators)
-        assert score == 80  # 100% weight redistributed to PM
+        assert score == 89
 
     def test_client_only(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
+        # client=0.9 vs target=0.8 → normalized=1.0 (capped)
+        # 100% weight redistributed to client → 100
         indicators = IndicatorsCreate(client_satisfaction=0.9)
         score = calc.calculate(indicators)
-        assert score == 90  # 100% weight redistributed to client
+        assert score == 100
 
     def test_no_data_returns_none(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
@@ -320,29 +331,34 @@ class TestEngineeringCalculator:
 
     def test_only_test_maturity_available(self, config: ScoringConfig) -> None:
         calc = EngineeringCalculator(config)
+        # test_maturity=0.8 vs target=0.6 → normalized=1.0 (capped, exceeds target)
+        # 100% weight redistributed to test maturity → 100
         indicators = IndicatorsCreate(test_maturity=0.8)
         score = calc.calculate(indicators)
-        assert score == 80  # 100% weight redistributed to test maturity
+        assert score == 100
 
     def test_partial_data_redistributes_weights(self, config: ScoringConfig) -> None:
         calc = EngineeringCalculator(config)
         indicators = IndicatorsCreate(
-            test_maturity=1.0,  # weight 0.5
-            arch_checklist=1.0,  # weight 0.3
+            test_maturity=1.0,  # weight 0.5, vs target=0.6 → 1.0
+            arch_checklist=1.0,  # weight 0.3, vs target=1.0 → 1.0
         )
         score = calc.calculate(indicators)
         assert score == 100  # Both components at 100%
 
     def test_low_test_maturity_lowers_score(self, config: ScoringConfig) -> None:
         calc = EngineeringCalculator(config)
+        # test_maturity=0.3 vs target=0.6 → normalized=0.5
+        # pr_review=1.0 → 1.0
+        # arch_checklist=1.0 vs target=1.0 → 1.0
+        # Score = 0.5 * 0.5 + 0.2 * 1.0 + 0.3 * 1.0 = 0.25 + 0.2 + 0.3 = 0.75 → 75
         indicators = IndicatorsCreate(
-            test_maturity=0.6,  # weight 0.5
+            test_maturity=0.3,  # weight 0.5, half of target
             pr_review_ratio=1.0,  # weight 0.2
             arch_checklist=1.0,  # weight 0.3
         )
         score = calc.calculate(indicators)
-        # 0.5 * 0.6 + 0.2 * 1.0 + 0.3 * 1.0 = 0.80
-        assert score == 80
+        assert score == 75
 
 
 class TestRiskCalculator:

@@ -5,6 +5,7 @@ Handles authentication (OAuth 2.0 or legacy API token) and provides
 common methods for querying Jira APIs.
 """
 
+import logging
 import re
 
 import httpx
@@ -111,15 +112,11 @@ class JiraClient:
                 result = response.json()
                 return result.get("count", 0) if isinstance(result, dict) else result
             else:
-                import logging
-
                 logging.warning(
                     f"JQL query failed (status {response.status_code}): {jql}\n"
                     f"Response: {response.text[:500]}"
                 )
         except Exception as e:
-            import logging
-
             logging.warning(f"JQL query exception: {jql}\nError: {e}")
 
         return 0
@@ -188,8 +185,6 @@ class JiraClient:
                     break
 
         except Exception as e:
-            import logging
-
             logging.warning(f"Search issues exception: {jql}\nError: {e}")
 
         return all_issues

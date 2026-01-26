@@ -222,8 +222,8 @@ class SatisfactionCalculator(BaseCalculator):
     P_satisfaction: Client satisfaction score.
 
     Components:
-    - Client survey (weighted 90% when available)
-    - PM estimation (weighted 10% when survey available, 100% when not)
+    - Client survey (weighted 90% when available) - target 80%
+    - PM estimation (weighted 10% when survey available, 100% when not) - target 90%
 
     During development: No client survey available, so PM estimation is 100%
     At end of project: Client survey available, weights are 90% client + 10% PM
@@ -238,16 +238,23 @@ class SatisfactionCalculator(BaseCalculator):
     weight_group = "satisfaction"
 
     def calculate(self, indicators: IndicatorsCreate) -> int | None:
+        client_satisfaction_target = self._get_target("client_satisfaction") / 100
+        pm_satisfaction_target = self._get_target("pm_satisfaction") / 100
+
         components = [
             WeightedComponent(
                 name="client_survey",
                 weight=self._get_weight("client_survey"),
-                value=indicators.client_satisfaction,
+                value=self._normalize_to_target(
+                    indicators.client_satisfaction, client_satisfaction_target
+                ),
             ),
             WeightedComponent(
                 name="pm_estimation",
                 weight=self._get_weight("pm_estimation"),
-                value=indicators.pm_satisfaction,
+                value=self._normalize_to_target(
+                    indicators.pm_satisfaction, pm_satisfaction_target
+                ),
             ),
         ]
 
@@ -325,9 +332,9 @@ class EngineeringCalculator(BaseCalculator):
     P_engineering: Engineering discipline score.
 
     Components:
-    - Test maturity (0.5) - higher is better, already 0-1
-    - PR review ratio (0.2) - higher is better, already 0-1
-    - Architecture checklist (0.3) - higher is better, already 0-1
+    - Test maturity (0.5) - higher is better, target 60%
+    - PR review ratio (0.2) - higher is better, target 100%
+    - Architecture checklist (0.3) - higher is better, target 100%
 
     Missing data handling:
     - Missing components are excluded and weights redistributed
@@ -338,11 +345,16 @@ class EngineeringCalculator(BaseCalculator):
     weight_group = "engineering"
 
     def calculate(self, indicators: IndicatorsCreate) -> int | None:
+        test_maturity_target = self._get_target("test_maturity") / 100
+        architecture_target = self._get_target("architecture") / 100
+
         components = [
             WeightedComponent(
                 name="test_maturity",
                 weight=self._get_weight("test_maturity"),
-                value=indicators.test_maturity,
+                value=self._normalize_to_target(
+                    indicators.test_maturity, test_maturity_target
+                ),
             ),
             WeightedComponent(
                 name="pr_review",
@@ -352,7 +364,9 @@ class EngineeringCalculator(BaseCalculator):
             WeightedComponent(
                 name="architecture",
                 weight=self._get_weight("architecture"),
-                value=indicators.arch_checklist,
+                value=self._normalize_to_target(
+                    indicators.arch_checklist, architecture_target
+                ),
             ),
         ]
 

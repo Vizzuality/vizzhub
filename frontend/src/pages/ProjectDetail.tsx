@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, RefreshCw, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock, Flag, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil, Trash2, X, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
@@ -12,7 +12,17 @@ import ProjectForm from '../components/Forms/ProjectForm';
 import EVMForm from '../components/Forms/EVMForm';
 import MilestonesForm from '../components/Forms/MilestonesForm';
 import SubIndicatorCard from '../components/SubIndicatorCard';
-import type { ProjectCreate, EVMData, Milestone, StrategicImpact } from '../types';
+import {
+  GovernanceCard,
+  PMSatisfactionCard,
+  StrategicImpactCard,
+  TestMaturityCard,
+  ArchitectureCard,
+  ClientSurveyCard,
+  CollectorButtons,
+  StatusControls,
+} from '../components/ProjectDetail';
+import type { ProjectCreate, EVMData, Milestone } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '../utils/formatters';
 import { Button } from '@/components/ui/button';
@@ -48,46 +58,10 @@ export default function ProjectDetail(): JSX.Element {
   const [isEditingEVM, setIsEditingEVM] = useState(false);
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
   const [showMilestones, setShowMilestones] = useState(false);
-  const [isEditingGovernance, setIsEditingGovernance] = useState(false);
-  const [governanceValue, setGovernanceValue] = useState<string>('');
-  const [isEditingPMSatisfaction, setIsEditingPMSatisfaction] = useState(false);
-  const [pmSatisfactionForm, setPMSatisfactionForm] = useState<{
-    delivery_complaints: 'yes' | 'no' | '-';
-    design_complaints: 'yes' | 'no' | '-';
-    overall_estimation: string;
-  }>({ delivery_complaints: '-', design_complaints: '-', overall_estimation: '' });
-  const [isEditingTestMaturity, setIsEditingTestMaturity] = useState(false);
-  const [testMaturityForm, setTestMaturityForm] = useState<{
-    e2e?: number;
-    unit?: number;
-    accessibility?: number;
-    security?: number;
-    frontend?: number;
-  }>({});
-  const [isEditingArchitecture, setIsEditingArchitecture] = useState(false);
-  const [architectureForm, setArchitectureForm] = useState({
-    docs_up_to_date: false,
-    iac_implemented: false,
-    adrs_maintained: false,
-    diagrams_updated: false,
-  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
   const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
-  const [isEditingStrategicImpact, setIsEditingStrategicImpact] = useState(false);
-  const [strategicImpactValue, setStrategicImpactValue] = useState<StrategicImpact | ''>('');
-  const [isEditingClientSurvey, setIsEditingClientSurvey] = useState(false);
-  const [clientSurveyForm, setClientSurveyForm] = useState<{
-    understanding?: number;
-    proactivity?: number;
-    communication?: number;
-    delivery_time?: number;
-    response_time?: number;
-    quality?: number;
-    expectations?: number;
-    recommend?: number;
-  }>({});
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
@@ -111,6 +85,13 @@ export default function ProjectDetail(): JSX.Element {
     const targets = config?.['Targets'];
     if (!targets) return null;
     const param = targets.find((p) => p.name === name);
+    return param ? parseFloat(param.value) : null;
+  };
+
+  const getConstant = (name: string): number | null => {
+    const constants = config?.['Gates & Constants'];
+    if (!constants) return null;
+    const param = constants.find((p) => p.name === name);
     return param ? parseFloat(param.value) : null;
   };
 
@@ -153,7 +134,7 @@ export default function ProjectDetail(): JSX.Element {
   const getMilestoneStatus = (milestone: Milestone): 'on-time' | 'late' | 'pending' => {
     const today = new Date();
     const planned = new Date(milestone.planned_date);
-    const graceDays = 3;
+    const graceDays = getConstant('const_grace_days') ?? 3;
     const graceDate = new Date(planned);
     graceDate.setDate(graceDate.getDate() + graceDays);
 
@@ -231,116 +212,30 @@ export default function ProjectDetail(): JSX.Element {
             </div>
 
             {!isEditing && (
-              <div className="flex items-center gap-2">
-                {project.status === 'in_progress' ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowFinishDialog(true)}
-                    className="border border-input text-score-green hover:bg-score-green hover:text-white dark:hover:text-black hover:border-score-green"
-                    disabled={updateProjectStatus.isPending}
-                  >
-                    <Flag className="w-5 h-5 mr-2" />
-                    Mark as Finished
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    onClick={async () => {
-                      await updateProjectStatus.mutateAsync('in_progress');
-                    }}
-                    className="border border-input"
-                    disabled={updateProjectStatus.isPending}
-                  >
-                    <RotateCcw className="w-5 h-5 mr-2" />
-                    Reopen Project
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsEditing(true)}
-                  className="border border-input"
-                >
-                  <Pencil className="w-5 h-5 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="border border-input text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="w-5 h-5 mr-2" />
-                  Delete
-                </Button>
-              </div>
+              <StatusControls
+                status={project.status}
+                onMarkFinished={() => setShowFinishDialog(true)}
+                onReopen={() => updateProjectStatus.mutateAsync('in_progress')}
+                onEdit={() => setIsEditing(true)}
+                onDelete={() => setShowDeleteConfirm(true)}
+                isUpdatingStatus={updateProjectStatus.isPending}
+              />
             )}
           </div>
         </CardHeader>
 
         {(project.jira_project_key || project.github_repo) && !isEditing && (
-          <CardContent className="flex items-center gap-4">
-            <div className="flex gap-2">
-              {project.jira_project_key && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button
-                          onClick={handleCollectJiraMetrics}
-                          disabled={collectJiraMetrics.isPending || project.status === 'finished'}
-                          variant="outline"
-                        >
-                          <RefreshCw
-                            className={cn(
-                              'w-4 h-4 mr-2',
-                              collectJiraMetrics.isPending && 'animate-spin'
-                            )}
-                          />
-                          {collectJiraMetrics.isPending ? 'Collecting Jira...' : 'Collect Jira'}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {project.status === 'finished' && (
-                      <TooltipContent>
-                        <p>Collectors disabled for finished projects</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              {project.github_repo && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button
-                          onClick={handleCollectGitHubMetrics}
-                          disabled={collectGitHubMetrics.isPending || project.status === 'finished'}
-                          variant="outline"
-                        >
-                          <Github
-                            className={cn(
-                              'w-4 h-4 mr-2',
-                              collectGitHubMetrics.isPending && 'animate-spin'
-                            )}
-                          />
-                          {collectGitHubMetrics.isPending ? 'Collecting GitHub...' : 'Collect GitHub'}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {project.status === 'finished' && (
-                      <TooltipContent>
-                        <p>Collectors disabled for finished projects</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-            {metrics && (
-              <span className="text-sm text-muted-foreground">
-                Last collected: {new Date(metrics.created_at).toLocaleString()}
-              </span>
-            )}
+          <CardContent>
+            <CollectorButtons
+              jiraProjectKey={project.jira_project_key}
+              githubRepo={project.github_repo}
+              projectStatus={project.status}
+              onCollectJira={handleCollectJiraMetrics}
+              onCollectGitHub={handleCollectGitHubMetrics}
+              isCollectingJira={collectJiraMetrics.isPending}
+              isCollectingGitHub={collectGitHubMetrics.isPending}
+              lastCollectedAt={metrics?.created_at}
+            />
           </CardContent>
         )}
 
@@ -905,740 +800,38 @@ export default function ProjectDetail(): JSX.Element {
                   ]}
                 />
               )}
-              {/* Governance Compliance - Editable */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Governance Compliance</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Exceptions from latest peer review
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-mono text-xs">score = 1 - (exceptions / target)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingGovernance ? (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">
-                            Number of unjustified exceptions
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={governanceValue}
-                            onChange={(e) => setGovernanceValue(e.target.value)}
-                            className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
-                            placeholder="0"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              const value = parseInt(governanceValue) || 0;
-                              await updateGovernance.mutateAsync(value);
-                              setIsEditingGovernance(false);
-                            }}
-                            disabled={updateGovernance.isPending}
-                          >
-                            {updateGovernance.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingGovernance(false);
-                              setGovernanceValue(metrics?.governance_exceptions?.toString() ?? '');
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Exceptions count
-                          </span>
-                          <span className={cn(
-                            'text-3xl font-bold',
-                            metrics?.governance_exceptions === undefined || metrics?.governance_exceptions === null
-                              ? 'text-muted-foreground'
-                              : metrics.governance_exceptions === 0
-                              ? 'text-score-green'
-                              : metrics.governance_exceptions <= (getTarget('target_gov_exceptions') ?? 2)
-                              ? 'text-score-yellow'
-                              : 'text-score-red'
-                          )}>
-                            {metrics?.governance_exceptions ?? '—'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                          <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≤{getTarget('target_gov_exceptions') ?? 2} exceptions
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {!isEditingGovernance && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setGovernanceValue(metrics?.governance_exceptions?.toString() ?? '');
-                        setIsEditingGovernance(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.governance_exceptions !== undefined && metrics?.governance_exceptions !== null ? 'Edit' : 'Add'} Exceptions
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-              {/* PM Satisfaction Estimation - Editable */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Client Satisfaction (PM Est.)</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        PM estimation of client satisfaction
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-mono text-xs">0.3×delivery + 0.3×design + 0.4×overall</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingPMSatisfaction ? (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">
-                            Has the client complained about delays or delivery quality?
-                          </label>
-                          <div className="flex gap-2 mt-2">
-                            {(['no', 'yes', '-'] as const).map((value) => (
-                              <Button
-                                key={value}
-                                size="sm"
-                                variant={pmSatisfactionForm.delivery_complaints === value ? 'default' : 'outline'}
-                                onClick={() => setPMSatisfactionForm(prev => ({ ...prev, delivery_complaints: value }))}
-                              >
-                                {value === '-' ? 'N/A' : value === 'no' ? 'No' : 'Yes'}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">
-                            Has the client expressed unresolved dissatisfaction with design/implementation?
-                          </label>
-                          <div className="flex gap-2 mt-2">
-                            {(['no', 'yes', '-'] as const).map((value) => (
-                              <Button
-                                key={value}
-                                size="sm"
-                                variant={pmSatisfactionForm.design_complaints === value ? 'default' : 'outline'}
-                                onClick={() => setPMSatisfactionForm(prev => ({ ...prev, design_complaints: value }))}
-                              >
-                                {value === '-' ? 'N/A' : value === 'no' ? 'No' : 'Yes'}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">
-                            Overall estimation of client satisfaction (1-5)
-                          </label>
-                          <div className="flex gap-2 mt-2">
-                            {[1, 2, 3, 4, 5].map((value) => (
-                              <Button
-                                key={value}
-                                size="sm"
-                                variant={pmSatisfactionForm.overall_estimation === value.toString() ? 'default' : 'outline'}
-                                onClick={() => setPMSatisfactionForm(prev => ({ ...prev, overall_estimation: value.toString() }))}
-                              >
-                                {value}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              await updatePMSatisfaction.mutateAsync({
-                                delivery_complaints: pmSatisfactionForm.delivery_complaints,
-                                design_complaints: pmSatisfactionForm.design_complaints,
-                                overall_estimation: pmSatisfactionForm.overall_estimation ? parseInt(pmSatisfactionForm.overall_estimation) : undefined,
-                              });
-                              setIsEditingPMSatisfaction(false);
-                            }}
-                            disabled={updatePMSatisfaction.isPending}
-                          >
-                            {updatePMSatisfaction.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingPMSatisfaction(false);
-                              setPMSatisfactionForm({
-                                delivery_complaints: metrics?.pm_satisfaction?.delivery_complaints ?? '-',
-                                design_complaints: metrics?.pm_satisfaction?.design_complaints ?? '-',
-                                overall_estimation: metrics?.pm_satisfaction?.overall_estimation?.toString() ?? '',
-                              });
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Normalized score
-                          </span>
-                          <span className={cn(
-                            'text-3xl font-bold',
-                            scores.indicators.pm_satisfaction === null
-                              ? 'text-muted-foreground'
-                              : scores.indicators.pm_satisfaction >= (getTarget('target_pm_satisfaction') ?? 90) / 100
-                              ? 'text-score-green'
-                              : scores.indicators.pm_satisfaction >= (getTarget('target_pm_satisfaction') ?? 90) / 100 * 0.9
-                              ? 'text-score-yellow'
-                              : 'text-score-red'
-                          )}>
-                            {scores.indicators.pm_satisfaction !== null
-                              ? (scores.indicators.pm_satisfaction * 100).toFixed(0) + '%'
-                              : '—'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                          <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≥{getTarget('target_pm_satisfaction') ?? 90}%
-                          </span>
-                        </div>
-                        {metrics?.pm_satisfaction && (
-                          <div className="space-y-1 pt-2 border-t border-border/50">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Delivery complaints</span>
-                              <span className={cn(
-                                metrics.pm_satisfaction.delivery_complaints === 'no' ? 'text-score-green' :
-                                metrics.pm_satisfaction.delivery_complaints === 'yes' ? 'text-score-red' : ''
-                              )}>
-                                {metrics.pm_satisfaction.delivery_complaints === '-' ? 'N/A' : metrics.pm_satisfaction.delivery_complaints}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Design complaints</span>
-                              <span className={cn(
-                                metrics.pm_satisfaction.design_complaints === 'no' ? 'text-score-green' :
-                                metrics.pm_satisfaction.design_complaints === 'yes' ? 'text-score-red' : ''
-                              )}>
-                                {metrics.pm_satisfaction.design_complaints === '-' ? 'N/A' : metrics.pm_satisfaction.design_complaints}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Overall (1-5)</span>
-                              <span>{metrics.pm_satisfaction.overall_estimation ?? '—'}</span>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isEditingPMSatisfaction && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setPMSatisfactionForm({
-                          delivery_complaints: metrics?.pm_satisfaction?.delivery_complaints ?? '-',
-                          design_complaints: metrics?.pm_satisfaction?.design_complaints ?? '-',
-                          overall_estimation: metrics?.pm_satisfaction?.overall_estimation?.toString() ?? '',
-                        });
-                        setIsEditingPMSatisfaction(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.pm_satisfaction ? 'Edit' : 'Add'} Estimation
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-              {/* Strategic Impact Card */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Strategic Impact</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Business value delivered by the project
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-mono text-xs">Low=25, Medium=55, High=80, Transformational=100</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingStrategicImpact ? (
-                      <div className="space-y-4">
-                        <div className="space-y-3">
-                          <label className="text-sm font-medium text-muted-foreground">
-                            Select strategic impact level
-                          </label>
-                          {([
-                            { value: 'low', label: 'Low', score: 25, description: 'Internal tooling, maintenance, isolated feature' },
-                            { value: 'medium', label: 'Medium', score: 55, description: 'Supports one team or process improvement' },
-                            { value: 'high', label: 'High', score: 80, description: 'Enables client delivery, product launch, or growth' },
-                            { value: 'transformational', label: 'Transformational', score: 100, description: 'Core strategic initiative, major partnership, innovation leap' },
-                          ] as const).map((option) => (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => setStrategicImpactValue(option.value)}
-                              className={cn(
-                                "w-full text-left p-3 rounded-lg border transition-colors",
-                                strategicImpactValue === option.value
-                                  ? "border-primary bg-primary/10"
-                                  : "border-border hover:border-primary/50"
-                              )}
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium">{option.label}</span>
-                                <span className="text-xs text-muted-foreground">Score: {option.score}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              if (strategicImpactValue) {
-                                await updateStrategicImpact.mutateAsync(strategicImpactValue);
-                                setIsEditingStrategicImpact(false);
-                              }
-                            }}
-                            disabled={updateStrategicImpact.isPending || !strategicImpactValue}
-                          >
-                            {updateStrategicImpact.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingStrategicImpact(false);
-                              setStrategicImpactValue(metrics?.strategic_impact ?? '');
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Impact Level
-                          </span>
-                          <span className={cn(
-                            'text-2xl font-bold capitalize',
-                            !metrics?.strategic_impact
-                              ? 'text-muted-foreground'
-                              : metrics.strategic_impact === 'transformational'
-                              ? 'text-score-green'
-                              : metrics.strategic_impact === 'high'
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : metrics.strategic_impact === 'medium'
-                              ? 'text-score-yellow'
-                              : 'text-orange-600 dark:text-orange-400'
-                          )}>
-                            {metrics?.strategic_impact ?? '—'}
-                          </span>
-                        </div>
-                        {metrics?.strategic_impact && (
-                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                            <span className="text-xs text-muted-foreground">Score contribution</span>
-                            <span className="text-sm font-semibold">
-                              {metrics.strategic_impact === 'low' && '25'}
-                              {metrics.strategic_impact === 'medium' && '55'}
-                              {metrics.strategic_impact === 'high' && '80'}
-                              {metrics.strategic_impact === 'transformational' && '100'}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isEditingStrategicImpact && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setStrategicImpactValue(metrics?.strategic_impact ?? '');
-                        setIsEditingStrategicImpact(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.strategic_impact ? 'Edit' : 'Set'} Strategic Impact
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-              {/* Test Maturity - Editable */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Test Maturity</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Automated testing coverage assessment
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-mono text-xs">weighted avg of 5 test types</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingTestMaturity ? (
-                      <div className="space-y-4">
-                        {([
-                          { key: 'e2e', label: 'E2E Tests' },
-                          { key: 'unit', label: 'Unit Tests' },
-                          { key: 'accessibility', label: 'Accessibility Tests' },
-                          { key: 'security', label: 'Security Tests' },
-                          { key: 'frontend', label: 'Frontend Tests' },
-                        ] as const).map(({ key, label }) => (
-                          <div key={key}>
-                            <label className="text-sm font-medium text-muted-foreground">{label}</label>
-                            <div className="flex gap-2 mt-2">
-                              {([
-                                { value: 0, label: 'None' },
-                                { value: 1, label: 'Minimal' },
-                                { value: 3, label: 'Adequate' },
-                                { value: 5, label: 'Comprehensive' },
-                              ]).map((option) => (
-                                <Button
-                                  key={option.value}
-                                  size="sm"
-                                  variant={testMaturityForm[key] === option.value ? 'default' : 'outline'}
-                                  onClick={() => setTestMaturityForm(prev => ({ ...prev, [key]: option.value }))}
-                                  className="flex-1"
-                                >
-                                  {option.label}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              await updateTestMaturity.mutateAsync(testMaturityForm);
-                              setIsEditingTestMaturity(false);
-                            }}
-                            disabled={updateTestMaturity.isPending}
-                          >
-                            {updateTestMaturity.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingTestMaturity(false);
-                              setTestMaturityForm(metrics?.test_maturity ?? {});
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Weighted score
-                          </span>
-                          <span className={cn(
-                            'text-3xl font-bold',
-                            scores.indicators.test_maturity === null
-                              ? 'text-muted-foreground'
-                              : scores.indicators.test_maturity >= (getTarget('target_test_maturity') ?? 60) / 100
-                              ? 'text-score-green'
-                              : scores.indicators.test_maturity >= (getTarget('target_test_maturity') ?? 60) / 100 * 0.9
-                              ? 'text-score-yellow'
-                              : 'text-score-red'
-                          )}>
-                            {scores.indicators.test_maturity !== null
-                              ? (scores.indicators.test_maturity * 100).toFixed(0) + '%'
-                              : '—'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                          <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≥{getTarget('target_test_maturity') ?? 60}%
-                          </span>
-                        </div>
-                        {metrics?.test_maturity && (
-                          <div className="space-y-1 pt-2 border-t border-border/50">
-                            {([
-                              { key: 'e2e', label: 'E2E' },
-                              { key: 'unit', label: 'Unit' },
-                              { key: 'accessibility', label: 'Accessibility' },
-                              { key: 'security', label: 'Security' },
-                              { key: 'frontend', label: 'Frontend' },
-                            ] as const).map(({ key, label }) => {
-                              const value = metrics.test_maturity?.[key];
-                              const levelLabel = value === 0 ? 'None' : value === 1 ? 'Minimal' : value === 3 ? 'Adequate' : value === 5 ? 'Comprehensive' : '—';
-                              return (
-                                <div key={key} className="flex justify-between text-xs">
-                                  <span className="text-muted-foreground">{label}</span>
-                                  <span className={cn(
-                                    value === 5 ? 'text-score-green' :
-                                    value === 3 ? 'text-score-yellow' :
-                                    value === 1 ? 'text-orange-600' :
-                                    value === 0 ? 'text-score-red' : ''
-                                  )}>
-                                    {levelLabel}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isEditingTestMaturity && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setTestMaturityForm(metrics?.test_maturity ?? {});
-                        setIsEditingTestMaturity(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.test_maturity ? 'Edit' : 'Add'} Assessment
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-              {/* Architecture Checklist - Editable */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Architecture Checklist</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Documentation & infrastructure practices
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-mono text-xs">score = yes_count / 4</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                    {isEditingArchitecture ? (
-                      <div className="space-y-4">
-                        {([
-                          { key: 'docs_up_to_date', label: 'Architecture documentation is up to date', description: 'The overall structure of the system is clearly defined and reflects current implementation' },
-                          { key: 'iac_implemented', label: 'Infrastructure as Code implemented', description: 'All infrastructure is reproducible through code, ensuring consistency and version control' },
-                          { key: 'adrs_maintained', label: 'Architecture Decision Records maintained', description: 'Important technical decisions and their rationale are recorded' },
-                          { key: 'diagrams_updated', label: 'System/dependency diagrams updated', description: 'Relationships between services and modules are documented accurately' },
-                        ] as const).map(({ key, label, description }) => (
-                          <div key={key}>
-                            <label className="text-sm font-medium text-muted-foreground">{label}</label>
-                            <p className="text-xs text-muted-foreground mb-2">{description}</p>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant={architectureForm[key] === true ? 'default' : 'outline'}
-                                onClick={() => setArchitectureForm(prev => ({ ...prev, [key]: true }))}
-                                className="flex-1"
-                              >
-                                Yes
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={architectureForm[key] === false ? 'default' : 'outline'}
-                                onClick={() => setArchitectureForm(prev => ({ ...prev, [key]: false }))}
-                                className="flex-1"
-                              >
-                                No
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              await updateArchitecture.mutateAsync(architectureForm);
-                              setIsEditingArchitecture(false);
-                            }}
-                            disabled={updateArchitecture.isPending}
-                          >
-                            {updateArchitecture.isPending ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setIsEditingArchitecture(false);
-                              setArchitectureForm(metrics?.architecture ?? {
-                                docs_up_to_date: false,
-                                iac_implemented: false,
-                                adrs_maintained: false,
-                                diagrams_updated: false,
-                              });
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Score
-                          </span>
-                          <span className={cn(
-                            'text-3xl font-bold',
-                            scores.indicators.arch_checklist === null
-                              ? 'text-muted-foreground'
-                              : scores.indicators.arch_checklist >= (getTarget('target_architecture') ?? 100) / 100
-                              ? 'text-score-green'
-                              : scores.indicators.arch_checklist >= (getTarget('target_architecture') ?? 100) / 100 * 0.9
-                              ? 'text-score-yellow'
-                              : 'text-score-red'
-                          )}>
-                            {scores.indicators.arch_checklist !== null
-                              ? (scores.indicators.arch_checklist * 100).toFixed(0) + '%'
-                              : '—'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                          <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≥{getTarget('target_architecture') ?? 100}%
-                          </span>
-                        </div>
-                        {metrics?.architecture && (
-                          <div className="space-y-1 pt-2 border-t border-border/50">
-                            {([
-                              { key: 'docs_up_to_date', label: 'Docs up to date' },
-                              { key: 'iac_implemented', label: 'IaC implemented' },
-                              { key: 'adrs_maintained', label: 'ADRs maintained' },
-                              { key: 'diagrams_updated', label: 'Diagrams updated' },
-                            ] as const).map(({ key, label }) => (
-                              <div key={key} className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">{label}</span>
-                                <span className={metrics.architecture?.[key] ? 'text-score-green' : 'text-score-red'}>
-                                  {metrics.architecture?.[key] ? 'Yes' : 'No'}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isEditingArchitecture && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setArchitectureForm(metrics?.architecture ?? {
-                          docs_up_to_date: false,
-                          iac_implemented: false,
-                          adrs_maintained: false,
-                          diagrams_updated: false,
-                        });
-                        setIsEditingArchitecture(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      {metrics?.architecture ? 'Edit' : 'Add'} Checklist
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+              <GovernanceCard
+                value={metrics?.governance_exceptions}
+                target={getTarget('target_gov_exceptions') ?? 2}
+                onSave={(value) => updateGovernance.mutateAsync(value)}
+                isPending={updateGovernance.isPending}
+              />
+              <PMSatisfactionCard
+                data={metrics?.pm_satisfaction}
+                indicatorValue={scores.indicators.pm_satisfaction}
+                target={getTarget('target_pm_satisfaction') ?? 90}
+                onSave={(data) => updatePMSatisfaction.mutateAsync(data)}
+                isPending={updatePMSatisfaction.isPending}
+              />
+              <StrategicImpactCard
+                value={metrics?.strategic_impact}
+                onSave={(value) => updateStrategicImpact.mutateAsync(value)}
+                isPending={updateStrategicImpact.isPending}
+              />
+              <TestMaturityCard
+                data={metrics?.test_maturity}
+                indicatorValue={scores.indicators.test_maturity}
+                target={getTarget('target_test_maturity') ?? 60}
+                onSave={(data) => updateTestMaturity.mutateAsync(data)}
+                isPending={updateTestMaturity.isPending}
+              />
+              <ArchitectureCard
+                data={metrics?.architecture}
+                indicatorValue={scores.indicators.arch_checklist}
+                target={getTarget('target_architecture') ?? 100}
+                onSave={(data) => updateArchitecture.mutateAsync(data)}
+                isPending={updateArchitecture.isPending}
+              />
               <SubIndicatorCard
                 title="Lead Time"
                 indicatorValue={scores.indicators.lead_time_days}
@@ -1732,179 +925,14 @@ export default function ProjectDetail(): JSX.Element {
                   ]}
                 />
               )}
-              {/* Client Satisfaction Survey - Muted when in progress */}
-              <Card className={cn(project.status === 'in_progress' && 'opacity-60')}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Client Satisfaction Survey</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {project.status === 'in_progress'
-                          ? 'Available when project is finished'
-                          : 'End-of-project client feedback (1-5 scale)'}
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="text-sm">
-                            Weighted average of 8 questions.
-                            Quality has highest weight (24%), followed by Time (14%).
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {project.status === 'in_progress' ? (
-                    <div className="p-4 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30 text-center">
-                      <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">
-                        This survey will be available once the project is marked as finished
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-                        {isEditingClientSurvey ? (
-                          <div className="space-y-4">
-                            {([
-                              { key: 'understanding', label: 'Understanding of needs', weight: '12%' },
-                              { key: 'proactivity', label: 'Proactivity', weight: '12%' },
-                              { key: 'communication', label: 'Communication', weight: '10%' },
-                              { key: 'delivery_time', label: 'Delivery time', weight: '14%' },
-                              { key: 'response_time', label: 'Response time', weight: '10%' },
-                              { key: 'quality', label: 'Quality of deliverables', weight: '24%' },
-                              { key: 'expectations', label: 'Met expectations', weight: '12%' },
-                              { key: 'recommend', label: 'Would recommend', weight: '6%' },
-                            ] as const).map(({ key, label, weight }) => (
-                              <div key={key}>
-                                <div className="flex justify-between items-center mb-1">
-                                  <label className="text-sm font-medium text-muted-foreground">{label}</label>
-                                  <span className="text-xs text-muted-foreground">Weight: {weight}</span>
-                                </div>
-                                <div className="flex gap-1">
-                                  {[1, 2, 3, 4, 5].map((value) => (
-                                    <Button
-                                      key={value}
-                                      size="sm"
-                                      variant={clientSurveyForm[key] === value ? 'default' : 'outline'}
-                                      onClick={() => setClientSurveyForm(prev => ({ ...prev, [key]: value }))}
-                                      className="flex-1"
-                                    >
-                                      {value}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                            <div className="flex gap-2 pt-2">
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  await updateClientSurvey.mutateAsync(clientSurveyForm);
-                                  setIsEditingClientSurvey(false);
-                                }}
-                                disabled={updateClientSurvey.isPending}
-                              >
-                                {updateClientSurvey.isPending ? 'Saving...' : 'Save'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setIsEditingClientSurvey(false);
-                                  setClientSurveyForm(metrics?.client_survey ?? {});
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-muted-foreground">
-                                Weighted Score
-                              </span>
-                              <span className={cn(
-                                'text-2xl font-bold',
-                                scores.indicators.client_satisfaction === null
-                                  ? 'text-muted-foreground'
-                                  : scores.indicators.client_satisfaction >= (getTarget('target_client_satisfaction') ?? 80) / 100
-                                  ? 'text-score-green'
-                                  : scores.indicators.client_satisfaction >= (getTarget('target_client_satisfaction') ?? 80) / 100 * 0.9
-                                  ? 'text-score-yellow'
-                                  : 'text-score-red'
-                              )}>
-                                {scores.indicators.client_satisfaction !== null
-                                  ? `${Math.round(scores.indicators.client_satisfaction * 100)}%`
-                                  : '—'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                              <span className="text-xs text-muted-foreground">KPI</span>
-                              <span className="text-sm text-foreground">
-                                ≥{getTarget('target_client_satisfaction') ?? 80}%
-                              </span>
-                            </div>
-                            {metrics?.client_survey && (
-                              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
-                                {([
-                                  { key: 'understanding', label: 'Understanding' },
-                                  { key: 'proactivity', label: 'Proactivity' },
-                                  { key: 'communication', label: 'Communication' },
-                                  { key: 'delivery_time', label: 'Delivery' },
-                                  { key: 'response_time', label: 'Response' },
-                                  { key: 'quality', label: 'Quality' },
-                                  { key: 'expectations', label: 'Expectations' },
-                                  { key: 'recommend', label: 'Recommend' },
-                                ] as const).map(({ key, label }) => {
-                                  const value = metrics.client_survey?.[key];
-                                  return (
-                                    <div key={key} className="flex justify-between text-xs">
-                                      <span className="text-muted-foreground">{label}</span>
-                                      <span className={cn(
-                                        value === 5 ? 'text-score-green' :
-                                        value === 4 ? 'text-blue-600' :
-                                        value === 3 ? 'text-score-yellow' :
-                                        value === 2 ? 'text-orange-600' :
-                                        value === 1 ? 'text-score-red' : ''
-                                      )}>
-                                        {value ?? '—'}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      {!isEditingClientSurvey && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            setClientSurveyForm(metrics?.client_survey ?? {});
-                            setIsEditingClientSurvey(true);
-                          }}
-                        >
-                          <Pencil className="w-4 h-4 mr-2" />
-                          {metrics?.client_survey ? 'Edit' : 'Add'} Survey Results
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <ClientSurveyCard
+                data={metrics?.client_survey}
+                indicatorValue={scores.indicators.client_satisfaction}
+                target={getTarget('target_client_satisfaction') ?? 80}
+                projectStatus={project.status}
+                onSave={(data) => updateClientSurvey.mutateAsync(data)}
+                isPending={updateClientSurvey.isPending}
+              />
             </div>
           </div>
         </>

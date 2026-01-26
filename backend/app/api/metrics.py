@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
-from app.core.exceptions import MetricsNotFoundError, ProjectNotFoundError
+from app.core.exceptions import MetricsNotFoundError
 from app.models.metrics import Metrics, MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
 

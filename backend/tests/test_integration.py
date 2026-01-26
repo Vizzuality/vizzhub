@@ -207,8 +207,8 @@ class TestConfigLoadingIntegration:
         self, db_session: AsyncSession, scoring_config: ScoringConfig
     ) -> None:
         """Verify scoring config targets are loaded from database."""
-        assert scoring_config.get_target("spi") == 1.0
-        assert scoring_config.get_target("cpi") == 1.0
+        assert scoring_config.get_target("spi") == 0.8
+        assert scoring_config.get_target("cpi") == 0.8
         assert scoring_config.get_target("lead_time_days") == 3.0
         assert scoring_config.get_target("mttr_hours") == 24.0
 
@@ -433,14 +433,9 @@ class TestMetricsConsolidationIntegration:
 # =============================================================================
 
 class TestProjectStatusIntegration:
-    """Test project status affects collectors and metrics.
-
-    NOTE: These tests are marked as xfail until the project status blocking
-    feature is implemented (see plan: parsed-greeting-glade.md).
-    """
+    """Test project status affects collectors and metrics."""
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Project status blocking not implemented yet")
     async def test_finished_project_blocks_jira_collector(
         self,
         client: AsyncClient,
@@ -459,13 +454,12 @@ class TestProjectStatusIntegration:
         db_session.add(project)
         await db_session.commit()
 
-        response = await client.post(f"/api/collect/jira/{project.id}")
+        response = await client.post(f"/api/collect/project/{project.id}/jira")
 
         assert response.status_code == 400
         assert "finished" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Project status blocking not implemented yet")
     async def test_finished_project_blocks_github_collector(
         self,
         client: AsyncClient,
@@ -483,7 +477,7 @@ class TestProjectStatusIntegration:
         db_session.add(project)
         await db_session.commit()
 
-        response = await client.post(f"/api/collect/github/{project.id}")
+        response = await client.post(f"/api/collect/project/{project.id}/github")
 
         assert response.status_code == 400
         assert "finished" in response.json()["detail"].lower()
@@ -497,14 +491,13 @@ class TestProjectStatusIntegration:
         """Verify collectors work for in_progress projects (may fail for other reasons)."""
         # This will likely fail due to missing Jira/GitHub credentials,
         # but should NOT fail with "finished project" error
-        response = await client.post(f"/api/collect/jira/{test_project.id}")
+        response = await client.post(f"/api/collect/project/{test_project.id}/jira")
 
         # Should not be 400 with "finished" message
         if response.status_code == 400:
             assert "finished" not in response.json().get("detail", "").lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Project status blocking not implemented yet")
     async def test_project_status_change_affects_collectors(
         self,
         client: AsyncClient,
@@ -520,7 +513,7 @@ class TestProjectStatusIntegration:
         assert response.status_code == 200
 
         # Now collectors should be blocked
-        response = await client.post(f"/api/collect/jira/{test_project.id}")
+        response = await client.post(f"/api/collect/project/{test_project.id}/jira")
         assert response.status_code == 400
         assert "finished" in response.json()["detail"].lower()
 
@@ -1045,7 +1038,7 @@ class TestConfigHotReloadIntegration:
         # These values should match config_parameters.csv
         assert scoring_config.get_weight("global", "time") == 0.12
         assert scoring_config.get_weight("global", "quality") == 0.205
-        assert scoring_config.get_target("spi") == 1.0
+        assert scoring_config.get_target("spi") == 0.8
         assert scoring_config.get_constant("sev1_cap") == 60.0
 
 
@@ -1234,3 +1227,472 @@ class TestCollectorPipelineIntegration:
         # Should have indicators from both sources
         assert indicators.get("lead_time_days") is not None, "Should have Jira lead_time_days"
         assert indicators.get("pr_review_ratio") is not None, "Should have GitHub pr_review_ratio"
+
+
+# =============================================================================
+# 14. End-of-Project Metrics Integration Tests
+# =============================================================================
+
+class TestEndOfProjectMetricsIntegration:
+    """Test strategic_impact and client_survey end-of-project metrics."""
+
+    @pytest.mark.asyncio
+    async def test_strategic_impact_affects_p_value_score(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify strategic_impact is reflected in P_value calculation."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        # Create metrics with high strategic impact
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "strategic_impact": "transformational",
+            },
+        )
+        assert response.status_code == 201
+
+        # Get scores
+        response = await client.get(f"/api/scores/project/{test_project.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        indicators = data["indicators"]
+
+        # OKR impact should reflect transformational = 1.0
+        assert indicators.get("okr_impact") is not None
+        assert indicators["okr_impact"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_strategic_impact_low_value(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify low strategic_impact produces lower score."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "strategic_impact": "low",
+            },
+        )
+        assert response.status_code == 201
+
+        response = await client.get(f"/api/scores/project/{test_project.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        indicators = data["indicators"]
+
+        # OKR impact should reflect low = 0.25
+        assert indicators.get("okr_impact") == 0.25
+
+    @pytest.mark.asyncio
+    async def test_client_survey_affects_p_satisfaction(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify client_survey data affects P_satisfaction calculation."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        # Create metrics with perfect client survey
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "client_survey": {
+                    "understanding": 5,
+                    "proactivity": 5,
+                    "communication": 5,
+                    "delivery_time": 5,
+                    "response_time": 5,
+                    "quality": 5,
+                    "expectations": 5,
+                    "recommend": 5,
+                },
+            },
+        )
+        assert response.status_code == 201
+
+        response = await client.get(f"/api/scores/project/{test_project.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        indicators = data["indicators"]
+
+        # Client satisfaction should be 1.0 (all 5s = 100%)
+        assert indicators.get("client_satisfaction") is not None
+        assert indicators["client_satisfaction"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_client_survey_weighted_average(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify client_survey uses weighted average calculation."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        # Create metrics with mixed ratings
+        # Quality has 24% weight, so rating of 5 there should have more impact
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "client_survey": {
+                    "understanding": 3,    # 12%
+                    "proactivity": 3,      # 12%
+                    "communication": 3,    # 10%
+                    "delivery_time": 3,    # 14%
+                    "response_time": 3,    # 10%
+                    "quality": 5,          # 24% - highest weight
+                    "expectations": 3,     # 12%
+                    "recommend": 3,        # 6%
+                },
+            },
+        )
+        assert response.status_code == 201
+
+        response = await client.get(f"/api/scores/project/{test_project.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        indicators = data["indicators"]
+
+        # Should be higher than (3/5 = 0.6) due to quality weight
+        client_sat = indicators.get("client_satisfaction")
+        assert client_sat is not None
+        assert client_sat > 0.6  # Must be above average due to high quality score
+
+
+# =============================================================================
+# 15. Finished Project Metrics Restrictions Integration Tests
+# =============================================================================
+
+class TestFinishedProjectMetricsRestrictions:
+    """Test that finished projects only allow end-of-project metrics."""
+
+    @pytest_asyncio.fixture
+    async def finished_project(self, db_session: AsyncSession) -> ProjectDB:
+        """Create a finished project."""
+        project = ProjectDB(
+            id=str(uuid4()),
+            name="Finished Integration Project",
+            jira_project_key="FIP",
+            github_repo="test/finished-project",
+            start_date=date.today() - timedelta(days=180),
+            end_date=date.today() - timedelta(days=30),
+            status="finished",
+        )
+        db_session.add(project)
+        await db_session.commit()
+        await db_session.refresh(project)
+        return project
+
+    @pytest.mark.asyncio
+    async def test_finished_project_allows_strategic_impact(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects allow strategic_impact updates."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "strategic_impact": "high",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["strategic_impact"] == "high"
+
+    @pytest.mark.asyncio
+    async def test_finished_project_allows_client_survey(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects allow client_survey updates."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "client_survey": {
+                    "understanding": 4,
+                    "proactivity": 4,
+                    "communication": 5,
+                    "delivery_time": 4,
+                    "response_time": 4,
+                    "quality": 5,
+                    "expectations": 4,
+                    "recommend": 5,
+                },
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["client_survey"]["quality"] == 5
+
+    @pytest.mark.asyncio
+    async def test_finished_project_blocks_evm_data(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects block EVM data updates."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "evm_data": {
+                    "budget_total": 100000.0,
+                    "cost_to_date": 50000.0,
+                    "percent_completed": 0.5,
+                    "percent_planned": 0.5,
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        assert "finished" in response.json()["detail"].lower()
+        assert "evm_data" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_finished_project_blocks_jira_defects(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects block Jira defect metrics."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "jira_defects": {
+                    "bugs_total": 10,
+                    "tasks_completed": 50,
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        assert "finished" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_finished_project_blocks_github_metrics(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects block GitHub metrics."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "github_metrics": {
+                    "total_merged_prs": 100,
+                    "prs_without_review": 5,
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        assert "finished" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_finished_project_blocks_governance_exceptions(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects block governance_exceptions updates."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "governance_exceptions": 2,
+            },
+        )
+
+        assert response.status_code == 400
+        assert "finished" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_finished_project_allows_combined_end_of_project_metrics(
+        self,
+        client: AsyncClient,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify finished projects allow both strategic_impact and client_survey together."""
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "strategic_impact": "transformational",
+                "client_survey": {
+                    "understanding": 5,
+                    "proactivity": 5,
+                    "communication": 5,
+                    "delivery_time": 5,
+                    "response_time": 5,
+                    "quality": 5,
+                    "expectations": 5,
+                    "recommend": 5,
+                },
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["strategic_impact"] == "transformational"
+        assert data["client_survey"]["quality"] == 5
+
+    @pytest.mark.asyncio
+    async def test_reopen_project_allows_regular_metrics(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        finished_project: ProjectDB,
+    ) -> None:
+        """Verify reopening a project allows regular metrics again."""
+        # First, reopen the project
+        response = await client.patch(
+            f"/api/projects/{finished_project.id}",
+            json={"status": "in_progress"},
+        )
+        assert response.status_code == 200
+
+        # Now regular metrics should be allowed
+        response = await client.post(
+            f"/api/metrics/project/{finished_project.id}",
+            json={
+                "period_start": str(date.today() - timedelta(days=30)),
+                "period_end": str(date.today()),
+                "governance_exceptions": 1,
+            },
+        )
+
+        assert response.status_code == 201
+
+
+# =============================================================================
+# 16. P_satisfaction Combined Calculation Integration Tests
+# =============================================================================
+
+class TestPSatisfactionCombinedCalculation:
+    """Test P_satisfaction calculation with both PM and client satisfaction."""
+
+    @pytest.mark.asyncio
+    async def test_pm_satisfaction_only(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify P_satisfaction uses only PM when client_survey is absent."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "pm_satisfaction": {
+                    "delivery_complaints": "no",
+                    "design_complaints": "no",
+                    "overall_estimation": 5,
+                },
+            },
+        )
+        assert response.status_code == 201
+
+        response = await client.get(f"/api/scores/project/{test_project.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        indicators = data["indicators"]
+
+        # PM satisfaction should be calculated
+        assert indicators.get("pm_satisfaction") is not None
+        # Client satisfaction should be None
+        assert indicators.get("client_satisfaction") is None
+
+    @pytest.mark.asyncio
+    async def test_both_pm_and_client_satisfaction(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify P_satisfaction combines both when client_survey exists."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "pm_satisfaction": {
+                    "delivery_complaints": "no",
+                    "design_complaints": "no",
+                    "overall_estimation": 5,
+                },
+                "client_survey": {
+                    "understanding": 5,
+                    "proactivity": 5,
+                    "communication": 5,
+                    "delivery_time": 5,
+                    "response_time": 5,
+                    "quality": 5,
+                    "expectations": 5,
+                    "recommend": 5,
+                },
+            },
+        )
+        assert response.status_code == 201
+
+        response = await client.get(f"/api/scores/project/{test_project.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        indicators = data["indicators"]
+
+        # Both should be present
+        assert indicators.get("pm_satisfaction") is not None
+        assert indicators.get("client_satisfaction") is not None
+
+        # P_satisfaction score should be high
+        dimensions = data["scores"]["dimensions"]
+        assert dimensions["p_satisfaction"] is not None
+        assert dimensions["p_satisfaction"] >= 90  # Should be high with perfect scores

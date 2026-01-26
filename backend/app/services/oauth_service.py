@@ -100,7 +100,7 @@ class OAuthService:
         )
 
         db.add(oauth_token)
-        await db.commit()
+        await db.flush()
         await db.refresh(oauth_token)
 
         return oauth_token
