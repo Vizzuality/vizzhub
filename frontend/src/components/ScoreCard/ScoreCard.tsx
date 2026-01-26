@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useScoreThresholds } from '@/hooks/useConfig';
+import { getScoreColor, getScoreBgColor } from '@/utils/scoreColors';
 
 interface ScoreCardProps {
   score: FinalScore;
@@ -14,20 +15,6 @@ interface ScoreCardProps {
 
 export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardProps): JSX.Element {
   const thresholds = useScoreThresholds();
-
-  const getScoreColor = (value: number | null): string => {
-    if (value === null) return 'text-muted-foreground';
-    if (value >= thresholds.green) return 'text-score-green';
-    if (value >= thresholds.yellow) return 'text-score-yellow';
-    return 'text-score-red';
-  };
-
-  const getScoreBgColor = (value: number | null): string => {
-    if (value === null) return 'bg-muted';
-    if (value >= thresholds.green) return 'bg-score-green-bg';
-    if (value >= thresholds.yellow) return 'bg-score-yellow-bg';
-    return 'bg-score-red-bg';
-  };
 
   return (
     <Card>
@@ -38,9 +25,9 @@ export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardP
       <CardContent>
         <div className="flex items-center justify-center mb-6">
           <div
-            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor(score.score)}`}
+            className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor(score.score, thresholds)}`}
           >
-            <span className={`text-5xl font-semibold ${getScoreColor(score.score)}`}>
+            <span className={`text-5xl font-semibold ${getScoreColor(score.score, thresholds)}`}>
               {score.score}
             </span>
           </div>
@@ -68,17 +55,10 @@ interface DimensionBadgeProps {
 }
 
 function DimensionBadge({ label, score, thresholds }: DimensionBadgeProps): JSX.Element {
-  const getScoreColor = (value: number | null): string => {
-    if (value === null) return 'text-muted-foreground';
-    if (value >= thresholds.green) return 'text-score-green';
-    if (value >= thresholds.yellow) return 'text-score-yellow';
-    return 'text-score-red';
-  };
-
   return (
     <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
       <span className="text-base text-muted-foreground">{label}</span>
-      <span className={`text-lg font-medium ${getScoreColor(score)}`}>
+      <span className={`text-lg font-medium ${getScoreColor(score, thresholds)}`}>
         {score !== null ? score : '—'}
       </span>
     </div>

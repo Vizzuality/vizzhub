@@ -6,7 +6,6 @@ Targets,target_spi,0.8,ratio,Target schedule performance index (80%). Used in P_
 Targets,target_cpi,0.8,ratio,Target cost performance index (80%). Used in P_cost.
 Targets,target_milestones_on_time,85,%,Target % of milestones completed on time. Used in P_time.
 Targets,target_lead_time_days,3,days,Target maximum lead time in business days. Used in P_flow.
-Targets,target_flow_efficiency,40,%,Target flow efficiency. Currently unused.
 Targets,target_high_vuln_count,0,count,Target max high-severity vulnerabilities open >30 days (0 = strict mode). Used in P_risk.
 Targets,target_gov_exceptions,2,count,Max tolerated governance exceptions. Used in P_quality.
 Targets,target_pr_no_review_ratio,2,%,Target max PRs without review. Used in P_risk.

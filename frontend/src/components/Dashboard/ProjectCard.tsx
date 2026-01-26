@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '../../types';
 import { formatDate } from '../../utils/formatters';
+import { getScoreColor } from '../../utils/scoreColors';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -23,16 +24,10 @@ function ScoreBadge({ score, thresholds }: { score: number | null | undefined; t
     );
   }
 
-  const getScoreColor = (s: number): string => {
-    if (s >= thresholds.green) return 'text-score-green';
-    if (s >= thresholds.yellow) return 'text-score-yellow';
-    return 'text-score-red';
-  };
-
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-muted-foreground">Score:</span>
-      <span className={cn("text-2xl font-bold", getScoreColor(score))}>{Math.round(score)}</span>
+      <span className={cn("text-2xl font-bold", getScoreColor(score, thresholds))}>{Math.round(score)}</span>
     </div>
   );
 }
