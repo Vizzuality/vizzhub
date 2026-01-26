@@ -76,9 +76,9 @@ describe('ScoreCard', () => {
     const { container } = render(<ScoreCard score={highScore} />);
 
     const scoreElement = screen.getByText('87');
-    expect(scoreElement.className).toContain('text-green-600');
+    expect(scoreElement.className).toContain('text-score-green');
 
-    const bgElements = container.querySelectorAll('[class*="bg-green"]');
+    const bgElements = container.querySelectorAll('[class*="bg-score-green"]');
     expect(bgElements.length).toBeGreaterThan(0);
   });
 
@@ -147,13 +147,13 @@ describe('ScoreCard', () => {
     render(<ScoreCard score={mixedScore} />);
 
     const timeScore = screen.getByText('90');
-    expect(timeScore.className).toContain('text-green-600');  // >=80 = green
+    expect(timeScore.className).toContain('text-score-green');  // >=80 = green
 
     const costScore = screen.getByText('70');
-    expect(costScore.className).toContain('text-yellow-600');  // >=60 = yellow
+    expect(costScore.className).toContain('text-score-yellow');  // >=60 = yellow
 
     const qualityScore = screen.getByText('50');
-    expect(qualityScore.className).toContain('text-red-600');  // <60 = red
+    expect(qualityScore.className).toContain('text-score-red');  // <60 = red
   });
 
   it('shows dash for null dimension scores', () => {

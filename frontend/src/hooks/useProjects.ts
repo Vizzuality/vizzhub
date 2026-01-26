@@ -1,17 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectsApi } from '../services/api';
 import type { ProjectCreate, ProjectUpdate, ProjectStatus } from '../types';
+import { queryKeys } from './queryKeys';
 
 export function useProjects() {
   return useQuery({
-    queryKey: ['projects'],
+    queryKey: queryKeys.projects.all,
     queryFn: projectsApi.list,
   });
 }
 
 export function useProject(id: string) {
   return useQuery({
-    queryKey: ['projects', id],
+    queryKey: queryKeys.projects.detail(id),
     queryFn: () => projectsApi.get(id),
     enabled: !!id,
   });
@@ -23,7 +24,7 @@ export function useCreateProject() {
   return useMutation({
     mutationFn: (data: ProjectCreate) => projectsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
   });
 }
@@ -34,8 +35,8 @@ export function useUpdateProject(id: string) {
   return useMutation({
     mutationFn: (data: ProjectUpdate) => projectsApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(id) });
     },
   });
 }
@@ -46,8 +47,8 @@ export function useReplaceProject(id: string) {
   return useMutation({
     mutationFn: (data: ProjectCreate) => projectsApi.replace(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(id) });
     },
   });
 }
@@ -58,7 +59,7 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (id: string) => projectsApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
   });
 }
@@ -69,8 +70,8 @@ export function useUpdateProjectStatus(id: string) {
   return useMutation({
     mutationFn: (status: ProjectStatus) => projectsApi.update(id, { status }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(id) });
     },
   });
 }

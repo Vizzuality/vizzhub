@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import type { ConfigParameter, ConfigParameterUpdate, ValidationResponse } from '../types/config';
+import { queryKeys } from './queryKeys';
 
 export function useConfigParameters() {
   return useQuery<Record<string, ConfigParameter[]>>({
-    queryKey: ['config', 'parameters'],
+    queryKey: queryKeys.config.parameters,
     queryFn: async () => {
       const response = await api.get('/config/parameters');
       return response.data;
@@ -14,7 +15,7 @@ export function useConfigParameters() {
 
 export function useConfigValidation() {
   return useQuery<ValidationResponse>({
-    queryKey: ['config', 'validation'],
+    queryKey: queryKeys.config.validation,
     queryFn: async () => {
       const response = await api.get('/config/validate');
       return response.data;
@@ -31,8 +32,8 @@ export function useUpdateConfigParameters() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] });
-      queryClient.invalidateQueries({ queryKey: ['scores'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
     },
   });
 }

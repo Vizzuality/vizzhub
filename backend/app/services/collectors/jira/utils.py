@@ -7,23 +7,10 @@ Jira collector modules to avoid duplication.
 
 from datetime import datetime, timedelta
 
+from app.services.collectors.utils import parse_iso_datetime
 
-def parse_jira_datetime(dt_str: str | None) -> datetime | None:
-    """
-    Parse Jira datetime string to datetime object.
-
-    Args:
-        dt_str: ISO format datetime string from Jira API
-
-    Returns:
-        datetime object or None if parsing fails
-    """
-    if not dt_str:
-        return None
-    try:
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return None
+# Re-export for backwards compatibility
+parse_jira_datetime = parse_iso_datetime
 
 
 def business_time_diff(

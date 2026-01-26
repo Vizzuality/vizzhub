@@ -1,6 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import type { MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
+import { queryKeys } from './queryKeys';
 
 interface Metrics extends MetricsCreate {
   id: string;
@@ -10,7 +11,7 @@ interface Metrics extends MetricsCreate {
 
 export function useProjectMetrics(projectId: string) {
   return useQuery({
-    queryKey: ['metrics', projectId],
+    queryKey: queryKeys.metrics.byProject(projectId),
     queryFn: async (): Promise<Metrics | null> => {
       try {
         const response = await api.get<Metrics[]>(`/metrics/project/${projectId}`);
@@ -38,106 +39,70 @@ export function useCreateMetrics(projectId: string) {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
+    },
+  });
+}
+
+type MetricsField = keyof Omit<MetricsCreate, 'period_start' | 'period_end' | 'sev1_incident'>;
+
+function createMetricsMutation<T>(
+  projectId: string,
+  existingMetrics: Metrics | null,
+  fieldName: MetricsField,
+  queryClient: QueryClient,
+) {
+  return async (value: T): Promise<Metrics> => {
+    const today = new Date().toISOString().split('T')[0];
+    const metrics: MetricsCreate = {
+      period_start: existingMetrics?.period_start ?? today,
+      period_end: today,
+      evm_data: existingMetrics?.evm_data,
+      milestones: existingMetrics?.milestones,
+      jira_defects: existingMetrics?.jira_defects,
+      flow_metrics: existingMetrics?.flow_metrics,
+      github_metrics: existingMetrics?.github_metrics,
+      test_maturity: existingMetrics?.test_maturity,
+      architecture: existingMetrics?.architecture,
+      pm_satisfaction: existingMetrics?.pm_satisfaction,
+      client_survey: existingMetrics?.client_survey,
+      strategic_impact: existingMetrics?.strategic_impact,
+      governance_exceptions: existingMetrics?.governance_exceptions,
+      sev1_incident: existingMetrics?.sev1_incident ?? false,
+      [fieldName]: value,
+    };
+    const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
+    return response.data;
+  };
+}
+
+function useMetricsFieldMutation<T>(
+  projectId: string,
+  existingMetrics: Metrics | null,
+  fieldName: MetricsField,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createMetricsMutation<T>(projectId, existingMetrics, fieldName, queryClient),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
     },
   });
 }
 
 export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (evmData: EVMData): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        evm_data: evmData,
-        milestones: existingMetrics?.milestones,
-        jira_defects: existingMetrics?.jira_defects,
-        flow_metrics: existingMetrics?.flow_metrics,
-        github_metrics: existingMetrics?.github_metrics,
-        test_maturity: existingMetrics?.test_maturity,
-        architecture: existingMetrics?.architecture,
-        pm_satisfaction: existingMetrics?.pm_satisfaction,
-        client_survey: existingMetrics?.client_survey,
-        strategic_impact: existingMetrics?.strategic_impact,
-        governance_exceptions: existingMetrics?.governance_exceptions,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<EVMData>(projectId, existingMetrics, 'evm_data');
 }
 
 export function useUpdateMilestones(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (milestones: Milestone[]): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        evm_data: existingMetrics?.evm_data,
-        milestones: milestones,
-        jira_defects: existingMetrics?.jira_defects,
-        flow_metrics: existingMetrics?.flow_metrics,
-        github_metrics: existingMetrics?.github_metrics,
-        test_maturity: existingMetrics?.test_maturity,
-        architecture: existingMetrics?.architecture,
-        pm_satisfaction: existingMetrics?.pm_satisfaction,
-        client_survey: existingMetrics?.client_survey,
-        strategic_impact: existingMetrics?.strategic_impact,
-        governance_exceptions: existingMetrics?.governance_exceptions,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<Milestone[]>(projectId, existingMetrics, 'milestones');
 }
 
 export function useUpdateGovernance(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (governanceExceptions: number): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        evm_data: existingMetrics?.evm_data,
-        milestones: existingMetrics?.milestones,
-        jira_defects: existingMetrics?.jira_defects,
-        flow_metrics: existingMetrics?.flow_metrics,
-        github_metrics: existingMetrics?.github_metrics,
-        test_maturity: existingMetrics?.test_maturity,
-        architecture: existingMetrics?.architecture,
-        pm_satisfaction: existingMetrics?.pm_satisfaction,
-        client_survey: existingMetrics?.client_survey,
-        strategic_impact: existingMetrics?.strategic_impact,
-        governance_exceptions: governanceExceptions,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<number>(projectId, existingMetrics, 'governance_exceptions');
 }
 
 interface PMSatisfactionInput {
@@ -147,35 +112,7 @@ interface PMSatisfactionInput {
 }
 
 export function useUpdatePMSatisfaction(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (pmSatisfaction: PMSatisfactionInput): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        evm_data: existingMetrics?.evm_data,
-        milestones: existingMetrics?.milestones,
-        jira_defects: existingMetrics?.jira_defects,
-        flow_metrics: existingMetrics?.flow_metrics,
-        github_metrics: existingMetrics?.github_metrics,
-        test_maturity: existingMetrics?.test_maturity,
-        architecture: existingMetrics?.architecture,
-        pm_satisfaction: pmSatisfaction,
-        client_survey: existingMetrics?.client_survey,
-        strategic_impact: existingMetrics?.strategic_impact,
-        governance_exceptions: existingMetrics?.governance_exceptions,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<PMSatisfactionInput>(projectId, existingMetrics, 'pm_satisfaction');
 }
 
 interface TestMaturityInput {
@@ -187,35 +124,7 @@ interface TestMaturityInput {
 }
 
 export function useUpdateTestMaturity(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (testMaturity: TestMaturityInput): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        evm_data: existingMetrics?.evm_data,
-        milestones: existingMetrics?.milestones,
-        jira_defects: existingMetrics?.jira_defects,
-        flow_metrics: existingMetrics?.flow_metrics,
-        github_metrics: existingMetrics?.github_metrics,
-        test_maturity: testMaturity,
-        architecture: existingMetrics?.architecture,
-        pm_satisfaction: existingMetrics?.pm_satisfaction,
-        client_survey: existingMetrics?.client_survey,
-        strategic_impact: existingMetrics?.strategic_impact,
-        governance_exceptions: existingMetrics?.governance_exceptions,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<TestMaturityInput>(projectId, existingMetrics, 'test_maturity');
 }
 
 interface ArchitectureInput {
@@ -226,58 +135,11 @@ interface ArchitectureInput {
 }
 
 export function useUpdateArchitecture(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (architecture: ArchitectureInput): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        evm_data: existingMetrics?.evm_data,
-        milestones: existingMetrics?.milestones,
-        jira_defects: existingMetrics?.jira_defects,
-        flow_metrics: existingMetrics?.flow_metrics,
-        github_metrics: existingMetrics?.github_metrics,
-        test_maturity: existingMetrics?.test_maturity,
-        architecture: architecture,
-        pm_satisfaction: existingMetrics?.pm_satisfaction,
-        client_survey: existingMetrics?.client_survey,
-        strategic_impact: existingMetrics?.strategic_impact,
-        governance_exceptions: existingMetrics?.governance_exceptions,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<ArchitectureInput>(projectId, existingMetrics, 'architecture');
 }
 
 export function useUpdateStrategicImpact(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (strategicImpact: StrategicImpact): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        strategic_impact: strategicImpact,
-        client_survey: existingMetrics?.client_survey,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<StrategicImpact>(projectId, existingMetrics, 'strategic_impact');
 }
 
 interface ClientSurveyInput {
@@ -292,24 +154,5 @@ interface ClientSurveyInput {
 }
 
 export function useUpdateClientSurvey(projectId: string, existingMetrics: Metrics | null) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (clientSurvey: ClientSurveyInput): Promise<Metrics> => {
-      const today = new Date().toISOString().split('T')[0];
-      const metrics: MetricsCreate = {
-        period_start: existingMetrics?.period_start ?? today,
-        period_end: today,
-        strategic_impact: existingMetrics?.strategic_impact,
-        client_survey: clientSurvey,
-        sev1_incident: existingMetrics?.sev1_incident ?? false,
-      };
-      const response = await api.post<Metrics>(`/metrics/project/${projectId}`, metrics);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-    },
-  });
+  return useMetricsFieldMutation<ClientSurveyInput>(projectId, existingMetrics, 'client_survey');
 }

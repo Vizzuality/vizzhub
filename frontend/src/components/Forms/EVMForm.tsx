@@ -82,9 +82,9 @@ function formatCurrency(value: number): string {
 }
 
 function getPerformanceColor(value: number): string {
-  if (value >= 1) return 'text-green-600 dark:text-green-400';
-  if (value >= 0.9) return 'text-yellow-600 dark:text-yellow-400';
-  return 'text-red-600 dark:text-red-400';
+  if (value >= 1) return 'text-score-green';
+  if (value >= 0.9) return 'text-score-yellow';
+  return 'text-score-red';
 }
 
 function getPerformanceLabel(value: number, metric: 'spi' | 'cpi'): string {

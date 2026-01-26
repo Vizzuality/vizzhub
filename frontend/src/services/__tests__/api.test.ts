@@ -455,17 +455,6 @@ describe('API Service', () => {
       });
     });
 
-    describe('getParameters', () => {
-      it('fetches config parameters', async () => {
-        mock.onGet('/config').reply(200, mockConfig);
-
-        const result = await configApi.getParameters();
-
-        expect(result.targets).toBeDefined();
-        expect(result.global_weights).toBeDefined();
-      });
-    });
-
     describe('updateParameters', () => {
       it('updates config parameters', async () => {
         const updates = [

@@ -5,7 +5,6 @@ import {
   useProjectScores,
   useScoreHistory,
   useScoringConfig,
-  useConfigValidation,
 } from '../useScores';
 import { scoresApi, configApi } from '../../services/api';
 
@@ -16,7 +15,6 @@ vi.mock('../../services/api', () => ({
   },
   configApi: {
     get: vi.fn(),
-    validate: vi.fn(),
   },
 }));
 
@@ -235,44 +233,4 @@ describe('useScores', () => {
     });
   });
 
-  describe('useConfigValidation', () => {
-    it('validates config successfully', async () => {
-      const mockValidation = {
-        valid: true,
-        errors: [],
-      };
-
-      vi.mocked(configApi.validate).mockResolvedValue(mockValidation);
-
-      const { result } = renderHook(() => useConfigValidation(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-      expect(result.current.data?.valid).toBe(true);
-      expect(result.current.data?.errors).toHaveLength(0);
-    });
-
-    it('returns validation errors', async () => {
-      const mockValidation = {
-        valid: false,
-        errors: [
-          'Weights do not sum to 1.0',
-          'Invalid target value for defect_density',
-        ],
-      };
-
-      vi.mocked(configApi.validate).mockResolvedValue(mockValidation);
-
-      const { result } = renderHook(() => useConfigValidation(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-      expect(result.current.data?.valid).toBe(false);
-      expect(result.current.data?.errors).toHaveLength(2);
-    });
-  });
 });

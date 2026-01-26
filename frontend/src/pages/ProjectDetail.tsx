@@ -202,7 +202,7 @@ export default function ProjectDetail(): JSX.Element {
             <div className="space-y-3 flex-1">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-3xl font-semibold">{project.name}</CardTitle>
-                <Badge variant={project.status === 'finished' ? 'default' : 'secondary'} className={project.status === 'finished' ? 'bg-green-600 hover:bg-green-700' : ''}>
+                <Badge variant={project.status === 'finished' ? 'default' : 'secondary'} className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black' : ''}>
                   {project.status === 'finished' ? 'Finished' : 'In Progress'}
                 </Badge>
               </div>
@@ -236,7 +236,7 @@ export default function ProjectDetail(): JSX.Element {
                   <Button
                     variant="ghost"
                     onClick={() => setShowFinishDialog(true)}
-                    className="border border-input text-green-600 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-950"
+                    className="border border-input text-score-green hover:bg-score-green hover:text-white dark:hover:text-black hover:border-score-green"
                     disabled={updateProjectStatus.isPending}
                   >
                     <Flag className="w-5 h-5 mr-2" />
@@ -400,7 +400,7 @@ export default function ProjectDetail(): JSX.Element {
                 await updateProjectStatus.mutateAsync('finished');
                 setShowFinishDialog(false);
               }}
-              className="bg-green-600 text-white hover:bg-green-700"
+              className="bg-score-green hover:bg-score-green/80 text-white dark:text-black"
             >
               Mark as Finished
             </AlertDialogAction>
@@ -420,10 +420,10 @@ export default function ProjectDetail(): JSX.Element {
       {scoresError && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-yellow-50 border-yellow-200">
+          <Card className="bg-score-yellow/10 border-score-yellow/30">
             <CardContent className="pt-6">
-              <p className="font-medium text-yellow-800">No metrics available yet</p>
-              <p className="text-sm mt-1 text-yellow-700">
+              <p className="font-medium text-score-yellow">No metrics available yet</p>
+              <p className="text-sm mt-1 text-score-yellow/80">
                 {project.jira_project_key
                   ? 'Click "Collect Metrics" to fetch data from Jira.'
                   : 'Configure a Jira project key to collect metrics.'}
@@ -436,18 +436,18 @@ export default function ProjectDetail(): JSX.Element {
       {collectJiraMetrics.isError && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+          <Card className="bg-score-red/10 border-score-red/30">
             <CardContent className="pt-6">
-              <p className="font-medium text-red-800 dark:text-red-200">Failed to collect metrics</p>
-              <p className="text-sm mt-1 text-red-700 dark:text-red-300">
+              <p className="font-medium text-score-red">Failed to collect metrics</p>
+              <p className="text-sm mt-1 text-score-red/80">
                 {collectJiraMetrics.error?.message || 'An unknown error occurred'}
               </p>
               {collectJiraMetrics.error?.message?.includes('authentication') && (
-                <div className="mt-3 p-3 bg-red-100 dark:bg-red-900 rounded border border-red-300 dark:border-red-700">
-                  <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+                <div className="mt-3 p-3 bg-score-red/10 rounded border border-score-red/30">
+                  <p className="text-sm font-medium text-score-red mb-2">
                     OAuth not configured
                   </p>
-                  <p className="text-xs text-red-800 dark:text-red-200 mb-2">
+                  <p className="text-xs text-score-red/80 mb-2">
                     You need to authorize Jira OAuth to collect metrics. This only needs to be done once.
                   </p>
                   <a
@@ -468,14 +468,14 @@ export default function ProjectDetail(): JSX.Element {
       {collectJiraMetrics.isSuccess && !dismissedJiraSuccess && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+          <Card className="bg-score-green/10 border-score-green/30">
             <CardContent className="pt-6 flex items-center justify-between">
-              <span className="text-green-800 dark:text-green-200">
+              <span className="text-score-green">
                 Jira metrics collected successfully! Scores are being calculated...
               </span>
               <button
                 onClick={() => setDismissedJiraSuccess(true)}
-                className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                className="text-score-green hover:text-score-green/70"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -487,10 +487,10 @@ export default function ProjectDetail(): JSX.Element {
       {collectGitHubMetrics.isError && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+          <Card className="bg-score-red/10 border-score-red/30">
             <CardContent className="pt-6">
-              <p className="font-medium text-red-800 dark:text-red-200">Failed to collect GitHub metrics</p>
-              <p className="text-sm mt-1 text-red-700 dark:text-red-300">
+              <p className="font-medium text-score-red">Failed to collect GitHub metrics</p>
+              <p className="text-sm mt-1 text-score-red/80">
                 {collectGitHubMetrics.error?.message || 'An unknown error occurred'}
               </p>
             </CardContent>
@@ -501,14 +501,14 @@ export default function ProjectDetail(): JSX.Element {
       {collectGitHubMetrics.isSuccess && !dismissedGitHubSuccess && (
         <>
           <Separator className="my-6" />
-          <Card className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+          <Card className="bg-score-green/10 border-score-green/30">
             <CardContent className="pt-6 flex items-center justify-between">
-              <span className="text-green-800 dark:text-green-200">
+              <span className="text-score-green">
                 GitHub metrics collected successfully! Scores are being calculated...
               </span>
               <button
                 onClick={() => setDismissedGitHubSuccess(true)}
-                className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                className="text-score-green hover:text-score-green/70"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -626,9 +626,9 @@ export default function ProjectDetail(): JSX.Element {
                           <>
                             <p className={cn(
                               "text-xl font-semibold",
-                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 1 ? "text-green-600 dark:text-green-400" :
-                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 0.9 ? "text-yellow-600 dark:text-yellow-400" :
-                              "text-red-600 dark:text-red-400"
+                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 1 ? "text-score-green" :
+                              metrics.evm_data.percent_completed / metrics.evm_data.percent_planned >= 0.9 ? "text-score-yellow" :
+                              "text-score-red"
                             )}>
                               {(metrics.evm_data.percent_completed / metrics.evm_data.percent_planned).toFixed(2)}
                             </p>
@@ -662,9 +662,9 @@ export default function ProjectDetail(): JSX.Element {
                           <>
                             <p className={cn(
                               "text-xl font-semibold",
-                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 1 ? "text-green-600 dark:text-green-400" :
-                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 0.9 ? "text-yellow-600 dark:text-yellow-400" :
-                              "text-red-600 dark:text-red-400"
+                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 1 ? "text-score-green" :
+                              (metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date >= 0.9 ? "text-score-yellow" :
+                              "text-score-red"
                             )}>
                               {((metrics.evm_data.budget_total * metrics.evm_data.percent_completed) / metrics.evm_data.cost_to_date).toFixed(2)}
                             </p>
@@ -709,9 +709,9 @@ export default function ProjectDetail(): JSX.Element {
                           <>
                             <p className={cn(
                               "text-xl font-semibold",
-                              scores.indicators.on_time_milestones >= 0.85 ? "text-green-600 dark:text-green-400" :
-                              scores.indicators.on_time_milestones >= 0.7 ? "text-yellow-600 dark:text-yellow-400" :
-                              "text-red-600 dark:text-red-400"
+                              scores.indicators.on_time_milestones >= 0.85 ? "text-score-green" :
+                              scores.indicators.on_time_milestones >= 0.7 ? "text-score-yellow" :
+                              "text-score-red"
                             )}>
                               {(scores.indicators.on_time_milestones * 100).toFixed(0)}%
                             </p>
@@ -757,10 +757,10 @@ export default function ProjectDetail(): JSX.Element {
                                     >
                                       <div className="flex items-center gap-3">
                                         {status === 'on-time' && (
-                                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                          <CheckCircle2 className="w-5 h-5 text-score-green" />
                                         )}
                                         {status === 'late' && (
-                                          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                          <AlertCircle className="w-5 h-5 text-score-red" />
                                         )}
                                         {status === 'pending' && (
                                           <Clock className="w-5 h-5 text-muted-foreground" />
@@ -773,8 +773,8 @@ export default function ProjectDetail(): JSX.Element {
                                         </span>
                                         <span className={cn(
                                           milestone.actual_date
-                                            ? (status === 'on-time' ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
-                                            : (status === 'pending' ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
+                                            ? (status === 'on-time' ? "text-score-green" : "text-score-red")
+                                            : (status === 'pending' ? "text-score-green" : "text-score-red")
                                         )}>
                                           Actual: {milestone.actual_date
                                             ? new Date(milestone.actual_date).toLocaleDateString()
@@ -837,7 +837,7 @@ export default function ProjectDetail(): JSX.Element {
                 indicatorLabel="Bugs per 100 tasks"
                 indicatorSuffix="%"
                 description="Ratio of bugs to completed tasks"
-                target={getTarget('DefDensity_t')}
+                target={getTarget('target_defect_density')}
                 lowerIsBetter={true}
                 formula="(Bugs / Tasks) × 100"
                 metrics={[
@@ -851,7 +851,7 @@ export default function ProjectDetail(): JSX.Element {
                 indicatorLabel="Escaped per 100 tasks"
                 indicatorSuffix="%"
                 description="Bugs found in Staging/Production"
-                target={getTarget('Escaped_t')}
+                target={getTarget('target_escaped_rate')}
                 lowerIsBetter={true}
                 formula="(Escaped / Tasks) × 100"
                 metrics={[
@@ -865,7 +865,7 @@ export default function ProjectDetail(): JSX.Element {
                 indicatorLabel="Business hours"
                 indicatorSuffix="h"
                 description="Mean Time To Repair"
-                target={getTarget('MTTR_t')}
+                target={getTarget('target_mttr_hours')}
                 lowerIsBetter={true}
                 formula="avg(resolved - created)"
                 metrics={[
@@ -964,18 +964,18 @@ export default function ProjectDetail(): JSX.Element {
                             metrics?.governance_exceptions === undefined || metrics?.governance_exceptions === null
                               ? 'text-muted-foreground'
                               : metrics.governance_exceptions === 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : metrics.governance_exceptions <= (getTarget('GovExc_t') ?? 2)
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? 'text-score-green'
+                              : metrics.governance_exceptions <= (getTarget('target_gov_exceptions') ?? 2)
+                              ? 'text-score-yellow'
+                              : 'text-score-red'
                           )}>
                             {metrics?.governance_exceptions ?? '—'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≤{getTarget('GovExc_t') ?? 2} exceptions
+                          <span className="text-sm text-foreground dark:text-primary">
+                            ≤{getTarget('target_gov_exceptions') ?? 2} exceptions
                           </span>
                         </div>
                       </>
@@ -1118,10 +1118,10 @@ export default function ProjectDetail(): JSX.Element {
                             scores.indicators.pm_satisfaction === null
                               ? 'text-muted-foreground'
                               : scores.indicators.pm_satisfaction >= 0.9
-                              ? 'text-green-600 dark:text-green-400'
+                              ? 'text-score-green'
                               : scores.indicators.pm_satisfaction >= 0.7
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? 'text-score-yellow'
+                              : 'text-score-red'
                           )}>
                             {scores.indicators.pm_satisfaction !== null
                               ? (scores.indicators.pm_satisfaction * 100).toFixed(0) + '%'
@@ -1130,8 +1130,8 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≥{getTarget('pm_satisfaction_t') ?? 90}%
+                          <span className="text-sm text-foreground dark:text-primary">
+                            ≥{getTarget('target_pm_satisfaction') ?? 90}%
                           </span>
                         </div>
                         {metrics?.pm_satisfaction && (
@@ -1139,8 +1139,8 @@ export default function ProjectDetail(): JSX.Element {
                             <div className="flex justify-between text-xs">
                               <span className="text-muted-foreground">Delivery complaints</span>
                               <span className={cn(
-                                metrics.pm_satisfaction.delivery_complaints === 'no' ? 'text-green-600' :
-                                metrics.pm_satisfaction.delivery_complaints === 'yes' ? 'text-red-600' : ''
+                                metrics.pm_satisfaction.delivery_complaints === 'no' ? 'text-score-green' :
+                                metrics.pm_satisfaction.delivery_complaints === 'yes' ? 'text-score-red' : ''
                               )}>
                                 {metrics.pm_satisfaction.delivery_complaints === '-' ? 'N/A' : metrics.pm_satisfaction.delivery_complaints}
                               </span>
@@ -1148,8 +1148,8 @@ export default function ProjectDetail(): JSX.Element {
                             <div className="flex justify-between text-xs">
                               <span className="text-muted-foreground">Design complaints</span>
                               <span className={cn(
-                                metrics.pm_satisfaction.design_complaints === 'no' ? 'text-green-600' :
-                                metrics.pm_satisfaction.design_complaints === 'yes' ? 'text-red-600' : ''
+                                metrics.pm_satisfaction.design_complaints === 'no' ? 'text-score-green' :
+                                metrics.pm_satisfaction.design_complaints === 'yes' ? 'text-score-red' : ''
                               )}>
                                 {metrics.pm_satisfaction.design_complaints === '-' ? 'N/A' : metrics.pm_satisfaction.design_complaints}
                               </span>
@@ -1274,10 +1274,10 @@ export default function ProjectDetail(): JSX.Element {
                             scores.indicators.test_maturity === null
                               ? 'text-muted-foreground'
                               : scores.indicators.test_maturity >= 0.6
-                              ? 'text-green-600 dark:text-green-400'
+                              ? 'text-score-green'
                               : scores.indicators.test_maturity >= 0.4
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? 'text-score-yellow'
+                              : 'text-score-red'
                           )}>
                             {scores.indicators.test_maturity !== null
                               ? (scores.indicators.test_maturity * 100).toFixed(0) + '%'
@@ -1286,8 +1286,8 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≥{getTarget('test_maturity_t') ?? 60}%
+                          <span className="text-sm text-foreground dark:text-primary">
+                            ≥{getTarget('target_test_maturity') ?? 60}%
                           </span>
                         </div>
                         {metrics?.test_maturity && (
@@ -1305,10 +1305,10 @@ export default function ProjectDetail(): JSX.Element {
                                 <div key={key} className="flex justify-between text-xs">
                                   <span className="text-muted-foreground">{label}</span>
                                   <span className={cn(
-                                    value === 5 ? 'text-green-600' :
-                                    value === 3 ? 'text-yellow-600' :
+                                    value === 5 ? 'text-score-green' :
+                                    value === 3 ? 'text-score-yellow' :
                                     value === 1 ? 'text-orange-600' :
-                                    value === 0 ? 'text-red-600' : ''
+                                    value === 0 ? 'text-score-red' : ''
                                   )}>
                                     {levelLabel}
                                   </span>
@@ -1432,10 +1432,10 @@ export default function ProjectDetail(): JSX.Element {
                             scores.indicators.arch_checklist === null
                               ? 'text-muted-foreground'
                               : scores.indicators.arch_checklist >= 1.0
-                              ? 'text-green-600 dark:text-green-400'
+                              ? 'text-score-green'
                               : scores.indicators.arch_checklist >= 0.75
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? 'text-score-yellow'
+                              : 'text-score-red'
                           )}>
                             {scores.indicators.arch_checklist !== null
                               ? (scores.indicators.arch_checklist * 100).toFixed(0) + '%'
@@ -1444,8 +1444,8 @@ export default function ProjectDetail(): JSX.Element {
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">KPI</span>
-                          <span className="text-sm text-foreground">
-                            ≥{getTarget('architecture_t') ?? 100}%
+                          <span className="text-sm text-foreground dark:text-primary">
+                            ≥{getTarget('target_architecture') ?? 100}%
                           </span>
                         </div>
                         {metrics?.architecture && (
@@ -1458,7 +1458,7 @@ export default function ProjectDetail(): JSX.Element {
                             ] as const).map(({ key, label }) => (
                               <div key={key} className="flex justify-between text-xs">
                                 <span className="text-muted-foreground">{label}</span>
-                                <span className={metrics.architecture?.[key] ? 'text-green-600' : 'text-red-600'}>
+                                <span className={metrics.architecture?.[key] ? 'text-score-green' : 'text-score-red'}>
                                   {metrics.architecture?.[key] ? 'Yes' : 'No'}
                                 </span>
                               </div>
@@ -1495,7 +1495,7 @@ export default function ProjectDetail(): JSX.Element {
                 indicatorLabel="Business days"
                 indicatorSuffix="d"
                 description="In Progress → Done"
-                target={getTarget('LT_t')}
+                target={getTarget('target_lead_time_days')}
                 lowerIsBetter={true}
                 formula="avg(done - in_progress)"
                 metrics={[
@@ -1527,7 +1527,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorLabel="Review coverage"
                   indicatorSuffix="%"
                   description="PRs reviewed before merge"
-                  target={100 - (getTarget('PR_noReview_t') ?? 0)}
+                  target={100 - (getTarget('target_pr_no_review_ratio') ?? 0)}
                   lowerIsBetter={false}
                   formula="(reviewed / total) × 100"
                   metrics={[
@@ -1543,7 +1543,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorLabel="Median lines changed"
                   indicatorSuffix=" lines"
                   description="Median PR size (additions + deletions)"
-                  target={getTarget('PR_size_t')}
+                  target={getTarget('target_pr_size_lines')}
                   lowerIsBetter={true}
                   formula="median(additions + deletions)"
                   metrics={[
@@ -1558,7 +1558,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorLabel="High/Critical open >30d"
                   indicatorSuffix=""
                   description="Dependabot alerts unaddressed for 30+ days"
-                  target={getTarget('HighVuln_t')}
+                  target={getTarget('target_high_vuln_count')}
                   lowerIsBetter={true}
                   formula="count(high/critical vulns >30d)"
                   metrics={[
@@ -1574,7 +1574,7 @@ export default function ProjectDetail(): JSX.Element {
                   indicatorLabel="Tasks after closure"
                   indicatorSuffix=""
                   description="New tasks created >30 days after contract end"
-                  target={getTarget('post_contract_t')}
+                  target={getTarget('target_post_contract_tasks')}
                   lowerIsBetter={true}
                   formula="count(tasks created after end_date + 30d)"
                   metrics={[
@@ -1623,10 +1623,10 @@ export default function ProjectDetail(): JSX.Element {
                     <div>
                       <span className={cn(
                         "inline-block px-3 py-1 rounded-full text-sm font-medium",
-                        scores.scores.dora.classification === "Elite" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                        scores.scores.dora.classification === "High" && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-                        scores.scores.dora.classification === "Medium" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                        scores.scores.dora.classification === "Low" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                        scores.scores.dora.classification === "Elite" && "bg-score-green/20 text-score-green",
+                        scores.scores.dora.classification === "High" && "bg-accent/20 text-accent",
+                        scores.scores.dora.classification === "Medium" && "bg-score-yellow/20 text-score-yellow",
+                        scores.scores.dora.classification === "Low" && "bg-score-red/20 text-score-red",
                       )}>
                         {scores.scores.dora.classification}
                       </span>
@@ -1649,7 +1649,7 @@ export default function ProjectDetail(): JSX.Element {
                     indicatorLabel="Releases in 90 days"
                     indicatorSuffix=" releases"
                     description="DORA metric: How often deployments occur"
-                    target={90}
+                    target={(getTarget('target_deployment_frequency') ?? 1) * 90}
                     lowerIsBetter={false}
                     formula="count(releases in 90d)"
                     metrics={[
@@ -1664,7 +1664,7 @@ export default function ProjectDetail(): JSX.Element {
                     indicatorLabel="Median hours to first review"
                     indicatorSuffix="h"
                     description="DORA metric: Time from PR creation to first review"
-                    target={getTarget('review_turnaround_t')}
+                    target={getTarget('target_review_turnaround_hours')}
                     lowerIsBetter={true}
                     formula="median(first_review - pr_created)"
                     metrics={[
@@ -1679,7 +1679,7 @@ export default function ProjectDetail(): JSX.Element {
                     indicatorLabel="Failure rate"
                     indicatorSuffix="%"
                     description="DORA metric: Releases requiring hotfix"
-                    target={getTarget('CFR_t')}
+                    target={getTarget('target_change_failure_rate')}
                     lowerIsBetter={true}
                     formula="(failed / total) × 100"
                     metrics={[
@@ -1695,7 +1695,7 @@ export default function ProjectDetail(): JSX.Element {
                     indicatorLabel="Mean Time to Recovery"
                     indicatorSuffix="h"
                     description="DORA metric: Time to restore service after incident"
-                    target={getTarget('MTTR_t')}
+                    target={getTarget('target_mttr_hours')}
                     lowerIsBetter={true}
                     formula="avg(resolved_at - created_at)"
                     metrics={[
@@ -1809,11 +1809,11 @@ export default function ProjectDetail(): JSX.Element {
                             !metrics?.strategic_impact
                               ? 'text-muted-foreground'
                               : metrics.strategic_impact === 'transformational'
-                              ? 'text-green-600 dark:text-green-400'
+                              ? 'text-score-green'
                               : metrics.strategic_impact === 'high'
                               ? 'text-blue-600 dark:text-blue-400'
                               : metrics.strategic_impact === 'medium'
-                              ? 'text-yellow-600 dark:text-yellow-400'
+                              ? 'text-score-yellow'
                               : 'text-orange-600 dark:text-orange-400'
                           )}>
                             {metrics?.strategic_impact ?? '—'}
@@ -1945,10 +1945,10 @@ export default function ProjectDetail(): JSX.Element {
                             scores?.indicators.client_satisfaction === null || scores?.indicators.client_satisfaction === undefined
                               ? 'text-muted-foreground'
                               : scores.indicators.client_satisfaction >= 0.8
-                              ? 'text-green-600 dark:text-green-400'
+                              ? 'text-score-green'
                               : scores.indicators.client_satisfaction >= 0.6
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? 'text-score-yellow'
+                              : 'text-score-red'
                           )}>
                             {scores?.indicators.client_satisfaction !== null && scores?.indicators.client_satisfaction !== undefined
                               ? (scores.indicators.client_satisfaction * 100).toFixed(0) + '%'
@@ -1972,11 +1972,11 @@ export default function ProjectDetail(): JSX.Element {
                                 <div key={key} className="flex justify-between text-xs">
                                   <span className="text-muted-foreground">{label}</span>
                                   <span className={cn(
-                                    value === 5 ? 'text-green-600' :
+                                    value === 5 ? 'text-score-green' :
                                     value === 4 ? 'text-blue-600' :
-                                    value === 3 ? 'text-yellow-600' :
+                                    value === 3 ? 'text-score-yellow' :
                                     value === 2 ? 'text-orange-600' :
-                                    value === 1 ? 'text-red-600' : ''
+                                    value === 1 ? 'text-score-red' : ''
                                   )}>
                                     {value ?? '—'}
                                   </span>

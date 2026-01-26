@@ -113,11 +113,6 @@ export const configApi = {
     return response.data;
   },
 
-  getParameters: async (): Promise<Record<string, any>> => {
-    const response = await api.get<ScoringConfig>('/config');
-    return response.data;
-  },
-
   updateParameters: async (updates: Array<{ name: string; value: string }>): Promise<void> => {
     await api.patch('/config/parameters', { updates });
   },

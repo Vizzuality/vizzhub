@@ -47,7 +47,7 @@ export function WeightsSection({
             </span>
             <span
               className={`text-sm font-semibold ${
-                isValid ? 'text-green-600' : 'text-destructive'
+                isValid ? 'text-score-green' : 'text-destructive'
               }`}
             >
               {isValid ? '✓' : '✗ Must equal 1.0'}

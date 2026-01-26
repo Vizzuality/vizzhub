@@ -23,9 +23,9 @@ function ScoreBadge({ score }: { score: number | null | undefined }): JSX.Elemen
   }
 
   const getScoreColor = (s: number): string => {
-    if (s >= 80) return 'text-green-600 dark:text-green-400';
-    if (s >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (s >= 80) return 'text-score-green';
+    if (s >= 60) return 'text-score-yellow';
+    return 'text-score-red';
   };
 
   return (
@@ -48,7 +48,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
               <CardTitle className="text-lg font-semibold line-clamp-2">{project.name}</CardTitle>
               <Badge
                 variant={project.status === 'finished' ? 'default' : 'secondary'}
-                className={project.status === 'finished' ? 'bg-green-600 hover:bg-green-700 shrink-0' : 'shrink-0'}
+                className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black shrink-0' : 'shrink-0'}
               >
                 {project.status === 'finished' ? 'Finished' : 'In Progress'}
               </Badge>
@@ -92,7 +92,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
             <CardTitle className="text-xl font-semibold">{project.name}</CardTitle>
             <Badge
               variant={project.status === 'finished' ? 'default' : 'secondary'}
-              className={project.status === 'finished' ? 'bg-green-600 hover:bg-green-700' : ''}
+              className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black' : ''}
             >
               {project.status === 'finished' ? 'Finished' : 'In Progress'}
             </Badge>

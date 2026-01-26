@@ -13,16 +13,16 @@ interface ScoreCardProps {
 
 function getScoreColor(score: number | null): string {
   if (score === null) return 'text-muted-foreground';
-  if (score >= 80) return 'text-green-600 dark:text-green-400';
-  if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
-  return 'text-red-600 dark:text-red-400';
+  if (score >= 80) return 'text-score-green';
+  if (score >= 60) return 'text-score-yellow';
+  return 'text-score-red';
 }
 
 function getScoreBgColor(score: number | null): string {
   if (score === null) return 'bg-muted';
-  if (score >= 80) return 'bg-green-600/20 dark:bg-green-400/20';
-  if (score >= 60) return 'bg-yellow-600/20 dark:bg-yellow-400/20';
-  return 'bg-red-600/20 dark:bg-red-400/20';
+  if (score >= 80) return 'bg-score-green-bg';
+  if (score >= 60) return 'bg-score-yellow-bg';
+  return 'bg-score-red-bg';
 }
 
 export default function ScoreCard({ score, title = 'Overall Score' }: ScoreCardProps): JSX.Element {
