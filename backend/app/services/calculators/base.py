@@ -83,29 +83,6 @@ class BaseCalculator(ABC):
                 return 1.0 if value > 0 else None
             return min(1.0, value / target)
 
-    def _normalize_to_target_legacy(
-        self,
-        value: float | None,
-        target: float,
-        lower_is_better: bool = False,
-    ) -> float:
-        """
-        Normalize a value to its target, using neutral (0.5) for missing values.
-
-        DEPRECATED: This method uses neutral value (0.5) for missing data.
-        New calculators should use _normalize_to_target with _weighted_average.
-        """
-        if value is None:
-            return 0.5
-        if lower_is_better:
-            if value <= 0:
-                return 1.0
-            return min(1.0, target / max(value, 0.001))
-        else:
-            if target <= 0:
-                return 1.0 if value > 0 else 0.5
-            return min(1.0, value / target)
-
     def _weighted_average(self, components: list[WeightedComponent]) -> float | None:
         """
         Calculate weighted average, excluding missing components.
@@ -130,15 +107,6 @@ class BaseCalculator(ABC):
 
         weighted_sum = sum(w * v for w, v in available)
         return weighted_sum / total_weight
-
-    def _safe_value(self, value: float | None, default: float = 0.5) -> float:
-        """
-        Return value or default if None.
-
-        DEPRECATED: This method uses neutral value (0.5) for missing data.
-        New calculators should use _weighted_average with WeightedComponent instead.
-        """
-        return value if value is not None else default
 
     def _to_score(self, normalized: float | None) -> int | None:
         """Convert normalized value (0-1) to score (0-100)."""

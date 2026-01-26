@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { collectApi } from '../services/api';
+import { queryKeys } from './queryKeys';
 
 export function useCollectJiraMetrics(projectId: string) {
   const queryClient = useQueryClient();
@@ -7,8 +8,8 @@ export function useCollectJiraMetrics(projectId: string) {
   return useMutation({
     mutationFn: () => collectApi.collectJiraMetrics(projectId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
     },
   });
 }
@@ -19,8 +20,8 @@ export function useCollectGitHubMetrics(projectId: string) {
   return useMutation({
     mutationFn: () => collectApi.collectGitHubMetrics(projectId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scores', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['metrics', projectId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
     },
   });
 }

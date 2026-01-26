@@ -253,21 +253,21 @@ describe('ProjectCard', () => {
     it('displays green color for high scores (>=80)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={85} />);
 
-      const scoreElement = container.querySelector('.text-green-600, .dark\\:text-green-400');
+      const scoreElement = container.querySelector('.text-score-green');
       expect(scoreElement).toBeDefined();
     });
 
     it('displays yellow color for medium scores (60-79)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={70} />);
 
-      const scoreElement = container.querySelector('.text-yellow-600, .dark\\:text-yellow-400');
+      const scoreElement = container.querySelector('.text-score-yellow');
       expect(scoreElement).toBeDefined();
     });
 
     it('displays red color for low scores (<60)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={45} />);
 
-      const scoreElement = container.querySelector('.text-red-600, .dark\\:text-red-400');
+      const scoreElement = container.querySelector('.text-score-red');
       expect(scoreElement).toBeDefined();
     });
 
@@ -287,7 +287,7 @@ describe('ProjectCard', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={80} />);
 
       expect(screen.getByText('80')).toBeDefined();
-      const greenElement = container.querySelector('.text-green-600, .dark\\:text-green-400');
+      const greenElement = container.querySelector('.text-score-green');
       expect(greenElement).toBeDefined();
     });
 
@@ -295,7 +295,7 @@ describe('ProjectCard', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={60} />);
 
       expect(screen.getByText('60')).toBeDefined();
-      const yellowElement = container.querySelector('.text-yellow-600, .dark\\:text-yellow-400');
+      const yellowElement = container.querySelector('.text-score-yellow');
       expect(yellowElement).toBeDefined();
     });
 
@@ -303,7 +303,7 @@ describe('ProjectCard', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={0} />);
 
       expect(screen.getByText('0')).toBeDefined();
-      const redElement = container.querySelector('.text-red-600, .dark\\:text-red-400');
+      const redElement = container.querySelector('.text-score-red');
       expect(redElement).toBeDefined();
     });
 
@@ -311,7 +311,7 @@ describe('ProjectCard', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={100} />);
 
       expect(screen.getByText('100')).toBeDefined();
-      const greenElement = container.querySelector('.text-green-600, .dark\\:text-green-400');
+      const greenElement = container.querySelector('.text-score-green');
       expect(greenElement).toBeDefined();
     });
   });

@@ -48,8 +48,8 @@ export default function SubIndicatorCard({
     }
     const isGood = lowerIsBetter ? value <= target : value >= target;
     return isGood
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400';
+      ? 'text-score-green'
+      : 'text-score-red';
   };
 
   return (
@@ -103,7 +103,7 @@ export default function SubIndicatorCard({
           {target !== null && target !== undefined && (
             <div className="flex items-center justify-between pt-2 border-t border-border/50">
               <span className="text-xs text-muted-foreground">KPI</span>
-              <span className="text-sm text-foreground">
+              <span className="text-sm text-foreground dark:text-primary">
                 {lowerIsBetter ? '≤' : '≥'}{target}{indicatorSuffix}
               </span>
             </div>

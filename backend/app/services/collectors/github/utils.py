@@ -8,8 +8,13 @@ GitHub collector modules to avoid duplication.
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from app.services.collectors.utils import parse_iso_datetime
+
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
+
+# Re-export for backwards compatibility
+parse_github_datetime = parse_iso_datetime
 
 TARGET_BRANCHES = frozenset({"dev", "develop", "main", "master", "development"})
 MAX_CONCURRENT_REQUESTS = 20
@@ -177,19 +182,3 @@ def parse_release_date(release: dict) -> datetime:
     return datetime.min.replace(tzinfo=timezone.utc)
 
 
-def parse_github_datetime(dt_str: str | None) -> datetime | None:
-    """
-    Parse a GitHub datetime string to datetime object.
-
-    Args:
-        dt_str: ISO format datetime string from GitHub API
-
-    Returns:
-        datetime object or None if parsing fails
-    """
-    if not dt_str:
-        return None
-    try:
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return None

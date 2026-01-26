@@ -27,14 +27,6 @@ class ConfigurationError(HTTPException):
         )
 
 
-class CollectorError(HTTPException):
-    def __init__(self, source: str, message: str):
-        super().__init__(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to collect from {source}: {message}",
-        )
-
-
 class ValidationError(HTTPException):
     def __init__(self, message: str):
         super().__init__(

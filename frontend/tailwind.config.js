@@ -38,6 +38,14 @@ export default {
   				DEFAULT: 'var(--destructive)',
   				foreground: 'var(--destructive-foreground)'
   			},
+  			score: {
+  				green: 'var(--score-green)',
+  				yellow: 'var(--score-yellow)',
+  				red: 'var(--score-red)',
+  				'green-bg': 'var(--score-green-bg)',
+  				'yellow-bg': 'var(--score-yellow-bg)',
+  				'red-bg': 'var(--score-red-bg)'
+  			},
   			border: 'var(--border)',
   			input: 'var(--input)',
   			ring: 'var(--ring)',
