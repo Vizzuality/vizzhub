@@ -242,3 +242,9 @@ export interface ClientSurvey {
   expectations?: number;
   recommend?: number;
 }
+
+export interface Metrics extends MetricsCreate {
+  id: string;
+  project_id: string;
+  created_at: string;
+}
