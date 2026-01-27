@@ -17,7 +17,7 @@ class TimeCalculator(BaseCalculator):
     P_time: Schedule adherence score.
 
     Components:
-    - SPI normalized to target (capped at 1) - weight 0.6
+    - SPI normalized to ideal (1.0 = on schedule, capped at 1) - weight 0.6
     - On-time milestones ratio normalized to target (85%) - weight 0.4
 
     Missing data handling:
@@ -30,14 +30,14 @@ class TimeCalculator(BaseCalculator):
     weight_group = "time"
 
     def calculate(self, indicators: IndicatorsCreate) -> int | None:
-        spi_target = self._get_target("spi")
+        spi_ideal = self._get_ideal("spi")
         milestones_target = self._get_target("milestones_on_time") / 100
 
         components = [
             WeightedComponent(
                 name="spi",
                 weight=self._get_weight("spi"),
-                value=self._normalize_to_target(indicators.spi, spi_target),
+                value=self._normalize_to_ideal(indicators.spi, spi_ideal),
             ),
             WeightedComponent(
                 name="milestones",
@@ -56,7 +56,7 @@ class CostCalculator(BaseCalculator):
     P_cost: Budget adherence score.
 
     Components:
-    - CPI normalized to target (capped at 1) - weight 0.7
+    - CPI normalized to ideal (1.0 = on budget, capped at 1) - weight 0.7
     - Budget variance inverted (1 - overrun%, floored at 0) - weight 0.3
 
     Missing data handling:
@@ -69,9 +69,9 @@ class CostCalculator(BaseCalculator):
     weight_group = "cost"
 
     def calculate(self, indicators: IndicatorsCreate) -> int | None:
-        cpi_target = self._get_target("cpi")
+        cpi_ideal = self._get_ideal("cpi")
 
-        cpi_normalized = self._normalize_to_target(indicators.cpi, cpi_target)
+        cpi_normalized = self._normalize_to_ideal(indicators.cpi, cpi_ideal)
         variance_normalized = (
             None
             if indicators.budget_variance is None

@@ -14,7 +14,7 @@ interface PMSatisfactionFormData {
 interface PMSatisfactionCardProps {
   data: PMSatisfaction | null | undefined;
   indicatorValue: number | null;
-  target: number;
+  target: number | null;
   onSave: (data: PMSatisfactionFormData) => Promise<unknown>;
   isPending: boolean;
 }
@@ -32,7 +32,7 @@ export default function PMSatisfactionCard({
   onSave,
   isPending,
 }: PMSatisfactionCardProps): JSX.Element {
-  const targetNormalized = target / 100;
+  const targetNormalized = target !== null ? target / 100 : null;
 
   return (
     <EditableMetricCard<PMSatisfactionFormData>
@@ -108,7 +108,7 @@ export default function PMSatisfactionCard({
             <span
               className={cn(
                 'text-3xl font-bold',
-                indicatorValue === null
+                indicatorValue === null || targetNormalized === null
                   ? 'text-muted-foreground'
                   : indicatorValue >= targetNormalized
                   ? 'text-score-green'
@@ -122,7 +122,7 @@ export default function PMSatisfactionCard({
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
             <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">≥{target}%</span>
+            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
           </div>
           {displayData && (
             <div className="space-y-1 pt-2 border-t border-border/50">

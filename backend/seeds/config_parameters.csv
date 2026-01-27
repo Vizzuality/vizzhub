@@ -1,23 +1,27 @@
 category,name,value,unit,notes
-Targets,target_defect_density,3,%,Target max defect density per 100 tasks (3%). Used in P_quality.
-Targets,target_escaped_rate,1,%,Target max escaped defects per 100 tasks (1%). Used in P_quality.
+Targets,target_defect_density,6,%,Target max defect density per 100 tasks (6%). Used in P_quality.
+Targets,target_escaped_rate,3,%,Target max escaped defects per 100 tasks (3%). Used in P_quality.
 Targets,target_mttr_hours,24,hours,Target mean time to recover (hours). Used in P_quality.
 Targets,target_spi,0.8,ratio,Target schedule performance index (80%). Used in P_time.
 Targets,target_cpi,0.8,ratio,Target cost performance index (80%). Used in P_cost.
 Targets,target_milestones_on_time,85,%,Target % of milestones completed on time. Used in P_time.
-Targets,target_lead_time_days,3,days,Target maximum lead time in business days. Used in P_flow.
+Targets,target_lead_time_days,10,days,Target maximum lead time in business days. Used in P_flow.
 Targets,target_high_vuln_count,0,count,Target max high-severity vulnerabilities open >30 days (0 = strict mode). Used in P_risk.
-Targets,target_gov_exceptions,2,count,Max tolerated governance exceptions. Used in P_quality.
-Targets,target_pr_no_review_ratio,2,%,Target max PRs without review. Used in P_risk.
+Targets,target_gov_exceptions,3,count,Max tolerated governance exceptions. Used in P_quality.
+Targets,target_pr_no_review_ratio,10,%,Target max PRs without review (90% coverage). Used in P_risk.
 Targets,target_pr_size_lines,400,lines,Target median PR size. Used in P_flow.
 Targets,target_review_turnaround_hours,24,hours,Target hours to first review. Used in P_flow.
 Targets,target_deployment_frequency,1,per day,Target deployment frequency (DORA). Used in P_flow.
 Targets,target_change_failure_rate,15,%,Target change failure rate (DORA). Used in P_quality.
 Targets,target_post_contract_tasks,3,count,Target max tasks created >30 days after contract end. Used in P_quality.
 Targets,target_test_maturity,60,%,Target test maturity score. Used in P_engineering.
-Targets,target_architecture,100,%,Target architecture checklist completion (4/4 items). Used in P_engineering.
-Targets,target_pm_satisfaction,90,%,Target PM satisfaction score. Used in P_satisfaction.
-Targets,target_client_satisfaction,80,%,Target client satisfaction survey score. Used in P_satisfaction.
+Targets,target_architecture,80,%,Target architecture checklist completion. Used in P_engineering.
+Targets,target_pm_satisfaction,85,%,Target PM satisfaction score. Used in P_satisfaction.
+Targets,target_client_satisfaction,85,%,Target client satisfaction survey score. Used in P_satisfaction.
+Targets,target_story_review_ratio,85,%,Target % of stories with assigned reviewer. Used in P_quality.
+Targets,target_commitment_reliability,80,%,Target % of issues completed in original sprint. Used in P_flow.
+Ideals,ideal_spi,1.0,ratio,Ideal SPI (1.0 = exactly on schedule). Score = value/ideal.
+Ideals,ideal_cpi,1.0,ratio,Ideal CPI (1.0 = exactly on budget). Score = value/ideal.
 Global Weights,weight_global_time,0.12,weight,P_time dimension weight in final score.
 Global Weights,weight_global_cost,0.10,weight,P_cost dimension weight in final score.
 Global Weights,weight_global_quality,0.205,weight,P_quality dimension weight in final score.

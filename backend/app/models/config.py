@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+from typing import Any
 from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from sqlalchemy import String, Text, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
@@ -33,6 +34,25 @@ class TargetsConfig(BaseModel):
     high_vuln_count: int
     gov_exceptions: int
     pr_no_review_ratio: float
+    story_review_ratio: float
+    client_satisfaction: float
+    architecture: float
+    commitment_reliability: float
+    milestones_on_time: float
+    test_maturity: float
+    pm_satisfaction: float
+    deployment_frequency: float
+    change_failure_rate: float
+    pr_size_lines: float
+    review_turnaround_hours: float
+    post_contract_tasks: int
+
+
+class IdealsConfig(BaseModel):
+    """Ideal values for scoring (separate from thresholds)."""
+
+    spi: float  # Ideal SPI = 1.0 (exactly on schedule)
+    cpi: float  # Ideal CPI = 1.0 (exactly on budget)
 
 
 class GlobalWeights(BaseModel):
@@ -59,6 +79,7 @@ class ScoringConfigModel(BaseModel):
     """Complete scoring configuration."""
 
     targets: TargetsConfig
+    ideals: IdealsConfig
     global_weights: GlobalWeights
     constants: ConstantsConfig
     weight_validation: dict[str, bool]
@@ -82,7 +103,7 @@ class ConfigParameterUpdate(BaseModel):
 
     @field_validator('value', mode='before')
     @classmethod
-    def validate_value(cls, v: any, info: ValidationInfo) -> Decimal:
+    def validate_value(cls, v: Any, info: ValidationInfo) -> Decimal:
         """Validate and convert value to Decimal with user-friendly error messages."""
         # Get parameter name from the data being validated
         name = info.data.get('name', 'unknown') if info.data else 'unknown'

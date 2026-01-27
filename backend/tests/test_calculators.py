@@ -59,6 +59,61 @@ def neutral_indicators() -> IndicatorsCreate:
     return IndicatorsCreate()
 
 
+class TestNormalizeToIdeal:
+    """Tests for the _normalize_to_ideal method in BaseCalculator."""
+
+    def test_value_at_ideal_returns_one(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(1.0, 1.0)
+        assert result == 1.0
+
+    def test_value_below_ideal_returns_fraction(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(0.8, 1.0)
+        assert result == 0.8
+
+    def test_value_above_ideal_capped_at_one(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(1.2, 1.0)
+        assert result == 1.0
+
+    def test_none_value_returns_none(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(None, 1.0)
+        assert result is None
+
+    def test_zero_ideal_with_positive_value_returns_one(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(0.5, 0.0)
+        assert result == 1.0
+
+    def test_zero_ideal_with_none_value_returns_none(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(None, 0.0)
+        assert result is None
+
+    def test_negative_value_floored_at_zero(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(-0.5, 1.0)
+        assert result == 0.0
+
+
+class TestGetIdeal:
+    """Tests for the get_ideal method in ScoringConfig."""
+
+    def test_get_ideal_spi(self, config: ScoringConfig) -> None:
+        result = config.get_ideal("spi")
+        assert result == 1.0
+
+    def test_get_ideal_cpi(self, config: ScoringConfig) -> None:
+        result = config.get_ideal("cpi")
+        assert result == 1.0
+
+    def test_get_ideal_missing_returns_default(self, config: ScoringConfig) -> None:
+        result = config.get_ideal("nonexistent")
+        assert result == 1.0
+
+
 class TestTimeCalculator:
     def test_perfect_score(
         self, config: ScoringConfig, perfect_indicators: IndicatorsCreate
@@ -88,11 +143,12 @@ class TestTimeCalculator:
 
     def test_partial_spi_with_perfect_milestones(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
-        # SPI=0.8 vs target=0.8 → normalized=1.0
+        # SPI=0.8 vs ideal=1.0 → normalized=0.8 (reflects actual performance)
         # milestones=1.0 vs target=0.85 → normalized=1.0 (capped)
+        # Score = 0.6*0.8 + 0.4*1.0 = 0.88 → 88
         indicators = IndicatorsCreate(spi=0.8, on_time_milestones=1.0)
         score = calc.calculate(indicators)
-        assert score == 100
+        assert score == 88
 
     def test_low_milestones_with_perfect_spi(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
@@ -135,11 +191,12 @@ class TestCostCalculator:
 
     def test_low_cpi_with_good_variance(self, config: ScoringConfig) -> None:
         calc = CostCalculator(config)
-        # CPI=0.8 vs target=0.8 → normalized=1.0
+        # CPI=0.8 vs ideal=1.0 → normalized=0.8 (reflects actual performance)
         # variance=0.0 → normalized=1.0
+        # Score = 0.7*0.8 + 0.3*1.0 = 0.86 → 86
         indicators = IndicatorsCreate(cpi=0.8, budget_variance=0.0)
         score = calc.calculate(indicators)
-        assert score == 100
+        assert score == 86
 
 
 class TestQualityCalculator:
@@ -188,7 +245,7 @@ class TestQualityCalculator:
     def test_high_defect_density_lowers_score(self, config: ScoringConfig) -> None:
         calc = QualityCalculator(config)
         indicators = IndicatorsCreate(
-            defect_density=6.0,
+            defect_density=12.0,  # 2x target (6%) → 0.5
             escaped_rate=0.0,
             mttr_hours=0.0,
             story_review_ratio=1.0,
@@ -198,7 +255,7 @@ class TestQualityCalculator:
             post_contract_tasks=0,
         )
         score = calc.calculate(indicators)
-        assert score == 98
+        assert score == 98  # 0.05*0.5 + 0.95*1.0 = 0.975
 
 
 class TestValueCalculator:
@@ -236,24 +293,24 @@ class TestValueCalculator:
 class TestSatisfactionCalculator:
     def test_with_client_survey(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
-        # client=0.9 vs target=0.8 → normalized=1.0 (capped)
-        # pm=0.8 vs target=0.9 → normalized=0.889
-        # Score = 0.9 * 1.0 + 0.1 * 0.889 = 0.9889 → 99
+        # client=0.9 vs target=0.85 → normalized=1.0 (capped)
+        # pm=0.8 vs target=0.85 → normalized=0.941
+        # Score = 0.9 * 1.0 + 0.1 * 0.941 = 0.9941 → 99
         indicators = IndicatorsCreate(client_satisfaction=0.9, pm_satisfaction=0.8)
         score = calc.calculate(indicators)
         assert score == 99
 
     def test_pm_only(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
-        # pm=0.8 vs target=0.9 → normalized=0.889
-        # 100% weight redistributed to PM → 89
+        # pm=0.8 vs target=0.85 → normalized=0.941
+        # 100% weight redistributed to PM → 94
         indicators = IndicatorsCreate(pm_satisfaction=0.8)
         score = calc.calculate(indicators)
-        assert score == 89
+        assert score == 94
 
     def test_client_only(self, config: ScoringConfig) -> None:
         calc = SatisfactionCalculator(config)
-        # client=0.9 vs target=0.8 → normalized=1.0 (capped)
+        # client=0.9 vs target=0.85 → normalized=1.0 (capped)
         # 100% weight redistributed to client → 100
         indicators = IndicatorsCreate(client_satisfaction=0.9)
         score = calc.calculate(indicators)
@@ -288,14 +345,14 @@ class TestFlowCalculator:
 
     def test_only_lead_time_available(self, config: ScoringConfig) -> None:
         calc = FlowCalculator(config)
-        indicators = IndicatorsCreate(lead_time_days=1.5)  # Target is 3 days
+        indicators = IndicatorsCreate(lead_time_days=5.0)  # Target is 10 days
         score = calc.calculate(indicators)
-        assert score == 100  # 1.5 < 3 → fully meets target
+        assert score == 100  # 5 < 10 → fully meets target
 
     def test_partial_data_redistributes_weights(self, config: ScoringConfig) -> None:
         calc = FlowCalculator(config)
         indicators = IndicatorsCreate(
-            lead_time_days=3.0,  # Target 3 days → 1.0
+            lead_time_days=5.0,  # Target 10 days → 1.0 (under target)
             commitment_reliability=1.0,
         )
         score = calc.calculate(indicators)
@@ -304,7 +361,7 @@ class TestFlowCalculator:
     def test_slow_lead_time_lowers_score(self, config: ScoringConfig) -> None:
         calc = FlowCalculator(config)
         indicators = IndicatorsCreate(
-            lead_time_days=6.0,  # 2x target → 0.5
+            lead_time_days=20.0,  # 2x target (10 days) → 0.5
             commitment_reliability=1.0,
             pr_size_median=200.0,  # Under target → 1.0
             review_turnaround_hours=12.0,  # Under target → 1.0
@@ -395,10 +452,10 @@ class TestRiskCalculator:
 
     def test_some_prs_without_review(self, config: ScoringConfig) -> None:
         calc = RiskCalculator(config)
-        # Target is 2% of total PRs, with 100 PRs that's 2 PRs allowed
-        indicators = IndicatorsCreate(prs_without_review=2, high_vulns=0)
+        # Target is 10% of total PRs, with 100 PRs that's 10 PRs allowed
+        indicators = IndicatorsCreate(prs_without_review=10, high_vulns=0)
         score = calc.calculate(indicators, total_prs=100)
-        # 0.5 * 0.0 (2/2 = at target = 0) + 0.5 * 1.0 (no vulns) = 0.5
+        # 0.5 * 0.0 (10/10 = at target = 0) + 0.5 * 1.0 (no vulns) = 0.5
         assert score == 50
 
 

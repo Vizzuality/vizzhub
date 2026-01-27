@@ -1,15 +1,20 @@
 """Configuration endpoints."""
 
+import logging
+
 from fastapi import APIRouter, Request
 from pydantic import ValidationError
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter
 from app.core.error_handler import ValidationErrorHandler
+
+logger = logging.getLogger(__name__)
 from app.models.config import (
     ConfigParameterResponse,
     ConfigParameterUpdate,
     ConstantsConfig,
     GlobalWeights,
+    IdealsConfig,
     ScoringConfigModel,
     TargetsConfig,
 )
@@ -35,6 +40,22 @@ async def get_scoring_config(
             high_vuln_count=int(config.get_target("high_vuln_count")),
             gov_exceptions=int(config.get_target("gov_exceptions")),
             pr_no_review_ratio=config.get_target("pr_no_review_ratio"),
+            story_review_ratio=config.get_target("story_review_ratio"),
+            client_satisfaction=config.get_target("client_satisfaction"),
+            architecture=config.get_target("architecture"),
+            commitment_reliability=config.get_target("commitment_reliability"),
+            milestones_on_time=config.get_target("milestones_on_time"),
+            test_maturity=config.get_target("test_maturity"),
+            pm_satisfaction=config.get_target("pm_satisfaction"),
+            deployment_frequency=config.get_target("deployment_frequency"),
+            change_failure_rate=config.get_target("change_failure_rate"),
+            pr_size_lines=config.get_target("pr_size_lines"),
+            review_turnaround_hours=config.get_target("review_turnaround_hours"),
+            post_contract_tasks=int(config.get_target("post_contract_tasks")),
+        ),
+        ideals=IdealsConfig(
+            spi=config.get_ideal("spi"),
+            cpi=config.get_ideal("cpi"),
         ),
         global_weights=GlobalWeights(
             time=config.get_global_weight("time"),
@@ -94,5 +115,8 @@ async def update_config_parameters(
     try:
         await ConfigService.update_parameters(db, updates)
         return {"status": "success"}
-    except (ValidationError, ValueError, Exception) as e:
+    except (ValidationError, ValueError) as e:
+        raise ValidationErrorHandler.to_http_exception(e)
+    except Exception as e:
+        logger.exception("Unexpected error updating config parameters")
         raise ValidationErrorHandler.to_http_exception(e)

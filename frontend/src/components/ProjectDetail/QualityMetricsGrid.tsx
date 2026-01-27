@@ -9,15 +9,6 @@ import ClientSurveyCard from './ClientSurveyCard';
 import { formatDate } from '../../utils/formatters';
 import type { Metrics, Indicators, Project, StrategicImpact, PMSatisfaction, TestMaturity, Architecture } from '../../types';
 
-const DEFAULT_TARGETS = {
-  gov_exceptions: 2,
-  pm_satisfaction: 90,
-  test_maturity: 60,
-  architecture: 100,
-  client_satisfaction: 80,
-  pr_no_review_ratio: 0,
-} as const;
-
 type SurveyKey = 'understanding' | 'proactivity' | 'communication' | 'delivery_time' | 'response_time' | 'quality' | 'expectations' | 'recommend';
 
 interface QualityMetricsGridProps {
@@ -25,6 +16,7 @@ interface QualityMetricsGridProps {
   indicators: Indicators;
   project: Project;
   getTarget: (name: string) => number | null;
+  getWeight: (category: string, name: string) => number | null;
   onUpdateGovernance: (value: number) => Promise<unknown>;
   onUpdatePMSatisfaction: (data: PMSatisfaction) => Promise<unknown>;
   onUpdateStrategicImpact: (value: StrategicImpact) => Promise<unknown>;
@@ -44,6 +36,7 @@ export default function QualityMetricsGrid({
   indicators,
   project,
   getTarget,
+  getWeight,
   onUpdateGovernance,
   onUpdatePMSatisfaction,
   onUpdateStrategicImpact,
@@ -115,7 +108,7 @@ export default function QualityMetricsGrid({
               indicatorLabel="Stories with reviewer"
               indicatorSuffix="%"
               description="User stories with assigned reviewer"
-              target={100}
+              target={getTarget('target_story_review_ratio')}
               lowerIsBetter={false}
               formula="(with_reviewer / total) × 100"
               metrics={[
@@ -126,14 +119,14 @@ export default function QualityMetricsGrid({
           )}
           <GovernanceCard
             value={metrics.governance_exceptions}
-            target={getTarget('target_gov_exceptions') ?? DEFAULT_TARGETS.gov_exceptions}
+            target={getTarget('target_gov_exceptions')}
             onSave={onUpdateGovernance}
             isPending={isUpdatingGovernance}
           />
           <PMSatisfactionCard
             data={metrics.pm_satisfaction}
             indicatorValue={indicators.pm_satisfaction}
-            target={getTarget('target_pm_satisfaction') ?? DEFAULT_TARGETS.pm_satisfaction}
+            target={getTarget('target_pm_satisfaction')}
             onSave={onUpdatePMSatisfaction}
             isPending={isUpdatingPMSatisfaction}
           />
@@ -145,14 +138,14 @@ export default function QualityMetricsGrid({
           <TestMaturityCard
             data={metrics.test_maturity}
             indicatorValue={indicators.test_maturity}
-            target={getTarget('target_test_maturity') ?? DEFAULT_TARGETS.test_maturity}
+            target={getTarget('target_test_maturity')}
             onSave={onUpdateTestMaturity}
             isPending={isUpdatingTestMaturity}
           />
           <ArchitectureCard
             data={metrics.architecture}
             indicatorValue={indicators.arch_checklist}
-            target={getTarget('target_architecture') ?? DEFAULT_TARGETS.architecture}
+            target={getTarget('target_architecture')}
             onSave={onUpdateArchitecture}
             isPending={isUpdatingArchitecture}
           />
@@ -179,7 +172,7 @@ export default function QualityMetricsGrid({
             indicatorLabel="Single-sprint ratio"
             indicatorSuffix="%"
             description="Issues completed in original sprint"
-            target={100}
+            target={getTarget('target_commitment_reliability')}
             lowerIsBetter={false}
             formula="single_sprint / committed"
             metrics={[
@@ -199,7 +192,7 @@ export default function QualityMetricsGrid({
               indicatorLabel="Review coverage"
               indicatorSuffix="%"
               description="PRs reviewed before merge"
-              target={100 - (getTarget('target_pr_no_review_ratio') ?? DEFAULT_TARGETS.pr_no_review_ratio)}
+              target={getTarget('target_pr_no_review_ratio') !== null ? 100 - getTarget('target_pr_no_review_ratio')! : null}
               lowerIsBetter={false}
               formula="(reviewed / total) × 100"
               metrics={[
@@ -267,10 +260,11 @@ export default function QualityMetricsGrid({
           <ClientSurveyCard
             data={metrics.client_survey}
             indicatorValue={indicators.client_satisfaction}
-            target={getTarget('target_client_satisfaction') ?? DEFAULT_TARGETS.client_satisfaction}
+            target={getTarget('target_client_satisfaction')}
             projectStatus={project.status}
             onSave={onUpdateClientSurvey}
             isPending={isUpdatingClientSurvey}
+            getWeight={(name) => getWeight('Client Survey Weights', name)}
           />
         </div>
       </div>

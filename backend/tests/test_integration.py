@@ -209,7 +209,7 @@ class TestConfigLoadingIntegration:
         """Verify scoring config targets are loaded from database."""
         assert scoring_config.get_target("spi") == 0.8
         assert scoring_config.get_target("cpi") == 0.8
-        assert scoring_config.get_target("lead_time_days") == 3.0
+        assert scoring_config.get_target("lead_time_days") == 10.0
         assert scoring_config.get_target("mttr_hours") == 24.0
 
     @pytest.mark.asyncio

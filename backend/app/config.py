@@ -3,10 +3,12 @@ from functools import lru_cache
 from typing import Any
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
     database_url: str = ""
     debug: bool = False
     cors_origins: list[str] = []
@@ -55,10 +57,6 @@ class Settings(BaseSettings):
                     )
         return v
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
 
 class ScoringConfig:
     """
@@ -89,11 +87,18 @@ class ScoringConfig:
         "architecture": "target_architecture",
         "pm_satisfaction": "target_pm_satisfaction",
         "client_satisfaction": "target_client_satisfaction",
+        "story_review_ratio": "target_story_review_ratio",
+        "commitment_reliability": "target_commitment_reliability",
     }
 
     _CONSTANT_NAMES = {
         "sev1_cap": "const_sev1_cap",
         "grace_days": "const_grace_days",
+    }
+
+    _IDEAL_NAMES = {
+        "spi": "ideal_spi",
+        "cpi": "ideal_cpi",
     }
 
     # Weight group mappings: (group, internal_name) -> DB name
@@ -195,6 +200,14 @@ class ScoringConfig:
         value = self._config.get(db_name)
         if value is None:
             return 0.0
+        return float(value)
+
+    def get_ideal(self, name: str) -> float:
+        """Get an ideal value by internal name."""
+        db_name = self._IDEAL_NAMES.get(name, f"ideal_{name}")
+        value = self._config.get(db_name)
+        if value is None:
+            return 1.0
         return float(value)
 
     def get_global_weight(self, dimension: str) -> float:

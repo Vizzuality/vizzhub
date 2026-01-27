@@ -3,7 +3,7 @@ import EditableMetricCard from './EditableMetricCard';
 
 interface GovernanceCardProps {
   value: number | null | undefined;
-  target: number;
+  target: number | null;
   onSave: (value: number) => Promise<unknown>;
   isPending: boolean;
 }
@@ -46,11 +46,11 @@ export default function GovernanceCard({
             <span
               className={cn(
                 'text-3xl font-bold',
-                data === undefined || data === null
+                data === undefined || data === null || target === null
                   ? 'text-muted-foreground'
-                  : data === 0
+                  : data < target
                   ? 'text-score-green'
-                  : data <= target
+                  : data === target
                   ? 'text-score-yellow'
                   : 'text-score-red'
               )}
@@ -60,7 +60,9 @@ export default function GovernanceCard({
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
             <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">≤{target} exceptions</span>
+            <span className="text-sm text-foreground">
+              {target !== null ? `≤${target} exceptions` : '—'}
+            </span>
           </div>
         </>
       )}
