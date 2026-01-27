@@ -26,8 +26,6 @@ from app.services.normalizers.base import (
     NEUTRAL_VALUE,
     normalize_budget_variance,
     normalize_governance_compliance,
-    normalize_higher_is_better,
-    normalize_lower_is_better,
 )
 
 

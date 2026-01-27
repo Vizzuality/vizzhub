@@ -78,7 +78,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
    */
   const login = async (): Promise<void> => {
     // Placeholder for Google OAuth implementation
-    console.log('TODO: Implement Google OAuth login');
     throw new Error('Google OAuth not yet implemented');
   };
 

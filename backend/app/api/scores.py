@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
-from app.core.exceptions import MetricsNotFoundError, ProjectNotFoundError
+from app.core.exceptions import MetricsNotFoundError
 from app.models.indicators import IndicatorsCreate
 from app.models.metrics import (
     ArchitectureChecklist,
@@ -23,7 +23,6 @@ from app.models.metrics import (
     StrategicImpact,
     TestMaturity,
 )
-from app.models.project import ProjectDB
 from app.models.scores import FinalScore
 from app.services.calculators.final_score import FinalScoreCalculator
 from app.services.normalizers.indicators import IndicatorNormalizer

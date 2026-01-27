@@ -8,32 +8,49 @@ interface EditedParameter {
   notes?: string | null;
 }
 
-interface WeightsSectionProps {
+interface ParameterSectionProps {
   title: string;
   parameters: ConfigParameter[];
   isEditing: boolean;
   editedValues: Map<string, EditedParameter>;
   onValueChange: (name: string, value: string) => void;
   onNotesChange: (name: string, notes: string) => void;
+  showSumValidation?: boolean;
 }
 
-export function WeightsSection({
+function formatDisplayValue(value: string, edited: EditedParameter | undefined): string {
+  if (edited?.value !== undefined) return edited.value;
+  const num = parseFloat(value);
+  return !isNaN(num) ? num.toFixed(2) : value;
+}
+
+function formatReadonlyValue(value: string, unit?: string | null): string {
+  const num = parseFloat(value);
+  const formatted = !isNaN(num) ? num.toFixed(2) : value;
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+function formatParamName(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
+export function ParameterSection({
   title,
   parameters,
   isEditing,
   editedValues,
   onValueChange,
   onNotesChange,
-}: WeightsSectionProps): JSX.Element {
-  const calculateSum = (): number => {
-    return parameters.reduce((sum, param) => {
-      const edited = editedValues.get(param.name);
-      const value = edited?.value ?? param.value;
-      return sum + parseFloat(value || '0');
-    }, 0);
-  };
+  showSumValidation = false,
+}: ParameterSectionProps): JSX.Element {
+  const sum = showSumValidation
+    ? parameters.reduce((acc, param) => {
+        const edited = editedValues.get(param.name);
+        const value = edited?.value ?? param.value;
+        return acc + parseFloat(value || '0');
+      }, 0)
+    : 0;
 
-  const sum = calculateSum();
   const isValid = Math.abs(sum - 1.0) <= 0.001;
 
   return (
@@ -41,47 +58,46 @@ export function WeightsSection({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{title}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-normal text-muted-foreground">
-              Sum: {sum.toFixed(2)}
-            </span>
-            <span
-              className={`text-sm font-semibold ${
-                isValid ? 'text-score-green' : 'text-destructive'
-              }`}
-            >
-              {isValid ? '✓' : '✗ Must equal 1.0'}
-            </span>
-          </div>
+          {showSumValidation && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-normal text-muted-foreground">
+                Sum: {sum.toFixed(2)}
+              </span>
+              <span
+                className={`text-sm font-semibold ${
+                  isValid ? 'text-score-green' : 'text-destructive'
+                }`}
+              >
+                {isValid ? '✓' : '✗ Must equal 1.0'}
+              </span>
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {parameters.map((param) => {
             const edited = editedValues.get(param.name);
-            // Format initial value to 2 decimals, but keep edited value as-is (user might be typing)
-            const displayValue = edited?.value ?? parseFloat(param.value).toFixed(2);
+            const displayValue = formatDisplayValue(param.value, edited);
             const currentNotes = edited?.notes ?? param.notes;
 
             return (
               <div key={param.name} className="grid grid-cols-3 gap-4 items-start">
-                <div className="font-medium">
-                  {param.name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                </div>
+                <div className="font-medium">{formatParamName(param.name)}</div>
                 <div>
                   {isEditing ? (
                     <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="1"
+                      type={showSumValidation ? 'number' : 'text'}
+                      step={showSumValidation ? '0.01' : undefined}
+                      min={showSumValidation ? '0' : undefined}
+                      max={showSumValidation ? '1' : undefined}
                       value={displayValue}
                       onChange={(e) => onValueChange(param.name, e.target.value)}
                       className="max-w-xs"
                     />
                   ) : (
                     <span className="text-muted-foreground">
-                      {parseFloat(param.value).toFixed(2)}
+                      {formatReadonlyValue(param.value, param.unit)}
                     </span>
                   )}
                 </div>
@@ -96,9 +112,7 @@ export function WeightsSection({
                     />
                   ) : (
                     currentNotes && (
-                      <div className="text-sm text-muted-foreground">
-                        {currentNotes}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{currentNotes}</div>
                     )
                   )}
                 </div>

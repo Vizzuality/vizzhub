@@ -82,7 +82,7 @@ async def jira_callback(
             )
 
         # Exchange authorization code for token
-        token = await OAuthService.exchange_jira_code_for_token(code, db)
+        await OAuthService.exchange_jira_code_for_token(code, db)
         await db.commit()
 
         # Log successful OAuth token issuance
@@ -96,7 +96,7 @@ async def jira_callback(
 
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         logger.exception("Database error during OAuth callback")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -168,13 +168,13 @@ async def refresh_jira_token(
 
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         logger.exception("Database error during token refresh")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token refresh failed",
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Token refresh failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

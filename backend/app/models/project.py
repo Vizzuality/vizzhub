@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
