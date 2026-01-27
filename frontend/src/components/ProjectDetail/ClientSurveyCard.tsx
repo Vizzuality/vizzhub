@@ -5,14 +5,14 @@ import EditableMetricCard from './EditableMetricCard';
 import type { ClientSurvey, ProjectStatus } from '../../types';
 
 const SURVEY_QUESTIONS = [
-  { key: 'understanding', label: 'Understanding of needs', weight: '12%', shortLabel: 'Understanding' },
-  { key: 'proactivity', label: 'Proactivity', weight: '12%', shortLabel: 'Proactivity' },
-  { key: 'communication', label: 'Communication', weight: '10%', shortLabel: 'Communication' },
-  { key: 'delivery_time', label: 'Delivery time', weight: '14%', shortLabel: 'Delivery' },
-  { key: 'response_time', label: 'Response time', weight: '10%', shortLabel: 'Response' },
-  { key: 'quality', label: 'Quality of deliverables', weight: '24%', shortLabel: 'Quality' },
-  { key: 'expectations', label: 'Met expectations', weight: '12%', shortLabel: 'Expectations' },
-  { key: 'recommend', label: 'Would recommend', weight: '6%', shortLabel: 'Recommend' },
+  { key: 'understanding', configKey: 'weight_survey_understanding', label: 'Understanding of needs', shortLabel: 'Understanding', defaultWeight: 12 },
+  { key: 'proactivity', configKey: 'weight_survey_proactivity', label: 'Proactivity', shortLabel: 'Proactivity', defaultWeight: 12 },
+  { key: 'communication', configKey: 'weight_survey_communication', label: 'Communication', shortLabel: 'Communication', defaultWeight: 10 },
+  { key: 'delivery_time', configKey: 'weight_survey_time', label: 'Delivery time', shortLabel: 'Delivery', defaultWeight: 14 },
+  { key: 'response_time', configKey: 'weight_survey_response', label: 'Response time', shortLabel: 'Response', defaultWeight: 10 },
+  { key: 'quality', configKey: 'weight_survey_quality', label: 'Quality of deliverables', shortLabel: 'Quality', defaultWeight: 24 },
+  { key: 'expectations', configKey: 'weight_survey_expectations', label: 'Met expectations', shortLabel: 'Expectations', defaultWeight: 12 },
+  { key: 'recommend', configKey: 'weight_survey_recommend', label: 'Would recommend', shortLabel: 'Recommend', defaultWeight: 6 },
 ] as const;
 
 type SurveyKey = (typeof SURVEY_QUESTIONS)[number]['key'];
@@ -20,10 +20,11 @@ type SurveyKey = (typeof SURVEY_QUESTIONS)[number]['key'];
 interface ClientSurveyCardProps {
   data: ClientSurvey | null | undefined;
   indicatorValue: number | null;
-  target: number;
+  target: number | null;
   projectStatus: ProjectStatus;
   onSave: (data: Partial<Record<SurveyKey, number>>) => Promise<unknown>;
   isPending: boolean;
+  getWeight: (name: string) => number | null;
 }
 
 export default function ClientSurveyCard({
@@ -33,9 +34,16 @@ export default function ClientSurveyCard({
   projectStatus,
   onSave,
   isPending,
+  getWeight,
 }: ClientSurveyCardProps): JSX.Element {
-  const targetNormalized = target / 100;
+  const targetNormalized = target !== null ? target / 100 : null;
   const isDisabled = projectStatus === 'in_progress';
+
+  const getQuestionWeight = (configKey: string, defaultWeight: number): string => {
+    const weight = getWeight(configKey);
+    const pct = weight !== null ? Math.round(weight * 100) : defaultWeight;
+    return `${pct}%`;
+  };
 
   return (
     <EditableMetricCard<Partial<Record<SurveyKey, number>>>
@@ -47,8 +55,8 @@ export default function ClientSurveyCard({
       }
       tooltipContent={
         <p className="text-sm">
-          Weighted average of 8 questions. Quality has highest weight (24%), followed by
-          Time (14%).
+          Weighted average of 8 questions. Quality has highest weight ({getQuestionWeight('weight_survey_quality', 24)}), followed by
+          Time ({getQuestionWeight('weight_survey_time', 14)}).
         </p>
       }
       indicatorValue={indicatorValue}
@@ -69,11 +77,11 @@ export default function ClientSurveyCard({
       }
       renderEditForm={(form, setForm) => (
         <>
-          {SURVEY_QUESTIONS.map(({ key, label, weight }) => (
+          {SURVEY_QUESTIONS.map(({ key, configKey, label, defaultWeight }) => (
             <div key={key}>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-muted-foreground">{label}</label>
-                <span className="text-xs text-muted-foreground">Weight: {weight}</span>
+                <span className="text-xs text-muted-foreground">Weight: {getQuestionWeight(configKey, defaultWeight)}</span>
               </div>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((value) => (
@@ -99,7 +107,7 @@ export default function ClientSurveyCard({
             <span
               className={cn(
                 'text-2xl font-bold',
-                indicatorValue === null
+                indicatorValue === null || targetNormalized === null
                   ? 'text-muted-foreground'
                   : indicatorValue >= targetNormalized
                   ? 'text-score-green'
@@ -113,7 +121,7 @@ export default function ClientSurveyCard({
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
             <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">≥{target}%</span>
+            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
           </div>
           {displayData && (
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">

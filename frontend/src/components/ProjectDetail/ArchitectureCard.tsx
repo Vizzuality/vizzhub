@@ -35,7 +35,7 @@ type ChecklistKey = (typeof CHECKLIST_ITEMS)[number]['key'];
 interface ArchitectureCardProps {
   data: Architecture | null | undefined;
   indicatorValue: number | null;
-  target: number;
+  target: number | null;
   onSave: (data: Record<ChecklistKey, boolean>) => Promise<unknown>;
   isPending: boolean;
 }
@@ -54,7 +54,7 @@ export default function ArchitectureCard({
   onSave,
   isPending,
 }: ArchitectureCardProps): JSX.Element {
-  const targetNormalized = target / 100;
+  const targetNormalized = target !== null ? target / 100 : null;
 
   return (
     <EditableMetricCard<Record<ChecklistKey, boolean>>
@@ -103,7 +103,7 @@ export default function ArchitectureCard({
             <span
               className={cn(
                 'text-3xl font-bold',
-                indicatorValue === null
+                indicatorValue === null || targetNormalized === null
                   ? 'text-muted-foreground'
                   : indicatorValue >= targetNormalized
                   ? 'text-score-green'
@@ -117,7 +117,7 @@ export default function ArchitectureCard({
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
             <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">≥{target}%</span>
+            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
           </div>
           {displayData && (
             <div className="space-y-1 pt-2 border-t border-border/50">

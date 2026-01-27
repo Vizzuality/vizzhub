@@ -139,37 +139,38 @@ export default function EVMSection({
                   <CPICard evmData={evmData} getTarget={getTarget} />
 
                   {/* Milestones Card */}
-                  <button
-                    onClick={() => setShowMilestones(!showMilestones)}
-                    className="p-4 bg-muted/50 rounded-lg border text-left hover:bg-muted/70 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-muted-foreground">On-Time Milestones</p>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-muted-foreground">
-                                <Info className="h-3 w-3" />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-sm">On-time delivery rate</p>
-                              <p className="text-xs text-white/70 mt-1">Target: 85%</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      {showMilestones ? (
-                        <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    {indicators.on_time_milestones !== null ? (
-                      (() => {
-                        const milestonesTarget = (getTarget('target_milestones_on_time') ?? 85) / 100;
-                        return (
+                  {(() => {
+                    const milestonesTargetPct = getTarget('target_milestones_on_time') ?? 85;
+                    const milestonesTarget = milestonesTargetPct / 100;
+                    return (
+                      <button
+                        onClick={() => setShowMilestones(!showMilestones)}
+                        className="p-4 bg-muted/50 rounded-lg border text-left hover:bg-muted/70 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">On-Time Milestones</p>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-muted-foreground">
+                                    <Info className="h-3 w-3" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-sm">On-time delivery rate</p>
+                                  <p className="text-xs text-white/70 mt-1">Target: {milestonesTargetPct}%</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          {showMilestones ? (
+                            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        {indicators.on_time_milestones !== null ? (
                           <>
                             <p
                               className={cn(
@@ -191,18 +192,18 @@ export default function EVMSection({
                               <p className="text-xs text-chart-3">expand to edit</p>
                             </div>
                           </>
-                        );
-                      })()
-                    ) : (
-                      <>
-                        <p className="text-xl font-semibold text-muted-foreground">—</p>
-                        <div className="flex justify-between items-center">
-                          <p className="text-xs text-muted-foreground">No milestones</p>
-                          <p className="text-xs text-chart-3">expand to edit</p>
-                        </div>
-                      </>
-                    )}
-                  </button>
+                        ) : (
+                          <>
+                            <p className="text-xl font-semibold text-muted-foreground">—</p>
+                            <div className="flex justify-between items-center">
+                              <p className="text-xs text-muted-foreground">No milestones</p>
+                              <p className="text-xs text-chart-3">expand to edit</p>
+                            </div>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 {/* Expanded Milestones List */}

@@ -60,6 +60,13 @@ export default function ProjectDetail(): JSX.Element {
     return param ? parseFloat(param.value) : null;
   };
 
+  const getWeight = (category: string, name: string): number | null => {
+    const weights = config?.[category];
+    if (!weights) return null;
+    const param = weights.find((p) => p.name === name);
+    return param ? parseFloat(param.value) : null;
+  };
+
   const handleEdit = async (data: ProjectCreate): Promise<void> => {
     await replaceProject.mutateAsync(data);
     setIsEditing(false);
@@ -205,6 +212,7 @@ export default function ProjectDetail(): JSX.Element {
           indicators={scores.indicators}
           project={project}
           getTarget={getTarget}
+          getWeight={getWeight}
           onUpdateGovernance={(value) => updateGovernance.mutateAsync(value)}
           onUpdatePMSatisfaction={(data) => updatePMSatisfaction.mutateAsync(data)}
           onUpdateStrategicImpact={(value) => updateStrategicImpact.mutateAsync(value)}

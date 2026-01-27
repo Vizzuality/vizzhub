@@ -23,7 +23,7 @@ type TestTypeKey = (typeof TEST_TYPES)[number]['key'];
 interface TestMaturityCardProps {
   data: TestMaturity | null | undefined;
   indicatorValue: number | null;
-  target: number;
+  target: number | null;
   onSave: (data: Partial<Record<TestTypeKey, number>>) => Promise<unknown>;
   isPending: boolean;
 }
@@ -43,7 +43,7 @@ export default function TestMaturityCard({
   onSave,
   isPending,
 }: TestMaturityCardProps): JSX.Element {
-  const targetNormalized = target / 100;
+  const targetNormalized = target !== null ? target / 100 : null;
 
   return (
     <EditableMetricCard<Partial<Record<TestTypeKey, number>>>
@@ -86,7 +86,7 @@ export default function TestMaturityCard({
             <span
               className={cn(
                 'text-3xl font-bold',
-                indicatorValue === null
+                indicatorValue === null || targetNormalized === null
                   ? 'text-muted-foreground'
                   : indicatorValue >= targetNormalized
                   ? 'text-score-green'
@@ -100,7 +100,7 @@ export default function TestMaturityCard({
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
             <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">≥{target}%</span>
+            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
           </div>
           {displayData && (
             <div className="space-y-1 pt-2 border-t border-border/50">

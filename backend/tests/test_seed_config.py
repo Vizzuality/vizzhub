@@ -20,7 +20,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 69  # Total parameters from CSV
+    assert count == 73  # Total parameters from CSV
 
     # Verify specific parameter
     result = await db_session.execute(
@@ -28,7 +28,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
     )
     param = result.scalar_one()
     assert param.category == "Targets"
-    assert param.value == 3.00
+    assert param.value == 6.00
     assert param.unit == "%"
 
 
@@ -48,4 +48,4 @@ async def test_seed_config_parameters_is_idempotent(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 69
+    assert count == 73

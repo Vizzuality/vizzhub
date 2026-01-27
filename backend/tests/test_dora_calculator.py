@@ -92,7 +92,7 @@ class TestDoraScoreCalculator:
 
     def test_slow_lead_time_returns_low_score(self, config: ScoringConfig) -> None:
         """Slow lead time should return low score."""
-        indicators = IndicatorsCreate(lead_time_days=9.0)  # 9 days vs 3 day target
+        indicators = IndicatorsCreate(lead_time_days=30.0)  # 30 days vs 10 day target
         calc = DoraScoreCalculator(config)
         result = calc.calculate(indicators)
 
