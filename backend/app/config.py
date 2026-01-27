@@ -1,8 +1,7 @@
 from decimal import Decimal
 from functools import lru_cache
-from typing import Any
 
-from pydantic import field_validator
+from pydantic import field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,7 +35,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v: Any) -> list[str]:
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str):
             import json
             return json.loads(v)
@@ -44,7 +43,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins")
     @classmethod
-    def validate_cors_origins_production(cls, v: list[str], info) -> list[str]:
+    def validate_cors_origins_production(cls, v: list[str], info: ValidationInfo) -> list[str]:
         """Validate CORS origins - reject localhost in production."""
         debug = info.data.get("debug", False)
         if not debug:

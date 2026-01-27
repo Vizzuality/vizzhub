@@ -10,12 +10,12 @@ interface EditableMetricCardProps<T> {
   description: string;
   tooltipContent: ReactNode;
   indicatorValue?: number | null;
-  target?: number;
+  target?: number | null;
   data: T | null | undefined;
   onSave: (data: T) => Promise<unknown>;
   isPending: boolean;
   renderEditForm: (form: T, setForm: Dispatch<SetStateAction<T>>) => ReactNode;
-  renderDisplay: (data: T | null | undefined, indicatorValue: number | null | undefined, target: number | undefined) => ReactNode;
+  renderDisplay: (data: T | null | undefined, indicatorValue: number | null | undefined, target: number | null | undefined) => ReactNode;
   defaultFormState: T;
   editButtonLabel?: string;
   disabled?: boolean;

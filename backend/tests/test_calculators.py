@@ -97,6 +97,16 @@ class TestNormalizeToIdeal:
         result = calc._normalize_to_ideal(-0.5, 1.0)
         assert result == 0.0
 
+    def test_negative_ideal_with_positive_value_returns_one(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(0.5, -1.0)
+        assert result == 1.0
+
+    def test_zero_value_with_zero_ideal_returns_none(self, config: ScoringConfig) -> None:
+        calc = TimeCalculator(config)
+        result = calc._normalize_to_ideal(0.0, 0.0)
+        assert result is None
+
 
 class TestGetIdeal:
     """Tests for the get_ideal method in ScoringConfig."""
