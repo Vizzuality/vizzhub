@@ -8,23 +8,56 @@ export interface APIError {
   type: string;
 }
 
+interface ValidationErrorItem {
+  loc?: string[];
+  msg?: string;
+}
+
+interface StructuredErrorDetail {
+  message?: string;
+  type?: string;
+  error?: string;
+}
+
+interface AxiosErrorResponse {
+  response?: {
+    data?: {
+      detail?: string | ValidationErrorItem[] | StructuredErrorDetail;
+    };
+  };
+  message?: string;
+}
+
+function isAxiosError(error: unknown): error is AxiosErrorResponse {
+  return typeof error === 'object' && error !== null && 'response' in error;
+}
+
+function isStructuredDetail(detail: unknown): detail is StructuredErrorDetail {
+  return (
+    typeof detail === 'object' &&
+    detail !== null &&
+    ('message' in detail || 'type' in detail || 'error' in detail)
+  );
+}
+
+function isValidationErrorArray(detail: unknown): detail is ValidationErrorItem[] {
+  return Array.isArray(detail);
+}
+
 export class ErrorHandler {
   /**
    * Extract user-friendly error message from various error formats.
    */
-  static extractMessage(error: any): string {
-    // Handle axios errors
-    if (error?.response?.data?.detail) {
+  static extractMessage(error: unknown): string {
+    if (isAxiosError(error) && error.response?.data?.detail) {
       const detail = error.response.data.detail;
 
-      // Structured error response (from our backend)
-      if (typeof detail === 'object' && detail.message) {
+      if (isStructuredDetail(detail) && detail.message) {
         return detail.message;
       }
 
-      // Array of validation errors (FastAPI default format)
-      if (Array.isArray(detail)) {
-        const messages = detail.map((err: any) => {
+      if (isValidationErrorArray(detail)) {
+        const messages = detail.map((err) => {
           const loc = err.loc?.join(' → ') || 'unknown';
           const msg = err.msg || 'Invalid value';
           return `${loc}: ${msg}`;
@@ -32,32 +65,31 @@ export class ErrorHandler {
         return messages.join('\n');
       }
 
-      // String error response
       if (typeof detail === 'string') {
         return detail;
       }
     }
 
-    // Handle standard Error objects
-    if (error?.message) {
+    if (error instanceof Error) {
       return error.message;
     }
 
-    // Handle string errors
     if (typeof error === 'string') {
       return error;
     }
 
-    // Fallback
     return 'An unexpected error occurred. Please try again.';
   }
 
   /**
    * Extract error type from error response.
    */
-  static extractType(error: any): string {
-    if (error?.response?.data?.detail?.type) {
-      return error.response.data.detail.type;
+  static extractType(error: unknown): string {
+    if (isAxiosError(error)) {
+      const detail = error.response?.data?.detail;
+      if (isStructuredDetail(detail) && detail.type) {
+        return detail.type;
+      }
     }
     return 'unknown_error';
   }
@@ -65,7 +97,7 @@ export class ErrorHandler {
   /**
    * Check if error is a validation error.
    */
-  static isValidationError(error: any): boolean {
+  static isValidationError(error: unknown): boolean {
     const type = ErrorHandler.extractType(error);
     return type === 'validation_error' || type === 'value_error';
   }
@@ -73,7 +105,7 @@ export class ErrorHandler {
   /**
    * Check if error is a server error.
    */
-  static isServerError(error: any): boolean {
+  static isServerError(error: unknown): boolean {
     const type = ErrorHandler.extractType(error);
     return type === 'server_error';
   }
@@ -81,7 +113,7 @@ export class ErrorHandler {
   /**
    * Format error for display in UI.
    */
-  static formatForDisplay(error: any): {
+  static formatForDisplay(error: unknown): {
     title: string;
     message: string;
     type: string;
@@ -97,9 +129,11 @@ export class ErrorHandler {
       title = 'Server Error';
     }
 
-    // Extract title from error response if available
-    if (error?.response?.data?.detail?.error) {
-      title = error.response.data.detail.error;
+    if (isAxiosError(error)) {
+      const detail = error.response?.data?.detail;
+      if (isStructuredDetail(detail) && detail.error) {
+        title = detail.error;
+      }
     }
 
     return { title, message, type };

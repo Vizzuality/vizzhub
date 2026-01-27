@@ -1,6 +1,6 @@
 """Configuration endpoints."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from pydantic import ValidationError
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter

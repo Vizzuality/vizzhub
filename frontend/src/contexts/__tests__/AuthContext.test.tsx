@@ -5,7 +5,7 @@
  * token storage, and user session management for the application.
  */
 
-import { render, renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../AuthContext';
 import { useAuth } from '../../hooks/useAuth';

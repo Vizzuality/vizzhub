@@ -1,13 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import type { MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
+import type { Metrics, MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
 import { queryKeys } from './queryKeys';
-
-interface Metrics extends MetricsCreate {
-  id: string;
-  project_id: string;
-  created_at: string;
-}
 
 export function useProjectMetrics(projectId: string) {
   return useQuery({

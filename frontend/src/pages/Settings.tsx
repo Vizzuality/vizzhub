@@ -4,9 +4,25 @@ import { useConfigEditor } from '../hooks/useConfigEditor';
 import { Pencil, Save, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ConfigSection } from '../components/ConfigSection';
-import { WeightsSection } from '../components/WeightsSection';
+import { ParameterSection } from '../components/ParameterSection';
 import { ErrorHandler } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
+
+const CONFIG_SECTIONS = [
+  { key: 'Targets', showSumValidation: false },
+  { key: 'Gates & Constants', showSumValidation: false },
+  { key: 'Global Weights', showSumValidation: true },
+  { key: 'Quality Weights', showSumValidation: true },
+  { key: 'Time Weights', showSumValidation: true },
+  { key: 'Cost Weights', showSumValidation: true },
+  { key: 'Value Weights', showSumValidation: true },
+  { key: 'Satisfaction Weights', showSumValidation: true },
+  { key: 'Satisfaction Handsoff Weights', showSumValidation: true },
+  { key: 'Efficiency Weights', showSumValidation: true },
+  { key: 'Engineering Weights', showSumValidation: true },
+  { key: 'Risk Weights', showSumValidation: true },
+  { key: 'Test Maturity Weights', showSumValidation: true },
+] as const;
 
 export default function Settings(): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
@@ -14,7 +30,7 @@ export default function Settings(): JSX.Element {
   const { data: parameters, isLoading: configLoading, error } = useConfigParameters();
   const { mutateAsync: updateConfig } = useUpdateConfigParameters();
 
-  console.log('Settings Debug:', { parameters, configLoading, error });
+  logger.debug('Settings state:', { parameters, configLoading, error });
 
   const {
     editedValues,
@@ -30,18 +46,15 @@ export default function Settings(): JSX.Element {
     setSaveError(null);
     try {
       const updates = getUpdates();
-      console.log('Sending updates:', updates);
+      logger.debug('Sending updates:', updates);
       await updateConfig(updates);
       setIsEditing(false);
       reset();
       setSaveError(null);
-    } catch (error: any) {
-      console.error('Failed to save configuration:', error);
-
-      const { title, message } = ErrorHandler.formatForDisplay(error);
+    } catch (err: unknown) {
+      logger.error('Failed to save configuration:', err);
+      const { title, message } = ErrorHandler.formatForDisplay(err);
       setSaveError({ title, message });
-
-      // Scroll to top to show error
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -111,9 +124,9 @@ export default function Settings(): JSX.Element {
           <AlertTitle>Validation Errors</AlertTitle>
           <AlertDescription>
             <ul className="list-disc list-inside space-y-1 mt-2">
-              {validationErrors.map((error, idx) => (
+              {validationErrors.map((validationError, idx) => (
                 <li key={idx} className="text-sm">
-                  {error}
+                  {validationError}
                 </li>
               ))}
             </ul>
@@ -122,150 +135,21 @@ export default function Settings(): JSX.Element {
       )}
 
       <div className="space-y-6">
-          {parameters['Targets'] && (
-            <ConfigSection
-              title="Targets"
-              parameters={parameters['Targets']}
+        {CONFIG_SECTIONS.map(({ key, showSumValidation }) =>
+          parameters[key] ? (
+            <ParameterSection
+              key={key}
+              title={key}
+              parameters={parameters[key]}
               isEditing={isEditing}
               editedValues={editedValues}
               onValueChange={updateValue}
               onNotesChange={updateNotes}
+              showSumValidation={showSumValidation}
             />
-          )}
-
-          {parameters['Gates & Constants'] && (
-            <ConfigSection
-              title="Gates & Constants"
-              parameters={parameters['Gates & Constants']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Global Weights'] && (
-            <WeightsSection
-              title="Global Weights"
-              parameters={parameters['Global Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Quality Weights'] && (
-            <WeightsSection
-              title="Quality Weights"
-              parameters={parameters['Quality Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Time Weights'] && (
-            <WeightsSection
-              title="Time Weights"
-              parameters={parameters['Time Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Cost Weights'] && (
-            <WeightsSection
-              title="Cost Weights"
-              parameters={parameters['Cost Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Value Weights'] && (
-            <WeightsSection
-              title="Value Weights"
-              parameters={parameters['Value Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Satisfaction Weights'] && (
-            <WeightsSection
-              title="Satisfaction Weights"
-              parameters={parameters['Satisfaction Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Satisfaction Handsoff Weights'] && (
-            <WeightsSection
-              title="Satisfaction Handsoff Weights"
-              parameters={parameters['Satisfaction Handsoff Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Efficiency Weights'] && (
-            <WeightsSection
-              title="Efficiency Weights"
-              parameters={parameters['Efficiency Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Engineering Weights'] && (
-            <WeightsSection
-              title="Engineering Weights"
-              parameters={parameters['Engineering Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Risk Weights'] && (
-            <WeightsSection
-              title="Risk Weights"
-              parameters={parameters['Risk Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
-
-          {parameters['Test Maturity Weights'] && (
-            <WeightsSection
-              title="Test Maturity Weights"
-              parameters={parameters['Test Maturity Weights']}
-              isEditing={isEditing}
-              editedValues={editedValues}
-              onValueChange={updateValue}
-              onNotesChange={updateNotes}
-            />
-          )}
+          ) : null
+        )}
       </div>
     </div>
   );
 }
-

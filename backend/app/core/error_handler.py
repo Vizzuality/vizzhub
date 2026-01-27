@@ -1,6 +1,5 @@
 """Centralized error handling utilities."""
 
-from typing import Any
 from pydantic import ValidationError
 from fastapi import HTTPException
 

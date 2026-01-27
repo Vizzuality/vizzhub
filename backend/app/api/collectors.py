@@ -7,9 +7,8 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
-from app.core.exceptions import ConfigurationError, ProjectNotFoundError
+from app.core.exceptions import ConfigurationError
 from app.models.metrics import Metrics, MetricsDB
-from app.models.project import ProjectDB
 from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector
 
