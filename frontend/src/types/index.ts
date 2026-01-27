@@ -103,11 +103,22 @@ export interface ScoringConfig {
     high_vuln_count: number;
     gov_exceptions: number;
     pr_no_review_ratio: number;
+    story_review_ratio: number;
+    client_satisfaction: number;
+    architecture: number;
+    commitment_reliability: number;
+    milestones_on_time: number;
+    test_maturity: number;
+    pm_satisfaction: number;
     pr_size_lines: number;
     review_turnaround_hours: number;
     deployment_frequency: number;
     change_failure_rate: number;
     post_contract_tasks: number;
+  };
+  ideals: {
+    spi: number;
+    cpi: number;
   };
   global_weights: {
     time: number;

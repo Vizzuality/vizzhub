@@ -1,5 +1,5 @@
 from decimal import Decimal, InvalidOperation
-from typing import Any
+
 from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from sqlalchemy import String, Text, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
@@ -49,10 +49,20 @@ class TargetsConfig(BaseModel):
 
 
 class IdealsConfig(BaseModel):
-    """Ideal values for scoring (separate from thresholds)."""
+    """
+    Ideal values for scoring (separate from thresholds).
 
-    spi: float  # Ideal SPI = 1.0 (exactly on schedule)
-    cpi: float  # Ideal CPI = 1.0 (exactly on budget)
+    Ideals represent the benchmark for a perfect score (100 points).
+    Targets/thresholds are minimum acceptable values used for color coding.
+
+    Example:
+        - SPI ideal = 1.0 means exactly on schedule gets 100 points
+        - SPI target = 0.8 means 80% schedule performance is the threshold
+        - A project with SPI = 0.9 scores 90 points but shows green (above threshold)
+    """
+
+    spi: float
+    cpi: float
 
 
 class GlobalWeights(BaseModel):
@@ -103,7 +113,7 @@ class ConfigParameterUpdate(BaseModel):
 
     @field_validator('value', mode='before')
     @classmethod
-    def validate_value(cls, v: Any, info: ValidationInfo) -> Decimal:
+    def validate_value(cls, v: str | int | float | Decimal, info: ValidationInfo) -> Decimal:
         """Validate and convert value to Decimal with user-friendly error messages."""
         # Get parameter name from the data being validated
         name = info.data.get('name', 'unknown') if info.data else 'unknown'
