@@ -4,7 +4,20 @@ Base URL: `http://localhost:8000/api`
 
 ## Authentication
 
-Currently, the API does not require authentication. Authentication will be added in a future release.
+All endpoints require JWT authentication (except `/health` and OAuth callbacks).
+
+**Development mode** (`DEBUG=true`): Authentication is bypassed.
+
+**Headers:**
+```http
+Authorization: Bearer <jwt_token>
+```
+
+Generate test tokens:
+```bash
+cd backend
+python scripts/generate_jwt_token.py --user-id "test-user" --roles "user,admin"
+```
 
 ---
 
@@ -24,6 +37,9 @@ GET /projects
     "name": "Project Alpha",
     "jira_project_key": "ALPHA",
     "github_repo": "org/alpha",
+    "start_date": "2024-01-01",
+    "end_date": "2024-06-30",
+    "status": "in_progress",
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"
   }
@@ -39,7 +55,9 @@ Content-Type: application/json
 {
   "name": "Project Alpha",
   "jira_project_key": "ALPHA",
-  "github_repo": "org/alpha"
+  "github_repo": "org/alpha",
+  "start_date": "2024-01-01",
+  "end_date": "2024-06-30"
 }
 ```
 
@@ -50,6 +68,9 @@ Content-Type: application/json
   "name": "Project Alpha",
   "jira_project_key": "ALPHA",
   "github_repo": "org/alpha",
+  "start_date": "2024-01-01",
+  "end_date": "2024-06-30",
+  "status": "in_progress",
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-01T00:00:00Z"
 }
@@ -276,12 +297,22 @@ GET /config
     "defect_density": 3,
     "escaped_rate": 0.01,
     "mttr_hours": 24,
-    "spi": 1,
-    "cpi": 1,
+    "spi": 0.8,
+    "cpi": 0.8,
     "lead_time_days": 5,
     "high_vuln_count": 0,
     "gov_exceptions": 2,
-    "pr_no_review_ratio": 0.02
+    "pr_no_review_ratio": 0.02,
+    "story_review_ratio": 0.9,
+    "commitment_reliability": 0.8,
+    "test_maturity": 0.7,
+    "architecture": 0.75,
+    "pm_satisfaction": 0.85,
+    "client_satisfaction": 0.8
+  },
+  "ideals": {
+    "spi": 1.0,
+    "cpi": 1.0
   },
   "global_weights": {
     "time": 0.12,
@@ -298,15 +329,15 @@ GET /config
     "grace_days": 3
   },
   "weight_validation": {
-    "global": true,
-    "time": true,
-    "cost": true,
-    "quality": true,
-    "value": true,
-    "satisfaction": true,
-    "flow": true,
-    "engineering": true,
-    "risk": true
+    "Global Weights": true,
+    "Time Weights": true,
+    "Cost Weights": true,
+    "Quality Weights": true,
+    "Value Weights": true,
+    "Satisfaction Weights": true,
+    "Flow Weights": true,
+    "Engineering Weights": true,
+    "Risk Weights": true
   }
 }
 ```
@@ -388,7 +419,18 @@ GET /health
 
 ## Rate Limiting
 
-Currently no rate limiting is implemented. This will be added in a future release.
+Rate limiting is active on all endpoints using slowapi:
+- Most endpoints: 100 requests/minute
+- Config update: 10 requests/minute
+- Collectors: 10 requests/minute
+
+**Response when rate limited:**
+```json
+{
+  "detail": "Rate limit exceeded"
+}
+```
+Status code: `429 Too Many Requests`
 
 ---
 
