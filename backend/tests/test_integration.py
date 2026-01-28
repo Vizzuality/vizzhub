@@ -51,12 +51,12 @@ async def test_project_with_metrics(
         project_id=str(test_project.id),
         period_start=date.today() - timedelta(days=30),
         period_end=date.today(),
-        evm_data={
-            "budget_total": 100000.0,
-            "cost_to_date": 45000.0,
-            "percent_completed": 0.5,
-            "percent_planned": 0.5,
-        },
+        # EVM data (normalized columns)
+        budget_total=Decimal("100000.0"),
+        cost_to_date=Decimal("45000.0"),
+        percent_completed=Decimal("0.5"),
+        percent_planned=Decimal("0.5"),
+        # Milestones (JSON)
         milestones=[
             {
                 "name": "Milestone 1",
@@ -64,31 +64,27 @@ async def test_project_with_metrics(
                 "actual_date": str(date.today() - timedelta(days=10)),
             }
         ],
-        jira_defects={
-            "bugs_total": 5,
-            "bugs_open": 2,
-            "escaped_defects": 1,
-            "tasks_completed": 100,
-            "mttr_hours": 24.0,
-            "incidents_count": 1,
-            "post_contract_tasks": 0,
-        },
-        flow_metrics={
-            "lead_time_days": 3.0,
-            "commitment_reliability": 0.9,
-            "total_stories": 50,
-            "stories_with_reviewer": 45,
-        },
-        github_metrics={
-            "total_merged_prs": 100,
-            "prs_without_review": 5,
-            "pr_review_ratio": 0.95,
-            "high_severity_vulns": 0,
-            "pr_size_median": 150.0,
-            "review_turnaround_hours": 12.0,
-            "deployment_frequency": 1.0,
-            "change_failure_rate": 5.0,
-        },
+        # Defect metrics (normalized columns)
+        bugs_total=5,
+        tasks_completed=100,
+        escaped_defects=1,
+        mttr_hours=Decimal("24.0"),
+        incidents_count=1,
+        post_contract_tasks=0,
+        # Flow metrics (normalized columns)
+        lead_time_days=Decimal("3.0"),
+        commitment_reliability=Decimal("0.9"),
+        total_stories=50,
+        stories_with_reviewer=45,
+        # GitHub metrics (normalized columns)
+        total_merged_prs=100,
+        prs_without_review=5,
+        high_severity_vulns=0,
+        pr_size_median=Decimal("150.0"),
+        review_turnaround_hours=Decimal("12.0"),
+        deployment_frequency=Decimal("1.0"),
+        change_failure_rate=Decimal("0.05"),
+        # JSON fields
         test_maturity={
             "e2e": 4,
             "unit": 4,
@@ -301,12 +297,10 @@ class TestMetricsConsolidationIntegration:
             project_id=str(test_project.id),
             period_start=period_start,
             period_end=today,
-            evm_data={
-                "budget_total": 100000.0,
-                "cost_to_date": 50000.0,
-                "percent_completed": 0.5,
-                "percent_planned": 0.5,
-            },
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("50000.0"),
+            percent_completed=Decimal("0.5"),
+            percent_planned=Decimal("0.5"),
         )
         db_session.add(metrics1)
         await db_session.commit()
@@ -316,16 +310,13 @@ class TestMetricsConsolidationIntegration:
             project_id=str(test_project.id),
             period_start=period_start,
             period_end=today,
-            github_metrics={
-                "total_merged_prs": 50,
-                "prs_without_review": 2,
-                "pr_review_ratio": 0.96,
-                "high_severity_vulns": 0,
-                "pr_size_median": 100.0,
-                "review_turnaround_hours": 8.0,
-                "deployment_frequency": 1.5,
-                "change_failure_rate": 2.0,
-            },
+            total_merged_prs=50,
+            prs_without_review=2,
+            high_severity_vulns=0,
+            pr_size_median=Decimal("100.0"),
+            review_turnaround_hours=Decimal("8.0"),
+            deployment_frequency=Decimal("1.5"),
+            change_failure_rate=Decimal("0.02"),
         )
         db_session.add(metrics2)
         await db_session.commit()
@@ -397,15 +388,12 @@ class TestMetricsConsolidationIntegration:
             project_id=str(test_project.id),
             period_start=period_start,
             period_end=today,
-            jira_defects={
-                "bugs_total": 5,
-                "bugs_open": 2,
-                "escaped_defects": 1,
-                "tasks_completed": 100,
-                "mttr_hours": 24.0,
-                "incidents_count": 1,
-                "post_contract_tasks": 0,
-            },
+            bugs_total=5,
+            tasks_completed=100,
+            escaped_defects=1,
+            mttr_hours=Decimal("24.0"),
+            incidents_count=1,
+            post_contract_tasks=0,
             sev1_incident=False,
         )
         db_session.add(metrics1)
@@ -537,12 +525,12 @@ class TestNormalizersE2EIntegration:
             project_id=str(test_project.id),
             period_start=date.today() - timedelta(days=30),
             period_end=date.today(),
-            evm_data={
-                "budget_total": 100000.0,
-                "cost_to_date": 50000.0,
-                "percent_completed": 0.5,
-                "percent_planned": 0.5,  # SPI = 1.0
-            },
+            # EVM data (SPI = 1.0)
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("50000.0"),
+            percent_completed=Decimal("0.5"),
+            percent_planned=Decimal("0.5"),
+            # Milestones (JSON)
             milestones=[
                 {
                     "name": "M1",
@@ -550,31 +538,27 @@ class TestNormalizersE2EIntegration:
                     "actual_date": str(date.today() - timedelta(days=10)),
                 }
             ],
-            jira_defects={
-                "bugs_total": 0,
-                "bugs_open": 0,
-                "escaped_defects": 0,
-                "tasks_completed": 100,
-                "mttr_hours": 0.0,
-                "incidents_count": 0,
-                "post_contract_tasks": 0,
-            },
-            flow_metrics={
-                "lead_time_days": 1.0,  # Under target of 3
-                "commitment_reliability": 1.0,
-                "total_stories": 50,
-                "stories_with_reviewer": 50,  # 100% review
-            },
-            github_metrics={
-                "total_merged_prs": 100,
-                "prs_without_review": 0,
-                "pr_review_ratio": 1.0,
-                "high_severity_vulns": 0,
-                "pr_size_median": 100.0,  # Under target
-                "review_turnaround_hours": 4.0,  # Under target
-                "deployment_frequency": 2.0,  # Above target
-                "change_failure_rate": 0.0,
-            },
+            # Defect metrics
+            bugs_total=0,
+            tasks_completed=100,
+            escaped_defects=0,
+            mttr_hours=Decimal("0.0"),
+            incidents_count=0,
+            post_contract_tasks=0,
+            # Flow metrics
+            lead_time_days=Decimal("1.0"),
+            commitment_reliability=Decimal("1.0"),
+            total_stories=50,
+            stories_with_reviewer=50,
+            # GitHub metrics
+            total_merged_prs=100,
+            prs_without_review=0,
+            high_severity_vulns=0,
+            pr_size_median=Decimal("100.0"),
+            review_turnaround_hours=Decimal("4.0"),
+            deployment_frequency=Decimal("2.0"),
+            change_failure_rate=Decimal("0.0"),
+            # JSON fields
             test_maturity={"e2e": 5, "unit": 5, "accessibility": 5, "security": 5, "frontend": 5},
             architecture={
                 "docs_up_to_date": True,
@@ -622,39 +606,33 @@ class TestNormalizersE2EIntegration:
             project_id=str(test_project.id),
             period_start=date.today() - timedelta(days=30),
             period_end=date.today(),
-            evm_data={
-                "budget_total": 100000.0,
-                "cost_to_date": 80000.0,
-                "percent_completed": 0.3,
-                "percent_planned": 0.6,  # SPI = 0.5, very behind
-            },
-            jira_defects={
-                "bugs_total": 50,
-                "bugs_open": 30,
-                "escaped_defects": 20,
-                "tasks_completed": 100,
-                "mttr_hours": 100.0,  # Very slow recovery
-                "incidents_count": 5,
-                "post_contract_tasks": 10,
-            },
-            flow_metrics={
-                "lead_time_days": 15.0,  # 5x target
-                "commitment_reliability": 0.3,
-                "total_stories": 50,
-                "stories_with_reviewer": 10,  # Only 20%
-            },
-            github_metrics={
-                "total_merged_prs": 100,
-                "prs_without_review": 30,  # 30% without review
-                "pr_review_ratio": 0.5,
-                "high_severity_vulns": 5,  # Critical!
-                "pr_size_median": 1000.0,  # Way over target
-                "review_turnaround_hours": 72.0,  # Very slow
-                "deployment_frequency": 0.1,  # Very rare
-                "change_failure_rate": 50.0,  # 50% failure
-            },
+            # EVM data (SPI = 0.5, very behind)
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("80000.0"),
+            percent_completed=Decimal("0.3"),
+            percent_planned=Decimal("0.6"),
+            # Defect metrics
+            bugs_total=50,
+            tasks_completed=100,
+            escaped_defects=20,
+            mttr_hours=Decimal("100.0"),
+            incidents_count=5,
+            post_contract_tasks=10,
+            # Flow metrics
+            lead_time_days=Decimal("15.0"),
+            commitment_reliability=Decimal("0.3"),
+            total_stories=50,
+            stories_with_reviewer=10,
+            # GitHub metrics
+            total_merged_prs=100,
+            prs_without_review=30,
+            high_severity_vulns=5,
+            pr_size_median=Decimal("1000.0"),
+            review_turnaround_hours=Decimal("72.0"),
+            deployment_frequency=Decimal("0.1"),
+            change_failure_rate=Decimal("0.5"),
             governance_exceptions=10,
-            sev1_incident=True,  # Cap quality at 60
+            sev1_incident=True,
         )
         db_session.add(metrics)
         await db_session.commit()
@@ -687,12 +665,10 @@ class TestNormalizersE2EIntegration:
             project_id=str(test_project.id),
             period_start=date.today() - timedelta(days=30),
             period_end=date.today(),
-            evm_data={
-                "budget_total": 100000.0,
-                "cost_to_date": 50000.0,
-                "percent_completed": 0.4,
-                "percent_planned": 0.5,
-            },
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("50000.0"),
+            percent_completed=Decimal("0.4"),
+            percent_planned=Decimal("0.5"),
         )
         db_session.add(metrics)
         await db_session.commit()
@@ -720,12 +696,10 @@ class TestNormalizersE2EIntegration:
             project_id=str(test_project.id),
             period_start=date.today() - timedelta(days=30),
             period_end=date.today(),
-            evm_data={
-                "budget_total": 100000.0,
-                "cost_to_date": 40000.0,
-                "percent_completed": 0.5,
-                "percent_planned": 0.5,
-            },
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("40000.0"),
+            percent_completed=Decimal("0.5"),
+            percent_planned=Decimal("0.5"),
         )
         db_session.add(metrics)
         await db_session.commit()
@@ -832,12 +806,10 @@ class TestCalculatorChainIntegration:
             project_id=str(test_project.id),
             period_start=date.today() - timedelta(days=30),
             period_end=date.today(),
-            evm_data={
-                "budget_total": 100000.0,
-                "cost_to_date": 50000.0,
-                "percent_completed": 0.5,
-                "percent_planned": 0.5,
-            },
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("50000.0"),
+            percent_completed=Decimal("0.5"),
+            percent_planned=Decimal("0.5"),
         )
         db_session.add(metrics)
         await db_session.commit()

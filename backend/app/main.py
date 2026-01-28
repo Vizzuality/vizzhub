@@ -16,6 +16,7 @@ from app.api import metrics as metrics_router
 from app.api import oauth as oauth_router
 from app.api import projects as projects_router
 from app.api import scores as scores_router
+from app.api import snapshots as snapshots_router
 from app.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
@@ -142,6 +143,9 @@ app.include_router(config_router.router, prefix="/api/config", tags=["config"])
 app.include_router(oauth_router.router, prefix="/api/oauth", tags=["oauth"])
 app.include_router(
     collectors_router.router, prefix="/api/collect", tags=["collectors"]
+)
+app.include_router(
+    snapshots_router.router, prefix="/api/snapshots", tags=["snapshots"]
 )
 
 

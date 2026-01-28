@@ -24,4 +24,9 @@ export const queryKeys = {
     parameters: ['config', 'parameters'] as const,
     validation: ['config', 'validation'] as const,
   },
+  snapshots: {
+    byProject: (projectId: string) => ['snapshots', projectId] as const,
+    detail: (projectId: string, year: number, month: number) =>
+      ['snapshots', projectId, year, month] as const,
+  },
 } as const;

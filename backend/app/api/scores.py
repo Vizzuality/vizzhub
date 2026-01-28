@@ -9,20 +9,7 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
 from app.models.indicators import IndicatorsCreate
-from app.models.metrics import (
-    ArchitectureChecklist,
-    ClientSurvey,
-    EVMData,
-    FlowMetrics,
-    GitHubMetrics,
-    JiraDefectMetrics,
-    MetricsCreate,
-    MetricsDB,
-    Milestone,
-    PMSatisfaction,
-    StrategicImpact,
-    TestMaturity,
-)
+from app.models.metrics import MetricsCreate, MetricsDB
 from app.models.scores import FinalScore
 from app.services.calculators.final_score import FinalScoreCalculator
 from app.services.normalizers.indicators import IndicatorNormalizer
@@ -88,24 +75,21 @@ async def get_project_scores(
     """
     await get_project_or_404(db, project_id)
 
-    # Get all metrics for latest period_end to consolidate
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
         .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
-        .limit(20)  # Get enough records to consolidate
+        .limit(20)
     )
-    metrics_list = result.scalars().all()
+    metrics_list = list(result.scalars().all())
     if not metrics_list:
         raise MetricsNotFoundError(str(project_id))
 
-    # Filter to same period_end as latest
     latest_period_end = metrics_list[0].period_end
     same_period = [m for m in metrics_list if m.period_end == latest_period_end]
 
-    # Consolidate metrics from same period
     metrics_db = _consolidate_metrics(same_period)
-    metrics = _db_to_metrics_create(metrics_db)
+    metrics = MetricsCreate.from_db(metrics_db)
 
     normalizer = IndicatorNormalizer(config)
     calculator = FinalScoreCalculator(config)
@@ -130,18 +114,35 @@ def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
     if len(metrics_list) == 1:
         return metrics_list[0]
 
-    # Start with the most recent record
     base = metrics_list[0]
 
-    # Fields to consolidate (take first non-null)
-    fields = [
-        "evm_data", "milestones", "jira_defects", "flow_metrics",
-        "github_metrics", "test_maturity", "architecture",
-        "pm_satisfaction", "client_survey", "strategic_impact",
-        "governance_exceptions",
+    # Normalized columns to consolidate
+    normalized_fields = [
+        # EVM
+        "budget_total", "cost_to_date", "percent_completed", "percent_planned",
+        # Defects
+        "bugs_total", "tasks_completed", "escaped_defects", "mttr_hours",
+        "incidents_count", "post_contract_tasks",
+        # Flow
+        "lead_time_days", "lead_time_sample_size", "commitment_reliability",
+        "committed_issues", "single_sprint_issues", "multi_sprint_issues",
+        "total_stories", "stories_with_reviewer",
+        # GitHub
+        "prs_without_review", "total_merged_prs", "high_severity_vulns",
+        "high_severity_vulns_total", "pr_size_median", "review_turnaround_hours",
+        "deployment_frequency", "release_count_90d", "change_failure_rate",
+        "total_releases", "failed_releases",
+        # Manual
+        "governance_exceptions", "strategic_impact",
     ]
 
-    for field in fields:
+    # JSON fields to consolidate
+    json_fields = [
+        "milestones", "test_maturity", "architecture",
+        "pm_satisfaction", "client_survey",
+    ]
+
+    for field in normalized_fields + json_fields:
         if getattr(base, field) is None:
             for m in metrics_list[1:]:
                 value = getattr(m, field)
@@ -149,7 +150,6 @@ def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
                     setattr(base, field, value)
                     break
 
-    # Special handling for sev1_incident (True if any record has it)
     if not base.sev1_incident:
         for m in metrics_list[1:]:
             if m.sev1_incident:
@@ -182,7 +182,7 @@ async def get_project_score_history(
 
     responses = []
     for metrics_db in metrics_list:
-        metrics = _db_to_metrics_create(metrics_db)
+        metrics = MetricsCreate.from_db(metrics_db)
         indicators = normalizer.normalize_all(metrics)
 
         total_prs = None
@@ -197,23 +197,3 @@ async def get_project_score_history(
         responses.append(ScoreResponse(indicators=indicators, scores=scores))
 
     return responses
-
-
-def _db_to_metrics_create(db: MetricsDB) -> MetricsCreate:
-    """Convert DB model to MetricsCreate for calculation."""
-    return MetricsCreate(
-        period_start=db.period_start,
-        period_end=db.period_end,
-        evm_data=EVMData(**db.evm_data) if db.evm_data else None,
-        milestones=[Milestone(**m) for m in db.milestones] if db.milestones else None,
-        jira_defects=JiraDefectMetrics(**db.jira_defects) if db.jira_defects else None,
-        flow_metrics=FlowMetrics(**db.flow_metrics) if db.flow_metrics else None,
-        github_metrics=GitHubMetrics(**db.github_metrics) if db.github_metrics else None,
-        test_maturity=TestMaturity(**db.test_maturity) if db.test_maturity else None,
-        architecture=ArchitectureChecklist(**db.architecture) if db.architecture else None,
-        pm_satisfaction=PMSatisfaction(**db.pm_satisfaction) if db.pm_satisfaction else None,
-        client_survey=ClientSurvey(**db.client_survey) if db.client_survey else None,
-        strategic_impact=StrategicImpact(db.strategic_impact) if db.strategic_impact else None,
-        governance_exceptions=db.governance_exceptions,
-        sev1_incident=db.sev1_incident,
-    )

@@ -4,6 +4,8 @@ Final score calculator.
 Weighted aggregate of all dimension scores.
 """
 
+from typing import Callable
+
 from app.config import ScoringConfig, get_scoring_config
 from app.models.indicators import IndicatorsCreate
 from app.models.scores import DimensionScores, DoraScore, FinalScore
@@ -87,7 +89,7 @@ class FinalScoreCalculator:
 
         config_weights = {name: self.config.get_global_weight(name) for name in dimension_names}
 
-        available = [
+        available: list[tuple[str, int, float]] = [
             (name, score, config_weights[name])
             for name, score in zip(dimension_names, dimension_scores)
             if score is not None
@@ -128,22 +130,19 @@ class FinalScoreCalculator:
         self,
         dimension: str,
         indicators: IndicatorsCreate,
-        **kwargs: bool | int | None,
+        sev1_incident: bool = False,
+        total_prs: int | None = None,
     ) -> int | None:
         """Calculate a single dimension score."""
-        calculators = {
+        calculators: dict[str, Callable[[], int | None]] = {
             "time": lambda: self.time_calc.calculate(indicators),
             "cost": lambda: self.cost_calc.calculate(indicators),
-            "quality": lambda: self.quality_calc.calculate(
-                indicators, kwargs.get("sev1_incident", False)
-            ),
+            "quality": lambda: self.quality_calc.calculate(indicators, sev1_incident),
             "value": lambda: self.value_calc.calculate(indicators),
             "satisfaction": lambda: self.satisfaction_calc.calculate(indicators),
             "flow": lambda: self.flow_calc.calculate(indicators),
             "engineering": lambda: self.engineering_calc.calculate(indicators),
-            "risk": lambda: self.risk_calc.calculate(
-                indicators, kwargs.get("total_prs")
-            ),
+            "risk": lambda: self.risk_calc.calculate(indicators, total_prs),
         }
 
         calc = calculators.get(dimension)

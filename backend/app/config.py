@@ -213,6 +213,24 @@ class ScoringConfig:
         """Get a global dimension weight."""
         return self.get_weight("global", dimension)
 
+    def get_all_weights(self) -> dict[str, float]:
+        """Get all weights as a flat dictionary for snapshotting."""
+        return {
+            db_name: float(self._config.get(db_name, 0))
+            for db_name in self._WEIGHT_NAMES.values()
+        }
+
+    def get_all_targets(self) -> dict[str, float]:
+        """Get all targets as a flat dictionary for snapshotting."""
+        result = {}
+        for db_name in self._TARGET_NAMES.values():
+            result[db_name] = float(self._config.get(db_name, 1.0))
+        for db_name in self._IDEAL_NAMES.values():
+            result[db_name] = float(self._config.get(db_name, 1.0))
+        for db_name in self._CONSTANT_NAMES.values():
+            result[db_name] = float(self._config.get(db_name, 0))
+        return result
+
     def validate_weights(self) -> dict[str, bool]:
         """Validate that all weight groups sum to 1."""
         groups = {

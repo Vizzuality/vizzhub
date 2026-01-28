@@ -6,6 +6,9 @@ import type {
   ScoreResponse,
   ScoringConfig,
   MetricsCreate,
+  Snapshot,
+  SnapshotCreate,
+  SnapshotWithScores,
 } from '../types';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
@@ -131,6 +134,45 @@ export const collectApi = {
       { timeout: 60000 },
     );
     return response.data;
+  },
+};
+
+export const snapshotsApi = {
+  getProjectSnapshots: async (
+    projectId: string,
+    limit = 12,
+  ): Promise<SnapshotWithScores[]> => {
+    const response = await api.get<SnapshotWithScores[]>(
+      `/snapshots/project/${projectId}`,
+      { params: { limit } },
+    );
+    return response.data;
+  },
+
+  getSnapshot: async (
+    projectId: string,
+    year: number,
+    month: number,
+  ): Promise<SnapshotWithScores> => {
+    const response = await api.get<SnapshotWithScores>(
+      `/snapshots/project/${projectId}/${year}/${month}`,
+    );
+    return response.data;
+  },
+
+  createSnapshot: async (
+    projectId: string,
+    data: SnapshotCreate,
+  ): Promise<Snapshot> => {
+    const response = await api.post<Snapshot>(
+      `/snapshots/project/${projectId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteSnapshot: async (snapshotId: string): Promise<void> => {
+    await api.delete(`/snapshots/${snapshotId}`);
   },
 };
 
