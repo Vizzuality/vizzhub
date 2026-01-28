@@ -259,3 +259,38 @@ export interface Metrics extends MetricsCreate {
   project_id: string;
   created_at: string;
 }
+
+// Snapshot types for historical metrics
+export interface SnapshotScores {
+  p_time: number | null;
+  p_cost: number | null;
+  p_quality: number | null;
+  p_value: number | null;
+  p_satisfaction: number | null;
+  p_flow: number | null;
+  p_engineering: number | null;
+  p_risk: number | null;
+  final_score: number;
+}
+
+export interface SnapshotCreate {
+  period_year: number;
+  period_month: number;
+}
+
+export interface Snapshot {
+  id: string;
+  project_id: string;
+  metrics_id: string;
+  period_year: number;
+  period_month: number;
+  snapshot_type: string;
+  weights_applied: Record<string, number>;
+  targets_applied: Record<string, number>;
+  created_at: string;
+}
+
+export interface SnapshotWithScores extends Snapshot {
+  indicators: Indicators;
+  scores: FinalScore;
+}
