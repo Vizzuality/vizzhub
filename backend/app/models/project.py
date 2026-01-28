@@ -1,14 +1,18 @@
 from datetime import date, datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.snapshot import MetricSnapshotDB
 
 
 class ProjectStatus(str, Enum):
@@ -57,6 +61,10 @@ class ProjectDB(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), server_onupdate=func.now()
+    )
+
+    snapshots: Mapped[list["MetricSnapshotDB"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )
 
 

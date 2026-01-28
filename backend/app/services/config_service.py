@@ -43,7 +43,7 @@ class ConfigService:
         parameters = result.scalars().all()
 
         # Group by category
-        grouped = {}
+        grouped: dict[str, list[ConfigParameter]] = {}
         for param in parameters:
             if param.category not in grouped:
                 grouped[param.category] = []

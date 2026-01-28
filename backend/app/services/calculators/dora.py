@@ -11,12 +11,31 @@ This score is displayed separately and does NOT affect the main project score.
 The individual metrics already contribute to P_flow and P_quality dimensions.
 """
 
+from dataclasses import dataclass
+
 from app.config import ScoringConfig
 from app.models.indicators import IndicatorsCreate
 
 
+@dataclass(frozen=True)
+class DoraMetric:
+    """Definition of a DORA metric for scoring."""
+
+    name: str
+    indicator_attr: str
+    target_key: str
+    lower_is_better: bool = False
+
+
 class DoraScoreCalculator:
     """Calculate DORA score from 4 official DORA metrics."""
+
+    METRICS = (
+        DoraMetric("deployment_frequency", "deployment_frequency", "deployment_frequency"),
+        DoraMetric("lead_time", "lead_time_days", "lead_time_days", lower_is_better=True),
+        DoraMetric("change_failure_rate", "change_failure_rate", "change_failure_rate", lower_is_better=True),
+        DoraMetric("mttr", "mttr_hours", "mttr_hours", lower_is_better=True),
+    )
 
     def __init__(self, config: ScoringConfig) -> None:
         self.config = config
@@ -28,53 +47,19 @@ class DoraScoreCalculator:
         Returns:
             dict with score (0-100), classification, and individual metric scores
         """
-        scores = {}
-        available_metrics = 0
+        scores: dict[str, float | None] = {}
 
-        # 1. Deployment Frequency (higher is better)
-        # Target: 1 per day, Elite: >1/day
-        if indicators.deployment_frequency is not None:
-            target = self.config.get_target("deployment_frequency")
-            scores["deployment_frequency"] = min(1.0, indicators.deployment_frequency / target)
-            available_metrics += 1
-        else:
-            scores["deployment_frequency"] = None
-
-        # 2. Lead Time for Changes (lower is better)
-        # Target: 3 days, Elite: <1 day
-        if indicators.lead_time_days is not None:
-            target = self.config.get_target("lead_time_days")
-            scores["lead_time"] = min(1.0, target / max(indicators.lead_time_days, 0.001))
-            available_metrics += 1
-        else:
-            scores["lead_time"] = None
-
-        # 3. Change Failure Rate (lower is better)
-        # Target: 15%, Elite: <15%
-        if indicators.change_failure_rate is not None:
-            target = self.config.get_target("change_failure_rate")
-            if indicators.change_failure_rate == 0:
-                scores["change_failure_rate"] = 1.0
+        for metric in self.METRICS:
+            value = getattr(indicators, metric.indicator_attr)
+            if value is not None:
+                target = self.config.get_target(metric.target_key)
+                scores[metric.name] = self._normalize(value, target, metric.lower_is_better)
             else:
-                scores["change_failure_rate"] = min(1.0, target / indicators.change_failure_rate)
-            available_metrics += 1
-        else:
-            scores["change_failure_rate"] = None
+                scores[metric.name] = None
 
-        # 4. Mean Time to Recovery (lower is better)
-        # Target: 24 hours, Elite: <1 hour
-        if indicators.mttr_hours is not None:
-            target = self.config.get_target("mttr_hours")
-            if indicators.mttr_hours == 0:
-                scores["mttr"] = 1.0
-            else:
-                scores["mttr"] = min(1.0, target / indicators.mttr_hours)
-            available_metrics += 1
-        else:
-            scores["mttr"] = None
+        valid_scores = [s for s in scores.values() if s is not None]
 
-        # Calculate overall DORA score
-        if available_metrics == 0:
+        if not valid_scores:
             return {
                 "score": None,
                 "classification": None,
@@ -82,19 +67,23 @@ class DoraScoreCalculator:
                 "available_metrics": 0,
             }
 
-        valid_scores = [s for s in scores.values() if s is not None]
         avg_score = sum(valid_scores) / len(valid_scores)
         final_score = round(avg_score * 100)
 
-        # DORA classification based on score
-        classification = self._get_classification(final_score)
-
         return {
             "score": final_score,
-            "classification": classification,
+            "classification": self._get_classification(final_score),
             "metrics": scores,
-            "available_metrics": available_metrics,
+            "available_metrics": len(valid_scores),
         }
+
+    def _normalize(self, value: float, target: float, lower_is_better: bool) -> float:
+        """Normalize a metric value to 0-1 scale."""
+        if lower_is_better:
+            if value == 0:
+                return 1.0
+            return min(1.0, target / value)
+        return min(1.0, value / target)
 
     def _get_classification(self, score: int) -> str:
         """
