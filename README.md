@@ -353,6 +353,27 @@ Future improvements to increase the tool's value:
 - [ ] **Historical Benchmarks** - Compare against agency historical averages, not just absolute targets
 - [ ] **Technical Debt Integration** - Connect with SonarQube or similar for code quality tracking
 
+## Contributing
+
+### Git Workflow
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production-ready code, releases only |
+| `dev` | Active development (default branch) |
+| `feature/*` | Feature branches → PR to `dev` |
+
+```bash
+# Start a new feature
+git checkout dev
+git pull
+git checkout -b feature/my-feature
+
+# After work is done, push and create PR to dev
+git push -u origin feature/my-feature
+# Create PR targeting 'dev' branch
+```
+
 ## Documentation
 
 ### Testing
