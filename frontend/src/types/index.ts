@@ -294,3 +294,32 @@ export interface SnapshotWithScores extends Snapshot {
   indicators: Indicators;
   scores: FinalScore;
 }
+
+// Historical capture types
+export interface CaptureHistoryRequest {
+  from_year: number;
+  from_month: number;
+  to_year: number;
+  to_month: number;
+  force: boolean;
+}
+
+export interface CaptureResult {
+  month: string;
+  snapshot_type: 'monthly' | 'cumulative' | 'punctual';
+  status: 'created' | 'skipped' | 'error';
+  error_message: string | null;
+}
+
+export interface CaptureReport {
+  project_id: string;
+  requested_range: [string, string];
+  summary: {
+    total_months: number;
+    snapshots_created: number;
+    snapshots_skipped: number;
+    errors: number;
+  };
+  details: CaptureResult[];
+  errors: CaptureResult[];
+}
