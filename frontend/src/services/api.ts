@@ -9,6 +9,8 @@ import type {
   Snapshot,
   SnapshotCreate,
   SnapshotWithScores,
+  CaptureHistoryRequest,
+  CaptureReport,
 } from '../types';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
@@ -173,6 +175,17 @@ export const snapshotsApi = {
 
   deleteSnapshot: async (snapshotId: string): Promise<void> => {
     await api.delete(`/snapshots/${snapshotId}`);
+  },
+
+  captureHistory: async (
+    projectId: string,
+    request: CaptureHistoryRequest,
+  ): Promise<CaptureReport> => {
+    const response = await api.post<CaptureReport>(
+      `/projects/${projectId}/capture-history`,
+      request,
+    );
+    return response.data;
   },
 };
 

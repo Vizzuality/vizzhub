@@ -3,6 +3,7 @@ import { useProject } from '../hooks/useProjects';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
 import { TrendChart } from '../components/TrendChart';
 import SnapshotManager from '../components/ProjectDetail/SnapshotManager';
+import HistoricalCaptureModal from '../components/ProjectDetail/HistoricalCaptureModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, TrendingUp, Loader2 } from 'lucide-react';
@@ -59,7 +60,10 @@ export default function ProjectHistory(): JSX.Element {
         </Button>
       </div>
 
-      <SnapshotManager projectId={id!} />
+      <div className="flex gap-4">
+        <SnapshotManager projectId={id!} />
+        <HistoricalCaptureModal projectId={id!} />
+      </div>
 
       {snapshots && snapshots.length > 0 ? (
         <>
