@@ -4,7 +4,6 @@ import { useProjectSnapshots } from '../hooks/useSnapshots';
 import { useScoringConfig } from '../hooks/useScores';
 import { TrendChart, MetricsChartGrid } from '../components/TrendChart';
 import SnapshotManager from '../components/ProjectDetail/SnapshotManager';
-import HistoricalCaptureModal from '../components/ProjectDetail/HistoricalCaptureModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, TrendingUp, Loader2 } from 'lucide-react';
@@ -62,24 +61,23 @@ export default function ProjectHistory(): JSX.Element {
         </Button>
       </div>
 
-      <div className="flex gap-4">
-        <SnapshotManager projectId={id!} />
-        <HistoricalCaptureModal projectId={id!} />
-      </div>
+      <SnapshotManager projectId={id!} />
 
       {snapshots && snapshots.length > 0 ? (
         <>
-          <TrendChart
-            snapshots={snapshots}
-            dimensions={['final_score']}
-            title="Final Score Trend"
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TrendChart
+              snapshots={snapshots}
+              dimensions={['final_score']}
+              title="Final Score Trend"
+            />
 
-          <TrendChart
-            snapshots={snapshots}
-            dimensions={dimensionKeys}
-            title="Dimension Breakdown"
-          />
+            <TrendChart
+              snapshots={snapshots}
+              dimensions={dimensionKeys}
+              title="Dimension Breakdown"
+            />
+          </div>
 
           <MetricsChartGrid snapshots={snapshots} config={config} />
 

@@ -9,7 +9,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Download, Loader2 } from 'lucide-react';
+import { Calendar, Download, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SnapshotManagerProps {
   projectId: string;
@@ -27,6 +27,7 @@ function getYearOptions(): number[] {
 
 export default function SnapshotManager({ projectId }: SnapshotManagerProps): JSX.Element {
   const currentDate = new Date();
+  const [isExpanded, setIsExpanded] = useState(false);
   const [year, setYear] = useState(currentDate.getFullYear());
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
   const [forceCapture, setForceCapture] = useState(false);
@@ -51,17 +52,33 @@ export default function SnapshotManager({ projectId }: SnapshotManagerProps): JS
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader
+        className="cursor-pointer select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
         <CardTitle className="flex items-center gap-2">
+          {isExpanded ? (
+            <ChevronDown className="h-5 w-5" />
+          ) : (
+            <ChevronRight className="h-5 w-5" />
+          )}
           <Calendar className="h-5 w-5" />
           Capture Period
         </CardTitle>
-        <CardDescription>
-          Capture metrics from Jira and GitHub for the selected period.
-          Creates both punctual (monthly) and cumulative (project-to-date) snapshots.
-        </CardDescription>
+        {!isExpanded && (
+          <CardDescription>
+            Click to capture metrics for a specific period
+          </CardDescription>
+        )}
+        {isExpanded && (
+          <CardDescription>
+            Capture metrics from Jira and GitHub for the selected period.
+            Creates both punctual (monthly) and cumulative (project-to-date) snapshots.
+          </CardDescription>
+        )}
       </CardHeader>
-      <CardContent>
+      {isExpanded && (
+        <CardContent>
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-2">
             <label htmlFor="year-select" className="text-sm font-medium">
@@ -145,7 +162,8 @@ export default function SnapshotManager({ projectId }: SnapshotManagerProps): JS
             Period captured successfully (both punctual and cumulative).
           </p>
         )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }

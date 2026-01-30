@@ -58,17 +58,17 @@ const METRIC_GROUPS: MetricGroup[] = [
     title: 'Quality',
     color: 'oklch(0.7 0.15 30)',
     metrics: [
-      { key: 'defect_density', label: 'Defect Density', unit: '/100', domain: [0, 10], targetKey: 'defect_density', lowerIsBetter: true },
+      { key: 'defect_density', label: 'Defect Density', unit: '%', domain: [0, 10], targetKey: 'defect_density', lowerIsBetter: true },
       { key: 'escaped_rate', label: 'Escaped Rate', unit: '%', domain: [0, 5], targetKey: 'escaped_rate', lowerIsBetter: true },
-      { key: 'mttr_hours', label: 'MTTR', unit: 'hrs', domain: [0, 48], targetKey: 'mttr_hours', lowerIsBetter: true },
-      { key: 'governance_compliance', label: 'Governance', unit: '%', domain: [0, 100], targetKey: 'governance_compliance', isRatio: true },
+      { key: 'mttr_hours', label: 'MTTR', unit: 'h', domain: [0, 48], targetKey: 'mttr_hours', lowerIsBetter: true },
+      { key: 'governance_compliance', label: 'Governance Compliance', unit: '%', domain: [0, 100], targetKey: 'governance_compliance', isRatio: true },
     ],
   },
   {
     title: 'Value',
     color: 'oklch(0.7 0.15 270)',
     metrics: [
-      { key: 'okr_impact', label: 'OKR Impact', unit: '%', domain: [0, 100], targetKey: 'okr_impact' },
+      { key: 'okr_impact', label: 'Strategic Impact', unit: '%', domain: [0, 100], targetKey: 'okr_impact', isRatio: true },
       { key: 'post_contract_tasks', label: 'Post-Contract Tasks', domain: [0, 10], targetKey: 'post_contract_tasks', lowerIsBetter: true },
     ],
   },
@@ -77,36 +77,36 @@ const METRIC_GROUPS: MetricGroup[] = [
     color: 'oklch(0.7 0.15 340)',
     metrics: [
       { key: 'pm_satisfaction', label: 'PM Satisfaction', unit: '%', domain: [0, 100], targetKey: 'pm_satisfaction', isRatio: true },
-      { key: 'client_satisfaction', label: 'Client Satisfaction', unit: '%', domain: [0, 100], targetKey: 'client_satisfaction', isRatio: true },
+      { key: 'client_satisfaction', label: 'Client Survey', unit: '%', domain: [0, 100], targetKey: 'client_satisfaction', isRatio: true },
     ],
   },
   {
     title: 'Flow',
     color: 'oklch(0.7 0.15 180)',
     metrics: [
-      { key: 'lead_time_days', label: 'Lead Time', unit: 'days', domain: [0, 20], targetKey: 'lead_time_days', lowerIsBetter: true },
-      { key: 'commitment_reliability', label: 'Commitment', unit: '%', domain: [0, 100], targetKey: 'commitment_reliability', isRatio: true },
-      { key: 'story_review_ratio', label: 'Story Review', unit: '%', domain: [0, 100], targetKey: 'story_review_ratio', isRatio: true },
+      { key: 'lead_time_days', label: 'Lead Time', unit: 'd', domain: [0, 20], targetKey: 'lead_time_days', lowerIsBetter: true },
+      { key: 'commitment_reliability', label: 'Commitment Reliability', unit: '%', domain: [0, 100], targetKey: 'commitment_reliability', isRatio: true },
+      { key: 'story_review_ratio', label: 'Story Review Ratio', unit: '%', domain: [0, 100], targetKey: 'story_review_ratio', isRatio: true },
     ],
   },
   {
     title: 'Engineering',
     color: 'oklch(0.7 0.15 60)',
     metrics: [
-      { key: 'pr_review_ratio', label: 'PR Review Ratio', unit: '%', domain: [0, 100], targetKey: 'pr_no_review_ratio', isRatio: true },
+      { key: 'pr_review_ratio', label: 'PR Review Coverage', unit: '%', domain: [0, 100], targetKey: 'pr_no_review_ratio', isRatio: true },
       { key: 'test_maturity', label: 'Test Maturity', unit: '%', domain: [0, 100], targetKey: 'test_maturity', isRatio: true },
       { key: 'arch_checklist', label: 'Architecture', unit: '%', domain: [0, 100], targetKey: 'architecture', isRatio: true },
-      { key: 'pr_size_median', label: 'PR Size', unit: 'lines', domain: [0, 800], targetKey: 'pr_size_lines', lowerIsBetter: true },
-      { key: 'review_turnaround_hours', label: 'Review Turnaround', unit: 'hrs', domain: [0, 72], targetKey: 'review_turnaround_hours', lowerIsBetter: true },
+      { key: 'pr_size_median', label: 'PR Size', unit: ' lines', domain: [0, 800], targetKey: 'pr_size_lines', lowerIsBetter: true },
+      { key: 'review_turnaround_hours', label: 'Review Turnaround', unit: 'h', domain: [0, 72], targetKey: 'review_turnaround_hours', lowerIsBetter: true },
     ],
   },
   {
-    title: 'Risk',
+    title: 'DORA / Risk',
     color: 'oklch(0.7 0.15 310)',
     metrics: [
-      { key: 'high_vulns', label: 'High Vulns', domain: [0, 10], targetKey: 'high_vuln_count', lowerIsBetter: true },
-      { key: 'deployment_frequency', label: 'Deploy Freq', unit: '/day', domain: [0, 2], targetKey: 'deployment_frequency' },
-      { key: 'change_failure_rate', label: 'Change Failure', unit: '%', domain: [0, 50], targetKey: 'change_failure_rate', lowerIsBetter: true },
+      { key: 'deployment_frequency', label: 'Deployment Frequency', unit: '/day', domain: [0, 2], targetKey: 'deployment_frequency' },
+      { key: 'change_failure_rate', label: 'Change Failure Rate', unit: '%', domain: [0, 50], targetKey: 'change_failure_rate', lowerIsBetter: true },
+      { key: 'high_vulns', label: 'Security Vulnerabilities', domain: [0, 10], targetKey: 'high_vuln_count', lowerIsBetter: true },
     ],
   },
 ];
@@ -185,6 +185,16 @@ function TrendIndicator({ trend }: { trend: TrendInfo | null }): JSX.Element | n
   return <TrendingDown className={`${iconClass} ${colorClass}`} />;
 }
 
+function getValueColor(
+  value: number | null,
+  target: number | undefined,
+  lowerIsBetter: boolean = false
+): string {
+  if (value === null || target === undefined) return 'text-foreground';
+  const isGood = lowerIsBetter ? value <= target : value >= target;
+  return isGood ? 'text-score-green' : 'text-score-red';
+}
+
 function MetricChart({ data, config, color, target }: MetricChartProps): JSX.Element {
   const hasData = data.some(d => d.value !== null);
   const latestValue = data.length > 0 ? data[data.length - 1]?.value : null;
@@ -195,128 +205,141 @@ function MetricChart({ data, config, color, target }: MetricChartProps): JSX.Ele
   const domainMax = domain[1];
 
   return (
-    <div className="flex flex-col p-4 rounded-lg border bg-card">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{config.label}</span>
-          {target !== undefined && (
-            <span className="text-xs text-muted-foreground">
-              Target: {formatValue(target, config.unit)}
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <CardTitle className="text-base font-medium">{config.label}</CardTitle>
+          <div className="flex items-center gap-2">
+            <TrendIndicator trend={trend} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Chart */}
+        {hasData ? (
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={data} margin={{ top: 5, right: 5, bottom: 20, left: 5 }}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#888"
+                strokeOpacity={0.15}
+              />
+              <XAxis
+                dataKey="period"
+                tick={{ fontSize: 10 }}
+                tickLine={{ stroke: '#888' }}
+                axisLine={{ stroke: '#888' }}
+              />
+              <YAxis
+                domain={config.domain || ['auto', 'auto']}
+                tick={{ fontSize: 10 }}
+                tickLine={{ stroke: '#888' }}
+                axisLine={{ stroke: '#888' }}
+                width={30}
+                tickFormatter={(value) => {
+                  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                  if (value % 1 === 0) return value.toString();
+                  return value.toFixed(1);
+                }}
+              />
+              {target !== undefined && (
+                <>
+                  {config.lowerIsBetter ? (
+                    <>
+                      <ReferenceArea
+                        y1={domainMin}
+                        y2={target}
+                        fill="#22c55e"
+                        fillOpacity={0.08}
+                      />
+                      <ReferenceArea
+                        y1={target}
+                        y2={domainMax}
+                        fill="#ef4444"
+                        fillOpacity={0.08}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <ReferenceArea
+                        y1={target}
+                        y2={domainMax}
+                        fill="#22c55e"
+                        fillOpacity={0.08}
+                      />
+                      <ReferenceArea
+                        y1={domainMin}
+                        y2={target}
+                        fill="#ef4444"
+                        fillOpacity={0.08}
+                      />
+                    </>
+                  )}
+                  <ReferenceLine
+                    y={target}
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                  />
+                </>
+              )}
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const point = payload[0];
+                    const value = point.value as number;
+                    return (
+                      <div className="bg-popover border rounded px-3 py-2 shadow-lg">
+                        <div className="font-medium text-sm">{point.payload.period}</div>
+                        <div className="text-base font-semibold" style={{ color }}>
+                          {formatValue(value, config.unit)}
+                        </div>
+                        {target !== undefined && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Target: {formatValue(target, config.unit)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={color}
+                strokeWidth={2}
+                dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                connectNulls
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[160px] flex items-center justify-center text-sm text-muted-foreground">
+            No data
+          </div>
+        )}
+        {/* Indicator display - below the chart */}
+        <div className="p-3 bg-muted/50 rounded-lg border space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Current</span>
+            <span className={`text-2xl font-bold ${getValueColor(latestValue, target, config.lowerIsBetter)}`}>
+              {formatValue(latestValue, config.unit)}
             </span>
+          </div>
+          {target !== undefined && (
+            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+              <span className="text-xs text-muted-foreground">KPI</span>
+              <span className="text-sm text-foreground">
+                {config.lowerIsBetter ? '≤' : '≥'}{formatValue(target, config.unit)}
+              </span>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <TrendIndicator trend={trend} />
-          <span className="text-lg font-semibold">
-            {formatValue(latestValue, config.unit)}
-          </span>
-        </div>
-      </div>
-      {hasData ? (
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={data} margin={{ top: 10, right: 10, bottom: 20, left: 40 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#888"
-              strokeOpacity={0.15}
-            />
-            <XAxis
-              dataKey="period"
-              tick={{ fontSize: 11 }}
-              tickLine={{ stroke: '#888' }}
-              axisLine={{ stroke: '#888' }}
-            />
-            <YAxis
-              domain={config.domain || ['auto', 'auto']}
-              tick={{ fontSize: 11 }}
-              tickLine={{ stroke: '#888' }}
-              axisLine={{ stroke: '#888' }}
-              tickFormatter={(value) => {
-                if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                if (value % 1 === 0) return value.toString();
-                return value.toFixed(1);
-              }}
-            />
-            {target !== undefined && (
-              <>
-                {config.lowerIsBetter ? (
-                  <>
-                    <ReferenceArea
-                      y1={domainMin}
-                      y2={target}
-                      fill="#22c55e"
-                      fillOpacity={0.08}
-                    />
-                    <ReferenceArea
-                      y1={target}
-                      y2={domainMax}
-                      fill="#ef4444"
-                      fillOpacity={0.08}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ReferenceArea
-                      y1={target}
-                      y2={domainMax}
-                      fill="#22c55e"
-                      fillOpacity={0.08}
-                    />
-                    <ReferenceArea
-                      y1={domainMin}
-                      y2={target}
-                      fill="#ef4444"
-                      fillOpacity={0.08}
-                    />
-                  </>
-                )}
-                <ReferenceLine
-                  y={target}
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                />
-              </>
-            )}
-            <Tooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  const point = payload[0];
-                  const value = point.value as number;
-                  return (
-                    <div className="bg-popover border rounded px-3 py-2 shadow-lg">
-                      <div className="font-medium text-sm">{point.payload.period}</div>
-                      <div className="text-base font-semibold" style={{ color }}>
-                        {formatValue(value, config.unit)}
-                      </div>
-                      {target !== undefined && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Target: {formatValue(target, config.unit)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              strokeWidth={2}
-              dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 6, fill: color, strokeWidth: 2, stroke: '#fff' }}
-              connectNulls
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      ) : (
-        <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">
-          No data
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -338,47 +361,31 @@ export default function MetricsChartGrid({ snapshots, config }: MetricsChartGrid
     return value;
   };
 
-  return (
-    <div className="space-y-6">
-      {METRIC_GROUPS.map((group) => {
-        const metricsWithData = group.metrics.filter(metric =>
-          sortedSnapshots.some(s => s.indicators[metric.key] !== null)
-        );
+  // Flatten all metrics with data into a single array
+  const allMetricsWithData = METRIC_GROUPS.flatMap((group) =>
+    group.metrics
+      .filter(metric => sortedSnapshots.some(s => s.indicators[metric.key] !== null))
+      .map(metric => ({ metric, group }))
+  );
 
-        if (metricsWithData.length === 0) return null;
+  if (allMetricsWithData.length === 0) return <></>;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {allMetricsWithData.map(({ metric, group }) => {
+        const chartData = sortedSnapshots.map((snapshot) => ({
+          period: formatPeriod(snapshot.period_year, snapshot.period_month),
+          value: getValue(snapshot.indicators[metric.key], metric),
+        }));
 
         return (
-          <Card key={group.title}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: group.color }}
-                />
-                {group.title} Metrics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {metricsWithData.map((metric) => {
-                  const chartData = sortedSnapshots.map((snapshot) => ({
-                    period: formatPeriod(snapshot.period_year, snapshot.period_month),
-                    value: getValue(snapshot.indicators[metric.key], metric),
-                  }));
-
-                  return (
-                    <MetricChart
-                      key={metric.key}
-                      data={chartData}
-                      config={metric}
-                      color={group.color}
-                      target={getTarget(metric)}
-                    />
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          <MetricChart
+            key={metric.key}
+            data={chartData}
+            config={metric}
+            color={group.color}
+            target={getTarget(metric)}
+          />
         );
       })}
     </div>
