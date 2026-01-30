@@ -1,7 +1,21 @@
 # Historical Metrics Capture - Design Document
 
 **Date:** 2026-01-30
-**Status:** Approved
+**Status:** ✅ Implemented
+
+## Implementation Notes (Post-Implementation)
+
+The design was implemented with some refinements:
+
+1. **Unified `metrics` table** - Instead of extending `metric_snapshots`, we consolidated into a single `metrics` table with `snapshot_type` column.
+
+2. **Default to CUMULATIVE** - All API endpoints default to `snapshot_type=cumulative` for consistency. Project detail and history pages show cumulative data by default.
+
+3. **Capture endpoint creates BOTH types** - `POST /projects/{id}/capture-period` automatically creates both punctual and cumulative snapshots in a single call.
+
+4. **Model defaults** - Both `MetricsDB` and `MetricsCreate` default to `SnapshotType.CUMULATIVE`.
+
+---
 
 ## Overview
 

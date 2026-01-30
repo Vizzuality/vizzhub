@@ -6,11 +6,12 @@ import type {
   ScoreResponse,
   ScoringConfig,
   MetricsCreate,
-  Snapshot,
-  SnapshotCreate,
-  SnapshotWithScores,
+  MetricsWithScores,
+  CapturePeriodRequest,
+  CapturePeriodResponse,
   CaptureHistoryRequest,
   CaptureReport,
+  SnapshotType,
 } from '../types';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
@@ -139,42 +140,34 @@ export const collectApi = {
   },
 };
 
-export const snapshotsApi = {
-  getProjectSnapshots: async (
+export const metricsHistoryApi = {
+  getProjectHistory: async (
     projectId: string,
     limit = 12,
-  ): Promise<SnapshotWithScores[]> => {
-    const response = await api.get<SnapshotWithScores[]>(
-      `/snapshots/project/${projectId}`,
-      { params: { limit } },
+    snapshotType?: SnapshotType,
+  ): Promise<MetricsWithScores[]> => {
+    const response = await api.get<MetricsWithScores[]>(
+      `/metrics/project/${projectId}/history`,
+      { params: { limit, snapshot_type: snapshotType } },
     );
     return response.data;
   },
 
-  getSnapshot: async (
+  getByPeriod: async (
     projectId: string,
     year: number,
     month: number,
-  ): Promise<SnapshotWithScores> => {
-    const response = await api.get<SnapshotWithScores>(
-      `/snapshots/project/${projectId}/${year}/${month}`,
+    snapshotType?: SnapshotType,
+  ): Promise<MetricsWithScores> => {
+    const response = await api.get<MetricsWithScores>(
+      `/metrics/project/${projectId}/${year}/${month}`,
+      { params: { snapshot_type: snapshotType } },
     );
     return response.data;
   },
 
-  createSnapshot: async (
-    projectId: string,
-    data: SnapshotCreate,
-  ): Promise<Snapshot> => {
-    const response = await api.post<Snapshot>(
-      `/snapshots/project/${projectId}`,
-      data,
-    );
-    return response.data;
-  },
-
-  deleteSnapshot: async (snapshotId: string): Promise<void> => {
-    await api.delete(`/snapshots/${snapshotId}`);
+  deleteMetrics: async (metricsId: string): Promise<void> => {
+    await api.delete(`/metrics/${metricsId}`);
   },
 
   captureHistory: async (
@@ -184,6 +177,23 @@ export const snapshotsApi = {
     const response = await api.post<CaptureReport>(
       `/projects/${projectId}/capture-history`,
       request,
+    );
+    return response.data;
+  },
+};
+
+// Alias for backward compatibility
+export const snapshotsApi = metricsHistoryApi;
+
+export const captureApi = {
+  capturePeriod: async (
+    projectId: string,
+    request: CapturePeriodRequest,
+  ): Promise<CapturePeriodResponse> => {
+    const response = await api.post<CapturePeriodResponse>(
+      `/projects/${projectId}/capture-period`,
+      request,
+      { timeout: 120000 }, // 2 minute timeout for collector calls
     );
     return response.data;
   },

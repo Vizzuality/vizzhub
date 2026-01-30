@@ -1,8 +1,18 @@
+import csv
+from pathlib import Path
+
 import pytest
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.config import ConfigParameter
 from scripts.seed_config_parameters import seed_config_parameters
+
+
+def get_csv_parameter_count() -> int:
+    """Count parameters in CSV file (excluding header)."""
+    csv_path = Path(__file__).parent.parent / "seeds" / "config_parameters.csv"
+    with open(csv_path) as f:
+        return sum(1 for _ in csv.reader(f)) - 1
 
 
 @pytest.mark.asyncio
@@ -20,7 +30,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 73  # Total parameters from CSV
+    assert count == get_csv_parameter_count()
 
     # Verify specific parameter
     result = await db_session.execute(
@@ -48,4 +58,4 @@ async def test_seed_config_parameters_is_idempotent(db_session: AsyncSession):
         select(func.count()).select_from(ConfigParameter)
     )
     count = result.scalar()
-    assert count == 73
+    assert count == get_csv_parameter_count()

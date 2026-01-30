@@ -27,31 +27,52 @@ Edge Cases:
 == END SPEC ==
 """
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
 
-async def collect_defect_density(client: "JiraClient", project_key: str) -> dict:
+async def collect_defect_density(
+    client: "JiraClient",
+    project_key: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect defect density metrics from Jira.
 
     Args:
         client: Authenticated JiraClient instance
         project_key: Jira project key (e.g., "PROJ")
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date for filtering (inclusive)
 
     Returns:
         dict with bugs_total and tasks_completed counts
     """
+    bugs_filter = "type = Bug"
+    tasks_filter = "type in (Story, Task, Sub-task) AND statusCategory = Done"
+
+    if period_start:
+        start_str = period_start.isoformat()
+        bugs_filter += f' AND created >= "{start_str}"'
+        tasks_filter += f' AND resolutiondate >= "{start_str}"'
+
+    if period_end:
+        date_str = period_end.isoformat()
+        bugs_filter += f' AND created <= "{date_str}"'
+        tasks_filter += f' AND resolutiondate <= "{date_str}"'
+
     bugs_total = await client.count_issues(
         project_key,
-        "type = Bug",
+        bugs_filter,
     )
 
     tasks_completed = await client.count_issues(
         project_key,
-        "type in (Story, Task, Sub-task) AND statusCategory = Done",
+        tasks_filter,
     )
 
     return {

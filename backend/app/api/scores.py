@@ -9,10 +9,9 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
 from app.models.indicators import IndicatorsCreate
-from app.models.metrics import MetricsCreate, MetricsDB
+from app.models.metrics import MetricsCreate, MetricsDB, SnapshotType
 from app.models.scores import FinalScore
-from app.services.calculators.final_score import FinalScoreCalculator
-from app.services.normalizers.indicators import IndicatorNormalizer
+from app.services.score_computation import ScoreComputationService
 
 router = APIRouter()
 
@@ -40,21 +39,11 @@ async def calculate_scores(
     config: ScoringConfigDep,
 ) -> ScoreResponse:
     """Calculate scores from provided metrics (ad-hoc, not stored)."""
-    normalizer = IndicatorNormalizer(config)
-    calculator = FinalScoreCalculator(config)
-
-    indicators = normalizer.normalize_all(score_request.metrics)
-
-    total_prs = None
-    if score_request.metrics.github_metrics:
-        total_prs = score_request.metrics.github_metrics.total_merged_prs
-
-    scores = calculator.calculate_all(
-        indicators,
+    score_service = ScoreComputationService(config)
+    indicators, scores = score_service.compute(
+        score_request.metrics,
         sev1_incident=score_request.sev1_incident,
-        total_prs=total_prs,
     )
-
     return ScoreResponse(indicators=indicators, scores=scores)
 
 
@@ -66,8 +55,12 @@ async def get_project_scores(
     current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
+    snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
 ) -> ScoreResponse:
     """Calculate scores from a project's latest metrics.
+
+    Args:
+        snapshot_type: Filter by snapshot type (default: cumulative)
 
     Since collectors create separate records, this endpoint consolidates
     metrics from the same period_end date, taking the most recent non-null
@@ -78,6 +71,7 @@ async def get_project_scores(
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
+        .where(MetricsDB.snapshot_type == snapshot_type.value)
         .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
         .limit(20)
     )
@@ -91,20 +85,8 @@ async def get_project_scores(
     metrics_db = _consolidate_metrics(same_period)
     metrics = MetricsCreate.from_db(metrics_db)
 
-    normalizer = IndicatorNormalizer(config)
-    calculator = FinalScoreCalculator(config)
-
-    indicators = normalizer.normalize_all(metrics)
-
-    total_prs = None
-    if metrics.github_metrics:
-        total_prs = metrics.github_metrics.total_merged_prs
-
-    scores = calculator.calculate_all(
-        indicators,
-        sev1_incident=metrics_db.sev1_incident,
-        total_prs=total_prs,
-    )
+    score_service = ScoreComputationService(config)
+    indicators, scores = score_service.compute(metrics, sev1_incident=metrics_db.sev1_incident)
 
     return ScoreResponse(indicators=indicators, scores=scores)
 
@@ -164,36 +146,30 @@ async def get_project_score_history(
     project_id: UUID,
     db: DBSession,
     config: ScoringConfigDep,
+    snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
     limit: int = 10,
 ) -> list[ScoreResponse]:
-    """Get score history for a project."""
+    """Get score history for a project.
+
+    Args:
+        snapshot_type: Filter by snapshot type (default: cumulative)
+    """
     await get_project_or_404(db, project_id)
 
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
+        .where(MetricsDB.snapshot_type == snapshot_type.value)
         .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
         .limit(limit)
     )
     metrics_list = result.scalars().all()
 
-    normalizer = IndicatorNormalizer(config)
-    calculator = FinalScoreCalculator(config)
-
+    score_service = ScoreComputationService(config)
     responses = []
     for metrics_db in metrics_list:
         metrics = MetricsCreate.from_db(metrics_db)
-        indicators = normalizer.normalize_all(metrics)
-
-        total_prs = None
-        if metrics.github_metrics:
-            total_prs = metrics.github_metrics.total_merged_prs
-
-        scores = calculator.calculate_all(
-            indicators,
-            sev1_incident=metrics_db.sev1_incident,
-            total_prs=total_prs,
-        )
+        indicators, scores = score_service.compute(metrics, sev1_incident=metrics_db.sev1_incident)
         responses.append(ScoreResponse(indicators=indicators, scores=scores))
 
     return responses

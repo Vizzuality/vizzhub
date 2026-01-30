@@ -223,6 +223,23 @@ export default function QualityMetricsGrid({
                 ]}
               />
             )}
+          {metrics.github_metrics &&
+            metrics.github_metrics.review_turnaround_hours !== null &&
+            metrics.github_metrics.review_turnaround_hours !== undefined && (
+              <SubIndicatorCard
+                title="Review Turnaround"
+                indicatorValue={metrics.github_metrics.review_turnaround_hours}
+                indicatorLabel="Median hours to first review"
+                indicatorSuffix="h"
+                description="Time from PR creation to first review"
+                target={getTarget('target_review_turnaround_hours')}
+                lowerIsBetter={true}
+                formula="median(first_review - pr_created)"
+                metrics={[
+                  { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                ]}
+              />
+            )}
           {metrics.github_metrics && (
             <SubIndicatorCard
               title="Security Vulnerabilities"

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import EditableMetricCard from './EditableMetricCard';
+import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { Architecture } from '../../types';
 
 const CHECKLIST_ITEMS = [
@@ -54,8 +54,6 @@ export default function ArchitectureCard({
   onSave,
   isPending,
 }: ArchitectureCardProps): JSX.Element {
-  const targetNormalized = target !== null ? target / 100 : null;
-
   return (
     <EditableMetricCard<Record<ChecklistKey, boolean>>
       title="Architecture Checklist"
@@ -98,27 +96,12 @@ export default function ArchitectureCard({
       )}
       renderDisplay={(displayData) => (
         <>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Score</span>
-            <span
-              className={cn(
-                'text-3xl font-bold',
-                indicatorValue === null || targetNormalized === null
-                  ? 'text-muted-foreground'
-                  : indicatorValue >= targetNormalized
-                  ? 'text-score-green'
-                  : indicatorValue >= targetNormalized * 0.9
-                  ? 'text-score-yellow'
-                  : 'text-score-red'
-              )}
-            >
-              {indicatorValue !== null ? (indicatorValue * 100).toFixed(0) + '%' : '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
-          </div>
+          <IndicatorScoreDisplay
+            label="Score"
+            indicatorValue={indicatorValue}
+            target={target}
+          />
+          <KPIDisplay target={target} />
           {displayData && (
             <div className="space-y-1 pt-2 border-t border-border/50">
               {CHECKLIST_ITEMS.map(({ key, shortLabel }) => (

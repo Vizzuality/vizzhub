@@ -34,6 +34,7 @@ Edge Cases:
 == END SPEC ==
 """
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 from app.services.collectors.jira.utils import (
@@ -45,19 +46,32 @@ if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
 
-async def collect_mttr(client: "JiraClient", project_key: str) -> dict:
+async def collect_mttr(
+    client: "JiraClient",
+    project_key: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect MTTR metrics from Jira.
 
     Args:
         client: Authenticated JiraClient instance
         project_key: Jira project key (e.g., "PROJ")
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date for filtering (inclusive)
 
     Returns:
         dict with incidents_count and mttr_hours
     """
+    date_filter = ""
+    if period_start:
+        date_filter += f' AND resolutiondate >= "{period_start.isoformat()}"'
+    if period_end:
+        date_filter += f' AND resolutiondate <= "{period_end.isoformat()}"'
+
     jql = (
-        "statusCategory = Done AND "
+        f"statusCategory = Done{date_filter} AND "
         "(type = Incident OR (type = Bug AND priority IN ('Highest', 'High', 'Fix now')))"
     )
 

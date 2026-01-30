@@ -86,7 +86,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Reset rate limiter state before each test
     # Each API router has its own limiter instance that needs to be reset
     from app.main import limiter as main_limiter
-    from app.api import projects, metrics, collectors, scores, config, oauth
+    from app.api import projects, metrics, collectors, scores, config, oauth, capture
 
     main_limiter.reset()
     projects.limiter.reset()
@@ -95,6 +95,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     scores.limiter.reset()
     config.limiter.reset()
     oauth.limiter.reset()
+    capture.limiter.reset()
 
     async with AsyncClient(
         transport=ASGITransport(app=app),

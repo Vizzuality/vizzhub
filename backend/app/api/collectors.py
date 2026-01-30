@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
 from app.core.exceptions import ConfigurationError
-from app.models.metrics import Metrics, MetricsDB
+from app.models.metrics import Metrics, MetricsDB, SnapshotType
 from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector
 
@@ -49,7 +49,6 @@ async def collect_jira_metrics(
             project.jira_project_key, end_date=project.end_date
         )
     except ConfigurationError:
-        await collector.close()
         raise
     except ValueError as e:
         raise HTTPException(
@@ -68,28 +67,41 @@ async def collect_jira_metrics(
     period_start = project.start_date or now.date()
     period_end = now.date()
 
-    # Get existing metrics to preserve manually-entered fields
+    # Get existing CUMULATIVE metrics to preserve manually-entered fields
+    # (collectors always work with cumulative data - project start to current day)
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
+        .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
         .order_by(MetricsDB.created_at.desc())
         .limit(1)
     )
     existing_metrics = result.scalar_one_or_none()
 
-    # Build new metrics with Jira data + preserved manual fields
+    # Get preserved fields from existing metrics (manual + GitHub fields)
+    preserved = (
+        existing_metrics.get_preserved_fields(include_github=True)
+        if existing_metrics
+        else MetricsDB.get_default_preserved_fields(include_github=True)
+    )
+
+    # Build new metrics with Jira data + preserved fields
+    # These collector endpoints create cumulative metrics (project start to current day)
     db_metrics = MetricsDB(
         project_id=str(project_id),
         period_start=period_start,
         period_end=period_end,
-        # Jira defect metrics (normalized columns)
+        period_year=period_end.year,
+        period_month=period_end.month,
+        snapshot_type=SnapshotType.CUMULATIVE.value,
+        # Jira defect metrics
         bugs_total=raw_metrics.get("bugs_total", 0),
         tasks_completed=raw_metrics.get("tasks_completed", 0),
         escaped_defects=raw_metrics.get("escaped_defects", 0),
         mttr_hours=raw_metrics.get("mttr_hours"),
         incidents_count=raw_metrics.get("incidents_count", 0),
         post_contract_tasks=raw_metrics.get("post_contract_tasks"),
-        # Jira flow metrics (normalized columns)
+        # Jira flow metrics
         lead_time_days=raw_metrics.get("lead_time_days"),
         lead_time_sample_size=raw_metrics.get("lead_time_sample_size", 0),
         commitment_reliability=raw_metrics.get("commitment_reliability"),
@@ -98,32 +110,8 @@ async def collect_jira_metrics(
         multi_sprint_issues=raw_metrics.get("multi_sprint_issues", 0),
         total_stories=raw_metrics.get("total_stories", 0),
         stories_with_reviewer=raw_metrics.get("stories_with_reviewer", 0),
-        # Preserved fields from existing metrics
-        sev1_incident=existing_metrics.sev1_incident if existing_metrics else False,
-        budget_total=existing_metrics.budget_total if existing_metrics else None,
-        cost_to_date=existing_metrics.cost_to_date if existing_metrics else None,
-        percent_completed=existing_metrics.percent_completed if existing_metrics else None,
-        percent_planned=existing_metrics.percent_planned if existing_metrics else None,
-        governance_exceptions=existing_metrics.governance_exceptions if existing_metrics else None,
-        strategic_impact=existing_metrics.strategic_impact if existing_metrics else None,
-        # GitHub metrics (preserved)
-        prs_without_review=existing_metrics.prs_without_review if existing_metrics else None,
-        total_merged_prs=existing_metrics.total_merged_prs if existing_metrics else None,
-        high_severity_vulns=existing_metrics.high_severity_vulns if existing_metrics else None,
-        high_severity_vulns_total=existing_metrics.high_severity_vulns_total if existing_metrics else None,
-        pr_size_median=existing_metrics.pr_size_median if existing_metrics else None,
-        review_turnaround_hours=existing_metrics.review_turnaround_hours if existing_metrics else None,
-        deployment_frequency=existing_metrics.deployment_frequency if existing_metrics else None,
-        release_count_90d=existing_metrics.release_count_90d if existing_metrics else None,
-        change_failure_rate=existing_metrics.change_failure_rate if existing_metrics else None,
-        total_releases=existing_metrics.total_releases if existing_metrics else None,
-        failed_releases=existing_metrics.failed_releases if existing_metrics else None,
-        # JSON fields (preserved)
-        milestones=existing_metrics.milestones if existing_metrics else None,
-        pm_satisfaction=existing_metrics.pm_satisfaction if existing_metrics else None,
-        test_maturity=existing_metrics.test_maturity if existing_metrics else None,
-        architecture=existing_metrics.architecture if existing_metrics else None,
-        client_survey=existing_metrics.client_survey if existing_metrics else None,
+        # Preserved fields (manual + GitHub)
+        **preserved,
     )
 
     db.add(db_metrics)
@@ -164,7 +152,6 @@ async def collect_github_metrics(
     try:
         raw_metrics = await collector.collect(project.github_repo)
     except ConfigurationError:
-        await collector.close()
         raise
     except ValueError as e:
         raise HTTPException(
@@ -179,10 +166,12 @@ async def collect_github_metrics(
     finally:
         await collector.close()
 
-    # Get the most recent metrics record for this project
+    # Get the most recent CUMULATIVE metrics record for this project
+    # (collectors always work with cumulative data - project start to current day)
     result = await db.execute(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
+        .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
         .order_by(MetricsDB.created_at.desc())
         .limit(1)
     )
@@ -207,6 +196,7 @@ async def collect_github_metrics(
         return Metrics.from_db(existing_metrics)
     else:
         # Create new record with only GitHub data
+        # These collector endpoints create cumulative metrics (project start to current day)
         now = datetime.now(timezone.utc)
         period_start = project.start_date or now.date()
         period_end = now.date()
@@ -215,6 +205,9 @@ async def collect_github_metrics(
             project_id=str(project_id),
             period_start=period_start,
             period_end=period_end,
+            period_year=period_end.year,
+            period_month=period_end.month,
+            snapshot_type=SnapshotType.CUMULATIVE.value,
             prs_without_review=raw_metrics.get("prs_without_review", 0),
             total_merged_prs=raw_metrics.get("total_merged_prs", 0),
             high_severity_vulns=raw_metrics.get("high_severity_vulns", 0),

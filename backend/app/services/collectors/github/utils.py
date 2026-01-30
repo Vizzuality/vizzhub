@@ -5,7 +5,7 @@ This module contains common functions and constants used across multiple
 GitHub collector modules to avoid duplication.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.services.collectors.utils import parse_iso_datetime
@@ -25,6 +25,8 @@ async def get_merged_prs(
     owner: str,
     repo: str,
     max_results: int = 100,
+    period_start: date | None = None,
+    period_end: date | None = None,
 ) -> list[dict]:
     """
     Get merged PRs from repository.
@@ -34,6 +36,8 @@ async def get_merged_prs(
         owner: Repository owner
         repo: Repository name
         max_results: Maximum number of PRs to fetch
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date to filter PRs merged by this date
 
     Returns:
         List of merged PR dicts
@@ -64,7 +68,16 @@ async def get_merged_prs(
                 break
 
             for pr in prs:
-                if pr.get("merged_at"):
+                merged_at = pr.get("merged_at")
+                if merged_at:
+                    merged_date = parse_iso_datetime(merged_at)
+                    if merged_date:
+                        # Filter by period_start if specified
+                        if period_start and merged_date.date() < period_start:
+                            continue
+                        # Filter by period_end if specified
+                        if period_end and merged_date.date() > period_end:
+                            continue
                     merged_prs.append(pr)
                     if len(merged_prs) >= max_results:
                         break
@@ -104,6 +117,8 @@ async def get_releases(
     include_prereleases: bool = True,
     include_drafts: bool = False,
     max_results: int = 200,
+    period_start: date | None = None,
+    period_end: date | None = None,
 ) -> list[dict]:
     """
     Get releases from repository with filtering options.
@@ -115,6 +130,8 @@ async def get_releases(
         include_prereleases: Whether to include prerelease versions
         include_drafts: Whether to include draft releases
         max_results: Maximum number of releases to fetch
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date to filter releases published by this date
 
     Returns:
         List of release dicts
@@ -146,6 +163,17 @@ async def get_releases(
                     continue
                 if not include_prereleases and release.get("prerelease"):
                     continue
+                # Filter by date range if specified
+                published_at = release.get("published_at") or release.get("created_at")
+                if published_at:
+                    release_date = parse_iso_datetime(published_at)
+                    if release_date:
+                        # Filter by period_start if specified
+                        if period_start and release_date.date() < period_start:
+                            continue
+                        # Filter by period_end if specified
+                        if period_end and release_date.date() > period_end:
+                            continue
                 releases.append(release)
                 if len(releases) >= max_results:
                     break

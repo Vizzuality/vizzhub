@@ -7,8 +7,6 @@ from pydantic import ValidationError
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter
 from app.core.error_handler import ValidationErrorHandler
-
-logger = logging.getLogger(__name__)
 from app.models.config import (
     ConfigParameterResponse,
     ConfigParameterUpdate,
@@ -19,6 +17,8 @@ from app.models.config import (
     TargetsConfig,
 )
 from app.services.config_service import ConfigService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -52,6 +52,9 @@ async def get_scoring_config(
             pr_size_lines=config.get_target("pr_size_lines"),
             review_turnaround_hours=config.get_target("review_turnaround_hours"),
             post_contract_tasks=int(config.get_target("post_contract_tasks")),
+            budget_variance=config.get_target("budget_variance"),
+            governance_compliance=config.get_target("governance_compliance"),
+            okr_impact=config.get_target("okr_impact"),
         ),
         ideals=IdealsConfig(
             spi=config.get_ideal("spi"),

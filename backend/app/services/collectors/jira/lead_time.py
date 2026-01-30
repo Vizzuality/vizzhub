@@ -45,7 +45,7 @@ Edge Cases:
 == END SPEC ==
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from app.services.collectors.jira.utils import (
@@ -68,19 +68,32 @@ IN_PROGRESS_STATUSES = {
 }
 
 
-async def collect_lead_time(client: "JiraClient", project_key: str) -> dict:
+async def collect_lead_time(
+    client: "JiraClient",
+    project_key: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect lead time metrics from Jira.
 
     Args:
         client: Authenticated JiraClient instance
         project_key: Jira project key (e.g., "PROJ")
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date for filtering (inclusive)
 
     Returns:
         dict with lead_time_days and sample_size
     """
+    date_filter = ""
+    if period_start:
+        date_filter += f' AND resolutiondate >= "{period_start.isoformat()}"'
+    if period_end:
+        date_filter += f' AND resolutiondate <= "{period_end.isoformat()}"'
+
     jql = (
-        "type IN (Story, Task, Bug) AND statusCategory = Done "
+        f"type IN (Story, Task, Bug) AND statusCategory = Done{date_filter} "
         "ORDER BY resolutiondate DESC"
     )
 
