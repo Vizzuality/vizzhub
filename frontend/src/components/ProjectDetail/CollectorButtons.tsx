@@ -1,4 +1,4 @@
-import { RefreshCw, Github } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -8,10 +8,8 @@ interface CollectorButtonsProps {
   jiraProjectKey: string | null | undefined;
   githubRepo: string | null | undefined;
   projectStatus: ProjectStatus;
-  onCollectJira: () => Promise<unknown>;
-  onCollectGitHub: () => Promise<unknown>;
-  isCollectingJira: boolean;
-  isCollectingGitHub: boolean;
+  onCollectMetrics: () => void;
+  isCollecting: boolean;
   lastCollectedAt: string | null | undefined;
 }
 
@@ -19,10 +17,8 @@ export default function CollectorButtons({
   jiraProjectKey,
   githubRepo,
   projectStatus,
-  onCollectJira,
-  onCollectGitHub,
-  isCollectingJira,
-  isCollectingGitHub,
+  onCollectMetrics,
+  isCollecting,
   lastCollectedAt,
 }: CollectorButtonsProps): JSX.Element | null {
   if (!jiraProjectKey && !githubRepo) {
@@ -30,61 +26,35 @@ export default function CollectorButtons({
   }
 
   const isFinished = projectStatus === 'finished';
+  const sources = [jiraProjectKey && 'Jira', githubRepo && 'GitHub'].filter(Boolean).join(' & ');
 
   return (
     <div className="flex items-center gap-4">
-      <div className="flex gap-2">
-        {jiraProjectKey && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    onClick={onCollectJira}
-                    disabled={isCollectingJira || isFinished}
-                    variant="outline"
-                  >
-                    <RefreshCw
-                      className={cn('w-4 h-4 mr-2', isCollectingJira && 'animate-spin')}
-                    />
-                    {isCollectingJira ? 'Collecting Jira...' : 'Collect Jira'}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {isFinished && (
-                <TooltipContent>
-                  <p>Collectors disabled for finished projects</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {githubRepo && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    onClick={onCollectGitHub}
-                    disabled={isCollectingGitHub || isFinished}
-                    variant="outline"
-                  >
-                    <Github
-                      className={cn('w-4 h-4 mr-2', isCollectingGitHub && 'animate-spin')}
-                    />
-                    {isCollectingGitHub ? 'Collecting GitHub...' : 'Collect GitHub'}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {isFinished && (
-                <TooltipContent>
-                  <p>Collectors disabled for finished projects</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                onClick={onCollectMetrics}
+                disabled={isCollecting || isFinished}
+                variant="outline"
+              >
+                <RefreshCw
+                  className={cn('w-4 h-4 mr-2', isCollecting && 'animate-spin')}
+                />
+                {isCollecting ? 'Collecting...' : 'Collect Metrics'}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isFinished ? (
+              <p>Collectors disabled for finished projects</p>
+            ) : (
+              <p>Collect from {sources}</p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       {lastCollectedAt && (
         <span className="text-sm text-muted-foreground">
           Last collected: {new Date(lastCollectedAt).toLocaleString()}

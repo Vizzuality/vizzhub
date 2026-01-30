@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import EditableMetricCard from './EditableMetricCard';
+import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { TestMaturity } from '../../types';
 
 const TEST_TYPES = [
@@ -43,8 +44,6 @@ export default function TestMaturityCard({
   onSave,
   isPending,
 }: TestMaturityCardProps): JSX.Element {
-  const targetNormalized = target !== null ? target / 100 : null;
-
   return (
     <EditableMetricCard<Partial<Record<TestTypeKey, number>>>
       title="Test Maturity"
@@ -81,27 +80,12 @@ export default function TestMaturityCard({
       )}
       renderDisplay={(displayData) => (
         <>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Weighted score</span>
-            <span
-              className={cn(
-                'text-3xl font-bold',
-                indicatorValue === null || targetNormalized === null
-                  ? 'text-muted-foreground'
-                  : indicatorValue >= targetNormalized
-                  ? 'text-score-green'
-                  : indicatorValue >= targetNormalized * 0.9
-                  ? 'text-score-yellow'
-                  : 'text-score-red'
-              )}
-            >
-              {indicatorValue !== null ? (indicatorValue * 100).toFixed(0) + '%' : '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
-          </div>
+          <IndicatorScoreDisplay
+            label="Weighted score"
+            indicatorValue={indicatorValue}
+            target={target}
+          />
+          <KPIDisplay target={target} />
           {displayData && (
             <div className="space-y-1 pt-2 border-t border-border/50">
               {TEST_TYPES.map(({ key, label }) => {

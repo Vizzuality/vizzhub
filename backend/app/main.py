@@ -10,13 +10,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.api import capture as capture_router
 from app.api import collectors as collectors_router
 from app.api import config as config_router
 from app.api import metrics as metrics_router
 from app.api import oauth as oauth_router
 from app.api import projects as projects_router
 from app.api import scores as scores_router
-from app.api import snapshots as snapshots_router
 from app.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
@@ -145,7 +145,7 @@ app.include_router(
     collectors_router.router, prefix="/api/collect", tags=["collectors"]
 )
 app.include_router(
-    snapshots_router.router, prefix="/api/snapshots", tags=["snapshots"]
+    capture_router.router, prefix="/api/projects", tags=["capture"]
 )
 
 

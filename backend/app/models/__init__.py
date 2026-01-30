@@ -9,14 +9,16 @@ from app.models.metrics import (
     JiraDefectMetrics,
     Metrics,
     MetricsCreate,
+    MetricsDB,
+    MetricsWithScores,
     Milestone,
     PMSatisfaction,
+    SnapshotType,
     TestMaturity,
 )
 from app.models.oauth import OAuthToken, OAuthTokenDB
 from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 from app.models.scores import DimensionScores, FinalScore, ScoreResult
-from app.models.snapshot import ConfigSnapshot, MetricSnapshotDB, SnapshotCreate, SnapshotResponse
 
 __all__ = [
     "ArchitectureChecklist",
@@ -32,7 +34,8 @@ __all__ = [
     "JiraDefectMetrics",
     "Metrics",
     "MetricsCreate",
-    "MetricSnapshotDB",
+    "MetricsDB",
+    "MetricsWithScores",
     "Milestone",
     "OAuthToken",
     "OAuthTokenDB",
@@ -43,8 +46,6 @@ __all__ = [
     "ProjectUpdate",
     "ScoreResult",
     "ScoringConfigModel",
-    "ConfigSnapshot",
-    "SnapshotCreate",
-    "SnapshotResponse",
+    "SnapshotType",
     "TestMaturity",
 ]

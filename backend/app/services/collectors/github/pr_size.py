@@ -39,6 +39,7 @@ Industry Benchmarks:
 
 import asyncio
 import statistics
+from datetime import date
 from typing import TYPE_CHECKING
 
 from app.services.collectors.github.utils import (
@@ -51,20 +52,27 @@ if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
 
 
-async def collect_pr_size(client: "GitHubClient", repo_slug: str) -> dict:
+async def collect_pr_size(
+    client: "GitHubClient",
+    repo_slug: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect PR size metrics from GitHub.
 
     Args:
         client: Authenticated GitHubClient instance
         repo_slug: Repository in "owner/repo" format
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date to filter PRs merged by this date
 
     Returns:
         dict with pr_size_median
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    merged_prs = await get_merged_prs(client, owner, repo)
+    merged_prs = await get_merged_prs(client, owner, repo, period_start=period_start, period_end=period_end)
 
     if not merged_prs:
         return {"pr_size_median": None}

@@ -5,6 +5,7 @@ Orchestrates collection of all GitHub-sourced indicators.
 Individual indicator logic is in separate modules within this package.
 """
 
+from datetime import date
 from typing import Any
 
 from app.services.collectors.github.change_failure_rate import (
@@ -36,17 +37,32 @@ class GitHubCollector:
 
         Args:
             repo_slug: Repository in "owner/repo" format
+            period_start: Optional start date for filtering (inclusive)
+            period_end: Optional end date for filtering (inclusive)
 
         Returns:
             Raw metrics data without interpretation.
         """
         self._client.validate_repo_slug(repo_slug)
 
-        pr_review_data = await collect_pr_review(self._client, repo_slug)
-        pr_size_data = await collect_pr_size(self._client, repo_slug)
-        review_turnaround_data = await collect_review_turnaround(self._client, repo_slug)
-        deployment_freq_data = await collect_deployment_frequency(self._client, repo_slug)
-        cfr_data = await collect_change_failure_rate(self._client, repo_slug)
+        period_start: date | None = kwargs.get("period_start")
+        period_end: date | None = kwargs.get("period_end")
+
+        pr_review_data = await collect_pr_review(
+            self._client, repo_slug, period_start=period_start, period_end=period_end
+        )
+        pr_size_data = await collect_pr_size(
+            self._client, repo_slug, period_start=period_start, period_end=period_end
+        )
+        review_turnaround_data = await collect_review_turnaround(
+            self._client, repo_slug, period_start=period_start, period_end=period_end
+        )
+        deployment_freq_data = await collect_deployment_frequency(
+            self._client, repo_slug, period_start=period_start, period_end=period_end
+        )
+        cfr_data = await collect_change_failure_rate(
+            self._client, repo_slug, period_start=period_start, period_end=period_end
+        )
         vuln_data = await collect_vulnerabilities(self._client, repo_slug)
 
         return {

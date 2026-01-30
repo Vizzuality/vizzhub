@@ -34,6 +34,7 @@ Edge Cases:
 == END SPEC ==
 """
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -41,7 +42,10 @@ if TYPE_CHECKING:
 
 
 async def collect_commitment_reliability(
-    client: "JiraClient", project_key: str
+    client: "JiraClient",
+    project_key: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
 ) -> dict:
     """
     Collect commitment reliability metrics from Jira.
@@ -49,6 +53,8 @@ async def collect_commitment_reliability(
     Args:
         client: Authenticated JiraClient instance
         project_key: Jira project key (e.g., "PROJ")
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date to filter sprints ended by this date
 
     Returns:
         dict with commitment_reliability ratio and detail counts
@@ -62,7 +68,7 @@ async def collect_commitment_reliability(
             "multi_sprint_issues": 0,
         }
 
-    closed_sprints = await _get_closed_sprints(client, board["id"])
+    closed_sprints = await _get_closed_sprints(client, board["id"], period_start, period_end)
     if not closed_sprints:
         return {
             "commitment_reliability": None,
@@ -123,8 +129,13 @@ async def _get_scrum_board(client: "JiraClient", project_key: str) -> dict | Non
     return None
 
 
-async def _get_closed_sprints(client: "JiraClient", board_id: int) -> list[dict]:
-    """Get all closed sprints for a board."""
+async def _get_closed_sprints(
+    client: "JiraClient",
+    board_id: int,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> list[dict]:
+    """Get all closed sprints for a board, optionally filtered by date range."""
     http_client = await client.get_client()
 
     sprints = []
@@ -142,7 +153,28 @@ async def _get_closed_sprints(client: "JiraClient", board_id: int) -> list[dict]
 
             data = response.json()
             values = data.get("values", [])
-            sprints.extend(values)
+
+            # Filter sprints by date range if specified
+            if period_start or period_end:
+                filtered = []
+                for sprint in values:
+                    end_date_str = sprint.get("endDate")
+                    if end_date_str:
+                        try:
+                            sprint_end = date.fromisoformat(end_date_str[:10])
+                            # Check if sprint ends within the specified range
+                            if period_start and sprint_end < period_start:
+                                continue
+                            if period_end and sprint_end > period_end:
+                                continue
+                            filtered.append(sprint)
+                        except (ValueError, TypeError):
+                            filtered.append(sprint)
+                    else:
+                        filtered.append(sprint)
+                sprints.extend(filtered)
+            else:
+                sprints.extend(values)
 
             if data.get("isLast", True) or not values:
                 break

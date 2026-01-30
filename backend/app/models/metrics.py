@@ -5,8 +5,9 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, Numeric, String
+from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -19,6 +20,17 @@ class StrategicImpact(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     TRANSFORMATIONAL = "transformational"
+
+
+class SnapshotType(str, Enum):
+    """Snapshot types for metrics records.
+
+    PUNCTUAL: Data for a single month only (month start to month end)
+    CUMULATIVE: Data from project start to month end
+    """
+
+    PUNCTUAL = "punctual"
+    CUMULATIVE = "cumulative"
 
 
 class ComplaintStatus(str, Enum):
@@ -156,6 +168,17 @@ class MetricsDB(Base):
     period_start: Mapped[date] = mapped_column(nullable=False)
     period_end: Mapped[date] = mapped_column(nullable=False)
 
+    # Period identification (for uniqueness constraint)
+    period_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    period_month: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot_type: Mapped[str] = mapped_column(
+        String(20), default=SnapshotType.CUMULATIVE.value, nullable=False
+    )
+
+    # Config versioning (weights/targets at capture time)
+    weights_applied: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    targets_applied: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
     # === EVM Data (normalized for SPI/CPI aggregation) ===
     budget_total: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
     cost_to_date: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
@@ -210,12 +233,105 @@ class MetricsDB(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+    # Fields that are manually entered and should be preserved across collector runs
+    MANUAL_FIELDS = [
+        "sev1_incident",
+        "budget_total",
+        "cost_to_date",
+        "percent_completed",
+        "percent_planned",
+        "governance_exceptions",
+        "strategic_impact",
+        "milestones",
+        "pm_satisfaction",
+        "test_maturity",
+        "architecture",
+        "client_survey",
+    ]
+
+    # Fields collected from GitHub (preserved when only running Jira collector)
+    GITHUB_FIELDS = [
+        "prs_without_review",
+        "total_merged_prs",
+        "high_severity_vulns",
+        "high_severity_vulns_total",
+        "pr_size_median",
+        "review_turnaround_hours",
+        "deployment_frequency",
+        "release_count_90d",
+        "change_failure_rate",
+        "total_releases",
+        "failed_releases",
+    ]
+
+    __table_args__ = (
+        Index(
+            "uq_metrics_project_period_type",
+            "project_id",
+            "period_year",
+            "period_month",
+            "snapshot_type",
+            unique=True,
+        ),
+    )
+
+    def get_preserved_fields(self, include_github: bool = True) -> dict:
+        """Get dict of fields to preserve when creating new metrics.
+
+        Args:
+            include_github: Whether to include GitHub fields (False when running GitHub collector)
+
+        Returns:
+            Dict of field names to values for preservation
+        """
+        fields = self.MANUAL_FIELDS.copy()
+        if include_github:
+            fields.extend(self.GITHUB_FIELDS)
+
+        return {field: getattr(self, field) for field in fields}
+
+    @staticmethod
+    def get_default_preserved_fields(include_github: bool = True) -> dict:
+        """Get dict of default values for preserved fields when no existing metrics.
+
+        Args:
+            include_github: Whether to include GitHub fields
+
+        Returns:
+            Dict of field names to default values (None or False for sev1_incident)
+        """
+        fields = MetricsDB.MANUAL_FIELDS.copy()
+        if include_github:
+            fields.extend(MetricsDB.GITHUB_FIELDS)
+
+        result = {field: None for field in fields}
+        result["sev1_incident"] = False
+        return result
+
 
 class MetricsCreate(BaseModel):
     """Schema for creating/updating metrics - uses nested models for API convenience."""
 
     period_start: date
     period_end: date
+
+    # Period identification (for uniqueness constraint) - optional, derived from period_end
+    period_year: int | None = Field(default=None, ge=2020, le=2100)
+    period_month: int | None = Field(default=None, ge=1, le=12)
+    snapshot_type: SnapshotType = Field(default=SnapshotType.CUMULATIVE)
+
+    # Config versioning (weights/targets at capture time)
+    weights_applied: dict = Field(default_factory=dict)
+    targets_applied: dict = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def derive_period_from_end_date(self) -> "MetricsCreate":
+        """Derive period_year and period_month from period_end if not provided."""
+        if self.period_year is None:
+            self.period_year = self.period_end.year
+        if self.period_month is None:
+            self.period_month = self.period_end.month
+        return self
 
     # Nested models for API grouping (flattened to columns in DB)
     evm_data: EVMData | None = None
@@ -240,6 +356,11 @@ class MetricsCreate(BaseModel):
         data: dict = {
             "period_start": self.period_start,
             "period_end": self.period_end,
+            "period_year": self.period_year,
+            "period_month": self.period_month,
+            "snapshot_type": self.snapshot_type.value,
+            "weights_applied": self.weights_applied,
+            "targets_applied": self.targets_applied,
             "governance_exceptions": self.governance_exceptions,
             "sev1_incident": self.sev1_incident,
             "strategic_impact": self.strategic_impact.value if self.strategic_impact else None,
@@ -377,6 +498,11 @@ class MetricsCreate(BaseModel):
         return cls(
             period_start=db.period_start,
             period_end=db.period_end,
+            period_year=db.period_year,
+            period_month=db.period_month,
+            snapshot_type=SnapshotType(db.snapshot_type),
+            weights_applied=db.weights_applied or {},
+            targets_applied=db.targets_applied or {},
             evm_data=cls._build_evm_data(db),
             jira_defects=cls._build_jira_defects(db),
             flow_metrics=cls._build_flow_metrics(db),
@@ -411,3 +537,24 @@ class Metrics(MetricsCreate):
             created_at=db.created_at,
             **base.model_dump(),
         )
+
+
+class MetricsWithScores(BaseModel):
+    """Schema for metrics responses with computed indicators and scores.
+
+    Used for API responses that include both raw metrics and computed scores.
+    This is a flattened view specifically for historical trend displays.
+    """
+
+    id: str
+    project_id: str
+    period_year: int
+    period_month: int
+    snapshot_type: str
+    weights_applied: dict
+    targets_applied: dict
+    created_at: datetime
+    indicators: dict
+    scores: dict
+
+    model_config = {"from_attributes": True}

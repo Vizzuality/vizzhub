@@ -2,6 +2,7 @@ import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import EditableMetricCard from './EditableMetricCard';
+import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { ClientSurvey, ProjectStatus } from '../../types';
 
 const SURVEY_QUESTIONS = [
@@ -36,7 +37,6 @@ export default function ClientSurveyCard({
   isPending,
   getWeight,
 }: ClientSurveyCardProps): JSX.Element {
-  const targetNormalized = target !== null ? target / 100 : null;
   const isDisabled = projectStatus === 'in_progress';
 
   const getQuestionWeight = (configKey: string, defaultWeight: number): string => {
@@ -102,27 +102,13 @@ export default function ClientSurveyCard({
       )}
       renderDisplay={(displayData) => (
         <>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Weighted Score</span>
-            <span
-              className={cn(
-                'text-2xl font-bold',
-                indicatorValue === null || targetNormalized === null
-                  ? 'text-muted-foreground'
-                  : indicatorValue >= targetNormalized
-                  ? 'text-score-green'
-                  : indicatorValue >= targetNormalized * 0.9
-                  ? 'text-score-yellow'
-                  : 'text-score-red'
-              )}
-            >
-              {indicatorValue !== null ? `${Math.round(indicatorValue * 100)}%` : '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">{target !== null ? `≥${target}%` : '—'}</span>
-          </div>
+          <IndicatorScoreDisplay
+            label="Weighted Score"
+            indicatorValue={indicatorValue}
+            target={target}
+            textSize="md"
+          />
+          <KPIDisplay target={target} />
           {displayData && (
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
               {SURVEY_QUESTIONS.map(({ key, shortLabel }) => {

@@ -47,10 +47,14 @@ async def test_project_with_metrics(
     db_session: AsyncSession, test_project: ProjectDB
 ) -> tuple[ProjectDB, MetricsDB]:
     """Create a test project with complete metrics."""
+    today = date.today()
     metrics = MetricsDB(
         project_id=str(test_project.id),
-        period_start=date.today() - timedelta(days=30),
-        period_end=date.today(),
+        period_start=today - timedelta(days=30),
+        period_end=today,
+        period_year=today.year,
+        period_month=today.month,
+        snapshot_type="cumulative",
         # EVM data (normalized columns)
         budget_total=Decimal("100000.0"),
         cost_to_date=Decimal("45000.0"),
@@ -275,137 +279,106 @@ class TestCollectorsIntegration:
 
 
 # =============================================================================
-# 4. Metrics Consolidation Integration Tests
+# 4. Metrics Upsert Integration Tests
 # =============================================================================
 
-class TestMetricsConsolidationIntegration:
-    """Test that multiple metrics records are consolidated correctly."""
+class TestMetricsUpsertIntegration:
+    """Test that metrics upsert behavior works correctly.
+
+    Note: Consolidation of multiple records is no longer supported.
+    With the new architecture, only ONE record per (project, year, month, snapshot_type)
+    is allowed. Upsert updates existing records rather than creating duplicates.
+    """
 
     @pytest.mark.asyncio
-    async def test_consolidates_metrics_from_same_period(
+    async def test_upsert_creates_new_record(
         self,
         client: AsyncClient,
-        db_session: AsyncSession,
         test_project: ProjectDB,
     ) -> None:
-        """Verify metrics from same period_end are consolidated."""
-        today = date.today()
-        period_start = today - timedelta(days=30)
+        """Verify POST creates a new metrics record."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
 
-        # Create first metrics record with EVM data only
-        metrics1 = MetricsDB(
-            project_id=str(test_project.id),
-            period_start=period_start,
-            period_end=today,
-            budget_total=Decimal("100000.0"),
-            cost_to_date=Decimal("50000.0"),
-            percent_completed=Decimal("0.5"),
-            percent_planned=Decimal("0.5"),
+        response = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "governance_exceptions": 5,
+            },
         )
-        db_session.add(metrics1)
-        await db_session.commit()
-
-        # Create second metrics record with GitHub data only (simulating collector)
-        metrics2 = MetricsDB(
-            project_id=str(test_project.id),
-            period_start=period_start,
-            period_end=today,
-            total_merged_prs=50,
-            prs_without_review=2,
-            high_severity_vulns=0,
-            pr_size_median=Decimal("100.0"),
-            review_turnaround_hours=Decimal("8.0"),
-            deployment_frequency=Decimal("1.5"),
-            change_failure_rate=Decimal("0.02"),
-        )
-        db_session.add(metrics2)
-        await db_session.commit()
-
-        # Get scores - should have both EVM and GitHub data consolidated
-        response = await client.get(f"/api/scores/project/{test_project.id}")
-        assert response.status_code == 200
+        assert response.status_code == 201
 
         data = response.json()
-        indicators = data["indicators"]
-
-        # Should have indicators from both metrics records
-        assert indicators["spi"] is not None, "SPI should come from EVM metrics"
-        assert indicators["cpi"] is not None, "CPI should come from EVM metrics"
-        assert indicators["pr_review_ratio"] is not None, "PR review should come from GitHub metrics"
-        assert indicators["deployment_frequency"] is not None, "Deploy freq should come from GitHub"
+        assert data["governance_exceptions"] == 5
 
     @pytest.mark.asyncio
-    async def test_consolidation_prefers_most_recent_non_null(
+    async def test_upsert_updates_existing_record(
+        self,
+        client: AsyncClient,
+        test_project: ProjectDB,
+    ) -> None:
+        """Verify POST updates existing record for same period/type."""
+        period_start = str(date.today() - timedelta(days=30))
+        period_end = str(date.today())
+
+        # Create initial record
+        response1 = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "governance_exceptions": 5,
+            },
+        )
+        assert response1.status_code == 201
+        first_id = response1.json()["id"]
+
+        # Update with same period (should upsert, not create new)
+        response2 = await client.post(
+            f"/api/metrics/project/{test_project.id}",
+            json={
+                "period_start": period_start,
+                "period_end": period_end,
+                "governance_exceptions": 1,
+            },
+        )
+        assert response2.status_code == 201
+        second_id = response2.json()["id"]
+
+        # Should be the same record
+        assert first_id == second_id
+        assert response2.json()["governance_exceptions"] == 1
+
+    @pytest.mark.asyncio
+    async def test_sev1_incident_caps_quality_score(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
         test_project: ProjectDB,
     ) -> None:
-        """Verify consolidation takes first non-null value (most recent)."""
+        """Verify sev1_incident caps P_quality at 60."""
         today = date.today()
         period_start = today - timedelta(days=30)
 
-        # Create old metrics with governance_exceptions = 5
-        metrics_old = MetricsDB(
+        # Create metrics with sev1_incident=True
+        metrics = MetricsDB(
             project_id=str(test_project.id),
             period_start=period_start,
             period_end=today,
-            governance_exceptions=5,
-        )
-        db_session.add(metrics_old)
-        await db_session.commit()
-
-        # Create newer metrics with governance_exceptions = 1
-        metrics_new = MetricsDB(
-            project_id=str(test_project.id),
-            period_start=period_start,
-            period_end=today,
-            governance_exceptions=1,
-        )
-        db_session.add(metrics_new)
-        await db_session.commit()
-
-        response = await client.get(f"/api/scores/project/{test_project.id}")
-        assert response.status_code == 200
-
-        data = response.json()
-        # Should use the most recent value (1, not 5)
-        assert data["indicators"]["governance_compliance"] is not None
-
-    @pytest.mark.asyncio
-    async def test_sev1_incident_true_if_any_record_has_it(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_project: ProjectDB,
-    ) -> None:
-        """Verify sev1_incident is True if any consolidated record has it."""
-        today = date.today()
-        period_start = today - timedelta(days=30)
-
-        # Create metrics without sev1
-        metrics1 = MetricsDB(
-            project_id=str(test_project.id),
-            period_start=period_start,
-            period_end=today,
+            period_year=today.year,
+            period_month=today.month,
+            snapshot_type="cumulative",
             bugs_total=5,
             tasks_completed=100,
             escaped_defects=1,
             mttr_hours=Decimal("24.0"),
             incidents_count=1,
             post_contract_tasks=0,
-            sev1_incident=False,
-        )
-        db_session.add(metrics1)
-
-        # Create metrics with sev1
-        metrics2 = MetricsDB(
-            project_id=str(test_project.id),
-            period_start=period_start,
-            period_end=today,
             sev1_incident=True,
         )
-        db_session.add(metrics2)
+        db_session.add(metrics)
         await db_session.commit()
 
         response = await client.get(f"/api/scores/project/{test_project.id}")
@@ -521,10 +494,14 @@ class TestNormalizersE2EIntegration:
         test_project: ProjectDB,
     ) -> None:
         """Verify perfect metrics produce high scores."""
+        today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
-            period_start=date.today() - timedelta(days=30),
-            period_end=date.today(),
+            period_start=today - timedelta(days=30),
+            period_end=today,
+            period_year=today.year,
+            period_month=today.month,
+            snapshot_type="cumulative",
             # EVM data (SPI = 1.0)
             budget_total=Decimal("100000.0"),
             cost_to_date=Decimal("50000.0"),
@@ -602,10 +579,14 @@ class TestNormalizersE2EIntegration:
         test_project: ProjectDB,
     ) -> None:
         """Verify poor metrics produce low scores."""
+        today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
-            period_start=date.today() - timedelta(days=30),
-            period_end=date.today(),
+            period_start=today - timedelta(days=30),
+            period_end=today,
+            period_year=today.year,
+            period_month=today.month,
+            snapshot_type="cumulative",
             # EVM data (SPI = 0.5, very behind)
             budget_total=Decimal("100000.0"),
             cost_to_date=Decimal("80000.0"),
@@ -661,10 +642,14 @@ class TestNormalizersE2EIntegration:
     ) -> None:
         """Verify SPI is calculated correctly from EVM data."""
         # SPI = percent_completed / percent_planned = 0.4 / 0.5 = 0.8
+        today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
-            period_start=date.today() - timedelta(days=30),
-            period_end=date.today(),
+            period_start=today - timedelta(days=30),
+            period_end=today,
+            period_year=today.year,
+            period_month=today.month,
+            snapshot_type="cumulative",
             budget_total=Decimal("100000.0"),
             cost_to_date=Decimal("50000.0"),
             percent_completed=Decimal("0.4"),
@@ -692,10 +677,14 @@ class TestNormalizersE2EIntegration:
         """Verify CPI is calculated correctly from EVM data."""
         # CPI = EV / AC = (budget * percent_completed) / cost_to_date
         # CPI = (100000 * 0.5) / 40000 = 1.25
+        today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
-            period_start=date.today() - timedelta(days=30),
-            period_end=date.today(),
+            period_start=today - timedelta(days=30),
+            period_end=today,
+            period_year=today.year,
+            period_month=today.month,
+            snapshot_type="cumulative",
             budget_total=Decimal("100000.0"),
             cost_to_date=Decimal("40000.0"),
             percent_completed=Decimal("0.5"),
@@ -802,10 +791,14 @@ class TestCalculatorChainIntegration:
     ) -> None:
         """Verify partial metrics don't prevent other dimensions from calculating."""
         # Create metrics with only EVM data (no GitHub, no Jira defects)
+        today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
-            period_start=date.today() - timedelta(days=30),
-            period_end=date.today(),
+            period_start=today - timedelta(days=30),
+            period_end=today,
+            period_year=today.year,
+            period_month=today.month,
+            snapshot_type="cumulative",
             budget_total=Decimal("100000.0"),
             cost_to_date=Decimal("50000.0"),
             percent_completed=Decimal("0.5"),

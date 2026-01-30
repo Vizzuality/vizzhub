@@ -7,6 +7,7 @@ Individual indicator logic is in separate modules within this package.
 Supports both OAuth 2.0 and legacy API token authentication.
 """
 
+from datetime import date
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,22 +40,35 @@ class JiraCollector:
 
         Args:
             project_key: Jira project key (e.g., "PROJ")
+            period_start: Optional start date for filtering (inclusive)
+            period_end: Optional end date for filtering (inclusive)
 
         Returns:
             Raw metrics data without interpretation.
         """
         self._jira_client.validate_project_key(project_key)
 
-        defect_data = await collect_defect_density(self._jira_client, project_key)
-        escaped_data = await collect_escaped_rate(self._jira_client, project_key)
-        mttr_data = await collect_mttr(self._jira_client, project_key)
+        period_start: date | None = kwargs.get("period_start")
+        period_end: date | None = kwargs.get("period_end")
+
+        defect_data = await collect_defect_density(
+            self._jira_client, project_key, period_start=period_start, period_end=period_end
+        )
+        escaped_data = await collect_escaped_rate(
+            self._jira_client, project_key, period_start=period_start, period_end=period_end
+        )
+        mttr_data = await collect_mttr(
+            self._jira_client, project_key, period_start=period_start, period_end=period_end
+        )
         story_review_data = await collect_story_review_ratio(
-            self._jira_client, project_key
+            self._jira_client, project_key, period_start=period_start, period_end=period_end
         )
         commitment_data = await collect_commitment_reliability(
-            self._jira_client, project_key
+            self._jira_client, project_key, period_start=period_start, period_end=period_end
         )
-        lead_time_data = await collect_lead_time(self._jira_client, project_key)
+        lead_time_data = await collect_lead_time(
+            self._jira_client, project_key, period_start=period_start, period_end=period_end
+        )
         post_contract_data = await collect_post_contract_tasks(
             self._jira_client, project_key, kwargs.get("end_date")
         )

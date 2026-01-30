@@ -32,31 +32,52 @@ Edge Cases:
 == END SPEC ==
 """
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
 
-async def collect_story_review_ratio(client: "JiraClient", project_key: str) -> dict:
+async def collect_story_review_ratio(
+    client: "JiraClient",
+    project_key: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect story review metrics from Jira.
 
     Args:
         client: Authenticated JiraClient instance
         project_key: Jira project key (e.g., "PROJ")
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date for filtering (inclusive)
 
     Returns:
         dict with total_stories and stories_with_reviewer counts
     """
+    total_filter = "type = Story AND status = Done"
+    reviewer_filter = "type = Story AND status = Done AND reviewers IS NOT EMPTY"
+
+    if period_start:
+        start_str = period_start.isoformat()
+        total_filter += f' AND resolutiondate >= "{start_str}"'
+        reviewer_filter += f' AND resolutiondate >= "{start_str}"'
+
+    if period_end:
+        date_str = period_end.isoformat()
+        total_filter += f' AND resolutiondate <= "{date_str}"'
+        reviewer_filter += f' AND resolutiondate <= "{date_str}"'
+
     total_stories = await client.count_issues(
         project_key,
-        "type = Story AND status = Done",
+        total_filter,
     )
 
     stories_with_reviewer = await client.count_issues(
         project_key,
-        "type = Story AND status = Done AND reviewers IS NOT EMPTY",
+        reviewer_filter,
     )
 
     return {

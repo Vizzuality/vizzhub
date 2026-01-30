@@ -40,7 +40,7 @@ DORA Benchmarks:
 """
 
 import re
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from app.services.collectors.github.utils import get_releases, parse_release_date
@@ -61,6 +61,8 @@ HOTFIX_PATTERNS = [
 async def collect_change_failure_rate(
     client: "GitHubClient",
     repo_slug: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
 ) -> dict:
     """
     Collect change failure rate metrics from GitHub.
@@ -68,13 +70,18 @@ async def collect_change_failure_rate(
     Args:
         client: Authenticated GitHubClient instance
         repo_slug: Repository in "owner/repo" format
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date for filtering releases
 
     Returns:
         dict with change_failure_rate, total_releases, failed_releases
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    releases = await get_releases(client, owner, repo, include_prereleases=True)
+    releases = await get_releases(
+        client, owner, repo, include_prereleases=True,
+        period_start=period_start, period_end=period_end
+    )
 
     if not releases:
         return {

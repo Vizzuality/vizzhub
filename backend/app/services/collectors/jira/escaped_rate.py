@@ -32,31 +32,52 @@ Edge Cases:
 == END SPEC ==
 """
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
 
-async def collect_escaped_rate(client: "JiraClient", project_key: str) -> dict:
+async def collect_escaped_rate(
+    client: "JiraClient",
+    project_key: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect escaped defects metrics from Jira.
 
     Args:
         client: Authenticated JiraClient instance
         project_key: Jira project key (e.g., "PROJ")
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date for filtering (inclusive)
 
     Returns:
         dict with escaped_defects and tasks_resolved counts
     """
+    escaped_filter = "type = Bug AND 'Environment' IN ('Staging', 'Production')"
+    tasks_filter = "type in (Story, Task, Bug) AND statusCategory = Done"
+
+    if period_start:
+        start_str = period_start.isoformat()
+        escaped_filter += f' AND created >= "{start_str}"'
+        tasks_filter += f' AND resolutiondate >= "{start_str}"'
+
+    if period_end:
+        date_str = period_end.isoformat()
+        escaped_filter += f' AND created <= "{date_str}"'
+        tasks_filter += f' AND resolutiondate <= "{date_str}"'
+
     escaped_defects = await client.count_issues(
         project_key,
-        "type = Bug AND 'Environment' IN ('Staging', 'Production')",
+        escaped_filter,
     )
 
     tasks_resolved = await client.count_issues(
         project_key,
-        "type in (Story, Task, Bug) AND statusCategory = Done",
+        tasks_filter,
     )
 
     return {

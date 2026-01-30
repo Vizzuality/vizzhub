@@ -190,7 +190,7 @@ export default function HistoricalCaptureModal({
             Force Overwrite
           </Label>
           <p className="text-sm text-muted-foreground">
-            Replace existing snapshots for the selected period.
+            Replace existing periods in the selected range.
           </p>
         </div>
         <Switch id="force-switch" checked={force} onCheckedChange={setForce} />
@@ -281,7 +281,7 @@ export default function HistoricalCaptureModal({
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Calendar className="h-4 w-4" />
-          Capture History
+          Historical Capture
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
@@ -293,7 +293,7 @@ export default function HistoricalCaptureModal({
           <DialogDescription>
             {report
               ? 'Capture completed. Review the results below.'
-              : 'Capture historical metrics and create snapshots for past months.'}
+              : 'Capture historical metrics and create records for past months.'}
           </DialogDescription>
         </DialogHeader>
 

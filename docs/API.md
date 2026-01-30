@@ -103,9 +103,135 @@ DELETE /projects/{project_id}
 
 ---
 
+## Metrics Capture
+
+### Capture Period (Recommended)
+
+Capture metrics from Jira and GitHub for a specific month. **Creates BOTH punctual and cumulative snapshots.**
+
+```http
+POST /projects/{project_id}/capture-period
+Content-Type: application/json
+
+{
+  "year": 2024,       // Optional - defaults to current year
+  "month": 6,         // Optional - defaults to current month
+  "force": false      // Optional - overwrite existing if true
+}
+```
+
+**When `year`/`month` are omitted** (typical UI usage):
+- Defaults to current month
+- Uses `today` as end date (not last day of month)
+- Cumulative: `project.start_date` → `today`
+- Punctual: 1st of current month → `today`
+
+**Minimal request** (from UI "Collect Metrics" button):
+```http
+POST /projects/{project_id}/capture-period
+Content-Type: application/json
+
+{"force": true}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "punctual": {
+    "id": "uuid",
+    "project_id": "uuid",
+    "period_year": 2024,
+    "period_month": 6,
+    "snapshot_type": "punctual",
+    "indicators": { ... },
+    "scores": { ... }
+  },
+  "cumulative": {
+    "id": "uuid",
+    "project_id": "uuid",
+    "period_year": 2024,
+    "period_month": 6,
+    "snapshot_type": "cumulative",
+    "indicators": { ... },
+    "scores": { ... }
+  }
+}
+```
+
+**Error:** `409 Conflict` if period already captured (use `force: true` to overwrite)
+
+### Capture History (Batch)
+
+Capture metrics for multiple months at once.
+
+```http
+POST /projects/{project_id}/capture-history
+Content-Type: application/json
+
+{
+  "from_year": 2024,
+  "from_month": 1,
+  "to_year": 2024,
+  "to_month": 6,
+  "force": false
+}
+```
+
+**Response:**
+```json
+{
+  "project_id": "uuid",
+  "requested_range": ["2024-01", "2024-06"],
+  "summary": {
+    "total_months": 6,
+    "snapshots_created": 12,
+    "snapshots_skipped": 0,
+    "errors": 0
+  },
+  "details": [
+    {"month": "2024-01", "snapshot_type": "cumulative", "status": "created"},
+    {"month": "2024-01", "snapshot_type": "punctual", "status": "created"}
+  ],
+  "errors": []
+}
+```
+
+### Collect Jira Metrics Only (Legacy)
+
+> ⚠️ **Deprecated**: Use `POST /projects/{id}/capture-period` instead. It collects both Jira and GitHub and creates both snapshot types automatically.
+
+```http
+POST /collect/project/{project_id}/jira
+```
+
+### Collect GitHub Metrics Only (Legacy)
+
+> ⚠️ **Deprecated**: Use `POST /projects/{id}/capture-period` instead.
+
+```http
+POST /collect/project/{project_id}/github
+```
+
+---
+
+## Snapshot Types
+
+All metrics endpoints support filtering by snapshot type:
+
+| Type | Description | Date Range |
+|------|-------------|------------|
+| `cumulative` | Project-to-date (default) | `project.start_date` → `period_end` |
+| `punctual` | Single month only | First day of month → Last day of month |
+
+**Query parameter:** `?snapshot_type=cumulative` or `?snapshot_type=punctual`
+
+---
+
 ## Metrics
 
-### Create Metrics
+### Create/Update Metrics
+
+Uses upsert behavior: if metrics exist for the same `(project, year, month, snapshot_type)`, they are updated.
 
 ```http
 POST /metrics/project/{project_id}
@@ -114,6 +240,7 @@ Content-Type: application/json
 {
   "period_start": "2024-01-01",
   "period_end": "2024-01-31",
+  "snapshot_type": "cumulative",  // optional, defaults to "cumulative"
   "evm_data": {
     "budget_total": 100000,
     "cost_to_date": 45000,
@@ -149,7 +276,15 @@ Content-Type: application/json
     "prs_without_review": 2,
     "total_merged_prs": 75,
     "pr_review_ratio": 0.97,
-    "high_severity_vulns": 0
+    "high_severity_vulns": 0,
+    "high_severity_vulns_total": 0,
+    "pr_size_median": 150,
+    "review_turnaround_hours": 4.5,
+    "deployment_frequency": 0.5,
+    "release_count_90d": 3,
+    "change_failure_rate": 0.1,
+    "total_releases": 10,
+    "failed_releases": 1
   },
   "test_maturity": {
     "e2e": 4,
@@ -185,16 +320,12 @@ Content-Type: application/json
 }
 ```
 
-### Get Latest Metrics
-
-```http
-GET /metrics/project/{project_id}/latest
-```
-
 ### List Project Metrics
 
 ```http
 GET /metrics/project/{project_id}
+GET /metrics/project/{project_id}?snapshot_type=cumulative   # default
+GET /metrics/project/{project_id}?snapshot_type=punctual     # single month only
 ```
 
 ---
@@ -228,7 +359,6 @@ Content-Type: application/json
     "mttr_hours": 4.5,
     "governance_compliance": 1.0,
     "lead_time_days": 2.5,
-    "lead_time_sample_size": 150,
     "commitment_reliability": 0.9,
     "pr_review_ratio": 0.97,
     "prs_without_review": 2,
@@ -238,7 +368,12 @@ Content-Type: application/json
     "story_review_ratio": 0.96,
     "okr_impact": 0.8,
     "pm_satisfaction": 0.88,
-    "client_satisfaction": 0.92
+    "client_satisfaction": 0.92,
+    "pr_size_median": 150,
+    "review_turnaround_hours": 4.5,
+    "deployment_frequency": 0.5,
+    "change_failure_rate": 0.1,
+    "post_contract_tasks": 0
   },
   "scores": {
     "score": 85,
@@ -272,12 +407,47 @@ Calculate scores from the project's latest metrics.
 
 ```http
 GET /scores/project/{project_id}
+GET /scores/project/{project_id}?snapshot_type=cumulative   # default
+GET /scores/project/{project_id}?snapshot_type=punctual     # single month
 ```
 
 ### Get Score History
 
 ```http
 GET /scores/project/{project_id}/history?limit=10
+GET /scores/project/{project_id}/history?limit=10&snapshot_type=cumulative
+```
+
+### Get Metrics History
+
+```http
+GET /metrics/project/{project_id}/history?limit=12
+GET /metrics/project/{project_id}/history?limit=12&snapshot_type=cumulative
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "project_id": "uuid",
+    "period_year": 2024,
+    "period_month": 6,
+    "snapshot_type": "cumulative",
+    "weights_applied": { ... },
+    "targets_applied": { ... },
+    "created_at": "2024-06-30T12:00:00Z",
+    "indicators": { ... },
+    "scores": { ... }
+  }
+]
+```
+
+### Get Metrics by Period
+
+```http
+GET /metrics/project/{project_id}/{year}/{month}
+GET /metrics/project/{project_id}/2024/6?snapshot_type=cumulative
 ```
 
 ---

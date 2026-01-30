@@ -255,8 +255,10 @@ curl -X POST http://localhost:8000/api/projects \
   -H "Content-Type: application/json" \
   -d '{"name": "My Project", "jira_project_key": "PROJ", "github_repo": "org/repo"}'
 
-# Collect Jira Metrics
-curl -X POST http://localhost:8000/api/collect/project/{project_id}/jira
+# Collect Metrics (Jira + GitHub, creates both snapshot types)
+curl -X POST http://localhost:8000/api/projects/{project_id}/capture-period \
+  -H "Content-Type: application/json" \
+  -d '{"force": true}'
 
 # Get Scores
 curl http://localhost:8000/api/scores/project/{project_id}

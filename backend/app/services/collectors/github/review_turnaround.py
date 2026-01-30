@@ -39,6 +39,7 @@ Industry Benchmarks:
 
 import asyncio
 import statistics
+from datetime import date
 from typing import TYPE_CHECKING
 
 from app.services.collectors.github.utils import (
@@ -52,20 +53,27 @@ if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
 
 
-async def collect_review_turnaround(client: "GitHubClient", repo_slug: str) -> dict:
+async def collect_review_turnaround(
+    client: "GitHubClient",
+    repo_slug: str,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict:
     """
     Collect review turnaround time metrics from GitHub.
 
     Args:
         client: Authenticated GitHubClient instance
         repo_slug: Repository in "owner/repo" format
+        period_start: Optional start date for punctual filtering (inclusive)
+        period_end: Optional end date to filter PRs merged by this date
 
     Returns:
         dict with review_turnaround_hours
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    merged_prs = await get_merged_prs(client, owner, repo)
+    merged_prs = await get_merged_prs(client, owner, repo, period_start=period_start, period_end=period_end)
 
     if not merged_prs:
         return {"review_turnaround_hours": None}

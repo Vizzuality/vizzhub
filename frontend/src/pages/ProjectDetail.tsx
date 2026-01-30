@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
-import { useCollectJiraMetrics, useCollectGitHubMetrics } from '../hooks/useCollectors';
+import { useCollectMetrics } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
@@ -25,8 +25,7 @@ export default function ProjectDetail(): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
-  const [dismissedJiraSuccess, setDismissedJiraSuccess] = useState(false);
-  const [dismissedGitHubSuccess, setDismissedGitHubSuccess] = useState(false);
+  const [dismissedSuccess, setDismissedSuccess] = useState(false);
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
@@ -34,8 +33,9 @@ export default function ProjectDetail(): JSX.Element {
   const { data: config } = useConfigParameters();
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
-  const collectJiraMetrics = useCollectJiraMetrics(id!);
-  const collectGitHubMetrics = useCollectGitHubMetrics(id!);
+  const { collectMetrics, isPending: isCollecting, error: collectError, isSuccess: collectSuccess } = useCollectMetrics(id!, {
+    onSuccess: () => setDismissedSuccess(false),
+  });
   const updateEVM = useUpdateEVMData(id!, metrics ?? null);
   const updateMilestones = useUpdateMilestones(id!, metrics ?? null);
   const updateGovernance = useUpdateGovernance(id!, metrics ?? null);
@@ -75,16 +75,6 @@ export default function ProjectDetail(): JSX.Element {
   const handleDelete = async (): Promise<void> => {
     await deleteProject.mutateAsync(id!);
     navigate('/projects');
-  };
-
-  const handleCollectJiraMetrics = async (): Promise<void> => {
-    setDismissedJiraSuccess(false);
-    await collectJiraMetrics.mutateAsync();
-  };
-
-  const handleCollectGitHubMetrics = async (): Promise<void> => {
-    setDismissedGitHubSuccess(false);
-    await collectGitHubMetrics.mutateAsync();
   };
 
   const handleUpdateEVM = async (data: EVMData): Promise<void> => {
@@ -128,10 +118,8 @@ export default function ProjectDetail(): JSX.Element {
         onReopen={() => updateProjectStatus.mutateAsync('in_progress')}
         onDelete={() => setShowDeleteConfirm(true)}
         isUpdatingStatus={updateProjectStatus.isPending}
-        onCollectJira={handleCollectJiraMetrics}
-        onCollectGitHub={handleCollectGitHubMetrics}
-        isCollectingJira={collectJiraMetrics.isPending}
-        isCollectingGitHub={collectGitHubMetrics.isPending}
+        onCollectMetrics={collectMetrics}
+        isCollecting={isCollecting}
         lastCollectedAt={metrics?.created_at}
       />
 
@@ -146,14 +134,10 @@ export default function ProjectDetail(): JSX.Element {
       />
 
       <CollectorNotifications
-        jiraError={collectJiraMetrics.error}
-        jiraSuccess={collectJiraMetrics.isSuccess}
-        dismissedJiraSuccess={dismissedJiraSuccess}
-        onDismissJiraSuccess={() => setDismissedJiraSuccess(true)}
-        githubError={collectGitHubMetrics.error}
-        githubSuccess={collectGitHubMetrics.isSuccess}
-        dismissedGitHubSuccess={dismissedGitHubSuccess}
-        onDismissGitHubSuccess={() => setDismissedGitHubSuccess(true)}
+        error={collectError}
+        isSuccess={collectSuccess}
+        dismissedSuccess={dismissedSuccess}
+        onDismissSuccess={() => setDismissedSuccess(true)}
       />
 
       {scoresLoading && (

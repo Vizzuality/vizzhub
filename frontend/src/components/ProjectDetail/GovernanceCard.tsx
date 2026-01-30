@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import EditableMetricCard from './EditableMetricCard';
+import { KPIDisplay } from './IndicatorDisplay';
 
 interface GovernanceCardProps {
   value: number | null | undefined;
@@ -58,12 +59,12 @@ export default function GovernanceCard({
               {data ?? '—'}
             </span>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">KPI</span>
-            <span className="text-sm text-foreground">
-              {target !== null ? `≤${target} exceptions` : '—'}
-            </span>
-          </div>
+          <KPIDisplay
+            target={target}
+            format="count"
+            comparison="lte"
+            unit="exceptions"
+          />
         </>
       )}
     />

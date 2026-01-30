@@ -115,6 +115,9 @@ export interface ScoringConfig {
     deployment_frequency: number;
     change_failure_rate: number;
     post_contract_tasks: number;
+    budget_variance: number;
+    governance_compliance: number;
+    okr_impact: number;
   };
   ideals: {
     spi: number;
@@ -260,42 +263,39 @@ export interface Metrics extends MetricsCreate {
   created_at: string;
 }
 
-// Snapshot types for historical metrics
-export interface SnapshotScores {
-  p_time: number | null;
-  p_cost: number | null;
-  p_quality: number | null;
-  p_value: number | null;
-  p_satisfaction: number | null;
-  p_flow: number | null;
-  p_engineering: number | null;
-  p_risk: number | null;
-  final_score: number;
-}
+// Metrics snapshot types for historical metrics
+export type SnapshotType = 'punctual' | 'cumulative';
 
-export interface SnapshotCreate {
-  period_year: number;
-  period_month: number;
-}
-
-export interface Snapshot {
+// MetricsWithScores represents metrics with computed indicators and scores
+export interface MetricsWithScores {
   id: string;
   project_id: string;
-  metrics_id: string;
   period_year: number;
   period_month: number;
-  snapshot_type: string;
+  snapshot_type: SnapshotType;
   weights_applied: Record<string, number>;
   targets_applied: Record<string, number>;
   created_at: string;
-}
-
-export interface SnapshotWithScores extends Snapshot {
   indicators: Indicators;
   scores: FinalScore;
 }
 
-// Historical capture types
+// Alias for backward compatibility
+export type SnapshotWithScores = MetricsWithScores;
+
+// Period capture types (single period with Jira/GitHub collection)
+export interface CapturePeriodRequest {
+  year?: number;
+  month?: number;
+  force?: boolean;
+}
+
+export interface CapturePeriodResponse {
+  punctual: MetricsWithScores;
+  cumulative: MetricsWithScores;
+}
+
+// Historical capture types (batch capture for multiple periods)
 export interface CaptureHistoryRequest {
   from_year: number;
   from_month: number;
@@ -306,7 +306,7 @@ export interface CaptureHistoryRequest {
 
 export interface CaptureResult {
   month: string;
-  snapshot_type: 'monthly' | 'cumulative' | 'punctual';
+  snapshot_type: SnapshotType;
   status: 'created' | 'skipped' | 'error';
   error_message: string | null;
 }

@@ -102,19 +102,18 @@ export default function DORASection({
                   ]}
                 />
               )}
-            {metrics.github_metrics.review_turnaround_hours !== null &&
-              metrics.github_metrics.review_turnaround_hours !== undefined && (
+            {indicators.lead_time_days !== null && (
                 <SubIndicatorCard
-                  title="Lead Time (Review Turnaround)"
-                  indicatorValue={metrics.github_metrics.review_turnaround_hours}
-                  indicatorLabel="Median hours to first review"
-                  indicatorSuffix="h"
-                  description="DORA metric: Time from PR creation to first review"
-                  target={getTarget('target_review_turnaround_hours')}
+                  title="Lead Time"
+                  indicatorValue={indicators.lead_time_days}
+                  indicatorLabel="Days from creation to completion"
+                  indicatorSuffix=" days"
+                  description="DORA metric: Time from issue creation to completion"
+                  target={getTarget('target_lead_time_days')}
                   lowerIsBetter={true}
-                  formula="median(first_review - pr_created)"
+                  formula="avg(completed_at - created_at)"
                   metrics={[
-                    { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                    { label: 'Sample Size', value: metrics.flow_metrics?.lead_time_sample_size ?? null },
                   ]}
                 />
               )}

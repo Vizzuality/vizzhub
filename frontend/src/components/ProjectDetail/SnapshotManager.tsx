@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useCreateSnapshot, useProjectSnapshots } from '../../hooks/useSnapshots';
+import { useCapturePeriod, getCapturePeriodErrorMessage } from '../../hooks/usePeriodCapture';
+import { useProjectSnapshots } from '../../hooks/useSnapshots';
 import {
   Card,
   CardContent,
@@ -8,7 +9,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Plus, Loader2 } from 'lucide-react';
+import { Calendar, Download, Loader2 } from 'lucide-react';
 
 interface SnapshotManagerProps {
   projectId: string;
@@ -28,14 +29,21 @@ export default function SnapshotManager({ projectId }: SnapshotManagerProps): JS
   const currentDate = new Date();
   const [year, setYear] = useState(currentDate.getFullYear());
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
+  const [forceCapture, setForceCapture] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const createSnapshot = useCreateSnapshot(projectId);
+  const capturePeriod = useCapturePeriod(projectId, {
+    onSuccess: () => setErrorMessage(null),
+    onError: (error) => setErrorMessage(getCapturePeriodErrorMessage(error)),
+  });
   const { data: snapshots } = useProjectSnapshots(projectId);
 
-  const handleCreate = () => {
-    createSnapshot.mutate({ period_year: year, period_month: month });
+  const handleCapture = () => {
+    setErrorMessage(null);
+    capturePeriod.mutate({ year, month, force: forceCapture });
   };
 
+  // Check if either snapshot type exists for the period
   const existingPeriods = new Set(
     snapshots?.map((s) => `${s.period_year}-${s.period_month}`) ?? []
   );
@@ -46,10 +54,11 @@ export default function SnapshotManager({ projectId }: SnapshotManagerProps): JS
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5" />
-          Create Snapshot
+          Capture Period
         </CardTitle>
         <CardDescription>
-          Create a monthly snapshot to track historical scores.
+          Capture metrics from Jira and GitHub for the selected period.
+          Creates both punctual (monthly) and cumulative (project-to-date) snapshots.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,38 +96,53 @@ export default function SnapshotManager({ projectId }: SnapshotManagerProps): JS
           </div>
 
           <Button
-            onClick={handleCreate}
-            disabled={createSnapshot.isPending || periodExists}
+            onClick={handleCapture}
+            disabled={capturePeriod.isPending || (periodExists && !forceCapture)}
           >
-            {createSnapshot.isPending ? (
+            {capturePeriod.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Capturing...
               </>
             ) : (
               <>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Snapshot
+                <Download className="mr-2 h-4 w-4" />
+                Capture Period
               </>
             )}
           </Button>
         </div>
 
         {periodExists && (
-          <p className="text-sm text-muted-foreground mt-2">
-            A snapshot for {MONTHS[month - 1]} {year} already exists.
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="force-capture"
+              checked={forceCapture}
+              onChange={(e) => setForceCapture(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label htmlFor="force-capture" className="text-sm text-muted-foreground">
+              Snapshots for {MONTHS[month - 1]} {year} already exist. Check to overwrite.
+            </label>
+          </div>
+        )}
+
+        {capturePeriod.isPending && (
+          <p className="text-sm text-muted-foreground mt-3">
+            Fetching metrics from Jira and GitHub. This may take up to 2 minutes...
           </p>
         )}
 
-        {createSnapshot.isError && (
+        {capturePeriod.isError && errorMessage && (
           <p className="text-sm text-destructive mt-2">
-            Failed to create snapshot. Make sure there are metrics for this period.
+            {errorMessage}
           </p>
         )}
 
-        {createSnapshot.isSuccess && (
+        {capturePeriod.isSuccess && (
           <p className="text-sm text-green-600 mt-2">
-            Snapshot created successfully.
+            Period captured successfully (both punctual and cumulative).
           </p>
         )}
       </CardContent>

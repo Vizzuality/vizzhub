@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { useProject } from '../hooks/useProjects';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
-import { TrendChart } from '../components/TrendChart';
+import { useScoringConfig } from '../hooks/useScores';
+import { TrendChart, MetricsChartGrid } from '../components/TrendChart';
 import SnapshotManager from '../components/ProjectDetail/SnapshotManager';
 import HistoricalCaptureModal from '../components/ProjectDetail/HistoricalCaptureModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ export default function ProjectHistory(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { data: project, isLoading: projectLoading } = useProject(id!);
   const { data: snapshots, isLoading: snapshotsLoading } = useProjectSnapshots(id!);
+  const { data: config } = useScoringConfig();
 
   if (projectLoading || snapshotsLoading) {
     return (
@@ -79,11 +81,13 @@ export default function ProjectHistory(): JSX.Element {
             title="Dimension Breakdown"
           />
 
+          <MetricsChartGrid snapshots={snapshots} config={config} />
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Snapshot History
+                Period History
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -144,9 +148,9 @@ export default function ProjectHistory(): JSX.Element {
         <Card>
           <CardContent className="py-12 text-center">
             <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">No Snapshots Yet</p>
+            <p className="text-lg font-medium">No Periods Captured Yet</p>
             <p className="text-muted-foreground mt-2">
-              Create a monthly snapshot above to start tracking historical trends.
+              Capture a period above to start tracking historical trends.
             </p>
           </CardContent>
         </Card>

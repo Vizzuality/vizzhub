@@ -20,6 +20,9 @@ Targets,target_pm_satisfaction,85,%,Target PM satisfaction score. Used in P_sati
 Targets,target_client_satisfaction,85,%,Target client satisfaction survey score. Used in P_satisfaction.
 Targets,target_story_review_ratio,85,%,Target % of stories with assigned reviewer. Used in P_quality.
 Targets,target_commitment_reliability,80,%,Target % of issues completed in original sprint. Used in P_flow.
+Targets,target_budget_variance,85,%,Target budget variance threshold (85% = within 15% of budget). Used in P_cost.
+Targets,target_governance_compliance,80,%,Target governance compliance score. Used in P_quality.
+Targets,target_okr_impact,70,%,Target OKR impact score. Used in P_value.
 Ideals,ideal_spi,1.0,ratio,Ideal SPI (1.0 = exactly on schedule). Score = value/ideal.
 Ideals,ideal_cpi,1.0,ratio,Ideal CPI (1.0 = exactly on budget). Score = value/ideal.
 Global Weights,weight_global_time,0.12,weight,P_time dimension weight in final score.
