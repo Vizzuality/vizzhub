@@ -17,11 +17,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { CHART_COLORS } from '../../utils/chartUtils';
+import type { HistoricalDataPoint } from '../../types';
 
-export interface HistoricalDataPoint {
-  period: string;
-  value: number | null;
-}
+export type { HistoricalDataPoint };
 
 interface EditableMetricCardProps<T> {
   title: string;
@@ -107,13 +106,13 @@ export default function EditableMetricCard<T>({
     const referenceAreas = target !== null && target !== undefined && (
       lowerIsBetter ? (
         <>
-          <ReferenceArea y1={domainMin} y2={target} fill="#22c55e" fillOpacity={0.1} />
-          <ReferenceArea y1={target} y2={domainMax} fill="#ef4444" fillOpacity={0.1} />
+          <ReferenceArea y1={domainMin} y2={target} fill={CHART_COLORS.green} fillOpacity={0.1} />
+          <ReferenceArea y1={target} y2={domainMax} fill={CHART_COLORS.red} fillOpacity={0.1} />
         </>
       ) : (
         <>
-          <ReferenceArea y1={target} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
-          <ReferenceArea y1={domainMin} y2={target} fill="#ef4444" fillOpacity={0.1} />
+          <ReferenceArea y1={target} y2={domainMax} fill={CHART_COLORS.green} fillOpacity={0.1} />
+          <ReferenceArea y1={domainMin} y2={target} fill={CHART_COLORS.red} fillOpacity={0.1} />
         </>
       )
     );
@@ -121,25 +120,26 @@ export default function EditableMetricCard<T>({
     const referenceLine = target !== null && target !== undefined && (
       <ReferenceLine
         y={target}
-        stroke="#22c55e"
+        stroke={CHART_COLORS.green}
         strokeWidth={2}
         strokeDasharray="4 2"
         label={{
           value: `KPI`,
           position: 'right',
           fontSize: 9,
-          fill: '#22c55e',
+          fill: CHART_COLORS.green,
         }}
       />
     );
 
-    const tooltipContent = ({ active, payload }: { active?: boolean; payload?: Array<{ value: unknown; payload: { period: string } }> }) => {
-      if (active && payload && payload.length) {
+    const tooltipContent = (props: { active?: boolean; payload?: Array<{ value?: unknown; payload?: { period: string } }> }) => {
+      const { active, payload } = props;
+      if (active && payload && payload.length && payload[0].payload) {
         const point = payload[0];
         const value = point.value as number;
         return (
           <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
-            <div className="font-medium">{point.payload.period}</div>
+            <div className="font-medium">{point.payload?.period}</div>
             <div style={{ color: chartColor }}>
               {value?.toFixed(2)}{indicatorSuffix}
             </div>

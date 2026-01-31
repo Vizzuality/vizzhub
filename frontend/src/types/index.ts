@@ -45,6 +45,11 @@ export type Dimension = 'Time' | 'Cost' | 'Quality' | 'Value' | 'Satisfaction' |
 
 export const ALL_DIMENSIONS: Dimension[] = ['Time', 'Cost', 'Quality', 'Value', 'Satisfaction', 'Flow', 'Engineering', 'Risk'];
 
+export interface HistoricalDataPoint {
+  period: string;
+  value: number | null;
+}
+
 export type DoraLevel = 'Elite' | 'High' | 'Medium' | 'Low';
 
 export interface DoraMetricDetail {

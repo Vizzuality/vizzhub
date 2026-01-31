@@ -3,32 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
+import SubIndicatorCard from '../SubIndicatorCard';
+import { getHistoricalData } from '../../utils/chartUtils';
 import type { DoraLevel, FinalScore, Metrics, Indicators, MetricsWithScores, Dimension } from '../../types';
-
-type IndicatorKey = keyof Indicators;
-
-function formatPeriod(year: number, month: number): string {
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
-}
-
-function getHistoricalData(
-  snapshots: MetricsWithScores[] | undefined,
-  indicatorKey: IndicatorKey,
-  multiplier = 1,
-): HistoricalDataPoint[] {
-  if (!snapshots || snapshots.length === 0) return [];
-  return snapshots
-    .slice()
-    .reverse()
-    .map((s) => ({
-      period: formatPeriod(s.period_year, s.period_month),
-      value: s.indicators[indicatorKey] !== null && s.indicators[indicatorKey] !== undefined
-        ? (s.indicators[indicatorKey] as number) * multiplier
-        : null,
-    }));
-}
 
 function LevelBadge({ level }: { level: DoraLevel }): JSX.Element {
   return (

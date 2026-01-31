@@ -1,5 +1,5 @@
 import { Separator } from '@/components/ui/separator';
-import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
+import SubIndicatorCard from '../SubIndicatorCard';
 import GovernanceCard from './GovernanceCard';
 import PMSatisfactionCard from './PMSatisfactionCard';
 import StrategicImpactCard from './StrategicImpactCard';
@@ -7,33 +7,10 @@ import TestMaturityCard from './TestMaturityCard';
 import ArchitectureCard from './ArchitectureCard';
 import ClientSurveyCard from './ClientSurveyCard';
 import { formatDate } from '../../utils/formatters';
+import { getHistoricalData } from '../../utils/chartUtils';
 import type { Metrics, Indicators, Project, StrategicImpact, PMSatisfaction, TestMaturity, Architecture, MetricsWithScores, Dimension } from '../../types';
 
 type SurveyKey = 'understanding' | 'proactivity' | 'communication' | 'delivery_time' | 'response_time' | 'quality' | 'expectations' | 'recommend';
-
-type IndicatorKey = keyof Indicators;
-
-function formatPeriod(year: number, month: number): string {
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
-}
-
-function getHistoricalData(
-  snapshots: MetricsWithScores[] | undefined,
-  indicatorKey: IndicatorKey,
-  multiplier = 1,
-): HistoricalDataPoint[] {
-  if (!snapshots || snapshots.length === 0) return [];
-  return snapshots
-    .slice()
-    .reverse()
-    .map((s) => ({
-      period: formatPeriod(s.period_year, s.period_month),
-      value: s.indicators[indicatorKey] !== null && s.indicators[indicatorKey] !== undefined
-        ? (s.indicators[indicatorKey] as number) * multiplier
-        : null,
-    }));
-}
 
 interface QualityMetricsGridProps {
   metrics: Metrics;
