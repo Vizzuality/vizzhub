@@ -1,8 +1,9 @@
 import { useForm } from 'react-hook-form';
-import type { Project, ProjectCreate } from '../../types';
+import type { Project, ProjectCreate, ProjectStatus } from '../../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Trash2, CheckCircle, RotateCcw } from 'lucide-react';
 
 function getSubmitButtonText(isLoading: boolean, isEditMode: boolean): string {
   if (isLoading) {
@@ -24,6 +25,10 @@ interface ProjectFormProps {
   onSubmit: (data: ProjectCreate) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  onMarkFinished?: () => void;
+  onReopen?: () => Promise<unknown>;
+  onDelete?: () => void;
+  isUpdatingStatus?: boolean;
 }
 
 export default function ProjectForm({
@@ -31,8 +36,13 @@ export default function ProjectForm({
   onSubmit,
   onCancel,
   isLoading = false,
+  onMarkFinished,
+  onReopen,
+  onDelete,
+  isUpdatingStatus = false,
 }: ProjectFormProps): JSX.Element {
   const isEditMode = !!project;
+  const projectStatus: ProjectStatus = project?.status ?? 'in_progress';
 
   const {
     register,
@@ -64,6 +74,35 @@ export default function ProjectForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+      {isEditMode && (onMarkFinished || onReopen) && (
+        <div className="flex justify-end">
+          {projectStatus === 'in_progress' && onMarkFinished && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onMarkFinished}
+              disabled={isUpdatingStatus}
+              className="border border-input text-score-green hover:bg-score-green hover:border-score-green hover:text-black"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              {isUpdatingStatus ? 'Updating...' : 'Mark as Finished'}
+            </Button>
+          )}
+          {projectStatus === 'finished' && onReopen && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onReopen()}
+              disabled={isUpdatingStatus}
+              className="border border-input text-score-green hover:bg-score-green hover:border-score-green hover:text-black"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {isUpdatingStatus ? 'Updating...' : 'Reopen Project'}
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="name">
           Project Name *
@@ -161,23 +200,41 @@ export default function ProjectForm({
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onCancel}
-          disabled={isLoading}
-          className="border border-input"
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {getSubmitButtonText(isLoading, isEditMode)}
-        </Button>
+      <div className="flex flex-col gap-4 pt-4 border-t">
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="border border-input"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {getSubmitButtonText(isLoading, isEditMode)}
+          </Button>
+        </div>
+
+        {isEditMode && onDelete && (
+          <div className="flex flex-col items-center gap-3 pt-6 mt-2 border-t border-dashed">
+            <span className="text-sm text-muted-foreground">Danger Zone</span>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onDelete}
+              disabled={isUpdatingStatus}
+              className="border border-input text-destructive hover:bg-destructive hover:border-destructive hover:text-white"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        )}
       </div>
     </form>
   );
