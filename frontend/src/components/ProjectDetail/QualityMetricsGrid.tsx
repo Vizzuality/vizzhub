@@ -166,7 +166,6 @@ export default function QualityMetricsGrid({
             value={metrics.strategic_impact}
             onSave={onUpdateStrategicImpact}
             isPending={isUpdatingStrategicImpact}
-            historicalData={getHistoricalData(snapshots, 'okr_impact')}
           />
           <TestMaturityCard
             data={metrics.test_maturity}
@@ -324,7 +323,6 @@ export default function QualityMetricsGrid({
             onSave={onUpdateClientSurvey}
             isPending={isUpdatingClientSurvey}
             getWeight={(name) => getWeight('Client Survey Weights', name)}
-            historicalData={getHistoricalData(snapshots, 'client_satisfaction')}
           />
         </div>
       </div>

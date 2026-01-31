@@ -1,6 +1,8 @@
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -111,9 +113,12 @@ const METRIC_GROUPS: MetricGroup[] = [
   },
 ];
 
+type ChartMode = 'line' | 'bar';
+
 interface MetricsChartGridProps {
   snapshots: SnapshotWithScores[];
   config?: ScoringConfig;
+  chartMode?: ChartMode;
 }
 
 function formatPeriod(year: number, month: number): string {
@@ -166,6 +171,7 @@ interface MetricChartProps {
   config: MetricConfig;
   color: string;
   target?: number;
+  chartMode?: ChartMode;
 }
 
 function TrendIndicator({ trend }: { trend: TrendInfo | null }): JSX.Element | null {
@@ -195,7 +201,7 @@ function getValueColor(
   return isGood ? 'text-score-green' : 'text-score-red';
 }
 
-function MetricChart({ data, config, color, target }: MetricChartProps): JSX.Element {
+function MetricChart({ data, config, color, target, chartMode = 'line' }: MetricChartProps): JSX.Element {
   const hasData = data.some(d => d.value !== null);
   const latestValue = data.length > 0 ? data[data.length - 1]?.value : null;
   const trend = calculateTrend(data, config.lowerIsBetter);
@@ -203,6 +209,61 @@ function MetricChart({ data, config, color, target }: MetricChartProps): JSX.Ele
   const domain = config.domain || [0, 100];
   const domainMin = domain[0];
   const domainMax = domain[1];
+
+  const commonAxisProps = {
+    tick: { fontSize: 10 },
+    tickLine: { stroke: '#888' },
+    axisLine: { stroke: '#888' },
+  };
+
+  const yAxisProps = {
+    ...commonAxisProps,
+    domain: config.domain || (['auto', 'auto'] as const),
+    width: 30,
+    tickFormatter: (value: number) => {
+      if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+      if (value % 1 === 0) return value.toString();
+      return value.toFixed(1);
+    },
+  };
+
+  const tooltipContent = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; payload: { period: string } }> }) => {
+    if (active && payload && payload.length) {
+      const point = payload[0];
+      const value = point.value as number;
+      return (
+        <div className="bg-popover border rounded px-3 py-2 shadow-lg">
+          <div className="font-medium text-sm">{point.payload.period}</div>
+          <div className="text-base font-semibold" style={{ color }}>
+            {formatValue(value, config.unit)}
+          </div>
+          {target !== undefined && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Target: {formatValue(target, config.unit)}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const referenceElements = target !== undefined && (
+    <>
+      {config.lowerIsBetter ? (
+        <>
+          <ReferenceArea y1={domainMin} y2={target} fill="#22c55e" fillOpacity={0.08} />
+          <ReferenceArea y1={target} y2={domainMax} fill="#ef4444" fillOpacity={0.08} />
+        </>
+      ) : (
+        <>
+          <ReferenceArea y1={target} y2={domainMax} fill="#22c55e" fillOpacity={0.08} />
+          <ReferenceArea y1={domainMin} y2={target} fill="#ef4444" fillOpacity={0.08} />
+        </>
+      )}
+      <ReferenceLine y={target} stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4" />
+    </>
+  );
 
   return (
     <Card className="overflow-hidden">
@@ -215,113 +276,41 @@ function MetricChart({ data, config, color, target }: MetricChartProps): JSX.Ele
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Chart */}
         {hasData ? (
           <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={data} margin={{ top: 5, right: 5, bottom: 20, left: 5 }}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#888"
-                strokeOpacity={0.15}
-              />
-              <XAxis
-                dataKey="period"
-                tick={{ fontSize: 10 }}
-                tickLine={{ stroke: '#888' }}
-                axisLine={{ stroke: '#888' }}
-              />
-              <YAxis
-                domain={config.domain || ['auto', 'auto']}
-                tick={{ fontSize: 10 }}
-                tickLine={{ stroke: '#888' }}
-                axisLine={{ stroke: '#888' }}
-                width={30}
-                tickFormatter={(value) => {
-                  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                  if (value % 1 === 0) return value.toString();
-                  return value.toFixed(1);
-                }}
-              />
-              {target !== undefined && (
-                <>
-                  {config.lowerIsBetter ? (
-                    <>
-                      <ReferenceArea
-                        y1={domainMin}
-                        y2={target}
-                        fill="#22c55e"
-                        fillOpacity={0.08}
-                      />
-                      <ReferenceArea
-                        y1={target}
-                        y2={domainMax}
-                        fill="#ef4444"
-                        fillOpacity={0.08}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <ReferenceArea
-                        y1={target}
-                        y2={domainMax}
-                        fill="#22c55e"
-                        fillOpacity={0.08}
-                      />
-                      <ReferenceArea
-                        y1={domainMin}
-                        y2={target}
-                        fill="#ef4444"
-                        fillOpacity={0.08}
-                      />
-                    </>
-                  )}
-                  <ReferenceLine
-                    y={target}
-                    stroke="#22c55e"
-                    strokeWidth={2}
-                    strokeDasharray="6 4"
-                  />
-                </>
-              )}
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const point = payload[0];
-                    const value = point.value as number;
-                    return (
-                      <div className="bg-popover border rounded px-3 py-2 shadow-lg">
-                        <div className="font-medium text-sm">{point.payload.period}</div>
-                        <div className="text-base font-semibold" style={{ color }}>
-                          {formatValue(value, config.unit)}
-                        </div>
-                        {target !== undefined && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Target: {formatValue(target, config.unit)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke={color}
-                strokeWidth={2}
-                dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
-                activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
-                connectNulls
-              />
-            </LineChart>
+            {chartMode === 'line' ? (
+              <LineChart data={data} margin={{ top: 5, right: 5, bottom: 20, left: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#888" strokeOpacity={0.15} />
+                <XAxis dataKey="period" {...commonAxisProps} />
+                <YAxis {...yAxisProps} />
+                {referenceElements}
+                <Tooltip content={tooltipContent} />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                  connectNulls
+                />
+              </LineChart>
+            ) : (
+              <BarChart data={data} margin={{ top: 5, right: 5, bottom: 20, left: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#888" strokeOpacity={0.15} />
+                <XAxis dataKey="period" {...commonAxisProps} />
+                <YAxis {...yAxisProps} />
+                {referenceElements}
+                <Tooltip content={tooltipContent} cursor={false} />
+                <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         ) : (
           <div className="h-[160px] flex items-center justify-center text-sm text-muted-foreground">
             No data
           </div>
         )}
-        {/* Indicator display - below the chart */}
         <div className="p-3 bg-muted/50 rounded-lg border space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Current</span>
@@ -343,7 +332,7 @@ function MetricChart({ data, config, color, target }: MetricChartProps): JSX.Ele
   );
 }
 
-export default function MetricsChartGrid({ snapshots, config }: MetricsChartGridProps): JSX.Element {
+export default function MetricsChartGrid({ snapshots, config, chartMode = 'line' }: MetricsChartGridProps): JSX.Element {
   const sortedSnapshots = snapshots.slice().reverse();
 
   const getTarget = (metric: MetricConfig): number | undefined => {
@@ -385,6 +374,7 @@ export default function MetricsChartGrid({ snapshots, config }: MetricsChartGrid
             config={metric}
             color={group.color}
             target={getTarget(metric)}
+            chartMode={chartMode}
           />
         );
       })}

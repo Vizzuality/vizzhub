@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
+import EditableMetricCard from './EditableMetricCard';
 import type { StrategicImpact } from '../../types';
 
 const IMPACT_OPTIONS = [
@@ -13,7 +13,6 @@ interface StrategicImpactCardProps {
   value: StrategicImpact | null | undefined;
   onSave: (value: StrategicImpact) => Promise<unknown>;
   isPending: boolean;
-  historicalData?: HistoricalDataPoint[];
 }
 
 function getScoreForValue(val: StrategicImpact): number {
@@ -25,11 +24,9 @@ export default function StrategicImpactCard({
   value,
   onSave,
   isPending,
-  historicalData,
 }: StrategicImpactCardProps): JSX.Element {
   return (
     <EditableMetricCard<StrategicImpact>
-      historicalData={historicalData}
       title="Strategic Impact"
       description="Business value delivered by the project"
       tooltipContent={<p className="font-mono text-xs">Low=25, Medium=55, High=80, Transformational=100</p>}

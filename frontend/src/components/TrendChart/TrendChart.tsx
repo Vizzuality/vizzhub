@@ -17,7 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/button';
 import { TrendingUp, BarChart3 } from 'lucide-react';
 
 type ChartMode = 'line' | 'bar';
@@ -63,6 +63,9 @@ export default function TrendChart({
   snapshots,
   dimensions = ['final_score'],
   title = 'Score Trends',
+  chartMode = 'line',
+  onChartModeChange,
+  showModeToggle = false,
 }: TrendChartProps): JSX.Element {
   const data = snapshots
     .slice()
@@ -73,48 +76,88 @@ export default function TrendChart({
       final_score: snapshot.scores.score,
     }));
 
+  const commonAxisProps = {
+    tick: { fontSize: 12 },
+    tickMargin: 10,
+  };
+
+  const tooltipStyle = {
+    contentStyle: {
+      backgroundColor: 'var(--background)',
+      border: '1px solid var(--border)',
+      borderRadius: '8px',
+    },
+    labelStyle: { fontWeight: 'bold' as const },
+  };
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>{title}</CardTitle>
+        {showModeToggle && onChartModeChange && (
+          <div className="flex gap-1">
+            <Button
+              variant={chartMode === 'line' ? 'default' : 'outline'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onChartModeChange('line')}
+              aria-label="Line chart (cumulative trend)"
+            >
+              <TrendingUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={chartMode === 'bar' ? 'default' : 'outline'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onChartModeChange('bar')}
+              aria-label="Bar chart (monthly data)"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis
-              dataKey="period"
-              tick={{ fontSize: 12 }}
-              tickMargin={10}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fontSize: 12 }}
-              tickMargin={10}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'var(--background)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-              }}
-              labelStyle={{ fontWeight: 'bold' }}
-            />
-            <Legend />
-            {dimensions.map((dim) => (
-              <Line
-                key={dim}
-                type="monotone"
-                dataKey={dim}
-                name={DIMENSION_LABELS[dim]}
-                stroke={DIMENSION_COLORS[dim]}
-                strokeWidth={dim === 'final_score' ? 3 : 2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                connectNulls
-              />
-            ))}
-          </LineChart>
+          {chartMode === 'line' ? (
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="period" {...commonAxisProps} />
+              <YAxis domain={[0, 100]} {...commonAxisProps} />
+              <Tooltip {...tooltipStyle} />
+              <Legend />
+              {dimensions.map((dim) => (
+                <Line
+                  key={dim}
+                  type="monotone"
+                  dataKey={dim}
+                  name={DIMENSION_LABELS[dim]}
+                  stroke={DIMENSION_COLORS[dim]}
+                  strokeWidth={dim === 'final_score' ? 3 : 2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          ) : (
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="period" {...commonAxisProps} />
+              <YAxis domain={[0, 100]} {...commonAxisProps} />
+              <Tooltip {...tooltipStyle} cursor={false} />
+              <Legend />
+              {dimensions.map((dim) => (
+                <Bar
+                  key={dim}
+                  dataKey={dim}
+                  name={DIMENSION_LABELS[dim]}
+                  fill={DIMENSION_COLORS[dim]}
+                  radius={[4, 4, 0, 0]}
+                />
+              ))}
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </CardContent>
     </Card>

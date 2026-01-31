@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Info, TrendingUp } from 'lucide-react';
+import { Info, TrendingUp, BarChart3, Maximize2, Minimize2 } from 'lucide-react';
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -11,6 +13,12 @@ import {
   ReferenceArea,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Tooltip as UITooltip,
   TooltipContent,
@@ -42,6 +50,7 @@ interface SubIndicatorCardProps {
   formula?: string;
   historicalData?: HistoricalDataPoint[];
   chartColor?: string;
+  badge?: React.ReactNode;
 }
 
 export default function SubIndicatorCard({
@@ -56,8 +65,11 @@ export default function SubIndicatorCard({
   formula,
   historicalData,
   chartColor = 'oklch(0.7 0.15 250)',
+  badge,
 }: SubIndicatorCardProps): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
+  const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
+  const [expanded, setExpanded] = useState(false);
 
   const formattedValue = indicatorValue !== null
     ? indicatorValue.toFixed(1)
@@ -75,13 +87,98 @@ export default function SubIndicatorCard({
   };
 
   const hasHistoricalData = historicalData && historicalData.length > 1;
+  const displayData = historicalData?.slice(-6);
+
+  const renderChart = (data: HistoricalDataPoint[], height: number) => {
+    const values = data.map(d => d.value).filter((v): v is number => v !== null);
+    const dataMin = values.length > 0 ? Math.min(...values) : 0;
+    const dataMax = values.length > 0 ? Math.max(...values) : 100;
+    const targetVal = target ?? (lowerIsBetter ? dataMax : dataMin);
+    const padding = (dataMax - dataMin) * 0.1 || 10;
+    const yMin = Math.floor(Math.min(dataMin, targetVal) - padding);
+    const yMax = Math.ceil(Math.max(dataMax, targetVal) + padding);
+    const domainMin = Math.max(0, yMin);
+    const domainMax = yMax;
+
+    const referenceAreas = target !== null && target !== undefined && (
+      lowerIsBetter ? (
+        <>
+          <ReferenceArea y1={domainMin} y2={target} fill="#22c55e" fillOpacity={0.1} />
+          <ReferenceArea y1={target} y2={domainMax} fill="#ef4444" fillOpacity={0.1} />
+        </>
+      ) : (
+        <>
+          <ReferenceArea y1={target} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
+          <ReferenceArea y1={domainMin} y2={target} fill="#ef4444" fillOpacity={0.1} />
+        </>
+      )
+    );
+
+    const referenceLine = target !== null && target !== undefined && (
+      <ReferenceLine
+        y={target}
+        stroke="#22c55e"
+        strokeWidth={2}
+        strokeDasharray="4 2"
+        label={{
+          value: `KPI ${target}`,
+          position: 'right',
+          fontSize: 9,
+          fill: '#22c55e',
+        }}
+      />
+    );
+
+    const tooltipContent = ({ active, payload }: { active?: boolean; payload?: Array<{ value: unknown; payload: { period: string } }> }) => {
+      if (active && payload && payload.length) {
+        const point = payload[0];
+        const value = point.value as number;
+        return (
+          <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
+            <div className="font-medium">{point.payload.period}</div>
+            <div style={{ color: chartColor }}>
+              {value?.toFixed(1)}{indicatorSuffix}
+            </div>
+          </div>
+        );
+      }
+      return null;
+    };
+
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        {chartMode === 'line' ? (
+          <LineChart data={data} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
+            {referenceAreas}
+            <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+            <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v}`} />
+            {referenceLine}
+            <Tooltip content={tooltipContent} />
+            <Line type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} dot={{ r: 3, fill: chartColor }} connectNulls />
+          </LineChart>
+        ) : (
+          <BarChart data={data} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
+            {referenceAreas}
+            <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+            <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v}`} />
+            {referenceLine}
+            <Tooltip cursor={false} content={tooltipContent} />
+            <Bar dataKey="value" fill={chartColor} radius={[4, 4, 0, 0]} />
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    );
+  };
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              {title}
+              {badge}
+            </CardTitle>
             {description && (
               <p className="text-sm text-muted-foreground">
                 {description.includes('DORA') ? (
@@ -97,26 +194,86 @@ export default function SubIndicatorCard({
           </div>
           <div className="flex items-center gap-1">
             {hasHistoricalData && (
-              <TooltipProvider>
-                <UITooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setShowTrend(!showTrend)}
-                      className={cn(
-                        'p-1 rounded transition-colors',
-                        showTrend
-                          ? 'text-primary bg-primary/10'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <TrendingUp className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">{showTrend ? 'Hide trend' : 'Show trend'}</p>
-                  </TooltipContent>
-                </UITooltip>
-              </TooltipProvider>
+              <>
+                <TooltipProvider>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (showTrend && chartMode === 'line') {
+                            setShowTrend(false);
+                            setExpanded(false);
+                          } else {
+                            setShowTrend(true);
+                            setChartMode('line');
+                          }
+                        }}
+                        className={cn(
+                          'p-1 rounded transition-colors',
+                          showTrend && chartMode === 'line'
+                            ? 'text-primary bg-primary/10'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <TrendingUp className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Cumulative trend</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (showTrend && chartMode === 'bar') {
+                            setShowTrend(false);
+                            setExpanded(false);
+                          } else {
+                            setShowTrend(true);
+                            setChartMode('bar');
+                          }
+                        }}
+                        className={cn(
+                          'p-1 rounded transition-colors',
+                          showTrend && chartMode === 'bar'
+                            ? 'text-primary bg-primary/10'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Monthly data</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
+                {showTrend && (
+                  <TooltipProvider>
+                    <UITooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setExpanded(!expanded)}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            expanded
+                              ? 'text-primary bg-primary/10'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">{expanded ? 'Collapse' : 'Expand'}</p>
+                      </TooltipContent>
+                    </UITooltip>
+                  </TooltipProvider>
+                )}
+              </>
             )}
             {formula && (
               <TooltipProvider>
@@ -136,93 +293,12 @@ export default function SubIndicatorCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Trend Chart - shown when expanded */}
-        {showTrend && hasHistoricalData && (() => {
-          const values = historicalData!.map(d => d.value).filter((v): v is number => v !== null);
-          const dataMin = values.length > 0 ? Math.min(...values) : 0;
-          const dataMax = values.length > 0 ? Math.max(...values) : 100;
-          const targetVal = target ?? (lowerIsBetter ? dataMax : dataMin);
-          const padding = (dataMax - dataMin) * 0.1 || 10;
-          const yMin = Math.floor(Math.min(dataMin, targetVal) - padding);
-          const yMax = Math.ceil(Math.max(dataMax, targetVal) + padding);
-          const domainMin = Math.max(0, yMin);
-          const domainMax = yMax;
-
-          return (
-            <div className="pb-2">
-              <ResponsiveContainer width="100%" height={140}>
-                <LineChart data={historicalData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
-                  {target !== null && target !== undefined && (
-                    lowerIsBetter ? (
-                      <>
-                        <ReferenceArea y1={domainMin} y2={target} fill="#22c55e" fillOpacity={0.1} />
-                        <ReferenceArea y1={target} y2={domainMax} fill="#ef4444" fillOpacity={0.1} />
-                      </>
-                    ) : (
-                      <>
-                        <ReferenceArea y1={target} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
-                        <ReferenceArea y1={domainMin} y2={target} fill="#ef4444" fillOpacity={0.1} />
-                      </>
-                    )
-                  )}
-                  <XAxis
-                    dataKey="period"
-                    tick={{ fontSize: 9 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={[domainMin, domainMax]}
-                    tick={{ fontSize: 9 }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={35}
-                    tickFormatter={(v) => `${v}`}
-                  />
-                  {target !== null && target !== undefined && (
-                    <ReferenceLine
-                      y={target}
-                      stroke="#22c55e"
-                      strokeWidth={2}
-                      strokeDasharray="4 2"
-                      label={{
-                        value: `KPI ${target}`,
-                        position: 'right',
-                        fontSize: 9,
-                        fill: '#22c55e',
-                      }}
-                    />
-                  )}
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const point = payload[0];
-                        const value = point.value as number;
-                        return (
-                          <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
-                            <div className="font-medium">{point.payload.period}</div>
-                            <div style={{ color: chartColor }}>
-                              {value?.toFixed(1)}{indicatorSuffix}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke={chartColor}
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: chartColor }}
-                    connectNulls
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          );
-        })()}
+        {/* Trend Chart - shown when trend is active */}
+        {showTrend && hasHistoricalData && displayData && (
+          <div className="pb-2">
+            {renderChart(displayData, 140)}
+          </div>
+        )}
 
         <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
           <div className="flex items-center justify-between">
@@ -261,6 +337,17 @@ export default function SubIndicatorCard({
           ))}
         </div>
       </CardContent>
+
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{title} - Historical Trend</DialogTitle>
+          </DialogHeader>
+          <div className="w-full h-80">
+            {historicalData && renderChart(historicalData, 320)}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

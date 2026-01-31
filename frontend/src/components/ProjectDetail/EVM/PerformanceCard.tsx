@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   ReferenceLine,
   ReferenceArea,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import InfoTooltip from './InfoTooltip';
 import type { EVMData } from '@/types';
 
@@ -41,7 +43,67 @@ export function PerformanceCard({
   chartColor = 'oklch(0.7 0.15 250)',
 }: PerformanceCardProps): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const hasHistoricalData = historicalData && historicalData.length > 1;
+  const displayData = historicalData?.slice(-6);
+
+  const renderChart = (chartData: HistoricalDataPoint[], height: number) => {
+    const values = chartData.map(d => d.value).filter((v): v is number => v !== null);
+    const dataMin = values.length > 0 ? Math.min(...values) : 0;
+    const dataMax = values.length > 0 ? Math.max(...values) : 100;
+    const targetPct = target * 100;
+    const padding = (dataMax - dataMin) * 0.15 || 10;
+    const domainMin = Math.max(0, Math.floor(Math.min(dataMin, targetPct) - padding));
+    const domainMax = Math.ceil(Math.max(dataMax, targetPct) + padding);
+
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+          <ReferenceArea y1={targetPct} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
+          <ReferenceArea y1={domainMin} y2={targetPct} fill="#ef4444" fillOpacity={0.1} />
+          <XAxis dataKey="period" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
+          <YAxis
+            domain={[domainMin, domainMax]}
+            tick={{ fontSize: 8 }}
+            tickLine={false}
+            axisLine={false}
+            width={30}
+            tickFormatter={(v) => `${v}%`}
+          />
+          <ReferenceLine
+            y={targetPct}
+            stroke="#22c55e"
+            strokeWidth={2}
+            strokeDasharray="4 2"
+            label={{ value: 'KPI', position: 'right', fontSize: 8, fill: '#22c55e' }}
+          />
+          <RechartsTooltip
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                const point = payload[0];
+                const v = point.value as number;
+                return (
+                  <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
+                    <div className="font-medium">{point.payload.period}</div>
+                    <div style={{ color: chartColor }}>{v?.toFixed(0)}%</div>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={chartColor}
+            strokeWidth={2}
+            dot={{ r: 2, fill: chartColor }}
+            connectNulls
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
 
   return (
     <div className="p-4 bg-muted/50 rounded-lg border">
@@ -55,81 +117,62 @@ export function PerformanceCard({
         </div>
         <div className="flex items-center gap-1">
           {hasHistoricalData && (
-            <button
-              onClick={() => setShowTrend(!showTrend)}
-              className={cn(
-                'p-1 rounded transition-colors',
-                showTrend
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground'
+            <>
+              <button
+                onClick={() => setShowTrend(!showTrend)}
+                className={cn(
+                  'p-1 rounded transition-colors',
+                  showTrend
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <TrendingUp className="h-3 w-3" />
+              </button>
+              {showTrend && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setExpanded(!expanded)}
+                        className={cn(
+                          'p-1 rounded transition-colors',
+                          expanded
+                            ? 'text-primary bg-primary/10'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {expanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{expanded ? 'Collapse' : 'Expand'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-            >
-              <TrendingUp className="h-3 w-3" />
-            </button>
+            </>
           )}
           <span className="text-sm text-foreground">&ge;{(target * 100).toFixed(0)}%</span>
         </div>
       </div>
 
-      {showTrend && hasHistoricalData && (() => {
-        const values = historicalData!.map(d => d.value).filter((v): v is number => v !== null);
-        const dataMin = values.length > 0 ? Math.min(...values) : 0;
-        const dataMax = values.length > 0 ? Math.max(...values) : 100;
-        const targetPct = target * 100;
-        const padding = (dataMax - dataMin) * 0.15 || 10;
-        const domainMin = Math.max(0, Math.floor(Math.min(dataMin, targetPct) - padding));
-        const domainMax = Math.ceil(Math.max(dataMax, targetPct) + padding);
+      {showTrend && hasHistoricalData && displayData && (
+        <div className="mb-2">
+          {renderChart(displayData, 100)}
+        </div>
+      )}
 
-        return (
-          <div className="mb-2">
-            <ResponsiveContainer width="100%" height={100}>
-              <LineChart data={historicalData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                <ReferenceArea y1={targetPct} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
-                <ReferenceArea y1={domainMin} y2={targetPct} fill="#ef4444" fillOpacity={0.1} />
-                <XAxis dataKey="period" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
-                <YAxis
-                  domain={[domainMin, domainMax]}
-                  tick={{ fontSize: 8 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={30}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <ReferenceLine
-                  y={targetPct}
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  strokeDasharray="4 2"
-                  label={{ value: 'KPI', position: 'right', fontSize: 8, fill: '#22c55e' }}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const point = payload[0];
-                      const v = point.value as number;
-                      return (
-                        <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
-                          <div className="font-medium">{point.payload.period}</div>
-                          <div style={{ color: chartColor }}>{v?.toFixed(0)}%</div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke={chartColor}
-                  strokeWidth={2}
-                  dot={{ r: 2, fill: chartColor }}
-                  connectNulls
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{label} - Historical Trend</DialogTitle>
+          </DialogHeader>
+          <div className="w-full h-80">
+            {historicalData && renderChart(historicalData, 320)}
           </div>
-        );
-      })()}
+        </DialogContent>
+      </Dialog>
 
       {value !== null ? (
         <>

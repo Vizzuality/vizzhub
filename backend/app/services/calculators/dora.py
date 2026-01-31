@@ -1,105 +1,210 @@
 """
 DORA Score Calculator
 
-Calculates a separate DORA score based on the 4 official DORA metrics:
+Calculates a DORA score based on the 4 official DORA metrics using
+standard DORA thresholds from the State of DevOps reports:
+
 1. Deployment Frequency
 2. Lead Time for Changes
 3. Change Failure Rate
 4. Mean Time to Recovery (MTTR)
 
+Each metric is classified individually (Elite/High/Medium/Low) based on
+official DORA benchmarks. The overall classification is determined by
+the lowest performing metric (weakest link approach).
+
 This score is displayed separately and does NOT affect the main project score.
 The individual metrics already contribute to P_flow and P_quality dimensions.
 """
-
-from dataclasses import dataclass
 
 from app.config import ScoringConfig
 from app.models.indicators import IndicatorsCreate
 
 
-@dataclass(frozen=True)
-class DoraMetric:
-    """Definition of a DORA metric for scoring."""
+# Classification levels with numeric values for scoring
+ELITE = "Elite"
+HIGH = "High"
+MEDIUM = "Medium"
+LOW = "Low"
 
-    name: str
-    indicator_attr: str
-    target_key: str
-    lower_is_better: bool = False
+LEVEL_SCORES = {ELITE: 100, HIGH: 75, MEDIUM: 50, LOW: 25}
+LEVEL_ORDER = [LOW, MEDIUM, HIGH, ELITE]
 
 
 class DoraScoreCalculator:
-    """Calculate DORA score from 4 official DORA metrics."""
+    """Calculate DORA score using official DORA thresholds.
 
-    METRICS = (
-        DoraMetric("deployment_frequency", "deployment_frequency", "deployment_frequency"),
-        DoraMetric("lead_time", "lead_time_days", "lead_time_days", lower_is_better=True),
-        DoraMetric("change_failure_rate", "change_failure_rate", "change_failure_rate", lower_is_better=True),
-        DoraMetric("mttr", "mttr_hours", "mttr_hours", lower_is_better=True),
-    )
+    Thresholds based on DORA State of DevOps reports (2019-2024):
+    https://dora.dev/research/
+
+    Deployment Frequency:
+        Elite: On-demand (multiple deploys per day)
+        High: Between once per day and once per week
+        Medium: Between once per week and once per month
+        Low: Less than once per month
+
+    Lead Time for Changes:
+        Elite: Less than one hour
+        High: Between one hour and one day
+        Medium: Between one day and one week
+        Low: More than one week
+
+    Change Failure Rate:
+        Elite: 0-5%
+        High: 5-10%
+        Medium: 10-15%
+        Low: More than 15%
+
+    Time to Restore (MTTR):
+        Elite: Less than one hour
+        High: Less than one day
+        Medium: Between one day and one week
+        Low: More than one week
+    """
 
     def __init__(self, config: ScoringConfig) -> None:
         self.config = config
 
     def calculate(self, indicators: IndicatorsCreate) -> dict:
-        """
-        Calculate DORA score and classification.
+        """Calculate DORA score and classification using official thresholds.
 
         Returns:
-            dict with score (0-100), classification, and individual metric scores
+            dict with:
+            - score: 0-100 based on average of metric level scores
+            - classification: Overall level (weakest link)
+            - metrics: Per-metric values and classifications
+            - available_metrics: Count of metrics with data
         """
-        scores: dict[str, float | None] = {}
+        metrics: dict[str, dict] = {}
 
-        for metric in self.METRICS:
-            value = getattr(indicators, metric.indicator_attr)
-            if value is not None:
-                target = self.config.get_target(metric.target_key)
-                scores[metric.name] = self._normalize(value, target, metric.lower_is_better)
-            else:
-                scores[metric.name] = None
+        # Deployment Frequency (deploys per day)
+        if indicators.deployment_frequency is not None:
+            level = self._classify_deployment_frequency(indicators.deployment_frequency)
+            metrics["deployment_frequency"] = {
+                "value": indicators.deployment_frequency,
+                "level": level,
+                "score": LEVEL_SCORES[level],
+            }
 
-        valid_scores = [s for s in scores.values() if s is not None]
+        # Lead Time (days)
+        if indicators.lead_time_days is not None:
+            level = self._classify_lead_time(indicators.lead_time_days)
+            metrics["lead_time"] = {
+                "value": indicators.lead_time_days,
+                "level": level,
+                "score": LEVEL_SCORES[level],
+            }
 
-        if not valid_scores:
+        # Change Failure Rate (percentage)
+        if indicators.change_failure_rate is not None:
+            level = self._classify_change_failure_rate(indicators.change_failure_rate)
+            metrics["change_failure_rate"] = {
+                "value": indicators.change_failure_rate,
+                "level": level,
+                "score": LEVEL_SCORES[level],
+            }
+
+        # MTTR (hours) - treat 0 as "no incidents" = Elite
+        if indicators.mttr_hours is not None:
+            level = self._classify_mttr(indicators.mttr_hours)
+            metrics["mttr"] = {
+                "value": indicators.mttr_hours,
+                "level": level,
+                "score": LEVEL_SCORES[level],
+                "no_incidents": indicators.mttr_hours == 0,
+            }
+
+        if not metrics:
             return {
                 "score": None,
                 "classification": None,
-                "metrics": scores,
+                "metrics": {},
                 "available_metrics": 0,
             }
 
-        avg_score = sum(valid_scores) / len(valid_scores)
-        final_score = round(avg_score * 100)
+        # Calculate overall score as average of level scores
+        level_scores = [m["score"] for m in metrics.values()]
+        avg_score = round(sum(level_scores) / len(level_scores))
+
+        # Overall classification is the weakest link (lowest level)
+        levels = [m["level"] for m in metrics.values()]
+        min_level_index = min(LEVEL_ORDER.index(level) for level in levels)
+        overall_classification = LEVEL_ORDER[min_level_index]
 
         return {
-            "score": final_score,
-            "classification": self._get_classification(final_score),
-            "metrics": scores,
-            "available_metrics": len(valid_scores),
+            "score": avg_score,
+            "classification": overall_classification,
+            "metrics": metrics,
+            "available_metrics": len(metrics),
         }
 
-    def _normalize(self, value: float, target: float, lower_is_better: bool) -> float:
-        """Normalize a metric value to 0-1 scale."""
-        if lower_is_better:
-            if value == 0:
-                return 1.0
-            return min(1.0, target / value)
-        return min(1.0, value / target)
+    def _classify_deployment_frequency(self, deploys_per_day: float) -> str:
+        """Classify deployment frequency.
 
-    def _get_classification(self, score: int) -> str:
+        Elite: Multiple per day (>1)
+        High: Daily to weekly (1/7 to 1)
+        Medium: Weekly to monthly (1/30 to 1/7)
+        Low: Less than monthly (<1/30)
         """
-        Classify DORA performance level.
-
-        Based on DORA research benchmarks:
-        - Elite: Top performers (85-100)
-        - High: Above average (70-84)
-        - Medium: Average (50-69)
-        - Low: Below average (0-49)
-        """
-        if score >= 85:
-            return "Elite"
-        elif score >= 70:
-            return "High"
-        elif score >= 50:
-            return "Medium"
+        if deploys_per_day >= 1.0:
+            return ELITE
+        elif deploys_per_day >= 1 / 7:  # At least once per week
+            return HIGH
+        elif deploys_per_day >= 1 / 30:  # At least once per month
+            return MEDIUM
         else:
-            return "Low"
+            return LOW
+
+    def _classify_lead_time(self, days: float) -> str:
+        """Classify lead time for changes.
+
+        Elite: Less than 1 hour (<1/24 day)
+        High: Less than 1 day
+        Medium: Less than 1 week
+        Low: More than 1 week
+        """
+        hours = days * 24
+        if hours < 1:
+            return ELITE
+        elif days < 1:
+            return HIGH
+        elif days < 7:
+            return MEDIUM
+        else:
+            return LOW
+
+    def _classify_change_failure_rate(self, rate_percent: float) -> str:
+        """Classify change failure rate.
+
+        Elite: 0-5%
+        High: 5-10%
+        Medium: 10-15%
+        Low: >15%
+        """
+        if rate_percent <= 5:
+            return ELITE
+        elif rate_percent <= 10:
+            return HIGH
+        elif rate_percent <= 15:
+            return MEDIUM
+        else:
+            return LOW
+
+    def _classify_mttr(self, hours: float) -> str:
+        """Classify mean time to recovery.
+
+        Elite: Less than 1 hour (or no incidents)
+        High: Less than 1 day (24 hours)
+        Medium: Less than 1 week (168 hours)
+        Low: More than 1 week
+        """
+        if hours == 0:  # No incidents = Elite
+            return ELITE
+        elif hours < 1:
+            return ELITE
+        elif hours < 24:
+            return HIGH
+        elif hours < 168:
+            return MEDIUM
+        else:
+            return LOW

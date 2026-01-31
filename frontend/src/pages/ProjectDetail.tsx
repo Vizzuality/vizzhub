@@ -8,6 +8,7 @@ import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
+import type { SnapshotType } from '../types';
 import {
   ProjectHeader,
   ProjectDialogs,
@@ -32,7 +33,8 @@ export default function ProjectDetail(): JSX.Element {
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
   const { data: metrics } = useProjectMetrics(id!);
   const { data: config } = useConfigParameters();
-  const { data: snapshots } = useProjectSnapshots(id!);
+  const snapshotType: SnapshotType = 'cumulative';
+  const { data: snapshots } = useProjectSnapshots(id!, 12, snapshotType);
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
   const { collectMetrics, isPending: isCollecting, error: collectError, isSuccess: collectSuccess } = useCollectMetrics(id!, {
@@ -173,8 +175,8 @@ export default function ProjectDetail(): JSX.Element {
           <div>
             <h2 className="text-2xl font-semibold mb-4">Scores</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ScoreCard score={scores.scores} />
-              <DimensionChart scores={scores.scores.dimensions} />
+              <ScoreCard score={scores.scores} snapshots={snapshots} />
+              <DimensionChart scores={scores.scores.dimensions} snapshots={snapshots} />
             </div>
           </div>
 
