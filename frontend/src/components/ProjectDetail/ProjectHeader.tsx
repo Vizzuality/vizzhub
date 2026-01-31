@@ -94,7 +94,6 @@ export default function ProjectHeader({
 
             {!isEditing && (
               <StatusControls
-                projectId={project.id}
                 status={project.status}
                 onMarkFinished={onMarkFinished}
                 onReopen={onReopen}

@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Plus, LayoutGrid, List, ArrowUp, ArrowDown, ArrowUpDown, Search, X } from 'lucide-react';
-import { useQueries } from '@tanstack/react-query';
 import { useProjects, useCreateProject } from '../hooks/useProjects';
-import { scoresApi } from '../services/api';
+import { useProjectFilters, type StatusFilter } from '../hooks/useProjectFilters';
+import { useProjectSort, type SortField } from '../hooks/useProjectSort';
+import { useProjectScoresMap } from '../hooks/useProjectScoresMap';
 import ProjectCard from '../components/Dashboard/ProjectCard';
 import ProjectForm from '../components/Forms/ProjectForm';
-import type { ProjectCreate, ProjectStatus } from '../types';
+import type { ProjectCreate } from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,82 +18,57 @@ import {
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'list' | 'grid';
-type SortField = 'name' | 'created_at' | 'status' | 'score';
-type SortOrder = 'asc' | 'desc';
-type StatusFilter = 'all' | ProjectStatus;
 
 export default function Projects(): JSX.Element {
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('projectsViewMode') as ViewMode) || 'list';
   });
-  const [sortField, setSortField] = useState<SortField>('created_at');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-
-  const [searchName, setSearchName] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [startDateFrom, setStartDateFrom] = useState('');
-  const [startDateTo, setStartDateTo] = useState('');
 
   const { data: projects, isLoading, error } = useProjects();
-
-  const scoreQueries = useQueries({
-    queries: (projects ?? []).map((project) => ({
-      queryKey: ['scores', project.id],
-      queryFn: () => scoresApi.getProjectScores(project.id),
-      staleTime: 5 * 60 * 1000,
-      retry: false,
-    })),
-  });
-
-  const scoresMap = useMemo(() => {
-    const map: Record<string, number | null> = {};
-    (projects ?? []).forEach((project, index) => {
-      const query = scoreQueries[index];
-      map[project.id] = query?.data?.scores?.score ?? null;
-    });
-    return map;
-  }, [projects, scoreQueries]);
+  const {
+    filters,
+    setSearchName,
+    setStatusFilter,
+    setStartDateFrom,
+    setStartDateTo,
+    hasActiveFilters,
+    clearFilters,
+  } = useProjectFilters();
+  const { sortField, sortOrder, handleSort } = useProjectSort();
+  const { scoresMap } = useProjectScoresMap(projects);
+  const createProject = useCreateProject();
 
   const handleViewModeChange = (mode: ViewMode): void => {
     setViewMode(mode);
     localStorage.setItem('projectsViewMode', mode);
   };
 
-  const handleSort = (field: SortField): void => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder(field === 'name' ? 'asc' : 'desc');
-    }
-  };
-
   const filteredAndSortedProjects = useMemo(() => {
     if (!projects) return [];
 
     const filtered = projects.filter((project) => {
-      if (searchName && !project.name.toLowerCase().includes(searchName.toLowerCase())) {
+      if (filters.searchName && !project.name.toLowerCase().includes(filters.searchName.toLowerCase())) {
         return false;
       }
 
-      if (statusFilter !== 'all' && project.status !== statusFilter) {
+      if (filters.statusFilter !== 'all' && project.status !== filters.statusFilter) {
         return false;
       }
 
-      if (startDateFrom && project.start_date) {
-        if (new Date(project.start_date) < new Date(startDateFrom)) {
+      if (filters.startDateFrom && project.start_date) {
+        if (new Date(project.start_date) < new Date(filters.startDateFrom)) {
           return false;
         }
       }
 
-      if (startDateTo && project.start_date) {
-        if (new Date(project.start_date) > new Date(startDateTo)) {
+      if (filters.startDateTo && project.start_date) {
+        if (new Date(project.start_date) > new Date(filters.startDateTo)) {
           return false;
         }
       }
 
-      if ((startDateFrom || startDateTo) && !project.start_date) {
+      if ((filters.startDateFrom || filters.startDateTo) && !project.start_date) {
         return false;
       }
 
@@ -114,16 +90,7 @@ export default function Projects(): JSX.Element {
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [projects, sortField, sortOrder, scoresMap, searchName, statusFilter, startDateFrom, startDateTo]);
-
-  const hasActiveFilters = searchName || statusFilter !== 'all' || startDateFrom || startDateTo;
-
-  const clearFilters = (): void => {
-    setSearchName('');
-    setStatusFilter('all');
-    setStartDateFrom('');
-    setStartDateTo('');
-  };
+  }, [projects, sortField, sortOrder, scoresMap, filters]);
 
   const SortButton = ({ field, label }: { field: SortField; label: string }): JSX.Element => {
     const isActive = sortField === field;
@@ -144,7 +111,6 @@ export default function Projects(): JSX.Element {
       </button>
     );
   };
-  const createProject = useCreateProject();
 
   const handleCreate = async (data: ProjectCreate): Promise<void> => {
     await createProject.mutateAsync(data);
@@ -230,7 +196,7 @@ export default function Projects(): JSX.Element {
               <Input
                 type="text"
                 placeholder="Search by name..."
-                value={searchName}
+                value={filters.searchName}
                 onChange={(e) => setSearchName(e.target.value)}
                 className="pl-9"
               />
@@ -247,10 +213,10 @@ export default function Projects(): JSX.Element {
                 ] as const).map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setStatusFilter(option.value)}
+                    onClick={() => setStatusFilter(option.value as StatusFilter)}
                     className={cn(
                       "px-3 py-1 text-sm rounded transition-colors",
-                      statusFilter === option.value ? "bg-muted font-medium" : "hover:bg-muted/50"
+                      filters.statusFilter === option.value ? "bg-muted font-medium" : "hover:bg-muted/50"
                     )}
                   >
                     {option.label}
@@ -264,7 +230,7 @@ export default function Projects(): JSX.Element {
               <span className="text-sm text-muted-foreground whitespace-nowrap">Start date:</span>
               <Input
                 type="date"
-                value={startDateFrom}
+                value={filters.startDateFrom}
                 onChange={(e) => setStartDateFrom(e.target.value)}
                 className="w-36"
                 placeholder="From"
@@ -272,7 +238,7 @@ export default function Projects(): JSX.Element {
               <span className="text-muted-foreground">-</span>
               <Input
                 type="date"
-                value={startDateTo}
+                value={filters.startDateTo}
                 onChange={(e) => setStartDateTo(e.target.value)}
                 className="w-36"
                 placeholder="To"

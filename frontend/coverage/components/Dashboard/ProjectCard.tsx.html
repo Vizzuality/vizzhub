@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>13/13</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>51/51</span>
+                <span class='fraction'>47/47</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
@@ -196,10 +196,9 @@
 <a name='L131'></a><a href='#L131'>131</a>
 <a name='L132'></a><a href='#L132'>132</a>
 <a name='L133'></a><a href='#L133'>133</a>
-<a name='L134'></a><a href='#L134'>134</a>
-<a name='L135'></a><a href='#L135'>135</a>
-<a name='L136'></a><a href='#L136'>136</a>
-<a name='L137'></a><a href='#L137'>137</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L134'></a><a href='#L134'>134</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -224,12 +223,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">11x</span>
-<span class="cline-any cline-yes">11x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -238,6 +231,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">38x</span>
 <span class="cline-any cline-yes">38x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">38x</span>
@@ -339,9 +333,11 @@
 import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '../../types';
 import { formatDate } from '../../utils/formatters';
+import { getScoreColor } from '../../utils/scoreColors';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useScoreThresholds } from '@/hooks/useConfig';
 &nbsp;
 interface ProjectCardProps {
   project: Project;
@@ -349,7 +345,7 @@ interface ProjectCardProps {
   score?: number | null;
 }
 &nbsp;
-function ScoreBadge({ score }: { score: number | null | undefined }): JSX.Element | null {
+function ScoreBadge({ score, thresholds }: { score: number | null | undefined; thresholds: { green: number; yellow: number } }): JSX.Element | null {
   if (score === null || score === undefined) {
     return (
       &lt;div className="flex items-center gap-2 text-muted-foreground"&gt;
@@ -359,21 +355,16 @@ function ScoreBadge({ score }: { score: number | null | undefined }): JSX.Elemen
     );
   }
 &nbsp;
-  const getScoreColor = (s: number): string =&gt; {
-    if (s &gt;= 80) return 'text-green-600 dark:text-green-400';
-    if (s &gt;= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-&nbsp;
   return (
     &lt;div className="flex items-center gap-2"&gt;
       &lt;span className="text-sm text-muted-foreground"&gt;Score:&lt;/span&gt;
-      &lt;span className={cn("text-2xl font-bold", getScoreColor(score))}&gt;{Math.round(score)}&lt;/span&gt;
+      &lt;span className={cn("text-2xl font-bold", getScoreColor(score, thresholds))}&gt;{Math.round(score)}&lt;/span&gt;
     &lt;/div&gt;
   );
 }
 &nbsp;
 export default function ProjectCard({ project, viewMode = 'list', score }: ProjectCardProps): JSX.Element {
+  const thresholds = useScoreThresholds();
   const hasDateRange = project.start_date || project.end_date;
 &nbsp;
   if (viewMode === 'grid') {
@@ -385,13 +376,13 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
               &lt;CardTitle className="text-lg font-semibold line-clamp-2"&gt;{project.name}&lt;/CardTitle&gt;
               &lt;Badge
                 variant={project.status === 'finished' ? 'default' : 'secondary'}
-                className={project.status === 'finished' ? 'bg-green-600 hover:bg-green-700 shrink-0' : 'shrink-0'}
+                className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black shrink-0' : 'shrink-0'}
               &gt;
                 {project.status === 'finished' ? 'Finished' : 'In Progress'}
               &lt;/Badge&gt;
             &lt;/div&gt;
             &lt;div className="flex items-center justify-between"&gt;
-              &lt;ScoreBadge score={score} /&gt;
+              &lt;ScoreBadge score={score} thresholds={thresholds} /&gt;
             &lt;/div&gt;
             &lt;div className="space-y-1.5 text-sm text-muted-foreground"&gt;
               {project.jira_project_key &amp;&amp; (
@@ -429,7 +420,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
             &lt;CardTitle className="text-xl font-semibold"&gt;{project.name}&lt;/CardTitle&gt;
             &lt;Badge
               variant={project.status === 'finished' ? 'default' : 'secondary'}
-              className={project.status === 'finished' ? 'bg-green-600 hover:bg-green-700' : ''}
+              className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black' : ''}
             &gt;
               {project.status === 'finished' ? 'Finished' : 'In Progress'}
             &lt;/Badge&gt;
@@ -459,7 +450,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
         &lt;/div&gt;
 &nbsp;
         &lt;div className="flex items-center gap-6 md:flex-shrink-0"&gt;
-          &lt;ScoreBadge score={score} /&gt;
+          &lt;ScoreBadge score={score} thresholds={thresholds} /&gt;
           &lt;Link
             to={`/projects/${project.id}`}
             className="text-base font-medium text-primary hover:underline"
@@ -478,7 +469,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-25T19:03:28.405Z
+                at 2026-01-31T16:52:23.533Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
