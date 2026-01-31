@@ -1,10 +1,8 @@
-import { Link } from 'react-router-dom';
-import { Flag, RotateCcw, Pencil, Trash2, TrendingUp } from 'lucide-react';
+import { Flag, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ProjectStatus } from '../../types';
 
 interface StatusControlsProps {
-  projectId: string;
   status: ProjectStatus;
   onMarkFinished: () => void;
   onReopen: () => Promise<unknown>;
@@ -14,7 +12,6 @@ interface StatusControlsProps {
 }
 
 export default function StatusControls({
-  projectId,
   status,
   onMarkFinished,
   onReopen,
@@ -24,12 +21,6 @@ export default function StatusControls({
 }: StatusControlsProps): JSX.Element {
   return (
     <div className="flex items-center gap-2">
-      <Button variant="ghost" asChild className="border border-input">
-        <Link to={`/projects/${projectId}/history`}>
-          <TrendingUp className="w-5 h-5 mr-2" />
-          History
-        </Link>
-      </Button>
       {status === 'in_progress' ? (
         <Button
           variant="ghost"

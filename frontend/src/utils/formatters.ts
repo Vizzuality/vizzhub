@@ -16,7 +16,3 @@ export function formatDate(dateString: string | null): string {
 export function formatPeriod(year: number, month: number): string {
   return `${MONTH_NAMES[month - 1]} ${year.toString().slice(-2)}`;
 }
-
-export function isDimensionVisible(visibleDimensions: Set<string> | undefined, dimension: string): boolean {
-  return !visibleDimensions || visibleDimensions.has(dimension);
-}

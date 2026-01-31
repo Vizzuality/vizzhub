@@ -17,6 +17,7 @@ import {
   EVMSection,
   QualityMetricsGrid,
   DORASection,
+  SnapshotManager,
 } from '../components/ProjectDetail';
 import type { ProjectCreate, EVMData, Milestone } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
@@ -161,6 +162,8 @@ export default function ProjectDetail(): JSX.Element {
         dismissedSuccess={dismissedSuccess}
         onDismissSuccess={() => setDismissedSuccess(true)}
       />
+
+      <SnapshotManager projectId={id!} />
 
       {scoresLoading && (
         <>

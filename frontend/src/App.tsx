@@ -16,7 +16,6 @@ import { useAuth } from './hooks/useAuth';
 import { AppLayout } from './components/layout/AppLayout';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
-import ProjectHistory from './pages/ProjectHistory';
 import SettingsPage from './pages/Settings';
 import Login from './pages/Login';
 
@@ -52,7 +51,6 @@ function AppContent(): JSX.Element {
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
-        <Route path="/projects/:id/history" element={<ProjectHistory />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
