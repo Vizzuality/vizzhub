@@ -1,6 +1,8 @@
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,11 +17,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { TrendingUp, BarChart3 } from 'lucide-react';
+
+type ChartMode = 'line' | 'bar';
 
 interface TrendChartProps {
   snapshots: SnapshotWithScores[];
   dimensions?: (keyof DimensionScores | 'final_score')[];
   title?: string;
+  chartMode?: ChartMode;
+  onChartModeChange?: (mode: ChartMode) => void;
+  showModeToggle?: boolean;
 }
 
 const DIMENSION_COLORS: Record<keyof DimensionScores | 'final_score', string> = {
