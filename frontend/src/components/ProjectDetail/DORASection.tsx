@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
-import type { DoraLevel, FinalScore, Metrics, Indicators, MetricsWithScores } from '../../types';
+import type { DoraLevel, FinalScore, Metrics, Indicators, MetricsWithScores, Dimension } from '../../types';
 
 type IndicatorKey = keyof Indicators;
 
@@ -52,6 +52,7 @@ interface DORASectionProps {
   indicators: Indicators;
   getTarget: (name: string) => number | null;
   snapshots?: MetricsWithScores[];
+  visibleDimensions?: Set<Dimension>;
 }
 
 export default function DORASection({
@@ -60,8 +61,12 @@ export default function DORASection({
   indicators,
   getTarget,
   snapshots,
+  visibleDimensions,
 }: DORASectionProps): JSX.Element | null {
+  const showFlow = !visibleDimensions || visibleDimensions.has('Flow');
+
   if (!scores.dora || scores.dora.score === null) return null;
+  if (!showFlow) return null;
 
   return (
     <>
@@ -137,6 +142,7 @@ export default function DORASection({
               metrics.github_metrics.release_count_90d !== undefined && (
                 <SubIndicatorCard
                   title="Deployment Frequency"
+                  dimension="Flow"
                   indicatorValue={metrics.github_metrics.release_count_90d}
                   indicatorLabel="Releases in 90 days"
                   indicatorSuffix=" releases"
@@ -162,6 +168,7 @@ export default function DORASection({
             {indicators.lead_time_days !== null && (
                 <SubIndicatorCard
                   title="Lead Time"
+                  dimension="Flow"
                   indicatorValue={indicators.lead_time_days}
                   indicatorLabel="Days from creation to completion"
                   indicatorSuffix=" days"
@@ -182,6 +189,7 @@ export default function DORASection({
               metrics.github_metrics.change_failure_rate !== undefined && (
                 <SubIndicatorCard
                   title="Change Failure Rate"
+                  dimension="Flow"
                   indicatorValue={metrics.github_metrics.change_failure_rate}
                   indicatorLabel="Failure rate"
                   indicatorSuffix="%"
@@ -202,6 +210,7 @@ export default function DORASection({
             {(metrics.jira_defects?.incidents_count ?? 0) > 0 ? (
               <SubIndicatorCard
                 title="MTTR"
+                dimension="Flow"
                 indicatorValue={indicators.mttr_hours}
                 indicatorLabel="Mean Time to Recovery"
                 indicatorSuffix="h"
@@ -222,6 +231,18 @@ export default function DORASection({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center justify-between">
                     <span className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                              F
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Flow metric</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       MTTR
                       <LevelBadge level="Elite" />
                     </span>

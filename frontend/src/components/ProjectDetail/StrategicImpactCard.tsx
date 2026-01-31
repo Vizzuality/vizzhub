@@ -27,6 +27,7 @@ export default function StrategicImpactCard({
 }: StrategicImpactCardProps): JSX.Element {
   return (
     <EditableMetricCard<StrategicImpact>
+      dimension="Value"
       title="Strategic Impact"
       description="Business value delivered by the project"
       tooltipContent={<p className="font-mono text-xs">Low=25, Medium=55, High=80, Transformational=100</p>}

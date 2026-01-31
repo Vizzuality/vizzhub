@@ -41,6 +41,10 @@ export interface DimensionScores {
   p_risk: number | null;
 }
 
+export type Dimension = 'Time' | 'Cost' | 'Quality' | 'Value' | 'Satisfaction' | 'Flow' | 'Engineering' | 'Risk';
+
+export const ALL_DIMENSIONS: Dimension[] = ['Time', 'Cost', 'Quality', 'Value', 'Satisfaction', 'Flow', 'Engineering', 'Risk'];
+
 export type DoraLevel = 'Elite' | 'High' | 'Medium' | 'Low';
 
 export interface DoraMetricDetail {

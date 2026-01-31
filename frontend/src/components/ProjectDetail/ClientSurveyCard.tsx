@@ -52,6 +52,7 @@ export default function ClientSurveyCard({
   return (
     <EditableMetricCard<Partial<Record<SurveyKey, number>>>
       historicalData={historicalData}
+      dimension="Satisfaction"
       title="Client Satisfaction Survey"
       description={
         isDisabled

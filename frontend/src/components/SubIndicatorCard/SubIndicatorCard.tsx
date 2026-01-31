@@ -51,6 +51,7 @@ interface SubIndicatorCardProps {
   historicalData?: HistoricalDataPoint[];
   chartColor?: string;
   badge?: React.ReactNode;
+  dimension?: string;
 }
 
 export default function SubIndicatorCard({
@@ -66,6 +67,7 @@ export default function SubIndicatorCard({
   historicalData,
   chartColor = 'oklch(0.7 0.15 250)',
   badge,
+  dimension,
 }: SubIndicatorCardProps): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
   const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
@@ -176,6 +178,20 @@ export default function SubIndicatorCard({
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
+              {dimension && (
+                <TooltipProvider>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                        {dimension.charAt(0).toUpperCase()}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{dimension} metric</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
+              )}
               {title}
               {badge}
             </CardTitle>

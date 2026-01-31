@@ -46,6 +46,7 @@ export default function PMSatisfactionCard({
   return (
     <EditableMetricCard<PMSatisfactionFormData>
       historicalData={historicalData}
+      dimension="Satisfaction"
       title="Client Satisfaction (PM Est.)"
       description="PM estimation of client satisfaction"
       tooltipContent={<p className="font-mono text-xs">0.3×delivery + 0.3×design + 0.4×overall</p>}

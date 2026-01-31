@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
@@ -8,7 +8,8 @@ import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
-import type { SnapshotType } from '../types';
+import type { SnapshotType, Dimension } from '../types';
+import { ALL_DIMENSIONS } from '../types';
 import {
   ProjectHeader,
   ProjectDialogs,
@@ -28,6 +29,23 @@ export default function ProjectDetail(): JSX.Element {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
+  const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(new Set(ALL_DIMENSIONS));
+
+  const handleToggleDimension = useCallback((dimension: Dimension) => {
+    setVisibleDimensions((prev) => {
+      const next = new Set(prev);
+      if (next.has(dimension)) {
+        next.delete(dimension);
+      } else {
+        next.add(dimension);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleResetFilters = useCallback(() => {
+    setVisibleDimensions(new Set(ALL_DIMENSIONS));
+  }, []);
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
@@ -175,7 +193,13 @@ export default function ProjectDetail(): JSX.Element {
           <div>
             <h2 className="text-2xl font-semibold mb-4">Scores</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ScoreCard score={scores.scores} snapshots={snapshots} />
+              <ScoreCard
+                score={scores.scores}
+                snapshots={snapshots}
+                visibleDimensions={visibleDimensions}
+                onToggleDimension={handleToggleDimension}
+                onResetFilters={handleResetFilters}
+              />
               <DimensionChart scores={scores.scores.dimensions} snapshots={snapshots} />
             </div>
           </div>
@@ -191,6 +215,7 @@ export default function ProjectDetail(): JSX.Element {
             getTarget={getTarget}
             getConstant={getConstant}
             snapshots={snapshots}
+            visibleDimensions={visibleDimensions}
           />
         </>
       )}
@@ -215,6 +240,7 @@ export default function ProjectDetail(): JSX.Element {
           isUpdatingArchitecture={updateArchitecture.isPending}
           isUpdatingClientSurvey={updateClientSurvey.isPending}
           snapshots={snapshots}
+          visibleDimensions={visibleDimensions}
         />
       )}
 
@@ -225,6 +251,7 @@ export default function ProjectDetail(): JSX.Element {
           indicators={scores.indicators}
           getTarget={getTarget}
           snapshots={snapshots}
+          visibleDimensions={visibleDimensions}
         />
       )}
     </div>

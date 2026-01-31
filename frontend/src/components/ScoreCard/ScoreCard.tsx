@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, BarChart3, Maximize2, Minimize2 } from 'lucide-react';
+import { TrendingUp, BarChart3, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { FinalScore, MetricsWithScores } from '../../types';
+import type { FinalScore, MetricsWithScores, Dimension } from '../../types';
 import {
   Card,
   CardContent,
@@ -37,6 +37,9 @@ interface ScoreCardProps {
   score: FinalScore;
   title?: string;
   snapshots?: MetricsWithScores[];
+  visibleDimensions?: Set<Dimension>;
+  onToggleDimension?: (dimension: Dimension) => void;
+  onResetFilters?: () => void;
 }
 
 function formatPeriod(year: number, month: number): string {
@@ -44,11 +47,20 @@ function formatPeriod(year: number, month: number): string {
   return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
 }
 
-export default function ScoreCard({ score, title = 'Overall Score', snapshots }: ScoreCardProps): JSX.Element {
+export default function ScoreCard({
+  score,
+  title = 'Overall Score',
+  snapshots,
+  visibleDimensions,
+  onToggleDimension,
+  onResetFilters,
+}: ScoreCardProps): JSX.Element {
   const thresholds = useScoreThresholds();
   const [showChart, setShowChart] = useState(false);
   const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
   const [expanded, setExpanded] = useState(false);
+
+  const hasFilters = visibleDimensions && visibleDimensions.size < 8;
 
   const chartData = snapshots && snapshots.length > 1
     ? snapshots
@@ -212,15 +224,24 @@ export default function ScoreCard({ score, title = 'Overall Score', snapshots }:
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <DimensionBadge label="Time" score={score.dimensions.p_time} thresholds={thresholds} />
-          <DimensionBadge label="Cost" score={score.dimensions.p_cost} thresholds={thresholds} />
-          <DimensionBadge label="Quality" score={score.dimensions.p_quality} thresholds={thresholds} />
-          <DimensionBadge label="Value" score={score.dimensions.p_value} thresholds={thresholds} />
-          <DimensionBadge label="Satisfaction" score={score.dimensions.p_satisfaction} thresholds={thresholds} />
-          <DimensionBadge label="Flow" score={score.dimensions.p_flow} thresholds={thresholds} />
-          <DimensionBadge label="Engineering" score={score.dimensions.p_engineering} thresholds={thresholds} />
-          <DimensionBadge label="Risk Mgmt" score={score.dimensions.p_risk} thresholds={thresholds} />
+          <DimensionBadge label="Time" dimension="Time" score={score.dimensions.p_time} thresholds={thresholds} isVisible={visibleDimensions?.has('Time') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Cost" dimension="Cost" score={score.dimensions.p_cost} thresholds={thresholds} isVisible={visibleDimensions?.has('Cost') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Quality" dimension="Quality" score={score.dimensions.p_quality} thresholds={thresholds} isVisible={visibleDimensions?.has('Quality') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Value" dimension="Value" score={score.dimensions.p_value} thresholds={thresholds} isVisible={visibleDimensions?.has('Value') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Satisfaction" dimension="Satisfaction" score={score.dimensions.p_satisfaction} thresholds={thresholds} isVisible={visibleDimensions?.has('Satisfaction') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Flow" dimension="Flow" score={score.dimensions.p_flow} thresholds={thresholds} isVisible={visibleDimensions?.has('Flow') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Engineering" dimension="Engineering" score={score.dimensions.p_engineering} thresholds={thresholds} isVisible={visibleDimensions?.has('Engineering') ?? true} onToggle={onToggleDimension} />
+          <DimensionBadge label="Risk Mgmt" dimension="Risk" score={score.dimensions.p_risk} thresholds={thresholds} isVisible={visibleDimensions?.has('Risk') ?? true} onToggle={onToggleDimension} />
         </div>
+        {hasFilters && onResetFilters && (
+          <button
+            onClick={onResetFilters}
+            className="mt-3 flex items-center gap-1.5 text-xs text-chart-3 hover:text-chart-3/80 transition-colors mx-auto"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset filters
+          </button>
+        )}
       </CardContent>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
@@ -239,15 +260,47 @@ export default function ScoreCard({ score, title = 'Overall Score', snapshots }:
 
 interface DimensionBadgeProps {
   label: string;
+  dimension: Dimension;
   score: number | null;
   thresholds: { green: number; yellow: number };
+  isVisible: boolean;
+  onToggle?: (dimension: Dimension) => void;
 }
 
-function DimensionBadge({ label, score, thresholds }: DimensionBadgeProps): JSX.Element {
+function DimensionBadge({ label, dimension, score, thresholds, isVisible, onToggle }: DimensionBadgeProps): JSX.Element {
+  const isClickable = !!onToggle;
+
   return (
-    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-      <span className="text-base text-muted-foreground">{label}</span>
-      <span className={`text-lg font-medium ${getScoreColor(score, thresholds)}`}>
+    <div
+      onClick={() => onToggle?.(dimension)}
+      className={cn(
+        'flex items-center justify-between p-3 rounded-lg transition-all',
+        isClickable && 'cursor-pointer',
+        isVisible
+          ? 'bg-muted'
+          : 'bg-muted/30 opacity-50'
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            'w-2.5 h-2.5 rounded-full border-2 transition-colors',
+            isVisible
+              ? 'bg-chart-3 border-chart-3'
+              : 'bg-transparent border-muted-foreground/50'
+          )}
+        />
+        <span className={cn(
+          'text-base transition-colors',
+          isVisible ? 'text-chart-3' : 'text-muted-foreground'
+        )}>
+          {label}
+        </span>
+      </div>
+      <span className={cn(
+        'text-lg font-medium transition-opacity',
+        isVisible ? getScoreColor(score, thresholds) : 'text-muted-foreground'
+      )}>
         {score !== null ? score : '—'}
       </span>
     </div>

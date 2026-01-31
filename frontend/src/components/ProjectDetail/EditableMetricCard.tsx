@@ -42,6 +42,7 @@ interface EditableMetricCardProps<T> {
   indicatorSuffix?: string;
   chartColor?: string;
   lowerIsBetter?: boolean;
+  dimension?: string;
 }
 
 export default function EditableMetricCard<T>({
@@ -63,6 +64,7 @@ export default function EditableMetricCard<T>({
   indicatorSuffix = '',
   chartColor = 'oklch(0.7 0.15 250)',
   lowerIsBetter = false,
+  dimension,
 }: EditableMetricCardProps<T>): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<T>(defaultFormState);
@@ -177,7 +179,23 @@ export default function EditableMetricCard<T>({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              {dimension && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                        {dimension.charAt(0).toUpperCase()}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{dimension} metric</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {title}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
           <div className="flex items-center gap-1">
