@@ -200,7 +200,12 @@ export default function ProjectDetail(): JSX.Element {
                 onToggleDimension={handleToggleDimension}
                 onResetFilters={handleResetFilters}
               />
-              <DimensionChart scores={scores.scores.dimensions} snapshots={snapshots} />
+              <DimensionChart
+                scores={scores.scores.dimensions}
+                snapshots={snapshots}
+                visibleDimensions={visibleDimensions}
+                onToggleDimension={handleToggleDimension}
+              />
             </div>
           </div>
 

@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { TrendingUp, BarChart3, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
+import { TrendingUp, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -57,7 +55,6 @@ export default function ScoreCard({
 }: ScoreCardProps): JSX.Element {
   const thresholds = useScoreThresholds();
   const [showChart, setShowChart] = useState(false);
-  const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
   const [expanded, setExpanded] = useState(false);
 
   const hasFilters = visibleDimensions && visibleDimensions.size < 8;
@@ -77,42 +74,25 @@ export default function ScoreCard({
 
   const renderChart = (data: typeof chartData, height: number) => (
     <ResponsiveContainer width="100%" height={height}>
-      {chartMode === 'line' ? (
-        <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-          <XAxis dataKey="period" tick={{ fontSize: 10 }} />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'hsl(var(--popover))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px',
-              fontSize: '12px',
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="score"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dot={{ fill: '#3b82f6', r: 4 }}
-          />
-        </LineChart>
-      ) : (
-        <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-          <XAxis dataKey="period" tick={{ fontSize: 10 }} />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-          <Tooltip
-            cursor={false}
-            contentStyle={{
-              backgroundColor: 'hsl(var(--popover))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px',
-              fontSize: '12px',
-            }}
-          />
-          <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      )}
+      <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <XAxis dataKey="period" tick={{ fontSize: 10 }} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            fontSize: '12px',
+          }}
+        />
+        <Line
+          type="monotone"
+          dataKey="score"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          dot={{ fill: '#3b82f6', r: 4 }}
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 
@@ -127,17 +107,12 @@ export default function ScoreCard({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => {
-                      if (showChart && chartMode === 'line') {
-                        setShowChart(false);
-                        setExpanded(false);
-                      } else {
-                        setShowChart(true);
-                        setChartMode('line');
-                      }
+                      setShowChart(!showChart);
+                      if (showChart) setExpanded(false);
                     }}
                     className={cn(
                       'p-1.5 rounded-md transition-colors',
-                      showChart && chartMode === 'line'
+                      showChart
                         ? 'bg-primary/20 text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     )}
@@ -146,35 +121,7 @@ export default function ScoreCard({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Cumulative trend</p>
-                </TooltipContent>
-              </UITooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <UITooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      if (showChart && chartMode === 'bar') {
-                        setShowChart(false);
-                        setExpanded(false);
-                      } else {
-                        setShowChart(true);
-                        setChartMode('bar');
-                      }
-                    }}
-                    className={cn(
-                      'p-1.5 rounded-md transition-colors',
-                      showChart && chartMode === 'bar'
-                        ? 'bg-primary/20 text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    )}
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Monthly data</p>
+                  <p className="text-xs">Historical trend</p>
                 </TooltipContent>
               </UITooltip>
             </TooltipProvider>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, BarChart3, Maximize2, Minimize2 } from 'lucide-react';
+import { TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import {
   RadarChart,
   PolarGrid,
@@ -8,15 +8,13 @@ import {
   Radar,
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Legend,
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import type { DimensionScores, MetricsWithScores } from '../../types';
+import type { DimensionScores, MetricsWithScores, Dimension } from '../../types';
 import {
   Card,
   CardContent,
@@ -40,6 +38,8 @@ import { cn } from '@/lib/utils';
 interface DimensionChartProps {
   scores: DimensionScores;
   snapshots?: MetricsWithScores[];
+  visibleDimensions?: Set<Dimension>;
+  onToggleDimension?: (dimension: Dimension) => void;
 }
 
 const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
@@ -66,15 +66,32 @@ const DIMENSION_COLORS: Record<keyof DimensionScores, string> = {
   p_risk: '#ef4444',
 };
 
+const KEY_TO_DIMENSION: Record<keyof DimensionScores, Dimension> = {
+  p_time: 'Time',
+  p_cost: 'Cost',
+  p_quality: 'Quality',
+  p_value: 'Value',
+  p_satisfaction: 'Satisfaction',
+  p_flow: 'Flow',
+  p_engineering: 'Engineering',
+  p_risk: 'Risk',
+};
+
 function formatPeriod(year: number, month: number): string {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
 }
 
-export default function DimensionChart({ scores, snapshots }: DimensionChartProps): JSX.Element {
+export default function DimensionChart({ scores, snapshots, visibleDimensions, onToggleDimension }: DimensionChartProps): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
-  const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
   const [expanded, setExpanded] = useState(false);
+
+  const isVisible = (key: keyof DimensionScores): boolean => {
+    if (!visibleDimensions) return true;
+    return visibleDimensions.has(KEY_TO_DIMENSION[key]);
+  };
+
+  const visibleKeys = (Object.keys(DIMENSION_LABELS) as (keyof DimensionScores)[]).filter(isVisible);
 
   const radarData = Object.entries(scores).map(([key, value]) => ({
     dimension: DIMENSION_LABELS[key as keyof DimensionScores],
@@ -103,58 +120,63 @@ export default function DimensionChart({ scores, snapshots }: DimensionChartProp
     ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
     : 'oklch(0.6726 0.2904 341.4084)';
 
+  const customLegend = ({ payload }: { payload?: Array<{ value: string; color: string; dataKey: string }> }) => {
+    if (!payload) return null;
+    return (
+      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2">
+        {(Object.keys(DIMENSION_LABELS) as (keyof DimensionScores)[]).map((key) => {
+          const visible = isVisible(key);
+          const dimension = KEY_TO_DIMENSION[key];
+          return (
+            <button
+              key={key}
+              onClick={() => onToggleDimension?.(dimension)}
+              className={cn(
+                'flex items-center gap-1.5 text-[10px] transition-opacity',
+                onToggleDimension && 'cursor-pointer hover:opacity-80',
+                !visible && 'opacity-40'
+              )}
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-sm"
+                style={{ backgroundColor: visible ? DIMENSION_COLORS[key] : '#9ca3af' }}
+              />
+              <span className={cn(!visible && 'line-through')}>
+                {DIMENSION_LABELS[key]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderTrendChart = (data: typeof trendData, height: number) => (
     <ResponsiveContainer width="100%" height={height}>
-      {chartMode === 'line' ? (
-        <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-          <XAxis dataKey="period" tick={{ fontSize: 10 }} />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'hsl(var(--popover))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px',
-              fontSize: '11px',
-            }}
+      <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <XAxis dataKey="period" tick={{ fontSize: 10 }} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            fontSize: '11px',
+          }}
+        />
+        <Legend content={customLegend} />
+        {visibleKeys.map((key) => (
+          <Line
+            key={key}
+            type="monotone"
+            dataKey={key}
+            name={DIMENSION_LABELS[key]}
+            stroke={DIMENSION_COLORS[key]}
+            strokeWidth={1.5}
+            dot={{ r: 2 }}
           />
-          <Legend wrapperStyle={{ fontSize: '10px' }} />
-          {(Object.keys(DIMENSION_LABELS) as (keyof DimensionScores)[]).map((key) => (
-            <Line
-              key={key}
-              type="monotone"
-              dataKey={key}
-              name={DIMENSION_LABELS[key]}
-              stroke={DIMENSION_COLORS[key]}
-              strokeWidth={1.5}
-              dot={{ r: 2 }}
-            />
-          ))}
-        </LineChart>
-      ) : (
-        <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-          <XAxis dataKey="period" tick={{ fontSize: 10 }} />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-          <Tooltip
-            cursor={false}
-            contentStyle={{
-              backgroundColor: 'hsl(var(--popover))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px',
-              fontSize: '11px',
-            }}
-          />
-          <Legend wrapperStyle={{ fontSize: '10px' }} />
-          {(Object.keys(DIMENSION_LABELS) as (keyof DimensionScores)[]).map((key) => (
-            <Bar
-              key={key}
-              dataKey={key}
-              name={DIMENSION_LABELS[key]}
-              fill={DIMENSION_COLORS[key]}
-              radius={[2, 2, 0, 0]}
-            />
-          ))}
-        </BarChart>
-      )}
+        ))}
+      </LineChart>
     </ResponsiveContainer>
   );
 
@@ -169,17 +191,12 @@ export default function DimensionChart({ scores, snapshots }: DimensionChartProp
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => {
-                      if (showTrend && chartMode === 'line') {
-                        setShowTrend(false);
-                        setExpanded(false);
-                      } else {
-                        setShowTrend(true);
-                        setChartMode('line');
-                      }
+                      setShowTrend(!showTrend);
+                      if (showTrend) setExpanded(false);
                     }}
                     className={cn(
                       'p-1.5 rounded-md transition-colors',
-                      showTrend && chartMode === 'line'
+                      showTrend
                         ? 'bg-primary/20 text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     )}
@@ -188,35 +205,7 @@ export default function DimensionChart({ scores, snapshots }: DimensionChartProp
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Cumulative trend</p>
-                </TooltipContent>
-              </UITooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <UITooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      if (showTrend && chartMode === 'bar') {
-                        setShowTrend(false);
-                        setExpanded(false);
-                      } else {
-                        setShowTrend(true);
-                        setChartMode('bar');
-                      }
-                    }}
-                    className={cn(
-                      'p-1.5 rounded-md transition-colors',
-                      showTrend && chartMode === 'bar'
-                        ? 'bg-primary/20 text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    )}
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Monthly data</p>
+                  <p className="text-xs">Historical trend</p>
                 </TooltipContent>
               </UITooltip>
             </TooltipProvider>
