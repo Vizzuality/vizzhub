@@ -122,11 +122,15 @@ class MetricsService:
         snapshot_type: SnapshotType,
         config: ScoringConfig,
         data: dict,
+        sync_manual_fields: bool = True,
     ) -> MetricsDB:
         """Create or update metrics for a specific period and type.
 
         If metrics exist for the same (project, year, month, type),
         they will be updated. Otherwise, a new record is created.
+
+        Manual fields (EVM, milestones, governance, etc.) are automatically
+        synchronized to the other snapshot type for the same period.
 
         Args:
             db: Database session
@@ -136,6 +140,7 @@ class MetricsService:
             snapshot_type: Type of snapshot (punctual or cumulative)
             config: Scoring configuration for weights/targets
             data: Metrics data dict
+            sync_manual_fields: If True, sync manual fields to other snapshot type
 
         Returns:
             Created or updated MetricsDB
@@ -162,7 +167,7 @@ class MetricsService:
             existing.targets_applied = config.get_all_targets()
             await db.flush()
             await db.refresh(existing)
-            return existing
+            result = existing
         else:
             # Create new record
             metrics = MetricsDB(
@@ -177,7 +182,67 @@ class MetricsService:
             db.add(metrics)
             await db.flush()
             await db.refresh(metrics)
-            return metrics
+            result = metrics
+
+        # Sync manual fields to the other snapshot type
+        if sync_manual_fields:
+            await MetricsService._sync_manual_fields_to_other_snapshot(
+                db, project_uuid, year, month, snapshot_type, clean_data, config
+            )
+
+        return result
+
+    @staticmethod
+    async def _sync_manual_fields_to_other_snapshot(
+        db: AsyncSession,
+        project_id: UUID,
+        year: int,
+        month: int,
+        source_snapshot_type: SnapshotType,
+        data: dict,
+        config: ScoringConfig,
+    ) -> None:
+        """Sync manual fields to the other snapshot type for the same period.
+
+        This ensures that manual metrics (EVM, milestones, governance, etc.)
+        are consistent across both PUNCTUAL and CUMULATIVE snapshots.
+
+        Args:
+            db: Database session
+            project_id: Project UUID
+            year: Period year
+            month: Period month
+            source_snapshot_type: The snapshot type that was just updated
+            data: The data that was updated
+            config: Scoring configuration
+        """
+        # Extract only manual fields from the data
+        manual_fields_to_sync = {
+            k: v for k, v in data.items()
+            if k in MetricsDB.MANUAL_FIELDS and v is not None
+        }
+
+        if not manual_fields_to_sync:
+            return
+
+        # Determine the other snapshot type
+        other_type = (
+            SnapshotType.PUNCTUAL
+            if source_snapshot_type == SnapshotType.CUMULATIVE
+            else SnapshotType.CUMULATIVE
+        )
+
+        # Get the other snapshot if it exists
+        other_snapshot = await MetricsService.get_metrics(
+            db, project_id, year, month, other_type
+        )
+
+        if other_snapshot:
+            # Update only the manual fields
+            for key, value in manual_fields_to_sync.items():
+                if hasattr(other_snapshot, key):
+                    setattr(other_snapshot, key, value)
+            await db.flush()
 
     @staticmethod
     async def delete_metrics(
