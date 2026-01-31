@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProject } from '../hooks/useProjects';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
@@ -7,12 +8,18 @@ import SnapshotManager from '../components/ProjectDetail/SnapshotManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, TrendingUp, Loader2 } from 'lucide-react';
-import type { DimensionScores } from '../types';
+import type { DimensionScores, SnapshotType } from '../types';
+
+type ChartMode = 'line' | 'bar';
 
 export default function ProjectHistory(): JSX.Element {
   const { id } = useParams<{ id: string }>();
+  const [chartMode, setChartMode] = useState<ChartMode>('line');
+
+  const snapshotType: SnapshotType = chartMode === 'line' ? 'cumulative' : 'punctual';
+
   const { data: project, isLoading: projectLoading } = useProject(id!);
-  const { data: snapshots, isLoading: snapshotsLoading } = useProjectSnapshots(id!);
+  const { data: snapshots, isLoading: snapshotsLoading } = useProjectSnapshots(id!, 12, snapshotType);
   const { data: config } = useScoringConfig();
 
   if (projectLoading || snapshotsLoading) {
@@ -69,17 +76,23 @@ export default function ProjectHistory(): JSX.Element {
             <TrendChart
               snapshots={snapshots}
               dimensions={['final_score']}
-              title="Final Score Trend"
+              title={chartMode === 'line' ? 'Final Score Trend (Cumulative)' : 'Final Score by Month (Punctual)'}
+              chartMode={chartMode}
+              onChartModeChange={setChartMode}
+              showModeToggle
             />
 
             <TrendChart
               snapshots={snapshots}
               dimensions={dimensionKeys}
-              title="Dimension Breakdown"
+              title={chartMode === 'line' ? 'Dimension Trend (Cumulative)' : 'Dimensions by Month (Punctual)'}
+              chartMode={chartMode}
+              onChartModeChange={setChartMode}
+              showModeToggle
             />
           </div>
 
-          <MetricsChartGrid snapshots={snapshots} config={config} />
+          <MetricsChartGrid snapshots={snapshots} config={config} chartMode={chartMode} />
 
           <Card>
             <CardHeader>

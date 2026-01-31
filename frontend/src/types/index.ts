@@ -41,14 +41,23 @@ export interface DimensionScores {
   p_risk: number | null;
 }
 
+export type DoraLevel = 'Elite' | 'High' | 'Medium' | 'Low';
+
+export interface DoraMetricDetail {
+  value: number;
+  level: DoraLevel;
+  score: number;
+  no_incidents?: boolean;
+}
+
 export interface DoraScore {
   score: number | null;
-  classification: string | null;
+  classification: DoraLevel | null;
   metrics: {
-    deployment_frequency: number | null;
-    lead_time: number | null;
-    change_failure_rate: number | null;
-    mttr: number | null;
+    deployment_frequency?: DoraMetricDetail;
+    lead_time?: DoraMetricDetail;
+    change_failure_rate?: DoraMetricDetail;
+    mttr?: DoraMetricDetail;
   };
   available_metrics: number;
 }

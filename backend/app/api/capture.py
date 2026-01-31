@@ -219,13 +219,9 @@ async def capture_period(
             ),
         )
 
-    # Get preserved manual fields from existing metrics
-    history = await MetricsService.get_project_history(db, project_id, limit=1)
-    existing_metrics = history[0] if history else None
-    preserved = (
-        existing_metrics.get_preserved_fields(include_github=False)
-        if existing_metrics
-        else MetricsDB.get_default_preserved_fields(include_github=False)
+    # Get preserved manual fields with priority fallback for historical capture
+    preserved = await MetricsService.get_manual_fields_for_historical_capture(
+        db, project_id, year, month
     )
 
     # Define date ranges

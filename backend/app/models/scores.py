@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -17,14 +18,26 @@ class DimensionScores(BaseModel):
     p_risk: int | None = Field(None, ge=0, le=100, description="Risk posture score")
 
 
+DoraLevel = Literal["Elite", "High", "Medium", "Low"]
+
+
+class DoraMetricDetail(BaseModel):
+    """Detail for a single DORA metric."""
+
+    value: float = Field(..., description="Raw metric value")
+    level: DoraLevel = Field(..., description="DORA classification level")
+    score: int = Field(..., ge=0, le=100, description="Score based on level")
+    no_incidents: bool | None = Field(None, description="True if MTTR has no incidents")
+
+
 class DoraScore(BaseModel):
-    """DORA metrics score (separate from main score)."""
+    """DORA metrics score using official DORA thresholds."""
 
     score: int | None = Field(None, ge=0, le=100, description="DORA score 0-100")
-    classification: str | None = Field(None, description="Elite/High/Medium/Low")
-    metrics: dict[str, float | None] = Field(
+    classification: DoraLevel | None = Field(None, description="Overall classification (weakest link)")
+    metrics: dict[str, DoraMetricDetail] = Field(
         default_factory=dict,
-        description="Individual DORA metric scores (0-1)",
+        description="Individual DORA metric details with level classification",
     )
     available_metrics: int = Field(0, description="Number of DORA metrics with data")
 
