@@ -8,6 +8,7 @@ Individual indicator logic is in separate modules within this package.
 from datetime import date
 from typing import Any
 
+from app.services.collectors.models import GitHubCollectedMetrics
 from app.services.collectors.github.change_failure_rate import (
     collect_change_failure_rate,
 )
@@ -31,7 +32,7 @@ class GitHubCollector:
         """Test if connection to GitHub is working."""
         return await self._client.test_connection()
 
-    async def collect(self, repo_slug: str, **kwargs: Any) -> dict[str, Any]:
+    async def collect(self, repo_slug: str, **kwargs: Any) -> GitHubCollectedMetrics:
         """
         Collect raw metrics from GitHub for a repository.
 
@@ -65,26 +66,20 @@ class GitHubCollector:
         )
         vuln_data = await collect_vulnerabilities(self._client, repo_slug)
 
-        return {
-            # pr_review
-            "prs_without_review": pr_review_data["prs_without_review"],
-            "total_merged_prs": pr_review_data["total_merged_prs"],
-            "pr_review_ratio": pr_review_data["pr_review_ratio"],
-            # pr_size
-            "pr_size_median": pr_size_data["pr_size_median"],
-            # review_turnaround
-            "review_turnaround_hours": review_turnaround_data["review_turnaround_hours"],
-            # deployment_frequency
-            "deployment_frequency": deployment_freq_data["deployment_frequency"],
-            "release_count_90d": deployment_freq_data["release_count_90d"],
-            # change_failure_rate
-            "change_failure_rate": cfr_data["change_failure_rate"],
-            "total_releases": cfr_data["total_releases"],
-            "failed_releases": cfr_data["failed_releases"],
-            # vulnerabilities
-            "high_severity_vulns": vuln_data["high_severity_vulns"],
-            "high_severity_vulns_total": vuln_data["high_severity_vulns_total"],
-        }
+        return GitHubCollectedMetrics(
+            prs_without_review=pr_review_data["prs_without_review"],
+            total_merged_prs=pr_review_data["total_merged_prs"],
+            pr_review_ratio=pr_review_data["pr_review_ratio"],
+            pr_size_median=pr_size_data["pr_size_median"],
+            review_turnaround_hours=review_turnaround_data["review_turnaround_hours"],
+            deployment_frequency=deployment_freq_data["deployment_frequency"],
+            release_count_90d=deployment_freq_data["release_count_90d"],
+            change_failure_rate=cfr_data["change_failure_rate"],
+            total_releases=cfr_data["total_releases"],
+            failed_releases=cfr_data["failed_releases"],
+            high_severity_vulns=vuln_data["high_severity_vulns"],
+            high_severity_vulns_total=vuln_data["high_severity_vulns_total"],
+        )
 
     async def close(self) -> None:
         """Close the HTTP client."""

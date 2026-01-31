@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import EditableMetricCard from './EditableMetricCard';
+import { RatingButtons } from '@/components/ui/RatingButtons';
+import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { TestMaturity } from '../../types';
 
@@ -27,6 +27,7 @@ interface TestMaturityCardProps {
   target: number | null;
   onSave: (data: Partial<Record<TestTypeKey, number>>) => Promise<unknown>;
   isPending: boolean;
+  historicalData?: HistoricalDataPoint[];
 }
 
 function getLevelLabel(value: number | undefined): string {
@@ -43,9 +44,11 @@ export default function TestMaturityCard({
   target,
   onSave,
   isPending,
+  historicalData,
 }: TestMaturityCardProps): JSX.Element {
   return (
     <EditableMetricCard<Partial<Record<TestTypeKey, number>>>
+      historicalData={historicalData}
       title="Test Maturity"
       description="Automated testing coverage assessment"
       tooltipContent={<p className="font-mono text-xs">weighted avg of 5 test types</p>}
@@ -61,19 +64,13 @@ export default function TestMaturityCard({
           {TEST_TYPES.map(({ key, label }) => (
             <div key={key}>
               <label className="text-sm font-medium text-muted-foreground">{label}</label>
-              <div className="flex gap-2 mt-2">
-                {MATURITY_LEVELS.map((option) => (
-                  <Button
-                    key={option.value}
-                    size="sm"
-                    variant={form[key] === option.value ? 'default' : 'outline'}
-                    onClick={() => setForm((prev) => ({ ...prev, [key]: option.value }))}
-                    className="flex-1"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
+              <RatingButtons
+                options={MATURITY_LEVELS}
+                selected={form[key]}
+                onSelect={(value) => setForm((prev) => ({ ...prev, [key]: value }))}
+                className="flex gap-2 mt-2"
+                buttonClassName="flex-1"
+              />
             </div>
           ))}
         </>

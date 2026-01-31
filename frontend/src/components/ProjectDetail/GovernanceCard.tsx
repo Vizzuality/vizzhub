@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import EditableMetricCard from './EditableMetricCard';
+import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { KPIDisplay } from './IndicatorDisplay';
 
 interface GovernanceCardProps {
@@ -7,6 +7,7 @@ interface GovernanceCardProps {
   target: number | null;
   onSave: (value: number) => Promise<unknown>;
   isPending: boolean;
+  historicalData?: HistoricalDataPoint[];
 }
 
 export default function GovernanceCard({
@@ -14,9 +15,11 @@ export default function GovernanceCard({
   target,
   onSave,
   isPending,
+  historicalData,
 }: GovernanceCardProps): JSX.Element {
   return (
     <EditableMetricCard<number>
+      historicalData={historicalData}
       title="Governance Compliance"
       description="Exceptions from latest peer review"
       tooltipContent={<p className="font-mono text-xs">score = 1 - (exceptions / target)</p>}

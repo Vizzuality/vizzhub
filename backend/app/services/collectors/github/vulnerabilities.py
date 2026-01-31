@@ -29,11 +29,14 @@ Edge Cases:
 == END SPEC ==
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
+
+logger = logging.getLogger(__name__)
 
 DAYS_THRESHOLD = 30
 
@@ -138,7 +141,8 @@ async def _get_dependabot_alerts(
             else:
                 break
 
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to fetch Dependabot alerts for %s/%s: %s", owner, repo, e)
             return None
 
     return all_alerts

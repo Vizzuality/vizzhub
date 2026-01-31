@@ -5,10 +5,13 @@ This module contains common functions and constants used across multiple
 GitHub collector modules to avoid duplication.
 """
 
+import logging
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.services.collectors.utils import parse_iso_datetime
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
@@ -87,7 +90,8 @@ async def get_merged_prs(
 
             page += 1
 
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to fetch PRs for %s/%s page %d: %s", owner, repo, page, e)
             break
 
     return merged_prs
@@ -183,7 +187,8 @@ async def get_releases(
 
             page += 1
 
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to fetch releases for %s/%s page %d: %s", owner, repo, page, e)
             break
 
     return releases

@@ -15,6 +15,8 @@ interface MilestonesListProps {
   onSubmit: (data: Milestone[]) => Promise<void>;
   onDelete: (index: number) => Promise<void>;
   getMilestoneStatus: (milestone: Milestone) => MilestoneStatus;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onValuesChange?: (data: Milestone[]) => void;
 }
 
 export default function MilestonesList({
@@ -26,6 +28,8 @@ export default function MilestonesList({
   onSubmit,
   onDelete,
   getMilestoneStatus,
+  onDirtyChange,
+  onValuesChange,
 }: MilestonesListProps): JSX.Element {
   if (isEditing) {
     return (
@@ -34,6 +38,8 @@ export default function MilestonesList({
         onSubmit={onSubmit}
         onCancel={onCancelEdit}
         isLoading={isLoading}
+        onDirtyChange={onDirtyChange}
+        onValuesChange={onValuesChange}
       />
     );
   }

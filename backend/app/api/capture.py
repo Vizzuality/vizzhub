@@ -62,12 +62,13 @@ async def _collect_from_jira(
 
     collector = JiraCollector(db=db)
     try:
-        return await collector.collect(
+        result = await collector.collect(
             project.jira_project_key,
             end_date=project.end_date,
             period_start=period_start,
             period_end=period_end,
         )
+        return result.model_dump()
     except ConfigurationError:
         raise
     except Exception as e:
@@ -90,11 +91,12 @@ async def _collect_from_github(
 
     collector = GitHubCollector()
     try:
-        return await collector.collect(
+        result = await collector.collect(
             project.github_repo,
             period_start=period_start,
             period_end=period_end,
         )
+        return result.model_dump()
     except ConfigurationError:
         raise
     except Exception as e:
@@ -114,40 +116,13 @@ def _build_metrics_data(
     preserved: dict,
 ) -> dict:
     """Build metrics data dict from collected data."""
-    return {
-        "period_start": period_start,
-        "period_end": period_end,
-        # Jira defect metrics
-        "bugs_total": jira_data.get("bugs_total", 0) if jira_data else None,
-        "tasks_completed": jira_data.get("tasks_completed", 0) if jira_data else None,
-        "escaped_defects": jira_data.get("escaped_defects", 0) if jira_data else None,
-        "mttr_hours": jira_data.get("mttr_hours") if jira_data else None,
-        "incidents_count": jira_data.get("incidents_count", 0) if jira_data else None,
-        "post_contract_tasks": jira_data.get("post_contract_tasks") if jira_data else None,
-        # Jira flow metrics
-        "lead_time_days": jira_data.get("lead_time_days") if jira_data else None,
-        "lead_time_sample_size": jira_data.get("lead_time_sample_size", 0) if jira_data else None,
-        "commitment_reliability": jira_data.get("commitment_reliability") if jira_data else None,
-        "committed_issues": jira_data.get("committed_issues", 0) if jira_data else None,
-        "single_sprint_issues": jira_data.get("single_sprint_issues", 0) if jira_data else None,
-        "multi_sprint_issues": jira_data.get("multi_sprint_issues", 0) if jira_data else None,
-        "total_stories": jira_data.get("total_stories", 0) if jira_data else None,
-        "stories_with_reviewer": jira_data.get("stories_with_reviewer", 0) if jira_data else None,
-        # GitHub metrics
-        "prs_without_review": github_data.get("prs_without_review", 0) if github_data else None,
-        "total_merged_prs": github_data.get("total_merged_prs", 0) if github_data else None,
-        "high_severity_vulns": github_data.get("high_severity_vulns", 0) if github_data else None,
-        "high_severity_vulns_total": github_data.get("high_severity_vulns_total", 0) if github_data else None,
-        "pr_size_median": github_data.get("pr_size_median") if github_data else None,
-        "review_turnaround_hours": github_data.get("review_turnaround_hours") if github_data else None,
-        "deployment_frequency": github_data.get("deployment_frequency") if github_data else None,
-        "release_count_90d": github_data.get("release_count_90d", 0) if github_data else None,
-        "change_failure_rate": github_data.get("change_failure_rate") if github_data else None,
-        "total_releases": github_data.get("total_releases", 0) if github_data else None,
-        "failed_releases": github_data.get("failed_releases", 0) if github_data else None,
-        # Preserved manual fields
-        **preserved,
-    }
+    return MetricsDB.build_metrics_dict(
+        period_start=period_start,
+        period_end=period_end,
+        jira_data=jira_data if jira_data else None,
+        github_data=github_data if github_data else None,
+        preserved=preserved,
+    )
 
 
 def _build_response(

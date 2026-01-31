@@ -133,7 +133,7 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("TEST")
 
-        assert metrics["bugs_total"] == 42
+        assert metrics.bugs_total == 42
 
     @pytest.mark.asyncio
     async def test_jira_collector_collect_returns_task_counts(
@@ -152,7 +152,7 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("PROJ")
 
-        assert metrics["tasks_completed"] == 128
+        assert metrics.tasks_completed == 128
 
     @pytest.mark.asyncio
     async def test_jira_collector_collect_returns_story_counts(
@@ -173,8 +173,8 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("STORY")
 
-        assert metrics["total_stories"] == 50
-        assert metrics["stories_with_reviewer"] == 45
+        assert metrics.total_stories == 50
+        assert metrics.stories_with_reviewer == 45
 
     @pytest.mark.asyncio
     async def test_jira_collector_collect_returns_escaped_defects(
@@ -193,7 +193,7 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("ESC")
 
-        assert metrics["escaped_defects"] == 7
+        assert metrics.escaped_defects == 7
 
     @pytest.mark.asyncio
     async def test_jira_collector_collect_handles_empty_project(
@@ -205,10 +205,10 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("EMPTY")
 
-        assert metrics["bugs_total"] == 0
-        assert metrics["tasks_completed"] == 0
-        assert metrics["escaped_defects"] == 0
-        assert metrics["total_stories"] == 0
+        assert metrics.bugs_total == 0
+        assert metrics.tasks_completed == 0
+        assert metrics.escaped_defects == 0
+        assert metrics.total_stories == 0
 
     @pytest.mark.asyncio
     async def test_jira_collector_collect_handles_jql_api_error(
@@ -220,8 +220,8 @@ class TestMetricsCollection:
 
         metrics = await collector.collect("ERROR")
 
-        assert metrics["bugs_total"] == 0
-        assert metrics["tasks_completed"] == 0
+        assert metrics.bugs_total == 0
+        assert metrics.tasks_completed == 0
 
 
 class TestJiraClientCountIssues:

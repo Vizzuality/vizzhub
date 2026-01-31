@@ -10,19 +10,11 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Download, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { MONTHS } from '@/constants/dates';
+import { getYearOptions } from '@/utils/dateUtils';
 
 interface SnapshotManagerProps {
   projectId: string;
-}
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-function getYearOptions(): number[] {
-  const currentYear = new Date().getFullYear();
-  return [currentYear - 1, currentYear, currentYear + 1];
 }
 
 export default function SnapshotManager({ projectId }: SnapshotManagerProps): JSX.Element {

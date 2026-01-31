@@ -3,14 +3,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import SubIndicatorCard from '../SubIndicatorCard';
-import type { FinalScore, Metrics, Indicators } from '../../types';
+import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
+import type { FinalScore, Metrics, Indicators, MetricsWithScores } from '../../types';
+
+type IndicatorKey = keyof Indicators;
+
+function formatPeriod(year: number, month: number): string {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
+}
+
+function getHistoricalData(
+  snapshots: MetricsWithScores[] | undefined,
+  indicatorKey: IndicatorKey,
+  multiplier = 1,
+): HistoricalDataPoint[] {
+  if (!snapshots || snapshots.length === 0) return [];
+  return snapshots
+    .slice()
+    .reverse()
+    .map((s) => ({
+      period: formatPeriod(s.period_year, s.period_month),
+      value: s.indicators[indicatorKey] !== null && s.indicators[indicatorKey] !== undefined
+        ? (s.indicators[indicatorKey] as number) * multiplier
+        : null,
+    }));
+}
 
 interface DORASectionProps {
   scores: FinalScore;
   metrics: Metrics;
   indicators: Indicators;
   getTarget: (name: string) => number | null;
+  snapshots?: MetricsWithScores[];
 }
 
 export default function DORASection({
@@ -18,6 +43,7 @@ export default function DORASection({
   metrics,
   indicators,
   getTarget,
+  snapshots,
 }: DORASectionProps): JSX.Element | null {
   if (!scores.dora || scores.dora.score === null) return null;
 
@@ -100,6 +126,7 @@ export default function DORASection({
                           : null,
                     },
                   ]}
+                  historicalData={getHistoricalData(snapshots, 'deployment_frequency')}
                 />
               )}
             {indicators.lead_time_days !== null && (
@@ -115,6 +142,7 @@ export default function DORASection({
                   metrics={[
                     { label: 'Sample Size', value: metrics.flow_metrics?.lead_time_sample_size ?? null },
                   ]}
+                  historicalData={getHistoricalData(snapshots, 'lead_time_days')}
                 />
               )}
             {metrics.github_metrics.change_failure_rate !== null &&
@@ -132,6 +160,7 @@ export default function DORASection({
                     { label: 'Total Releases', value: metrics.github_metrics.total_releases ?? null },
                     { label: 'Failed Releases', value: metrics.github_metrics.failed_releases ?? null },
                   ]}
+                  historicalData={getHistoricalData(snapshots, 'change_failure_rate')}
                 />
               )}
             {indicators.mttr_hours !== null && (
@@ -147,6 +176,7 @@ export default function DORASection({
                 metrics={[
                   { label: 'Incidents', value: metrics.jira_defects?.incidents_count ?? 0 },
                 ]}
+                historicalData={getHistoricalData(snapshots, 'mttr_hours')}
               />
             )}
           </div>

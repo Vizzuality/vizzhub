@@ -5,6 +5,7 @@ import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
 import { useCollectMetrics } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
+import { useProjectSnapshots } from '../hooks/useSnapshots';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import {
@@ -31,6 +32,7 @@ export default function ProjectDetail(): JSX.Element {
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
   const { data: metrics } = useProjectMetrics(id!);
   const { data: config } = useConfigParameters();
+  const { data: snapshots } = useProjectSnapshots(id!);
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
   const { collectMetrics, isPending: isCollecting, error: collectError, isSuccess: collectSuccess } = useCollectMetrics(id!, {
@@ -186,6 +188,7 @@ export default function ProjectDetail(): JSX.Element {
             isUpdatingMilestones={updateMilestones.isPending}
             getTarget={getTarget}
             getConstant={getConstant}
+            snapshots={snapshots}
           />
         </>
       )}
@@ -209,6 +212,7 @@ export default function ProjectDetail(): JSX.Element {
           isUpdatingTestMaturity={updateTestMaturity.isPending}
           isUpdatingArchitecture={updateArchitecture.isPending}
           isUpdatingClientSurvey={updateClientSurvey.isPending}
+          snapshots={snapshots}
         />
       )}
 
@@ -218,6 +222,7 @@ export default function ProjectDetail(): JSX.Element {
           metrics={metrics}
           indicators={scores.indicators}
           getTarget={getTarget}
+          snapshots={snapshots}
         />
       )}
     </div>
