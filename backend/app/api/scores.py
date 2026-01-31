@@ -4,13 +4,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
 from app.models.indicators import IndicatorsCreate
 from app.models.metrics import MetricsCreate, MetricsDB, SnapshotType
 from app.models.scores import FinalScore
+from app.services.metrics_service import MetricsService
 from app.services.score_computation import ScoreComputationService
 
 router = APIRouter()
@@ -68,14 +68,9 @@ async def get_project_scores(
     """
     await get_project_or_404(db, project_id)
 
-    result = await db.execute(
-        select(MetricsDB)
-        .where(MetricsDB.project_id == str(project_id))
-        .where(MetricsDB.snapshot_type == snapshot_type.value)
-        .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
-        .limit(20)
+    metrics_list = await MetricsService.get_latest_metrics_for_scoring(
+        db, project_id, snapshot_type
     )
-    metrics_list = list(result.scalars().all())
     if not metrics_list:
         raise MetricsNotFoundError(str(project_id))
 
@@ -156,14 +151,9 @@ async def get_project_score_history(
     """
     await get_project_or_404(db, project_id)
 
-    result = await db.execute(
-        select(MetricsDB)
-        .where(MetricsDB.project_id == str(project_id))
-        .where(MetricsDB.snapshot_type == snapshot_type.value)
-        .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
-        .limit(limit)
+    metrics_list = await MetricsService.get_latest_metrics_for_scoring(
+        db, project_id, snapshot_type, limit
     )
-    metrics_list = result.scalars().all()
 
     score_service = ScoreComputationService(config)
     responses = []

@@ -13,6 +13,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useHistoricalCapture } from '@/hooks/useHistoricalCapture';
+import { MONTHS } from '@/constants/dates';
+import { getYearOptions } from '@/utils/dateUtils';
 import type { CaptureReport } from '@/types';
 
 interface HistoricalCaptureModalProps {
@@ -20,26 +22,6 @@ interface HistoricalCaptureModalProps {
 }
 
 type CaptureMode = 'single' | 'range';
-
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-function getYearOptions(): number[] {
-  const currentYear = new Date().getFullYear();
-  return Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
-}
 
 export default function HistoricalCaptureModal({
   projectId,

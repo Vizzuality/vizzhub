@@ -45,9 +45,10 @@ async def collect_jira_metrics(
 
     collector = JiraCollector(db=db)
     try:
-        raw_metrics = await collector.collect(
+        collected = await collector.collect(
             project.jira_project_key, end_date=project.end_date
         )
+        raw_metrics = collected.model_dump()
     except ConfigurationError:
         raise
     except ValueError as e:
@@ -73,7 +74,7 @@ async def collect_jira_metrics(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
         .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
-        .order_by(MetricsDB.created_at.desc())
+        .order_by(MetricsDB.period_year.desc(), MetricsDB.period_month.desc())
         .limit(1)
     )
     existing_metrics = result.scalar_one_or_none()
@@ -87,31 +88,13 @@ async def collect_jira_metrics(
 
     # Build new metrics with Jira data + preserved fields
     # These collector endpoints create cumulative metrics (project start to current day)
-    db_metrics = MetricsDB(
+    db_metrics = MetricsDB.from_collector_data(
         project_id=str(project_id),
         period_start=period_start,
         period_end=period_end,
-        period_year=period_end.year,
-        period_month=period_end.month,
-        snapshot_type=SnapshotType.CUMULATIVE.value,
-        # Jira defect metrics
-        bugs_total=raw_metrics.get("bugs_total", 0),
-        tasks_completed=raw_metrics.get("tasks_completed", 0),
-        escaped_defects=raw_metrics.get("escaped_defects", 0),
-        mttr_hours=raw_metrics.get("mttr_hours"),
-        incidents_count=raw_metrics.get("incidents_count", 0),
-        post_contract_tasks=raw_metrics.get("post_contract_tasks"),
-        # Jira flow metrics
-        lead_time_days=raw_metrics.get("lead_time_days"),
-        lead_time_sample_size=raw_metrics.get("lead_time_sample_size", 0),
-        commitment_reliability=raw_metrics.get("commitment_reliability"),
-        committed_issues=raw_metrics.get("committed_issues", 0),
-        single_sprint_issues=raw_metrics.get("single_sprint_issues", 0),
-        multi_sprint_issues=raw_metrics.get("multi_sprint_issues", 0),
-        total_stories=raw_metrics.get("total_stories", 0),
-        stories_with_reviewer=raw_metrics.get("stories_with_reviewer", 0),
-        # Preserved fields (manual + GitHub)
-        **preserved,
+        snapshot_type=SnapshotType.CUMULATIVE,
+        jira_data=raw_metrics,
+        preserved=preserved,
     )
 
     db.add(db_metrics)
@@ -150,7 +133,8 @@ async def collect_github_metrics(
 
     collector = GitHubCollector()
     try:
-        raw_metrics = await collector.collect(project.github_repo)
+        collected = await collector.collect(project.github_repo)
+        raw_metrics = collected.model_dump()
     except ConfigurationError:
         raise
     except ValueError as e:
@@ -172,7 +156,7 @@ async def collect_github_metrics(
         select(MetricsDB)
         .where(MetricsDB.project_id == str(project_id))
         .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
-        .order_by(MetricsDB.created_at.desc())
+        .order_by(MetricsDB.period_year.desc(), MetricsDB.period_month.desc())
         .limit(1)
     )
     existing_metrics = result.scalar_one_or_none()
@@ -201,24 +185,12 @@ async def collect_github_metrics(
         period_start = project.start_date or now.date()
         period_end = now.date()
 
-        db_metrics = MetricsDB(
+        db_metrics = MetricsDB.from_collector_data(
             project_id=str(project_id),
             period_start=period_start,
             period_end=period_end,
-            period_year=period_end.year,
-            period_month=period_end.month,
-            snapshot_type=SnapshotType.CUMULATIVE.value,
-            prs_without_review=raw_metrics.get("prs_without_review", 0),
-            total_merged_prs=raw_metrics.get("total_merged_prs", 0),
-            high_severity_vulns=raw_metrics.get("high_severity_vulns", 0),
-            high_severity_vulns_total=raw_metrics.get("high_severity_vulns_total", 0),
-            pr_size_median=raw_metrics.get("pr_size_median"),
-            review_turnaround_hours=raw_metrics.get("review_turnaround_hours"),
-            deployment_frequency=raw_metrics.get("deployment_frequency"),
-            release_count_90d=raw_metrics.get("release_count_90d", 0),
-            change_failure_rate=raw_metrics.get("change_failure_rate"),
-            total_releases=raw_metrics.get("total_releases", 0),
-            failed_releases=raw_metrics.get("failed_releases", 0),
+            snapshot_type=SnapshotType.CUMULATIVE,
+            github_data=raw_metrics,
         )
         db.add(db_metrics)
         await db.flush()

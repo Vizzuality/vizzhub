@@ -308,6 +308,140 @@ class MetricsDB(Base):
         result["sev1_incident"] = False
         return result
 
+    # Field mappings from collector data to DB columns
+    JIRA_FIELD_MAPPING = {
+        # Defect metrics
+        "bugs_total": ("bugs_total", 0),
+        "tasks_completed": ("tasks_completed", 0),
+        "escaped_defects": ("escaped_defects", 0),
+        "mttr_hours": ("mttr_hours", None),
+        "incidents_count": ("incidents_count", 0),
+        "post_contract_tasks": ("post_contract_tasks", None),
+        # Flow metrics
+        "lead_time_days": ("lead_time_days", None),
+        "lead_time_sample_size": ("lead_time_sample_size", 0),
+        "commitment_reliability": ("commitment_reliability", None),
+        "committed_issues": ("committed_issues", 0),
+        "single_sprint_issues": ("single_sprint_issues", 0),
+        "multi_sprint_issues": ("multi_sprint_issues", 0),
+        "total_stories": ("total_stories", 0),
+        "stories_with_reviewer": ("stories_with_reviewer", 0),
+    }
+
+    GITHUB_FIELD_MAPPING = {
+        "prs_without_review": ("prs_without_review", 0),
+        "total_merged_prs": ("total_merged_prs", 0),
+        "high_severity_vulns": ("high_severity_vulns", 0),
+        "high_severity_vulns_total": ("high_severity_vulns_total", 0),
+        "pr_size_median": ("pr_size_median", None),
+        "review_turnaround_hours": ("review_turnaround_hours", None),
+        "deployment_frequency": ("deployment_frequency", None),
+        "release_count_90d": ("release_count_90d", 0),
+        "change_failure_rate": ("change_failure_rate", None),
+        "total_releases": ("total_releases", 0),
+        "failed_releases": ("failed_releases", 0),
+    }
+
+    @classmethod
+    def from_collector_data(
+        cls,
+        project_id: str,
+        period_start: date,
+        period_end: date,
+        snapshot_type: SnapshotType,
+        jira_data: dict | None = None,
+        github_data: dict | None = None,
+        preserved: dict | None = None,
+    ) -> "MetricsDB":
+        """Create MetricsDB instance from collector data.
+
+        Centralizes the logic for building metrics from Jira/GitHub collector output.
+
+        Args:
+            project_id: UUID of the project as string
+            period_start: Start date for the metrics period
+            period_end: End date for the metrics period
+            snapshot_type: Type of snapshot (PUNCTUAL or CUMULATIVE)
+            jira_data: Raw data from Jira collector (optional)
+            github_data: Raw data from GitHub collector (optional)
+            preserved: Preserved fields from existing metrics (manual + optionally GitHub)
+
+        Returns:
+            MetricsDB instance ready to be added to session
+        """
+        # Extract Jira fields
+        jira_fields = {}
+        if jira_data:
+            for key, (db_field, default) in cls.JIRA_FIELD_MAPPING.items():
+                jira_fields[db_field] = jira_data.get(key, default)
+
+        # Extract GitHub fields
+        github_fields = {}
+        if github_data:
+            for key, (db_field, default) in cls.GITHUB_FIELD_MAPPING.items():
+                github_fields[db_field] = github_data.get(key, default)
+
+        return cls(
+            project_id=project_id,
+            period_start=period_start,
+            period_end=period_end,
+            period_year=period_end.year,
+            period_month=period_end.month,
+            snapshot_type=snapshot_type.value,
+            **jira_fields,
+            **github_fields,
+            **(preserved or {}),
+        )
+
+    @staticmethod
+    def build_metrics_dict(
+        period_start: date,
+        period_end: date,
+        jira_data: dict | None = None,
+        github_data: dict | None = None,
+        preserved: dict | None = None,
+    ) -> dict:
+        """Build a metrics data dict from collector data.
+
+        Used when you need a dict instead of a MetricsDB instance.
+
+        Args:
+            period_start: Start date for the metrics period
+            period_end: End date for the metrics period
+            jira_data: Raw data from Jira collector (optional)
+            github_data: Raw data from GitHub collector (optional)
+            preserved: Preserved fields from existing metrics
+
+        Returns:
+            Dict suitable for MetricsService.upsert_metrics
+        """
+        result = {
+            "period_start": period_start,
+            "period_end": period_end,
+        }
+
+        # Extract Jira fields
+        if jira_data:
+            for key, (db_field, default) in MetricsDB.JIRA_FIELD_MAPPING.items():
+                result[db_field] = jira_data.get(key, default)
+        else:
+            for _, (db_field, _) in MetricsDB.JIRA_FIELD_MAPPING.items():
+                result[db_field] = None
+
+        # Extract GitHub fields
+        if github_data:
+            for key, (db_field, default) in MetricsDB.GITHUB_FIELD_MAPPING.items():
+                result[db_field] = github_data.get(key, default)
+        else:
+            for _, (db_field, _) in MetricsDB.GITHUB_FIELD_MAPPING.items():
+                result[db_field] = None
+
+        # Add preserved fields
+        if preserved:
+            result.update(preserved)
+
+        return result
+
 
 class MetricsCreate(BaseModel):
     """Schema for creating/updating metrics - uses nested models for API convenience."""

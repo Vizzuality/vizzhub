@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.collectors.jira.client import JiraClient
+from app.services.collectors.models import JiraCollectedMetrics
 from app.services.collectors.jira.commitment_reliability import (
     collect_commitment_reliability,
 )
@@ -34,7 +35,7 @@ class JiraCollector:
         """Test if connection to Jira is working."""
         return await self._jira_client.test_connection()
 
-    async def collect(self, project_key: str, **kwargs: Any) -> dict[str, Any]:
+    async def collect(self, project_key: str, **kwargs: Any) -> JiraCollectedMetrics:
         """
         Collect raw metrics from Jira for a project.
 
@@ -73,30 +74,23 @@ class JiraCollector:
             self._jira_client, project_key, kwargs.get("end_date")
         )
 
-        return {
-            # defect_density
-            "bugs_total": defect_data["bugs_total"],
-            "tasks_completed": defect_data["tasks_completed"],
-            # escaped_rate
-            "escaped_defects": escaped_data["escaped_defects"],
-            # mttr
-            "incidents_count": mttr_data["incidents_count"],
-            "mttr_hours": mttr_data["mttr_hours"],
-            # story_review_ratio
-            "total_stories": story_review_data["total_stories"],
-            "stories_with_reviewer": story_review_data["stories_with_reviewer"],
-            # commitment_reliability
-            "commitment_reliability": commitment_data["commitment_reliability"],
-            "committed_issues": commitment_data["committed_issues"],
-            "single_sprint_issues": commitment_data["single_sprint_issues"],
-            "multi_sprint_issues": commitment_data["multi_sprint_issues"],
-            # lead_time
-            "lead_time_days": lead_time_data["lead_time_days"],
-            "lead_time_sample_size": lead_time_data["sample_size"],
-            # post_contract_tasks
-            "post_contract_tasks": post_contract_data["post_contract_tasks"],
-            "post_contract_cutoff": post_contract_data["post_contract_cutoff"],
-        }
+        return JiraCollectedMetrics(
+            bugs_total=defect_data["bugs_total"],
+            tasks_completed=defect_data["tasks_completed"],
+            escaped_defects=escaped_data["escaped_defects"],
+            incidents_count=mttr_data["incidents_count"],
+            mttr_hours=mttr_data["mttr_hours"],
+            total_stories=story_review_data["total_stories"],
+            stories_with_reviewer=story_review_data["stories_with_reviewer"],
+            commitment_reliability=commitment_data["commitment_reliability"],
+            committed_issues=commitment_data["committed_issues"],
+            single_sprint_issues=commitment_data["single_sprint_issues"],
+            multi_sprint_issues=commitment_data["multi_sprint_issues"],
+            lead_time_days=lead_time_data["lead_time_days"],
+            lead_time_sample_size=lead_time_data["sample_size"],
+            post_contract_tasks=post_contract_data["post_contract_tasks"],
+            post_contract_cutoff=post_contract_data["post_contract_cutoff"],
+        )
 
     async def close(self) -> None:
         """Close the HTTP client."""

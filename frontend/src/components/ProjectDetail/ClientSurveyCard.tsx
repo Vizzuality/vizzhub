@@ -1,9 +1,11 @@
 import { Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import EditableMetricCard from './EditableMetricCard';
+import { RatingButtons } from '@/components/ui/RatingButtons';
+import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { ClientSurvey, ProjectStatus } from '../../types';
+
+const RATING_OPTIONS = [1, 2, 3, 4, 5] as const;
 
 const SURVEY_QUESTIONS = [
   { key: 'understanding', configKey: 'weight_survey_understanding', label: 'Understanding of needs', shortLabel: 'Understanding', defaultWeight: 12 },
@@ -26,6 +28,7 @@ interface ClientSurveyCardProps {
   onSave: (data: Partial<Record<SurveyKey, number>>) => Promise<unknown>;
   isPending: boolean;
   getWeight: (name: string) => number | null;
+  historicalData?: HistoricalDataPoint[];
 }
 
 export default function ClientSurveyCard({
@@ -36,6 +39,7 @@ export default function ClientSurveyCard({
   onSave,
   isPending,
   getWeight,
+  historicalData,
 }: ClientSurveyCardProps): JSX.Element {
   const isDisabled = projectStatus === 'in_progress';
 
@@ -47,6 +51,7 @@ export default function ClientSurveyCard({
 
   return (
     <EditableMetricCard<Partial<Record<SurveyKey, number>>>
+      historicalData={historicalData}
       title="Client Satisfaction Survey"
       description={
         isDisabled
@@ -83,19 +88,13 @@ export default function ClientSurveyCard({
                 <label className="text-sm font-medium text-muted-foreground">{label}</label>
                 <span className="text-xs text-muted-foreground">Weight: {getQuestionWeight(configKey, defaultWeight)}</span>
               </div>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <Button
-                    key={value}
-                    size="sm"
-                    variant={form[key] === value ? 'default' : 'outline'}
-                    onClick={() => setForm((prev) => ({ ...prev, [key]: value }))}
-                    className="flex-1"
-                  >
-                    {value}
-                  </Button>
-                ))}
-              </div>
+              <RatingButtons
+                options={RATING_OPTIONS}
+                selected={form[key]}
+                onSelect={(value) => setForm((prev) => ({ ...prev, [key]: value }))}
+                className="flex gap-1"
+                buttonClassName="flex-1"
+              />
             </div>
           ))}
         </>

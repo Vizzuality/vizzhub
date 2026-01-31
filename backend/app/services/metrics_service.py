@@ -81,6 +81,39 @@ class MetricsService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def get_latest_metrics_for_scoring(
+        db: AsyncSession,
+        project_id: str | UUID,
+        snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
+        limit: int = 20,
+    ) -> list[MetricsDB]:
+        """Get latest metrics ordered for score computation.
+
+        Unlike get_project_history which orders by period, this orders by
+        period_end and created_at to find the most recent data points for
+        consolidation.
+
+        Args:
+            db: Database session
+            project_id: Project UUID
+            snapshot_type: Snapshot type filter
+            limit: Maximum records to fetch
+
+        Returns:
+            List of MetricsDB ordered by period_end desc, created_at desc
+        """
+        project_uuid = UUID(str(project_id)) if isinstance(project_id, str) else project_id
+
+        result = await db.execute(
+            select(MetricsDB)
+            .where(MetricsDB.project_id == project_uuid)
+            .where(MetricsDB.snapshot_type == snapshot_type.value)
+            .order_by(MetricsDB.period_end.desc(), MetricsDB.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def upsert_metrics(
         db: AsyncSession,
         project_id: str | UUID,

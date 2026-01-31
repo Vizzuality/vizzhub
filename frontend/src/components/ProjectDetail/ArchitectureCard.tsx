@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import EditableMetricCard from './EditableMetricCard';
+import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { Architecture } from '../../types';
 
@@ -38,6 +38,7 @@ interface ArchitectureCardProps {
   target: number | null;
   onSave: (data: Record<ChecklistKey, boolean>) => Promise<unknown>;
   isPending: boolean;
+  historicalData?: HistoricalDataPoint[];
 }
 
 const DEFAULT_FORM: Record<ChecklistKey, boolean> = {
@@ -53,9 +54,11 @@ export default function ArchitectureCard({
   target,
   onSave,
   isPending,
+  historicalData,
 }: ArchitectureCardProps): JSX.Element {
   return (
     <EditableMetricCard<Record<ChecklistKey, boolean>>
+      historicalData={historicalData}
       title="Architecture Checklist"
       description="Documentation & infrastructure practices"
       tooltipContent={<p className="font-mono text-xs">score = yes_count / 4</p>}

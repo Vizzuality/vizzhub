@@ -1,4 +1,4 @@
-export { default as EditableMetricCard } from './EditableMetricCard';
+export { default as EditableMetricCard, type HistoricalDataPoint } from './EditableMetricCard';
 export { default as GovernanceCard } from './GovernanceCard';
 export { default as PMSatisfactionCard } from './PMSatisfactionCard';
 export { default as StrategicImpactCard } from './StrategicImpactCard';

@@ -1,11 +1,44 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import EVMForm from '../Forms/EVMForm';
-import { EVCard, SPICard, CPICard, EVMDataGrid, MilestonesCard, MilestonesList } from './EVM';
-import type { EVMData, Milestone, Indicators } from '../../types';
+import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
+import { EVMDataGrid, MilestonesList } from './EVM';
+import type { EVMData, Milestone, Indicators, MetricsWithScores } from '../../types';
+
+type IndicatorKey = keyof Indicators;
+
+function formatPeriod(year: number, month: number): string {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
+}
+
+function getHistoricalData(
+  snapshots: MetricsWithScores[] | undefined,
+  indicatorKey: IndicatorKey,
+  multiplier = 1,
+): HistoricalDataPoint[] {
+  if (!snapshots || snapshots.length === 0) return [];
+  return snapshots
+    .slice()
+    .reverse()
+    .map((s) => ({
+      period: formatPeriod(s.period_year, s.period_month),
+      value: s.indicators[indicatorKey] !== null && s.indicators[indicatorKey] !== undefined
+        ? (s.indicators[indicatorKey] as number) * multiplier
+        : null,
+    }));
+}
 
 interface EVMSectionProps {
   evmData?: EVMData | null;
@@ -17,6 +50,7 @@ interface EVMSectionProps {
   isUpdatingMilestones: boolean;
   getTarget: (name: string) => number | null;
   getConstant: (name: string) => number | null;
+  snapshots?: MetricsWithScores[];
 }
 
 type MilestoneStatus = 'on-time' | 'late' | 'pending';
@@ -31,20 +65,61 @@ export default function EVMSection({
   isUpdatingMilestones,
   getTarget,
   getConstant,
+  snapshots,
 }: EVMSectionProps): JSX.Element {
   const [isEditingEVM, setIsEditingEVM] = useState(false);
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
-  const [showMilestones, setShowMilestones] = useState(false);
+  const [hasMilestoneChanges, setHasMilestoneChanges] = useState(false);
+  const [showDiscardAlert, setShowDiscardAlert] = useState(false);
+  const pendingMilestonesRef = useRef<Milestone[] | null>(null);
 
   const handleUpdateEVM = async (data: EVMData): Promise<void> => {
     await onUpdateEVM(data);
+    handleCloseEditing();
+  };
+
+  const handleCloseEditing = (): void => {
     setIsEditingEVM(false);
+    setIsEditingMilestones(false);
+    setHasMilestoneChanges(false);
+    pendingMilestonesRef.current = null;
+  };
+
+  const handleCancelEditing = (): void => {
+    if (hasMilestoneChanges) {
+      setShowDiscardAlert(true);
+    } else {
+      handleCloseEditing();
+    }
+  };
+
+  const handleSaveMilestonesAndClose = async (): Promise<void> => {
+    if (pendingMilestonesRef.current && pendingMilestonesRef.current.length > 0) {
+      await onUpdateMilestones(pendingMilestonesRef.current);
+    }
+    setShowDiscardAlert(false);
+    handleCloseEditing();
+  };
+
+  const handleDiscardAndClose = (): void => {
+    setShowDiscardAlert(false);
+    handleCloseEditing();
   };
 
   const handleUpdateMilestones = async (data: Milestone[]): Promise<void> => {
     await onUpdateMilestones(data);
     setIsEditingMilestones(false);
+    setHasMilestoneChanges(false);
+    pendingMilestonesRef.current = null;
   };
+
+  const handleMilestonesDirtyChange = useCallback((isDirty: boolean): void => {
+    setHasMilestoneChanges(isDirty);
+  }, []);
+
+  const handleMilestonesValuesChange = useCallback((data: Milestone[]): void => {
+    pendingMilestonesRef.current = data;
+  }, []);
 
   const handleDeleteMilestone = async (index: number): Promise<void> => {
     if (!milestones) return;
@@ -67,6 +142,32 @@ export default function EVMSection({
   };
 
   const milestonesTarget = (getTarget('target_milestones_on_time') ?? 85) / 100;
+  const spiTarget = getTarget('target_spi') ?? 0.8;
+  const cpiTarget = getTarget('target_cpi') ?? 0.8;
+
+  const spiValue = evmData && evmData.percent_planned > 0
+    ? evmData.percent_completed / evmData.percent_planned
+    : null;
+
+  const cpiValue = evmData && evmData.cost_to_date > 0
+    ? (evmData.budget_total * evmData.percent_completed) / evmData.cost_to_date
+    : null;
+
+  const earnedValue = evmData
+    ? evmData.budget_total * evmData.percent_completed
+    : null;
+
+  const getSPIStatus = (value: number): string => {
+    if (value > 1) return 'Ahead of schedule';
+    if (value === 1) return 'On schedule';
+    return 'Behind schedule';
+  };
+
+  const getCPIStatus = (value: number): string => {
+    if (value > 1) return 'Under budget';
+    if (value === 1) return 'On budget';
+    return 'Over budget';
+  };
 
   return (
     <>
@@ -86,57 +187,34 @@ export default function EVMSection({
             </Button>
           )}
         </div>
-        <Card>
+
+        {/* EVM Data Card */}
+        <Card className="mb-6">
           <CardContent className="pt-6">
             {isEditingEVM ? (
-              <EVMForm
-                initialData={evmData ?? undefined}
-                onSubmit={handleUpdateEVM}
-                onCancel={() => setIsEditingEVM(false)}
-                isLoading={isUpdatingEVM}
-              />
-            ) : evmData ? (
-              <div className="space-y-4">
-                <EVMDataGrid evmData={evmData} />
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <EVCard label="Earned Value (EV)" tooltip="Budget x Work Completed">
-                    <p className="text-xl font-semibold">
-                      $
-                      {(evmData.budget_total * evmData.percent_completed).toLocaleString(
-                        undefined,
-                        { maximumFractionDigits: 0 }
-                      )}
-                    </p>
-                  </EVCard>
-
-                  <SPICard evmData={evmData} getTarget={getTarget} />
-                  <CPICard evmData={evmData} getTarget={getTarget} />
-
-                  <MilestonesCard
-                    milestones={milestones}
-                    onTimeMilestones={indicators.on_time_milestones}
-                    milestonesTarget={milestonesTarget}
-                    isExpanded={showMilestones}
-                    onToggle={() => setShowMilestones(!showMilestones)}
-                  />
-                </div>
-
-                {showMilestones && (
-                  <div className="mt-4">
-                    <MilestonesList
-                      milestones={milestones}
-                      isEditing={isEditingMilestones}
-                      isLoading={isUpdatingMilestones}
-                      onEdit={() => setIsEditingMilestones(true)}
-                      onCancelEdit={() => setIsEditingMilestones(false)}
-                      onSubmit={handleUpdateMilestones}
-                      onDelete={handleDeleteMilestone}
-                      getMilestoneStatus={getMilestoneStatus}
-                    />
-                  </div>
-                )}
+              <div className="space-y-6">
+                <EVMForm
+                  initialData={evmData ?? undefined}
+                  onSubmit={handleUpdateEVM}
+                  onCancel={handleCancelEditing}
+                  isLoading={isUpdatingEVM}
+                />
+                <Separator />
+                <MilestonesList
+                  milestones={milestones}
+                  isEditing={isEditingMilestones}
+                  isLoading={isUpdatingMilestones}
+                  onEdit={() => setIsEditingMilestones(true)}
+                  onCancelEdit={() => setIsEditingMilestones(false)}
+                  onSubmit={handleUpdateMilestones}
+                  onDelete={handleDeleteMilestone}
+                  getMilestoneStatus={getMilestoneStatus}
+                  onDirtyChange={handleMilestonesDirtyChange}
+                  onValuesChange={handleMilestonesValuesChange}
+                />
               </div>
+            ) : evmData ? (
+              <EVMDataGrid evmData={evmData} />
             ) : (
               <p className="text-muted-foreground">
                 No budget data available. Click "Add EVM Data" to enter budget and schedule
@@ -145,7 +223,79 @@ export default function EVMSection({
             )}
           </CardContent>
         </Card>
+
+        {/* Performance Indicators Grid */}
+        {evmData && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <SubIndicatorCard
+              title="Schedule Performance (SPI)"
+              indicatorValue={spiValue !== null ? spiValue * 100 : null}
+              indicatorLabel="Work Completed / Expected"
+              indicatorSuffix="%"
+              description={spiValue !== null ? getSPIStatus(spiValue) : undefined}
+              target={spiTarget * 100}
+              lowerIsBetter={false}
+              formula="% Completed / % Planned"
+              metrics={[
+                { label: 'Completed', value: `${(evmData.percent_completed * 100).toFixed(0)}%` },
+                { label: 'Planned', value: `${(evmData.percent_planned * 100).toFixed(0)}%` },
+              ]}
+              historicalData={getHistoricalData(snapshots, 'spi', 100)}
+            />
+
+            <SubIndicatorCard
+              title="Cost Performance (CPI)"
+              indicatorValue={cpiValue !== null ? cpiValue * 100 : null}
+              indicatorLabel="Earned Value / Actual Cost"
+              indicatorSuffix="%"
+              description={cpiValue !== null ? getCPIStatus(cpiValue) : undefined}
+              target={cpiTarget * 100}
+              lowerIsBetter={false}
+              formula="EV / Cost to Date"
+              metrics={[
+                { label: 'Earned Value', value: `$${earnedValue?.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+                { label: 'Cost to Date', value: `$${evmData.cost_to_date.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+              ]}
+              historicalData={getHistoricalData(snapshots, 'cpi', 100)}
+            />
+
+            <SubIndicatorCard
+              title="On-Time Milestones"
+              indicatorValue={indicators.on_time_milestones !== null ? indicators.on_time_milestones * 100 : null}
+              indicatorLabel="Delivery rate"
+              indicatorSuffix="%"
+              description="Milestones delivered within grace period"
+              target={milestonesTarget * 100}
+              lowerIsBetter={false}
+              formula="on_time / total"
+              metrics={[
+                { label: 'Total Milestones', value: milestones?.length ?? 0 },
+              ]}
+              historicalData={getHistoricalData(snapshots, 'on_time_milestones', 100)}
+            />
+          </div>
+        )}
+
       </div>
+
+      <AlertDialog open={showDiscardAlert} onOpenChange={setShowDiscardAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Milestone Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to milestones. Would you like to save them before closing?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={handleDiscardAndClose}>
+              Discard Changes
+            </Button>
+            <Button onClick={handleSaveMilestonesAndClose}>
+              Save Milestones
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

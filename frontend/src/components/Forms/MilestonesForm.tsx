@@ -1,4 +1,5 @@
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useEffect } from 'react';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { Plus, Trash2, Calendar, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,8 @@ interface MilestonesFormProps {
   onSubmit: (data: Milestone[]) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onValuesChange?: (data: Milestone[]) => void;
 }
 
 export default function MilestonesForm({
@@ -25,12 +28,15 @@ export default function MilestonesForm({
   onSubmit,
   onCancel,
   isLoading = false,
+  onDirtyChange,
+  onValuesChange,
 }: MilestonesFormProps): JSX.Element {
   const {
     register,
     control,
     handleSubmit,
-    formState: { errors },
+    getValues,
+    formState: { errors, isDirty },
   } = useForm<MilestonesFormData>({
     defaultValues: {
       milestones: initialData?.map((m) => ({
@@ -45,6 +51,31 @@ export default function MilestonesForm({
     control,
     name: 'milestones',
   });
+
+  const watchedMilestones = useWatch({
+    control,
+    name: 'milestones',
+  });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (onValuesChange) {
+      const currentValues = getValues('milestones');
+      if (currentValues) {
+        const milestones: Milestone[] = currentValues
+          .filter((m) => m.name && m.planned_date)
+          .map((m) => ({
+            name: m.name,
+            planned_date: m.planned_date,
+            actual_date: m.actual_date || undefined,
+          }));
+        onValuesChange(milestones);
+      }
+    }
+  }, [watchedMilestones, fields, isDirty, getValues, onValuesChange]);
 
   const handleFormSubmit = (data: MilestonesFormData): void => {
     const milestones: Milestone[] = data.milestones

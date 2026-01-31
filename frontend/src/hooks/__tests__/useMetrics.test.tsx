@@ -169,16 +169,20 @@ describe('useMetrics', () => {
       const olderMetrics = {
         id: 'metrics-old',
         project_id: projectId,
-        period_start: '2026-01-01',
-        period_end: '2026-01-15',
+        period_start: '2025-12-01',
+        period_end: '2025-12-31',
+        period_year: 2025,
+        period_month: 12,
         created_at: '2026-01-15T12:00:00Z',
       };
       const newerMetrics = {
         id: 'metrics-new',
         project_id: projectId,
-        period_start: '2026-01-16',
+        period_start: '2026-01-01',
         period_end: '2026-01-31',
-        created_at: '2026-01-31T12:00:00Z',
+        period_year: 2026,
+        period_month: 1,
+        created_at: '2026-01-10T12:00:00Z', // Created earlier but more recent period
       };
 
       vi.mocked(api.get).mockResolvedValue({ data: [olderMetrics, newerMetrics] });

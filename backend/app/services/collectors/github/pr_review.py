@@ -32,6 +32,7 @@ Edge Cases:
 """
 
 import asyncio
+import logging
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -43,6 +44,8 @@ from app.services.collectors.github.utils import (
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
+
+logger = logging.getLogger(__name__)
 
 
 async def collect_pr_review(
@@ -123,7 +126,7 @@ async def _pr_has_review(
             reviews = response.json()
             return len(reviews) > 0
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to check review for PR #%d in %s/%s: %s", pr_number, owner, repo, e)
 
     return False

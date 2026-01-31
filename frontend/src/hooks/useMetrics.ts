@@ -10,9 +10,13 @@ export function useProjectMetrics(projectId: string) {
       try {
         const response = await api.get<Metrics[]>(`/metrics/project/${projectId}`);
         if (response.data && response.data.length > 0) {
-          const sorted = response.data.sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          // Sort by period (year, month) descending to get most recent period
+          const sorted = response.data.sort((a, b) => {
+            if (a.period_year !== b.period_year) {
+              return b.period_year - a.period_year;
+            }
+            return b.period_month - a.period_month;
+          });
           return sorted[0];
         }
         return null;

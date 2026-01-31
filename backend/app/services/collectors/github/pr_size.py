@@ -38,6 +38,7 @@ Industry Benchmarks:
 """
 
 import asyncio
+import logging
 import statistics
 from datetime import date
 from typing import TYPE_CHECKING
@@ -50,6 +51,8 @@ from app.services.collectors.github.utils import (
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
+
+logger = logging.getLogger(__name__)
 
 
 async def collect_pr_size(
@@ -123,7 +126,7 @@ async def _get_pr_size(
             if additions is not None and deletions is not None:
                 return additions + deletions
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to get size for PR #%d in %s/%s: %s", pr_number, owner, repo, e)
 
     return None

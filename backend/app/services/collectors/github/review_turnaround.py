@@ -38,6 +38,7 @@ Industry Benchmarks:
 """
 
 import asyncio
+import logging
 import statistics
 from datetime import date
 from typing import TYPE_CHECKING
@@ -51,6 +52,8 @@ from app.services.collectors.github.utils import (
 
 if TYPE_CHECKING:
     from app.services.collectors.github.client import GitHubClient
+
+logger = logging.getLogger(__name__)
 
 
 async def collect_review_turnaround(
@@ -148,5 +151,6 @@ async def _get_pr_turnaround_hours(
         hours = delta.total_seconds() / 3600
         return hours
 
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to get review turnaround for PR #%s in %s/%s: %s", pr_number, owner, repo, e)
         return None
