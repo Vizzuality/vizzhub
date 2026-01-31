@@ -20,6 +20,7 @@ export default function GovernanceCard({
   return (
     <EditableMetricCard<number>
       historicalData={historicalData}
+      dimension="Risk"
       title="Governance Compliance"
       description="Exceptions from latest peer review"
       tooltipContent={<p className="font-mono text-xs">score = 1 - (exceptions / target)</p>}

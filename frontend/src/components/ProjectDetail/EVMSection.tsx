@@ -14,7 +14,7 @@ import {
 import EVMForm from '../Forms/EVMForm';
 import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
 import { EVMDataGrid, MilestonesList } from './EVM';
-import type { EVMData, Milestone, Indicators, MetricsWithScores } from '../../types';
+import type { EVMData, Milestone, Indicators, MetricsWithScores, Dimension } from '../../types';
 
 type IndicatorKey = keyof Indicators;
 
@@ -51,6 +51,7 @@ interface EVMSectionProps {
   getTarget: (name: string) => number | null;
   getConstant: (name: string) => number | null;
   snapshots?: MetricsWithScores[];
+  visibleDimensions?: Set<Dimension>;
 }
 
 type MilestoneStatus = 'on-time' | 'late' | 'pending';
@@ -66,7 +67,10 @@ export default function EVMSection({
   getTarget,
   getConstant,
   snapshots,
+  visibleDimensions,
 }: EVMSectionProps): JSX.Element {
+  const showTime = !visibleDimensions || visibleDimensions.has('Time');
+  const showCost = !visibleDimensions || visibleDimensions.has('Cost');
   const [isEditingEVM, setIsEditingEVM] = useState(false);
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
   const [hasMilestoneChanges, setHasMilestoneChanges] = useState(false);
@@ -225,54 +229,63 @@ export default function EVMSection({
         </Card>
 
         {/* Performance Indicators Grid */}
-        {evmData && (
+        {evmData && (showTime || showCost) && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SubIndicatorCard
-              title="Schedule Performance (SPI)"
-              indicatorValue={spiValue !== null ? spiValue * 100 : null}
-              indicatorLabel="Work Completed / Expected"
-              indicatorSuffix="%"
-              description={spiValue !== null ? getSPIStatus(spiValue) : undefined}
-              target={spiTarget * 100}
-              lowerIsBetter={false}
-              formula="% Completed / % Planned"
-              metrics={[
-                { label: 'Completed', value: `${(evmData.percent_completed * 100).toFixed(0)}%` },
-                { label: 'Planned', value: `${(evmData.percent_planned * 100).toFixed(0)}%` },
-              ]}
-              historicalData={getHistoricalData(snapshots, 'spi', 100)}
-            />
+            {showTime && (
+              <SubIndicatorCard
+                title="Schedule Performance (SPI)"
+                dimension="Time"
+                indicatorValue={spiValue !== null ? spiValue * 100 : null}
+                indicatorLabel="Work Completed / Expected"
+                indicatorSuffix="%"
+                description={spiValue !== null ? getSPIStatus(spiValue) : undefined}
+                target={spiTarget * 100}
+                lowerIsBetter={false}
+                formula="% Completed / % Planned"
+                metrics={[
+                  { label: 'Completed', value: `${(evmData.percent_completed * 100).toFixed(0)}%` },
+                  { label: 'Planned', value: `${(evmData.percent_planned * 100).toFixed(0)}%` },
+                ]}
+                historicalData={getHistoricalData(snapshots, 'spi', 100)}
+              />
+            )}
 
-            <SubIndicatorCard
-              title="Cost Performance (CPI)"
-              indicatorValue={cpiValue !== null ? cpiValue * 100 : null}
-              indicatorLabel="Earned Value / Actual Cost"
-              indicatorSuffix="%"
-              description={cpiValue !== null ? getCPIStatus(cpiValue) : undefined}
-              target={cpiTarget * 100}
-              lowerIsBetter={false}
-              formula="EV / Cost to Date"
-              metrics={[
-                { label: 'Earned Value', value: `$${earnedValue?.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
-                { label: 'Cost to Date', value: `$${evmData.cost_to_date.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
-              ]}
-              historicalData={getHistoricalData(snapshots, 'cpi', 100)}
-            />
+            {showCost && (
+              <SubIndicatorCard
+                title="Cost Performance (CPI)"
+                dimension="Cost"
+                indicatorValue={cpiValue !== null ? cpiValue * 100 : null}
+                indicatorLabel="Earned Value / Actual Cost"
+                indicatorSuffix="%"
+                description={cpiValue !== null ? getCPIStatus(cpiValue) : undefined}
+                target={cpiTarget * 100}
+                lowerIsBetter={false}
+                formula="EV / Cost to Date"
+                metrics={[
+                  { label: 'Earned Value', value: `$${earnedValue?.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+                  { label: 'Cost to Date', value: `$${evmData.cost_to_date.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+                ]}
+                historicalData={getHistoricalData(snapshots, 'cpi', 100)}
+              />
+            )}
 
-            <SubIndicatorCard
-              title="On-Time Milestones"
-              indicatorValue={indicators.on_time_milestones !== null ? indicators.on_time_milestones * 100 : null}
-              indicatorLabel="Delivery rate"
-              indicatorSuffix="%"
-              description="Milestones delivered within grace period"
-              target={milestonesTarget * 100}
-              lowerIsBetter={false}
-              formula="on_time / total"
-              metrics={[
-                { label: 'Total Milestones', value: milestones?.length ?? 0 },
-              ]}
-              historicalData={getHistoricalData(snapshots, 'on_time_milestones', 100)}
-            />
+            {showTime && (
+              <SubIndicatorCard
+                title="On-Time Milestones"
+                dimension="Time"
+                indicatorValue={indicators.on_time_milestones !== null ? indicators.on_time_milestones * 100 : null}
+                indicatorLabel="Delivery rate"
+                indicatorSuffix="%"
+                description="Milestones delivered within grace period"
+                target={milestonesTarget * 100}
+                lowerIsBetter={false}
+                formula="on_time / total"
+                metrics={[
+                  { label: 'Total Milestones', value: milestones?.length ?? 0 },
+                ]}
+                historicalData={getHistoricalData(snapshots, 'on_time_milestones', 100)}
+              />
+            )}
           </div>
         )}
 

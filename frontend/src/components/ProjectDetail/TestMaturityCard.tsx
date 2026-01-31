@@ -49,6 +49,7 @@ export default function TestMaturityCard({
   return (
     <EditableMetricCard<Partial<Record<TestTypeKey, number>>>
       historicalData={historicalData}
+      dimension="Quality"
       title="Test Maturity"
       description="Automated testing coverage assessment"
       tooltipContent={<p className="font-mono text-xs">weighted avg of 5 test types</p>}

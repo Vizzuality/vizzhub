@@ -59,6 +59,7 @@ export default function ArchitectureCard({
   return (
     <EditableMetricCard<Record<ChecklistKey, boolean>>
       historicalData={historicalData}
+      dimension="Engineering"
       title="Architecture Checklist"
       description="Documentation & infrastructure practices"
       tooltipContent={<p className="font-mono text-xs">score = yes_count / 4</p>}
