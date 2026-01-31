@@ -217,17 +217,9 @@ The application is configured for **development mode**:
 
 ### Future: Google OAuth
 
-**TODO**: Implement Google OAuth (Google Sign-In) for company domain users.
+Google OAuth implementation is planned. See [docs/TODO.md](docs/TODO.md) for details.
 
-When implementing Google OAuth:
-1. Install `@react-oauth/google` in frontend
-2. Configure Google OAuth client ID in environment
-3. Implement login flow in `frontend/src/pages/Login.tsx` (has TODO comments)
-4. Create backend endpoint `POST /api/auth/google` to exchange Google token for JWT
-5. **TODO: Refactor JWT management** - Move from localStorage to httpOnly cookies for better security
-6. Set `DEBUG=false` and `BYPASS_AUTH=false` to enable authentication
-
-See detailed implementation guides:
+Implementation guides:
 - `docs/SECURITY_QUICK_START.md` - Quick start guide
 - `docs/DEVELOPMENT_AUTH.md` - Development authentication details
 - `docs/SECURITY_IMPLEMENTATION.md` - Full security implementation
@@ -345,15 +337,12 @@ npm test -- -t "ScoreCard"               # Tests with "ScoreCard" in name
 
 ## Roadmap
 
-Future improvements to increase the tool's value:
-
-- [ ] **Project Context Types** - Add classification (greenfield/maintenance/rescue) with adjusted benchmarks per type
-- [ ] **Trend Visualization** - Show score evolution over time, not just snapshots. A 70 trending down is worse than 60 trending up
-- [ ] **Leading Indicators** - Add predictive metrics: sprint burndown health, blocker age, PR queue depth
-- [ ] **Team Health** - Integrate optional anonymous team surveys (burnout risk, morale)
-- [ ] **Early Warning Alerts** - Notifications when metrics cross configurable thresholds
-- [ ] **Historical Benchmarks** - Compare against agency historical averages, not just absolute targets
-- [ ] **Technical Debt Integration** - Connect with SonarQube or similar for code quality tracking
+See [docs/TODO.md](docs/TODO.md) for planned features including:
+- Alerts system (early warning, threshold alerts, trend detection)
+- Predictions and forecasting (score trends, budget forecast, velocity estimates)
+- Visualization enhancements (trend charts, comparative views)
+- Google OAuth authentication
+- Integrations (team health surveys, SonarQube)
 
 ## Contributing
 
