@@ -331,8 +331,12 @@ describe('ProjectDetail', () => {
       expect(editButtons.length).toBeGreaterThan(0);
     });
 
-    it('renders Delete button', () => {
+    it('shows Delete button in edit mode', () => {
       renderWithProviders(<ProjectDetail />);
+
+      // Click first Edit button (project header) to enter edit mode
+      const editButtons = screen.getAllByRole('button', { name: /edit/i });
+      fireEvent.click(editButtons[0]);
 
       const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
       expect(deleteButtons.length).toBeGreaterThan(0);
@@ -340,6 +344,10 @@ describe('ProjectDetail', () => {
 
     it('shows delete confirmation dialog when delete clicked', () => {
       renderWithProviders(<ProjectDetail />);
+
+      // Click first Edit button (project header) to enter edit mode
+      const editButtons = screen.getAllByRole('button', { name: /edit/i });
+      fireEvent.click(editButtons[0]);
 
       const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
       fireEvent.click(deleteButtons[0]);
@@ -357,13 +365,17 @@ describe('ProjectDetail', () => {
   });
 
   describe('Project Status', () => {
-    it('shows Mark as Finished button for in_progress projects', () => {
+    it('shows Mark as Finished button in edit mode for in_progress projects', () => {
       renderWithProviders(<ProjectDetail />);
+
+      // Click first Edit button (project header) to enter edit mode
+      const editButtons = screen.getAllByRole('button', { name: /edit/i });
+      fireEvent.click(editButtons[0]);
 
       expect(screen.getByRole('button', { name: /mark as finished/i })).toBeInTheDocument();
     });
 
-    it('shows Reopen Project button for finished projects', () => {
+    it('shows Reopen Project button in edit mode for finished projects', () => {
       mockUseProject.mockReturnValue({
         data: { ...mockProject, status: 'finished' },
         isLoading: false,
@@ -371,6 +383,10 @@ describe('ProjectDetail', () => {
       });
 
       renderWithProviders(<ProjectDetail />);
+
+      // Click first Edit button (project header) to enter edit mode
+      const editButtons = screen.getAllByRole('button', { name: /edit/i });
+      fireEvent.click(editButtons[0]);
 
       expect(screen.getByRole('button', { name: /reopen project/i })).toBeInTheDocument();
     });

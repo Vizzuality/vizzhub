@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatDate } from '../../utils/formatters';
 import StatusControls from './StatusControls';
-import CollectorButtons from './CollectorButtons';
 import ProjectForm from '../Forms/ProjectForm';
 import type { Project, ProjectCreate } from '../../types';
 
@@ -21,7 +20,7 @@ interface ProjectHeaderProps {
   isUpdatingStatus: boolean;
   onCollectMetrics: () => void;
   isCollecting: boolean;
-  lastCollectedAt: string | null | undefined;
+  lastCollectedAt?: string | null;
 }
 
 export default function ProjectHeader({
@@ -40,6 +39,11 @@ export default function ProjectHeader({
   lastCollectedAt,
 }: ProjectHeaderProps): JSX.Element {
   const hasDateRange = project.start_date || project.end_date;
+  const hasCollectors = Boolean(project.jira_project_key || project.github_repo);
+  const collectorSources = [
+    project.jira_project_key && 'Jira',
+    project.github_repo && 'GitHub',
+  ].filter(Boolean).join(' & ');
 
   return (
     <>
@@ -70,20 +74,20 @@ export default function ProjectHeader({
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">
                 {project.jira_project_key && (
-                  <span className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
-                    Jira: {project.jira_project_key}
+                  <span className="flex items-center gap-2 min-w-0">
+                    <BarChart3 className="w-5 h-5 shrink-0" />
+                    <span className="truncate">Jira: {project.jira_project_key}</span>
                   </span>
                 )}
                 {project.github_repo && (
-                  <span className="flex items-center gap-2">
-                    <Github className="w-5 h-5" />
-                    GitHub: {project.github_repo}
+                  <span className="flex items-center gap-2 min-w-0">
+                    <Github className="w-5 h-5 shrink-0" />
+                    <span className="truncate">GitHub: {project.github_repo}</span>
                   </span>
                 )}
                 {hasDateRange && (
-                  <span className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
+                  <span className="flex items-center gap-2 shrink-0">
+                    <Calendar className="w-5 h-5 shrink-0" />
                     {project.start_date && formatDate(project.start_date)}
                     {project.start_date && project.end_date && ' - '}
                     {project.end_date && formatDate(project.end_date)}
@@ -94,29 +98,17 @@ export default function ProjectHeader({
 
             {!isEditing && (
               <StatusControls
-                status={project.status}
-                onMarkFinished={onMarkFinished}
-                onReopen={onReopen}
                 onEdit={onEdit}
-                onDelete={onDelete}
-                isUpdatingStatus={isUpdatingStatus}
+                projectStatus={project.status}
+                hasCollectors={hasCollectors}
+                onCollectMetrics={onCollectMetrics}
+                isCollecting={isCollecting}
+                lastCollectedAt={lastCollectedAt}
+                collectorSources={collectorSources}
               />
             )}
           </div>
         </CardHeader>
-
-        {(project.jira_project_key || project.github_repo) && !isEditing && (
-          <CardContent>
-            <CollectorButtons
-              jiraProjectKey={project.jira_project_key}
-              githubRepo={project.github_repo}
-              projectStatus={project.status}
-              onCollectMetrics={onCollectMetrics}
-              isCollecting={isCollecting}
-              lastCollectedAt={lastCollectedAt}
-            />
-          </CardContent>
-        )}
 
         {isEditing && (
           <CardContent>
@@ -125,6 +117,10 @@ export default function ProjectHeader({
               onSubmit={onSubmitEdit}
               onCancel={onCancelEdit}
               isLoading={isSubmitting}
+              onMarkFinished={onMarkFinished}
+              onReopen={onReopen}
+              onDelete={onDelete}
+              isUpdatingStatus={isUpdatingStatus}
             />
           </CardContent>
         )}

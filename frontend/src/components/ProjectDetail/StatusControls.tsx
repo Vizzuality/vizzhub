@@ -1,59 +1,76 @@
-import { Flag, RotateCcw, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import type { ProjectStatus } from '../../types';
 
 interface StatusControlsProps {
-  status: ProjectStatus;
-  onMarkFinished: () => void;
-  onReopen: () => Promise<unknown>;
   onEdit: () => void;
-  onDelete: () => void;
-  isUpdatingStatus: boolean;
+  projectStatus: ProjectStatus;
+  hasCollectors: boolean;
+  onCollectMetrics: () => void;
+  isCollecting: boolean;
+  lastCollectedAt?: string | null;
+  collectorSources: string;
 }
 
 export default function StatusControls({
-  status,
-  onMarkFinished,
-  onReopen,
   onEdit,
-  onDelete,
-  isUpdatingStatus,
+  projectStatus,
+  hasCollectors,
+  onCollectMetrics,
+  isCollecting,
+  lastCollectedAt,
+  collectorSources,
 }: StatusControlsProps): JSX.Element {
+  const isFinished = projectStatus === 'finished';
+
   return (
-    <div className="flex items-center gap-2">
-      {status === 'in_progress' ? (
-        <Button
-          variant="ghost"
-          onClick={onMarkFinished}
-          className="border border-input text-score-green hover:bg-score-green hover:text-white dark:hover:text-black hover:border-score-green"
-          disabled={isUpdatingStatus}
-        >
-          <Flag className="w-5 h-5 mr-2" />
-          Mark as Finished
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" onClick={onEdit} className="border border-input">
+          <Pencil className="w-5 h-5 mr-2" />
+          Edit
         </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          onClick={onReopen}
-          className="border border-input"
-          disabled={isUpdatingStatus}
-        >
-          <RotateCcw className="w-5 h-5 mr-2" />
-          Reopen Project
-        </Button>
+        {hasCollectors && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="ghost"
+                    onClick={onCollectMetrics}
+                    disabled={isCollecting || isFinished}
+                    className="border border-input"
+                  >
+                    <RefreshCw
+                      className={cn('w-5 h-5 mr-2', isCollecting && 'animate-spin')}
+                    />
+                    {isCollecting ? 'Collecting...' : 'Collect Metrics'}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isFinished ? (
+                  <p>Collectors disabled for finished projects</p>
+                ) : (
+                  <p>Collect from {collectorSources}</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+      {lastCollectedAt && (
+        <span className="text-sm text-muted-foreground">
+          Last collected: {new Date(lastCollectedAt).toLocaleString()}
+        </span>
       )}
-      <Button variant="ghost" onClick={onEdit} className="border border-input">
-        <Pencil className="w-5 h-5 mr-2" />
-        Edit
-      </Button>
-      <Button
-        variant="ghost"
-        onClick={onDelete}
-        className="border border-input text-destructive hover:bg-destructive hover:text-destructive-foreground"
-      >
-        <Trash2 className="w-5 h-5 mr-2" />
-        Delete
-      </Button>
     </div>
   );
 }
