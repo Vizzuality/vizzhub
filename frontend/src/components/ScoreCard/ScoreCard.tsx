@@ -9,6 +9,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { FinalScore, MetricsWithScores, Dimension } from '../../types';
+import { formatPeriod } from '../../utils/formatters';
+import { CHART_TOOLTIP_STYLE } from '../../utils/chartUtils';
 import {
   Card,
   CardContent,
@@ -38,11 +40,6 @@ interface ScoreCardProps {
   visibleDimensions?: Set<Dimension>;
   onToggleDimension?: (dimension: Dimension) => void;
   onResetFilters?: () => void;
-}
-
-function formatPeriod(year: number, month: number): string {
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
 }
 
 export default function ScoreCard({
@@ -77,14 +74,7 @@ export default function ScoreCard({
       <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
         <XAxis dataKey="period" tick={{ fontSize: 10 }} />
         <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--popover))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            fontSize: '12px',
-          }}
-        />
+        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
         <Line
           type="monotone"
           dataKey="score"

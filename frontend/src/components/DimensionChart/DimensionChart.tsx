@@ -15,6 +15,8 @@ import {
   Tooltip,
 } from 'recharts';
 import type { DimensionScores, MetricsWithScores, Dimension } from '../../types';
+import { formatPeriod } from '../../utils/formatters';
+import { CHART_TOOLTIP_STYLE } from '../../utils/chartUtils';
 import {
   Card,
   CardContent,
@@ -77,11 +79,6 @@ const KEY_TO_DIMENSION: Record<keyof DimensionScores, Dimension> = {
   p_risk: 'Risk',
 };
 
-function formatPeriod(year: number, month: number): string {
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
-}
-
 export default function DimensionChart({ scores, snapshots, visibleDimensions, onToggleDimension }: DimensionChartProps): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -120,8 +117,7 @@ export default function DimensionChart({ scores, snapshots, visibleDimensions, o
     ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
     : 'oklch(0.6726 0.2904 341.4084)';
 
-  const customLegend = ({ payload }: { payload?: Array<{ value: string; color: string; dataKey: string }> }) => {
-    if (!payload) return null;
+  const customLegend = () => {
     return (
       <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2">
         {(Object.keys(DIMENSION_LABELS) as (keyof DimensionScores)[]).map((key) => {
@@ -156,14 +152,7 @@ export default function DimensionChart({ scores, snapshots, visibleDimensions, o
       <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
         <XAxis dataKey="period" tick={{ fontSize: 10 }} />
         <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--popover))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            fontSize: '11px',
-          }}
-        />
+        <Tooltip contentStyle={{ ...CHART_TOOLTIP_STYLE, fontSize: '11px' }} />
         <Legend content={customLegend} />
         {visibleKeys.map((key) => (
           <Line

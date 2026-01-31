@@ -12,33 +12,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import EVMForm from '../Forms/EVMForm';
-import SubIndicatorCard, { type HistoricalDataPoint } from '../SubIndicatorCard';
+import SubIndicatorCard from '../SubIndicatorCard';
 import { EVMDataGrid, MilestonesList } from './EVM';
+import { getHistoricalData } from '../../utils/chartUtils';
 import type { EVMData, Milestone, Indicators, MetricsWithScores, Dimension } from '../../types';
-
-type IndicatorKey = keyof Indicators;
-
-function formatPeriod(year: number, month: number): string {
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${monthNames[month - 1]} ${year.toString().slice(-2)}`;
-}
-
-function getHistoricalData(
-  snapshots: MetricsWithScores[] | undefined,
-  indicatorKey: IndicatorKey,
-  multiplier = 1,
-): HistoricalDataPoint[] {
-  if (!snapshots || snapshots.length === 0) return [];
-  return snapshots
-    .slice()
-    .reverse()
-    .map((s) => ({
-      period: formatPeriod(s.period_year, s.period_month),
-      value: s.indicators[indicatorKey] !== null && s.indicators[indicatorKey] !== undefined
-        ? (s.indicators[indicatorKey] as number) * multiplier
-        : null,
-    }));
-}
 
 interface EVMSectionProps {
   evmData?: EVMData | null;

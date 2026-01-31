@@ -227,13 +227,14 @@ function MetricChart({ data, config, color, target, chartMode = 'line' }: Metric
     },
   };
 
-  const tooltipContent = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; payload: { period: string } }> }) => {
-    if (active && payload && payload.length) {
+  const tooltipContent = (props: { active?: boolean; payload?: Array<{ value?: number; payload?: { period: string } }> }) => {
+    const { active, payload } = props;
+    if (active && payload && payload.length && payload[0].payload) {
       const point = payload[0];
       const value = point.value as number;
       return (
         <div className="bg-popover border rounded px-3 py-2 shadow-lg">
-          <div className="font-medium text-sm">{point.payload.period}</div>
+          <div className="font-medium text-sm">{point.payload?.period}</div>
           <div className="text-base font-semibold" style={{ color }}>
             {formatValue(value, config.unit)}
           </div>

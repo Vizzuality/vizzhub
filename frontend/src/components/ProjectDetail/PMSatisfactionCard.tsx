@@ -66,7 +66,7 @@ export default function PMSatisfactionCard({
             <RatingButtons
               options={COMPLAINT_OPTIONS}
               selected={form.delivery_complaints}
-              onSelect={(value) => setForm((prev) => ({ ...prev, delivery_complaints: value }))}
+              onSelect={(value) => setForm((prev) => ({ ...prev, delivery_complaints: value as ComplaintValue }))}
               className="flex gap-2 mt-2"
             />
           </div>
@@ -77,7 +77,7 @@ export default function PMSatisfactionCard({
             <RatingButtons
               options={COMPLAINT_OPTIONS}
               selected={form.design_complaints}
-              onSelect={(value) => setForm((prev) => ({ ...prev, design_complaints: value }))}
+              onSelect={(value) => setForm((prev) => ({ ...prev, design_complaints: value as ComplaintValue }))}
               className="flex gap-2 mt-2"
             />
           </div>
