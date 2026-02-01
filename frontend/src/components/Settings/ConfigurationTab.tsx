@@ -120,8 +120,8 @@ export default function ConfigurationTab(): JSX.Element {
           <AlertTitle>Validation Errors</AlertTitle>
           <AlertDescription>
             <ul className="list-disc list-inside space-y-1 mt-2">
-              {validationErrors.map((validationError, idx) => (
-                <li key={idx} className="text-sm">
+              {validationErrors.map((validationError) => (
+                <li key={validationError} className="text-sm">
                   {validationError}
                 </li>
               ))}

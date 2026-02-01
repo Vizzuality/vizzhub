@@ -93,6 +93,16 @@ function getScoreColor(score: number | null): string {
   return COLORS.red;
 }
 
+function periodKey(year: number, month: number): string {
+  return `${year}-${month}`;
+}
+
+function getTickInterval(periodsCount: number): number {
+  if (periodsCount > 24) return 5;
+  if (periodsCount > 12) return 2;
+  return 0;
+}
+
 interface ChartDataPoint {
   key: string;
   label: string;
@@ -123,14 +133,14 @@ export default function InteractiveTimelineChart({
   const snapshotMap = useMemo(() => {
     const map = new Map<string, MetricsWithScores>();
     snapshots?.forEach((s) => {
-      map.set(`${s.period_year}-${s.period_month}`, s);
+      map.set(periodKey(s.period_year, s.period_month), s);
     });
     return map;
   }, [snapshots]);
 
   const chartData = useMemo((): ChartDataPoint[] => {
     return periods.map((p) => {
-      const key = `${p.year}-${p.month}`;
+      const key = periodKey(p.year, p.month);
       const snapshot = snapshotMap.get(key);
       return {
         key,
@@ -146,7 +156,7 @@ export default function InteractiveTimelineChart({
   const latestWithData = useMemo((): Period => {
     for (let i = periods.length - 1; i >= 0; i--) {
       const p = periods[i];
-      if (snapshotMap.has(`${p.year}-${p.month}`)) {
+      if (snapshotMap.has(periodKey(p.year, p.month))) {
         return p;
       }
     }
@@ -180,13 +190,11 @@ export default function InteractiveTimelineChart({
   );
 
   const currentScore = useMemo(() => {
-    const key = `${effectivePeriod.year}-${effectivePeriod.month}`;
-    return snapshotMap.get(key)?.scores?.score ?? null;
+    return snapshotMap.get(periodKey(effectivePeriod.year, effectivePeriod.month))?.scores?.score ?? null;
   }, [effectivePeriod, snapshotMap]);
 
   const periodHasData = useMemo(() => {
-    const key = `${effectivePeriod.year}-${effectivePeriod.month}`;
-    return snapshotMap.has(key);
+    return snapshotMap.has(periodKey(effectivePeriod.year, effectivePeriod.month));
   }, [effectivePeriod, snapshotMap]);
 
   const handleCollectClick = useCallback(() => {
@@ -204,7 +212,7 @@ export default function InteractiveTimelineChart({
     }
   }, [effectivePeriod, onCollectMetrics]);
 
-  const tickInterval = periods.length > 24 ? 5 : periods.length > 12 ? 2 : 0;
+  const tickInterval = getTickInterval(periods.length);
 
   return (
     <>
@@ -232,8 +240,9 @@ export default function InteractiveTimelineChart({
         className="w-full"
         onKeyDown={handleKeyDown}
         tabIndex={0}
-        role="slider"
-        aria-label="Timeline period selector"
+        role="group"
+        aria-label="Timeline period selector - use arrow keys to navigate"
+        aria-roledescription="timeline chart"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">

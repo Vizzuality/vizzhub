@@ -116,7 +116,7 @@ async def _get_dependabot_alerts(
             )
 
             if _is_access_denied(response.status_code) or response.status_code != 200:
-                return None if _is_access_denied(response.status_code) else None
+                return None
 
             alerts = response.json()
             if not alerts:

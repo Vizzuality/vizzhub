@@ -103,4 +103,21 @@
 - [x] CRITICAL: test/setup.ts → Comentarios en mocks vacíos
 
 **Fecha:** 2026-02-01
-**Archivos modificados:** 14
+**Archivos modificados:** 22
+
+### MAJOR Fixes
+
+**Accessibility:**
+- [x] InteractiveTimelineChart.tsx: Changed `role="slider"` → `role="group"` with `aria-roledescription="timeline chart"`
+- [x] TimelineSlider.tsx: Changed `role="slider"` → `role="group"` with `aria-roledescription="timeline"`
+
+**Bugs:**
+- [x] github/vulnerabilities.py:119: Fixed redundant conditional (both branches returned `None`)
+
+**Code Smells:**
+- [x] run-sonarqube-mcp.sh: Changed `[` → `[[` for safer bash conditionals
+- [x] ConfigurationTab.tsx:124: Changed array index key → use error message as key
+- [x] tasks.py:54: Removed unused `force` parameter from `capture_history_task`
+- [x] jobs.py: Updated calls to remove `force` parameter
+- [x] TimelineSlider.tsx:130: Extracted nested ternary → `getLabelInterval()` function
+- [x] InteractiveTimelineChart.tsx:209: Extracted nested ternary → `getTickInterval()` function

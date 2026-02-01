@@ -163,15 +163,15 @@ class DoraScoreCalculator:
         Medium: Less than 1 week
         Low: More than 1 week
         """
-        hours = days * 24
-        if hours < 1:
+        ONE_HOUR_IN_DAYS = 1 / 24
+
+        if days < ONE_HOUR_IN_DAYS:
             return ELITE
-        elif days < 1:
+        if days < 1:
             return HIGH
-        elif days < 7:
+        if days < 7:
             return MEDIUM
-        else:
-            return LOW
+        return LOW
 
     def _classify_change_failure_rate(self, rate_percent: float) -> str:
         """Classify change failure rate.
