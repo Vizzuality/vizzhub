@@ -73,7 +73,7 @@ class TestCollectMTTR:
         result = await collect_mttr(mock_client, "TEST")
 
         assert result["incidents_count"] == 2
-        assert result["mttr_hours"] == 6.0  # (8 + 4) / 2
+        assert result["mttr_hours"] == pytest.approx(6.0)  # (8 + 4) / 2
 
     @pytest.mark.asyncio
     async def test_collect_mttr_skips_invalid_dates(self) -> None:
@@ -93,7 +93,7 @@ class TestCollectMTTR:
         result = await collect_mttr(mock_client, "TEST")
 
         assert result["incidents_count"] == 1
-        assert result["mttr_hours"] == 8.0
+        assert result["mttr_hours"] == pytest.approx(8.0)
 
 
 class TestParseJiraDatetime:
@@ -129,39 +129,39 @@ class TestBusinessHoursDiff:
         """Should calculate hours within same business day."""
         start = datetime(2026, 1, 20, 9, 0, 0)  # Monday 9am
         end = datetime(2026, 1, 20, 17, 0, 0)    # Monday 5pm
-        assert business_time_diff(start, end) == 8.0
+        assert business_time_diff(start, end) == pytest.approx(8.0)
 
     def test_partial_day(self) -> None:
         """Should calculate partial day hours."""
         start = datetime(2026, 1, 20, 10, 0, 0)  # Monday 10am
         end = datetime(2026, 1, 20, 14, 0, 0)    # Monday 2pm
-        assert business_time_diff(start, end) == 4.0
+        assert business_time_diff(start, end) == pytest.approx(4.0)
 
     def test_skip_weekend(self) -> None:
         """Should skip weekend days."""
         start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
         end = datetime(2026, 1, 19, 17, 0, 0)    # Sunday 5pm
         # Only Friday counts (8 hours)
-        assert business_time_diff(start, end) == 8.0
+        assert business_time_diff(start, end) == pytest.approx(8.0)
 
     def test_multiple_business_days(self) -> None:
         """Should calculate across multiple business days."""
         start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
         end = datetime(2026, 1, 21, 17, 0, 0)    # Tuesday 5pm
-        assert business_time_diff(start, end) == 16.0
+        assert business_time_diff(start, end) == pytest.approx(16.0)
 
     def test_end_before_start(self) -> None:
         """Should return 0 if end is before start."""
         start = datetime(2026, 1, 20, 17, 0, 0)
         end = datetime(2026, 1, 20, 9, 0, 0)
-        assert business_time_diff(start, end) == 0.0
+        assert business_time_diff(start, end) == pytest.approx(0.0)
 
     def test_outside_business_hours(self) -> None:
         """Should handle times outside business hours."""
         start = datetime(2026, 1, 20, 6, 0, 0)   # Monday 6am (before business)
         end = datetime(2026, 1, 20, 10, 0, 0)    # Monday 10am
         # Only 9am-10am counts = 1 hour
-        assert business_time_diff(start, end) == 1.0
+        assert business_time_diff(start, end) == pytest.approx(1.0)
 
 
 class TestMTTRNormalizer:
@@ -195,7 +195,7 @@ class TestMTTRNormalizer:
 
         result = normalizer._get_mttr(jira)
 
-        assert result == 12.5
+        assert result == pytest.approx(12.5)
 
     def test_none_jira_returns_none(self) -> None:
         """When jira data is None, should return None."""

@@ -75,7 +75,7 @@ class TestCollectPRSize:
 
         result = await collect_pr_size(mock_github_client, "owner/repo")
 
-        assert result["pr_size_median"] == 300.0
+        assert result["pr_size_median"] == pytest.approx(300.0)
 
     @pytest.mark.asyncio
     async def test_filters_target_branches(self, mock_github_client) -> None:

@@ -126,10 +126,10 @@ export default function EVMForm({
   const watchedValues = watch();
 
   const calculatedValues = useMemo(() => {
-    const budget = parseFloat(watchedValues.budget_total) || 0;
-    const cost = parseFloat(watchedValues.cost_to_date) || 0;
-    const completed = (parseFloat(watchedValues.percent_completed) || 0) / 100;
-    const planned = (parseFloat(watchedValues.percent_planned) || 0) / 100;
+    const budget = Number.parseFloat(watchedValues.budget_total) || 0;
+    const cost = Number.parseFloat(watchedValues.cost_to_date) || 0;
+    const completed = (Number.parseFloat(watchedValues.percent_completed) || 0) / 100;
+    const planned = (Number.parseFloat(watchedValues.percent_planned) || 0) / 100;
 
     const ev = budget * completed;
     const spi = planned > 0 ? completed / planned : null;
@@ -140,10 +140,10 @@ export default function EVMForm({
 
   const handleFormSubmit = (data: EVMFormData): void => {
     const payload: EVMData = {
-      budget_total: parseFloat(data.budget_total),
-      cost_to_date: parseFloat(data.cost_to_date),
-      percent_completed: parseFloat(data.percent_completed) / 100,
-      percent_planned: parseFloat(data.percent_planned) / 100,
+      budget_total: Number.parseFloat(data.budget_total),
+      cost_to_date: Number.parseFloat(data.cost_to_date),
+      percent_completed: Number.parseFloat(data.percent_completed) / 100,
+      percent_planned: Number.parseFloat(data.percent_planned) / 100,
     };
     onSubmit(payload);
   };

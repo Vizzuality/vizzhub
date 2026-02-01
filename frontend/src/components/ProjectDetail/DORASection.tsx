@@ -132,7 +132,7 @@ export default function DORASection({
                       label: 'Per Day',
                       value:
                         metrics.github_metrics.deployment_frequency != null
-                          ? parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2))
+                          ? Number.parseFloat(metrics.github_metrics.deployment_frequency.toFixed(2))
                           : null,
                     },
                   ]}

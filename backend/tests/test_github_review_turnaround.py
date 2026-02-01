@@ -160,7 +160,7 @@ class TestGetPrTurnaroundHours:
         result = await _get_pr_turnaround_hours(mock_github_client, "owner", "repo", pr)
 
         assert result is not None
-        assert result == 2.0  # 10:00 - 08:00 = 2 hours
+        assert result == pytest.approx(2.0)  # 10:00 - 08:00 = 2 hours
 
     @pytest.mark.asyncio
     async def test_handles_api_error(self, mock_github_client) -> None:

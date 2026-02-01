@@ -67,22 +67,22 @@ class TestCalculateEscapedRate:
     def test_calculate_escaped_rate_basic(self) -> None:
         """Should calculate escapes per 100 tasks."""
         result = calculate_escaped_rate(escaped_defects=2, tasks_resolved=200)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_calculate_escaped_rate_zero_escapes(self) -> None:
         """Zero escapes should return 0 (perfect)."""
         result = calculate_escaped_rate(escaped_defects=0, tasks_resolved=100)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_calculate_escaped_rate_zero_tasks(self) -> None:
         """Zero tasks should return 0."""
         result = calculate_escaped_rate(escaped_defects=5, tasks_resolved=0)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_calculate_escaped_rate_high_ratio(self) -> None:
         """Should handle high escape ratios."""
         result = calculate_escaped_rate(escaped_defects=10, tasks_resolved=100)
-        assert result == 10.0
+        assert result == pytest.approx(10.0)
 
     def test_calculate_escaped_rate_fractional(self) -> None:
         """Should handle fractional results."""

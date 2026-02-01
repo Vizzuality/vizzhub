@@ -38,7 +38,7 @@ export default function GovernanceCard({
             type="number"
             min="0"
             value={form}
-            onChange={(e) => setForm(parseInt(e.target.value) || 0)}
+            onChange={(e) => setForm(Number.parseInt(e.target.value) || 0)}
             className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
             placeholder="0"
           />

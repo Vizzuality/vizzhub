@@ -20,13 +20,13 @@ interface ParameterSectionProps {
 
 function formatDisplayValue(value: string, edited: EditedParameter | undefined): string {
   if (edited?.value !== undefined) return edited.value;
-  const num = parseFloat(value);
-  return !isNaN(num) ? num.toFixed(2) : value;
+  const num = Number.parseFloat(value);
+  return !Number.isNaN(num) ? num.toFixed(2) : value;
 }
 
 function formatReadonlyValue(value: string, unit?: string | null): string {
-  const num = parseFloat(value);
-  const formatted = !isNaN(num) ? num.toFixed(2) : value;
+  const num = Number.parseFloat(value);
+  const formatted = !Number.isNaN(num) ? num.toFixed(2) : value;
   return unit ? `${formatted} ${unit}` : formatted;
 }
 
@@ -47,7 +47,7 @@ export function ParameterSection({
     ? parameters.reduce((acc, param) => {
         const edited = editedValues.get(param.name);
         const value = edited?.value ?? param.value;
-        return acc + parseFloat(value || '0');
+        return acc + Number.parseFloat(value || '0');
       }, 0)
     : 0;
 

@@ -134,7 +134,7 @@ class TestCollectChangeFailureRate:
 
         result = await collect_change_failure_rate(mock_github_client, "owner/repo")
 
-        assert result["change_failure_rate"] == 0.0
+        assert result["change_failure_rate"] == pytest.approx(0.0)
         assert result["total_releases"] == 1
 
     @pytest.mark.asyncio

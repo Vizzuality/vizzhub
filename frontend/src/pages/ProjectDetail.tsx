@@ -106,21 +106,21 @@ export default function ProjectDetail(): JSX.Element {
     const targets = config?.['Targets'];
     if (!targets) return null;
     const param = targets.find((p) => p.name === name);
-    return param ? parseFloat(param.value) : null;
+    return param ? Number.parseFloat(param.value) : null;
   };
 
   const getConstant = (name: string): number | null => {
     const constants = config?.['Gates & Constants'];
     if (!constants) return null;
     const param = constants.find((p) => p.name === name);
-    return param ? parseFloat(param.value) : null;
+    return param ? Number.parseFloat(param.value) : null;
   };
 
   const getWeight = (category: string, name: string): number | null => {
     const weights = config?.[category];
     if (!weights) return null;
     const param = weights.find((p) => p.name === name);
-    return param ? parseFloat(param.value) : null;
+    return param ? Number.parseFloat(param.value) : null;
   };
 
   const handleEdit = async (data: ProjectCreate): Promise<void> => {
