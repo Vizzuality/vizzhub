@@ -34,10 +34,14 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     volumes:
       - ./backend:/app
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -56,5 +60,35 @@ services:
       - backend
     command: npm run dev -- --host
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-scorecard}:${DB_PASSWORD:-scorecard}@db:5432/${DB_NAME:-scorecard}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: arq app.worker.settings.WorkerSettings
+
 volumes:
   postgres-data:
+  redis-data:
