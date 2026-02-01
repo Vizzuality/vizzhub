@@ -29,6 +29,16 @@ const MONTH_NAMES = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+const COLORS = {
+  primary: '#6366f1',
+  green: '#22c55e',
+  yellow: '#eab308',
+  red: '#ef4444',
+  muted: '#71717a',
+  background: '#ffffff',
+  backgroundDark: '#09090b',
+};
+
 function formatPeriod(year: number, month: number): string {
   return `${MONTH_NAMES[month - 1]} ${year}`;
 }
@@ -61,10 +71,10 @@ function generateMonthRange(startDate: string): Period[] {
 }
 
 function getScoreColor(score: number | null): string {
-  if (score === null) return 'hsl(var(--muted-foreground))';
-  if (score >= 80) return 'hsl(var(--score-green))';
-  if (score >= 60) return 'hsl(var(--score-yellow))';
-  return 'hsl(var(--score-red))';
+  if (score === null) return COLORS.muted;
+  if (score >= 80) return COLORS.green;
+  if (score >= 60) return COLORS.yellow;
+  return COLORS.red;
 }
 
 interface ChartDataPoint {
@@ -199,15 +209,15 @@ export default function InteractiveTimelineChart({
           >
             <defs>
               <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="label"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: COLORS.muted }}
               interval={tickInterval}
             />
             <YAxis
@@ -234,14 +244,14 @@ export default function InteractiveTimelineChart({
             />
             <ReferenceLine
               x={formatShortPeriod(effectivePeriod.year, effectivePeriod.month)}
-              stroke="hsl(var(--primary))"
+              stroke={COLORS.primary}
               strokeWidth={2}
               strokeDasharray="3 3"
             />
             <Area
               type="monotone"
               dataKey="score"
-              stroke="hsl(var(--primary))"
+              stroke={COLORS.primary}
               strokeWidth={2}
               fill="url(#scoreGradient)"
               connectNulls={false}
@@ -262,8 +272,8 @@ export default function InteractiveTimelineChart({
                       cx={cx}
                       cy={50}
                       r={isSelected ? 6 : 4}
-                      fill="hsl(var(--background))"
-                      stroke="hsl(var(--muted-foreground))"
+                      fill="transparent"
+                      stroke={COLORS.muted}
                       strokeWidth={2}
                       strokeDasharray="2 2"
                       className="cursor-pointer"
@@ -277,20 +287,20 @@ export default function InteractiveTimelineChart({
                     cx={cx}
                     cy={cy}
                     r={isSelected ? 8 : 5}
-                    fill={isSelected ? getScoreColor(data.score) : 'hsl(var(--primary))'}
-                    stroke={isSelected ? 'hsl(var(--background))' : 'none'}
+                    fill={isSelected ? getScoreColor(data.score) : COLORS.primary}
+                    stroke={isSelected ? '#fff' : 'none'}
                     strokeWidth={isSelected ? 3 : 0}
                     className="cursor-pointer transition-all"
                     style={{
-                      filter: isSelected ? 'drop-shadow(0 0 4px hsl(var(--primary)))' : 'none',
+                      filter: isSelected ? `drop-shadow(0 0 4px ${COLORS.primary})` : 'none',
                     }}
                   />
                 );
               }}
               activeDot={{
                 r: 8,
-                fill: 'hsl(var(--primary))',
-                stroke: 'hsl(var(--background))',
+                fill: COLORS.primary,
+                stroke: '#fff',
                 strokeWidth: 3,
                 className: 'cursor-pointer',
               }}
