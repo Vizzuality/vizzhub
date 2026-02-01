@@ -13,6 +13,19 @@ import { formatDate } from '../../utils/formatters';
 import { getHistoricalData } from '../../utils/chartUtils';
 import type { Metrics, Indicators, Project, StrategicImpact, PMSatisfaction, TestMaturity, Architecture, MetricsWithScores, Dimension } from '../../types';
 
+interface ConditionalCardProps {
+  hasData: boolean;
+  hasParentData: boolean;
+  card: JSX.Element;
+  mutedProps: { title: string; dimension: Dimension; description: string; message: string };
+}
+
+function renderConditionalCard({ hasData, hasParentData, card, mutedProps }: ConditionalCardProps): JSX.Element | null {
+  if (hasData) return card;
+  if (hasParentData) return <MutedCard {...mutedProps} />;
+  return null;
+}
+
 const DIMENSION_COLORS: Record<Dimension, string> = {
   Time: 'text-chart-1',
   Cost: 'text-chart-2',
@@ -360,13 +373,14 @@ export default function QualityMetricsGrid({
               ) : (
                 <MutedCard title="PR Review Coverage" dimension="Engineering" description="PRs reviewed before merge" message="No GitHub data available" />
               )}
-              {metrics.github_metrics &&
-                metrics.github_metrics.pr_size_median !== null &&
-                metrics.github_metrics.pr_size_median !== undefined ? (
+              {renderConditionalCard({
+                hasData: !!(metrics.github_metrics?.pr_size_median != null),
+                hasParentData: !!metrics.github_metrics,
+                card: (
                   <SubIndicatorCard
                     title="PR Size"
                     dimension="Engineering"
-                    indicatorValue={metrics.github_metrics.pr_size_median}
+                    indicatorValue={metrics.github_metrics?.pr_size_median ?? null}
                     indicatorLabel="Median lines changed"
                     indicatorSuffix=" lines"
                     description="Median PR size (additions + deletions)"
@@ -374,20 +388,21 @@ export default function QualityMetricsGrid({
                     lowerIsBetter={true}
                     formula="median(additions + deletions)"
                     metrics={[
-                      { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                      { label: 'Total Merged PRs', value: metrics.github_metrics?.total_merged_prs ?? 0 },
                     ]}
                     historicalData={getHistoricalData(snapshots, 'pr_size_median')}
                   />
-                ) : metrics.github_metrics ? (
-                  <MutedCard title="PR Size" dimension="Engineering" description="Median PR size (additions + deletions)" message="No PR size data available" />
-                ) : null}
-              {metrics.github_metrics &&
-                metrics.github_metrics.review_turnaround_hours !== null &&
-                metrics.github_metrics.review_turnaround_hours !== undefined ? (
+                ),
+                mutedProps: { title: 'PR Size', dimension: 'Engineering', description: 'Median PR size (additions + deletions)', message: 'No PR size data available' },
+              })}
+              {renderConditionalCard({
+                hasData: !!(metrics.github_metrics?.review_turnaround_hours != null),
+                hasParentData: !!metrics.github_metrics,
+                card: (
                   <SubIndicatorCard
                     title="Review Turnaround"
                     dimension="Engineering"
-                    indicatorValue={metrics.github_metrics.review_turnaround_hours}
+                    indicatorValue={metrics.github_metrics?.review_turnaround_hours ?? null}
                     indicatorLabel="Median hours to first review"
                     indicatorSuffix="h"
                     description="Time from PR creation to first review"
@@ -395,13 +410,13 @@ export default function QualityMetricsGrid({
                     lowerIsBetter={true}
                     formula="median(first_review - pr_created)"
                     metrics={[
-                      { label: 'Total Merged PRs', value: metrics.github_metrics.total_merged_prs },
+                      { label: 'Total Merged PRs', value: metrics.github_metrics?.total_merged_prs ?? 0 },
                     ]}
                     historicalData={getHistoricalData(snapshots, 'review_turnaround_hours')}
                   />
-                ) : metrics.github_metrics ? (
-                  <MutedCard title="Review Turnaround" dimension="Engineering" description="Time from PR creation to first review" message="No review turnaround data available" />
-                ) : null}
+                ),
+                mutedProps: { title: 'Review Turnaround', dimension: 'Engineering', description: 'Time from PR creation to first review', message: 'No review turnaround data available' },
+              })}
             </>
           )}
 

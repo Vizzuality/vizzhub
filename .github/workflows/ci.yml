@@ -17,9 +17,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: scorecard
-          POSTGRES_PASSWORD: scorecard
-          POSTGRES_DB: scorecard
+          POSTGRES_USER: ${{ vars.DB_USER || 'test' }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_CI }}
+          POSTGRES_DB: ${{ vars.DB_NAME || 'test' }}
         ports:
           - 5432:5432
         options: >-
@@ -48,7 +48,7 @@ jobs:
         id: coverage
         working-directory: backend
         env:
-          DATABASE_URL: postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard
+          DATABASE_URL: postgresql+asyncpg://${{ vars.DB_USER || 'test' }}:${{ secrets.DB_PASSWORD_CI }}@localhost:5432/${{ vars.DB_NAME || 'test' }}
           DEBUG: "true"
         run: |
           pytest --cov=app --cov-report=term-missing | tee coverage.txt

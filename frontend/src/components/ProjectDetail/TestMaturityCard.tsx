@@ -21,6 +21,17 @@ const MATURITY_LEVELS = [
 
 type TestTypeKey = (typeof TEST_TYPES)[number]['key'];
 
+const MATURITY_COLORS: Record<number, string> = {
+  5: 'text-score-green',
+  3: 'text-score-yellow',
+  1: 'text-orange-600',
+  0: 'text-score-red',
+};
+
+function getMaturityColor(value: number | null | undefined): string {
+  return value !== null && value !== undefined ? MATURITY_COLORS[value] ?? '' : '';
+}
+
 interface TestMaturityCardProps {
   data: TestMaturity | null | undefined;
   indicatorValue: number | null;
@@ -91,19 +102,7 @@ export default function TestMaturityCard({
                 return (
                   <div key={key} className="flex justify-between text-xs">
                     <span className="text-muted-foreground">{label.replace(' Tests', '')}</span>
-                    <span
-                      className={cn(
-                        value === 5
-                          ? 'text-score-green'
-                          : value === 3
-                          ? 'text-score-yellow'
-                          : value === 1
-                          ? 'text-orange-600'
-                          : value === 0
-                          ? 'text-score-red'
-                          : ''
-                      )}
-                    >
+                    <span className={cn(getMaturityColor(value))}>
                       {getLevelLabel(value)}
                     </span>
                   </div>

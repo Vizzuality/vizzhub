@@ -18,6 +18,8 @@ from app.services.job_service import JobService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
+JOB_NOT_FOUND = "Job not found"
+
 MONTH_NAMES = [
     "January",
     "February",
@@ -132,7 +134,7 @@ async def get_job(
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found",
+            detail=JOB_NOT_FOUND,
         )
     return job
 
@@ -165,7 +167,7 @@ async def cancel_job(
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found",
+            detail=JOB_NOT_FOUND,
         )
 
     if job.status != JobStatus.PENDING:
@@ -190,7 +192,7 @@ async def retry_job(
     if not original:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found",
+            detail=JOB_NOT_FOUND,
         )
 
     if original.status != JobStatus.FAILED:

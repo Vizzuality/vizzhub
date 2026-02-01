@@ -2,22 +2,26 @@
 # DO NOT use this configuration in production
 # For production, use proper secrets management (AWS Secrets Manager, Vault, etc.)
 # and environment-specific configuration files
+#
+# SETUP: Copy .env.docker.example to .env.docker and configure your values
 
 version: '3.8'
 
 services:
   db:
+    env_file:
+      - .env.docker
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${DB_USER:-scorecard}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-scorecard}
-      POSTGRES_DB: ${DB_NAME:-scorecard}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scorecard"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,10 +30,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - .env.docker
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-scorecard}:${DB_PASSWORD:-scorecard}@db:5432/${DB_NAME:-scorecard}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       - DEBUG=${DEBUG:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -76,8 +82,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - .env.docker
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-scorecard}:${DB_PASSWORD:-scorecard}@db:5432/${DB_NAME:-scorecard}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:

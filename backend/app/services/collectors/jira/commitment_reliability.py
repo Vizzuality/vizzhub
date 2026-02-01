@@ -41,6 +41,43 @@ if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
 
+def _empty_result() -> dict:
+    """Return empty commitment reliability result."""
+    return {
+        "commitment_reliability": None,
+        "committed_issues": 0,
+        "single_sprint_issues": 0,
+        "multi_sprint_issues": 0,
+    }
+
+
+def _parse_sprint_end_date(sprint: dict) -> date | None:
+    """Parse sprint end date, returning None if invalid or missing."""
+    end_date_str = sprint.get("endDate")
+    if not end_date_str:
+        return None
+    try:
+        return date.fromisoformat(end_date_str[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def _is_sprint_within_period(
+    sprint: dict,
+    period_start: date | None,
+    period_end: date | None,
+) -> bool:
+    """Check if sprint end date falls within the specified period."""
+    sprint_end = _parse_sprint_end_date(sprint)
+    if not sprint_end:
+        return True
+    if period_start and sprint_end < period_start:
+        return False
+    if period_end and sprint_end > period_end:
+        return False
+    return True
+
+
 async def collect_commitment_reliability(
     client: "JiraClient",
     project_key: str,
@@ -61,21 +98,11 @@ async def collect_commitment_reliability(
     """
     board = await _get_scrum_board(client, project_key)
     if not board:
-        return {
-            "commitment_reliability": None,
-            "committed_issues": 0,
-            "single_sprint_issues": 0,
-            "multi_sprint_issues": 0,
-        }
+        return _empty_result()
 
     closed_sprints = await _get_closed_sprints(client, board["id"], period_start, period_end)
     if not closed_sprints:
-        return {
-            "commitment_reliability": None,
-            "committed_issues": 0,
-            "single_sprint_issues": 0,
-            "multi_sprint_issues": 0,
-        }
+        return _empty_result()
 
     issue_sprint_count: dict[str, set[int]] = {}
 
@@ -154,27 +181,11 @@ async def _get_closed_sprints(
             data = response.json()
             values = data.get("values", [])
 
-            # Filter sprints by date range if specified
-            if period_start or period_end:
-                filtered = []
-                for sprint in values:
-                    end_date_str = sprint.get("endDate")
-                    if end_date_str:
-                        try:
-                            sprint_end = date.fromisoformat(end_date_str[:10])
-                            # Check if sprint ends within the specified range
-                            if period_start and sprint_end < period_start:
-                                continue
-                            if period_end and sprint_end > period_end:
-                                continue
-                            filtered.append(sprint)
-                        except (ValueError, TypeError):
-                            filtered.append(sprint)
-                    else:
-                        filtered.append(sprint)
-                sprints.extend(filtered)
-            else:
-                sprints.extend(values)
+            filtered = [
+                sprint for sprint in values
+                if _is_sprint_within_period(sprint, period_start, period_end)
+            ]
+            sprints.extend(filtered)
 
             if data.get("isLast", True) or not values:
                 break

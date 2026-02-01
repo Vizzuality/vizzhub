@@ -94,11 +94,11 @@ export default function HistoricalCaptureSection({
           <History className="h-5 w-5" />
           Batch Historical Capture
         </CardTitle>
-        <CardDescription>
-          {isExpanded
-            ? 'Capture metrics for multiple months at once. This runs in the background.'
-            : 'Click to capture metrics for a date range'}
-        </CardDescription>
+        {isExpanded && (
+          <CardDescription>
+            Capture metrics for multiple months at once. This runs in the background.
+          </CardDescription>
+        )}
       </CardHeader>
 
       {isExpanded && (

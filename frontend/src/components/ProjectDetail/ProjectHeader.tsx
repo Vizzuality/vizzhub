@@ -18,9 +18,6 @@ interface ProjectHeaderProps {
   onReopen: () => Promise<unknown>;
   onDelete: () => void;
   isUpdatingStatus: boolean;
-  onCollectMetrics: () => void;
-  isCollecting: boolean;
-  lastCollectedAt?: string | null;
 }
 
 export default function ProjectHeader({
@@ -34,16 +31,8 @@ export default function ProjectHeader({
   onReopen,
   onDelete,
   isUpdatingStatus,
-  onCollectMetrics,
-  isCollecting,
-  lastCollectedAt,
 }: ProjectHeaderProps): JSX.Element {
   const hasDateRange = project.start_date || project.end_date;
-  const hasCollectors = Boolean(project.jira_project_key || project.github_repo);
-  const collectorSources = [
-    project.jira_project_key && 'Jira',
-    project.github_repo && 'GitHub',
-  ].filter(Boolean).join(' & ');
 
   return (
     <>
@@ -97,15 +86,7 @@ export default function ProjectHeader({
             </div>
 
             {!isEditing && (
-              <StatusControls
-                onEdit={onEdit}
-                projectStatus={project.status}
-                hasCollectors={hasCollectors}
-                onCollectMetrics={onCollectMetrics}
-                isCollecting={isCollecting}
-                lastCollectedAt={lastCollectedAt}
-                collectorSources={collectorSources}
-              />
+              <StatusControls onEdit={onEdit} />
             )}
           </div>
         </CardHeader>

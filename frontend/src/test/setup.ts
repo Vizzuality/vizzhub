@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom';
 
-// Mock ResizeObserver for recharts
-class ResizeObserverMock {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+// Mock ResizeObserver for recharts - empty implementations are intentional (test mocks)
+class ResizeObserverMock implements ResizeObserver {
+  observe(): void { /* no-op mock */ }
+  unobserve(): void { /* no-op mock */ }
+  disconnect(): void { /* no-op mock */ }
 }
 
 global.ResizeObserver = ResizeObserverMock;

@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -8,7 +8,19 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { MetricsWithScores } from '../../types';
 
 interface Period {
@@ -22,6 +34,10 @@ interface InteractiveTimelineChartProps {
   selectedPeriod: Period | null;
   onPeriodChange: (period: Period | null) => void;
   isCapturing?: boolean;
+  onCollectMetrics?: (period: Period, force: boolean) => Promise<void>;
+  isCollecting?: boolean;
+  hasCollectors?: boolean;
+  isFinished?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -92,7 +108,13 @@ export default function InteractiveTimelineChart({
   selectedPeriod,
   onPeriodChange,
   isCapturing = false,
+  onCollectMetrics,
+  isCollecting = false,
+  hasCollectors = false,
+  isFinished = false,
 }: InteractiveTimelineChartProps): JSX.Element {
+  const [showCollectDialog, setShowCollectDialog] = useState(false);
+
   const periods = useMemo(
     () => generateMonthRange(projectStartDate),
     [projectStartDate],
@@ -162,40 +184,101 @@ export default function InteractiveTimelineChart({
     return snapshotMap.get(key)?.scores?.score ?? null;
   }, [effectivePeriod, snapshotMap]);
 
+  const periodHasData = useMemo(() => {
+    const key = `${effectivePeriod.year}-${effectivePeriod.month}`;
+    return snapshotMap.has(key);
+  }, [effectivePeriod, snapshotMap]);
+
+  const handleCollectClick = useCallback(() => {
+    if (periodHasData) {
+      setShowCollectDialog(true);
+    } else if (onCollectMetrics) {
+      onCollectMetrics(effectivePeriod, false);
+    }
+  }, [periodHasData, effectivePeriod, onCollectMetrics]);
+
+  const handleConfirmCollect = useCallback(async () => {
+    setShowCollectDialog(false);
+    if (onCollectMetrics) {
+      await onCollectMetrics(effectivePeriod, true);
+    }
+  }, [effectivePeriod, onCollectMetrics]);
+
   const tickInterval = periods.length > 24 ? 5 : periods.length > 12 ? 2 : 0;
 
   return (
-    <div
-      className="w-full"
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="slider"
-      aria-label="Timeline period selector"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="text-sm text-muted-foreground">
-          {formatPeriod(periods[0].year, periods[0].month)} — {formatPeriod(periods[periods.length - 1].year, periods[periods.length - 1].month)}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium">
-            {formatPeriod(effectivePeriod.year, effectivePeriod.month)}
-          </span>
-          {currentScore !== null && (
-            <span
-              className="text-lg font-bold"
-              style={{ color: getScoreColor(currentScore) }}
-            >
-              {Math.round(currentScore)}
-            </span>
-          )}
-          {currentScore === null && (
-            <span className="text-sm text-muted-foreground">No data</span>
-          )}
-        </div>
-      </div>
+    <>
+      {/* Collect Confirmation Dialog */}
+      <AlertDialog open={showCollectDialog} onOpenChange={setShowCollectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite metrics?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to overwrite the metrics for{' '}
+              <strong>{formatPeriod(effectivePeriod.year, effectivePeriod.month)}</strong>.
+              This will replace all collected data (Jira & GitHub) for this period.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCollect}>
+              Overwrite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Chart */}
+      <div
+        className="w-full"
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="slider"
+        aria-label="Timeline period selector"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-semibold">Scores</h2>
+            {hasCollectors && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCollectClick}
+                disabled={isCollecting || isCapturing || isFinished}
+              >
+                <RefreshCw
+                  className={cn('w-4 h-4 mr-2', (isCollecting || isCapturing) && 'animate-spin')}
+                />
+                {isCollecting || isCapturing ? 'Collecting...' : 'Collect Metrics'}
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">
+              {formatPeriod(effectivePeriod.year, effectivePeriod.month)}
+            </span>
+            {currentScore !== null && (
+              <span
+                className="text-lg font-bold"
+                style={{ color: getScoreColor(currentScore) }}
+              >
+                {Math.round(currentScore)}
+              </span>
+            )}
+            {currentScore === null && (
+              <span className="text-sm text-muted-foreground">No data</span>
+            )}
+          </div>
+        </div>
+
+        {/* Chart info row */}
+        <div className="flex items-center justify-between mb-2 px-1">
+          <div className="text-sm text-muted-foreground">
+            {formatPeriod(periods[0].year, periods[0].month)} — {formatPeriod(periods[periods.length - 1].year, periods[periods.length - 1].month)}
+          </div>
+        </div>
+
+        {/* Chart */}
       <div className={cn('h-24 w-full', isCapturing && 'opacity-50')}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
@@ -309,18 +392,19 @@ export default function InteractiveTimelineChart({
         </ResponsiveContainer>
       </div>
 
-      {/* Reset button */}
-      {selectedPeriod && (
-        <div className="flex justify-end mt-1">
-          <button
-            type="button"
-            onClick={() => onPeriodChange(null)}
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-          >
-            Reset to latest
-          </button>
-        </div>
-      )}
-    </div>
+        {/* Reset button */}
+        {selectedPeriod && (
+          <div className="flex justify-end mt-1">
+            <button
+              type="button"
+              onClick={() => onPeriodChange(null)}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Reset to latest
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

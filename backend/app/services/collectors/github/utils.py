@@ -23,6 +23,37 @@ TARGET_BRANCHES = frozenset({"dev", "develop", "main", "master", "development"})
 MAX_CONCURRENT_REQUESTS = 20
 
 
+def _is_within_period(
+    item_date: datetime | None,
+    period_start: date | None,
+    period_end: date | None,
+) -> bool:
+    """Check if a datetime falls within the specified period."""
+    if not item_date:
+        return True
+    if period_start and item_date.date() < period_start:
+        return False
+    if period_end and item_date.date() > period_end:
+        return False
+    return True
+
+
+def _extract_merged_date(pr: dict) -> datetime | None:
+    """Extract and parse merged_at date from PR."""
+    merged_at = pr.get("merged_at")
+    if not merged_at:
+        return None
+    return parse_iso_datetime(merged_at)
+
+
+def _extract_release_date(release: dict) -> datetime | None:
+    """Extract and parse published/created date from release."""
+    date_str = release.get("published_at") or release.get("created_at")
+    if not date_str:
+        return None
+    return parse_iso_datetime(date_str)
+
+
 async def get_merged_prs(
     client: "GitHubClient",
     owner: str,
@@ -71,19 +102,14 @@ async def get_merged_prs(
                 break
 
             for pr in prs:
-                merged_at = pr.get("merged_at")
-                if merged_at:
-                    merged_date = parse_iso_datetime(merged_at)
-                    if merged_date:
-                        # Filter by period_start if specified
-                        if period_start and merged_date.date() < period_start:
-                            continue
-                        # Filter by period_end if specified
-                        if period_end and merged_date.date() > period_end:
-                            continue
-                    merged_prs.append(pr)
-                    if len(merged_prs) >= max_results:
-                        break
+                merged_date = _extract_merged_date(pr)
+                if not merged_date:
+                    continue
+                if not _is_within_period(merged_date, period_start, period_end):
+                    continue
+                merged_prs.append(pr)
+                if len(merged_prs) >= max_results:
+                    break
 
             if len(prs) < per_page:
                 break
@@ -167,17 +193,9 @@ async def get_releases(
                     continue
                 if not include_prereleases and release.get("prerelease"):
                     continue
-                # Filter by date range if specified
-                published_at = release.get("published_at") or release.get("created_at")
-                if published_at:
-                    release_date = parse_iso_datetime(published_at)
-                    if release_date:
-                        # Filter by period_start if specified
-                        if period_start and release_date.date() < period_start:
-                            continue
-                        # Filter by period_end if specified
-                        if period_end and release_date.date() > period_end:
-                            continue
+                release_date = _extract_release_date(release)
+                if not _is_within_period(release_date, period_start, period_end):
+                    continue
                 releases.append(release)
                 if len(releases) >= max_results:
                     break

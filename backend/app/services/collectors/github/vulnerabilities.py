@@ -30,7 +30,8 @@ Edge Cases:
 """
 
 import logging
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DAYS_THRESHOLD = 30
+_CURSOR_PATTERN = re.compile(r'after=([^&>]+)')
 
 
 async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dict:
@@ -64,7 +66,7 @@ async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dic
         }
 
     now = datetime.now(timezone.utc)
-    threshold_date = now - __import__("datetime").timedelta(days=DAYS_THRESHOLD)
+    threshold_date = now - timedelta(days=DAYS_THRESHOLD)
 
     older_than_30d = []
     for alert in alerts:
@@ -81,27 +83,30 @@ async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dic
     }
 
 
+def _extract_next_cursor(link_header: str) -> str | None:
+    """Extract pagination cursor from Link header."""
+    if 'rel="next"' not in link_header:
+        return None
+    match = _CURSOR_PATTERN.search(link_header)
+    return match.group(1) if match else None
+
+
+def _is_access_denied(status_code: int) -> bool:
+    """Check if response indicates access denied or not available."""
+    return status_code in (403, 404)
+
+
 async def _get_dependabot_alerts(
     client: "GitHubClient", owner: str, repo: str
 ) -> list[dict] | None:
-    """
-    Get open high/critical severity Dependabot alerts.
-
-    Returns None if Dependabot is not enabled or access is denied.
-    Note: Dependabot API uses cursor-based pagination, not page numbers.
-    """
+    """Get open high/critical severity Dependabot alerts."""
     http_client = await client.get_client()
     all_alerts: list[dict] = []
-    per_page = 100
     cursor: str | None = None
 
     while True:
         try:
-            params: dict = {
-                "state": "open",
-                "severity": "high,critical",
-                "per_page": per_page,
-            }
+            params: dict = {"state": "open", "severity": "high,critical", "per_page": 100}
             if cursor:
                 params["after"] = cursor
 
@@ -110,16 +115,8 @@ async def _get_dependabot_alerts(
                 params=params,
             )
 
-            if response.status_code == 403:
-                # Dependabot alerts not enabled or no access
-                return None
-
-            if response.status_code == 404:
-                # Repository not found or Dependabot not available
-                return None
-
-            if response.status_code != 200:
-                return None
+            if _is_access_denied(response.status_code) or response.status_code != 200:
+                return None if _is_access_denied(response.status_code) else None
 
             alerts = response.json()
             if not alerts:
@@ -127,18 +124,8 @@ async def _get_dependabot_alerts(
 
             all_alerts.extend(alerts)
 
-            # Check for next page via Link header
-            link_header = response.headers.get("Link", "")
-            if 'rel="next"' not in link_header:
-                break
-
-            # Extract cursor from Link header
-            # Format: <url?after=cursor>; rel="next"
-            import re
-            match = re.search(r'after=([^&>]+)', link_header)
-            if match:
-                cursor = match.group(1)
-            else:
+            cursor = _extract_next_cursor(response.headers.get("Link", ""))
+            if not cursor:
                 break
 
         except Exception as e:

@@ -6,6 +6,14 @@
         "shadcn@latest",
         "mcp"
       ]
+    },
+    "sonarqube": {
+      "command": "./scripts/run-sonarqube-mcp.sh",
+      "args": [],
+      "env": {
+        "SONARQUBE_URL": "https://sonarcloud.io",
+        "SONARQUBE_ORGANIZATION": "vizzuality"
+      }
     }
   }
 }
