@@ -56,11 +56,18 @@ async def get_project_scores(
     db: DBSession,
     config: ScoringConfigDep,
     snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
+    year: int | None = None,
+    month: int | None = None,
 ) -> ScoreResponse:
-    """Calculate scores from a project's latest metrics.
+    """Calculate scores from a project's metrics.
 
     Args:
         snapshot_type: Filter by snapshot type (default: cumulative)
+        year: Optional year filter (requires month)
+        month: Optional month filter (requires year)
+
+    When year and month are provided, returns scores for that specific period.
+    Otherwise, returns scores for the latest metrics.
 
     Since collectors create separate records, this endpoint consolidates
     metrics from the same period_end date, taking the most recent non-null
@@ -68,16 +75,23 @@ async def get_project_scores(
     """
     await get_project_or_404(db, project_id)
 
-    metrics_list = await MetricsService.get_latest_metrics_for_scoring(
-        db, project_id, snapshot_type
-    )
-    if not metrics_list:
-        raise MetricsNotFoundError(str(project_id))
+    if year is not None and month is not None:
+        metrics_db = await MetricsService.get_metrics(
+            db, project_id, year, month, snapshot_type
+        )
+        if not metrics_db:
+            raise MetricsNotFoundError(str(project_id))
+    else:
+        metrics_list = await MetricsService.get_latest_metrics_for_scoring(
+            db, project_id, snapshot_type
+        )
+        if not metrics_list:
+            raise MetricsNotFoundError(str(project_id))
 
-    latest_period_end = metrics_list[0].period_end
-    same_period = [m for m in metrics_list if m.period_end == latest_period_end]
+        latest_period_end = metrics_list[0].period_end
+        same_period = [m for m in metrics_list if m.period_end == latest_period_end]
+        metrics_db = _consolidate_metrics(same_period)
 
-    metrics_db = _consolidate_metrics(same_period)
     metrics = MetricsCreate.from_db(metrics_db)
 
     score_service = ScoreComputationService(config)
