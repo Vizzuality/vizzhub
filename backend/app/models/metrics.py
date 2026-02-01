@@ -677,7 +677,7 @@ class MetricsWithScores(BaseModel):
     """Schema for metrics responses with computed indicators and scores.
 
     Used for API responses that include both raw metrics and computed scores.
-    This is a flattened view specifically for historical trend displays.
+    Includes raw metrics data for period-specific views.
     """
 
     id: str
@@ -690,5 +690,19 @@ class MetricsWithScores(BaseModel):
     created_at: datetime
     indicators: dict
     scores: dict
+
+    # Raw metrics data (for QualityMetricsGrid, DORASection, etc.)
+    evm_data: EVMData | None = None
+    milestones: list[Milestone] | None = None
+    jira_defects: JiraDefectMetrics | None = None
+    flow_metrics: FlowMetrics | None = None
+    github_metrics: GitHubMetrics | None = None
+    test_maturity: TestMaturity | None = None
+    architecture: ArchitectureChecklist | None = None
+    pm_satisfaction: PMSatisfaction | None = None
+    client_survey: ClientSurvey | None = None
+    strategic_impact: StrategicImpact | None = None
+    governance_exceptions: int | None = None
+    sev1_incident: bool = False
 
     model_config = {"from_attributes": True}

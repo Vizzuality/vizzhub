@@ -296,6 +296,19 @@ export interface MetricsWithScores {
   created_at: string;
   indicators: Indicators;
   scores: FinalScore;
+  // Raw metrics data for period-specific views
+  evm_data?: EVMData;
+  milestones?: Milestone[];
+  jira_defects?: MetricsCreate['jira_defects'];
+  flow_metrics?: MetricsCreate['flow_metrics'];
+  github_metrics?: MetricsCreate['github_metrics'];
+  test_maturity?: TestMaturity;
+  architecture?: Architecture;
+  pm_satisfaction?: PMSatisfaction;
+  client_survey?: ClientSurvey;
+  strategic_impact?: StrategicImpact;
+  governance_exceptions?: number;
+  sev1_incident?: boolean;
 }
 
 // Alias for backward compatibility

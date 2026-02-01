@@ -159,6 +159,19 @@ async def get_project_metrics_history(
                 created_at=metrics_db.created_at,
                 indicators=indicators.model_dump(),
                 scores=scores.model_dump(),
+                # Include raw metrics for period-specific views
+                evm_data=metrics.evm_data,
+                milestones=metrics.milestones,
+                jira_defects=metrics.jira_defects,
+                flow_metrics=metrics.flow_metrics,
+                github_metrics=metrics.github_metrics,
+                test_maturity=metrics.test_maturity,
+                architecture=metrics.architecture,
+                pm_satisfaction=metrics.pm_satisfaction,
+                client_survey=metrics.client_survey,
+                strategic_impact=metrics.strategic_impact,
+                governance_exceptions=metrics.governance_exceptions,
+                sev1_incident=metrics.sev1_incident,
             )
         )
 
@@ -206,4 +219,17 @@ async def get_metrics_by_period(
         created_at=metrics_db.created_at,
         indicators=indicators.model_dump(),
         scores=scores.model_dump(),
+        # Include raw metrics for period-specific views
+        evm_data=metrics.evm_data,
+        milestones=metrics.milestones,
+        jira_defects=metrics.jira_defects,
+        flow_metrics=metrics.flow_metrics,
+        github_metrics=metrics.github_metrics,
+        test_maturity=metrics.test_maturity,
+        architecture=metrics.architecture,
+        pm_satisfaction=metrics.pm_satisfaction,
+        client_survey=metrics.client_survey,
+        strategic_impact=metrics.strategic_impact,
+        governance_exceptions=metrics.governance_exceptions,
+        sev1_incident=metrics.sev1_incident,
     )
