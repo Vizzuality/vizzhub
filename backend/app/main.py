@@ -13,6 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api import capture as capture_router
 from app.api import collectors as collectors_router
 from app.api import config as config_router
+from app.api import jobs as jobs_router
 from app.api import metrics as metrics_router
 from app.api import oauth as oauth_router
 from app.api import projects as projects_router
@@ -147,6 +148,7 @@ app.include_router(
 app.include_router(
     capture_router.router, prefix="/api/projects", tags=["capture"]
 )
+app.include_router(jobs_router.router, prefix="/api")
 
 
 @app.get("/health")
