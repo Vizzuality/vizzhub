@@ -19,7 +19,7 @@ import {
   QualityMetricsGrid,
   DORASection,
   SnapshotManager,
-  TimelineSlider,
+  InteractiveTimelineChart,
   EmptyPeriodOverlay,
 } from '../components/ProjectDetail';
 import type { ProjectCreate, EVMData, Milestone } from '../types';
@@ -231,7 +231,7 @@ export default function ProjectDetail(): JSX.Element {
             <h2 className="text-2xl font-semibold mb-4">Scores</h2>
 
             {project.start_date && (
-              <TimelineSlider
+              <InteractiveTimelineChart
                 projectStartDate={project.start_date}
                 snapshots={snapshots}
                 selectedPeriod={selectedPeriod}
