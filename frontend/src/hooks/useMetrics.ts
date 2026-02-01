@@ -1,16 +1,35 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import api, { metricsHistoryApi } from '../services/api';
 import type { Metrics, MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
 import { queryKeys } from './queryKeys';
 
-export function useProjectMetrics(projectId: string) {
+export function useProjectMetrics(
+  projectId: string,
+  year?: number,
+  month?: number,
+) {
+  const hasPeriod = year !== undefined && month !== undefined;
+
   return useQuery({
-    queryKey: queryKeys.metrics.byProject(projectId),
+    queryKey: hasPeriod
+      ? queryKeys.metrics.byPeriod(projectId, year, month)
+      : queryKeys.metrics.byProject(projectId),
     queryFn: async (): Promise<Metrics | null> => {
       try {
+        if (hasPeriod) {
+          // Get metrics for specific period
+          const response = await metricsHistoryApi.getByPeriod(
+            projectId,
+            year,
+            month,
+            'cumulative',
+          );
+          return response as unknown as Metrics;
+        }
+
+        // Default: get latest metrics
         const response = await api.get<Metrics[]>(`/metrics/project/${projectId}`);
         if (response.data && response.data.length > 0) {
-          // Sort by period_end descending to get most recent period
           const sorted = response.data.sort((a, b) => {
             return new Date(b.period_end).getTime() - new Date(a.period_end).getTime();
           });
