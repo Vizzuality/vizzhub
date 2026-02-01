@@ -151,6 +151,6 @@ class TestCommitmentReliabilityEdgeCases:
 
         result = await collect_commitment_reliability(mock_client, "PROJ")
 
-        assert result["commitment_reliability"] == 1.0
+        assert result["commitment_reliability"] == pytest.approx(1.0)
         assert result["single_sprint_issues"] == 2
         assert result["multi_sprint_issues"] == 0

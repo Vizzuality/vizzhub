@@ -166,7 +166,7 @@ class TestPRReviewCollection:
 
         assert result["total_merged_prs"] == 1
         assert result["prs_without_review"] == 0
-        assert result["pr_review_ratio"] == 1.0
+        assert result["pr_review_ratio"] == pytest.approx(1.0)
 
 
 class TestTargetBranches:

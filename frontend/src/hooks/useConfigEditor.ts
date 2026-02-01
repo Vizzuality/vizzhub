@@ -56,9 +56,9 @@ function validateWeights(
     let sum = 0;
     parameters.forEach((param) => {
       const edited = changes.get(param.name);
-      const value = edited?.value !== undefined ? parseFloat(edited.value) : parseFloat(param.value);
+      const value = edited?.value !== undefined ? Number.parseFloat(edited.value) : Number.parseFloat(param.value);
 
-      if (isNaN(value)) {
+      if (Number.isNaN(value)) {
         errors.push(`Invalid number for ${param.name}`);
         return;
       }

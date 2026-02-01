@@ -77,7 +77,7 @@ class TestCollectLeadTime:
 
         assert result["sample_size"] == 1
         # Friday to Monday = 2 business days
-        assert result["lead_time_days"] == 2.0
+        assert result["lead_time_days"] == pytest.approx(2.0)
 
     @pytest.mark.asyncio
     async def test_collect_lead_time_skips_without_in_progress(self) -> None:
@@ -130,7 +130,7 @@ class TestCollectLeadTime:
         assert result["sample_size"] == 2
         assert result["lead_time_days"] is not None
         # (1 day + 2 days) / 2 = 1.5 days average
-        assert result["lead_time_days"] == 1.5
+        assert result["lead_time_days"] == pytest.approx(1.5)
 
     @pytest.mark.asyncio
     async def test_collect_lead_time_skips_invalid_dates(self) -> None:
@@ -249,30 +249,30 @@ class TestBusinessDaysDiff:
         """Should calculate fraction of a day."""
         start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
         end = datetime(2026, 1, 20, 18, 0, 0)    # Monday 6pm
-        assert business_days_diff(start, end) == 1.0
+        assert business_days_diff(start, end) == pytest.approx(1.0)
 
     def test_two_business_days(self) -> None:
         """Should calculate two full business days."""
         start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
         end = datetime(2026, 1, 21, 18, 0, 0)    # Tuesday 6pm
-        assert business_days_diff(start, end) == 2.0
+        assert business_days_diff(start, end) == pytest.approx(2.0)
 
     def test_skip_weekend(self) -> None:
         """Should skip weekend days."""
         start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
         end = datetime(2026, 1, 19, 18, 0, 0)    # Sunday 6pm
         # Only Friday counts = 1 day
-        assert business_days_diff(start, end) == 1.0
+        assert business_days_diff(start, end) == pytest.approx(1.0)
 
     def test_week_with_weekend(self) -> None:
         """Should calculate business days across weekend."""
         start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
         end = datetime(2026, 1, 20, 18, 0, 0)    # Monday 6pm
         # Friday + Monday = 2 days
-        assert business_days_diff(start, end) == 2.0
+        assert business_days_diff(start, end) == pytest.approx(2.0)
 
     def test_end_before_start(self) -> None:
         """Should return 0 if end is before start."""
         start = datetime(2026, 1, 20, 18, 0, 0)
         end = datetime(2026, 1, 20, 9, 0, 0)
-        assert business_days_diff(start, end) == 0.0
+        assert business_days_diff(start, end) == pytest.approx(0.0)

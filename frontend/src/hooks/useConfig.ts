@@ -50,7 +50,7 @@ export function useScoreThresholds(): ScoreThresholds {
     const constants = config?.['Gates & Constants'];
     if (!constants) return defaultValue;
     const param = constants.find((p) => p.name === name);
-    return param ? parseFloat(param.value) : defaultValue;
+    return param ? Number.parseFloat(param.value) : defaultValue;
   };
 
   return {

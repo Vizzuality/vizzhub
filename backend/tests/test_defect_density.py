@@ -65,22 +65,22 @@ class TestCalculateDefectDensity:
     def test_calculate_defect_density_basic(self) -> None:
         """Should calculate defects per 100 tasks."""
         result = calculate_defect_density(bugs_total=6, tasks_completed=200)
-        assert result == 3.0
+        assert result == pytest.approx(3.0)
 
     def test_calculate_defect_density_zero_bugs(self) -> None:
         """Zero bugs should return 0."""
         result = calculate_defect_density(bugs_total=0, tasks_completed=100)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_calculate_defect_density_zero_tasks(self) -> None:
         """Zero tasks should return 0 (no work, no defects possible)."""
         result = calculate_defect_density(bugs_total=5, tasks_completed=0)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_calculate_defect_density_high_ratio(self) -> None:
         """Should handle high defect ratios."""
         result = calculate_defect_density(bugs_total=50, tasks_completed=100)
-        assert result == 50.0
+        assert result == pytest.approx(50.0)
 
     def test_calculate_defect_density_fractional(self) -> None:
         """Should handle fractional results."""
@@ -90,4 +90,4 @@ class TestCalculateDefectDensity:
     def test_calculate_defect_density_single_task(self) -> None:
         """Should handle single task."""
         result = calculate_defect_density(bugs_total=1, tasks_completed=1)
-        assert result == 100.0
+        assert result == pytest.approx(100.0)

@@ -33,7 +33,7 @@ class TestCollectDeploymentFrequency:
 
         result = await collect_deployment_frequency(mock_github_client, "owner/repo")
 
-        assert result["deployment_frequency"] == 0.0
+        assert result["deployment_frequency"] == pytest.approx(0.0)
         assert result["release_count_90d"] == 0
 
     @pytest.mark.asyncio

@@ -65,17 +65,17 @@ class TestCalculateStoryReviewRatio:
     def test_calculate_ratio_basic(self) -> None:
         """Should calculate ratio correctly."""
         result = calculate_story_review_ratio(total_stories=100, stories_with_reviewer=90)
-        assert result == 0.9
+        assert result == pytest.approx(0.9)
 
     def test_calculate_ratio_perfect(self) -> None:
         """All stories with reviewers should return 1.0."""
         result = calculate_story_review_ratio(total_stories=50, stories_with_reviewer=50)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_calculate_ratio_none(self) -> None:
         """No stories with reviewers should return 0.0."""
         result = calculate_story_review_ratio(total_stories=50, stories_with_reviewer=0)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_calculate_ratio_no_stories(self) -> None:
         """Zero stories should return None."""
@@ -85,9 +85,9 @@ class TestCalculateStoryReviewRatio:
     def test_calculate_ratio_capped_at_one(self) -> None:
         """Should cap at 1.0 even if more reviewers than stories."""
         result = calculate_story_review_ratio(total_stories=10, stories_with_reviewer=15)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_calculate_ratio_floor_at_zero(self) -> None:
         """Should floor at 0.0 for negative inputs."""
         result = calculate_story_review_ratio(total_stories=10, stories_with_reviewer=-5)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
