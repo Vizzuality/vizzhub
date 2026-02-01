@@ -12,10 +12,14 @@ export const queryKeys = {
   },
   metrics: {
     byProject: (projectId: string) => ['metrics', projectId] as const,
+    byPeriod: (projectId: string, year: number, month: number) =>
+      ['metrics', projectId, year, month] as const,
   },
   scores: {
     all: ['scores'] as const,
     byProject: (projectId: string) => ['scores', projectId] as const,
+    byPeriod: (projectId: string, year: number, month: number) =>
+      ['scores', projectId, year, month] as const,
     history: (projectId: string, limit: number) =>
       ['scores', projectId, 'history', limit] as const,
   },
