@@ -65,7 +65,7 @@ describe('useScores', () => {
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(result.current.data).toEqual(mockScores);
-      expect(scoresApi.getProjectScores).toHaveBeenCalledWith(projectId);
+      expect(scoresApi.getProjectScores).toHaveBeenCalledWith(projectId, undefined, undefined);
     });
 
     it('does not fetch when projectId is empty', () => {

@@ -427,11 +427,15 @@ class RiskCalculator(BaseCalculator):
         total_prs: int | None,
         pr_target: float,
     ) -> float | None:
-        """Calculate PR review score. Returns None if data is missing."""
+        """Calculate PR review score. Returns None if data is missing.
+
+        When total_prs=0, returns None (no data) instead of assuming perfect score.
+        This ensures P_risk shows as muted in the UI when there's no PR activity.
+        """
         if prs_without_review is None:
             return None
         if total_prs is None or total_prs <= 0:
-            return 1.0 if prs_without_review == 0 else None
+            return None  # No PRs = no data, not "perfect"
         max_allowed = total_prs * pr_target / 100
         if max_allowed <= 0:
             return 1.0 if prs_without_review == 0 else 0.0

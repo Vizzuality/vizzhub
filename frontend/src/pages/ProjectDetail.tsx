@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
-import { useCollectMetrics } from '../hooks/usePeriodCapture';
+import { useCollectMetrics, useCapturePeriod } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
 import { getMonthsSinceStart } from '../utils/dateUtils';
@@ -19,6 +19,8 @@ import {
   QualityMetricsGrid,
   DORASection,
   SnapshotManager,
+  TimelineSlider,
+  EmptyPeriodOverlay,
 } from '../components/ProjectDetail';
 import type { ProjectCreate, EVMData, Milestone } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,6 +35,7 @@ export default function ProjectDetail(): JSX.Element {
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
   const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(new Set(ALL_DIMENSIONS));
+  const [selectedPeriod, setSelectedPeriod] = useState<{ year: number; month: number } | null>(null);
 
   const handleToggleDimension = useCallback((dimension: Dimension) => {
     setVisibleDimensions((prev) => {
@@ -51,8 +54,16 @@ export default function ProjectDetail(): JSX.Element {
   }, []);
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
-  const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(id!);
-  const { data: metrics } = useProjectMetrics(id!);
+  const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(
+    id!,
+    selectedPeriod?.year,
+    selectedPeriod?.month,
+  );
+  const { data: metrics } = useProjectMetrics(
+    id!,
+    selectedPeriod?.year,
+    selectedPeriod?.month,
+  );
   const { data: config } = useConfigParameters();
   const snapshotType: SnapshotType = 'cumulative';
   const snapshotLimit = useMemo(
@@ -74,6 +85,11 @@ export default function ProjectDetail(): JSX.Element {
   const updateProjectStatus = useUpdateProjectStatus(id!);
   const updateStrategicImpact = useUpdateStrategicImpact(id!, metrics ?? null);
   const updateClientSurvey = useUpdateClientSurvey(id!, metrics ?? null);
+  const {
+    mutateAsync: capturePeriod,
+    isPending: isPeriodCapturing,
+    error: periodCaptureError,
+  } = useCapturePeriod(id!);
 
   const getTarget = (name: string): number | null => {
     const targets = config?.['Targets'];
@@ -113,6 +129,22 @@ export default function ProjectDetail(): JSX.Element {
   const handleUpdateMilestones = async (data: Milestone[]): Promise<void> => {
     await updateMilestones.mutateAsync(data);
   };
+
+  const handleCapturePeriod = async (): Promise<void> => {
+    if (!selectedPeriod) return;
+    await capturePeriod({
+      year: selectedPeriod.year,
+      month: selectedPeriod.month,
+      force: false,
+    });
+  };
+
+  const periodHasData = useMemo(() => {
+    if (!selectedPeriod || !snapshots) return true;
+    return snapshots.some(
+      (s) => s.period_year === selectedPeriod.year && s.period_month === selectedPeriod.month,
+    );
+  }, [selectedPeriod, snapshots]);
 
   if (projectLoading) {
     return <LoadingSpinner />;
@@ -197,20 +229,42 @@ export default function ProjectDetail(): JSX.Element {
           <Separator className="my-6" />
           <div>
             <h2 className="text-2xl font-semibold mb-4">Scores</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ScoreCard
-                score={scores.scores}
+
+            {project.start_date && (
+              <TimelineSlider
+                projectStartDate={project.start_date}
                 snapshots={snapshots}
-                visibleDimensions={visibleDimensions}
-                onToggleDimension={handleToggleDimension}
-                onResetFilters={handleResetFilters}
+                selectedPeriod={selectedPeriod}
+                onPeriodChange={setSelectedPeriod}
+                isCapturing={isPeriodCapturing}
               />
-              <DimensionChart
-                scores={scores.scores.dimensions}
-                snapshots={snapshots}
-                visibleDimensions={visibleDimensions}
-                onToggleDimension={handleToggleDimension}
-              />
+            )}
+
+            <div className="relative">
+              {selectedPeriod && !periodHasData && (
+                <EmptyPeriodOverlay
+                  period={selectedPeriod}
+                  onCapture={handleCapturePeriod}
+                  isCapturing={isPeriodCapturing}
+                  error={periodCaptureError}
+                />
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ScoreCard
+                  score={scores.scores}
+                  snapshots={snapshots}
+                  visibleDimensions={visibleDimensions}
+                  onToggleDimension={handleToggleDimension}
+                  onResetFilters={handleResetFilters}
+                />
+                <DimensionChart
+                  scores={scores.scores.dimensions}
+                  snapshots={snapshots}
+                  visibleDimensions={visibleDimensions}
+                  onToggleDimension={handleToggleDimension}
+                />
+              </div>
             </div>
           </div>
 
