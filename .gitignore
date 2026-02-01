@@ -69,6 +69,7 @@ nosetup.cfg
 # Frontend
 frontend/dist/
 frontend/node_modules/
+frontend/coverage/
 *.tsbuildinfo
 
 # Backend

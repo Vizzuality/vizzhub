@@ -53,6 +53,12 @@ function generateMonthRange(startDate: string): Period[] {
   return periods;
 }
 
+function getLabelInterval(periodsCount: number): number {
+  if (periodsCount > 24) return 6;
+  if (periodsCount > 12) return 3;
+  return 1;
+}
+
 export default function TimelineSlider({
   projectStartDate,
   snapshots,
@@ -127,20 +133,16 @@ export default function TimelineSlider({
     }
   }, [effectivePeriod, periods]);
 
-  const labelInterval = periods.length > 24 ? 6 : periods.length > 12 ? 3 : 1;
+  const labelInterval = getLabelInterval(periods.length);
 
   return (
     <div
       className="w-full py-4"
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      role="slider"
-      aria-label="Timeline period selector"
-      aria-valuemin={0}
-      aria-valuemax={periods.length - 1}
-      aria-valuenow={periods.findIndex(
-        (p) => p.year === effectivePeriod.year && p.month === effectivePeriod.month,
-      )}
+      role="group"
+      aria-label="Timeline period selector - use arrow keys to navigate"
+      aria-roledescription="timeline"
     >
       <div className="relative">
         {/* Base line */}

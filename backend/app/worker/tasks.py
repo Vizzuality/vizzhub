@@ -51,11 +51,11 @@ async def capture_history_task(
     from_month: int,
     to_year: int,
     to_month: int,
-    force: bool = True,
 ) -> dict:
     """Execute historical capture month by month.
 
     Reuses the internal capture logic from capture.py without HTTP overhead.
+    Always upserts metrics (overwrites existing data for each month).
 
     Args:
         ctx: ARQ context with db session
@@ -65,7 +65,6 @@ async def capture_history_task(
         from_month: Start month (1-12)
         to_year: End year
         to_month: End month (1-12)
-        force: Overwrite existing metrics if True
 
     Returns:
         Report dict with summary of captured months

@@ -105,7 +105,6 @@ async def create_capture_history_job(
             request.from_month,
             request.to_year,
             request.to_month,
-            request.force,
         )
         await JobService.set_arq_job_id(db, job.id, arq_job.job_id)
         await pool.close()
@@ -223,7 +222,6 @@ async def retry_job(
                 params["from_month"],
                 params["to_year"],
                 params["to_month"],
-                params.get("force", True),
             )
             await JobService.set_arq_job_id(db, new_job.id, arq_job.job_id)
             await pool.close()
