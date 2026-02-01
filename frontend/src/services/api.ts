@@ -82,8 +82,19 @@ export const projectsApi = {
 };
 
 export const scoresApi = {
-  getProjectScores: async (projectId: string): Promise<ScoreResponse> => {
-    const response = await api.get<ScoreResponse>(`/scores/project/${projectId}`);
+  getProjectScores: async (
+    projectId: string,
+    year?: number,
+    month?: number,
+  ): Promise<ScoreResponse> => {
+    const params: Record<string, number> = {};
+    if (year !== undefined) params.year = year;
+    if (month !== undefined) params.month = month;
+
+    const response = await api.get<ScoreResponse>(
+      `/scores/project/${projectId}`,
+      { params },
+    );
     return response.data;
   },
 
