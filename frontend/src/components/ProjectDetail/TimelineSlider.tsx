@@ -100,13 +100,11 @@ export default function TimelineSlider({
   const labelInterval = getLabelInterval(periods.length);
 
   return (
-    <div
+    <nav
       className="w-full py-4"
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      role="group"
       aria-label="Timeline period selector - use arrow keys to navigate"
-      aria-roledescription="timeline"
     >
       <div className="relative">
         {/* Base line */}
@@ -193,6 +191,6 @@ export default function TimelineSlider({
           Reset to latest
         </button>
       )}
-    </div>
+    </nav>
   );
 }
