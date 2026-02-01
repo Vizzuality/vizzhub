@@ -244,8 +244,7 @@ export default function ProjectDetail(): JSX.Element {
                 {selectedPeriod
                   ? `${MONTH_NAMES[selectedPeriod.month - 1]} ${selectedPeriod.year}`
                   : 'this period'}
-              </strong>
-              . This is a past period and changes may affect historical reports.
+              </strong>. This is a past period and changes may affect historical reports.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

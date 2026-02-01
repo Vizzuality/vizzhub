@@ -16,6 +16,13 @@ from app.database import async_session_maker
 from app.models.config import ConfigParameter
 
 
+def _read_csv_parameters() -> list[dict]:
+    """Read config parameters from CSV file (sync operation)."""
+    csv_path = Path(__file__).parent.parent / "seeds" / "config_parameters.csv"
+    with open(csv_path, encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 async def seed_config_parameters(db: AsyncSession | None = None, force: bool = False) -> None:
     """Seed config parameters from CSV if table is empty.
 
@@ -45,20 +52,18 @@ async def seed_config_parameters(db: AsyncSession | None = None, force: bool = F
             print(f"✓ Config parameters already seeded ({count} rows)")
             return
 
-        # Read CSV
-        csv_path = Path(__file__).parent.parent / "seeds" / "config_parameters.csv"
-        parameters = []
-
-        with open(csv_path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                parameters.append(ConfigParameter(
-                    category=row["category"],
-                    name=row["name"],
-                    value=Decimal(row["value"]),
-                    unit=row["unit"] if row["unit"] else None,
-                    notes=row["notes"] if row["notes"] else None
-                ))
+        # Read CSV (sync operation extracted to avoid async file I/O issue)
+        rows = await asyncio.to_thread(_read_csv_parameters)
+        parameters = [
+            ConfigParameter(
+                category=row["category"],
+                name=row["name"],
+                value=Decimal(row["value"]),
+                unit=row["unit"] if row["unit"] else None,
+                notes=row["notes"] if row["notes"] else None
+            )
+            for row in rows
+        ]
 
         db.add_all(parameters)
         await db.commit()
