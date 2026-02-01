@@ -1,4 +1,67 @@
 /**
+ * Represents a year-month period.
+ */
+export interface Period {
+  year: number;
+  month: number;
+}
+
+/**
+ * Short month names for display.
+ */
+export const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/**
+ * Format a period as "Mon YYYY" (e.g., "Jan 2024").
+ */
+export function formatPeriod(year: number, month: number): string {
+  return `${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+/**
+ * Format a period as "Mon 'YY" (e.g., "Jan '24").
+ */
+export function formatShortPeriod(year: number, month: number): string {
+  return `${MONTH_NAMES[month - 1]} '${String(year).slice(2)}`;
+}
+
+/**
+ * Generate an array of periods from a start date to the current month.
+ */
+export function generateMonthRange(startDate: string): Period[] {
+  const start = new Date(startDate);
+  const now = new Date();
+  const periods: Period[] = [];
+
+  let year = start.getFullYear();
+  let month = start.getMonth() + 1;
+
+  while (
+    year < now.getFullYear() ||
+    (year === now.getFullYear() && month <= now.getMonth() + 1)
+  ) {
+    periods.push({ year, month });
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+  }
+
+  return periods;
+}
+
+/**
+ * Create a unique key for a period.
+ */
+export function periodKey(year: number, month: number): string {
+  return `${year}-${month}`;
+}
+
+/**
  * Generate an array of years from past to current year.
  * @param pastYears - Number of past years to include (default: 3)
  * @returns Array of years in descending order (current year first)

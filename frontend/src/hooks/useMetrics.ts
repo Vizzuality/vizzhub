@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { metricsHistoryApi } from '../services/api';
 import type { Metrics, MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
 import { queryKeys } from './queryKeys';
+import type { Period } from '../utils/dateUtils';
 
 export function useProjectMetrics(
   projectId: string,
@@ -60,11 +61,6 @@ export function useCreateMetrics(projectId: string) {
 }
 
 type MetricsField = keyof Omit<MetricsCreate, 'period_start' | 'period_end' | 'sev1_incident'>;
-
-interface Period {
-  year: number;
-  month: number;
-}
 
 function getPeriodDates(period?: Period | null): { start: string; end: string } {
   if (!period) {

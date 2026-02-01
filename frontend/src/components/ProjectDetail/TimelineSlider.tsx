@@ -7,11 +7,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { MetricsWithScores } from '../../types';
-
-interface Period {
-  year: number;
-  month: number;
-}
+import { formatPeriod, generateMonthRange, type Period } from '../../utils/dateUtils';
 
 interface TimelineSliderProps {
   projectStartDate: string;
@@ -19,38 +15,6 @@ interface TimelineSliderProps {
   selectedPeriod: Period | null;
   onPeriodChange: (period: Period | null) => void;
   isCapturing?: boolean;
-}
-
-const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-function formatPeriod(year: number, month: number): string {
-  return `${MONTH_NAMES[month - 1]} ${year}`;
-}
-
-function generateMonthRange(startDate: string): Period[] {
-  const start = new Date(startDate);
-  const now = new Date();
-  const periods: Period[] = [];
-
-  let year = start.getFullYear();
-  let month = start.getMonth() + 1;
-
-  while (
-    year < now.getFullYear() ||
-    (year === now.getFullYear() && month <= now.getMonth() + 1)
-  ) {
-    periods.push({ year, month });
-    month++;
-    if (month > 12) {
-      month = 1;
-      year++;
-    }
-  }
-
-  return periods;
 }
 
 function getLabelInterval(periodsCount: number): number {

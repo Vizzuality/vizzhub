@@ -206,7 +206,7 @@ class TestGitHubCollector:
 
             assert result.prs_without_review == 5
             assert result.total_merged_prs == 50
-            assert result.pr_review_ratio == 0.9
+            assert result.pr_review_ratio == pytest.approx(0.9)
             assert result.high_severity_vulns == 0
 
             await collector.close()

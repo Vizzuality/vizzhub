@@ -65,17 +65,17 @@ class TestNormalizeToIdeal:
     def test_value_at_ideal_returns_one(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
         result = calc._normalize_to_ideal(1.0, 1.0)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_value_below_ideal_returns_fraction(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
         result = calc._normalize_to_ideal(0.8, 1.0)
-        assert result == 0.8
+        assert result == pytest.approx(0.8)
 
     def test_value_above_ideal_capped_at_one(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
         result = calc._normalize_to_ideal(1.2, 1.0)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_none_value_returns_none(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
@@ -85,7 +85,7 @@ class TestNormalizeToIdeal:
     def test_zero_ideal_with_positive_value_returns_one(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
         result = calc._normalize_to_ideal(0.5, 0.0)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_zero_ideal_with_none_value_returns_none(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
@@ -95,12 +95,12 @@ class TestNormalizeToIdeal:
     def test_negative_value_floored_at_zero(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
         result = calc._normalize_to_ideal(-0.5, 1.0)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_negative_ideal_with_positive_value_returns_one(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
         result = calc._normalize_to_ideal(0.5, -1.0)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_zero_value_with_zero_ideal_returns_none(self, config: ScoringConfig) -> None:
         calc = TimeCalculator(config)
@@ -113,15 +113,15 @@ class TestGetIdeal:
 
     def test_get_ideal_spi(self, config: ScoringConfig) -> None:
         result = config.get_ideal("spi")
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_get_ideal_cpi(self, config: ScoringConfig) -> None:
         result = config.get_ideal("cpi")
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_get_ideal_missing_returns_default(self, config: ScoringConfig) -> None:
         result = config.get_ideal("nonexistent")
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
 
 class TestTimeCalculator:

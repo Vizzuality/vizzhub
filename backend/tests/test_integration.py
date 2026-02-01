@@ -198,27 +198,27 @@ class TestConfigLoadingIntegration:
     ) -> None:
         """Verify scoring config weights are loaded from database."""
         # These should match the CSV seed values
-        assert scoring_config.get_weight("global", "time") == 0.12
-        assert scoring_config.get_weight("global", "quality") == 0.205
-        assert scoring_config.get_weight("global", "flow") == 0.15
+        assert scoring_config.get_weight("global", "time") == pytest.approx(0.12)
+        assert scoring_config.get_weight("global", "quality") == pytest.approx(0.205)
+        assert scoring_config.get_weight("global", "flow") == pytest.approx(0.15)
 
     @pytest.mark.asyncio
     async def test_config_targets_loaded_from_db(
         self, db_session: AsyncSession, scoring_config: ScoringConfig
     ) -> None:
         """Verify scoring config targets are loaded from database."""
-        assert scoring_config.get_target("spi") == 0.8
-        assert scoring_config.get_target("cpi") == 0.8
-        assert scoring_config.get_target("lead_time_days") == 10.0
-        assert scoring_config.get_target("mttr_hours") == 24.0
+        assert scoring_config.get_target("spi") == pytest.approx(0.8)
+        assert scoring_config.get_target("cpi") == pytest.approx(0.8)
+        assert scoring_config.get_target("lead_time_days") == pytest.approx(10.0)
+        assert scoring_config.get_target("mttr_hours") == pytest.approx(24.0)
 
     @pytest.mark.asyncio
     async def test_config_constants_loaded_from_db(
         self, db_session: AsyncSession, scoring_config: ScoringConfig
     ) -> None:
         """Verify scoring config constants are loaded from database."""
-        assert scoring_config.get_constant("sev1_cap") == 60.0
-        assert scoring_config.get_constant("grace_days") == 3.0
+        assert scoring_config.get_constant("sev1_cap") == pytest.approx(60.0)
+        assert scoring_config.get_constant("grace_days") == pytest.approx(3.0)
 
     @pytest.mark.asyncio
     async def test_config_weight_groups_sum_to_one(
@@ -1156,10 +1156,10 @@ class TestConfigHotReloadIntegration:
     ) -> None:
         """Verify config values match what's in CSV seed."""
         # These values should match config_parameters.csv
-        assert scoring_config.get_weight("global", "time") == 0.12
-        assert scoring_config.get_weight("global", "quality") == 0.205
-        assert scoring_config.get_target("spi") == 0.8
-        assert scoring_config.get_constant("sev1_cap") == 60.0
+        assert scoring_config.get_weight("global", "time") == pytest.approx(0.12)
+        assert scoring_config.get_weight("global", "quality") == pytest.approx(0.205)
+        assert scoring_config.get_target("spi") == pytest.approx(0.8)
+        assert scoring_config.get_constant("sev1_cap") == pytest.approx(60.0)
 
 
 # =============================================================================
@@ -1387,7 +1387,7 @@ class TestEndOfProjectMetricsIntegration:
 
         # OKR impact should reflect transformational = 1.0
         assert indicators.get("okr_impact") is not None
-        assert indicators["okr_impact"] == 1.0
+        assert indicators["okr_impact"] == pytest.approx(1.0)
 
     @pytest.mark.asyncio
     async def test_strategic_impact_low_value(
@@ -1417,7 +1417,7 @@ class TestEndOfProjectMetricsIntegration:
         indicators = data["indicators"]
 
         # OKR impact should reflect low = 0.25
-        assert indicators.get("okr_impact") == 0.25
+        assert indicators.get("okr_impact") == pytest.approx(0.25)
 
     @pytest.mark.asyncio
     async def test_client_survey_affects_p_satisfaction(
@@ -1458,7 +1458,7 @@ class TestEndOfProjectMetricsIntegration:
 
         # Client satisfaction should be 1.0 (all 5s = 100%)
         assert indicators.get("client_satisfaction") is not None
-        assert indicators["client_satisfaction"] == 1.0
+        assert indicators["client_satisfaction"] == pytest.approx(1.0)
 
     @pytest.mark.asyncio
     async def test_client_survey_weighted_average(

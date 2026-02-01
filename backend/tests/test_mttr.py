@@ -180,7 +180,7 @@ class TestMTTRNormalizer:
 
         result = normalizer._get_mttr(jira)
 
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_with_incidents_returns_mttr_value(self) -> None:
         """When incidents exist, should return actual MTTR."""

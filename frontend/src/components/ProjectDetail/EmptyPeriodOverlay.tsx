@@ -1,10 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar } from 'lucide-react';
-
-interface Period {
-  year: number;
-  month: number;
-}
+import type { Period } from '../../utils/dateUtils';
 
 interface EmptyPeriodOverlayProps {
   period: Period;
