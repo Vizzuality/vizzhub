@@ -163,7 +163,7 @@ export default function DORASection({
                 />
               )}
             {metrics.github_metrics.change_failure_rate !== null &&
-              metrics.github_metrics.change_failure_rate !== undefined && (
+              metrics.github_metrics.change_failure_rate !== undefined ? (
                 <SubIndicatorCard
                   title="Change Failure Rate"
                   dimension="Flow"
@@ -183,6 +183,47 @@ export default function DORASection({
                     <LevelBadge level={scores.dora.metrics.change_failure_rate.level} />
                   )}
                 />
+              ) : (
+                <Card className="opacity-60">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                                F
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Flow metric</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        Change Failure Rate
+                      </span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button className="text-muted-foreground hover:text-foreground transition-colors">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Percentage of releases requiring hotfix</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">DORA metric: Releases requiring hotfix</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-4">
+                      <p className="text-2xl font-semibold text-muted-foreground">No data</p>
+                      <p className="text-xs text-muted-foreground mt-1">No release data available</p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             {(metrics.jira_defects?.incidents_count ?? 0) > 0 ? (
               <SubIndicatorCard
