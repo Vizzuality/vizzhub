@@ -12,6 +12,10 @@ import type {
   CaptureHistoryRequest,
   CaptureReport,
   SnapshotType,
+  JobResponse,
+  JobDetailResponse,
+  JobSummaryResponse,
+  CreateCaptureHistoryJobRequest,
 } from '../types';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
@@ -195,6 +199,36 @@ export const captureApi = {
       request,
       { timeout: 120000 }, // 2 minute timeout for collector calls
     );
+    return response.data;
+  },
+};
+
+export const jobsApi = {
+  createCaptureHistory: async (
+    request: CreateCaptureHistoryJobRequest,
+  ): Promise<JobResponse> => {
+    const response = await api.post<JobResponse>('/jobs/capture-history', request);
+    return response.data;
+  },
+
+  getJob: async (jobId: string): Promise<JobDetailResponse> => {
+    const response = await api.get<JobDetailResponse>(`/jobs/${jobId}`);
+    return response.data;
+  },
+
+  listJobs: async (projectId?: string): Promise<JobSummaryResponse[]> => {
+    const params = projectId ? { project_id: projectId } : {};
+    const response = await api.get<JobSummaryResponse[]>('/jobs', { params });
+    return response.data;
+  },
+
+  cancelJob: async (jobId: string): Promise<JobResponse> => {
+    const response = await api.post<JobResponse>(`/jobs/${jobId}/cancel`);
+    return response.data;
+  },
+
+  retryJob: async (jobId: string): Promise<JobResponse> => {
+    const response = await api.post<JobResponse>(`/jobs/${jobId}/retry`);
     return response.data;
   },
 };
