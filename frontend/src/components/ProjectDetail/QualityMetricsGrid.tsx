@@ -191,7 +191,7 @@ export default function QualityMetricsGrid({
                 metrics={[{ label: 'Incidents', value: metrics.jira_defects.incidents_count }]}
                 historicalData={getHistoricalData(snapshots, 'mttr_hours')}
               />
-              {metrics.flow_metrics && (
+              {metrics.flow_metrics ? (
                 <SubIndicatorCard
                   title="Story Review Ratio"
                   dimension="Quality"
@@ -212,6 +212,8 @@ export default function QualityMetricsGrid({
                   ]}
                   historicalData={getHistoricalData(snapshots, 'story_review_ratio', 100)}
                 />
+              ) : (
+                <MutedCard title="Story Review Ratio" dimension="Quality" description="User stories with assigned reviewer" message="No flow metrics available" />
               )}
               <TestMaturityCard
                 data={metrics.test_maturity}
@@ -221,7 +223,7 @@ export default function QualityMetricsGrid({
                 isPending={isUpdatingTestMaturity}
                 historicalData={getHistoricalData(snapshots, 'test_maturity')}
               />
-              {metrics.github_metrics && (
+              {metrics.github_metrics ? (
                 <SubIndicatorCard
                   title="Security Vulnerabilities"
                   dimension="Quality"
@@ -238,6 +240,8 @@ export default function QualityMetricsGrid({
                   ]}
                   historicalData={getHistoricalData(snapshots, 'high_vulns')}
                 />
+              ) : (
+                <MutedCard title="Security Vulnerabilities" dimension="Quality" description="Dependabot alerts unaddressed for 30+ days" message="No GitHub data available" />
               )}
             </>
           )}
@@ -326,7 +330,7 @@ export default function QualityMetricsGrid({
                 isPending={isUpdatingArchitecture}
                 historicalData={getHistoricalData(snapshots, 'arch_checklist')}
               />
-              {metrics.github_metrics && (
+              {metrics.github_metrics ? (
                 <SubIndicatorCard
                   title="PR Review Coverage"
                   dimension="Engineering"
@@ -353,6 +357,8 @@ export default function QualityMetricsGrid({
                   ]}
                   historicalData={getHistoricalData(snapshots, 'pr_review_ratio', 100)}
                 />
+              ) : (
+                <MutedCard title="PR Review Coverage" dimension="Engineering" description="PRs reviewed before merge" message="No GitHub data available" />
               )}
               {metrics.github_metrics &&
                 metrics.github_metrics.pr_size_median !== null &&
@@ -409,7 +415,7 @@ export default function QualityMetricsGrid({
                 isPending={isUpdatingGovernance}
                 historicalData={getHistoricalData(snapshots, 'governance_compliance')}
               />
-              {indicators.post_contract_tasks !== null && (
+              {indicators.post_contract_tasks !== null ? (
                 <SubIndicatorCard
                   title="Post-Contract Tasks"
                   dimension="Risk"
@@ -428,6 +434,8 @@ export default function QualityMetricsGrid({
                     },
                   ]}
                 />
+              ) : (
+                <MutedCard title="Post-Contract Tasks" dimension="Risk" description="New tasks created >30 days after contract end" message="No post-contract data available" />
               )}
             </>
           )}
