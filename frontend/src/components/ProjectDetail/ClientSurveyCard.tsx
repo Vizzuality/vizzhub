@@ -20,6 +20,18 @@ const SURVEY_QUESTIONS = [
 
 type SurveyKey = (typeof SURVEY_QUESTIONS)[number]['key'];
 
+const RATING_COLORS: Record<number, string> = {
+  5: 'text-score-green',
+  4: 'text-blue-600',
+  3: 'text-score-yellow',
+  2: 'text-orange-600',
+  1: 'text-score-red',
+};
+
+function getRatingColor(value: number | null | undefined): string {
+  return value ? RATING_COLORS[value] ?? '' : '';
+}
+
 interface ClientSurveyCardProps {
   data: ClientSurvey | null | undefined;
   indicatorValue: number | null;
@@ -116,21 +128,7 @@ export default function ClientSurveyCard({
                 return (
                   <div key={key} className="flex justify-between text-xs">
                     <span className="text-muted-foreground">{shortLabel}</span>
-                    <span
-                      className={cn(
-                        value === 5
-                          ? 'text-score-green'
-                          : value === 4
-                          ? 'text-blue-600'
-                          : value === 3
-                          ? 'text-score-yellow'
-                          : value === 2
-                          ? 'text-orange-600'
-                          : value === 1
-                          ? 'text-score-red'
-                          : ''
-                      )}
-                    >
+                    <span className={cn(getRatingColor(value))}>
                       {value ?? '—'}
                     </span>
                   </div>

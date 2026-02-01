@@ -20,6 +20,8 @@ from app.services.oauth_service import OAuthService
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+TOKEN_REFRESH_FAILED = "Token refresh failed"
+
 
 @router.get("/jira/authorize")
 @limiter.limit("10/minute")
@@ -172,11 +174,11 @@ async def refresh_jira_token(
         logger.exception("Database error during token refresh")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Token refresh failed",
+            detail=TOKEN_REFRESH_FAILED,
         )
     except Exception:
-        logger.exception("Token refresh failed")
+        logger.exception(TOKEN_REFRESH_FAILED)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token refresh failed",
+            detail=TOKEN_REFRESH_FAILED,
         )

@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
 
-IN_PROGRESS_STATUSES = {
+IN_PROGRESS_STATUSES = frozenset({
     "in progress",
     "in development",
     "development",
@@ -65,7 +65,36 @@ IN_PROGRESS_STATUSES = {
     "wip",
     "code review",
     "qa",
-}
+})
+
+
+def _build_date_filter(period_start: date | None, period_end: date | None) -> str:
+    """Build JQL date filter clause."""
+    parts = []
+    if period_start:
+        parts.append(f'resolutiondate >= "{period_start.isoformat()}"')
+    if period_end:
+        parts.append(f'resolutiondate <= "{period_end.isoformat()}"')
+    return " AND " + " AND ".join(parts) if parts else ""
+
+
+def _calculate_issue_lead_time(issue: dict) -> float | None:
+    """Calculate lead time for a single issue. Returns None if invalid."""
+    fields = issue.get("fields", {})
+    resolved_str = fields.get("resolutiondate")
+    if not resolved_str:
+        return None
+
+    resolved = parse_jira_datetime(resolved_str)
+    if not resolved:
+        return None
+
+    start_time = _find_first_in_progress(issue)
+    if not start_time or resolved <= start_time:
+        return None
+
+    days = business_days_diff(start_time, resolved)
+    return days if days >= 0 else None
 
 
 async def collect_lead_time(
@@ -86,12 +115,7 @@ async def collect_lead_time(
     Returns:
         dict with lead_time_days and sample_size
     """
-    date_filter = ""
-    if period_start:
-        date_filter += f' AND resolutiondate >= "{period_start.isoformat()}"'
-    if period_end:
-        date_filter += f' AND resolutiondate <= "{period_end.isoformat()}"'
-
+    date_filter = _build_date_filter(period_start, period_end)
     jql = (
         f"type IN (Story, Task, Bug) AND statusCategory = Done{date_filter} "
         "ORDER BY resolutiondate DESC"
@@ -108,67 +132,41 @@ async def collect_lead_time(
     if not issues:
         return {"lead_time_days": None, "sample_size": 0}
 
-    total_days = 0.0
-    valid_count = 0
+    lead_times = [
+        lt for issue in issues
+        if (lt := _calculate_issue_lead_time(issue)) is not None
+    ]
 
-    for issue in issues:
-        fields = issue.get("fields", {})
-        resolved_str = fields.get("resolutiondate")
-
-        if not resolved_str:
-            continue
-
-        resolved = parse_jira_datetime(resolved_str)
-        if not resolved:
-            continue
-
-        # Find first In Progress transition from changelog
-        start_time = _find_first_in_progress(issue)
-
-        # Skip issues without work transition (no fallback to created date)
-        if not start_time:
-            continue
-
-        if resolved > start_time:
-            days = business_days_diff(start_time, resolved)
-            if days >= 0:
-                total_days += days
-                valid_count += 1
-
-    lead_time_days = (total_days / valid_count) if valid_count > 0 else None
+    lead_time_days = sum(lead_times) / len(lead_times) if lead_times else None
 
     return {
         "lead_time_days": lead_time_days,
-        "sample_size": valid_count,
+        "sample_size": len(lead_times),
     }
 
 
-def _find_first_in_progress(issue: dict) -> datetime | None:
-    """
-    Find the first transition to an In Progress status from changelog.
+def _extract_in_progress_time(history: dict) -> datetime | None:
+    """Extract in-progress transition time from a changelog history entry."""
+    created_str = history.get("created")
+    if not created_str:
+        return None
 
-    Args:
-        issue: Jira issue dict with changelog
-
-    Returns:
-        Datetime of first In Progress transition, or None if not found
-    """
-    changelog = issue.get("changelog", {})
-    histories = changelog.get("histories", [])
-
-    in_progress_times: list[datetime] = []
-
-    for history in histories:
-        created_str = history.get("created")
-        if not created_str:
+    for item in history.get("items", []):
+        if item.get("field") != "status":
             continue
+        to_status = (item.get("toString") or "").lower()
+        if to_status in IN_PROGRESS_STATUSES:
+            return parse_jira_datetime(created_str)
+    return None
 
-        for item in history.get("items", []):
-            if item.get("field") == "status":
-                to_status = (item.get("toString") or "").lower()
-                if to_status in IN_PROGRESS_STATUSES:
-                    dt = parse_jira_datetime(created_str)
-                    if dt:
-                        in_progress_times.append(dt)
+
+def _find_first_in_progress(issue: dict) -> datetime | None:
+    """Find the first transition to an In Progress status from changelog."""
+    histories = issue.get("changelog", {}).get("histories", [])
+
+    in_progress_times = [
+        dt for history in histories
+        if (dt := _extract_in_progress_time(history)) is not None
+    ]
 
     return min(in_progress_times) if in_progress_times else None

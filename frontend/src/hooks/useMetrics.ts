@@ -61,16 +61,35 @@ export function useCreateMetrics(projectId: string) {
 
 type MetricsField = keyof Omit<MetricsCreate, 'period_start' | 'period_end' | 'sev1_incident'>;
 
+interface Period {
+  year: number;
+  month: number;
+}
+
+function getPeriodDates(period?: Period | null): { start: string; end: string } {
+  if (!period) {
+    const today = new Date().toISOString().split('T')[0];
+    return { start: today, end: today };
+  }
+  const start = new Date(period.year, period.month - 1, 1);
+  const end = new Date(period.year, period.month, 0);
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
+  };
+}
+
 function createMetricsMutation<T>(
   projectId: string,
   existingMetrics: Metrics | null,
   fieldName: MetricsField,
+  period?: Period | null,
 ) {
   return async (value: T): Promise<Metrics> => {
-    const today = new Date().toISOString().split('T')[0];
+    const { start, end } = getPeriodDates(period);
     const metrics: MetricsCreate = {
-      period_start: existingMetrics?.period_start ?? today,
-      period_end: today,
+      period_start: existingMetrics?.period_start ?? start,
+      period_end: end,
       evm_data: existingMetrics?.evm_data,
       milestones: existingMetrics?.milestones,
       jira_defects: existingMetrics?.jira_defects,
@@ -94,28 +113,37 @@ function useMetricsFieldMutation<T>(
   projectId: string,
   existingMetrics: Metrics | null,
   fieldName: MetricsField,
+  period?: Period | null,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createMetricsMutation<T>(projectId, existingMetrics, fieldName),
+    mutationFn: createMetricsMutation<T>(projectId, existingMetrics, fieldName, period),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
+      if (period) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.metrics.byPeriod(projectId, period.year, period.month),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.scores.byPeriod(projectId, period.year, period.month),
+        });
+      }
     },
   });
 }
 
-export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<EVMData>(projectId, existingMetrics, 'evm_data');
+export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<EVMData>(projectId, existingMetrics, 'evm_data', period);
 }
 
-export function useUpdateMilestones(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<Milestone[]>(projectId, existingMetrics, 'milestones');
+export function useUpdateMilestones(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<Milestone[]>(projectId, existingMetrics, 'milestones', period);
 }
 
-export function useUpdateGovernance(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<number>(projectId, existingMetrics, 'governance_exceptions');
+export function useUpdateGovernance(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<number>(projectId, existingMetrics, 'governance_exceptions', period);
 }
 
 interface PMSatisfactionInput {
@@ -124,8 +152,8 @@ interface PMSatisfactionInput {
   overall_estimation?: number;
 }
 
-export function useUpdatePMSatisfaction(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<PMSatisfactionInput>(projectId, existingMetrics, 'pm_satisfaction');
+export function useUpdatePMSatisfaction(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<PMSatisfactionInput>(projectId, existingMetrics, 'pm_satisfaction', period);
 }
 
 interface TestMaturityInput {
@@ -136,8 +164,8 @@ interface TestMaturityInput {
   frontend?: number;
 }
 
-export function useUpdateTestMaturity(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<TestMaturityInput>(projectId, existingMetrics, 'test_maturity');
+export function useUpdateTestMaturity(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<TestMaturityInput>(projectId, existingMetrics, 'test_maturity', period);
 }
 
 interface ArchitectureInput {
@@ -147,12 +175,12 @@ interface ArchitectureInput {
   diagrams_updated: boolean;
 }
 
-export function useUpdateArchitecture(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<ArchitectureInput>(projectId, existingMetrics, 'architecture');
+export function useUpdateArchitecture(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<ArchitectureInput>(projectId, existingMetrics, 'architecture', period);
 }
 
-export function useUpdateStrategicImpact(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<StrategicImpact>(projectId, existingMetrics, 'strategic_impact');
+export function useUpdateStrategicImpact(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<StrategicImpact>(projectId, existingMetrics, 'strategic_impact', period);
 }
 
 interface ClientSurveyInput {
@@ -166,6 +194,8 @@ interface ClientSurveyInput {
   recommend?: number;
 }
 
-export function useUpdateClientSurvey(projectId: string, existingMetrics: Metrics | null) {
-  return useMetricsFieldMutation<ClientSurveyInput>(projectId, existingMetrics, 'client_survey');
+export function useUpdateClientSurvey(projectId: string, existingMetrics: Metrics | null, period?: Period | null) {
+  return useMetricsFieldMutation<ClientSurveyInput>(projectId, existingMetrics, 'client_survey', period);
 }
+
+export type { Period };

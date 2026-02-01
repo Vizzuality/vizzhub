@@ -120,18 +120,18 @@ Content-Type: application/json
 }
 ```
 
-**When `year`/`month` are omitted** (typical UI usage):
+**When `year`/`month` are omitted**:
 - Defaults to current month
 - Uses `today` as end date (not last day of month)
 - Cumulative: `project.start_date` → `today`
 - Punctual: 1st of current month → `today`
 
-**Minimal request** (from UI "Collect Metrics" button):
+**Typical request** (from UI "Collect Metrics" button for selected period):
 ```http
 POST /projects/{project_id}/capture-period
 Content-Type: application/json
 
-{"force": true}
+{"year": 2024, "month": 6, "force": true}
 ```
 
 **Response:** `201 Created`
@@ -160,41 +160,9 @@ Content-Type: application/json
 
 **Error:** `409 Conflict` if period already captured (use `force: true` to overwrite)
 
-### Capture History (Batch)
+### Capture History (Batch - Async)
 
-Capture metrics for multiple months at once.
-
-```http
-POST /projects/{project_id}/capture-history
-Content-Type: application/json
-
-{
-  "from_year": 2024,
-  "from_month": 1,
-  "to_year": 2024,
-  "to_month": 6,
-  "force": false
-}
-```
-
-**Response:**
-```json
-{
-  "project_id": "uuid",
-  "requested_range": ["2024-01", "2024-06"],
-  "summary": {
-    "total_months": 6,
-    "snapshots_created": 12,
-    "snapshots_skipped": 0,
-    "errors": 0
-  },
-  "details": [
-    {"month": "2024-01", "snapshot_type": "cumulative", "status": "created"},
-    {"month": "2024-01", "snapshot_type": "punctual", "status": "created"}
-  ],
-  "errors": []
-}
-```
+> **Note:** Use `POST /jobs/capture-history` instead. Batch capture now runs as a background job for better reliability and progress tracking. See [Background Jobs](#background-jobs) section.
 
 ### Collect Jira Metrics Only (Legacy)
 
@@ -211,6 +179,95 @@ POST /collect/project/{project_id}/jira
 ```http
 POST /collect/project/{project_id}/github
 ```
+
+---
+
+## Background Jobs
+
+Long-running batch operations (historical capture) run asynchronously via ARQ + Redis.
+
+### Create Batch Historical Capture Job
+
+```http
+POST /jobs/capture-history
+Content-Type: application/json
+
+{
+  "project_id": "uuid",
+  "from_year": 2024,
+  "from_month": 1,
+  "to_year": 2024,
+  "to_month": 12,
+  "force": true
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": "uuid",
+  "type": "capture_history",
+  "name": "Historical Capture: Project Alpha",
+  "description": "January 2024 - December 2024 (12 months)",
+  "status": "pending",
+  "progress": 0,
+  "progress_message": null,
+  "created_at": "2024-01-15T10:00:00Z"
+}
+```
+
+### Get Job Status (Polling)
+
+Poll this endpoint to track job progress.
+
+```http
+GET /jobs/{job_id}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "type": "capture_history",
+  "name": "Historical Capture: Project Alpha",
+  "description": "January 2024 - December 2024 (12 months)",
+  "status": "running",
+  "progress": 42,
+  "progress_message": "Processing May 2024...",
+  "logs": "[10:00:01] OK: January 2024\n[10:00:06] OK: February 2024...",
+  "result": null,
+  "error_message": null,
+  "created_at": "2024-01-15T10:00:00Z",
+  "started_at": "2024-01-15T10:00:01Z",
+  "completed_at": null
+}
+```
+
+**Job statuses:** `pending` → `running` → `completed` | `failed` | `cancelled`
+
+### List Jobs
+
+```http
+GET /jobs?project_id=uuid&status=running&type=capture_history&limit=20
+```
+
+All parameters optional. Returns list of `JobSummaryResponse`.
+
+### Cancel Pending Job
+
+```http
+POST /jobs/{job_id}/cancel
+```
+
+Only works for `pending` jobs. Returns `400` if job is already running.
+
+### Retry Failed Job
+
+```http
+POST /jobs/{job_id}/retry
+```
+
+Creates a new job with the same parameters. Only works for `failed` jobs.
 
 ---
 

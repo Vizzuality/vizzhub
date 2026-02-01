@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
-import { useCollectMetrics, useCapturePeriod } from '../hooks/usePeriodCapture';
+import { useCapturePeriod } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
 import { getMonthsSinceStart } from '../utils/dateUtils';
@@ -26,6 +26,16 @@ import type { ProjectCreate, EVMData, Milestone } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function ProjectDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +46,8 @@ export default function ProjectDetail(): JSX.Element {
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
   const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(new Set(ALL_DIMENSIONS));
   const [selectedPeriod, setSelectedPeriod] = useState<{ year: number; month: number } | null>(null);
+  const [showHistoricalWarning, setShowHistoricalWarning] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<(() => Promise<void>) | null>(null);
 
   const handleToggleDimension = useCallback((dimension: Dimension) => {
     setVisibleDimensions((prev) => {
@@ -73,22 +85,21 @@ export default function ProjectDetail(): JSX.Element {
   const { data: snapshots } = useProjectSnapshots(id!, snapshotLimit, snapshotType);
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
-  const { collectMetrics, isPending: isCollecting, error: collectError, isSuccess: collectSuccess } = useCollectMetrics(id!, {
-    onSuccess: () => setDismissedSuccess(false),
-  });
-  const updateEVM = useUpdateEVMData(id!, metrics ?? null);
-  const updateMilestones = useUpdateMilestones(id!, metrics ?? null);
-  const updateGovernance = useUpdateGovernance(id!, metrics ?? null);
-  const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null);
-  const updateTestMaturity = useUpdateTestMaturity(id!, metrics ?? null);
-  const updateArchitecture = useUpdateArchitecture(id!, metrics ?? null);
+  const updateEVM = useUpdateEVMData(id!, metrics ?? null, selectedPeriod);
+  const updateMilestones = useUpdateMilestones(id!, metrics ?? null, selectedPeriod);
+  const updateGovernance = useUpdateGovernance(id!, metrics ?? null, selectedPeriod);
+  const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null, selectedPeriod);
+  const updateTestMaturity = useUpdateTestMaturity(id!, metrics ?? null, selectedPeriod);
+  const updateArchitecture = useUpdateArchitecture(id!, metrics ?? null, selectedPeriod);
   const updateProjectStatus = useUpdateProjectStatus(id!);
-  const updateStrategicImpact = useUpdateStrategicImpact(id!, metrics ?? null);
-  const updateClientSurvey = useUpdateClientSurvey(id!, metrics ?? null);
+  const updateStrategicImpact = useUpdateStrategicImpact(id!, metrics ?? null, selectedPeriod);
+  const updateClientSurvey = useUpdateClientSurvey(id!, metrics ?? null, selectedPeriod);
   const {
     mutateAsync: capturePeriod,
     isPending: isPeriodCapturing,
     error: periodCaptureError,
+    isSuccess: captureSuccess,
+    reset: resetCaptureState,
   } = useCapturePeriod(id!);
 
   const getTarget = (name: string): number | null => {
@@ -122,12 +133,12 @@ export default function ProjectDetail(): JSX.Element {
     navigate('/projects');
   };
 
-  const handleUpdateEVM = async (data: EVMData): Promise<void> => {
-    await updateEVM.mutateAsync(data);
+  const handleUpdateEVM = (data: EVMData): Promise<void> => {
+    return withHistoricalWarning(() => updateEVM.mutateAsync(data))() as Promise<void>;
   };
 
-  const handleUpdateMilestones = async (data: Milestone[]): Promise<void> => {
-    await updateMilestones.mutateAsync(data);
+  const handleUpdateMilestones = (data: Milestone[]): Promise<void> => {
+    return withHistoricalWarning(() => updateMilestones.mutateAsync(data))() as Promise<void>;
   };
 
   const handleCapturePeriod = async (): Promise<void> => {
@@ -145,6 +156,41 @@ export default function ProjectDetail(): JSX.Element {
       (s) => s.period_year === selectedPeriod.year && s.period_month === selectedPeriod.month,
     );
   }, [selectedPeriod, snapshots]);
+
+  const isHistoricalPeriod = useMemo(() => {
+    if (!selectedPeriod) return false;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    return (
+      selectedPeriod.year < currentYear ||
+      (selectedPeriod.year === currentYear && selectedPeriod.month < currentMonth)
+    );
+  }, [selectedPeriod]);
+
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const withHistoricalWarning = useCallback(
+    <T,>(updateFn: () => Promise<T>): (() => Promise<T | void>) => {
+      return async () => {
+        if (isHistoricalPeriod) {
+          setPendingUpdate(() => updateFn as () => Promise<void>);
+          setShowHistoricalWarning(true);
+          return;
+        }
+        return updateFn();
+      };
+    },
+    [isHistoricalPeriod],
+  );
+
+  const handleConfirmHistoricalUpdate = useCallback(async () => {
+    setShowHistoricalWarning(false);
+    if (pendingUpdate) {
+      await pendingUpdate();
+      setPendingUpdate(null);
+    }
+  }, [pendingUpdate]);
 
   if (projectLoading) {
     return <LoadingSpinner />;
@@ -175,9 +221,6 @@ export default function ProjectDetail(): JSX.Element {
         onReopen={() => updateProjectStatus.mutateAsync('in_progress')}
         onDelete={() => setShowDeleteConfirm(true)}
         isUpdatingStatus={updateProjectStatus.isPending}
-        onCollectMetrics={collectMetrics}
-        isCollecting={isCollecting}
-        lastCollectedAt={metrics?.created_at}
       />
 
       <ProjectDialogs
@@ -190,12 +233,29 @@ export default function ProjectDetail(): JSX.Element {
         onConfirmFinish={() => updateProjectStatus.mutateAsync('finished')}
       />
 
-      <CollectorNotifications
-        error={collectError}
-        isSuccess={collectSuccess}
-        dismissedSuccess={dismissedSuccess}
-        onDismissSuccess={() => setDismissedSuccess(true)}
-      />
+      {/* Historical Period Update Warning */}
+      <AlertDialog open={showHistoricalWarning} onOpenChange={setShowHistoricalWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update historical data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to modify metrics for{' '}
+              <strong>
+                {selectedPeriod
+                  ? `${MONTH_NAMES[selectedPeriod.month - 1]} ${selectedPeriod.year}`
+                  : 'this period'}
+              </strong>
+              . This is a past period and changes may affect historical reports.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingUpdate(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmHistoricalUpdate}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <SnapshotManager projectId={id!} />
 
@@ -228,8 +288,6 @@ export default function ProjectDetail(): JSX.Element {
         <>
           <Separator className="my-6" />
           <div>
-            <h2 className="text-2xl font-semibold mb-4">Scores</h2>
-
             {project.start_date && (
               <InteractiveTimelineChart
                 projectStartDate={project.start_date}
@@ -237,8 +295,24 @@ export default function ProjectDetail(): JSX.Element {
                 selectedPeriod={selectedPeriod}
                 onPeriodChange={setSelectedPeriod}
                 isCapturing={isPeriodCapturing}
+                onCollectMetrics={async (period, force) => {
+                  await capturePeriod({ year: period.year, month: period.month, force });
+                }}
+                isCollecting={isPeriodCapturing}
+                hasCollectors={!!(project.jira_project_key || project.github_repo)}
+                isFinished={project.status === 'finished'}
               />
             )}
+
+            <CollectorNotifications
+              error={periodCaptureError}
+              isSuccess={captureSuccess}
+              dismissedSuccess={dismissedSuccess}
+              onDismissSuccess={() => {
+                setDismissedSuccess(true);
+                resetCaptureState();
+              }}
+            />
 
             <div className="relative">
               {selectedPeriod && !periodHasData && (
@@ -291,12 +365,12 @@ export default function ProjectDetail(): JSX.Element {
           project={project}
           getTarget={getTarget}
           getWeight={getWeight}
-          onUpdateGovernance={(value) => updateGovernance.mutateAsync(value)}
-          onUpdatePMSatisfaction={(data) => updatePMSatisfaction.mutateAsync(data)}
-          onUpdateStrategicImpact={(value) => updateStrategicImpact.mutateAsync(value)}
-          onUpdateTestMaturity={(data) => updateTestMaturity.mutateAsync(data)}
-          onUpdateArchitecture={(data) => updateArchitecture.mutateAsync(data)}
-          onUpdateClientSurvey={(data) => updateClientSurvey.mutateAsync(data)}
+          onUpdateGovernance={(value) => withHistoricalWarning(() => updateGovernance.mutateAsync(value))()}
+          onUpdatePMSatisfaction={(data) => withHistoricalWarning(() => updatePMSatisfaction.mutateAsync(data))()}
+          onUpdateStrategicImpact={(value) => withHistoricalWarning(() => updateStrategicImpact.mutateAsync(value))()}
+          onUpdateTestMaturity={(data) => withHistoricalWarning(() => updateTestMaturity.mutateAsync(data))()}
+          onUpdateArchitecture={(data) => withHistoricalWarning(() => updateArchitecture.mutateAsync(data))()}
+          onUpdateClientSurvey={(data) => withHistoricalWarning(() => updateClientSurvey.mutateAsync(data))()}
           isUpdatingGovernance={updateGovernance.isPending}
           isUpdatingPMSatisfaction={updatePMSatisfaction.isPending}
           isUpdatingStrategicImpact={updateStrategicImpact.isPending}
