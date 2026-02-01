@@ -67,7 +67,7 @@ function validateWeights(
     });
 
     if (Math.abs(sum - 1.0) > TOLERANCE) {
-      const categoryName = category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+      const categoryName = category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
       errors.push(`${categoryName} must sum to 1.0 (currently ${sum.toFixed(4)})`);
     }
   });

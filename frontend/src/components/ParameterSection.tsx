@@ -31,7 +31,7 @@ function formatReadonlyValue(value: string, unit?: string | null): string {
 }
 
 function formatParamName(name: string): string {
-  return name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
 }
 
 export function ParameterSection({
