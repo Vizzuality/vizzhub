@@ -38,7 +38,7 @@ async def test_seed_config_parameters_populates_table(db_session: AsyncSession):
     )
     param = result.scalar_one()
     assert param.category == "Targets"
-    assert param.value == 6.00
+    assert param.value == pytest.approx(6.00)
     assert param.unit == "%"
 
 

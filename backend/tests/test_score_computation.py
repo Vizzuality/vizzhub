@@ -144,7 +144,7 @@ class TestScoreComputationService:
         indicators = service.compute_indicators_only(complete_metrics)
 
         # SPI should be percent_completed / percent_planned = 0.5/0.5 = 1.0
-        assert indicators.spi == 1.0
+        assert indicators.spi == pytest.approx(1.0)
         # CPI should be (budget * percent_completed) / cost_to_date
         # = (100000 * 0.5) / 45000 = 50000/45000 = 1.111...
         assert indicators.cpi is not None
