@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     github_oauth_client_id: str = ""
     github_oauth_client_secret: str = ""
 
+    # Redis (for async job queue)
+    redis_host: str = ""
+    redis_port: int = 6379
+    redis_password: str = ""
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
