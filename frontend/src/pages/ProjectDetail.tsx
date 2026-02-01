@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
@@ -6,6 +6,7 @@ import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGove
 import { useCollectMetrics } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
+import { getMonthsSinceStart } from '../utils/dateUtils';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import type { SnapshotType, Dimension } from '../types';
@@ -22,6 +23,7 @@ import {
 import type { ProjectCreate, EVMData, Milestone } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function ProjectDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -53,7 +55,11 @@ export default function ProjectDetail(): JSX.Element {
   const { data: metrics } = useProjectMetrics(id!);
   const { data: config } = useConfigParameters();
   const snapshotType: SnapshotType = 'cumulative';
-  const { data: snapshots } = useProjectSnapshots(id!, 12, snapshotType);
+  const snapshotLimit = useMemo(
+    () => getMonthsSinceStart(project?.start_date),
+    [project?.start_date],
+  );
+  const { data: snapshots } = useProjectSnapshots(id!, snapshotLimit, snapshotType);
   const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
   const { collectMetrics, isPending: isCollecting, error: collectError, isSuccess: collectSuccess } = useCollectMetrics(id!, {
@@ -109,11 +115,7 @@ export default function ProjectDetail(): JSX.Element {
   };
 
   if (projectLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (projectError || !project) {

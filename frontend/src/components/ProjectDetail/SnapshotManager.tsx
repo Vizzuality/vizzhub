@@ -9,9 +9,9 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { MonthYearPicker } from '@/components/ui/month-year-picker';
 import { Calendar, Download, Loader2, ChevronDown, ChevronRight, FileDown } from 'lucide-react';
 import { MONTHS } from '@/constants/dates';
-import { getYearOptions } from '@/utils/dateUtils';
 import HistoricalCaptureSection from './HistoricalCaptureSection';
 
 interface SnapshotManagerProps {
@@ -77,38 +77,13 @@ export default function SnapshotManager({
           {isExpanded && (
             <CardContent>
               <div className="flex flex-wrap gap-4 items-end">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="year-select" className="text-sm font-medium">
-                    Year
-                  </label>
-                  <select
-                    id="year-select"
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {getYearOptions().map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="month-select" className="text-sm font-medium">
-                    Month
-                  </label>
-                  <select
-                    id="month-select"
-                    value={month}
-                    onChange={(e) => setMonth(Number(e.target.value))}
-                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {MONTHS.map((m, idx) => (
-                      <option key={idx + 1} value={idx + 1}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
+                <MonthYearPicker
+                  month={month}
+                  year={year}
+                  onMonthChange={setMonth}
+                  onYearChange={setYear}
+                  showLabels
+                />
                 <Button
                   onClick={handleCapture}
                   disabled={capturePeriod.isPending || (periodExists && !forceCapture)}

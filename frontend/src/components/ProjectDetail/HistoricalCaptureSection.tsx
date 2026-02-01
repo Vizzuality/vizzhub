@@ -1,7 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCaptureHistoryJob, useJobStatus } from '../../hooks/useJobs';
-import { MONTHS } from '../../constants/dates';
-import { getYearOptions } from '../../utils/dateUtils';
 import {
   Card,
   CardContent,
@@ -11,7 +9,22 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { MonthYearPicker } from '@/components/ui/month-year-picker';
 import { History, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+
+const STORAGE_KEY_PREFIX = 'capture_job_';
+
+function saveActiveJob(projectId: string, jobId: string): void {
+  localStorage.setItem(`${STORAGE_KEY_PREFIX}${projectId}`, jobId);
+}
+
+function loadActiveJob(projectId: string): string | null {
+  return localStorage.getItem(`${STORAGE_KEY_PREFIX}${projectId}`);
+}
+
+function clearActiveJob(projectId: string): void {
+  localStorage.removeItem(`${STORAGE_KEY_PREFIX}${projectId}`);
+}
 
 interface HistoricalCaptureSectionProps {
   projectId: string;
@@ -29,15 +42,27 @@ export default function HistoricalCaptureSection({
   const [toYear, setToYear] = useState(currentDate.getFullYear());
   const [toMonth, setToMonth] = useState(currentDate.getMonth() + 1);
 
-  // Active job state
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  // Active job state - initialize from localStorage
+  const [activeJobId, setActiveJobId] = useState<string | null>(() =>
+    loadActiveJob(projectId),
+  );
 
   // Hooks
   const captureHistoryJob = useCaptureHistoryJob(projectId);
   const { data: job } = useJobStatus(activeJobId);
 
   const isJobActive = job?.status === 'pending' || job?.status === 'running';
-  const years = getYearOptions();
+
+  // Clear localStorage when job completes, fails, or is cancelled
+  useEffect(() => {
+    if (
+      job?.status === 'completed' ||
+      job?.status === 'failed' ||
+      job?.status === 'cancelled'
+    ) {
+      clearActiveJob(projectId);
+    }
+  }, [job?.status, projectId]);
 
   const handleStartCapture = async (): Promise<void> => {
     const result = await captureHistoryJob.mutateAsync({
@@ -48,6 +73,7 @@ export default function HistoricalCaptureSection({
       force: true,
     });
     setActiveJobId(result.id);
+    saveActiveJob(projectId, result.id);
   };
 
   // Calculate month count for display
@@ -80,60 +106,21 @@ export default function HistoricalCaptureSection({
           {/* Date range selectors */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm text-muted-foreground">From</span>
-
-            <select
-              value={fromMonth}
-              onChange={(e) => setFromMonth(Number(e.target.value))}
+            <MonthYearPicker
+              month={fromMonth}
+              year={fromYear}
+              onMonthChange={setFromMonth}
+              onYearChange={setFromYear}
               disabled={isJobActive}
-              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              {MONTHS.map((month, i) => (
-                <option key={i} value={i + 1}>
-                  {month}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={fromYear}
-              onChange={(e) => setFromYear(Number(e.target.value))}
-              disabled={isJobActive}
-              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-
+            />
             <span className="text-sm text-muted-foreground">to</span>
-
-            <select
-              value={toMonth}
-              onChange={(e) => setToMonth(Number(e.target.value))}
+            <MonthYearPicker
+              month={toMonth}
+              year={toYear}
+              onMonthChange={setToMonth}
+              onYearChange={setToYear}
               disabled={isJobActive}
-              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              {MONTHS.map((month, i) => (
-                <option key={i} value={i + 1}>
-                  {month}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={toYear}
-              onChange={(e) => setToYear(Number(e.target.value))}
-              disabled={isJobActive}
-              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Month count info */}

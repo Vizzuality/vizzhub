@@ -387,3 +387,7 @@ export interface CreateCaptureHistoryJobRequest {
   to_month: number;
   force?: boolean;
 }
+
+export interface ApiErrorResponse {
+  detail: string;
+}

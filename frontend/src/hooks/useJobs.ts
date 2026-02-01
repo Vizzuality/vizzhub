@@ -66,6 +66,18 @@ export function useProjectJobs(
 }
 
 /**
+ * Hook for listing all jobs across all projects.
+ * Polls every 5s to show active job progress.
+ */
+export function useAllJobs(): ReturnType<typeof useQuery<JobSummaryResponse[], Error>> {
+  return useQuery({
+    queryKey: queryKeys.jobs.all,
+    queryFn: (): Promise<JobSummaryResponse[]> => jobsApi.listJobs(),
+    refetchInterval: 5000,
+  });
+}
+
+/**
  * Hook for cancelling a job.
  */
 export function useCancelJob(): ReturnType<typeof useMutation<JobResponse, Error, string>> {

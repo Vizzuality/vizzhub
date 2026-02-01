@@ -2,11 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { captureApi } from '../services/api';
 import { queryKeys } from './queryKeys';
-import type { CapturePeriodRequest, CapturePeriodResponse } from '../types';
-
-interface ApiErrorResponse {
-  detail: string;
-}
+import { getApiErrorMessage } from '../utils/apiErrors';
+import type { CapturePeriodRequest, CapturePeriodResponse, ApiErrorResponse } from '../types';
 
 interface UseCapturePeriodOptions {
   onSuccess?: (data: CapturePeriodResponse) => void;
@@ -43,14 +40,11 @@ export function useCapturePeriod(
 }
 
 export function getCapturePeriodErrorMessage(error: Error): string {
-  const axiosError = error as AxiosError<ApiErrorResponse>;
-  if (axiosError.response?.status === 409) {
-    return axiosError.response.data?.detail ?? 'Snapshot already exists for this period';
-  }
-  if (axiosError.response?.status === 400) {
-    return axiosError.response.data?.detail ?? 'Invalid capture request';
-  }
-  return 'Failed to capture period. Verify that the project has Jira or GitHub configured.';
+  return getApiErrorMessage(error, {
+    conflict: 'Snapshot already exists for this period',
+    badRequest: 'Invalid capture request',
+    fallback: 'Failed to capture period. Verify that the project has Jira or GitHub configured.',
+  });
 }
 
 /**

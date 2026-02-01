@@ -208,25 +208,6 @@ export default function EVMSection({
         {/* Performance Indicators Grid */}
         {evmData && (showTime || showCost) && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {showTime && (
-              <SubIndicatorCard
-                title="Schedule Performance (SPI)"
-                dimension="Time"
-                indicatorValue={spiValue !== null ? spiValue * 100 : null}
-                indicatorLabel="Work Completed / Expected"
-                indicatorSuffix="%"
-                description={spiValue !== null ? getSPIStatus(spiValue) : undefined}
-                target={spiTarget * 100}
-                lowerIsBetter={false}
-                formula="% Completed / % Planned"
-                metrics={[
-                  { label: 'Completed', value: `${(evmData.percent_completed * 100).toFixed(0)}%` },
-                  { label: 'Planned', value: `${(evmData.percent_planned * 100).toFixed(0)}%` },
-                ]}
-                historicalData={getHistoricalData(snapshots, 'spi', 100)}
-              />
-            )}
-
             {showCost && (
               <SubIndicatorCard
                 title="Cost Performance (CPI)"
@@ -243,6 +224,25 @@ export default function EVMSection({
                   { label: 'Cost to Date', value: `$${evmData.cost_to_date.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
                 ]}
                 historicalData={getHistoricalData(snapshots, 'cpi', 100)}
+              />
+            )}
+
+            {showTime && (
+              <SubIndicatorCard
+                title="Schedule Performance (SPI)"
+                dimension="Time"
+                indicatorValue={spiValue !== null ? spiValue * 100 : null}
+                indicatorLabel="Work Completed / Expected"
+                indicatorSuffix="%"
+                description={spiValue !== null ? getSPIStatus(spiValue) : undefined}
+                target={spiTarget * 100}
+                lowerIsBetter={false}
+                formula="% Completed / % Planned"
+                metrics={[
+                  { label: 'Completed', value: `${(evmData.percent_completed * 100).toFixed(0)}%` },
+                  { label: 'Planned', value: `${(evmData.percent_planned * 100).toFixed(0)}%` },
+                ]}
+                historicalData={getHistoricalData(snapshots, 'spi', 100)}
               />
             )}
 

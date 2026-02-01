@@ -1,5 +1,6 @@
 from app.models.config import ConfigParameter, ScoringConfigModel
 from app.models.indicators import Indicators, IndicatorsCreate
+from app.models.job import Job, JobStatus, JobType
 from app.models.metrics import (
     ArchitectureChecklist,
     ClientSurvey,
@@ -32,6 +33,9 @@ __all__ = [
     "Indicators",
     "IndicatorsCreate",
     "JiraDefectMetrics",
+    "Job",
+    "JobStatus",
+    "JobType",
     "Metrics",
     "MetricsCreate",
     "MetricsDB",
