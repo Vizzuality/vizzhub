@@ -9,6 +9,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.database import Base
+from app.models.job import Job
 from app.models.metrics import MetricsDB
 from app.models.project import ProjectDB
 

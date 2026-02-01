@@ -26,6 +26,8 @@ export const queryKeys = {
   },
   snapshots: {
     byProject: (projectId: string) => ['snapshots', projectId] as const,
+    history: (projectId: string, limit: number) =>
+      ['snapshots', projectId, 'history', limit] as const,
     detail: (projectId: string, year: number, month: number) =>
       ['snapshots', projectId, year, month] as const,
   },
