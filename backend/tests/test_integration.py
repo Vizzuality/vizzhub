@@ -1937,3 +1937,78 @@ class TestCaptureEndpointIntegration:
         # Should get 400 for missing sources, not 422 for validation
         assert response.status_code == 400
         assert "Jira or GitHub" in response.json()["detail"]
+
+
+# =============================================================================
+# 17. Scores API with Period Parameters Tests
+# =============================================================================
+
+@pytest.mark.asyncio
+class TestScoresAPIWithPeriod:
+    """Test scores API with period parameters."""
+
+    async def test_get_scores_with_year_month(
+        self, client: AsyncClient, test_project_with_metrics: tuple
+    ) -> None:
+        """Should return scores for specific year/month."""
+        project, metrics = test_project_with_metrics
+        year = metrics.period_year
+        month = metrics.period_month
+
+        response = await client.get(
+            f"/api/scores/project/{project.id}",
+            params={"year": year, "month": month},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "indicators" in data
+        assert "scores" in data
+
+    async def test_get_scores_with_nonexistent_period(
+        self, client: AsyncClient, test_project: ProjectDB
+    ) -> None:
+        """Should return 404 for period with no metrics."""
+        response = await client.get(
+            f"/api/scores/project/{test_project.id}",
+            params={"year": 2020, "month": 1},
+        )
+        assert response.status_code == 404
+
+    async def test_get_scores_filters_by_period(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_project: ProjectDB,
+    ) -> None:
+        """Should return 404 when querying a period without metrics even if other periods exist."""
+        today = date.today()
+
+        # Create metrics for January 2024
+        metrics_jan = MetricsDB(
+            project_id=str(test_project.id),
+            period_start=date(2024, 1, 1),
+            period_end=date(2024, 1, 31),
+            period_year=2024,
+            period_month=1,
+            snapshot_type="cumulative",
+            budget_total=Decimal("100000.0"),
+            cost_to_date=Decimal("50000.0"),
+            percent_completed=Decimal("0.5"),
+            percent_planned=Decimal("0.5"),
+        )
+        db_session.add(metrics_jan)
+        await db_session.commit()
+
+        # Request for January should succeed
+        response = await client.get(
+            f"/api/scores/project/{test_project.id}",
+            params={"year": 2024, "month": 1},
+        )
+        assert response.status_code == 200
+
+        # Request for February (no metrics) should return 404
+        response = await client.get(
+            f"/api/scores/project/{test_project.id}",
+            params={"year": 2024, "month": 2},
+        )
+        assert response.status_code == 404
