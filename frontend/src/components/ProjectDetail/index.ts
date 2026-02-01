@@ -14,3 +14,5 @@ export { default as EVMSection } from './EVMSection';
 export { default as QualityMetricsGrid } from './QualityMetricsGrid';
 export { default as DORASection } from './DORASection';
 export { default as SnapshotManager } from './SnapshotManager';
+export { default as TimelineSlider } from './TimelineSlider';
+export { default as EmptyPeriodOverlay } from './EmptyPeriodOverlay';
