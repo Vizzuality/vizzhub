@@ -29,4 +29,9 @@ export const queryKeys = {
     detail: (projectId: string, year: number, month: number) =>
       ['snapshots', projectId, year, month] as const,
   },
+  jobs: {
+    all: ['jobs'] as const,
+    byProject: (projectId: string) => ['jobs', 'project', projectId] as const,
+    detail: (jobId: string) => ['jobs', 'detail', jobId] as const,
+  },
 } as const;
