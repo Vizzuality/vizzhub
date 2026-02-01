@@ -42,11 +42,14 @@ class WorkerSettings:
     on_job_start = on_job_start
     on_job_end = on_job_end
 
-    # Functions will be populated when tasks are imported
-    functions: list = []
-
     max_jobs = 5
     job_timeout = 3600  # 1 hour
     keep_result = 86400  # 24 hours
     retry_jobs = True
     max_tries = 2
+
+
+# Register tasks at module level for ARQ discovery
+from app.worker.tasks import capture_history_task  # noqa: E402
+
+WorkerSettings.functions = [capture_history_task]
