@@ -1,4 +1,7 @@
+import { Info } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import SubIndicatorCard from '../SubIndicatorCard';
 import GovernanceCard from './GovernanceCard';
 import PMSatisfactionCard from './PMSatisfactionCard';
@@ -9,6 +12,73 @@ import ClientSurveyCard from './ClientSurveyCard';
 import { formatDate } from '../../utils/formatters';
 import { getHistoricalData } from '../../utils/chartUtils';
 import type { Metrics, Indicators, Project, StrategicImpact, PMSatisfaction, TestMaturity, Architecture, MetricsWithScores, Dimension } from '../../types';
+
+const DIMENSION_COLORS: Record<Dimension, string> = {
+  Time: 'text-chart-1',
+  Cost: 'text-chart-2',
+  Quality: 'text-chart-4',
+  Value: 'text-chart-5',
+  Satisfaction: 'text-chart-6',
+  Flow: 'text-chart-3',
+  Engineering: 'text-chart-7',
+  Risk: 'text-chart-8',
+};
+
+const DIMENSION_ABBREV: Record<Dimension, string> = {
+  Time: 'T',
+  Cost: 'C',
+  Quality: 'Q',
+  Value: 'V',
+  Satisfaction: 'S',
+  Flow: 'F',
+  Engineering: 'E',
+  Risk: 'R',
+};
+
+function MutedCard({ title, dimension, description, message }: { title: string; dimension: Dimension; description: string; message: string }): JSX.Element {
+  return (
+    <Card className="opacity-60">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold ${DIMENSION_COLORS[dimension]} shrink-0 cursor-help`}>
+                    {DIMENSION_ABBREV[dimension]}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{dimension} metric</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {title}
+          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{description}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-4">
+          <p className="text-2xl font-semibold text-muted-foreground">No data</p>
+          <p className="text-xs text-muted-foreground mt-1">{message}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 type SurveyKey = 'understanding' | 'proactivity' | 'communication' | 'delivery_time' | 'response_time' | 'quality' | 'expectations' | 'recommend';
 
@@ -286,7 +356,7 @@ export default function QualityMetricsGrid({
               )}
               {metrics.github_metrics &&
                 metrics.github_metrics.pr_size_median !== null &&
-                metrics.github_metrics.pr_size_median !== undefined && (
+                metrics.github_metrics.pr_size_median !== undefined ? (
                   <SubIndicatorCard
                     title="PR Size"
                     dimension="Engineering"
@@ -302,10 +372,12 @@ export default function QualityMetricsGrid({
                     ]}
                     historicalData={getHistoricalData(snapshots, 'pr_size_median')}
                   />
-                )}
+                ) : metrics.github_metrics ? (
+                  <MutedCard title="PR Size" dimension="Engineering" description="Median PR size (additions + deletions)" message="No PR size data available" />
+                ) : null}
               {metrics.github_metrics &&
                 metrics.github_metrics.review_turnaround_hours !== null &&
-                metrics.github_metrics.review_turnaround_hours !== undefined && (
+                metrics.github_metrics.review_turnaround_hours !== undefined ? (
                   <SubIndicatorCard
                     title="Review Turnaround"
                     dimension="Engineering"
@@ -321,7 +393,9 @@ export default function QualityMetricsGrid({
                     ]}
                     historicalData={getHistoricalData(snapshots, 'review_turnaround_hours')}
                   />
-                )}
+                ) : metrics.github_metrics ? (
+                  <MutedCard title="Review Turnaround" dimension="Engineering" description="Time from PR creation to first review" message="No review turnaround data available" />
+                ) : null}
             </>
           )}
 
