@@ -7,17 +7,17 @@ from app.database import async_session_maker
 settings = get_settings()
 
 
-async def startup(ctx: dict) -> None:
+def startup(ctx: dict) -> None:
     """Initialize worker context on startup."""
     ctx["db_session_maker"] = async_session_maker
 
 
-async def shutdown(ctx: dict) -> None:
+def shutdown(ctx: dict) -> None:
     """Cleanup on worker shutdown."""
     pass
 
 
-async def on_job_start(ctx: dict) -> None:
+def on_job_start(ctx: dict) -> None:
     """Create DB session before each job."""
     ctx["db"] = ctx["db_session_maker"]()
 
