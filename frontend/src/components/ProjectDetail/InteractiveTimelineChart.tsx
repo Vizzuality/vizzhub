@@ -198,13 +198,11 @@ export default function InteractiveTimelineChart({
         </AlertDialogContent>
       </AlertDialog>
 
-      <div
+      <nav
         className="w-full"
         onKeyDown={handleKeyDown}
         tabIndex={0}
-        role="group"
         aria-label="Timeline period selector - use arrow keys to navigate"
-        aria-roledescription="timeline chart"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -375,7 +373,7 @@ export default function InteractiveTimelineChart({
             </button>
           </div>
         )}
-      </div>
+      </nav>
     </>
   );
 }

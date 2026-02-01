@@ -207,27 +207,8 @@ interface DimensionBadgeProps {
 function DimensionBadge({ label, dimension, score, thresholds, isVisible, onToggle }: DimensionBadgeProps): JSX.Element {
   const isClickable = !!onToggle;
 
-  const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      onToggle?.(dimension);
-    }
-  };
-
-  return (
-    <div
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onClick={() => onToggle?.(dimension)}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        'flex items-center justify-between p-3 rounded-lg transition-all',
-        isClickable && 'cursor-pointer',
-        isVisible
-          ? 'bg-muted'
-          : 'bg-muted/30 opacity-50'
-      )}
-    >
+  const content = (
+    <>
       <div className="flex items-center gap-2">
         <span
           className={cn(
@@ -250,6 +231,25 @@ function DimensionBadge({ label, dimension, score, thresholds, isVisible, onTogg
       )}>
         {score !== null ? score : '—'}
       </span>
-    </div>
+    </>
   );
+
+  const baseClassName = cn(
+    'flex items-center justify-between p-3 rounded-lg transition-all w-full',
+    isVisible ? 'bg-muted' : 'bg-muted/30 opacity-50'
+  );
+
+  if (isClickable) {
+    return (
+      <button
+        type="button"
+        onClick={() => onToggle(dimension)}
+        className={baseClassName}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={baseClassName}>{content}</div>;
 }
