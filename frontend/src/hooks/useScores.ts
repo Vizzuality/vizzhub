@@ -2,10 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import { scoresApi, configApi } from '../services/api';
 import { queryKeys } from './queryKeys';
 
-export function useProjectScores(projectId: string) {
+export function useProjectScores(
+  projectId: string,
+  year?: number,
+  month?: number,
+) {
+  const hasPeriod = year !== undefined && month !== undefined;
+
   return useQuery({
-    queryKey: queryKeys.scores.byProject(projectId),
-    queryFn: () => scoresApi.getProjectScores(projectId),
+    queryKey: hasPeriod
+      ? queryKeys.scores.byPeriod(projectId, year, month)
+      : queryKeys.scores.byProject(projectId),
+    queryFn: () => scoresApi.getProjectScores(projectId, year, month),
     enabled: !!projectId,
   });
 }
