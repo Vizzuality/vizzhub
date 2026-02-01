@@ -76,7 +76,7 @@ export default function DORASection({
                         <p><strong>Failure Rate:</strong> Elite ≤5%, High ≤10%, Med ≤15%</p>
                         <p><strong>MTTR:</strong> Elite &lt;1h, High &lt;1d, Med &lt;1w</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs opacity-80">
                         Score = avg of level scores. Classification = weakest metric.
                       </p>
                     </div>

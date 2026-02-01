@@ -8,3 +8,6 @@ class ResizeObserverMock {
 }
 
 global.ResizeObserver = ResizeObserverMock;
+
+// Mock scrollIntoView for TimelineSlider
+Element.prototype.scrollIntoView = () => {};

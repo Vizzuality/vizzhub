@@ -460,6 +460,25 @@ class TestRiskCalculator:
         score = calc.calculate(indicators, total_prs=100)
         assert score == 100  # Weight redistributed to PRs only
 
+    def test_zero_total_prs_returns_none_for_pr_component(
+        self, config: ScoringConfig
+    ) -> None:
+        """When total_prs=0, PR review component is None (no data, not perfect)."""
+        calc = RiskCalculator(config)
+        indicators = IndicatorsCreate(prs_without_review=0, high_vulns=0)
+        # With total_prs=0, PR review component = None, only vulns available
+        score = calc.calculate(indicators, total_prs=0)
+        assert score == 100  # Weight redistributed to vulns only (which is 0 = perfect)
+
+    def test_zero_total_prs_no_vulns_data_returns_none(
+        self, config: ScoringConfig
+    ) -> None:
+        """When total_prs=0 and no vuln data, score is None (muted in UI)."""
+        calc = RiskCalculator(config)
+        indicators = IndicatorsCreate(prs_without_review=0)  # No high_vulns
+        score = calc.calculate(indicators, total_prs=0)
+        assert score is None  # Both components are None
+
     def test_some_prs_without_review(self, config: ScoringConfig) -> None:
         calc = RiskCalculator(config)
         # Target is 10% of total PRs, with 100 PRs that's 10 PRs allowed
