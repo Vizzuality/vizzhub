@@ -1,11 +1,11 @@
 import { cn } from '@/lib/utils';
 
 interface IndicatorDisplayProps {
-  value: number | null;
-  label: string;
-  suffix: string;
-  target?: number | null;
-  lowerIsBetter: boolean;
+  readonly value: number | null;
+  readonly label: string;
+  readonly suffix: string;
+  readonly target?: number | null;
+  readonly lowerIsBetter: boolean;
 }
 
 function getIndicatorColor(
@@ -28,7 +28,7 @@ export default function IndicatorDisplay({
   target,
   lowerIsBetter,
 }: IndicatorDisplayProps): JSX.Element {
-  const formattedValue = value !== null ? value.toFixed(1) : '—';
+  const formattedValue = value === null ? '—' : value.toFixed(1);
 
   return (
     <div className="p-4 bg-muted/50 rounded-lg border space-y-3">

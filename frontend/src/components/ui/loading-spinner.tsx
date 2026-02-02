@@ -1,5 +1,5 @@
 interface LoadingSpinnerProps {
-  className?: string;
+  readonly className?: string;
 }
 
 export function LoadingSpinner({ className = 'h-64' }: LoadingSpinnerProps): JSX.Element {

@@ -6,6 +6,13 @@ import type { Milestone } from '@/types';
 
 type MilestoneStatus = 'on-time' | 'late' | 'pending';
 
+function getMilestoneActualDateColorClass(hasActualDate: boolean, status: MilestoneStatus): string {
+  if (hasActualDate) {
+    return status === 'on-time' ? 'text-score-green' : 'text-score-red';
+  }
+  return status === 'pending' ? 'text-score-green' : 'text-score-red';
+}
+
 interface MilestonesListProps {
   milestones: Milestone[] | null | undefined;
   isEditing: boolean;
@@ -50,9 +57,10 @@ export default function MilestonesList({
         <div className="space-y-2">
           {milestones.map((milestone, index) => {
             const status = getMilestoneStatus(milestone);
+            const milestoneKey = `${milestone.name}-${milestone.planned_date}`;
             return (
               <div
-                key={index}
+                key={milestoneKey}
                 className="flex items-center justify-between p-3 bg-muted/50 rounded-lg group"
               >
                 <div className="flex items-center gap-3">
@@ -74,13 +82,7 @@ export default function MilestonesList({
                   </span>
                   <span
                     className={cn(
-                      milestone.actual_date
-                        ? status === 'on-time'
-                          ? 'text-score-green'
-                          : 'text-score-red'
-                        : status === 'pending'
-                        ? 'text-score-green'
-                        : 'text-score-red'
+                      getMilestoneActualDateColorClass(!!milestone.actual_date, status)
                     )}
                   >
                     Actual:{' '}

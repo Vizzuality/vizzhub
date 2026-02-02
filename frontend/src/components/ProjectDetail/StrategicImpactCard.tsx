@@ -20,6 +20,14 @@ function getScoreForValue(val: StrategicImpact): number {
   return option?.score ?? 0;
 }
 
+function getImpactColorClass(data: StrategicImpact | null | undefined): string {
+  if (!data) return 'text-muted-foreground';
+  if (data === 'transformational') return 'text-score-green';
+  if (data === 'high') return 'text-blue-600 dark:text-blue-400';
+  if (data === 'medium') return 'text-score-yellow';
+  return 'text-orange-600 dark:text-orange-400';
+}
+
 export default function StrategicImpactCard({
   value,
   onSave,
@@ -38,28 +46,30 @@ export default function StrategicImpactCard({
       editButtonLabel={value ? 'Edit Strategic Impact' : 'Set Strategic Impact'}
       renderEditForm={(form, setForm) => (
         <div className="space-y-3">
-          <label className="text-sm font-medium text-muted-foreground">
+          <label id="strategic-impact-label" className="text-sm font-medium text-muted-foreground">
             Select strategic impact level
           </label>
-          {IMPACT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setForm(option.value as StrategicImpact)}
-              className={cn(
-                'w-full text-left p-3 rounded-lg border transition-colors',
-                form === option.value
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              <div className="flex justify-between items-center">
-                <span className="font-medium">{option.label}</span>
-                <span className="text-xs text-muted-foreground">Score: {option.score}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
-            </button>
-          ))}
+          <div role="group" aria-labelledby="strategic-impact-label" className="space-y-3">
+            {IMPACT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setForm(option.value as StrategicImpact)}
+                className={cn(
+                  'w-full text-left p-3 rounded-lg border transition-colors',
+                  form === option.value
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">{option.label}</span>
+                  <span className="text-xs text-muted-foreground">Score: {option.score}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
+              </button>
+            ))}
+          </div>
         </div>
       )}
       renderDisplay={(data) => (
@@ -69,15 +79,7 @@ export default function StrategicImpactCard({
             <span
               className={cn(
                 'text-2xl font-bold capitalize',
-                !data
-                  ? 'text-muted-foreground'
-                  : data === 'transformational'
-                  ? 'text-score-green'
-                  : data === 'high'
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : data === 'medium'
-                  ? 'text-score-yellow'
-                  : 'text-orange-600 dark:text-orange-400'
+                getImpactColorClass(data)
               )}
             >
               {data ?? '—'}

@@ -1,3 +1,4 @@
+import { type Dispatch, type SetStateAction } from 'react';
 import { cn } from '@/lib/utils';
 import { RatingButtons } from '@/components/ui/RatingButtons';
 import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
@@ -20,6 +21,16 @@ const MATURITY_LEVELS = [
 ];
 
 type TestTypeKey = (typeof TEST_TYPES)[number]['key'];
+type TestMaturityFormState = Partial<Record<TestTypeKey, number>>;
+
+function createTestTypeFieldHandler(
+  key: TestTypeKey,
+  setForm: Dispatch<SetStateAction<TestMaturityFormState>>,
+): (value: number) => void {
+  return (value: number): void => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+}
 
 const MATURITY_COLORS: Record<number, string> = {
   5: 'text-score-green',
@@ -79,7 +90,7 @@ export default function TestMaturityCard({
               <RatingButtons
                 options={MATURITY_LEVELS}
                 selected={form[key]}
-                onSelect={(value) => setForm((prev) => ({ ...prev, [key]: value }))}
+                onSelect={createTestTypeFieldHandler(key, setForm)}
                 className="flex gap-2 mt-2"
                 buttonClassName="flex-1"
               />

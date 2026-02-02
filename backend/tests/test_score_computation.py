@@ -91,10 +91,10 @@ class TestScoreComputationService:
     def test_compute_with_sev1_incident_caps_quality(
         self, service: ScoreComputationService, complete_metrics: MetricsCreate
     ):
-        indicators_without, scores_without = service.compute(
+        _, scores_without = service.compute(
             complete_metrics, sev1_incident=False
         )
-        indicators_with, scores_with = service.compute(
+        _, scores_with = service.compute(
             complete_metrics, sev1_incident=True
         )
 
@@ -115,7 +115,7 @@ class TestScoreComputationService:
     def test_compute_uses_github_total_prs(
         self, service: ScoreComputationService, complete_metrics: MetricsCreate
     ):
-        indicators, scores = service.compute(complete_metrics)
+        _, scores = service.compute(complete_metrics)
 
         # Engineering score depends on having enough PRs
         assert scores is not None

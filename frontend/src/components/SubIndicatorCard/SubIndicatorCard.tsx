@@ -17,7 +17,7 @@ import ChartControls from './ChartControls';
 import IndicatorDisplay from './IndicatorDisplay';
 import type { HistoricalDataPoint } from '../../types';
 
-export type { HistoricalDataPoint };
+export type { HistoricalDataPoint } from '../../types';
 
 interface MetricItem {
   label: string;
@@ -159,14 +159,14 @@ export default function SubIndicatorCard({
         />
 
         <div className="grid grid-cols-2 gap-3">
-          {metrics.map((metric, index) => (
+          {metrics.map((metric) => (
             <div
-              key={index}
+              key={metric.label}
               className="flex justify-between items-center p-3 bg-muted rounded-lg"
             >
               <span className="text-sm text-muted-foreground">{metric.label}</span>
               <span className="text-base font-medium">
-                {metric.value !== null ? metric.value : '—'}
+                {metric.value ?? '—'}
                 {metric.value !== null && metric.suffix}
               </span>
             </div>

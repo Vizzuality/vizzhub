@@ -795,8 +795,10 @@ class TestNormalizersE2EIntegration:
         db_session: AsyncSession,
         test_project: ProjectDB,
     ) -> None:
-        """Verify SPI is calculated correctly from EVM data."""
-        # SPI = percent_completed / percent_planned = 0.4 / 0.5 = 0.8
+        """Verify SPI is calculated correctly from EVM data.
+
+        SPI = percent_completed / percent_planned = 0.4 / 0.5 = 0.8
+        """
         today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
@@ -829,9 +831,11 @@ class TestNormalizersE2EIntegration:
         db_session: AsyncSession,
         test_project: ProjectDB,
     ) -> None:
-        """Verify CPI is calculated correctly from EVM data."""
-        # CPI = EV / AC = (budget * percent_completed) / cost_to_date
-        # CPI = (100000 * 0.5) / 40000 = 1.25
+        """Verify CPI is calculated correctly from EVM data.
+
+        CPI = EV / AC = (budget * percent_completed) / cost_to_date
+        CPI = (100000 * 0.5) / 40000 = 1.25
+        """
         today = date.today()
         metrics = MetricsDB(
             project_id=str(test_project.id),
@@ -1981,8 +1985,6 @@ class TestScoresAPIWithPeriod:
         test_project: ProjectDB,
     ) -> None:
         """Should return 404 when querying a period without metrics even if other periods exist."""
-        today = date.today()
-
         # Create metrics for January 2024
         metrics_jan = MetricsDB(
             project_id=str(test_project.id),

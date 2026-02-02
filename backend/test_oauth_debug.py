@@ -19,7 +19,7 @@ async def debug_oauth():
             print(f"Token (first 20 chars): {token[:20]}...")
             print(f"Token length: {len(token)}")
 
-        print(f"\n📍 Site Info:")
+        print("\n📍 Site Info:")
         print(f"Cloud ID: {site_info.get('cloud_id')}")
         print(f"Site URL: {site_info.get('site_url')}")
 
@@ -30,9 +30,9 @@ async def debug_oauth():
             cloud_id = site_info["cloud_id"]
             base_url = f"https://api.atlassian.com/ex/jira/{cloud_id}"
 
-            print(f"\n🌐 Testing API Call:")
+            print("\n🌐 Testing API Call:")
             print(f"Base URL: {base_url}")
-            print(f"Endpoint: /rest/api/3/myself")
+            print("Endpoint: /rest/api/3/myself")
 
             async with httpx.AsyncClient(
                 base_url=base_url,

@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 interface NativeSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }
 
 export function NativeSelect({

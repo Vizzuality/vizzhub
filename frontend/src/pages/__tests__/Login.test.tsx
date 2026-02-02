@@ -100,7 +100,7 @@ describe('Login', () => {
 
   describe('Google Sign In Button', () => {
     it('shows alert when Google sign in is clicked', () => {
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      const alertSpy = vi.spyOn(globalThis, 'alert').mockImplementation(() => {});
 
       renderWithProviders(<Login />);
 

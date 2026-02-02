@@ -24,12 +24,12 @@ function LevelBadge({ level }: { level: DoraLevel }): JSX.Element {
 }
 
 interface DORASectionProps {
-  scores: FinalScore;
-  metrics: Metrics;
-  indicators: Indicators;
-  getTarget: (name: string) => number | null;
-  snapshots?: MetricsWithScores[];
-  visibleDimensions?: Set<Dimension>;
+  readonly scores: FinalScore;
+  readonly metrics: Metrics;
+  readonly indicators: Indicators;
+  readonly getTarget: (name: string) => number | null;
+  readonly snapshots?: MetricsWithScores[];
+  readonly visibleDimensions?: Set<Dimension>;
 }
 
 export default function DORASection({
@@ -183,26 +183,7 @@ export default function DORASection({
                   </CardContent>
                 </Card>
               )}
-            {indicators.lead_time_days !== null ? (
-                <SubIndicatorCard
-                  title="Lead Time"
-                  dimension="Flow"
-                  indicatorValue={indicators.lead_time_days}
-                  indicatorLabel="Days from creation to completion"
-                  indicatorSuffix=" days"
-                  description="DORA metric: Time from issue creation to completion"
-                  target={getTarget('target_lead_time_days')}
-                  lowerIsBetter={true}
-                  formula="avg(completed_at - created_at)"
-                  metrics={[
-                    { label: 'Sample Size', value: metrics.flow_metrics?.lead_time_sample_size ?? null },
-                  ]}
-                  historicalData={getHistoricalData(snapshots, 'lead_time_days')}
-                  badge={scores.dora?.metrics.lead_time && (
-                    <LevelBadge level={scores.dora.metrics.lead_time.level} />
-                  )}
-                />
-              ) : (
+            {indicators.lead_time_days === null ? (
                 <Card className="opacity-60">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg flex items-center justify-between">
@@ -243,6 +224,25 @@ export default function DORASection({
                     </div>
                   </CardContent>
                 </Card>
+              ) : (
+                <SubIndicatorCard
+                  title="Lead Time"
+                  dimension="Flow"
+                  indicatorValue={indicators.lead_time_days}
+                  indicatorLabel="Days from creation to completion"
+                  indicatorSuffix=" days"
+                  description="DORA metric: Time from issue creation to completion"
+                  target={getTarget('target_lead_time_days')}
+                  lowerIsBetter={true}
+                  formula="avg(completed_at - created_at)"
+                  metrics={[
+                    { label: 'Sample Size', value: metrics.flow_metrics?.lead_time_sample_size ?? null },
+                  ]}
+                  historicalData={getHistoricalData(snapshots, 'lead_time_days')}
+                  badge={scores.dora?.metrics.lead_time && (
+                    <LevelBadge level={scores.dora.metrics.lead_time.level} />
+                  )}
+                />
               )}
             {metrics.github_metrics.change_failure_rate !== null &&
               metrics.github_metrics.change_failure_rate !== undefined ? (

@@ -1,4 +1,5 @@
 import { Clock } from 'lucide-react';
+import { type Dispatch, type SetStateAction } from 'react';
 import { cn } from '@/lib/utils';
 import { RatingButtons } from '@/components/ui/RatingButtons';
 import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
@@ -19,6 +20,16 @@ const SURVEY_QUESTIONS = [
 ] as const;
 
 type SurveyKey = (typeof SURVEY_QUESTIONS)[number]['key'];
+type SurveyFormState = Partial<Record<SurveyKey, number>>;
+
+function createSurveyFieldHandler(
+  key: SurveyKey,
+  setForm: Dispatch<SetStateAction<SurveyFormState>>,
+): (value: number) => void {
+  return (value: number): void => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+}
 
 const RATING_COLORS: Record<number, string> = {
   5: 'text-score-green',
@@ -104,7 +115,7 @@ export default function ClientSurveyCard({
               <RatingButtons
                 options={RATING_OPTIONS}
                 selected={form[key]}
-                onSelect={(value) => setForm((prev) => ({ ...prev, [key]: value }))}
+                onSelect={createSurveyFieldHandler(key, setForm)}
                 className="flex gap-1"
                 buttonClassName="flex-1"
               />

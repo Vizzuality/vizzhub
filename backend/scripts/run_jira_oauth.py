@@ -33,7 +33,7 @@ from app.services.collectors.jira import JiraCollector
 
 async def test_jira_connection(project_key: str) -> None:
     """Test Jira OAuth connection and collect metrics."""
-    print(f"\n🔍 Testing Jira OAuth connection...")
+    print("\n🔍 Testing Jira OAuth connection...")
     print(f"📊 Project Key: {project_key}\n")
 
     async for db in get_db():

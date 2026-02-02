@@ -19,6 +19,17 @@ import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 type ViewMode = 'list' | 'grid';
+type SortOrder = 'asc' | 'desc';
+
+function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
+  if (!isActive) {
+    return <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />;
+  }
+  if (sortOrder === 'asc') {
+    return <ArrowUp className="w-3.5 h-3.5" />;
+  }
+  return <ArrowDown className="w-3.5 h-3.5" />;
+}
 
 export default function Projects(): JSX.Element {
   const [showForm, setShowForm] = useState(false);
@@ -104,11 +115,7 @@ export default function Projects(): JSX.Element {
         )}
       >
         {label}
-        {isActive ? (
-          sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />
-        ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
-        )}
+        {getSortIcon(isActive, sortOrder)}
       </button>
     );
   };
@@ -116,6 +123,50 @@ export default function Projects(): JSX.Element {
   const handleCreate = async (data: ProjectCreate): Promise<void> => {
     await createProject.mutateAsync(data);
     setShowForm(false);
+  };
+
+  const renderProjectsContent = (): JSX.Element => {
+    if (filteredAndSortedProjects.length > 0) {
+      return (
+        <div className={cn(
+          "grid gap-4",
+          viewMode === 'grid' && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        )}>
+          {filteredAndSortedProjects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              viewMode={viewMode}
+              score={scoresMap[project.id]}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (hasActiveFilters) {
+      return (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground mb-4">No projects match your filters</p>
+            <Button variant="outline" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <p className="text-muted-foreground mb-4">No projects yet</p>
+          <Button onClick={() => setShowForm(true)}>
+            Create your first project
+          </Button>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (isLoading) {
@@ -272,39 +323,7 @@ export default function Projects(): JSX.Element {
       )}
 
       {/* Projects List */}
-      {filteredAndSortedProjects.length > 0 ? (
-        <div className={cn(
-          "grid gap-4",
-          viewMode === 'grid' && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-        )}>
-          {filteredAndSortedProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              viewMode={viewMode}
-              score={scoresMap[project.id]}
-            />
-          ))}
-        </div>
-      ) : hasActiveFilters ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground mb-4">No projects match your filters</p>
-            <Button variant="outline" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground mb-4">No projects yet</p>
-            <Button onClick={() => setShowForm(true)}>
-              Create your first project
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {renderProjectsContent()}
     </div>
   );
 }

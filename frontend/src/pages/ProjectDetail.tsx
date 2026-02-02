@@ -133,12 +133,12 @@ export default function ProjectDetail(): JSX.Element {
     navigate('/projects');
   };
 
-  const handleUpdateEVM = (data: EVMData): Promise<void> => {
-    return withHistoricalWarning(() => updateEVM.mutateAsync(data))() as Promise<void>;
+  const handleUpdateEVM = async (data: EVMData): Promise<void> => {
+    await withHistoricalWarning(() => updateEVM.mutateAsync(data))();
   };
 
-  const handleUpdateMilestones = (data: Milestone[]): Promise<void> => {
-    return withHistoricalWarning(() => updateMilestones.mutateAsync(data))() as Promise<void>;
+  const handleUpdateMilestones = async (data: Milestone[]): Promise<void> => {
+    await withHistoricalWarning(() => updateMilestones.mutateAsync(data))();
   };
 
   const handleCapturePeriod = async (): Promise<void> => {

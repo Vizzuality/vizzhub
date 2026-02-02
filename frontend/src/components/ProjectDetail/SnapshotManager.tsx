@@ -11,7 +11,7 @@ import { FileDown, ChevronDown, ChevronRight } from 'lucide-react';
 import HistoricalCaptureSection from './HistoricalCaptureSection';
 
 interface SnapshotManagerProps {
-  projectId: string;
+  readonly projectId: string;
 }
 
 export default function SnapshotManager({

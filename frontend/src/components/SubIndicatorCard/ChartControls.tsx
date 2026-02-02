@@ -8,14 +8,14 @@ import {
 import { cn } from '@/lib/utils';
 
 interface ChartControlsProps {
-  showTrend: boolean;
-  chartMode: 'line' | 'bar';
-  expanded: boolean;
-  hasHistoricalData: boolean;
-  formula?: string;
-  onToggleLine: () => void;
-  onToggleBar: () => void;
-  onToggleExpand: () => void;
+  readonly showTrend: boolean;
+  readonly chartMode: 'line' | 'bar';
+  readonly expanded: boolean;
+  readonly hasHistoricalData: boolean;
+  readonly formula?: string;
+  readonly onToggleLine: () => void;
+  readonly onToggleBar: () => void;
+  readonly onToggleExpand: () => void;
 }
 
 export default function ChartControls({

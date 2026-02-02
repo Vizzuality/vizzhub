@@ -54,6 +54,53 @@ def _extract_release_date(release: dict) -> datetime | None:
     return parse_iso_datetime(date_str)
 
 
+def _filter_merged_pr(
+    pr: dict,
+    period_start: date | None,
+    period_end: date | None,
+) -> dict | None:
+    """Filter a single PR by merge date and period.
+
+    Returns the PR if it passes filters, None otherwise.
+    """
+    merged_date = _extract_merged_date(pr)
+    if not merged_date:
+        return None
+    if not _is_within_period(merged_date, period_start, period_end):
+        return None
+    return pr
+
+
+async def _fetch_prs_page(
+    http_client,
+    owner: str,
+    repo: str,
+    page: int,
+    per_page: int,
+) -> list[dict] | None:
+    """Fetch a single page of PRs.
+
+    Returns None if the request fails.
+    """
+    try:
+        response = await http_client.get(
+            f"/repos/{owner}/{repo}/pulls",
+            params={
+                "state": "closed",
+                "per_page": per_page,
+                "page": page,
+                "sort": "updated",
+                "direction": "desc",
+            },
+        )
+        if response.status_code != 200:
+            return None
+        return response.json()
+    except Exception as e:
+        logger.warning("Failed to fetch PRs for %s/%s page %d: %s", owner, repo, page, e)
+        return None
+
+
 async def get_merged_prs(
     client: "GitHubClient",
     owner: str,
@@ -82,43 +129,21 @@ async def get_merged_prs(
     per_page = 100
 
     while len(merged_prs) < max_results:
-        try:
-            response = await http_client.get(
-                f"/repos/{owner}/{repo}/pulls",
-                params={
-                    "state": "closed",
-                    "per_page": per_page,
-                    "page": page,
-                    "sort": "updated",
-                    "direction": "desc",
-                },
-            )
+        prs = await _fetch_prs_page(http_client, owner, repo, page, per_page)
+        if not prs:
+            break
 
-            if response.status_code != 200:
-                break
-
-            prs = response.json()
-            if not prs:
-                break
-
-            for pr in prs:
-                merged_date = _extract_merged_date(pr)
-                if not merged_date:
-                    continue
-                if not _is_within_period(merged_date, period_start, period_end):
-                    continue
-                merged_prs.append(pr)
+        for pr in prs:
+            filtered = _filter_merged_pr(pr, period_start, period_end)
+            if filtered:
+                merged_prs.append(filtered)
                 if len(merged_prs) >= max_results:
                     break
 
-            if len(prs) < per_page:
-                break
-
-            page += 1
-
-        except Exception as e:
-            logger.warning("Failed to fetch PRs for %s/%s page %d: %s", owner, repo, page, e)
+        if len(prs) < per_page:
             break
+
+        page += 1
 
     return merged_prs
 
@@ -138,6 +163,54 @@ def filter_target_branch_prs(prs: list[dict]) -> list[dict]:
         for pr in prs
         if (pr.get("base", {}).get("ref") or "").lower() in TARGET_BRANCHES
     ]
+
+
+def _filter_release(
+    release: dict,
+    include_prereleases: bool,
+    include_drafts: bool,
+    period_start: date | None,
+    period_end: date | None,
+) -> dict | None:
+    """Filter a single release by draft/prerelease status and period.
+
+    Returns the release if it passes filters, None otherwise.
+    """
+    if not include_drafts and release.get("draft"):
+        return None
+    if not include_prereleases and release.get("prerelease"):
+        return None
+    release_date = _extract_release_date(release)
+    if not _is_within_period(release_date, period_start, period_end):
+        return None
+    return release
+
+
+async def _fetch_releases_page(
+    http_client,
+    owner: str,
+    repo: str,
+    page: int,
+    per_page: int,
+) -> list[dict] | None:
+    """Fetch a single page of releases.
+
+    Returns None if the request fails.
+    """
+    try:
+        response = await http_client.get(
+            f"/repos/{owner}/{repo}/releases",
+            params={
+                "per_page": per_page,
+                "page": page,
+            },
+        )
+        if response.status_code != 200:
+            return None
+        return response.json()
+    except Exception as e:
+        logger.warning("Failed to fetch releases for %s/%s page %d: %s", owner, repo, page, e)
+        return None
 
 
 async def get_releases(
@@ -172,42 +245,23 @@ async def get_releases(
     per_page = 100
 
     while len(releases) < max_results:
-        try:
-            response = await http_client.get(
-                f"/repos/{owner}/{repo}/releases",
-                params={
-                    "per_page": per_page,
-                    "page": page,
-                },
+        page_releases = await _fetch_releases_page(http_client, owner, repo, page, per_page)
+        if not page_releases:
+            break
+
+        for release in page_releases:
+            filtered = _filter_release(
+                release, include_prereleases, include_drafts, period_start, period_end
             )
-
-            if response.status_code != 200:
-                break
-
-            page_releases = response.json()
-            if not page_releases:
-                break
-
-            for release in page_releases:
-                if not include_drafts and release.get("draft"):
-                    continue
-                if not include_prereleases and release.get("prerelease"):
-                    continue
-                release_date = _extract_release_date(release)
-                if not _is_within_period(release_date, period_start, period_end):
-                    continue
-                releases.append(release)
+            if filtered:
+                releases.append(filtered)
                 if len(releases) >= max_results:
                     break
 
-            if len(page_releases) < per_page:
-                break
-
-            page += 1
-
-        except Exception as e:
-            logger.warning("Failed to fetch releases for %s/%s page %d: %s", owner, repo, page, e)
+        if len(page_releases) < per_page:
             break
+
+        page += 1
 
     return releases
 

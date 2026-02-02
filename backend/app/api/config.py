@@ -120,6 +120,3 @@ async def update_config_parameters(
         return {"status": "success"}
     except (ValidationError, ValueError) as e:
         raise ValidationErrorHandler.to_http_exception(e)
-    except Exception as e:
-        logger.exception("Unexpected error updating config parameters")
-        raise ValidationErrorHandler.to_http_exception(e)

@@ -11,6 +11,7 @@ interface RatingButtonsProps<T extends string | number> {
   onSelect: (value: T) => void;
   className?: string;
   buttonClassName?: string;
+  'aria-labelledby'?: string;
 }
 
 function isOptionObject<T extends string | number>(
@@ -25,9 +26,10 @@ export function RatingButtons<T extends string | number>({
   onSelect,
   className = 'flex gap-2',
   buttonClassName,
+  'aria-labelledby': ariaLabelledBy,
 }: RatingButtonsProps<T>): JSX.Element {
   return (
-    <div className={className}>
+    <div className={className} role="group" aria-labelledby={ariaLabelledBy}>
       {options.map((opt) => {
         const value = isOptionObject(opt) ? opt.value : opt;
         const label = isOptionObject(opt) ? (opt.label ?? String(value)) : String(value);

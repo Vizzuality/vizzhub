@@ -6,6 +6,12 @@ import type { PMSatisfaction } from '../../types';
 
 type ComplaintValue = 'yes' | 'no' | '-';
 
+function getComplaintColorClass(value: ComplaintValue): string {
+  if (value === 'no') return 'text-score-green';
+  if (value === 'yes') return 'text-score-red';
+  return '';
+}
+
 const COMPLAINT_OPTIONS = [
   { value: 'no' as const, label: 'No' },
   { value: 'yes' as const, label: 'Yes' },
@@ -60,7 +66,7 @@ export default function PMSatisfactionCard({
       renderEditForm={(form, setForm) => (
         <>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
+            <label id="delivery-complaints-label" className="text-sm font-medium text-muted-foreground">
               Has the client complained about delays or delivery quality?
             </label>
             <RatingButtons
@@ -68,10 +74,11 @@ export default function PMSatisfactionCard({
               selected={form.delivery_complaints}
               onSelect={(value) => setForm((prev) => ({ ...prev, delivery_complaints: value as ComplaintValue }))}
               className="flex gap-2 mt-2"
+              aria-labelledby="delivery-complaints-label"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
+            <label id="design-complaints-label" className="text-sm font-medium text-muted-foreground">
               Has the client expressed unresolved dissatisfaction with design/implementation?
             </label>
             <RatingButtons
@@ -79,10 +86,11 @@ export default function PMSatisfactionCard({
               selected={form.design_complaints}
               onSelect={(value) => setForm((prev) => ({ ...prev, design_complaints: value as ComplaintValue }))}
               className="flex gap-2 mt-2"
+              aria-labelledby="design-complaints-label"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
+            <label id="overall-estimation-label" className="text-sm font-medium text-muted-foreground">
               Overall estimation of client satisfaction (1-5)
             </label>
             <RatingButtons
@@ -90,6 +98,7 @@ export default function PMSatisfactionCard({
               selected={form.overall_estimation}
               onSelect={(value) => setForm((prev) => ({ ...prev, overall_estimation: value }))}
               className="flex gap-2 mt-2"
+              aria-labelledby="overall-estimation-label"
             />
           </div>
         </>
@@ -107,13 +116,7 @@ export default function PMSatisfactionCard({
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Delivery complaints</span>
                 <span
-                  className={cn(
-                    displayData.delivery_complaints === 'no'
-                      ? 'text-score-green'
-                      : displayData.delivery_complaints === 'yes'
-                      ? 'text-score-red'
-                      : ''
-                  )}
+                  className={cn(getComplaintColorClass(displayData.delivery_complaints))}
                 >
                   {displayData.delivery_complaints === '-' ? 'N/A' : displayData.delivery_complaints}
                 </span>
@@ -121,13 +124,7 @@ export default function PMSatisfactionCard({
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Design complaints</span>
                 <span
-                  className={cn(
-                    displayData.design_complaints === 'no'
-                      ? 'text-score-green'
-                      : displayData.design_complaints === 'yes'
-                      ? 'text-score-red'
-                      : ''
-                  )}
+                  className={cn(getComplaintColorClass(displayData.design_complaints))}
                 >
                   {displayData.design_complaints === '-' ? 'N/A' : displayData.design_complaints}
                 </span>

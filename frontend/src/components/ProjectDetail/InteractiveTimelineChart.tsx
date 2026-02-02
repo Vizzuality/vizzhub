@@ -31,15 +31,15 @@ import {
 } from '../../utils/dateUtils';
 
 interface InteractiveTimelineChartProps {
-  projectStartDate: string;
-  snapshots: MetricsWithScores[] | undefined;
-  selectedPeriod: Period | null;
-  onPeriodChange: (period: Period | null) => void;
-  isCapturing?: boolean;
-  onCollectMetrics?: (period: Period, force: boolean) => Promise<void>;
-  isCollecting?: boolean;
-  hasCollectors?: boolean;
-  isFinished?: boolean;
+  readonly projectStartDate: string;
+  readonly snapshots: MetricsWithScores[] | undefined;
+  readonly selectedPeriod: Period | null;
+  readonly onPeriodChange: (period: Period | null) => void;
+  readonly isCapturing?: boolean;
+  readonly onCollectMetrics?: (period: Period, force: boolean) => Promise<void>;
+  readonly isCollecting?: boolean;
+  readonly hasCollectors?: boolean;
+  readonly isFinished?: boolean;
 }
 
 const COLORS = {
@@ -66,12 +66,84 @@ function getTickInterval(periodsCount: number): number {
 }
 
 interface ChartDataPoint {
-  key: string;
-  label: string;
-  year: number;
-  month: number;
-  score: number | null;
-  hasData: boolean;
+  readonly key: string;
+  readonly label: string;
+  readonly year: number;
+  readonly month: number;
+  readonly score: number | null;
+  readonly hasData: boolean;
+}
+
+interface ChartTooltipContentProps {
+  readonly active?: boolean;
+  readonly payload?: Array<{ payload?: ChartDataPoint }>;
+}
+
+function ChartTooltipContent({ active, payload }: ChartTooltipContentProps): JSX.Element | null {
+  const data = payload?.[0]?.payload;
+  if (!active || !data) return null;
+  return (
+    <div className="bg-popover border border-border rounded-md px-3 py-2 shadow-md">
+      <p className="text-sm font-medium">{formatPeriod(data.year, data.month)}</p>
+      {data.hasData ? (
+        <p className="text-lg font-bold" style={{ color: getScoreColor(data.score) }}>
+          Score: {Math.round(data.score!)}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">No data available</p>
+      )}
+    </div>
+  );
+}
+
+interface ChartDotProps {
+  readonly cx?: number;
+  readonly cy?: number;
+  readonly payload?: ChartDataPoint;
+  readonly index?: number;
+  readonly effectivePeriod: Period;
+}
+
+function ChartDot({ cx, cy, payload, index, effectivePeriod }: ChartDotProps): JSX.Element {
+  if (cx === undefined || cy === undefined || !payload) {
+    return <circle key={`empty-${index}`} r={0} />;
+  }
+  const data = payload;
+  const isSelected =
+    data.year === effectivePeriod.year &&
+    data.month === effectivePeriod.month;
+
+  if (!data.hasData) {
+    return (
+      <circle
+        key={data.key}
+        cx={cx}
+        cy={50}
+        r={isSelected ? 6 : 4}
+        fill="transparent"
+        stroke={COLORS.muted}
+        strokeWidth={2}
+        strokeDasharray="2 2"
+        className="cursor-pointer"
+      />
+    );
+  }
+
+  return (
+    <circle
+      key={data.key}
+      cx={cx}
+      cy={cy}
+      r={isSelected ? 8 : 5}
+      fill={isSelected ? getScoreColor(data.score) : COLORS.primary}
+      stroke={isSelected ? '#fff' : 'none'}
+      strokeWidth={isSelected ? 3 : 0}
+      className="cursor-pointer transition-all"
+      style={{
+        filter: isSelected ? `drop-shadow(0 0 4px ${COLORS.primary})` : 'none',
+      }}
+    />
+  );
 }
 
 export default function InteractiveTimelineChart({
@@ -200,9 +272,11 @@ export default function InteractiveTimelineChart({
 
       <nav
         className="w-full"
+        role="listbox"
         onKeyDown={handleKeyDown}
         tabIndex={0}
         aria-label="Timeline period selector - use arrow keys to navigate"
+        aria-activedescendant={`period-${effectivePeriod.year}-${effectivePeriod.month}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -276,24 +350,7 @@ export default function InteractiveTimelineChart({
               domain={[0, 100]}
               hide
             />
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.[0]) return null;
-                const data = payload[0].payload as ChartDataPoint;
-                return (
-                  <div className="bg-popover border border-border rounded-md px-3 py-2 shadow-md">
-                    <p className="text-sm font-medium">{formatPeriod(data.year, data.month)}</p>
-                    {data.hasData ? (
-                      <p className="text-lg font-bold" style={{ color: getScoreColor(data.score) }}>
-                        Score: {Math.round(data.score!)}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No data available</p>
-                    )}
-                  </div>
-                );
-              }}
-            />
+            <Tooltip content={ChartTooltipContent} />
             <ReferenceLine
               x={formatShortPeriod(effectivePeriod.year, effectivePeriod.month)}
               stroke={COLORS.primary}
@@ -307,48 +364,15 @@ export default function InteractiveTimelineChart({
               strokeWidth={2}
               fill="url(#scoreGradient)"
               connectNulls={false}
-              dot={(props) => {
-                const { cx, cy, payload, index } = props;
-                if (cx === undefined || cy === undefined) {
-                  return <circle key={`empty-${index}`} r={0} />;
-                }
-                const data = payload as ChartDataPoint;
-                const isSelected =
-                  data.year === effectivePeriod.year &&
-                  data.month === effectivePeriod.month;
-
-                if (!data.hasData) {
-                  return (
-                    <circle
-                      key={data.key}
-                      cx={cx}
-                      cy={50}
-                      r={isSelected ? 6 : 4}
-                      fill="transparent"
-                      stroke={COLORS.muted}
-                      strokeWidth={2}
-                      strokeDasharray="2 2"
-                      className="cursor-pointer"
-                    />
-                  );
-                }
-
-                return (
-                  <circle
-                    key={data.key}
-                    cx={cx}
-                    cy={cy}
-                    r={isSelected ? 8 : 5}
-                    fill={isSelected ? getScoreColor(data.score) : COLORS.primary}
-                    stroke={isSelected ? '#fff' : 'none'}
-                    strokeWidth={isSelected ? 3 : 0}
-                    className="cursor-pointer transition-all"
-                    style={{
-                      filter: isSelected ? `drop-shadow(0 0 4px ${COLORS.primary})` : 'none',
-                    }}
-                  />
-                );
-              }}
+              dot={(props) => (
+                <ChartDot
+                  cx={props.cx}
+                  cy={props.cy}
+                  payload={props.payload as ChartDataPoint}
+                  index={props.index}
+                  effectivePeriod={effectivePeriod}
+                />
+              )}
               activeDot={{
                 r: 8,
                 fill: COLORS.primary,

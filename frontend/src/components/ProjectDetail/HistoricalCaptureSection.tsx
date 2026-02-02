@@ -27,7 +27,7 @@ function clearActiveJob(projectId: string): void {
 }
 
 interface HistoricalCaptureSectionProps {
-  projectId: string;
+  readonly projectId: string;
 }
 
 export default function HistoricalCaptureSection({

@@ -3,14 +3,14 @@ import { getYearOptions } from '@/utils/dateUtils';
 import { NativeSelect } from './native-select';
 
 interface MonthYearPickerProps {
-  month: number;
-  year: number;
-  onMonthChange: (month: number) => void;
-  onYearChange: (year: number) => void;
-  disabled?: boolean;
-  showLabels?: boolean;
-  monthLabel?: string;
-  yearLabel?: string;
+  readonly month: number;
+  readonly year: number;
+  readonly onMonthChange: (month: number) => void;
+  readonly onYearChange: (year: number) => void;
+  readonly disabled?: boolean;
+  readonly showLabels?: boolean;
+  readonly monthLabel?: string;
+  readonly yearLabel?: string;
 }
 
 export function MonthYearPicker({

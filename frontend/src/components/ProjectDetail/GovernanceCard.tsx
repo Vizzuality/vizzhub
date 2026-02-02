@@ -2,6 +2,15 @@ import { cn } from '@/lib/utils';
 import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { KPIDisplay } from './IndicatorDisplay';
 
+function getExceptionsColorClass(data: number | null | undefined, target: number | null): string {
+  if (data === undefined || data === null || target === null) {
+    return 'text-muted-foreground';
+  }
+  if (data < target) return 'text-score-green';
+  if (data === target) return 'text-score-yellow';
+  return 'text-score-red';
+}
+
 interface GovernanceCardProps {
   value: number | null | undefined;
   target: number | null;
@@ -33,15 +42,15 @@ export default function GovernanceCard({
         <div>
           <label className="text-sm font-medium text-muted-foreground">
             Number of unjustified exceptions
+            <input
+              type="number"
+              min="0"
+              value={form}
+              onChange={(e) => setForm(Number.parseInt(e.target.value) || 0)}
+              className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
+              placeholder="0"
+            />
           </label>
-          <input
-            type="number"
-            min="0"
-            value={form}
-            onChange={(e) => setForm(Number.parseInt(e.target.value) || 0)}
-            className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
-            placeholder="0"
-          />
         </div>
       )}
       renderDisplay={(data) => (
@@ -51,13 +60,7 @@ export default function GovernanceCard({
             <span
               className={cn(
                 'text-3xl font-bold',
-                data === undefined || data === null || target === null
-                  ? 'text-muted-foreground'
-                  : data < target
-                  ? 'text-score-green'
-                  : data === target
-                  ? 'text-score-yellow'
-                  : 'text-score-red'
+                getExceptionsColorClass(data, target)
               )}
             >
               {data ?? '—'}

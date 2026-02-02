@@ -21,14 +21,14 @@ interface ProjectFormData {
 }
 
 interface ProjectFormProps {
-  project?: Project;
-  onSubmit: (data: ProjectCreate) => void;
-  onCancel: () => void;
-  isLoading?: boolean;
-  onMarkFinished?: () => void;
-  onReopen?: () => Promise<unknown>;
-  onDelete?: () => void;
-  isUpdatingStatus?: boolean;
+  readonly project?: Project;
+  readonly onSubmit: (data: ProjectCreate) => void;
+  readonly onCancel: () => void;
+  readonly isLoading?: boolean;
+  readonly onMarkFinished?: () => void;
+  readonly onReopen?: () => Promise<unknown>;
+  readonly onDelete?: () => void;
+  readonly isUpdatingStatus?: boolean;
 }
 
 export default function ProjectForm({
