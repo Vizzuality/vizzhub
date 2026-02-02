@@ -2,7 +2,7 @@ import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface StatusControlsProps {
-  onEdit: () => void;
+  readonly onEdit: () => void;
 }
 
 export default function StatusControls({

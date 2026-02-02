@@ -12,6 +12,9 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
+GEN_RANDOM_UUID = "gen_random_uuid()"
+PROJECTS_ID_FK = "projects.id"
+
 revision: str = "000_initial_schema"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
@@ -22,7 +25,7 @@ def upgrade() -> None:
     # Create projects table
     op.create_table(
         "projects",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("jira_project_key", sa.String(50), nullable=True),
         sa.Column("github_repo", sa.String(255), nullable=True),
@@ -53,8 +56,8 @@ def upgrade() -> None:
     # Create metrics table
     op.create_table(
         "metrics",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
+        sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey(PROJECTS_ID_FK, ondelete="CASCADE"), nullable=False),
         sa.Column("period_start", sa.Date(), nullable=False),
         sa.Column("period_end", sa.Date(), nullable=False),
         sa.Column("evm_data", sa.JSON(), nullable=True),
@@ -78,9 +81,9 @@ def upgrade() -> None:
     # Create indicators table
     op.create_table(
         "indicators",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
         sa.Column("metrics_id", UUID(as_uuid=True), sa.ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey(PROJECTS_ID_FK, ondelete="CASCADE"), nullable=False),
         sa.Column("spi", sa.Float(), nullable=True),
         sa.Column("on_time_milestones", sa.Float(), nullable=True),
         sa.Column("cpi", sa.Float(), nullable=True),
@@ -110,9 +113,9 @@ def upgrade() -> None:
     # Create scores table
     op.create_table(
         "scores",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
         sa.Column("indicators_id", UUID(as_uuid=True), sa.ForeignKey("indicators.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey(PROJECTS_ID_FK, ondelete="CASCADE"), nullable=False),
         sa.Column("p_time", sa.Integer(), nullable=False),
         sa.Column("p_cost", sa.Integer(), nullable=False),
         sa.Column("p_quality", sa.Integer(), nullable=False),

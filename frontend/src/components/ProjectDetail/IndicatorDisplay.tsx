@@ -37,7 +37,7 @@ export function IndicatorScoreDisplay({
   target,
   textSize = 'lg',
 }: IndicatorScoreDisplayProps): JSX.Element {
-  const targetNormalized = target !== null ? target / 100 : null;
+  const targetNormalized = target === null ? null : target / 100;
 
   return (
     <div className="flex items-center justify-between">
@@ -49,9 +49,9 @@ export function IndicatorScoreDisplay({
           getScoreColor(indicatorValue, targetNormalized)
         )}
       >
-        {indicatorValue !== null
-          ? `${Math.round(indicatorValue * 100)}%`
-          : '—'}
+        {indicatorValue === null
+          ? '—'
+          : `${Math.round(indicatorValue * 100)}%`}
       </span>
     </div>
   );

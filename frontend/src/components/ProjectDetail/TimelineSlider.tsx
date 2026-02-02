@@ -10,11 +10,11 @@ import type { MetricsWithScores } from '../../types';
 import { formatPeriod, generateMonthRange, type Period } from '../../utils/dateUtils';
 
 interface TimelineSliderProps {
-  projectStartDate: string;
-  snapshots: MetricsWithScores[] | undefined;
-  selectedPeriod: Period | null;
-  onPeriodChange: (period: Period | null) => void;
-  isCapturing?: boolean;
+  readonly projectStartDate: string;
+  readonly snapshots: MetricsWithScores[] | undefined;
+  readonly selectedPeriod: Period | null;
+  readonly onPeriodChange: (period: Period | null) => void;
+  readonly isCapturing?: boolean;
 }
 
 function getLabelInterval(periodsCount: number): number {
@@ -102,9 +102,11 @@ export default function TimelineSlider({
   return (
     <nav
       className="w-full py-4"
+      role="listbox"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Timeline period selector - use arrow keys to navigate"
+      aria-activedescendant={`period-${effectivePeriod.year}-${effectivePeriod.month}`}
     >
       <div className="relative">
         {/* Base line */}

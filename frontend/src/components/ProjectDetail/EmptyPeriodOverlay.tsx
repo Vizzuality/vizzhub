@@ -3,10 +3,10 @@ import { Loader2, Calendar } from 'lucide-react';
 import type { Period } from '../../utils/dateUtils';
 
 interface EmptyPeriodOverlayProps {
-  period: Period;
-  onCapture: () => void;
-  isCapturing: boolean;
-  error?: Error | null;
+  readonly period: Period;
+  readonly onCapture: () => void;
+  readonly isCapturing: boolean;
+  readonly error?: Error | null;
 }
 
 const MONTH_NAMES = [

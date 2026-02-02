@@ -38,10 +38,10 @@ import {
 import { cn } from '@/lib/utils';
 
 interface DimensionChartProps {
-  scores: DimensionScores;
-  snapshots?: MetricsWithScores[];
-  visibleDimensions?: Set<Dimension>;
-  onToggleDimension?: (dimension: Dimension) => void;
+  readonly scores: DimensionScores;
+  readonly snapshots?: MetricsWithScores[];
+  readonly visibleDimensions?: Set<Dimension>;
+  readonly onToggleDimension?: (dimension: Dimension) => void;
 }
 
 const DIMENSION_LABELS: Record<keyof DimensionScores, string> = {
@@ -78,6 +78,32 @@ const KEY_TO_DIMENSION: Record<keyof DimensionScores, Dimension> = {
   p_engineering: 'Engineering',
   p_risk: 'Risk',
 };
+
+interface RadarTooltipPayload {
+  dimension: string;
+  score: number;
+  isNeutral: boolean;
+}
+
+interface RadarTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload?: RadarTooltipPayload }>;
+}
+
+function RadarTooltipContent({ active, payload }: RadarTooltipProps): JSX.Element | null {
+  const item = payload?.[0]?.payload;
+  if (!active || !item) return null;
+  return (
+    <div className="bg-background shadow-lg rounded-lg p-2 border">
+      <p className="font-medium">{item.dimension}</p>
+      {item.isNeutral ? (
+        <p className="text-muted-foreground">No data</p>
+      ) : (
+        <p className="text-primary">{item.score}/100</p>
+      )}
+    </div>
+  );
+}
 
 export default function DimensionChart({ scores, snapshots, visibleDimensions, onToggleDimension }: DimensionChartProps): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
@@ -241,24 +267,7 @@ export default function DimensionChart({ scores, snapshots, visibleDimensions, o
                 fill={primaryColor}
                 fillOpacity={0.5}
               />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const item = payload[0].payload as { dimension: string; score: number; isNeutral: boolean };
-                    return (
-                      <div className="bg-background shadow-lg rounded-lg p-2 border">
-                        <p className="font-medium">{item.dimension}</p>
-                        {item.isNeutral ? (
-                          <p className="text-muted-foreground">No data</p>
-                        ) : (
-                          <p className="text-primary">{item.score}/100</p>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
+              <Tooltip content={RadarTooltipContent} />
             </RadarChart>
           </ResponsiveContainer>
         )}

@@ -304,7 +304,7 @@ class MetricsDB(Base):
         if include_github:
             fields.extend(MetricsDB.GITHUB_FIELDS)
 
-        result = {field: None for field in fields}
+        result = dict.fromkeys(fields, None)
         result["sev1_incident"] = False
         return result
 

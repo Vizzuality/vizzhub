@@ -193,14 +193,13 @@ class TestMetricsValidation:
         self, client: AsyncClient
     ) -> None:
         """Test that invalid date format returns 422."""
-        create_response = await client.post(
+        await client.post(
             "/api/projects",
             json={"name": "Test Project", "jira_project_key": "TEST"},
         )
-        project_id = create_response.json()["id"]
 
         response = await client.post(
-            f"/api/scores/calculate",
+            "/api/scores/calculate",
             json={
                 "metrics": {
                     "period_start": "invalid-date",

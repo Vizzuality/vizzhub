@@ -34,12 +34,12 @@ import { useScoreThresholds } from '@/hooks/useConfig';
 import { getScoreColor, getScoreBgColor } from '@/utils/scoreColors';
 
 interface ScoreCardProps {
-  score: FinalScore;
-  title?: string;
-  snapshots?: MetricsWithScores[];
-  visibleDimensions?: Set<Dimension>;
-  onToggleDimension?: (dimension: Dimension) => void;
-  onResetFilters?: () => void;
+  readonly score: FinalScore;
+  readonly title?: string;
+  readonly snapshots?: MetricsWithScores[];
+  readonly visibleDimensions?: Set<Dimension>;
+  readonly onToggleDimension?: (dimension: Dimension) => void;
+  readonly onResetFilters?: () => void;
 }
 
 export default function ScoreCard({
@@ -196,12 +196,12 @@ export default function ScoreCard({
 }
 
 interface DimensionBadgeProps {
-  label: string;
-  dimension: Dimension;
-  score: number | null;
-  thresholds: { green: number; yellow: number };
-  isVisible: boolean;
-  onToggle?: (dimension: Dimension) => void;
+  readonly label: string;
+  readonly dimension: Dimension;
+  readonly score: number | null;
+  readonly thresholds: { green: number; yellow: number };
+  readonly isVisible: boolean;
+  readonly onToggle?: (dimension: Dimension) => void;
 }
 
 function DimensionBadge({ label, dimension, score, thresholds, isVisible, onToggle }: DimensionBadgeProps): JSX.Element {
@@ -229,7 +229,7 @@ function DimensionBadge({ label, dimension, score, thresholds, isVisible, onTogg
         'text-lg font-medium transition-opacity',
         isVisible ? getScoreColor(score, thresholds) : 'text-muted-foreground'
       )}>
-        {score !== null ? score : '—'}
+        {score ?? '—'}
       </span>
     </>
   );

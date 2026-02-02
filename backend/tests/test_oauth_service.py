@@ -74,7 +74,7 @@ class TestCodeExchange:
                 mock_settings.jira_oauth_client_secret = "test-secret"
                 mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-                token = await OAuthService.exchange_jira_code_for_token(
+                await OAuthService.exchange_jira_code_for_token(
                     "code", db_session
                 )
 
@@ -130,7 +130,7 @@ class TestCodeExchange:
                 mock_settings.jira_oauth_client_secret = "test-secret"
                 mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-                new_token = await OAuthService.exchange_jira_code_for_token(
+                await OAuthService.exchange_jira_code_for_token(
                     "code", db_session
                 )
 

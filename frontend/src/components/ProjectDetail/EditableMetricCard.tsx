@@ -20,28 +20,197 @@ import { cn } from '@/lib/utils';
 import { CHART_COLORS } from '../../utils/chartUtils';
 import type { HistoricalDataPoint } from '../../types';
 
-export type { HistoricalDataPoint };
+export type { HistoricalDataPoint } from '../../types';
+
+const DEFAULT_CHART_COLOR = 'oklch(0.7 0.15 250)';
+
+type ChartMode = 'line' | 'bar';
+
+interface ChartToggleButtonProps {
+  readonly mode: ChartMode;
+  readonly currentMode: ChartMode;
+  readonly showTrend: boolean;
+  readonly onToggle: () => void;
+  readonly tooltipText: string;
+  readonly icon: ReactNode;
+}
+
+function ChartToggleButton({
+  mode,
+  currentMode,
+  showTrend,
+  onToggle,
+  tooltipText,
+  icon,
+}: ChartToggleButtonProps): JSX.Element {
+  const isActive = showTrend && currentMode === mode;
+  const buttonClass = isActive
+    ? 'text-primary bg-primary/10'
+    : 'text-muted-foreground hover:text-foreground';
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button onClick={onToggle} className={cn('p-1 rounded transition-colors', buttonClass)}>
+            {icon}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+interface ExpandButtonProps {
+  readonly isExpanded: boolean;
+  readonly onToggle: () => void;
+}
+
+function ExpandButton({ isExpanded, onToggle }: ExpandButtonProps): JSX.Element {
+  const buttonClass = isExpanded
+    ? 'text-primary bg-primary/10'
+    : 'text-muted-foreground hover:text-foreground';
+  const Icon = isExpanded ? Minimize2 : Maximize2;
+  const tooltipText = isExpanded ? 'Collapse' : 'Expand';
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button onClick={onToggle} className={cn('p-1 rounded transition-colors', buttonClass)}>
+            <Icon className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+interface DimensionBadgeProps {
+  readonly dimension: string;
+}
+
+function DimensionBadge({ dimension }: DimensionBadgeProps): JSX.Element {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+            {dimension.charAt(0).toUpperCase()}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{dimension} metric</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+interface MetricChartTooltipProps {
+  readonly active?: boolean;
+  readonly payload?: Array<{ value?: unknown; payload?: { period: string } }>;
+  readonly chartColor: string;
+  readonly indicatorSuffix: string;
+}
+
+function MetricChartTooltip({ active, payload, chartColor, indicatorSuffix }: MetricChartTooltipProps): JSX.Element | null {
+  const point = payload?.[0];
+  if (!active || !point?.payload) return null;
+
+  const value = point.value as number;
+  return (
+    <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
+      <div className="font-medium">{point.payload.period}</div>
+      <div style={{ color: chartColor }}>
+        {value?.toFixed(2)}{indicatorSuffix}
+      </div>
+    </div>
+  );
+}
 
 interface EditableMetricCardProps<T> {
-  title: string;
-  description: string;
-  tooltipContent: ReactNode;
-  indicatorValue?: number | null;
-  target?: number | null;
-  data: T | null | undefined;
-  onSave: (data: T) => Promise<unknown>;
-  isPending: boolean;
-  renderEditForm: (form: T, setForm: Dispatch<SetStateAction<T>>) => ReactNode;
-  renderDisplay: (data: T | null | undefined, indicatorValue: number | null | undefined, target: number | null | undefined) => ReactNode;
-  defaultFormState: T;
-  editButtonLabel?: string;
-  disabled?: boolean;
-  disabledContent?: ReactNode;
-  historicalData?: HistoricalDataPoint[];
-  indicatorSuffix?: string;
-  chartColor?: string;
-  lowerIsBetter?: boolean;
-  dimension?: string;
+  readonly title: string;
+  readonly description: string;
+  readonly tooltipContent: ReactNode;
+  readonly indicatorValue?: number | null;
+  readonly target?: number | null;
+  readonly data: T | null | undefined;
+  readonly onSave: (data: T) => Promise<unknown>;
+  readonly isPending: boolean;
+  readonly renderEditForm: (form: T, setForm: Dispatch<SetStateAction<T>>) => ReactNode;
+  readonly renderDisplay: (data: T | null | undefined, indicatorValue: number | null | undefined, target: number | null | undefined) => ReactNode;
+  readonly defaultFormState: T;
+  readonly editButtonLabel?: string;
+  readonly disabled?: boolean;
+  readonly disabledContent?: ReactNode;
+  readonly historicalData?: HistoricalDataPoint[];
+  readonly indicatorSuffix?: string;
+  readonly chartColor?: string;
+  readonly lowerIsBetter?: boolean;
+  readonly dimension?: string;
+}
+
+function createChartModeToggleHandler(
+  targetMode: ChartMode,
+  showTrend: boolean,
+  chartMode: ChartMode,
+  setShowTrend: (value: boolean) => void,
+  setChartMode: (value: ChartMode) => void,
+): () => void {
+  return (): void => {
+    if (showTrend && chartMode === targetMode) {
+      setShowTrend(false);
+      return;
+    }
+    setShowTrend(true);
+    setChartMode(targetMode);
+  };
+}
+
+function renderReferenceAreas(
+  lowerIsBetter: boolean,
+  target: number,
+  domainMin: number,
+  domainMax: number,
+): JSX.Element {
+  if (lowerIsBetter) {
+    return (
+      <>
+        <ReferenceArea y1={domainMin} y2={target} fill={CHART_COLORS.green} fillOpacity={0.1} />
+        <ReferenceArea y1={target} y2={domainMax} fill={CHART_COLORS.red} fillOpacity={0.1} />
+      </>
+    );
+  }
+  return (
+    <>
+      <ReferenceArea y1={target} y2={domainMax} fill={CHART_COLORS.green} fillOpacity={0.1} />
+      <ReferenceArea y1={domainMin} y2={target} fill={CHART_COLORS.red} fillOpacity={0.1} />
+    </>
+  );
+}
+
+function renderReferenceLine(target: number): JSX.Element {
+  return (
+    <ReferenceLine
+      y={target}
+      stroke={CHART_COLORS.green}
+      strokeWidth={2}
+      strokeDasharray="4 2"
+      label={{
+        value: 'KPI',
+        position: 'right',
+        fontSize: 9,
+        fill: CHART_COLORS.green,
+      }}
+    />
+  );
 }
 
 export default function EditableMetricCard<T>({
@@ -61,17 +230,17 @@ export default function EditableMetricCard<T>({
   disabledContent,
   historicalData,
   indicatorSuffix = '',
-  chartColor = 'oklch(0.7 0.15 250)',
+  chartColor = DEFAULT_CHART_COLOR,
   lowerIsBetter = false,
   dimension,
 }: EditableMetricCardProps<T>): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<T>(defaultFormState);
   const [showTrend, setShowTrend] = useState(false);
-  const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
+  const [chartMode, setChartMode] = useState<ChartMode>('line');
   const [expanded, setExpanded] = useState(false);
 
-  const hasHistoricalData = historicalData && historicalData.length > 1;
+  const hasHistoricalData = Boolean(historicalData && historicalData.length > 1);
   const displayData = historicalData?.slice(-6);
 
   const handleStartEdit = (): void => {
@@ -92,7 +261,10 @@ export default function EditableMetricCard<T>({
   const hasData = data !== null && data !== undefined;
   const buttonLabel = editButtonLabel ?? (hasData ? 'Edit' : 'Add');
 
-  const renderChart = (chartData: HistoricalDataPoint[], height: number) => {
+  const handleLineToggle = createChartModeToggleHandler('line', showTrend, chartMode, setShowTrend, setChartMode);
+  const handleBarToggle = createChartModeToggleHandler('bar', showTrend, chartMode, setShowTrend, setChartMode);
+
+  const renderChart = (chartData: HistoricalDataPoint[], height: number): JSX.Element => {
     const values = chartData.map(d => d.value).filter((v): v is number => v !== null);
     const dataMin = values.length > 0 ? Math.min(...values) : 0;
     const dataMax = values.length > 0 ? Math.max(...values) : 1;
@@ -103,51 +275,9 @@ export default function EditableMetricCard<T>({
     const domainMin = Math.max(0, yMin);
     const domainMax = yMax;
 
-    const referenceAreas = target !== null && target !== undefined && (
-      lowerIsBetter ? (
-        <>
-          <ReferenceArea y1={domainMin} y2={target} fill={CHART_COLORS.green} fillOpacity={0.1} />
-          <ReferenceArea y1={target} y2={domainMax} fill={CHART_COLORS.red} fillOpacity={0.1} />
-        </>
-      ) : (
-        <>
-          <ReferenceArea y1={target} y2={domainMax} fill={CHART_COLORS.green} fillOpacity={0.1} />
-          <ReferenceArea y1={domainMin} y2={target} fill={CHART_COLORS.red} fillOpacity={0.1} />
-        </>
-      )
-    );
-
-    const referenceLine = target !== null && target !== undefined && (
-      <ReferenceLine
-        y={target}
-        stroke={CHART_COLORS.green}
-        strokeWidth={2}
-        strokeDasharray="4 2"
-        label={{
-          value: `KPI`,
-          position: 'right',
-          fontSize: 9,
-          fill: CHART_COLORS.green,
-        }}
-      />
-    );
-
-    const tooltipContent = (props: { active?: boolean; payload?: Array<{ value?: unknown; payload?: { period: string } }> }) => {
-      const { active, payload } = props;
-      if (active && payload && payload.length && payload[0].payload) {
-        const point = payload[0];
-        const value = point.value as number;
-        return (
-          <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
-            <div className="font-medium">{point.payload?.period}</div>
-            <div style={{ color: chartColor }}>
-              {value?.toFixed(2)}{indicatorSuffix}
-            </div>
-          </div>
-        );
-      }
-      return null;
-    };
+    const hasTarget = target !== null && target !== undefined;
+    const referenceAreas = hasTarget && renderReferenceAreas(lowerIsBetter, target, domainMin, domainMax);
+    const referenceLine = hasTarget && renderReferenceLine(target);
 
     return (
       <ResponsiveContainer width="100%" height={height}>
@@ -157,7 +287,16 @@ export default function EditableMetricCard<T>({
             <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v.toFixed(1)}`} />
             {referenceLine}
-            <RechartsTooltip content={tooltipContent} />
+            <RechartsTooltip
+              content={(props) => (
+                <MetricChartTooltip
+                  active={props.active}
+                  payload={props.payload as MetricChartTooltipProps['payload']}
+                  chartColor={chartColor}
+                  indicatorSuffix={indicatorSuffix}
+                />
+              )}
+            />
             <Line type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} dot={{ r: 3, fill: chartColor }} connectNulls />
           </LineChart>
         ) : (
@@ -166,7 +305,17 @@ export default function EditableMetricCard<T>({
             <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v.toFixed(1)}`} />
             {referenceLine}
-            <RechartsTooltip cursor={false} content={tooltipContent} />
+            <RechartsTooltip
+              cursor={false}
+              content={(props) => (
+                <MetricChartTooltip
+                  active={props.active}
+                  payload={props.payload as MetricChartTooltipProps['payload']}
+                  chartColor={chartColor}
+                  indicatorSuffix={indicatorSuffix}
+                />
+              )}
+            />
             <Bar dataKey="value" fill={chartColor} radius={[4, 4, 0, 0]} />
           </BarChart>
         )}
@@ -174,26 +323,15 @@ export default function EditableMetricCard<T>({
     );
   };
 
+  const shouldShowInlineChart = showTrend && hasHistoricalData && displayData;
+
   return (
     <Card className={cn(disabled && 'opacity-60')}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
-              {dimension && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
-                        {dimension.charAt(0).toUpperCase()}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">{dimension} metric</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+              {dimension && <DimensionBadge dimension={dimension} />}
               {title}
             </CardTitle>
             <p className="text-sm text-muted-foreground">{description}</p>
@@ -201,81 +339,24 @@ export default function EditableMetricCard<T>({
           <div className="flex items-center gap-1">
             {hasHistoricalData && (
               <>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => {
-                          if (showTrend && chartMode === 'line') {
-                            setShowTrend(false);
-                          } else {
-                            setShowTrend(true);
-                            setChartMode('line');
-                          }
-                        }}
-                        className={cn(
-                          'p-1 rounded transition-colors',
-                          showTrend && chartMode === 'line'
-                            ? 'text-primary bg-primary/10'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <TrendingUp className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Cumulative trend</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => {
-                          if (showTrend && chartMode === 'bar') {
-                            setShowTrend(false);
-                          } else {
-                            setShowTrend(true);
-                            setChartMode('bar');
-                          }
-                        }}
-                        className={cn(
-                          'p-1 rounded transition-colors',
-                          showTrend && chartMode === 'bar'
-                            ? 'text-primary bg-primary/10'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <BarChart3 className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Monthly data</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <ChartToggleButton
+                  mode="line"
+                  currentMode={chartMode}
+                  showTrend={showTrend}
+                  onToggle={handleLineToggle}
+                  tooltipText="Cumulative trend"
+                  icon={<TrendingUp className="h-4 w-4" />}
+                />
+                <ChartToggleButton
+                  mode="bar"
+                  currentMode={chartMode}
+                  showTrend={showTrend}
+                  onToggle={handleBarToggle}
+                  tooltipText="Monthly data"
+                  icon={<BarChart3 className="h-4 w-4" />}
+                />
                 {showTrend && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => setExpanded(!expanded)}
-                          className={cn(
-                            'p-1 rounded transition-colors',
-                            expanded
-                              ? 'text-primary bg-primary/10'
-                              : 'text-muted-foreground hover:text-foreground'
-                          )}
-                        >
-                          {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">{expanded ? 'Collapse' : 'Expand'}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <ExpandButton isExpanded={expanded} onToggle={() => setExpanded(!expanded)} />
                 )}
               </>
             )}
@@ -297,7 +378,7 @@ export default function EditableMetricCard<T>({
           disabledContent
         ) : (
           <>
-            {showTrend && hasHistoricalData && displayData && (
+            {shouldShowInlineChart && (
               <div className="pb-2">
                 {renderChart(displayData, 140)}
               </div>

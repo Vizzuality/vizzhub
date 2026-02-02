@@ -17,8 +17,86 @@ import InfoTooltip from './InfoTooltip';
 import type { Milestone } from '@/types';
 
 export interface HistoricalDataPoint {
-  period: string;
-  value: number | null;
+  readonly period: string;
+  readonly value: number | null;
+}
+
+const CHART_COLOR = 'oklch(0.7 0.15 250)';
+
+function getMilestoneColorClass(value: number, target: number): string {
+  if (value >= target) return 'text-score-green';
+  if (value >= target * 0.9) return 'text-score-yellow';
+  return 'text-score-red';
+}
+
+interface MilestonesChartTooltipProps {
+  readonly active?: boolean;
+  readonly payload?: Array<{ value?: number; payload?: HistoricalDataPoint }>;
+}
+
+function MilestonesChartTooltip({ active, payload }: MilestonesChartTooltipProps): JSX.Element | null {
+  const point = payload?.[0];
+  if (!active || !point) return null;
+  const v = point.value;
+  return (
+    <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
+      <div className="font-medium">{point.payload?.period}</div>
+      <div style={{ color: CHART_COLOR }}>{v?.toFixed(0)}%</div>
+    </div>
+  );
+}
+
+interface MilestonesHistoricalChartProps {
+  readonly chartData: HistoricalDataPoint[];
+  readonly height: number;
+  readonly targetPct: number;
+}
+
+function MilestonesHistoricalChart({
+  chartData,
+  height,
+  targetPct,
+}: MilestonesHistoricalChartProps): JSX.Element {
+  const values = chartData.map(d => d.value).filter((v): v is number => v !== null);
+  const dataMin = values.length > 0 ? Math.min(...values) : 0;
+  const dataMax = values.length > 0 ? Math.max(...values) : 100;
+  const padding = (dataMax - dataMin) * 0.15 || 10;
+  const domainMin = Math.max(0, Math.floor(Math.min(dataMin, targetPct) - padding));
+  const domainMax = Math.min(100, Math.ceil(Math.max(dataMax, targetPct) + padding));
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+        <ReferenceArea y1={targetPct} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
+        <ReferenceArea y1={domainMin} y2={targetPct} fill="#ef4444" fillOpacity={0.1} />
+        <XAxis dataKey="period" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
+        <YAxis
+          domain={[domainMin, domainMax]}
+          tick={{ fontSize: 8 }}
+          tickLine={false}
+          axisLine={false}
+          width={30}
+          tickFormatter={(v) => `${v}%`}
+        />
+        <ReferenceLine
+          y={targetPct}
+          stroke="#22c55e"
+          strokeWidth={2}
+          strokeDasharray="4 2"
+          label={{ value: 'KPI', position: 'right', fontSize: 8, fill: '#22c55e' }}
+        />
+        <RechartsTooltip content={MilestonesChartTooltip} />
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke={CHART_COLOR}
+          strokeWidth={2}
+          dot={{ r: 2, fill: CHART_COLOR }}
+          connectNulls
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
 }
 
 interface MilestonesCardProps {
@@ -43,64 +121,6 @@ export default function MilestonesCard({
   const milestonesTargetPct = milestonesTarget * 100;
   const hasHistoricalData = historicalData && historicalData.length > 1;
   const displayData = historicalData?.slice(-6);
-  const chartColor = 'oklch(0.7 0.15 250)';
-
-  const renderChart = (chartData: HistoricalDataPoint[], height: number) => {
-    const values = chartData.map(d => d.value).filter((v): v is number => v !== null);
-    const dataMin = values.length > 0 ? Math.min(...values) : 0;
-    const dataMax = values.length > 0 ? Math.max(...values) : 100;
-    const padding = (dataMax - dataMin) * 0.15 || 10;
-    const domainMin = Math.max(0, Math.floor(Math.min(dataMin, milestonesTargetPct) - padding));
-    const domainMax = Math.min(100, Math.ceil(Math.max(dataMax, milestonesTargetPct) + padding));
-
-    return (
-      <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-          <ReferenceArea y1={milestonesTargetPct} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
-          <ReferenceArea y1={domainMin} y2={milestonesTargetPct} fill="#ef4444" fillOpacity={0.1} />
-          <XAxis dataKey="period" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
-          <YAxis
-            domain={[domainMin, domainMax]}
-            tick={{ fontSize: 8 }}
-            tickLine={false}
-            axisLine={false}
-            width={30}
-            tickFormatter={(v) => `${v}%`}
-          />
-          <ReferenceLine
-            y={milestonesTargetPct}
-            stroke="#22c55e"
-            strokeWidth={2}
-            strokeDasharray="4 2"
-            label={{ value: 'KPI', position: 'right', fontSize: 8, fill: '#22c55e' }}
-          />
-          <RechartsTooltip
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                const point = payload[0];
-                const v = point.value as number;
-                return (
-                  <div className="bg-popover border rounded px-2 py-1 shadow-lg text-xs">
-                    <div className="font-medium">{point.payload.period}</div>
-                    <div style={{ color: chartColor }}>{v?.toFixed(0)}%</div>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={chartColor}
-            strokeWidth={2}
-            dot={{ r: 2, fill: chartColor }}
-            connectNulls
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  };
 
   const handleTrendClick = (e: React.MouseEvent): void => {
     e.stopPropagation();
@@ -175,7 +195,11 @@ export default function MilestonesCard({
 
       {showTrend && hasHistoricalData && displayData && (
         <div className="mb-2">
-          {renderChart(displayData, 100)}
+          <MilestonesHistoricalChart
+            chartData={displayData}
+            height={100}
+            targetPct={milestonesTargetPct}
+          />
         </div>
       )}
 
@@ -185,7 +209,13 @@ export default function MilestonesCard({
             <DialogTitle>On-Time Milestones - Historical Trend</DialogTitle>
           </DialogHeader>
           <div className="w-full h-80">
-            {historicalData && renderChart(historicalData, 320)}
+            {historicalData && (
+              <MilestonesHistoricalChart
+                chartData={historicalData}
+                height={320}
+                targetPct={milestonesTargetPct}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -195,11 +225,7 @@ export default function MilestonesCard({
           <p
             className={cn(
               'text-xl font-semibold',
-              onTimeMilestones >= milestonesTarget
-                ? 'text-score-green'
-                : onTimeMilestones >= milestonesTarget * 0.9
-                ? 'text-score-yellow'
-                : 'text-score-red'
+              getMilestoneColorClass(onTimeMilestones, milestonesTarget)
             )}
           >
             {(onTimeMilestones * 100).toFixed(0)}%

@@ -14,13 +14,13 @@ import { CHART_COLORS } from '../../utils/chartUtils';
 import type { HistoricalDataPoint } from '../../types';
 
 interface IndicatorChartProps {
-  data: HistoricalDataPoint[];
-  height: number;
-  chartMode: 'line' | 'bar';
-  chartColor: string;
-  target?: number | null;
-  lowerIsBetter: boolean;
-  indicatorSuffix: string;
+  readonly data: HistoricalDataPoint[];
+  readonly height: number;
+  readonly chartMode: 'line' | 'bar';
+  readonly chartColor: string;
+  readonly target?: number | null;
+  readonly lowerIsBetter: boolean;
+  readonly indicatorSuffix: string;
 }
 
 export default function IndicatorChart({
@@ -77,7 +77,7 @@ export default function IndicatorChart({
     payload?: Array<{ value?: unknown; payload?: { period: string } }>;
   }) => {
     const { active, payload } = props;
-    if (active && payload && payload.length && payload[0].payload) {
+    if (active && payload?.length && payload[0]?.payload) {
       const point = payload[0];
       const value = point.value as number;
       return (

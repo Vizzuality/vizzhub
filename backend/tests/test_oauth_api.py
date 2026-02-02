@@ -138,7 +138,7 @@ class TestOAuthJiraCallback:
         self, client: AsyncClient, db_session: AsyncSession
     ) -> None:
         """Token should be stored in oauth_tokens table."""
-        state = OAuthStateManager.generate_state()
+        _state = OAuthStateManager.generate_state()
 
         with patch(
             "app.api.oauth.OAuthService.exchange_jira_code_for_token"

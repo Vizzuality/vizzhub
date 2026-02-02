@@ -245,6 +245,59 @@ class MetricsService:
             await db.flush()
 
     @staticmethod
+    def _fill_missing_fields_from_snapshots(
+        preserved: dict,
+        missing_fields: list[str],
+        snapshots: list[MetricsDB],
+    ) -> list[str]:
+        """Fill missing fields from a list of snapshots.
+
+        Args:
+            preserved: Dict to update with found values
+            missing_fields: List of field names still missing
+            snapshots: List of MetricsDB snapshots to search
+
+        Returns:
+            Updated list of still-missing fields
+        """
+        for snapshot in snapshots:
+            if not missing_fields:
+                break
+            for field in missing_fields[:]:
+                value = getattr(snapshot, field, None)
+                if value is not None:
+                    preserved[field] = value
+                    missing_fields.remove(field)
+        return missing_fields
+
+    @staticmethod
+    def _partition_snapshots_by_period(
+        snapshots: list[MetricsDB],
+        target_year: int,
+        target_month: int,
+    ) -> tuple[list[MetricsDB], list[MetricsDB]]:
+        """Partition snapshots into past and future relative to target period.
+
+        Args:
+            snapshots: List of all snapshots (ordered by period desc)
+            target_year: Target period year
+            target_month: Target period month
+
+        Returns:
+            Tuple of (past_snapshots, future_snapshots_ascending)
+        """
+        target_period = (target_year, target_month)
+        past_snapshots = [
+            s for s in snapshots
+            if (s.period_year, s.period_month) < target_period
+        ]
+        future_snapshots = sorted(
+            [s for s in snapshots if (s.period_year, s.period_month) > target_period],
+            key=lambda s: (s.period_year, s.period_month)
+        )
+        return past_snapshots, future_snapshots
+
+    @staticmethod
     async def get_manual_fields_for_historical_capture(
         db: AsyncSession,
         project_id: str | UUID,
@@ -270,7 +323,6 @@ class MetricsService:
         """
         project_uuid = UUID(str(project_id)) if isinstance(project_id, str) else project_id
 
-        # Get all snapshots for this project (any type, ordered by period)
         result = await db.execute(
             select(MetricsDB)
             .where(MetricsDB.project_id == project_uuid)
@@ -281,11 +333,9 @@ class MetricsService:
         if not all_snapshots:
             return MetricsDB.get_default_preserved_fields(include_github=False)
 
-        # 1. Dashboard value = most recent snapshot
         dashboard = all_snapshots[0]
         preserved = dashboard.get_preserved_fields(include_github=False)
 
-        # Check which fields are still None/empty
         missing_fields = [
             field for field in MetricsDB.MANUAL_FIELDS
             if preserved.get(field) is None
@@ -294,41 +344,16 @@ class MetricsService:
         if not missing_fields:
             return preserved
 
-        # Separate past and future snapshots relative to target period
-        target_period = (target_year, target_month)
-        past_snapshots = [
-            s for s in all_snapshots
-            if (s.period_year, s.period_month) < target_period
-        ]
-        future_snapshots = [
-            s for s in all_snapshots
-            if (s.period_year, s.period_month) > target_period
-        ]
-        # Future should be ordered closest first (ascending)
-        future_snapshots = sorted(
-            future_snapshots,
-            key=lambda s: (s.period_year, s.period_month)
+        past_snapshots, future_snapshots = MetricsService._partition_snapshots_by_period(
+            all_snapshots, target_year, target_month
         )
 
-        # 2. Fill from past snapshots (most recent first)
-        for snapshot in past_snapshots:
-            if not missing_fields:
-                break
-            for field in missing_fields[:]:
-                value = getattr(snapshot, field, None)
-                if value is not None:
-                    preserved[field] = value
-                    missing_fields.remove(field)
-
-        # 3. Fill from future snapshots (closest first)
-        for snapshot in future_snapshots:
-            if not missing_fields:
-                break
-            for field in missing_fields[:]:
-                value = getattr(snapshot, field, None)
-                if value is not None:
-                    preserved[field] = value
-                    missing_fields.remove(field)
+        missing_fields = MetricsService._fill_missing_fields_from_snapshots(
+            preserved, missing_fields, past_snapshots
+        )
+        MetricsService._fill_missing_fields_from_snapshots(
+            preserved, missing_fields, future_snapshots
+        )
 
         return preserved
 

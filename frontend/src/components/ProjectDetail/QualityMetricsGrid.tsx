@@ -14,10 +14,10 @@ import { getHistoricalData } from '../../utils/chartUtils';
 import type { Metrics, Indicators, Project, StrategicImpact, PMSatisfaction, TestMaturity, Architecture, MetricsWithScores, Dimension } from '../../types';
 
 interface ConditionalCardProps {
-  hasData: boolean;
-  hasParentData: boolean;
-  card: JSX.Element;
-  mutedProps: { title: string; dimension: Dimension; description: string; message: string };
+  readonly hasData: boolean;
+  readonly hasParentData: boolean;
+  readonly card: JSX.Element;
+  readonly mutedProps: { title: string; dimension: Dimension; description: string; message: string };
 }
 
 function renderConditionalCard({ hasData, hasParentData, card, mutedProps }: ConditionalCardProps): JSX.Element | null {
@@ -96,25 +96,34 @@ function MutedCard({ title, dimension, description, message }: { title: string; 
 type SurveyKey = 'understanding' | 'proactivity' | 'communication' | 'delivery_time' | 'response_time' | 'quality' | 'expectations' | 'recommend';
 
 interface QualityMetricsGridProps {
-  metrics: Metrics;
-  indicators: Indicators;
-  project: Project;
-  getTarget: (name: string) => number | null;
-  getWeight: (category: string, name: string) => number | null;
-  onUpdateGovernance: (value: number) => Promise<unknown>;
-  onUpdatePMSatisfaction: (data: PMSatisfaction) => Promise<unknown>;
-  onUpdateStrategicImpact: (value: StrategicImpact) => Promise<unknown>;
-  onUpdateTestMaturity: (data: Partial<TestMaturity>) => Promise<unknown>;
-  onUpdateArchitecture: (data: Architecture) => Promise<unknown>;
-  onUpdateClientSurvey: (data: Partial<Record<SurveyKey, number>>) => Promise<unknown>;
-  isUpdatingGovernance: boolean;
-  isUpdatingPMSatisfaction: boolean;
-  isUpdatingStrategicImpact: boolean;
-  isUpdatingTestMaturity: boolean;
-  isUpdatingArchitecture: boolean;
-  isUpdatingClientSurvey: boolean;
-  snapshots?: MetricsWithScores[];
-  visibleDimensions?: Set<Dimension>;
+  readonly metrics: Metrics;
+  readonly indicators: Indicators;
+  readonly project: Project;
+  readonly getTarget: (name: string) => number | null;
+  readonly getWeight: (category: string, name: string) => number | null;
+  readonly onUpdateGovernance: (value: number) => Promise<unknown>;
+  readonly onUpdatePMSatisfaction: (data: PMSatisfaction) => Promise<unknown>;
+  readonly onUpdateStrategicImpact: (value: StrategicImpact) => Promise<unknown>;
+  readonly onUpdateTestMaturity: (data: Partial<TestMaturity>) => Promise<unknown>;
+  readonly onUpdateArchitecture: (data: Architecture) => Promise<unknown>;
+  readonly onUpdateClientSurvey: (data: Partial<Record<SurveyKey, number>>) => Promise<unknown>;
+  readonly isUpdatingGovernance: boolean;
+  readonly isUpdatingPMSatisfaction: boolean;
+  readonly isUpdatingStrategicImpact: boolean;
+  readonly isUpdatingTestMaturity: boolean;
+  readonly isUpdatingArchitecture: boolean;
+  readonly isUpdatingClientSurvey: boolean;
+  readonly snapshots?: MetricsWithScores[];
+  readonly visibleDimensions?: Set<Dimension>;
+}
+
+function isDimensionVisible(visibleDimensions: Set<Dimension> | undefined, dimension: Dimension): boolean {
+  if (!visibleDimensions) return true;
+  return visibleDimensions.has(dimension);
+}
+
+function hasAnyVisibleDimension(visibleDimensions: Set<Dimension> | undefined, dimensions: Dimension[]): boolean {
+  return dimensions.some(d => isDimensionVisible(visibleDimensions, d));
 }
 
 export default function QualityMetricsGrid({
@@ -140,15 +149,15 @@ export default function QualityMetricsGrid({
 }: QualityMetricsGridProps): JSX.Element | null {
   if (!metrics.jira_defects) return null;
 
-  const showQuality = !visibleDimensions || visibleDimensions.has('Quality');
-  const showValue = !visibleDimensions || visibleDimensions.has('Value');
-  const showSatisfaction = !visibleDimensions || visibleDimensions.has('Satisfaction');
-  const showFlow = !visibleDimensions || visibleDimensions.has('Flow');
-  const showEngineering = !visibleDimensions || visibleDimensions.has('Engineering');
-  const showRisk = !visibleDimensions || visibleDimensions.has('Risk');
+  const relevantDimensions: Dimension[] = ['Quality', 'Value', 'Satisfaction', 'Flow', 'Engineering', 'Risk'];
+  if (!hasAnyVisibleDimension(visibleDimensions, relevantDimensions)) return null;
 
-  const hasVisibleCards = showQuality || showValue || showSatisfaction || showFlow || showEngineering || showRisk;
-  if (!hasVisibleCards) return null;
+  const showQuality = isDimensionVisible(visibleDimensions, 'Quality');
+  const showValue = isDimensionVisible(visibleDimensions, 'Value');
+  const showSatisfaction = isDimensionVisible(visibleDimensions, 'Satisfaction');
+  const showFlow = isDimensionVisible(visibleDimensions, 'Flow');
+  const showEngineering = isDimensionVisible(visibleDimensions, 'Engineering');
+  const showRisk = isDimensionVisible(visibleDimensions, 'Risk');
 
   return (
     <>
@@ -374,7 +383,7 @@ export default function QualityMetricsGrid({
                 <MutedCard title="PR Review Coverage" dimension="Engineering" description="PRs reviewed before merge" message="No GitHub data available" />
               )}
               {renderConditionalCard({
-                hasData: !!(metrics.github_metrics?.pr_size_median != null),
+                hasData: metrics.github_metrics?.pr_size_median != null,
                 hasParentData: !!metrics.github_metrics,
                 card: (
                   <SubIndicatorCard
@@ -396,7 +405,7 @@ export default function QualityMetricsGrid({
                 mutedProps: { title: 'PR Size', dimension: 'Engineering', description: 'Median PR size (additions + deletions)', message: 'No PR size data available' },
               })}
               {renderConditionalCard({
-                hasData: !!(metrics.github_metrics?.review_turnaround_hours != null),
+                hasData: metrics.github_metrics?.review_turnaround_hours != null,
                 hasParentData: !!metrics.github_metrics,
                 card: (
                   <SubIndicatorCard
@@ -430,7 +439,9 @@ export default function QualityMetricsGrid({
                 isPending={isUpdatingGovernance}
                 historicalData={getHistoricalData(snapshots, 'governance_compliance')}
               />
-              {indicators.post_contract_tasks !== null ? (
+              {indicators.post_contract_tasks === null ? (
+                <MutedCard title="Post-Contract Tasks" dimension="Risk" description="New tasks created >30 days after contract end" message="No post-contract data available" />
+              ) : (
                 <SubIndicatorCard
                   title="Post-Contract Tasks"
                   dimension="Risk"
@@ -449,8 +460,6 @@ export default function QualityMetricsGrid({
                     },
                   ]}
                 />
-              ) : (
-                <MutedCard title="Post-Contract Tasks" dimension="Risk" description="New tasks created >30 days after contract end" message="No post-contract data available" />
               )}
             </>
           )}

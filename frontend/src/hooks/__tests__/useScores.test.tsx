@@ -43,14 +43,14 @@ describe('useScores', () => {
         project_id: projectId,
         overall_score: 75.5,
         dimension_scores: {
-          P_time: 80.0,
-          P_cost: 75.0,
-          P_quality: 70.0,
-          P_value: 85.0,
-          P_satisfaction: 90.0,
-          P_flow: 65.0,
-          P_engineering: 78.0,
-          P_risk: 82.0,
+          P_time: 80,
+          P_cost: 75,
+          P_quality: 70,
+          P_value: 85,
+          P_satisfaction: 90,
+          P_flow: 65,
+          P_engineering: 78,
+          P_risk: 82,
         },
         indicators: {},
         metadata: {},
@@ -98,14 +98,14 @@ describe('useScores', () => {
         project_id: projectId,
         overall_score: 75.5,
         dimension_scores: {
-          P_time: 80.0,
-          P_cost: 75.0,
-          P_quality: 70.0,
-          P_value: 85.0,
-          P_satisfaction: 90.0,
-          P_flow: 65.0,
-          P_engineering: 78.0,
-          P_risk: 82.0,
+          P_time: 80,
+          P_cost: 75,
+          P_quality: 70,
+          P_value: 85,
+          P_satisfaction: 90,
+          P_flow: 65,
+          P_engineering: 78,
+          P_risk: 82,
         },
       };
 
@@ -119,8 +119,8 @@ describe('useScores', () => {
 
       const scores = result.current.data?.dimension_scores;
       expect(Object.keys(scores || {})).toHaveLength(8);
-      expect(scores?.P_time).toBe(80.0);
-      expect(scores?.P_quality).toBe(70.0);
+      expect(scores?.P_time).toBe(80);
+      expect(scores?.P_quality).toBe(70);
     });
   });
 
@@ -131,12 +131,12 @@ describe('useScores', () => {
         {
           date: '2026-01-31',
           overall_score: 75.5,
-          dimension_scores: { P_time: 80.0 },
+          dimension_scores: { P_time: 80 },
         },
         {
           date: '2025-12-31',
-          overall_score: 72.0,
-          dimension_scores: { P_time: 78.0 },
+          overall_score: 72,
+          dimension_scores: { P_time: 78 },
         },
       ];
 
@@ -195,12 +195,12 @@ describe('useScores', () => {
         weights: {
           global: {
             time: 0.12,
-            cost: 0.10,
+            cost: 0.1,
             quality: 0.18,
             value: 0.15,
             satisfaction: 0.12,
             flow: 0.15,
-            engineering: 0.10,
+            engineering: 0.1,
             risk: 0.08,
           },
         },

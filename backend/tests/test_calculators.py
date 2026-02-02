@@ -265,7 +265,7 @@ class TestQualityCalculator:
             post_contract_tasks=0,
         )
         score = calc.calculate(indicators)
-        assert score == 98  # 0.05*0.5 + 0.95*1.0 = 0.975
+        assert score == 98
 
 
 class TestValueCalculator:
@@ -378,7 +378,6 @@ class TestFlowCalculator:
             deployment_frequency=1.0,  # Meets target → 1.0
         )
         score = calc.calculate(indicators)
-        # 0.35 * 0.5 + 0.25 * 1.0 + 0.15 * 1.0 + 0.10 * 1.0 + 0.15 * 1.0 = 0.825
         assert score == 82
 
 

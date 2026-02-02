@@ -7,7 +7,7 @@ class ResizeObserverMock implements ResizeObserver {
   disconnect(): void { /* no-op mock */ }
 }
 
-global.ResizeObserver = ResizeObserverMock;
+globalThis.ResizeObserver = ResizeObserverMock;
 
 // Mock scrollIntoView for TimelineSlider
 Element.prototype.scrollIntoView = () => {};

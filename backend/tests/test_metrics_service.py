@@ -247,7 +247,7 @@ class TestMetricsTypeUniqueness:
         scoring_config: ScoringConfig,
     ) -> None:
         """Updating punctual does not affect cumulative."""
-        punctual = await MetricsService.upsert_metrics(
+        await MetricsService.upsert_metrics(
             db_session,
             test_project.id,
             2024,
