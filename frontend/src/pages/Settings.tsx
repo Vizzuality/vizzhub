@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfigurationTab from '../components/Settings/ConfigurationTab';
 import JobsTab from '../components/Settings/JobsTab';
+import SlackTab from '../components/Settings/SlackTab';
 
 export default function Settings(): JSX.Element {
   return (
@@ -10,11 +11,16 @@ export default function Settings(): JSX.Element {
       <Tabs defaultValue="configuration">
         <TabsList>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
+          <TabsTrigger value="slack">Slack</TabsTrigger>
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="configuration">
           <ConfigurationTab />
+        </TabsContent>
+
+        <TabsContent value="slack">
+          <SlackTab />
         </TabsContent>
 
         <TabsContent value="jobs">
