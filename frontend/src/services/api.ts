@@ -16,6 +16,7 @@ import type {
   JobDetailResponse,
   JobSummaryResponse,
   CreateCaptureHistoryJobRequest,
+  SlackChannel,
 } from '../types';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
@@ -293,6 +294,23 @@ export const globalMetricsApi = {
       '/global/recalculate',
       request,
     );
+    return response.data;
+  },
+};
+
+export interface SlackStatusResponse {
+  configured: boolean;
+  channel_count?: number;
+}
+
+export const slackApi = {
+  getStatus: async (): Promise<SlackStatusResponse> => {
+    const response = await api.get<SlackStatusResponse>('/admin/slack/status');
+    return response.data;
+  },
+
+  getChannels: async (): Promise<SlackChannel[]> => {
+    const response = await api.get<SlackChannel[]>('/admin/slack/channels');
     return response.data;
   },
 };

@@ -46,4 +46,8 @@ export const queryKeys = {
     history: (limit?: number) => ['global', 'history', limit] as const,
     availableMonths: ['global', 'available-months'] as const,
   },
+  slack: {
+    status: ['slack', 'status'] as const,
+    channels: ['slack', 'channels'] as const,
+  },
 } as const;
