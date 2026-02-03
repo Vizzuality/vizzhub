@@ -9,11 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
   XCircle,
   Trash2,
   Play,
@@ -67,7 +62,7 @@ function getScheduledJobStatusBadge(status: string): JSX.Element {
 
 interface ScheduledJobRowProps {
   job: ScheduledJobInfo;
-  onTrigger: (jobName: string) => Promise<void>;
+  onTrigger: (jobName: string) => void;
   isTriggering: boolean;
 }
 
@@ -76,27 +71,34 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
   const lastRun = job.last_run;
   const hasLastRun = lastRun !== null;
 
+  const handleRowClick = (): void => {
+    if (hasLastRun) {
+      setIsExpanded((prev) => !prev);
+    }
+  };
+
   return (
-    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <tr className="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer">
+    <>
+      <tr
+        className="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer"
+        onClick={handleRowClick}
+      >
         <td className="py-3 pr-4">
-          <CollapsibleTrigger asChild>
-            <div className="flex items-center gap-2">
-              {hasLastRun ? (
-                isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )
+          <div className="flex items-center gap-2">
+            {hasLastRun ? (
+              isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <span className="w-4" />
-              )}
-              <div>
-                <span className="font-medium">{job.name}</span>
-                <p className="text-xs text-muted-foreground">{job.description}</p>
-              </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )
+            ) : (
+              <span className="w-4" />
+            )}
+            <div>
+              <span className="font-medium">{job.name}</span>
+              <p className="text-xs text-muted-foreground">{job.description}</p>
             </div>
-          </CollapsibleTrigger>
+          </div>
         </td>
         <td className="py-3 pr-4 text-sm">{job.schedule}</td>
         <td className="py-3 pr-4 text-sm">
@@ -112,7 +114,6 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
             <Badge variant="outline">-</Badge>
           )}
         </td>
-        <td className="py-3 pr-4 text-sm text-muted-foreground">{job.schedule}</td>
         <td className="py-3">
           <Button
             variant="outline"
@@ -128,47 +129,45 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
           </Button>
         </td>
       </tr>
-      {lastRun && (
-        <tr>
-          <td colSpan={6} className="p-0">
-            <CollapsibleContent>
-              <div className="bg-muted/30 px-6 py-4 border-b">
-                <h4 className="font-medium text-sm mb-3">Last Run Details</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Projects Checked:</span>{' '}
-                    <span className="font-medium">{lastRun.projects_checked}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Alerts Sent:</span>{' '}
-                    <span className="font-medium">{lastRun.alerts_sent}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Completed:</span>{' '}
-                    <span className="font-medium">
-                      {lastRun.completed_at
-                        ? formatRelativeTime(lastRun.completed_at)
-                        : 'In Progress'}
-                    </span>
-                  </div>
+      {lastRun && isExpanded && (
+        <tr className="bg-muted/50">
+          <td colSpan={5} className="p-0">
+            <div className="bg-muted/30 px-6 py-4 border-b">
+              <h4 className="font-medium text-sm mb-3">Last Run Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Projects Checked:</span>{' '}
+                  <span className="font-medium">{lastRun.projects_checked}</span>
                 </div>
-                {lastRun.error_message && (
-                  <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
-                      <div>
-                        <p className="font-medium text-sm text-destructive">Error Message</p>
-                        <p className="text-sm text-muted-foreground">{lastRun.error_message}</p>
-                      </div>
+                <div>
+                  <span className="text-muted-foreground">Alerts Sent:</span>{' '}
+                  <span className="font-medium">{lastRun.alerts_sent}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Completed:</span>{' '}
+                  <span className="font-medium">
+                    {lastRun.completed_at
+                      ? formatRelativeTime(lastRun.completed_at)
+                      : 'In Progress'}
+                  </span>
+                </div>
+              </div>
+              {lastRun.error_message && (
+                <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sm text-destructive">Error Message</p>
+                      <p className="text-sm text-muted-foreground">{lastRun.error_message}</p>
                     </div>
                   </div>
-                )}
-              </div>
-            </CollapsibleContent>
+                </div>
+              )}
+            </div>
           </td>
         </tr>
       )}
-    </Collapsible>
+    </>
   );
 }
 
@@ -279,9 +278,16 @@ function BackgroundJobsSection(): JSX.Element {
 function ScheduledJobsSection(): JSX.Element {
   const { data: scheduledJobs, isLoading: jobsLoading } = useScheduledJobs();
   const triggerJob = useTriggerScheduledJob();
+  const [triggerError, setTriggerError] = useState<string | null>(null);
 
-  const handleTriggerJob = async (jobName: string): Promise<void> => {
-    await triggerJob.mutateAsync(jobName);
+  const handleTriggerJob = (jobName: string): void => {
+    setTriggerError(null);
+    triggerJob.mutate(jobName, {
+      onError: (error) => {
+        const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        setTriggerError(`Failed to trigger ${jobName}: ${message}`);
+      },
+    });
   };
 
   if (jobsLoading) {
@@ -297,6 +303,14 @@ function ScheduledJobsSection(): JSX.Element {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {triggerError && (
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <p className="text-sm text-destructive">{triggerError}</p>
+            </div>
+          </div>
+        )}
         {!scheduledJobs || scheduledJobs.length === 0 ? (
           <p className="text-muted-foreground text-sm">No scheduled jobs configured.</p>
         ) : (
@@ -308,7 +322,6 @@ function ScheduledJobsSection(): JSX.Element {
                   <th className="pb-3 font-medium">Schedule</th>
                   <th className="pb-3 font-medium">Last Run</th>
                   <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Next Run</th>
                   <th className="pb-3 font-medium">Actions</th>
                 </tr>
               </thead>
