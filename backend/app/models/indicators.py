@@ -1,6 +1,3 @@
-from datetime import datetime
-from uuid import UUID
-
 from pydantic import BaseModel, Field
 
 
@@ -75,14 +72,3 @@ class IndicatorsCreate(BaseModel):
     post_contract_tasks: int | None = Field(
         default=None, ge=0, description="Tasks created >30 days after contract end"
     )
-
-
-class Indicators(IndicatorsCreate):
-    """Schema for indicator responses."""
-
-    id: UUID
-    metrics_id: UUID
-    project_id: UUID
-    created_at: datetime
-
-    model_config = {"from_attributes": True}

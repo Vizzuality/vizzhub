@@ -68,6 +68,16 @@ Use monthly data points for trend analysis and forecasting:
 
 ## Integrations
 
+- [ ] **Slack integration** - Connect projects to Slack channels for notifications
+  - Add `slack_channel_id` field to projects
+  - Slack Bot with `chat:write` permission
+
+- [ ] **Dependabot Slack alerts** - Notify project channels when critical/high vulnerabilities detected
+  - Periodic worker task checks GitHub Dependabot API
+  - Tracks notified alerts to avoid duplicates
+  - Requires Slack integration (above)
+  - See `docs/plans/dependabot-slack-alerts.md` for full design
+
 - [ ] **Team health** - Integrate optional anonymous team surveys (burnout risk, morale)
 
 - [ ] **Technical debt integration** - Connect with SonarQube or similar for code quality tracking

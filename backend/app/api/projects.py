@@ -64,6 +64,11 @@ async def update_project(
     project = await get_project_or_404(db, project_id)
 
     update_data = update.model_dump(exclude_unset=True)
+
+    # Handle clear_finished_at flag
+    if update_data.pop("clear_finished_at", False):
+        project.finished_at = None
+
     for field, value in update_data.items():
         if field == "jira_project_key" and value:
             value = value.upper()

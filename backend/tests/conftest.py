@@ -87,6 +87,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Each API router has its own limiter instance that needs to be reset
     from app.main import limiter as main_limiter
     from app.api import projects, metrics, collectors, scores, config, oauth, capture
+    from app.api.deps import limiter as deps_limiter
 
     main_limiter.reset()
     projects.limiter.reset()
@@ -96,6 +97,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     config.limiter.reset()
     oauth.limiter.reset()
     capture.limiter.reset()
+    deps_limiter.reset()  # Used by global_metrics
 
     async with AsyncClient(
         transport=ASGITransport(app=app),

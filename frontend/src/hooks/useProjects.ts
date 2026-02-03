@@ -64,11 +64,21 @@ export function useDeleteProject() {
   });
 }
 
+interface UpdateStatusParams {
+  status: ProjectStatus;
+  finished_at?: string;
+}
+
 export function useUpdateProjectStatus(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (status: ProjectStatus) => projectsApi.update(id, { status }),
+    mutationFn: (params: UpdateStatusParams) => {
+      if (params.status === 'in_progress') {
+        return projectsApi.update(id, { status: params.status, clear_finished_at: true });
+      }
+      return projectsApi.update(id, { status: params.status, finished_at: params.finished_at });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(id) });

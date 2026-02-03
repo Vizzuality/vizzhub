@@ -242,6 +242,59 @@ export const jobsApi = {
     const response = await api.post<JobResponse>(`/jobs/${jobId}/retry`);
     return response.data;
   },
+
+  deleteJob: async (jobId: string): Promise<void> => {
+    await api.delete(`/jobs/${jobId}`);
+  },
+};
+
+export const globalMetricsApi = {
+  getRecord: async (
+    year: number,
+    month: number,
+  ): Promise<import('../types/global').GlobalMetricsRecord | null> => {
+    const response = await api.get<import('../types/global').GlobalMetricsRecord | null>(
+      `/global/${year}/${month}`,
+    );
+    return response.data;
+  },
+
+  getHistory: async (
+    limit = 12,
+  ): Promise<import('../types/global').GlobalMetricsRecord[]> => {
+    const response = await api.get<import('../types/global').GlobalMetricsHistoryResponse>(
+      '/global/history',
+      { params: { limit } },
+    );
+    return response.data.records;
+  },
+
+  getAvailableMonths: async (): Promise<import('../types/global').AvailableMonth[]> => {
+    const response = await api.get<import('../types/global').AvailableMonth[]>(
+      '/global/available-months',
+    );
+    return response.data;
+  },
+
+  calculate: async (
+    request: import('../types/global').CalculateBatchRequest,
+  ): Promise<import('../types/global').CalculateBatchResponse> => {
+    const response = await api.post<import('../types/global').CalculateBatchResponse>(
+      '/global/calculate',
+      request,
+    );
+    return response.data;
+  },
+
+  recalculate: async (
+    request: import('../types/global').CalculateBatchRequest,
+  ): Promise<import('../types/global').CalculateBatchResponse> => {
+    const response = await api.post<import('../types/global').CalculateBatchResponse>(
+      '/global/recalculate',
+      request,
+    );
+    return response.data;
+  },
 };
 
 export default api;

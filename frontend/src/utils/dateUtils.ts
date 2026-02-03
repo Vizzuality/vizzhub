@@ -1,3 +1,5 @@
+import { MONTHS_SHORT } from '../constants/dates';
+
 /**
  * Represents a year-month period.
  */
@@ -8,11 +10,9 @@ export interface Period {
 
 /**
  * Short month names for display.
+ * @deprecated Use MONTHS_SHORT from constants/dates instead
  */
-export const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
+export const MONTH_NAMES = MONTHS_SHORT;
 
 /**
  * Format a period as "Mon YYYY" (e.g., "Jan 2024").
@@ -29,19 +29,21 @@ export function formatShortPeriod(year: number, month: number): string {
 }
 
 /**
- * Generate an array of periods from a start date to the current month.
+ * Generate an array of periods from a start date to an end date (or current month).
+ * @param startDate - ISO date string for range start
+ * @param endDate - Optional ISO date string for range end (defaults to current month)
  */
-export function generateMonthRange(startDate: string): Period[] {
+export function generateMonthRange(startDate: string, endDate?: string | null): Period[] {
   const start = new Date(startDate);
-  const now = new Date();
+  const end = endDate ? new Date(endDate) : new Date();
   const periods: Period[] = [];
 
   let year = start.getFullYear();
   let month = start.getMonth() + 1;
 
   while (
-    year < now.getFullYear() ||
-    (year === now.getFullYear() && month <= now.getMonth() + 1)
+    year < end.getFullYear() ||
+    (year === end.getFullYear() && month <= end.getMonth() + 1)
   ) {
     periods.push({ year, month });
     month++;

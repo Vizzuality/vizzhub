@@ -96,6 +96,7 @@ services:
       redis:
         condition: service_healthy
     command: arq app.worker.settings.WorkerSettings
+    restart: unless-stopped
 
 volumes:
   postgres-data:

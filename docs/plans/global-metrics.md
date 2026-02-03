@@ -5,14 +5,24 @@
 
 ## Overview
 
-Add a global metrics dashboard that displays averaged indicators and scores across all projects. Monthly records enable trend tracking and ISO reporting.
+Add a global metrics dashboard that displays averaged indicators and scores across all projects. Monthly records stored in DB enable trend tracking, ISO reporting, and recalculation with different weights.
 
 ## Core Concept
 
 - Calculate **monthly averages** from all projects' **cumulative** metrics
-- Store in `global_metrics` table (same pattern as `metrics` table with period columns)
-- Same KPIs as individual projects
-- UI similar to ProjectDetail but simplified (no edit, no collectors)
+- **Batch calculation only** - no on-the-fly (allows recalculation with new weights)
+- Store in `global_metrics` table (same pattern as `metrics` table)
+- Per-indicator project count (only projects with data count toward average)
+- UI similar to ProjectDetail but simplified (no collectors, read-only)
+
+## Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Stored only (no on-the-fly) | Allows recalculation with new weights; better performance |
+| Per-indicator counts | Each metric may have different project coverage |
+| Timeline from 2023 | Practical historical limit |
+| Sync batch (no ARQ) | No external APIs - just DB queries + calculations |
 
 ---
 
@@ -21,8 +31,6 @@ Add a global metrics dashboard that displays averaged indicators and scores acro
 ### 1.1 Create GlobalMetrics Model
 
 **File:** `backend/app/models/global_metrics.py`
-
-Following the same pattern as the `metrics` table - historical data stored with `period_year` and `period_month` columns, not a separate "snapshots" table.
 
 ```python
 from sqlalchemy import Column, Integer, Float, DateTime, UniqueConstraint
@@ -43,31 +51,51 @@ class GlobalMetricsDB(Base):
     period_month = Column(Integer, nullable=False)
 
     # Metadata
-    project_count = Column(Integer, nullable=False)
+    project_count = Column(Integer, nullable=False)  # Total projects with any metrics
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Averaged Indicators (0-1 scale)
+    # Averaged Indicators (0-1 scale) + their project counts
     spi = Column(Float, nullable=True)
+    spi_count = Column(Integer, nullable=True)
     cpi = Column(Float, nullable=True)
+    cpi_count = Column(Integer, nullable=True)
     on_time_milestones = Column(Float, nullable=True)
+    on_time_milestones_count = Column(Integer, nullable=True)
     defect_density = Column(Float, nullable=True)
+    defect_density_count = Column(Integer, nullable=True)
     escaped_rate = Column(Float, nullable=True)
+    escaped_rate_count = Column(Integer, nullable=True)
     mttr_hours = Column(Float, nullable=True)
+    mttr_hours_count = Column(Integer, nullable=True)
     governance_compliance = Column(Float, nullable=True)
+    governance_compliance_count = Column(Integer, nullable=True)
     lead_time_days = Column(Float, nullable=True)
+    lead_time_days_count = Column(Integer, nullable=True)
     deployment_frequency = Column(Float, nullable=True)
+    deployment_frequency_count = Column(Integer, nullable=True)
     change_failure_rate = Column(Float, nullable=True)
+    change_failure_rate_count = Column(Integer, nullable=True)
     commitment_reliability = Column(Float, nullable=True)
+    commitment_reliability_count = Column(Integer, nullable=True)
     pr_review_ratio = Column(Float, nullable=True)
+    pr_review_ratio_count = Column(Integer, nullable=True)
     test_maturity = Column(Float, nullable=True)
+    test_maturity_count = Column(Integer, nullable=True)
     arch_checklist = Column(Float, nullable=True)
+    arch_checklist_count = Column(Integer, nullable=True)
     high_vulns = Column(Float, nullable=True)
+    high_vulns_count = Column(Integer, nullable=True)
     okr_impact = Column(Float, nullable=True)
+    okr_impact_count = Column(Integer, nullable=True)
     pm_satisfaction = Column(Float, nullable=True)
+    pm_satisfaction_count = Column(Integer, nullable=True)
     client_satisfaction = Column(Float, nullable=True)
+    client_satisfaction_count = Column(Integer, nullable=True)
     story_review_ratio = Column(Float, nullable=True)
+    story_review_ratio_count = Column(Integer, nullable=True)
     strategic_impact = Column(Float, nullable=True)  # Numeric average
+    strategic_impact_count = Column(Integer, nullable=True)
 
     # Averaged Dimension Scores (0-100 scale)
     score = Column(Float, nullable=True)
@@ -101,27 +129,32 @@ alembic upgrade head
 from pydantic import BaseModel
 from datetime import datetime
 
+class IndicatorValue(BaseModel):
+    """Indicator with its value and project count."""
+    value: float | None = None
+    count: int = 0
+
 class GlobalIndicators(BaseModel):
-    spi: float | None = None
-    cpi: float | None = None
-    on_time_milestones: float | None = None
-    defect_density: float | None = None
-    escaped_rate: float | None = None
-    mttr_hours: float | None = None
-    governance_compliance: float | None = None
-    lead_time_days: float | None = None
-    deployment_frequency: float | None = None
-    change_failure_rate: float | None = None
-    commitment_reliability: float | None = None
-    pr_review_ratio: float | None = None
-    test_maturity: float | None = None
-    arch_checklist: float | None = None
-    high_vulns: float | None = None
-    okr_impact: float | None = None
-    pm_satisfaction: float | None = None
-    client_satisfaction: float | None = None
-    story_review_ratio: float | None = None
-    strategic_impact: float | None = None
+    spi: IndicatorValue = IndicatorValue()
+    cpi: IndicatorValue = IndicatorValue()
+    on_time_milestones: IndicatorValue = IndicatorValue()
+    defect_density: IndicatorValue = IndicatorValue()
+    escaped_rate: IndicatorValue = IndicatorValue()
+    mttr_hours: IndicatorValue = IndicatorValue()
+    governance_compliance: IndicatorValue = IndicatorValue()
+    lead_time_days: IndicatorValue = IndicatorValue()
+    deployment_frequency: IndicatorValue = IndicatorValue()
+    change_failure_rate: IndicatorValue = IndicatorValue()
+    commitment_reliability: IndicatorValue = IndicatorValue()
+    pr_review_ratio: IndicatorValue = IndicatorValue()
+    test_maturity: IndicatorValue = IndicatorValue()
+    arch_checklist: IndicatorValue = IndicatorValue()
+    high_vulns: IndicatorValue = IndicatorValue()
+    okr_impact: IndicatorValue = IndicatorValue()
+    pm_satisfaction: IndicatorValue = IndicatorValue()
+    client_satisfaction: IndicatorValue = IndicatorValue()
+    story_review_ratio: IndicatorValue = IndicatorValue()
+    strategic_impact: IndicatorValue = IndicatorValue()
 
 class GlobalScores(BaseModel):
     score: float | None = None
@@ -134,21 +167,31 @@ class GlobalScores(BaseModel):
     p_engineering: float | None = None
     p_risk: float | None = None
 
-class GlobalMetricsResponse(BaseModel):
+class GlobalMetricsRecord(BaseModel):
+    """Response for a stored global metrics record."""
+    id: str
     period_year: int
     period_month: int
     project_count: int
     indicators: GlobalIndicators
     scores: GlobalScores
-
-class GlobalMetricsRecord(GlobalMetricsResponse):
-    """Response for a stored global metrics record."""
-    id: str
     created_at: datetime
     updated_at: datetime
 
 class GlobalMetricsHistoryResponse(BaseModel):
     """Response for historical global metrics query."""
+    records: list[GlobalMetricsRecord]
+
+class CalculateBatchRequest(BaseModel):
+    """Request to calculate global metrics for a date range."""
+    from_year: int
+    from_month: int
+    to_year: int
+    to_month: int
+
+class CalculateBatchResponse(BaseModel):
+    """Response from batch calculation."""
+    months_processed: int
     records: list[GlobalMetricsRecord]
 ```
 
@@ -169,12 +212,14 @@ Add exports for `GlobalMetricsDB` and Pydantic schemas.
 ```python
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime
 from app.models.metrics import MetricsDB
 from app.models.global_metrics import (
     GlobalMetricsDB,
     GlobalIndicators,
     GlobalScores,
-    GlobalMetricsResponse,
+    GlobalMetricsRecord,
+    IndicatorValue,
 )
 from app.services.scoring_config import ScoringConfig
 
@@ -197,14 +242,15 @@ class GlobalMetricsService:
     def __init__(self, config: ScoringConfig):
         self.config = config
 
-    async def calculate_for_month(
+    async def calculate_and_store(
         self,
         db: AsyncSession,
         year: int,
         month: int,
-    ) -> GlobalMetricsResponse:
-        """Calculate global averages for a specific month from all projects' cumulative metrics."""
+    ) -> GlobalMetricsDB:
+        """Calculate global averages for a specific month and store in DB."""
 
+        # Fetch all cumulative metrics for this period
         result = await db.execute(
             select(MetricsDB)
             .where(MetricsDB.period_year == year)
@@ -213,29 +259,16 @@ class GlobalMetricsService:
         )
         metrics_list = result.scalars().all()
 
-        if not metrics_list:
-            return GlobalMetricsResponse(
-                period_year=year,
-                period_month=month,
-                project_count=0,
-                indicators=GlobalIndicators(),
-                scores=GlobalScores(),
-            )
-
+        # Calculate averages with counts
         indicators = self._average_indicators(metrics_list)
         scores = self._calculate_scores(indicators)
 
-        return GlobalMetricsResponse(
-            period_year=year,
-            period_month=month,
-            project_count=len(metrics_list),
-            indicators=indicators,
-            scores=scores,
-        )
+        # Upsert
+        return await self._upsert(db, year, month, len(metrics_list), indicators, scores)
 
     def _average_indicators(self, metrics_list: list[MetricsDB]) -> GlobalIndicators:
-        """Calculate average for each indicator, excluding nulls."""
-        averages = {}
+        """Calculate average for each indicator, tracking count of non-null values."""
+        indicator_data = {}
 
         for field in INDICATOR_FIELDS:
             values = [
@@ -243,60 +276,114 @@ class GlobalMetricsService:
                 for m in metrics_list
                 if getattr(m, field) is not None
             ]
-            averages[field] = sum(values) / len(values) if values else None
+            indicator_data[field] = IndicatorValue(
+                value=sum(values) / len(values) if values else None,
+                count=len(values)
+            )
 
-        # Handle strategic_impact separately (category → numeric → average)
+        # Handle strategic_impact separately (category -> numeric -> average)
         impact_values = [
             STRATEGIC_IMPACT_VALUES.get(m.strategic_impact)
             for m in metrics_list
             if m.strategic_impact in STRATEGIC_IMPACT_VALUES
         ]
-        averages['strategic_impact'] = (
-            sum(impact_values) / len(impact_values) if impact_values else None
+        indicator_data['strategic_impact'] = IndicatorValue(
+            value=sum(impact_values) / len(impact_values) if impact_values else None,
+            count=len(impact_values)
         )
 
-        return GlobalIndicators(**averages)
+        return GlobalIndicators(**indicator_data)
 
     def _calculate_scores(self, indicators: GlobalIndicators) -> GlobalScores:
-        """Calculate dimension scores from averaged indicators using existing calculators."""
+        """Calculate dimension scores from averaged indicators."""
         # Reuse existing dimension calculators with averaged indicator values
         # Each calculator takes normalized indicators and returns 0-100 score
         # TODO: Wire up existing calculators
         return GlobalScores()
 
-    async def upsert(
+    async def _upsert(
         self,
         db: AsyncSession,
-        metrics: GlobalMetricsResponse,
+        year: int,
+        month: int,
+        project_count: int,
+        indicators: GlobalIndicators,
+        scores: GlobalScores,
     ) -> GlobalMetricsDB:
-        """Insert or update global metrics for a period (same pattern as MetricsService)."""
+        """Insert or update global metrics for a period."""
         result = await db.execute(
             select(GlobalMetricsDB)
-            .where(GlobalMetricsDB.period_year == metrics.period_year)
-            .where(GlobalMetricsDB.period_month == metrics.period_month)
+            .where(GlobalMetricsDB.period_year == year)
+            .where(GlobalMetricsDB.period_month == month)
         )
         existing = result.scalar_one_or_none()
 
+        # Flatten indicators to DB columns
+        indicator_cols = {}
+        for field in INDICATOR_FIELDS + ['strategic_impact']:
+            ind = getattr(indicators, field)
+            indicator_cols[field] = ind.value
+            indicator_cols[f"{field}_count"] = ind.count
+
         if existing:
-            for key, value in metrics.indicators.model_dump().items():
+            for key, value in indicator_cols.items():
                 setattr(existing, key, value)
-            for key, value in metrics.scores.model_dump().items():
+            for key, value in scores.model_dump().items():
                 setattr(existing, key, value)
-            existing.project_count = metrics.project_count
+            existing.project_count = project_count
+            existing.updated_at = datetime.utcnow()
             record = existing
         else:
             record = GlobalMetricsDB(
-                period_year=metrics.period_year,
-                period_month=metrics.period_month,
-                project_count=metrics.project_count,
-                **metrics.indicators.model_dump(),
-                **metrics.scores.model_dump(),
+                period_year=year,
+                period_month=month,
+                project_count=project_count,
+                **indicator_cols,
+                **scores.model_dump(),
             )
             db.add(record)
 
         await db.commit()
         await db.refresh(record)
         return record
+
+    async def calculate_batch(
+        self,
+        db: AsyncSession,
+        from_year: int,
+        from_month: int,
+        to_year: int,
+        to_month: int,
+    ) -> list[GlobalMetricsDB]:
+        """Calculate global metrics for a range of months."""
+        records = []
+
+        year, month = from_year, from_month
+        while (year, month) <= (to_year, to_month):
+            record = await self.calculate_and_store(db, year, month)
+            records.append(record)
+
+            # Next month
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+
+        return records
+
+    async def get_record(
+        self,
+        db: AsyncSession,
+        year: int,
+        month: int,
+    ) -> GlobalMetricsDB | None:
+        """Get stored global metrics for a specific month."""
+        result = await db.execute(
+            select(GlobalMetricsDB)
+            .where(GlobalMetricsDB.period_year == year)
+            .where(GlobalMetricsDB.period_month == month)
+        )
+        return result.scalar_one_or_none()
 
     async def get_history(
         self,
@@ -313,6 +400,20 @@ class GlobalMetricsService:
             .limit(limit)
         )
         return result.scalars().all()
+
+    async def get_available_months(
+        self,
+        db: AsyncSession,
+    ) -> list[tuple[int, int]]:
+        """Get list of months that have stored global metrics."""
+        result = await db.execute(
+            select(GlobalMetricsDB.period_year, GlobalMetricsDB.period_month)
+            .order_by(
+                GlobalMetricsDB.period_year.desc(),
+                GlobalMetricsDB.period_month.desc()
+            )
+        )
+        return [(r.period_year, r.period_month) for r in result.all()]
 ```
 
 ---
@@ -324,17 +425,17 @@ class GlobalMetricsService:
 **File:** `backend/app/api/global_metrics.py`
 
 ```python
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
 
 from app.database import get_db
 from app.services.global_metrics_service import GlobalMetricsService
 from app.services.scoring_config import ScoringConfig
 from app.models.global_metrics import (
-    GlobalMetricsResponse,
     GlobalMetricsRecord,
     GlobalMetricsHistoryResponse,
+    CalculateBatchRequest,
+    CalculateBatchResponse,
 )
 
 router = APIRouter(prefix="/api/global", tags=["global"])
@@ -343,57 +444,79 @@ def get_global_service() -> GlobalMetricsService:
     config = ScoringConfig()
     return GlobalMetricsService(config)
 
-@router.get("/current", response_model=GlobalMetricsResponse)
-async def get_current_global_metrics(
-    db: AsyncSession = Depends(get_db),
-    service: GlobalMetricsService = Depends(get_global_service),
-):
-    """Calculate global metrics for current month (on-the-fly, not stored)."""
-    now = datetime.now()
-    return await service.calculate_for_month(db, now.year, now.month)
+def _db_to_response(record) -> GlobalMetricsRecord:
+    """Convert DB model to response schema."""
+    # TODO: Implement conversion
+    pass
 
-@router.get("/calculate", response_model=GlobalMetricsResponse)
-async def calculate_global_metrics(
-    year: int = Query(...),
+@router.get("/{year}/{month}", response_model=GlobalMetricsRecord | None)
+async def get_global_metrics(
+    year: int,
     month: int = Query(..., ge=1, le=12),
     db: AsyncSession = Depends(get_db),
     service: GlobalMetricsService = Depends(get_global_service),
 ):
-    """Calculate global metrics for a specific month (on-the-fly, not stored)."""
-    return await service.calculate_for_month(db, year, month)
-
-@router.post("/capture", response_model=GlobalMetricsRecord)
-async def capture_global_metrics(
-    year: int = Query(...),
-    month: int = Query(..., ge=1, le=12),
-    db: AsyncSession = Depends(get_db),
-    service: GlobalMetricsService = Depends(get_global_service),
-):
-    """Calculate and store global metrics for a specific month (upsert)."""
-    metrics = await service.calculate_for_month(db, year, month)
-    record = await service.upsert(db, metrics)
-    return record
+    """Get stored global metrics for a specific month."""
+    record = await service.get_record(db, year, month)
+    if not record:
+        return None
+    return _db_to_response(record)
 
 @router.get("/history", response_model=GlobalMetricsHistoryResponse)
 async def get_global_metrics_history(
-    limit: int = Query(12, ge=1, le=36),
+    limit: int = Query(12, ge=1, le=48),
     db: AsyncSession = Depends(get_db),
     service: GlobalMetricsService = Depends(get_global_service),
 ):
     """Get historical global metrics for trend display."""
     records = await service.get_history(db, limit)
-    return GlobalMetricsHistoryResponse(records=records)
+    return GlobalMetricsHistoryResponse(
+        records=[_db_to_response(r) for r in records]
+    )
 
-@router.get("/export")
-async def export_global_metrics(
-    year: int = Query(...),
-    format: str = Query("csv", regex="^(csv|json)$"),
+@router.get("/available-months")
+async def get_available_months(
+    db: AsyncSession = Depends(get_db),
+    service: GlobalMetricsService = Depends(get_global_service),
+) -> list[dict]:
+    """Get list of months that have stored global metrics."""
+    months = await service.get_available_months(db)
+    return [{"year": y, "month": m} for y, m in months]
+
+@router.post("/calculate", response_model=CalculateBatchResponse)
+async def calculate_global_metrics(
+    request: CalculateBatchRequest,
     db: AsyncSession = Depends(get_db),
     service: GlobalMetricsService = Depends(get_global_service),
 ):
-    """Export global metrics for ISO reporting."""
-    # TODO: Implement CSV/JSON export
-    pass
+    """Calculate and store global metrics for a date range (batch)."""
+    if (request.from_year, request.from_month) > (request.to_year, request.to_month):
+        raise HTTPException(400, "from_date must be before to_date")
+
+    if request.from_year < 2023:
+        raise HTTPException(400, "from_year must be 2023 or later")
+
+    records = await service.calculate_batch(
+        db,
+        request.from_year,
+        request.from_month,
+        request.to_year,
+        request.to_month,
+    )
+    return CalculateBatchResponse(
+        months_processed=len(records),
+        records=[_db_to_response(r) for r in records],
+    )
+
+@router.post("/recalculate", response_model=CalculateBatchResponse)
+async def recalculate_global_metrics(
+    request: CalculateBatchRequest,
+    db: AsyncSession = Depends(get_db),
+    service: GlobalMetricsService = Depends(get_global_service),
+):
+    """Recalculate global metrics with current weights for a date range."""
+    # Same as calculate - upsert handles overwriting
+    return await calculate_global_metrics(request, db, service)
 ```
 
 ### 3.2 Register Router in Main
@@ -414,27 +537,32 @@ app.include_router(global_router)
 **File:** `frontend/src/types/global.ts`
 
 ```typescript
+export interface IndicatorValue {
+  value: number | null;
+  count: number;
+}
+
 export interface GlobalIndicators {
-  spi: number | null;
-  cpi: number | null;
-  on_time_milestones: number | null;
-  defect_density: number | null;
-  escaped_rate: number | null;
-  mttr_hours: number | null;
-  governance_compliance: number | null;
-  lead_time_days: number | null;
-  deployment_frequency: number | null;
-  change_failure_rate: number | null;
-  commitment_reliability: number | null;
-  pr_review_ratio: number | null;
-  test_maturity: number | null;
-  arch_checklist: number | null;
-  high_vulns: number | null;
-  okr_impact: number | null;
-  pm_satisfaction: number | null;
-  client_satisfaction: number | null;
-  story_review_ratio: number | null;
-  strategic_impact: number | null;
+  spi: IndicatorValue;
+  cpi: IndicatorValue;
+  on_time_milestones: IndicatorValue;
+  defect_density: IndicatorValue;
+  escaped_rate: IndicatorValue;
+  mttr_hours: IndicatorValue;
+  governance_compliance: IndicatorValue;
+  lead_time_days: IndicatorValue;
+  deployment_frequency: IndicatorValue;
+  change_failure_rate: IndicatorValue;
+  commitment_reliability: IndicatorValue;
+  pr_review_ratio: IndicatorValue;
+  test_maturity: IndicatorValue;
+  arch_checklist: IndicatorValue;
+  high_vulns: IndicatorValue;
+  okr_impact: IndicatorValue;
+  pm_satisfaction: IndicatorValue;
+  client_satisfaction: IndicatorValue;
+  story_review_ratio: IndicatorValue;
+  strategic_impact: IndicatorValue;
 }
 
 export interface GlobalScores {
@@ -449,18 +577,27 @@ export interface GlobalScores {
   p_risk: number | null;
 }
 
-export interface GlobalMetrics {
+export interface GlobalMetricsRecord {
+  id: string;
   period_year: number;
   period_month: number;
   project_count: number;
   indicators: GlobalIndicators;
   scores: GlobalScores;
-}
-
-export interface GlobalMetricsRecord extends GlobalMetrics {
-  id: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CalculateBatchRequest {
+  from_year: number;
+  from_month: number;
+  to_year: number;
+  to_month: number;
+}
+
+export interface CalculateBatchResponse {
+  months_processed: number;
+  records: GlobalMetricsRecord[];
 }
 ```
 
@@ -471,11 +608,12 @@ export interface GlobalMetricsRecord extends GlobalMetrics {
 ```typescript
 // Add to existing queryKeys
 global: {
-  current: ['global', 'current'] as const,
-  calculate: (year: number, month: number) =>
-    ['global', 'calculate', year, month] as const,
+  all: ['global'] as const,
+  record: (year: number, month: number) =>
+    ['global', 'record', year, month] as const,
   history: (limit?: number) =>
     ['global', 'history', limit] as const,
+  availableMonths: ['global', 'available-months'] as const,
 },
 ```
 
@@ -487,25 +625,17 @@ global: {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { queryKeys } from './queryKeys';
-import type { GlobalMetrics, GlobalMetricsRecord } from '../types/global';
-
-export function useCurrentGlobalMetrics() {
-  return useQuery({
-    queryKey: queryKeys.global.current,
-    queryFn: async (): Promise<GlobalMetrics> => {
-      const response = await api.get('/api/global/current');
-      return response.data;
-    },
-  });
-}
+import type {
+  GlobalMetricsRecord,
+  CalculateBatchRequest,
+  CalculateBatchResponse,
+} from '../types/global';
 
 export function useGlobalMetrics(year: number, month: number) {
   return useQuery({
-    queryKey: queryKeys.global.calculate(year, month),
-    queryFn: async (): Promise<GlobalMetrics> => {
-      const response = await api.get('/api/global/calculate', {
-        params: { year, month },
-      });
+    queryKey: queryKeys.global.record(year, month),
+    queryFn: async (): Promise<GlobalMetricsRecord | null> => {
+      const response = await api.get(`/api/global/${year}/${month}`);
       return response.data;
     },
   });
@@ -523,18 +653,40 @@ export function useGlobalMetricsHistory(limit = 12) {
   });
 }
 
-export function useCaptureGlobalMetrics() {
+export function useAvailableGlobalMonths() {
+  return useQuery({
+    queryKey: queryKeys.global.availableMonths,
+    queryFn: async (): Promise<{ year: number; month: number }[]> => {
+      const response = await api.get('/api/global/available-months');
+      return response.data;
+    },
+  });
+}
+
+export function useCalculateGlobalMetrics() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ year, month }: { year: number; month: number }) => {
-      const response = await api.post('/api/global/capture', null, {
-        params: { year, month },
-      });
+    mutationFn: async (request: CalculateBatchRequest): Promise<CalculateBatchResponse> => {
+      const response = await api.post('/api/global/calculate', request);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['global'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.global.all });
+    },
+  });
+}
+
+export function useRecalculateGlobalMetrics() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (request: CalculateBatchRequest): Promise<CalculateBatchResponse> => {
+      const response = await api.post('/api/global/recalculate', request);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.global.all });
     },
   });
 }
@@ -549,23 +701,73 @@ export function useCaptureGlobalMetrics() {
 **File:** `frontend/src/pages/GlobalDashboard.tsx`
 
 ```typescript
-import { useState } from 'react';
-import { useCurrentGlobalMetrics, useGlobalMetricsHistory } from '../hooks/useGlobalMetrics';
+import { useState, useMemo } from 'react';
+import {
+  useGlobalMetrics,
+  useGlobalMetricsHistory,
+  useAvailableGlobalMonths,
+  useCalculateGlobalMetrics,
+} from '../hooks/useGlobalMetrics';
 import { useConfigParameters } from '../hooks/useConfig';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
+import TimelineSlider from '../components/ProjectDetail/TimelineSlider';
 import { ALL_DIMENSIONS, type Dimension } from '../types';
+import { Calculator, RefreshCw } from 'lucide-react';
 
 export default function GlobalDashboard(): JSX.Element {
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(
     new Set(ALL_DIMENSIONS)
   );
 
-  const { data: globalMetrics, isLoading, error } = useCurrentGlobalMetrics();
+  const { data: globalMetrics, isLoading } = useGlobalMetrics(selectedYear, selectedMonth);
   const { data: history } = useGlobalMetricsHistory(12);
+  const { data: availableMonths } = useAvailableGlobalMonths();
   const { data: config } = useConfigParameters();
+  const calculateMutation = useCalculateGlobalMetrics();
+
+  // Build timeline months (last 12 months by default, expandable to 2023)
+  const timelineMonths = useMemo(() => {
+    const months: { year: number; month: number }[] = [];
+    const start = new Date(2023, 0, 1);
+    const end = new Date();
+
+    let current = new Date(start);
+    while (current <= end) {
+      months.push({
+        year: current.getFullYear(),
+        month: current.getMonth() + 1,
+      });
+      current.setMonth(current.getMonth() + 1);
+    }
+    return months;
+  }, []);
+
+  // Check which months have data
+  const monthsWithData = useMemo(() => {
+    if (!availableMonths) return new Set<string>();
+    return new Set(availableMonths.map(m => `${m.year}-${m.month}`));
+  }, [availableMonths]);
+
+  const handlePeriodChange = (year: number, month: number) => {
+    setSelectedYear(year);
+    setSelectedMonth(month);
+  };
+
+  const handleCalculateAll = () => {
+    calculateMutation.mutate({
+      from_year: 2023,
+      from_month: 1,
+      to_year: now.getFullYear(),
+      to_month: now.getMonth() + 1,
+    });
+  };
 
   const handleToggleDimension = (dimension: Dimension) => {
     setVisibleDimensions((prev) => {
@@ -583,13 +785,6 @@ export default function GlobalDashboard(): JSX.Element {
     setVisibleDimensions(new Set(ALL_DIMENSIONS));
   };
 
-  const getTarget = (name: string): number | null => {
-    const targets = config?.['Targets'];
-    if (!targets) return null;
-    const param = targets.find((p) => p.name === name);
-    return param ? parseFloat(param.value) : null;
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -598,65 +793,131 @@ export default function GlobalDashboard(): JSX.Element {
     );
   }
 
-  if (error || !globalMetrics) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-destructive">
-            Error loading global metrics
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Transform to ScoreCard expected format
-  const scoreData = {
-    score: globalMetrics.scores.score ?? 0,
-    dimensions: {
-      p_time: globalMetrics.scores.p_time ?? 0,
-      p_cost: globalMetrics.scores.p_cost ?? 0,
-      p_quality: globalMetrics.scores.p_quality ?? 0,
-      p_value: globalMetrics.scores.p_value ?? 0,
-      p_satisfaction: globalMetrics.scores.p_satisfaction ?? 0,
-      p_flow: globalMetrics.scores.p_flow ?? 0,
-      p_engineering: globalMetrics.scores.p_engineering ?? 0,
-      p_risk: globalMetrics.scores.p_risk ?? 0,
-    },
-    weights_applied: {},
-    dora: null,
-  };
+  const hasData = globalMetrics !== null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Global Metrics</h1>
-        <p className="text-muted-foreground mt-1">
-          Averaged across {globalMetrics.project_count} projects
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold">Global Metrics</h1>
+          <p className="text-muted-foreground mt-1">
+            {hasData
+              ? `Averaged across ${globalMetrics.project_count} projects`
+              : 'No data for selected period'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCalculateAll}
+            disabled={calculateMutation.isPending}
+          >
+            <Calculator className="w-4 h-4 mr-2" />
+            {calculateMutation.isPending ? 'Calculating...' : 'Calculate All'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleCalculateAll}
+            disabled={calculateMutation.isPending}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Recalculate
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ScoreCard
-          score={scoreData}
-          snapshots={history}
-          visibleDimensions={visibleDimensions}
-          onToggleDimension={handleToggleDimension}
-          onResetFilters={handleResetFilters}
-        />
-        <DimensionChart
-          scores={scoreData.dimensions}
-          snapshots={history}
-          visibleDimensions={visibleDimensions}
-          onToggleDimension={handleToggleDimension}
-        />
-      </div>
+      {/* Timeline Selector */}
+      <Card>
+        <CardContent className="pt-6">
+          <TimelineSlider
+            months={timelineMonths}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            onPeriodChange={handlePeriodChange}
+            monthsWithData={monthsWithData}
+          />
+        </CardContent>
+      </Card>
 
-      <Separator className="my-6" />
+      {!hasData ? (
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground mb-4">
+              No global metrics calculated for {selectedMonth}/{selectedYear}
+            </p>
+            <Button onClick={() => calculateMutation.mutate({
+              from_year: selectedYear,
+              from_month: selectedMonth,
+              to_year: selectedYear,
+              to_month: selectedMonth,
+            })}>
+              Calculate This Month
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ScoreCard
+              score={{
+                score: globalMetrics.scores.score ?? 0,
+                dimensions: {
+                  p_time: globalMetrics.scores.p_time ?? 0,
+                  p_cost: globalMetrics.scores.p_cost ?? 0,
+                  p_quality: globalMetrics.scores.p_quality ?? 0,
+                  p_value: globalMetrics.scores.p_value ?? 0,
+                  p_satisfaction: globalMetrics.scores.p_satisfaction ?? 0,
+                  p_flow: globalMetrics.scores.p_flow ?? 0,
+                  p_engineering: globalMetrics.scores.p_engineering ?? 0,
+                  p_risk: globalMetrics.scores.p_risk ?? 0,
+                },
+                weights_applied: {},
+                dora: null,
+              }}
+              snapshots={history}
+              visibleDimensions={visibleDimensions}
+              onToggleDimension={handleToggleDimension}
+              onResetFilters={handleResetFilters}
+            />
+            <DimensionChart
+              scores={{
+                p_time: globalMetrics.scores.p_time ?? 0,
+                p_cost: globalMetrics.scores.p_cost ?? 0,
+                p_quality: globalMetrics.scores.p_quality ?? 0,
+                p_value: globalMetrics.scores.p_value ?? 0,
+                p_satisfaction: globalMetrics.scores.p_satisfaction ?? 0,
+                p_flow: globalMetrics.scores.p_flow ?? 0,
+                p_engineering: globalMetrics.scores.p_engineering ?? 0,
+                p_risk: globalMetrics.scores.p_risk ?? 0,
+              }}
+              snapshots={history}
+              visibleDimensions={visibleDimensions}
+              onToggleDimension={handleToggleDimension}
+            />
+          </div>
 
-      {/* Sub-indicators by dimension */}
-      {/* Similar to ProjectDetail but using globalMetrics.indicators */}
-      {/* TODO: Add SubIndicatorCard grid for each dimension */}
+          <Separator className="my-6" />
+
+          {/* Sub-indicators with project counts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Example indicator card showing count */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">SPI</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {globalMetrics.indicators.spi.value?.toFixed(2) ?? '-'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {globalMetrics.indicators.spi.count} projects
+                </p>
+              </CardContent>
+            </Card>
+            {/* TODO: Add cards for all indicators */}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -696,37 +957,68 @@ from app.services.global_metrics_service import GlobalMetricsService
 
 class TestGlobalMetricsService:
     def test_average_indicators_excludes_nulls(self):
-        # Test that null values don't affect average
+        """Test that null values don't affect average - divides by count with data."""
         pass
 
     def test_average_indicators_empty_list(self):
-        # Test with no metrics returns empty response
+        """Test with no metrics returns empty response."""
+        pass
+
+    def test_indicator_counts_tracked(self):
+        """Test that each indicator tracks its own project count."""
         pass
 
     def test_strategic_impact_conversion(self):
-        # Test category to numeric conversion for averaging
+        """Test category to numeric conversion for averaging."""
         pass
 
     def test_calculate_scores_from_indicators(self):
-        # Test score calculation
+        """Test score calculation using current weights."""
         pass
 
     def test_upsert_creates_new_record(self):
-        # Test insert when no record exists
+        """Test insert when no record exists."""
         pass
 
     def test_upsert_updates_existing_record(self):
-        # Test update when record exists for period
+        """Test update (recalculate) when record exists for period."""
+        pass
+
+    def test_batch_calculate_range(self):
+        """Test calculating multiple months in sequence."""
         pass
 
 class TestGlobalAPI:
-    async def test_get_current_metrics(self, client):
+    async def test_get_stored_metrics(self, client):
+        """Test GET /api/global/{year}/{month}."""
         pass
 
-    async def test_capture_metrics(self, client):
+    async def test_get_returns_none_when_no_data(self, client):
+        """Test returns null when month not calculated."""
+        pass
+
+    async def test_calculate_batch(self, client):
+        """Test POST /api/global/calculate."""
+        pass
+
+    async def test_calculate_validates_date_range(self, client):
+        """Test from_date must be before to_date."""
+        pass
+
+    async def test_calculate_validates_min_year(self, client):
+        """Test from_year must be 2023 or later."""
         pass
 
     async def test_get_history(self, client):
+        """Test GET /api/global/history."""
+        pass
+
+    async def test_get_available_months(self, client):
+        """Test GET /api/global/available-months."""
+        pass
+
+    async def test_recalculate_overwrites(self, client):
+        """Test POST /api/global/recalculate overwrites existing."""
         pass
 ```
 
@@ -737,10 +1029,14 @@ class TestGlobalAPI:
 ```typescript
 describe('GlobalDashboard', () => {
   it('renders loading state', () => {});
-  it('renders error state', () => {});
-  it('displays project count', () => {});
-  it('renders score cards', () => {});
+  it('renders empty state when no data', () => {});
+  it('displays project count when data exists', () => {});
+  it('renders score cards with correct values', () => {});
   it('renders dimension chart', () => {});
+  it('shows indicator counts', () => {});
+  it('timeline shows months with/without data differently', () => {});
+  it('calculate button triggers batch calculation', () => {});
+  it('period change updates selected month', () => {});
 });
 ```
 
@@ -749,10 +1045,10 @@ describe('GlobalDashboard', () => {
 ## Implementation Order
 
 1. **Phase 1**: Database model & migration
-2. **Phase 2**: Calculation service (core logic)
+2. **Phase 2**: Calculation service (core logic with counts)
 3. **Phase 3**: API endpoints
 4. **Phase 4**: Frontend types & hooks
-5. **Phase 5**: Global dashboard page
+5. **Phase 5**: Global dashboard page with timeline
 6. **Phase 6**: Tests
 
 ## Files to Create/Modify
@@ -773,17 +1069,22 @@ describe('GlobalDashboard', () => {
 | `frontend/src/pages/__tests__/GlobalDashboard.test.tsx` | CREATE |
 | `frontend/src/App.tsx` | MODIFY |
 
-## Key Simplifications
+## Key Design Decisions Summary
 
-Following the existing `metrics` table pattern:
-- **No separate "snapshots" table** - `global_metrics` stores historical data with `period_year`/`period_month`
-- **Upsert pattern** - same period overwrites previous record (like project metrics)
-- **Reuse existing calculators** - averaged indicators go through same scoring logic
-- **Same API patterns** - `/current` (on-the-fly), `/capture` (store), `/history` (trend data)
+| Aspect | Decision |
+|--------|----------|
+| Calculation | Batch only (no on-the-fly) - enables recalculation with new weights |
+| Storage | Same pattern as `metrics` table with `period_year`/`period_month` |
+| Counts | Per-indicator project counts stored in DB (`spi_count`, `cpi_count`, etc.) |
+| Timeline | Default 12 months, expandable from 2023 |
+| UI | Read-only, no collectors, timeline selector + calculate/recalculate buttons |
+| API | Sync batch processing (no ARQ needed - just DB queries) |
 
 ## Verification
 
 1. Run backend tests: `pytest tests/test_global_metrics.py`
 2. Run frontend tests: `npm test`
-3. Manual test: Navigate to `/global`, verify data displays
-4. Verify capture and trend chart work correctly
+3. Manual test: Navigate to `/global`, verify empty state
+4. Click "Calculate All", verify data populates
+5. Change weights in config, click "Recalculate", verify scores update
+6. Navigate timeline, verify months with/without data display correctly

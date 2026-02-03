@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import TimelineSlider from '../TimelineSlider';
+import type { MetricsWithScores } from '@/types';
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -10,7 +11,7 @@ const mockSnapshots = [
   { period_year: 2025, period_month: 10 },
   { period_year: 2025, period_month: 11 },
   { period_year: 2025, period_month: 12 },
-] as any[];
+] as MetricsWithScores[];
 
 describe('TimelineSlider', () => {
   it('renders all months from start date to now', () => {

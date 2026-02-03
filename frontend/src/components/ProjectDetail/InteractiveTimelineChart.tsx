@@ -21,6 +21,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  TIMELINE_CHART_COLORS,
+  getScoreColor,
+  getTickInterval,
+} from '@/components/ui/timeline-chart';
 import type { MetricsWithScores } from '../../types';
 import {
   formatPeriod,
@@ -32,6 +37,7 @@ import {
 
 interface InteractiveTimelineChartProps {
   readonly projectStartDate: string;
+  readonly projectFinishedAt?: string | null;
   readonly snapshots: MetricsWithScores[] | undefined;
   readonly selectedPeriod: Period | null;
   readonly onPeriodChange: (period: Period | null) => void;
@@ -40,29 +46,6 @@ interface InteractiveTimelineChartProps {
   readonly isCollecting?: boolean;
   readonly hasCollectors?: boolean;
   readonly isFinished?: boolean;
-}
-
-const COLORS = {
-  primary: '#6366f1',
-  green: '#22c55e',
-  yellow: '#eab308',
-  red: '#ef4444',
-  muted: '#71717a',
-  background: '#ffffff',
-  backgroundDark: '#09090b',
-};
-
-function getScoreColor(score: number | null): string {
-  if (score === null) return COLORS.muted;
-  if (score >= 80) return COLORS.green;
-  if (score >= 60) return COLORS.yellow;
-  return COLORS.red;
-}
-
-function getTickInterval(periodsCount: number): number {
-  if (periodsCount > 24) return 5;
-  if (periodsCount > 12) return 2;
-  return 0;
 }
 
 interface ChartDataPoint {
@@ -121,7 +104,7 @@ function ChartDot({ cx, cy, payload, index, effectivePeriod }: ChartDotProps): J
         cy={50}
         r={isSelected ? 6 : 4}
         fill="transparent"
-        stroke={COLORS.muted}
+        stroke={TIMELINE_CHART_COLORS.muted}
         strokeWidth={2}
         strokeDasharray="2 2"
         className="cursor-pointer"
@@ -135,12 +118,12 @@ function ChartDot({ cx, cy, payload, index, effectivePeriod }: ChartDotProps): J
       cx={cx}
       cy={cy}
       r={isSelected ? 8 : 5}
-      fill={isSelected ? getScoreColor(data.score) : COLORS.primary}
+      fill={isSelected ? getScoreColor(data.score) : TIMELINE_CHART_COLORS.primary}
       stroke={isSelected ? '#fff' : 'none'}
       strokeWidth={isSelected ? 3 : 0}
       className="cursor-pointer transition-all"
       style={{
-        filter: isSelected ? `drop-shadow(0 0 4px ${COLORS.primary})` : 'none',
+        filter: isSelected ? `drop-shadow(0 0 4px ${TIMELINE_CHART_COLORS.primary})` : 'none',
       }}
     />
   );
@@ -148,6 +131,7 @@ function ChartDot({ cx, cy, payload, index, effectivePeriod }: ChartDotProps): J
 
 export default function InteractiveTimelineChart({
   projectStartDate,
+  projectFinishedAt,
   snapshots,
   selectedPeriod,
   onPeriodChange,
@@ -160,8 +144,8 @@ export default function InteractiveTimelineChart({
   const [showCollectDialog, setShowCollectDialog] = useState(false);
 
   const periods = useMemo(
-    () => generateMonthRange(projectStartDate),
-    [projectStartDate],
+    () => generateMonthRange(projectStartDate, projectFinishedAt),
+    [projectStartDate, projectFinishedAt],
   );
 
   const snapshotMap = useMemo(() => {
@@ -335,15 +319,15 @@ export default function InteractiveTimelineChart({
           >
             <defs>
               <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
+                <stop offset="5%" stopColor={TIMELINE_CHART_COLORS.primary} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={TIMELINE_CHART_COLORS.primary} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="label"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: COLORS.muted }}
+              tick={{ fontSize: 10, fill: TIMELINE_CHART_COLORS.muted }}
               interval={tickInterval}
             />
             <YAxis
@@ -353,14 +337,14 @@ export default function InteractiveTimelineChart({
             <Tooltip content={ChartTooltipContent} />
             <ReferenceLine
               x={formatShortPeriod(effectivePeriod.year, effectivePeriod.month)}
-              stroke={COLORS.primary}
+              stroke={TIMELINE_CHART_COLORS.primary}
               strokeWidth={2}
               strokeDasharray="3 3"
             />
             <Area
               type="monotone"
               dataKey="score"
-              stroke={COLORS.primary}
+              stroke={TIMELINE_CHART_COLORS.primary}
               strokeWidth={2}
               fill="url(#scoreGradient)"
               connectNulls={false}
@@ -375,7 +359,7 @@ export default function InteractiveTimelineChart({
               )}
               activeDot={{
                 r: 8,
-                fill: COLORS.primary,
+                fill: TIMELINE_CHART_COLORS.primary,
                 stroke: '#fff',
                 strokeWidth: 3,
                 className: 'cursor-pointer',

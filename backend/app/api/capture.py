@@ -1,5 +1,6 @@
 """Period capture endpoint - orchestrates Jira/GitHub collection and metrics upsert."""
 
+import asyncio
 import calendar
 from datetime import date
 from uuid import UUID
@@ -232,8 +233,10 @@ async def capture_period(
     project_start = project.start_date
 
     # === PUNCTUAL: Collect and store for just this month ===
-    punctual_jira = await _collect_from_jira(db, project, month_start, month_end)
-    punctual_github = await _collect_from_github(project, month_start, month_end)
+    punctual_jira, punctual_github = await asyncio.gather(
+        _collect_from_jira(db, project, month_start, month_end),
+        _collect_from_github(project, month_start, month_end),
+    )
     punctual_data = _build_metrics_data(month_start, month_end, punctual_jira, punctual_github, preserved)
 
     punctual_db = await MetricsService.upsert_metrics(
@@ -241,8 +244,10 @@ async def capture_period(
     )
 
     # === CUMULATIVE: Collect and store from project start to month end ===
-    cumulative_jira = await _collect_from_jira(db, project, project_start, month_end)
-    cumulative_github = await _collect_from_github(project, project_start, month_end)
+    cumulative_jira, cumulative_github = await asyncio.gather(
+        _collect_from_jira(db, project, project_start, month_end),
+        _collect_from_github(project, project_start, month_end),
+    )
     cumulative_data = _build_metrics_data(project_start, month_end, cumulative_jira, cumulative_github, preserved)
 
     cumulative_db = await MetricsService.upsert_metrics(

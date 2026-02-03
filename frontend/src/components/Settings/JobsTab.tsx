@@ -1,10 +1,12 @@
-import { useAllJobs } from '../../hooks/useJobs';
+import { useAllJobs, useCancelJob, useDeleteJob } from '../../hooks/useJobs';
 import { useProjects } from '../../hooks/useProjects';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { XCircle, Trash2 } from 'lucide-react';
 import type { JobStatus as JobStatusType } from '../../types';
 
 function getStatusBadge(status: JobStatusType): JSX.Element {
@@ -29,8 +31,18 @@ function getStatusBadge(status: JobStatusType): JSX.Element {
 export default function JobsTab(): JSX.Element {
   const { data: jobs, isLoading: jobsLoading } = useAllJobs();
   const { data: projects } = useProjects();
+  const cancelJob = useCancelJob();
+  const deleteJob = useDeleteJob();
 
   const projectMap = new Map(projects?.map((p) => [p.id, p.name]) ?? []);
+
+  const handleCancel = (jobId: string): void => {
+    cancelJob.mutate(jobId);
+  };
+
+  const handleDelete = (jobId: string): void => {
+    deleteJob.mutate(jobId);
+  };
 
   if (jobsLoading) {
     return <LoadingSpinner />;
@@ -54,6 +66,7 @@ export default function JobsTab(): JSX.Element {
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium">Progress</th>
                   <th className="pb-3 font-medium">Created</th>
+                  <th className="pb-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -78,6 +91,32 @@ export default function JobsTab(): JSX.Element {
                     </td>
                     <td className="py-3 text-sm text-muted-foreground">
                       {formatRelativeTime(job.created_at)}
+                    </td>
+                    <td className="py-3">
+                      <div className="flex gap-1">
+                        {job.status === 'pending' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancel(job.id)}
+                            disabled={cancelJob.isPending}
+                            title="Cancel job"
+                          >
+                            <XCircle className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        )}
+                        {['completed', 'failed', 'cancelled'].includes(job.status) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(job.id)}
+                            disabled={deleteJob.isPending}
+                            title="Delete job"
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
