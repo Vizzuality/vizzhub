@@ -53,6 +53,7 @@ class ProjectDB(Base):
     end_date: Mapped[date | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="in_progress", nullable=False)
     finished_at: Mapped[date | None] = mapped_column(nullable=True)
+    slack_channel_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -71,6 +72,7 @@ class ProjectBase(BaseModel):
     end_date: date | None = None
     status: ProjectStatus = ProjectStatus.IN_PROGRESS
     finished_at: date | None = None
+    slack_channel_id: str | None = Field(None, max_length=50)
 
     @field_validator("github_repo")
     @classmethod
@@ -104,6 +106,7 @@ class ProjectUpdate(BaseModel):
     end_date: date | None = None
     status: ProjectStatus | None = None
     finished_at: date | None = None
+    slack_channel_id: str | None = Field(None, max_length=50)
     clear_finished_at: bool = False  # Set to true to explicitly clear finished_at
 
     @field_validator("github_repo")
