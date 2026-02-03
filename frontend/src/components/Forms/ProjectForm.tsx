@@ -1,9 +1,18 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { Project, ProjectCreate, ProjectStatus } from '../../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Trash2, CheckCircle, RotateCcw, Lock, Loader2 } from 'lucide-react';
+import { useSlackChannels } from '../../hooks/useSlackChannels';
 
 function getSubmitButtonText(isLoading: boolean, isEditMode: boolean): string {
   if (isLoading) {
@@ -31,6 +40,8 @@ interface ProjectFormProps {
   readonly isUpdatingStatus?: boolean;
 }
 
+const NONE_VALUE = '__none__';
+
 export default function ProjectForm({
   project,
   onSubmit,
@@ -43,6 +54,17 @@ export default function ProjectForm({
 }: ProjectFormProps): JSX.Element {
   const isEditMode = !!project;
   const projectStatus: ProjectStatus = project?.status ?? 'in_progress';
+
+  const [slackChannelId, setSlackChannelId] = useState<string>(
+    project?.slack_channel_id ?? '',
+  );
+
+  const {
+    channels,
+    isLoading: isLoadingChannels,
+    isSlackConfigured,
+    isCheckingStatus,
+  } = useSlackChannels();
 
   const {
     register,
@@ -66,10 +88,27 @@ export default function ProjectForm({
       name: data.name,
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
+      slack_channel_id: slackChannelId || undefined,
       start_date: data.start_date && data.start_date.trim() !== '' ? data.start_date : undefined,
       end_date: data.end_date && data.end_date.trim() !== '' ? data.end_date : undefined,
     };
     onSubmit(payload);
+  };
+
+  const handleSlackChannelChange = (value: string): void => {
+    setSlackChannelId(value === NONE_VALUE ? '' : value);
+  };
+
+  const getSlackSelectValue = (): string => {
+    return slackChannelId || NONE_VALUE;
+  };
+
+  const getSlackChannelLabel = (): string => {
+    if (!slackChannelId) {
+      return 'Select a channel';
+    }
+    const channel = channels.find((c) => c.id === slackChannelId);
+    return channel ? `#${channel.name}` : 'Select a channel';
   };
 
   return (
@@ -147,6 +186,60 @@ export default function ProjectForm({
         {errors.github_repo && (
           <p className="text-sm text-destructive">{errors.github_repo.message}</p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="slack_channel">
+          Slack Channel
+        </Label>
+        {isCheckingStatus ? (
+          <div className="flex items-center gap-2 h-9 px-3 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Checking Slack configuration...
+          </div>
+        ) : !isSlackConfigured ? (
+          <div className="flex items-center gap-2 h-9 px-3 text-sm text-muted-foreground border border-input rounded-md bg-muted/50">
+            <Lock className="w-4 h-4" />
+            Slack is not configured
+          </div>
+        ) : (
+          <Select
+            value={getSlackSelectValue()}
+            onValueChange={handleSlackChannelChange}
+            disabled={isLoadingChannels}
+          >
+            <SelectTrigger id="slack_channel">
+              {isLoadingChannels ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading channels...
+                </div>
+              ) : (
+                <SelectValue placeholder="Select a channel">
+                  {getSlackChannelLabel()}
+                </SelectValue>
+              )}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>
+                <span className="text-muted-foreground">None</span>
+              </SelectItem>
+              {channels.map((channel) => (
+                <SelectItem key={channel.id} value={channel.id}>
+                  <span className="flex items-center gap-2">
+                    #{channel.name}
+                    {channel.is_private && (
+                      <Lock className="w-3 h-3 text-muted-foreground" />
+                    )}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Select a channel to receive Dependabot alert notifications
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
