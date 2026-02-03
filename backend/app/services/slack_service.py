@@ -57,6 +57,7 @@ class SlackService:
             while True:
                 params: dict[str, Any] = {
                     "types": "public_channel,private_channel",
+                    "exclude_archived": True,
                     "limit": 200,
                 }
                 if cursor:
