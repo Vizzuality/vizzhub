@@ -184,3 +184,12 @@ class JobTriggerResponse(BaseModel):
     success: bool
     message: str
     job_id: str | None = None
+
+
+class AlertTestResponse(BaseModel):
+    """Response from testing an alert."""
+
+    ok: bool
+    message: str
+    channel_id: str | None = None
+    error: str | None = None

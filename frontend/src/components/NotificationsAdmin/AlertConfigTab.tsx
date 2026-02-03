@@ -1,0 +1,398 @@
+import { useState } from 'react';
+import {
+  useAlertDefinitions,
+  useUpdateAlertDefinition,
+  useAlertTemplates,
+  useUpdateMessageTemplate,
+  useTestAlert,
+} from '../../hooks/useAlertDefinitions';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { FileText, Settings, Play, CheckCircle, XCircle } from 'lucide-react';
+import type { AlertDefinition, MessageTemplate } from '../../types';
+
+interface ThresholdEntry {
+  key: string;
+  value: string;
+}
+
+function getCategoryBadge(category: string): JSX.Element {
+  return (
+    <Badge variant={category === 'business' ? 'default' : 'secondary'}>
+      {category}
+    </Badge>
+  );
+}
+
+function getScheduleBadge(schedule: string): JSX.Element {
+  const label = schedule === 'daily' ? 'Daily' : 'Daily Check / Monthly Report';
+  return <Badge variant="outline">{label}</Badge>;
+}
+
+function hasConfigEntries(configJson: Record<string, unknown>): boolean {
+  return Object.keys(configJson).length > 0;
+}
+
+function configToEntries(configJson: Record<string, unknown>): ThresholdEntry[] {
+  return Object.entries(configJson).map(([key, value]) => ({
+    key,
+    value: String(value),
+  }));
+}
+
+function entriesToConfig(entries: ThresholdEntry[]): Record<string, unknown> {
+  const config: Record<string, unknown> = {};
+  for (const entry of entries) {
+    const numValue = Number(entry.value);
+    if (!isNaN(numValue) && entry.value.trim() !== '') {
+      config[entry.key] = numValue;
+    } else if (entry.value === 'true') {
+      config[entry.key] = true;
+    } else if (entry.value === 'false') {
+      config[entry.key] = false;
+    } else {
+      try {
+        config[entry.key] = JSON.parse(entry.value);
+      } catch {
+        config[entry.key] = entry.value;
+      }
+    }
+  }
+  return config;
+}
+
+export default function AlertConfigTab(): JSX.Element {
+  const [templateDialogAlert, setTemplateDialogAlert] = useState<AlertDefinition | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [templateContent, setTemplateContent] = useState('');
+
+  const [thresholdsDialogAlert, setThresholdsDialogAlert] = useState<AlertDefinition | null>(null);
+  const [thresholdEntries, setThresholdEntries] = useState<ThresholdEntry[]>([]);
+
+  const [testResult, setTestResult] = useState<{
+    alertId: number;
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
+  const { data: alertDefinitions, isLoading } = useAlertDefinitions();
+  const updateAlert = useUpdateAlertDefinition();
+  const { data: templates, isLoading: templatesLoading } = useAlertTemplates(
+    templateDialogAlert?.id ?? null
+  );
+  const updateTemplate = useUpdateMessageTemplate();
+  const testAlert = useTestAlert();
+
+  const handleToggleEnabled = async (alert: AlertDefinition): Promise<void> => {
+    await updateAlert.mutateAsync({
+      id: alert.id,
+      data: { is_enabled: !alert.is_enabled },
+    });
+  };
+
+  const handleOpenTemplateDialog = (alert: AlertDefinition): void => {
+    setTemplateDialogAlert(alert);
+  };
+
+  const handleCloseTemplateDialog = (): void => {
+    setTemplateDialogAlert(null);
+    setEditingTemplate(null);
+    setTemplateContent('');
+  };
+
+  const handleEditTemplate = (template: MessageTemplate): void => {
+    setEditingTemplate(template);
+    setTemplateContent(template.message_template);
+  };
+
+  const handleSaveTemplate = async (): Promise<void> => {
+    if (!editingTemplate) return;
+    await updateTemplate.mutateAsync({
+      templateId: editingTemplate.id,
+      data: { message_template: templateContent },
+    });
+    setEditingTemplate(null);
+    setTemplateContent('');
+  };
+
+  const handleCancelTemplateEdit = (): void => {
+    setEditingTemplate(null);
+    setTemplateContent('');
+  };
+
+  const handleOpenThresholdsDialog = (alert: AlertDefinition): void => {
+    setThresholdsDialogAlert(alert);
+    setThresholdEntries(configToEntries(alert.config_json));
+  };
+
+  const handleCloseThresholdsDialog = (): void => {
+    setThresholdsDialogAlert(null);
+    setThresholdEntries([]);
+  };
+
+  const handleThresholdChange = (index: number, value: string): void => {
+    setThresholdEntries((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], value };
+      return updated;
+    });
+  };
+
+  const handleSaveThresholds = async (): Promise<void> => {
+    if (!thresholdsDialogAlert) return;
+    const newConfig = entriesToConfig(thresholdEntries);
+    await updateAlert.mutateAsync({
+      id: thresholdsDialogAlert.id,
+      data: { config_json: newConfig },
+    });
+    handleCloseThresholdsDialog();
+  };
+
+  const handleTestAlert = async (alert: AlertDefinition): Promise<void> => {
+    setTestResult(null);
+    const result = await testAlert.mutateAsync(alert.id);
+    setTestResult({
+      alertId: alert.id,
+      ok: result.ok,
+      message: result.ok ? result.message : result.error ?? 'Unknown error',
+    });
+    setTimeout(() => {
+      setTestResult(null);
+    }, 5000);
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Alert Configuration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!alertDefinitions || alertDefinitions.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No alert definitions found.</p>
+          ) : (
+            <div className="space-y-4">
+              {alertDefinitions.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{alert.name}</h3>
+                      {getCategoryBadge(alert.category)}
+                      {getScheduleBadge(alert.schedule)}
+                    </div>
+                    {alert.description && (
+                      <p className="text-sm text-muted-foreground">{alert.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Channel: {alert.channel_type === 'leadership' ? 'Leadership' : 'Project'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {testResult?.alertId === alert.id && (
+                      <span
+                        className={`flex items-center gap-1 text-sm ${
+                          testResult.ok ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {testResult.ok ? (
+                          <CheckCircle className="h-4 w-4" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        {testResult.message}
+                      </span>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={alert.is_enabled}
+                        onCheckedChange={() => handleToggleEnabled(alert)}
+                        disabled={updateAlert.isPending}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {alert.is_enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+
+                    {hasConfigEntries(alert.config_json) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenThresholdsDialog(alert)}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Thresholds
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenTemplateDialog(alert)}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Templates
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTestAlert(alert)}
+                      disabled={testAlert.isPending}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Test
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Template Dialog */}
+      <Dialog
+        open={templateDialogAlert !== null}
+        onOpenChange={(open) => !open && handleCloseTemplateDialog()}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Message Templates - {templateDialogAlert?.name}</DialogTitle>
+            <DialogDescription>
+              Edit the message templates for this alert type. Templates support variables like{' '}
+              {'{project_name}'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 max-h-96 overflow-y-auto">
+            {templatesLoading ? (
+              <LoadingSpinner />
+            ) : !templates || templates.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No templates configured for this alert.
+              </p>
+            ) : (
+              templates.map((template) => (
+                <div key={template.id} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="font-medium capitalize">{template.template_type}</Label>
+                      <Badge variant={template.is_active ? 'default' : 'secondary'}>
+                        {template.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    {editingTemplate?.id !== template.id && (
+                      <Button variant="ghost" size="sm" onClick={() => handleEditTemplate(template)}>
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+
+                  {editingTemplate?.id === template.id ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={templateContent}
+                        onChange={(e) => setTemplateContent(e.target.value)}
+                        rows={4}
+                        className="font-mono text-sm"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelTemplateEdit}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveTemplate}
+                          disabled={updateTemplate.isPending}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <pre className="text-sm bg-muted p-2 rounded whitespace-pre-wrap font-mono">
+                      {template.message_template}
+                    </pre>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseTemplateDialog}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Thresholds Dialog */}
+      <Dialog
+        open={thresholdsDialogAlert !== null}
+        onOpenChange={(open) => !open && handleCloseThresholdsDialog()}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Thresholds - {thresholdsDialogAlert?.name}</DialogTitle>
+            <DialogDescription>
+              Configure the threshold values for this alert type.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {thresholdEntries.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No thresholds configured.</p>
+            ) : (
+              thresholdEntries.map((entry, index) => (
+                <div key={entry.key} className="space-y-2">
+                  <Label htmlFor={`threshold-${entry.key}`} className="font-medium">
+                    {entry.key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </Label>
+                  <Input
+                    id={`threshold-${entry.key}`}
+                    value={entry.value}
+                    onChange={(e) => handleThresholdChange(index, e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseThresholdsDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveThresholds} disabled={updateAlert.isPending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
