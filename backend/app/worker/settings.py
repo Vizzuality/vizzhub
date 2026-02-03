@@ -1,5 +1,7 @@
 """ARQ worker configuration."""
+
 from arq.connections import RedisSettings
+from arq.cron import cron
 
 from app.config import get_settings
 from app.database import async_session_maker
@@ -51,5 +53,13 @@ class WorkerSettings:
 
 # Register tasks at module level for ARQ discovery
 from app.worker.tasks import capture_history_task  # noqa: E402
+from app.worker.check_dependabot import check_dependabot_alerts  # noqa: E402
+from app.worker.check_business_alerts import check_business_alerts  # noqa: E402
 
 WorkerSettings.functions = [capture_history_task]
+
+# Register cron jobs for scheduled execution
+WorkerSettings.cron_jobs = [
+    cron(check_dependabot_alerts, hour=8, minute=0),
+    cron(check_business_alerts, hour=9, minute=0),
+]
