@@ -80,3 +80,38 @@ class MessageTemplateUpdate(BaseModel):
 
     message_template: str | None = None
     is_active: bool | None = None
+
+
+class AlertSilenceCreate(BaseModel):
+    """Create a new silence."""
+
+    project_id: str = Field(..., description="Project UUID")
+    alert_definition_id: int | None = Field(
+        None, description="Null = silence all alerts"
+    )
+    silenced_until: datetime | None = Field(None, description="Null = indefinite")
+    reason: str | None = None
+
+
+class AlertSilenceUpdate(BaseModel):
+    """Update a silence."""
+
+    silenced_until: datetime | None = None
+    reason: str | None = None
+
+
+class AlertSilenceResponse(BaseModel):
+    """Silence response."""
+
+    id: int
+    project_id: str
+    alert_definition_id: int | None
+    silenced_until: datetime | None
+    reason: str | None
+    created_by: str | None
+    created_at: datetime
+
+    project_name: str | None = None
+    alert_name: str | None = None
+
+    model_config = {"from_attributes": True}

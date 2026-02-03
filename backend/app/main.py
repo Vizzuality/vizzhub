@@ -19,6 +19,7 @@ from app.api import metrics as metrics_router
 from app.api import oauth as oauth_router
 from app.api import projects as projects_router
 from app.api import scores as scores_router
+from app.api.silences import router as silences_router
 from app.api.slack_admin import (
     alerts_router as slack_alerts_router,
     router as slack_router,
@@ -159,6 +160,7 @@ app.include_router(global_metrics_router.router, prefix="/api", tags=["global"])
 app.include_router(slack_router, prefix="/api")
 app.include_router(slack_alerts_router, prefix="/api")
 app.include_router(slack_templates_router, prefix="/api")
+app.include_router(silences_router, prefix="/api")
 
 
 @app.get("/health")
