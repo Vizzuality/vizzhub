@@ -464,10 +464,10 @@ class TestStrategicImpactConversion:
 
     def test_strategic_impact_values(self) -> None:
         """Verify strategic impact mapping values."""
-        assert STRATEGIC_IMPACT_VALUES["low"] == 0.25
-        assert STRATEGIC_IMPACT_VALUES["medium"] == 0.55
-        assert STRATEGIC_IMPACT_VALUES["high"] == 0.80
-        assert STRATEGIC_IMPACT_VALUES["transformational"] == 1.0
+        assert STRATEGIC_IMPACT_VALUES["low"] == pytest.approx(0.25)
+        assert STRATEGIC_IMPACT_VALUES["medium"] == pytest.approx(0.55)
+        assert STRATEGIC_IMPACT_VALUES["high"] == pytest.approx(0.80)
+        assert STRATEGIC_IMPACT_VALUES["transformational"] == pytest.approx(1.0)
 
     def test_strategic_impact_case_insensitive(
         self, global_metrics_service: GlobalMetricsService

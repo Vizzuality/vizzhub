@@ -46,9 +46,9 @@ export default function StrategicImpactCard({
       editButtonLabel={value ? 'Edit Strategic Impact' : 'Set Strategic Impact'}
       renderEditForm={(form, setForm) => (
         <div className="space-y-3">
-          <label id="strategic-impact-label" className="text-sm font-medium text-muted-foreground">
+          <span id="strategic-impact-label" className="text-sm font-medium text-muted-foreground">
             Select strategic impact level
-          </label>
+          </span>
           <div role="group" aria-labelledby="strategic-impact-label" className="space-y-3">
             {IMPACT_OPTIONS.map((option) => (
               <button

@@ -102,7 +102,7 @@ export default function TimelineSlider({
   const labelInterval = getLabelInterval(periods.length);
 
   return (
-    <nav
+    <div
       className="w-full py-4"
       role="listbox"
       onKeyDown={handleKeyDown}
@@ -195,6 +195,6 @@ export default function TimelineSlider({
           Reset to latest
         </button>
       )}
-    </nav>
+    </div>
   );
 }

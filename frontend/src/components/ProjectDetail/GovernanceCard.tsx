@@ -40,17 +40,18 @@ export default function GovernanceCard({
       editButtonLabel={value !== undefined && value !== null ? 'Edit Exceptions' : 'Add Exceptions'}
       renderEditForm={(form, setForm) => (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">
+          <label htmlFor="governance-exceptions" className="text-sm font-medium text-muted-foreground block">
             Number of unjustified exceptions
-            <input
-              type="number"
-              min="0"
-              value={form}
-              onChange={(e) => setForm(Number.parseInt(e.target.value) || 0)}
-              className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="0"
-            />
           </label>
+          <input
+            id="governance-exceptions"
+            type="number"
+            min="0"
+            value={form}
+            onChange={(e) => setForm(Number.parseInt(e.target.value) || 0)}
+            className="mt-1 w-full px-3 py-2 border rounded-md bg-background"
+            placeholder="0"
+          />
         </div>
       )}
       renderDisplay={(data) => (
