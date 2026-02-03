@@ -2,7 +2,7 @@
  * Shared utility functions for formatting values.
  */
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+import { MONTHS_SHORT } from '../constants/dates';
 
 export function formatDate(dateString: string | null): string {
   if (!dateString) return '';
@@ -14,5 +14,5 @@ export function formatDate(dateString: string | null): string {
 }
 
 export function formatPeriod(year: number, month: number): string {
-  return `${MONTH_NAMES[month - 1]} ${year.toString().slice(-2)}`;
+  return `${MONTHS_SHORT[month - 1]} ${year.toString().slice(-2)}`;
 }

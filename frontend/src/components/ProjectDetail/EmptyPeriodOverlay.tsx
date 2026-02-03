@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar } from 'lucide-react';
 import type { Period } from '../../utils/dateUtils';
+import { MONTHS } from '../../constants/dates';
 
 interface EmptyPeriodOverlayProps {
   readonly period: Period;
@@ -9,28 +10,13 @@ interface EmptyPeriodOverlayProps {
   readonly error?: Error | null;
 }
 
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
 export default function EmptyPeriodOverlay({
   period,
   onCapture,
   isCapturing,
   error,
 }: EmptyPeriodOverlayProps): JSX.Element {
-  const periodLabel = `${MONTH_NAMES[period.month - 1]} ${period.year}`;
+  const periodLabel = `${MONTHS[period.month - 1]} ${period.year}`;
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">

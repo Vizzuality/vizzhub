@@ -40,4 +40,10 @@ export const queryKeys = {
     byProject: (projectId: string) => ['jobs', 'project', projectId] as const,
     detail: (jobId: string) => ['jobs', 'detail', jobId] as const,
   },
+  global: {
+    all: ['global'] as const,
+    record: (year: number, month: number) => ['global', 'record', year, month] as const,
+    history: (limit?: number) => ['global', 'history', limit] as const,
+    availableMonths: ['global', 'available-months'] as const,
+  },
 } as const;

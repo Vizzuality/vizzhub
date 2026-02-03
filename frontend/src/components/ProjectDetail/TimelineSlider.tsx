@@ -11,6 +11,7 @@ import { formatPeriod, generateMonthRange, type Period } from '../../utils/dateU
 
 interface TimelineSliderProps {
   readonly projectStartDate: string;
+  readonly projectFinishedAt?: string | null;
   readonly snapshots: MetricsWithScores[] | undefined;
   readonly selectedPeriod: Period | null;
   readonly onPeriodChange: (period: Period | null) => void;
@@ -25,6 +26,7 @@ function getLabelInterval(periodsCount: number): number {
 
 export default function TimelineSlider({
   projectStartDate,
+  projectFinishedAt,
   snapshots,
   selectedPeriod,
   onPeriodChange,
@@ -33,8 +35,8 @@ export default function TimelineSlider({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const periods = useMemo(
-    () => generateMonthRange(projectStartDate),
-    [projectStartDate],
+    () => generateMonthRange(projectStartDate, projectFinishedAt),
+    [projectStartDate, projectFinishedAt],
   );
 
   const snapshotSet = useMemo(() => {

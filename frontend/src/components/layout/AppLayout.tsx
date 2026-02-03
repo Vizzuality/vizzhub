@@ -38,6 +38,13 @@ export function AppLayout() {
                   Projects
                 </Button>
               </Link>
+              <Link to="/global">
+                <Button
+                  variant={isActive('/global') ? 'secondary' : 'ghost'}
+                >
+                  Global
+                </Button>
+              </Link>
               <Link to="/settings">
                 <Button
                   variant={isActive('/settings') ? 'secondary' : 'ghost'}
@@ -60,6 +67,9 @@ export function AppLayout() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
                     <Link to="/projects">Projects</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/global">Global</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/settings">Settings</Link>

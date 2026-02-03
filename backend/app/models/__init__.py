@@ -1,5 +1,16 @@
 from app.models.config import ConfigParameter, ScoringConfigModel
-from app.models.indicators import Indicators, IndicatorsCreate
+from app.models.global_metrics import (
+    CalculateBatchRequest,
+    CalculateBatchResponse,
+    GlobalIndicators,
+    GlobalMetricsDB,
+    GlobalMetricsHistoryResponse,
+    GlobalMetricsRecord,
+    GlobalScores,
+    IndicatorValue,
+    ScoreValue,
+)
+from app.models.indicators import IndicatorsCreate
 from app.models.job import Job, JobStatus, JobType
 from app.models.metrics import (
     ArchitectureChecklist,
@@ -19,10 +30,12 @@ from app.models.metrics import (
 )
 from app.models.oauth import OAuthToken, OAuthTokenDB
 from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
-from app.models.scores import DimensionScores, FinalScore, ScoreResult
+from app.models.scores import DimensionScores, FinalScore
 
 __all__ = [
     "ArchitectureChecklist",
+    "CalculateBatchRequest",
+    "CalculateBatchResponse",
     "ClientSurvey",
     "ConfigParameter",
     "DimensionScores",
@@ -30,7 +43,12 @@ __all__ = [
     "FinalScore",
     "FlowMetrics",
     "GitHubMetrics",
-    "Indicators",
+    "GlobalIndicators",
+    "GlobalMetricsDB",
+    "GlobalMetricsHistoryResponse",
+    "GlobalMetricsRecord",
+    "GlobalScores",
+    "IndicatorValue",
     "IndicatorsCreate",
     "JiraDefectMetrics",
     "Job",
@@ -48,7 +66,7 @@ __all__ = [
     "ProjectCreate",
     "ProjectDB",
     "ProjectUpdate",
-    "ScoreResult",
+    "ScoreValue",
     "ScoringConfigModel",
     "SnapshotType",
     "TestMaturity",

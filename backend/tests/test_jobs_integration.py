@@ -69,3 +69,17 @@ async def test_list_jobs_empty(client: AsyncClient) -> None:
     response = await client.get("/api/jobs/")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_cancel_job_not_found(client: AsyncClient) -> None:
+    """Test cancelling non-existent job."""
+    response = await client.post("/api/jobs/00000000-0000-0000-0000-000000000000/cancel")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_job_not_found(client: AsyncClient) -> None:
+    """Test deleting non-existent job."""
+    response = await client.delete("/api/jobs/00000000-0000-0000-0000-000000000000")
+    assert response.status_code == 404

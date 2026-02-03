@@ -87,6 +87,21 @@ export function useCancelJob(): ReturnType<typeof useMutation<JobResponse, Error
     mutationFn: (jobId: string): Promise<JobResponse> => jobsApi.cancelJob(jobId),
     onSuccess: (data): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.detail(data.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+    },
+  });
+}
+
+/**
+ * Hook for deleting a job.
+ */
+export function useDeleteJob(): ReturnType<typeof useMutation<void, Error, string>> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (jobId: string): Promise<void> => jobsApi.deleteJob(jobId),
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
   });
 }

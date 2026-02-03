@@ -1,6 +1,4 @@
-from datetime import datetime
 from typing import Literal
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -49,16 +47,3 @@ class FinalScore(BaseModel):
     dimensions: DimensionScores
     weights_applied: dict[str, float]
     dora: DoraScore | None = Field(None, description="Separate DORA score")
-
-
-class ScoreResult(BaseModel):
-    """Complete scoring result."""
-
-    id: UUID
-    project_id: UUID
-    indicators_id: UUID
-    dimensions: DimensionScores
-    final_score: int = Field(..., ge=0, le=100)
-    created_at: datetime
-
-    model_config = {"from_attributes": True}

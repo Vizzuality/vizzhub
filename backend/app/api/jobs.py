@@ -178,6 +178,28 @@ async def cancel_job(
     return await JobService.update_status(db, job_id, JobStatus.CANCELLED)
 
 
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_job(
+    job_id: uuid.UUID,
+    db: DBSession,
+) -> None:
+    """Delete a job. Only completed, failed, or cancelled jobs can be deleted."""
+    job = await JobService.get_job(db, job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=JOB_NOT_FOUND,
+        )
+
+    if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete job with status '{job.status.value}'. Cancel it first.",
+        )
+
+    await JobService.delete_job(db, job_id)
+
+
 @router.post(
     "/{job_id}/retry", response_model=JobResponse, status_code=status.HTTP_201_CREATED
 )

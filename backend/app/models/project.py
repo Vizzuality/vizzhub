@@ -52,6 +52,7 @@ class ProjectDB(Base):
     start_date: Mapped[date | None] = mapped_column(nullable=True)
     end_date: Mapped[date | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="in_progress", nullable=False)
+    finished_at: Mapped[date | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -69,6 +70,7 @@ class ProjectBase(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     status: ProjectStatus = ProjectStatus.IN_PROGRESS
+    finished_at: date | None = None
 
     @field_validator("github_repo")
     @classmethod
@@ -101,6 +103,8 @@ class ProjectUpdate(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     status: ProjectStatus | None = None
+    finished_at: date | None = None
+    clear_finished_at: bool = False  # Set to true to explicitly clear finished_at
 
     @field_validator("github_repo")
     @classmethod

@@ -152,3 +152,14 @@ class JobService:
         await db.commit()
         await db.refresh(job)
         return job
+
+    @staticmethod
+    async def delete_job(db: AsyncSession, job_id: uuid.UUID) -> bool:
+        """Delete a job. Returns True if deleted, False if not found."""
+        job = await JobService.get_job(db, job_id)
+        if not job:
+            return False
+
+        await db.delete(job)
+        await db.commit()
+        return True

@@ -6,7 +6,7 @@ import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGove
 import { useCapturePeriod } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
-import { getMonthsSinceStart } from '../utils/dateUtils';
+import { getMonthsSinceStart, MONTH_NAMES } from '../utils/dateUtils';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import type { SnapshotType, Dimension } from '../types';
@@ -168,8 +168,6 @@ export default function ProjectDetail(): JSX.Element {
     );
   }, [selectedPeriod]);
 
-  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
   const withHistoricalWarning = useCallback(
     <T,>(updateFn: () => Promise<T>): (() => Promise<T | void>) => {
       return async () => {
@@ -218,7 +216,7 @@ export default function ProjectDetail(): JSX.Element {
         onSubmitEdit={handleEdit}
         isSubmitting={replaceProject.isPending}
         onMarkFinished={() => setShowFinishDialog(true)}
-        onReopen={() => updateProjectStatus.mutateAsync('in_progress')}
+        onReopen={() => updateProjectStatus.mutateAsync({ status: 'in_progress' })}
         onDelete={() => setShowDeleteConfirm(true)}
         isUpdatingStatus={updateProjectStatus.isPending}
       />
@@ -230,7 +228,9 @@ export default function ProjectDetail(): JSX.Element {
         onConfirmDelete={handleDelete}
         showFinishDialog={showFinishDialog}
         onFinishDialogChange={setShowFinishDialog}
-        onConfirmFinish={() => updateProjectStatus.mutateAsync('finished')}
+        onConfirmFinish={(finishedAt: string) =>
+          updateProjectStatus.mutateAsync({ status: 'finished', finished_at: finishedAt })
+        }
       />
 
       {/* Historical Period Update Warning */}
@@ -290,6 +290,7 @@ export default function ProjectDetail(): JSX.Element {
             {project.start_date && (
               <InteractiveTimelineChart
                 projectStartDate={project.start_date}
+                projectFinishedAt={project.finished_at}
                 snapshots={snapshots}
                 selectedPeriod={selectedPeriod}
                 onPeriodChange={setSelectedPeriod}

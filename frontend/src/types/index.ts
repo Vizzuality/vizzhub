@@ -8,6 +8,7 @@ export interface Project {
   start_date: string | null;
   end_date: string | null;
   status: ProjectStatus;
+  finished_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +29,8 @@ export interface ProjectUpdate {
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;
+  finished_at?: string;
+  clear_finished_at?: boolean;
 }
 
 export interface DimensionScores {
@@ -404,3 +407,16 @@ export interface CreateCaptureHistoryJobRequest {
 export interface ApiErrorResponse {
   detail: string;
 }
+
+// Re-export global metrics types
+export type {
+  AvailableMonth,
+  CalculateBatchRequest,
+  CalculateBatchResponse,
+  GlobalIndicators,
+  GlobalMetricsHistoryResponse,
+  GlobalMetricsRecord,
+  GlobalScores,
+  IndicatorValue,
+  ScoreValue,
+} from './global';
