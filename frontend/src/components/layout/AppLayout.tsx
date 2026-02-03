@@ -52,6 +52,20 @@ export function AppLayout() {
                   Settings
                 </Button>
               </Link>
+              <Link to="/admin/notifications">
+                <Button
+                  variant={isActive('/admin/notifications') ? 'secondary' : 'ghost'}
+                >
+                  Notifications
+                </Button>
+              </Link>
+              <Link to="/admin/jobs">
+                <Button
+                  variant={isActive('/admin/jobs') ? 'secondary' : 'ghost'}
+                >
+                  Jobs
+                </Button>
+              </Link>
             </div>
 
             <ThemeToggle />
@@ -73,6 +87,12 @@ export function AppLayout() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/notifications">Notifications</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/jobs">Jobs</Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
