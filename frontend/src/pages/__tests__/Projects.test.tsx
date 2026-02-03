@@ -50,6 +50,10 @@ vi.mock('../../services/api', () => ({
   scoresApi: {
     getProjectScores: vi.fn(() => Promise.resolve({ scores: { score: 85 } })),
   },
+  slackApi: {
+    getStatus: vi.fn(() => Promise.resolve({ configured: false })),
+    getChannels: vi.fn(() => Promise.resolve([])),
+  },
 }));
 
 function createQueryClient(): QueryClient {
