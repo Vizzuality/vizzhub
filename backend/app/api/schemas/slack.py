@@ -115,3 +115,41 @@ class AlertSilenceResponse(BaseModel):
     alert_name: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class AlertNotificationResponse(BaseModel):
+    """Notification log entry response."""
+
+    id: int
+    project_id: str
+    alert_definition_id: int
+    channel_id: str
+    message: str
+    status: str
+    error_message: str | None
+    metadata_json: dict | None
+    sent_at: datetime
+
+    project_name: str | None = None
+    alert_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class NotificationStatsResponse(BaseModel):
+    """Notification statistics."""
+
+    total_this_month: int
+    by_type: dict[str, int]
+    by_project: list[dict]
+    avg_vulnerability_resolution_days: float | None
+
+
+class PaginatedNotificationsResponse(BaseModel):
+    """Paginated notifications list."""
+
+    items: list[AlertNotificationResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
