@@ -17,9 +17,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import GlobalDashboard from './pages/GlobalDashboard';
-import SettingsPage from './pages/Settings';
-import NotificationsAdmin from './pages/NotificationsAdmin';
-import Jobs from './pages/Jobs';
+import Admin from './pages/Admin';
 import Login from './pages/Login';
 
 // Development mode: bypass authentication
@@ -55,9 +53,7 @@ function AppContent(): JSX.Element {
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/global" element={<GlobalDashboard />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/admin/notifications" element={<NotificationsAdmin />} />
-        <Route path="/admin/jobs" element={<Jobs />} />
+        <Route path="/admin" element={<Admin />} />
       </Route>
 
       {/* Routes without navbar */}

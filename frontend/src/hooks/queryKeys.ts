@@ -50,4 +50,27 @@ export const queryKeys = {
     status: ['slack', 'status'] as const,
     channels: ['slack', 'channels'] as const,
   },
+  notifications: {
+    all: ['notifications'] as const,
+    list: (filters: {
+      project_id?: string;
+      alert_definition_id?: number;
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      page_size?: number;
+    }) => ['notifications', 'list', filters] as const,
+    stats: ['notifications', 'stats'] as const,
+  },
+  silences: {
+    all: ['silences'] as const,
+    list: (projectId?: string) => ['silences', 'list', projectId] as const,
+  },
+  alertDefinitions: {
+    all: ['alertDefinitions'] as const,
+    templates: (alertId: number) => ['alertDefinitions', alertId, 'templates'] as const,
+  },
+  scheduledJobs: {
+    all: ['scheduledJobs'] as const,
+  },
 } as const;
