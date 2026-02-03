@@ -79,6 +79,8 @@ class SlackService:
                 if not cursor:
                     break
 
+        # Sort channels alphabetically by name
+        channels.sort(key=lambda c: c.get("name", "").lower())
         return channels
 
     @staticmethod
