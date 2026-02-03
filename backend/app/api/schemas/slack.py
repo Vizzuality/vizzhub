@@ -153,3 +153,34 @@ class PaginatedNotificationsResponse(BaseModel):
     page: int
     page_size: int
     pages: int
+
+
+class ScheduledJobLastRun(BaseModel):
+    """Last run info for a scheduled job."""
+
+    id: int
+    started_at: datetime
+    completed_at: datetime | None
+    status: str
+    projects_checked: int
+    alerts_sent: int
+    error_message: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ScheduledJobInfo(BaseModel):
+    """Scheduled job info with last run status."""
+
+    name: str
+    schedule: str
+    description: str
+    last_run: ScheduledJobLastRun | None = None
+
+
+class JobTriggerResponse(BaseModel):
+    """Response from manually triggering a scheduled job."""
+
+    success: bool
+    message: str
+    job_id: str | None = None
