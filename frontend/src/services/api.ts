@@ -298,15 +298,24 @@ export const globalMetricsApi = {
   },
 };
 
+export interface SlackConfigResponse {
+  id: number;
+  bot_token_configured: boolean;
+  leadership_channel_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SlackStatusResponse {
   configured: boolean;
-  channel_count?: number;
 }
 
 export const slackApi = {
   getStatus: async (): Promise<SlackStatusResponse> => {
-    const response = await api.get<SlackStatusResponse>('/admin/slack/status');
-    return response.data;
+    const response = await api.get<SlackConfigResponse>('/admin/slack/config');
+    return {
+      configured: response.data.bot_token_configured,
+    };
   },
 
   getChannels: async (): Promise<SlackChannel[]> => {
