@@ -9,6 +9,7 @@ from app.api.deps import CurrentUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
+    AlertTestResponse,
     MessageTemplateResponse,
     MessageTemplateUpdate,
     SlackChannel,
@@ -189,6 +190,78 @@ async def update_alert_definition(
     await db.commit()
     await db.refresh(alert)
     return alert
+
+
+@alerts_router.post("/{alert_id}/test", response_model=AlertTestResponse)
+@limiter.limit("5/minute")
+async def test_alert(
+    request: Request,
+    current_user: CurrentUser,
+    db: DBSession,
+    alert_id: int,
+) -> AlertTestResponse:
+    """Send a test notification for an alert. Requires authentication."""
+    result = await db.execute(
+        select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id)
+    )
+    alert = result.scalar_one_or_none()
+
+    if alert is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert definition not found",
+        )
+
+    config = await get_slack_config_or_create(db)
+
+    if not config.bot_token_encrypted:
+        return AlertTestResponse(
+            ok=False,
+            message="Cannot send test alert",
+            error="No Slack bot token configured",
+        )
+
+    channel_id = config.leadership_channel_id
+    if not channel_id:
+        return AlertTestResponse(
+            ok=False,
+            message="Cannot send test alert",
+            error="No leadership channel configured",
+        )
+
+    test_message = (
+        f":test_tube: *Test Alert*\n"
+        f"Alert type: {alert.name}\n"
+        f"Category: {alert.category}\n"
+        f"This is a test message from Project Scorecard."
+    )
+
+    try:
+        slack_result = await SlackService.send_message(
+            config.bot_token_encrypted,
+            channel_id,
+            test_message,
+        )
+
+        if slack_result.get("ok"):
+            return AlertTestResponse(
+                ok=True,
+                message=f"Test alert sent successfully to channel",
+                channel_id=channel_id,
+            )
+        else:
+            return AlertTestResponse(
+                ok=False,
+                message="Failed to send test alert",
+                error=slack_result.get("error", "Unknown Slack error"),
+            )
+    except Exception as e:
+        logger.exception("Failed to send test alert")
+        return AlertTestResponse(
+            ok=False,
+            message="Failed to send test alert",
+            error=str(e),
+        )
 
 
 @alerts_router.get("/{alert_id}/templates", response_model=list[MessageTemplateResponse])
