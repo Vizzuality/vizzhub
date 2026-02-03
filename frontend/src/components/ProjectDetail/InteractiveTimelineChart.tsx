@@ -254,7 +254,7 @@ export default function InteractiveTimelineChart({
         </AlertDialogContent>
       </AlertDialog>
 
-      <nav
+      <div
         className="w-full"
         role="listbox"
         onKeyDown={handleKeyDown}
@@ -381,7 +381,7 @@ export default function InteractiveTimelineChart({
             </button>
           </div>
         )}
-      </nav>
+      </div>
     </>
   );
 }

@@ -66,9 +66,9 @@ export default function PMSatisfactionCard({
       renderEditForm={(form, setForm) => (
         <>
           <div>
-            <label id="delivery-complaints-label" className="text-sm font-medium text-muted-foreground">
+            <span id="delivery-complaints-label" className="text-sm font-medium text-muted-foreground">
               Has the client complained about delays or delivery quality?
-            </label>
+            </span>
             <RatingButtons
               options={COMPLAINT_OPTIONS}
               selected={form.delivery_complaints}
@@ -78,9 +78,9 @@ export default function PMSatisfactionCard({
             />
           </div>
           <div>
-            <label id="design-complaints-label" className="text-sm font-medium text-muted-foreground">
+            <span id="design-complaints-label" className="text-sm font-medium text-muted-foreground">
               Has the client expressed unresolved dissatisfaction with design/implementation?
-            </label>
+            </span>
             <RatingButtons
               options={COMPLAINT_OPTIONS}
               selected={form.design_complaints}
@@ -90,9 +90,9 @@ export default function PMSatisfactionCard({
             />
           </div>
           <div>
-            <label id="overall-estimation-label" className="text-sm font-medium text-muted-foreground">
+            <span id="overall-estimation-label" className="text-sm font-medium text-muted-foreground">
               Overall estimation of client satisfaction (1-5)
-            </label>
+            </span>
             <RatingButtons
               options={RATING_OPTIONS}
               selected={form.overall_estimation}

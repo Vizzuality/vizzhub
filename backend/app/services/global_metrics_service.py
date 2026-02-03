@@ -1,6 +1,6 @@
 """Global Metrics Service - Calculates averaged metrics across all projects."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -214,7 +214,7 @@ class GlobalMetricsService:
         if existing:
             for key, value in db_data.items():
                 setattr(existing, key, value)
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
             record = existing
         else:
             record = GlobalMetricsDB(

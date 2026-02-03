@@ -157,7 +157,7 @@ export default function GlobalTimelineChart({
   const tickInterval = periods.length > 24 ? 5 : periods.length > 12 ? 2 : 0;
 
   return (
-    <nav
+    <div
       className="w-full"
       role="listbox"
       onKeyDown={handleKeyDown}
@@ -257,6 +257,6 @@ export default function GlobalTimelineChart({
           </AreaChart>
         </ResponsiveContainer>
       </div>
-    </nav>
+    </div>
   );
 }
