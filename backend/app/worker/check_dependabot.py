@@ -15,7 +15,6 @@ from app.config import get_settings
 from app.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
-    AlertSilenceDB,
     DependabotAlertTrackedDB,
     ScheduledJobRunDB,
     SlackConfigDB,
@@ -190,7 +189,9 @@ async def _process_project(
     current_alert_ids = {alert["number"] for alert in current_alerts}
 
     tracked_alerts = await _get_tracked_alerts(db, project.id)
-    tracked_alert_ids = {ta.github_alert_id for ta in tracked_alerts if not ta.resolved_at}
+    tracked_alert_ids = {
+        ta.github_alert_id for ta in tracked_alerts if not ta.resolved_at
+    }
 
     new_alert_ids = current_alert_ids - tracked_alert_ids
 
