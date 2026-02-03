@@ -22,6 +22,9 @@ parse_github_datetime = parse_iso_datetime
 TARGET_BRANCHES = frozenset({"dev", "develop", "main", "master", "development"})
 MAX_CONCURRENT_REQUESTS = 20
 
+# Default datetime for releases without a date (used for sorting)
+_MIN_RELEASE_DATE = datetime.min.replace(tzinfo=timezone.utc)
+
 
 def _is_within_period(
     item_date: datetime | None,
@@ -47,7 +50,14 @@ def _extract_merged_date(pr: dict) -> datetime | None:
 
 
 def _extract_release_date(release: dict) -> datetime | None:
-    """Extract and parse published/created date from release."""
+    """Extract and parse published/created date from release.
+
+    Args:
+        release: Release dict from GitHub API
+
+    Returns:
+        datetime object (timezone-aware) or None if no date found
+    """
     date_str = release.get("published_at") or release.get("created_at")
     if not date_str:
         return None
@@ -97,7 +107,9 @@ async def _fetch_prs_page(
             return None
         return response.json()
     except Exception as e:
-        logger.warning("Failed to fetch PRs for %s/%s page %d: %s", owner, repo, page, e)
+        logger.warning(
+            "Failed to fetch PRs for %s/%s page %d: %s", owner, repo, page, e
+        )
         return None
 
 
@@ -209,7 +221,9 @@ async def _fetch_releases_page(
             return None
         return response.json()
     except Exception as e:
-        logger.warning("Failed to fetch releases for %s/%s page %d: %s", owner, repo, page, e)
+        logger.warning(
+            "Failed to fetch releases for %s/%s page %d: %s", owner, repo, page, e
+        )
         return None
 
 
@@ -245,7 +259,9 @@ async def get_releases(
     per_page = 100
 
     while len(releases) < max_results:
-        page_releases = await _fetch_releases_page(http_client, owner, repo, page, per_page)
+        page_releases = await _fetch_releases_page(
+            http_client, owner, repo, page, per_page
+        )
         if not page_releases:
             break
 
@@ -268,22 +284,15 @@ async def get_releases(
 
 def parse_release_date(release: dict) -> datetime:
     """
-    Parse the release published date.
+    Parse the release published date for sorting purposes.
 
     Falls back to created_at if published_at is not available.
+    Returns a minimum datetime if no date found (for consistent sorting).
 
     Args:
         release: Release dict from GitHub API
 
     Returns:
-        datetime object (timezone-aware)
+        datetime object (timezone-aware), never None
     """
-    published_at = release.get("published_at")
-    if published_at:
-        return datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-    created_at = release.get("created_at")
-    if created_at:
-        return datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-    return datetime.min.replace(tzinfo=timezone.utc)
-
-
+    return _extract_release_date(release) or _MIN_RELEASE_DATE
