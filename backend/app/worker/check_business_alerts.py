@@ -40,6 +40,8 @@ ALERT_NAMES = {
 }
 
 DEFAULT_GRACE_DAYS = 30
+DAYS_PER_WEEK = 7
+DEFAULT_WEEKS_FOR_VELOCITY = 4
 
 
 async def check_business_alerts(ctx: dict) -> dict[str, Any]:
@@ -167,9 +169,7 @@ async def _get_active_projects(db: AsyncSession) -> list[ProjectDB]:
     return list(result.scalars().all())
 
 
-async def _get_latest_metrics(
-    db: AsyncSession, project_id: UUID
-) -> MetricsDB | None:
+async def _get_latest_metrics(db: AsyncSession, project_id: UUID) -> MetricsDB | None:
     """Get the latest cumulative metrics for a project."""
     result = await db.execute(
         select(MetricsDB)
@@ -300,9 +300,64 @@ async def _check_budget_exceeded(
     message = AlertService.render_template(template, context)
 
     return await _send_and_log_alert(
-        db, project, alert_def, bot_token, leadership_channel_id, message,
-        metadata={"budget_percent": float(budget_percent)}
+        db,
+        project,
+        alert_def,
+        bot_token,
+        leadership_channel_id,
+        message,
+        metadata={"budget_percent": float(budget_percent)},
     )
+
+
+def _calculate_velocity_per_week(metrics: MetricsDB) -> float:
+    """Calculate weekly velocity from metrics.
+
+    Args:
+        metrics: Metrics containing task completion data
+
+    Returns:
+        Velocity per week (tasks completed per week)
+    """
+    tasks_completed = metrics.tasks_completed or 0
+    if tasks_completed <= 0:
+        return 0.0
+
+    if metrics.period_end and metrics.period_start:
+        period_days = (metrics.period_end - metrics.period_start).days
+        if period_days > 0:
+            velocity_per_day = tasks_completed / period_days
+            return velocity_per_day * DAYS_PER_WEEK
+
+    return tasks_completed / DEFAULT_WEEKS_FOR_VELOCITY
+
+
+def _is_timeline_at_risk(
+    end_date: date,
+    remaining_issues: int,
+    velocity_per_week: float,
+) -> bool:
+    """Determine if the timeline is at risk based on velocity.
+
+    Args:
+        end_date: Project end date
+        remaining_issues: Number of remaining issues
+        velocity_per_week: Weekly velocity
+
+    Returns:
+        True if timeline is at risk, False otherwise
+    """
+    today = date.today()
+    if end_date <= today:
+        return False
+
+    if remaining_issues <= 0 or velocity_per_week <= 0:
+        return False
+
+    weeks_remaining = max(1, (end_date - today).days / DAYS_PER_WEEK)
+    weeks_needed = remaining_issues / velocity_per_week
+
+    return weeks_needed > weeks_remaining
 
 
 async def _check_timeline_at_risk(
@@ -330,41 +385,13 @@ async def _check_timeline_at_risk(
     Returns:
         True if alert was sent, False otherwise
     """
-    if not project.end_date:
+    if not project.end_date or not metrics:
         return False
 
-    if not metrics:
-        return False
+    remaining_issues = metrics.bugs_total or 0
+    velocity_per_week = _calculate_velocity_per_week(metrics)
 
-    today = date.today()
-    if project.end_date <= today:
-        return False
-
-    tasks_completed = metrics.tasks_completed or 0
-    bugs_total = metrics.bugs_total or 0
-
-    remaining_issues = bugs_total
-    if remaining_issues <= 0:
-        return False
-
-    weeks_remaining = max(1, (project.end_date - today).days / 7)
-
-    if metrics.period_end and metrics.period_start:
-        period_days = (metrics.period_end - metrics.period_start).days
-        if period_days > 0 and tasks_completed > 0:
-            velocity_per_day = tasks_completed / period_days
-            velocity_per_week = velocity_per_day * 7
-        else:
-            velocity_per_week = 0
-    else:
-        velocity_per_week = tasks_completed / 4
-
-    if velocity_per_week <= 0:
-        return False
-
-    weeks_needed = remaining_issues / velocity_per_week
-
-    if weeks_needed <= weeks_remaining:
+    if not _is_timeline_at_risk(project.end_date, remaining_issues, velocity_per_week):
         return False
 
     is_silenced = await AlertService.is_silenced(db, project.id, alert_def.id)
@@ -378,6 +405,9 @@ async def _check_timeline_at_risk(
     if was_notified:
         logger.debug(f"Already notified this month for timeline alert: {project.name}")
         return False
+
+    today = date.today()
+    weeks_remaining = max(1, (project.end_date - today).days / DAYS_PER_WEEK)
 
     template = await AlertService.get_template(db, alert_def.id, "initial")
     if not template:
@@ -397,12 +427,17 @@ async def _check_timeline_at_risk(
     message = AlertService.render_template(template, context)
 
     return await _send_and_log_alert(
-        db, project, alert_def, bot_token, leadership_channel_id, message,
+        db,
+        project,
+        alert_def,
+        bot_token,
+        leadership_channel_id,
+        message,
         metadata={
             "remaining_issues": remaining_issues,
             "weeks_remaining": weeks_remaining,
             "velocity_per_week": velocity_per_week,
-        }
+        },
     )
 
 
@@ -464,8 +499,13 @@ async def _check_project_overdue(
     message = AlertService.render_template(template, context)
 
     return await _send_and_log_alert(
-        db, project, alert_def, bot_token, leadership_channel_id, message,
-        metadata={"days_overdue": days_past_end}
+        db,
+        project,
+        alert_def,
+        bot_token,
+        leadership_channel_id,
+        message,
+        metadata={"days_overdue": days_past_end},
     )
 
 
