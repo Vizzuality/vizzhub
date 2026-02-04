@@ -1,5 +1,5 @@
 name,description,category,channel_type,schedule,is_enabled,config_json
-budget_exceeded,Project budget has been fully consumed,business,leadership,daily_check_monthly_report,true,"{}"
-timeline_at_risk,Project velocity suggests timeline risk,business,leadership,daily_check_monthly_report,true,"{}"
-project_overdue,Project is more than 30 days past end date,business,leadership,daily_check_monthly_report,true,"{\"grace_days\": 30}"
-dependabot_high_critical,High or critical Dependabot vulnerability detected,project,project,daily,true,"{\"severities\": [\"critical\", \"high\"]}"
+budget_exceeded,Project budget has been fully consumed,business,leadership,daily_check_monthly_report,true,{}
+timeline_at_risk,Project velocity suggests timeline risk,business,leadership,daily_check_monthly_report,true,{}
+project_overdue,Project is more than 30 days past end date,business,leadership,daily_check_monthly_report,true,"{""grace_days"": 30}"
+dependabot_high_critical,High or critical Dependabot vulnerability detected,project,project,daily,true,"{""severities"": [""critical"", ""high""]}"
