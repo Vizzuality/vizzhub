@@ -9,6 +9,7 @@ passlib[bcrypt]>=1.7.4,<2.0.0
 python-multipart>=0.0.9,<1.0.0
 slowapi>=0.1.9,<1.0.0
 itsdangerous>=2.1.0,<3.0.0
+google-auth>=2.27.0,<3.0.0
 
 # Database
 sqlalchemy[asyncio]>=2.0.25,<3.0.0

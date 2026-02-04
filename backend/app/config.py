@@ -14,7 +14,14 @@ class Settings(BaseSettings):
 
     # Security
     jwt_secret_key: str = ""
+    jwt_expire_hours: int = 24
     session_secret_key: str = ""
+
+    # Google OAuth (for user authentication)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    allowed_google_domain: str = "vizzuality.com"
+    initial_admin_email: str = ""
 
     # Legacy Jira auth (API Token - still supported for simple setups)
     jira_base_url: str = ""
