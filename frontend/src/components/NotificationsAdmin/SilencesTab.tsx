@@ -224,7 +224,7 @@ export default function SilencesTab(): JSX.Element {
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        alert_definition_id: value === 'all' ? null : parseInt(value, 10),
+                        alert_definition_id: value === 'all' ? null : Number.parseInt(value, 10),
                       }))
                     }
                   >

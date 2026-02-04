@@ -58,7 +58,7 @@ function entriesToConfig(entries: ThresholdEntry[]): Record<string, unknown> {
   const config: Record<string, unknown> = {};
   for (const entry of entries) {
     const numValue = Number(entry.value);
-    if (!isNaN(numValue) && entry.value.trim() !== '') {
+    if (!Number.isNaN(numValue) && entry.value.trim() !== '') {
       config[entry.key] = numValue;
     } else if (entry.value === 'true') {
       config[entry.key] = true;
@@ -370,7 +370,7 @@ export default function AlertConfigTab(): JSX.Element {
               thresholdEntries.map((entry, index) => (
                 <div key={entry.key} className="space-y-2">
                   <Label htmlFor={`threshold-${entry.key}`} className="font-medium">
-                    {entry.key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    {entry.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                   </Label>
                   <Input
                     id={`threshold-${entry.key}`}
