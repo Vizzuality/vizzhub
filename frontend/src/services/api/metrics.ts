@@ -7,6 +7,7 @@ import type {
   MetricsWithScores,
   SnapshotType,
 } from '../../types';
+import { TIMING } from '../../constants/timing';
 import api from './client';
 
 export const collectApi = {
@@ -19,7 +20,7 @@ export const collectApi = {
     const response = await api.post<MetricsCreate>(
       `/collect/project/${projectId}/github`,
       {},
-      { timeout: 60000 },
+      { timeout: TIMING.API_TIMEOUT_GITHUB },
     );
     return response.data;
   },
@@ -77,7 +78,7 @@ export const captureApi = {
     const response = await api.post<CapturePeriodResponse>(
       `/projects/${projectId}/capture-period`,
       request,
-      { timeout: 120000 },
+      { timeout: TIMING.API_TIMEOUT_CAPTURE },
     );
     return response.data;
   },

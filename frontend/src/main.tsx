@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './components/theme-provider';
 import App from './App';
+import { TIMING } from './constants/timing';
 import './index.css';
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -12,7 +13,7 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
+      staleTime: TIMING.QUERY_STALE_TIME,
       retry: 1,
     },
   },
