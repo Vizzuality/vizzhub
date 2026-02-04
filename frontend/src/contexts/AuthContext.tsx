@@ -1,28 +1,13 @@
 /**
- * Authentication Context for managing user authentication state
- *
- * IMPORTANT: This is prepared for Google OAuth integration
- * Currently in development mode - authentication is optional
- *
- * TODO: Implement Google OAuth flow
- * - Add Google Sign-In library
- * - Implement handleGoogleLogin function
- * - Exchange Google token for backend JWT
- * - Handle token refresh
- *
- * Production flow:
- * 1. User initiates Google OAuth via login()
- * 2. Backend validates Google token and returns JWT
- * 3. JWT stored in localStorage
- * 4. All API requests include JWT in Authorization header
- * 5. Backend validates JWT for protected routes
+ * Authentication Context for Google OAuth
  */
 
 import { createContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
-import { User, AuthState, AuthContextType } from '../types/auth';
+import { UserPublic, AuthState, AuthContextType, AuthResponse } from '../types/auth';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
 const USER_STORAGE_KEY = 'auth_user';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const DEFAULT_AUTH_STATE: AuthState = {
   user: null,
@@ -40,19 +25,30 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
 
   /**
-   * TODO: Implement Google OAuth login flow
-   *
-   * Expected implementation:
-   * 1. Trigger Google Sign-In popup
-   * 2. Get Google OAuth token
-   * 3. Send token to backend /api/oauth/google/callback
-   * 4. Backend validates token and returns JWT + user info
-   * 5. Store JWT and user in localStorage
-   * 6. Update auth state
+   * Login with Google credential
    */
-  const login = useCallback(async (): Promise<void> => {
-    // Placeholder for Google OAuth implementation
-    throw new Error('Google OAuth not yet implemented');
+  const login = useCallback(async (credential: string): Promise<void> => {
+    const response = await fetch(`${API_URL}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Authentication failed');
+    }
+
+    const data: AuthResponse = await response.json();
+
+    localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+
+    setAuthState({
+      user: data.user,
+      isAuthenticated: true,
+      isLoading: false,
+    });
   }, []);
 
   /**
@@ -69,38 +65,45 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   }, []);
 
   /**
-   * Store JWT token and user information
-   * Used after successful OAuth flow
-   */
-  const setToken = useCallback((token: string): void => {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    // TODO: Decode JWT to extract user info or fetch from /api/me endpoint
-    // For now, we'll need user info passed separately or decoded from JWT
-  }, []);
-
-  /**
    * Retrieve stored JWT token
    */
   const getToken = useCallback((): string | null => {
     return localStorage.getItem(TOKEN_STORAGE_KEY);
   }, []);
 
+  /**
+   * Validate token with backend
+   */
+  const validateToken = useCallback(async (token: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const user: UserPublic = await response.json();
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        setAuthState({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Initialize auth state from localStorage on mount
   useEffect(() => {
-    const initAuth = (): void => {
+    const initAuth = async (): Promise<void> => {
       const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      const userJson = localStorage.getItem(USER_STORAGE_KEY);
 
-      if (token && userJson) {
-        try {
-          const user = JSON.parse(userJson) as User;
-          setAuthState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } catch (error) {
-          console.error('Failed to parse stored user data:', error);
+      if (token) {
+        const isValid = await validateToken(token);
+        if (!isValid) {
           logout();
         }
       } else {
@@ -109,15 +112,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     };
 
     initAuth();
-  }, [logout]);
+  }, [logout, validateToken]);
 
   const contextValue = useMemo<AuthContextType>(() => ({
     ...authState,
     login,
     logout,
-    setToken,
     getToken,
-  }), [authState, login, logout, setToken, getToken]);
+  }), [authState, login, logout, getToken]);
 
   return (
     <AuthContext.Provider value={contextValue}>

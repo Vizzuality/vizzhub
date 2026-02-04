@@ -73,4 +73,8 @@ export const queryKeys = {
   scheduledJobs: {
     all: ['scheduledJobs'] as const,
   },
+  users: {
+    all: ['users'] as const,
+    detail: (id: string) => ['users', id] as const,
+  },
 } as const;

@@ -1,4 +1,5 @@
 from app.models.config import ConfigParameter, ScoringConfigModel
+from app.models.user import User, UserCreate, UserDB, UserPublic, UserRole, UserUpdate
 from app.models.global_metrics import (
     CalculateBatchRequest,
     CalculateBatchResponse,
@@ -70,4 +71,10 @@ __all__ = [
     "ScoringConfigModel",
     "SnapshotType",
     "TestMaturity",
+    "User",
+    "UserCreate",
+    "UserDB",
+    "UserPublic",
+    "UserRole",
+    "UserUpdate",
 ]
