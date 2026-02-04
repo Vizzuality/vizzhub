@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Environment files (may contain secrets)
+.env
+.env.*
+*.env
+
+# Dependencies (rebuilt in container)
+node_modules
+
+# Build output (rebuilt in container)
+dist
+build
+
+# Testing
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker
+Dockerfile*
+docker-compose*
+
+# Documentation
+docs
+*.md
+!package.json
+!package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript cache
+*.tsbuildinfo

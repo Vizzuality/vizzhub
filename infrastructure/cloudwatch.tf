@@ -10,8 +10,9 @@ resource "aws_cloudwatch_log_group" "main" {
 
 # SNS Topic for alarms (optional)
 resource "aws_sns_topic" "alarms" {
-  count = var.alarm_email != "" ? 1 : 0
-  name  = "${var.project_name}-alarms"
+  count             = var.alarm_email != "" ? 1 : 0
+  name              = "${var.project_name}-alarms"
+  kms_master_key_id = "alias/aws/sns"  # AWS managed key for encryption
 }
 
 resource "aws_sns_topic_subscription" "alarms_email" {
