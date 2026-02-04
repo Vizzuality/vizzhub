@@ -6,7 +6,82 @@ Base URL: `http://localhost:8000/api`
 
 All endpoints require JWT authentication (except `/health` and OAuth callbacks).
 
-**Development mode** (`DEBUG=true`): Authentication is bypassed.
+### Google SSO
+
+Users authenticate via Google Sign-In, restricted to `@vizzuality.com` domain (configurable).
+
+#### Login with Google
+
+```http
+POST /auth/google
+Content-Type: application/json
+
+{
+  "token": "<google_id_token>"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": "uuid",
+    "email": "user@vizzuality.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "picture": "https://lh3.googleusercontent.com/...",
+    "role": "user"
+  }
+}
+```
+
+**Errors:**
+- `401 Unauthorized` - Invalid Google token
+- `403 Forbidden` - Email domain not allowed
+
+#### Get Current User
+
+```http
+GET /auth/me
+Authorization: Bearer <jwt_token>
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": "uuid",
+  "email": "user@vizzuality.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "picture": "https://lh3.googleusercontent.com/...",
+  "role": "user",
+  "last_login_at": "2024-01-15T10:00:00Z",
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+#### Logout
+
+```http
+POST /auth/logout
+Authorization: Bearer <jwt_token>
+```
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Successfully logged out"
+}
+```
+
+### Development Mode
+
+**Backend**: `DEBUG=true` → CORS allows localhost origins
+**Frontend**: `VITE_BYPASS_AUTH=true` → Skip authentication entirely
+
+Use `DEBUG=true` + `VITE_BYPASS_AUTH=false` to test Google OAuth locally.
 
 **Headers:**
 ```http
@@ -18,6 +93,67 @@ Generate test tokens:
 cd backend
 python scripts/generate_jwt_token.py --user-id "test-user" --roles "user,admin"
 ```
+
+---
+
+## User Management (Admin Only)
+
+Requires `admin` role.
+
+### List Users
+
+```http
+GET /admin/users
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "email": "user@vizzuality.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "role": "user",
+    "last_login_at": "2024-01-15T10:00:00Z",
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### Update User Role
+
+```http
+PATCH /admin/users/{user_id}
+Authorization: Bearer <admin_jwt_token>
+Content-Type: application/json
+
+{
+  "role": "admin"
+}
+```
+
+**Response:** `200 OK` with updated user object.
+
+**Errors:**
+- `400 Bad Request` - Cannot modify your own role
+- `403 Forbidden` - Not an admin
+- `404 Not Found` - User not found
+
+### Delete User
+
+```http
+DELETE /admin/users/{user_id}
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response:** `204 No Content`
+
+**Errors:**
+- `400 Bad Request` - Cannot delete yourself
+- `403 Forbidden` - Not an admin
+- `404 Not Found` - User not found
 
 ---
 
