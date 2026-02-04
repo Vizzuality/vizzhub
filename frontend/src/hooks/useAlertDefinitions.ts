@@ -104,7 +104,15 @@ export function useTriggerScheduledJob(): ReturnType<
   return useMutation({
     mutationFn: (jobName: string): Promise<JobTriggerResponse> => scheduledJobsApi.trigger(jobName),
     onSuccess: (): void => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
+      const refetchAll = (): void => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      };
+      // Immediate invalidation
+      refetchAll();
+      // Delayed refetch to catch job completion (jobs typically complete in 1-3 seconds)
+      setTimeout(refetchAll, 3000);
+      setTimeout(refetchAll, 6000);
     },
   });
 }
