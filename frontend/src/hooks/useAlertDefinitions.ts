@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { alertsAdminApi, scheduledJobsApi } from '../services/api';
 import { queryKeys } from './queryKeys';
+import { TIMING } from '../constants/timing';
 import type {
   AlertDefinition,
   AlertDefinitionUpdate,
@@ -89,7 +90,7 @@ export function useScheduledJobs(): ReturnType<typeof useQuery<ScheduledJobInfo[
   return useQuery({
     queryKey: queryKeys.scheduledJobs.all,
     queryFn: (): Promise<ScheduledJobInfo[]> => scheduledJobsApi.list(),
-    refetchInterval: 30000,
+    refetchInterval: TIMING.SCHEDULED_JOBS_POLLING,
   });
 }
 
@@ -106,15 +107,12 @@ export function useTriggerScheduledJob(): ReturnType<
     onSuccess: (): void => {
       const refetchAll = (): void => {
         queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
-        // Invalidate all notification queries including stats
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.stats });
       };
-      // Immediate invalidation
       refetchAll();
-      // Delayed refetch to catch job completion (jobs typically complete in 1-3 seconds)
-      setTimeout(refetchAll, 3000);
-      setTimeout(refetchAll, 6000);
+      setTimeout(refetchAll, TIMING.JOB_TRIGGER_REFETCH_DELAY);
+      setTimeout(refetchAll, TIMING.JOB_TRIGGER_REFETCH_DELAY_SECONDARY);
     },
   });
 }

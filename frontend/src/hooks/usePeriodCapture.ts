@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { captureApi } from '../services/api';
-import { queryKeys } from './queryKeys';
+import { invalidateProjectCaptureData } from './cacheUtils';
 import { getApiErrorMessage } from '../utils/apiErrors';
 import type { CapturePeriodRequest, CapturePeriodResponse, ApiErrorResponse } from '../types';
 
@@ -20,15 +20,7 @@ export function useCapturePeriod(
     mutationFn: (request: CapturePeriodRequest) =>
       captureApi.capturePeriod(projectId, request),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.snapshots.byProject(projectId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.metrics.byProject(projectId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.scores.byProject(projectId),
-      });
+      invalidateProjectCaptureData(queryClient, projectId);
       options.onSuccess?.(data);
     },
     onError: (error: Error) => {

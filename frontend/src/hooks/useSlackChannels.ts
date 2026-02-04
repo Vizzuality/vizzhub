@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { slackApi } from '../services/api';
 import { queryKeys } from './queryKeys';
+import { TIMING } from '../constants/timing';
 
 export interface UseSlackChannelsResult {
   channels: import('../types').SlackChannel[];
@@ -15,7 +16,7 @@ export function useSlackChannels(): UseSlackChannelsResult {
   const statusQuery = useQuery({
     queryKey: queryKeys.slack.status,
     queryFn: slackApi.getStatus,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: TIMING.QUERY_STALE_TIME,
     retry: 1,
   });
 
@@ -23,7 +24,7 @@ export function useSlackChannels(): UseSlackChannelsResult {
     queryKey: queryKeys.slack.channels,
     queryFn: slackApi.getChannels,
     enabled: statusQuery.data?.configured === true,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: TIMING.QUERY_STALE_TIME,
     retry: 1,
   });
 

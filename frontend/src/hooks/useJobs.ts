@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobsApi } from '../services/api';
 import { queryKeys } from './queryKeys';
+import { TIMING } from '../constants/timing';
 import type {
   CreateCaptureHistoryJobRequest,
   JobDetailResponse,
@@ -14,7 +15,7 @@ interface UseJobStatusOptions {
 
 /**
  * Hook for polling job status.
- * Automatically polls every 3s while job is pending/running.
+ * Automatically polls while job is pending/running.
  */
 export function useJobStatus(
   jobId: string | null,
@@ -27,7 +28,7 @@ export function useJobStatus(
     refetchInterval: (query): number | false => {
       const status = query.state.data?.status;
       if (status === 'pending' || status === 'running') {
-        return 3000;
+        return TIMING.JOB_POLLING_ACTIVE;
       }
       return false;
     },
@@ -67,13 +68,13 @@ export function useProjectJobs(
 
 /**
  * Hook for listing all jobs across all projects.
- * Polls every 5s to show active job progress.
+ * Polls to show active job progress.
  */
 export function useAllJobs(): ReturnType<typeof useQuery<JobSummaryResponse[], Error>> {
   return useQuery({
     queryKey: queryKeys.jobs.all,
     queryFn: (): Promise<JobSummaryResponse[]> => jobsApi.listJobs(),
-    refetchInterval: 5000,
+    refetchInterval: TIMING.JOB_POLLING_ALL,
   });
 }
 

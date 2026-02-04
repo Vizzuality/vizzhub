@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { scoresApi } from '../services/api';
+import { queryKeys } from './queryKeys';
+import { TIMING } from '../constants/timing';
 import type { Project } from '../types';
 
 export interface UseProjectScoresMapReturn {
@@ -13,9 +15,9 @@ export function useProjectScoresMap(
 ): UseProjectScoresMapReturn {
   const scoreQueries = useQueries({
     queries: (projects ?? []).map((project) => ({
-      queryKey: ['scores', project.id],
+      queryKey: queryKeys.scores.byProject(project.id),
       queryFn: () => scoresApi.getProjectScores(project.id),
-      staleTime: 5 * 60 * 1000,
+      staleTime: TIMING.QUERY_STALE_TIME,
       retry: false,
     })),
   });

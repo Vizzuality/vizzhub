@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { metricsHistoryApi } from '../services/api';
 import type { Metrics, MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
 import { queryKeys } from './queryKeys';
+import { invalidateProjectData, invalidateProjectPeriodData } from './cacheUtils';
 import type { Period } from '../utils/dateUtils';
 
 export function useProjectMetrics(
@@ -18,7 +19,6 @@ export function useProjectMetrics(
     queryFn: async (): Promise<Metrics | null> => {
       try {
         if (hasPeriod) {
-          // Get metrics for specific period
           const response = await metricsHistoryApi.getByPeriod(
             projectId,
             year,
@@ -28,7 +28,6 @@ export function useProjectMetrics(
           return response as unknown as Metrics;
         }
 
-        // Default: get latest metrics
         const response = await api.get<Metrics[]>(`/metrics/project/${projectId}`);
         if (response.data && response.data.length > 0) {
           const sorted = response.data.sort((a, b) => {
@@ -54,8 +53,7 @@ export function useCreateMetrics(projectId: string) {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
+      invalidateProjectData(queryClient, projectId);
     },
   });
 }
@@ -116,15 +114,10 @@ function useMetricsFieldMutation<T>(
   return useMutation({
     mutationFn: createMetricsMutation<T>(projectId, existingMetrics, fieldName, period),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
       if (period) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.metrics.byPeriod(projectId, period.year, period.month),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.scores.byPeriod(projectId, period.year, period.month),
-        });
+        invalidateProjectPeriodData(queryClient, projectId, period.year, period.month);
+      } else {
+        invalidateProjectData(queryClient, projectId);
       }
     },
   });
