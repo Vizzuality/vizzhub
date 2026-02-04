@@ -288,6 +288,24 @@ Automated alerts to Slack channels for business and security issues.
 - `check_dependabot_alerts` - Daily at 8:00 UTC, checks GitHub Dependabot
 - `check_business_alerts` - Daily at 9:00 UTC, checks budget/timeline/overdue
 
+**Dependabot alert strategy:**
+
+| Situation | Action |
+|-----------|--------|
+| Alert not tracked | **Notify** + track |
+| Alert already tracked | No notification |
+| Critical unresolved > 2 days | Send reminder |
+| High unresolved > 7 days | Send reminder |
+| Alert disappears from GitHub | Mark as resolved |
+
+- Notifications include link to GitHub: `https://github.com/{repo}/security/dependabot/{id}`
+- `last_notified_at` tracks when each alert was last notified (initial or reminder)
+- Templates support variables: `{project_name}`, `{vuln_severity}`, `{vuln_package}`, `{vuln_cve}`, `{vuln_url}`, `{vuln_age_days}`
+
+**Business alert strategy:**
+- Monthly throttling per project per alert type
+- Alerts: `budget_exceeded` (≥100%), `timeline_at_risk` (velocity-based), `project_overdue` (>30 days past end_date)
+
 **Key services:**
 - `app/services/slack_service.py` - Slack API wrapper (send_message, list_channels, test_connection)
 - `app/services/alert_service.py` - Template rendering, silence checking, notification logging

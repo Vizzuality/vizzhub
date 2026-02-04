@@ -39,6 +39,7 @@ GET /projects
     "github_repo": "org/alpha",
     "start_date": "2024-01-01",
     "end_date": "2024-06-30",
+    "slack_channel_id": "C1234567890",
     "status": "in_progress",
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"
@@ -57,7 +58,8 @@ Content-Type: application/json
   "jira_project_key": "ALPHA",
   "github_repo": "org/alpha",
   "start_date": "2024-01-01",
-  "end_date": "2024-06-30"
+  "end_date": "2024-06-30",
+  "slack_channel_id": "C1234567890"
 }
 ```
 
@@ -70,6 +72,7 @@ Content-Type: application/json
   "github_repo": "org/alpha",
   "start_date": "2024-01-01",
   "end_date": "2024-06-30",
+  "slack_channel_id": "C1234567890",
   "status": "in_progress",
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-01T00:00:00Z"
@@ -794,6 +797,7 @@ Content-Type: application/json
 - `{vuln_package}` - Vulnerable package name
 - `{vuln_severity}` - Vulnerability severity
 - `{vuln_cve}` - CVE identifier
+- `{vuln_url}` - Direct link to GitHub Dependabot alert
 - `{vuln_count}` - Total open vulnerabilities
 - `{vuln_age_days}` - Days since first detected
 
@@ -961,6 +965,64 @@ POST /scheduled-jobs/{job_name}/trigger
   "job_name": "check_dependabot_alerts"
 }
 ```
+
+---
+
+## Dependabot Alert Tracking
+
+The `check_dependabot_alerts` scheduled job automatically tracks and notifies about Dependabot vulnerabilities.
+
+### Alert Strategy
+
+| Situation | Action |
+|-----------|--------|
+| New alert (high/critical) not tracked | **Notify** + track in DB |
+| Alert already tracked | No notification (already sent) |
+| Critical unresolved > 2 days | Send reminder |
+| High unresolved > 7 days | Send reminder |
+| Alert disappears from GitHub | Mark as resolved in DB |
+
+### Notification Flow
+
+1. Job fetches current Dependabot alerts from GitHub API
+2. Compares against `dependabot_alerts_tracked` table
+3. New alerts (not in DB) → Send initial notification + track
+4. Existing tracked alerts → Check if reminder is due based on severity
+5. Alerts no longer in GitHub → Mark as resolved
+
+### Reminder Schedule
+
+- **Critical vulnerabilities**: Reminder every 2 days
+- **High vulnerabilities**: Reminder every 7 days
+- **Medium/Low**: No automatic reminders
+
+### Message Templates
+
+Initial notification uses template type `initial`:
+```
+:red_circle: New {vuln_severity} vulnerability in *{project_name}*
+Package: {vuln_package}
+CVE: {vuln_cve}
+<{vuln_url}|View in GitHub>
+```
+
+Reminder notification uses template type `reminder`:
+```
+:alarm_clock: Reminder: *{project_name}* has unresolved {vuln_severity} vulnerability
+Package: {vuln_package} (open for {vuln_age_days} days)
+<{vuln_url}|View in GitHub>
+```
+
+### Template Variables (Dependabot)
+
+| Variable | Description |
+|----------|-------------|
+| `{project_name}` | Project name |
+| `{vuln_severity}` | Severity level (critical, high, medium, low) |
+| `{vuln_package}` | Vulnerable package name |
+| `{vuln_cve}` | CVE identifier |
+| `{vuln_url}` | Direct link to GitHub Dependabot alert |
+| `{vuln_age_days}` | Days since first detected (for reminders) |
 
 ---
 
