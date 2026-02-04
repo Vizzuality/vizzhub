@@ -103,13 +103,17 @@ pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/cmkliqxix000d04la3624132
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Production-ready code, builds/releases only |
+| `main` | Production-ready code, auto-deploys to AWS |
 | `dev` | Active development (default branch) |
 | `feature/*` | Feature branches → PR to `dev` |
 
 - All PRs target `dev` by default
-- Merge `dev` → `main` only for releases
+- Merge `dev` → `main` triggers production deployment
 - Delete feature branches after merge
+
+**CI/CD:**
+- Push to `main` or `dev` → runs CI tests (`.github/workflows/ci.yml`)
+- Push to `main` → builds, pushes to ECR, deploys to production (`.github/workflows/deploy.yml`)
 
 ## Architecture
 
@@ -381,6 +385,108 @@ async def jira_callback(
     return {"status": "success"}
 ```
 
+### Production Deployment (AWS)
+
+Hub is deployed to AWS using OpenTofu/Terraform infrastructure-as-code.
+
+**Architecture:**
+```
+                    ┌─────────────────────────────────────────┐
+                    │              AWS (eu-west-1)            │
+                    │                                         │
+Internet ──HTTPS──▶ │  ┌─────────────────────────────────┐   │
+                    │  │         EC2 t3.medium            │   │
+                    │  │  ┌────────────────────────────┐  │   │
+                    │  │  │     Docker Compose         │  │   │
+                    │  │  │  ┌────────┐ ┌──────────┐   │  │   │
+                    │  │  │  │ nginx  │ │ frontend │   │  │   │
+                    │  │  │  └────────┘ └──────────┘   │  │   │
+                    │  │  │  ┌────────┐ ┌──────────┐   │  │   │
+                    │  │  │  │backend │ │  worker  │   │  │   │
+                    │  │  │  └────────┘ └──────────┘   │  │   │
+                    │  │  │  ┌────────┐                │  │   │
+                    │  │  │  │ redis  │                │  │   │
+                    │  │  │  └────────┘                │  │   │
+                    │  │  └────────────────────────────┘  │   │
+                    │  └─────────────────────────────────┘   │
+                    │                    │                    │
+                    │                    ▼                    │
+                    │  ┌─────────────────────────────────┐   │
+                    │  │    RDS PostgreSQL (private)     │   │
+                    │  └─────────────────────────────────┘   │
+                    └─────────────────────────────────────────┘
+```
+
+**Components:**
+| Service | Type | Purpose |
+|---------|------|---------|
+| EC2 | t3.medium | Docker host (nginx, frontend, backend, worker, redis) |
+| RDS | db.t4g.small | PostgreSQL 16 with automated backups |
+| ECR | - | Container registry |
+| Secrets Manager | - | Credentials storage |
+| SSM | - | Secure shell access (no SSH) |
+
+**CI/CD Pipeline:**
+```
+Push to main → CI Tests → Build Images → Push to ECR → SSM Deploy → Health Check
+```
+
+1. **CI Tests**: Backend pytest + frontend vitest
+2. **Build**: Multi-stage Docker builds with SHA tags
+3. **Push**: To ECR via OIDC (no long-lived credentials)
+4. **Deploy**: SSM send-command triggers `/opt/hub/deploy.sh`
+5. **Verify**: Polling for command completion + health checks
+
+**Key Files:**
+```
+infrastructure/
+├── bootstrap/           # S3 + DynamoDB for state (run first)
+├── main.tf              # Provider, backend config
+├── network.tf           # VPC, subnets, routing
+├── ec2.tf               # Instance, IAM roles
+├── rds.tf               # PostgreSQL database
+├── secrets.tf           # Secrets Manager
+├── iam.tf               # GitHub OIDC provider
+└── templates/user_data.sh  # EC2 bootstrap script
+
+.github/workflows/
+├── ci.yml               # Tests on push/PR
+└── deploy.yml           # Build + deploy on main
+```
+
+**Operations:**
+```bash
+# Connect to EC2 via SSM
+aws ssm start-session --target <instance-id>
+
+# View container logs
+docker compose -f /opt/hub/docker-compose.prod.yml logs -f backend
+
+# Manual deploy
+/opt/hub/deploy.sh <git-sha>
+
+# Rollback
+source /opt/hub/.env.infra && export TAG="<previous-sha>"
+docker compose -f /opt/hub/docker-compose.prod.yml pull
+docker compose -f /opt/hub/docker-compose.prod.yml up -d
+```
+
+**Infrastructure Management:**
+```bash
+cd infrastructure
+
+# Plan changes
+tofu plan -var-file=environments/prod.tfvars
+
+# Apply changes
+tofu apply -var-file=environments/prod.tfvars
+
+# View outputs
+tofu output
+```
+
+See `infrastructure/README.md` for complete setup guide.
+
 ### Configuration Best Practices
 
 **CRITICAL**: Never hardcode configuration values in `backend/app/config.py`.
@@ -572,6 +678,30 @@ The Admin page (`/admin`) consolidates all administrative functions:
 | Slack | Bot token, leadership channel, test connection | - |
 | Notifications | Alert management | Alert Log, Silences, Alert Config, Statistics |
 | Jobs | Background and scheduled jobs | - |
+
+### Infrastructure (`infrastructure/`)
+```
+infrastructure/
+├── bootstrap/              # State storage (S3 + DynamoDB)
+│   ├── main.tf
+│   ├── variables.tf
+│   └── outputs.tf
+├── main.tf                 # Provider and backend
+├── variables.tf            # Input variables
+├── outputs.tf              # Output values
+├── network.tf              # VPC, subnets, routing
+├── security_groups.tf      # Firewall rules
+├── ec2.tf                  # EC2 instance + IAM
+├── rds.tf                  # PostgreSQL database
+├── ecr.tf                  # Container registry
+├── secrets.tf              # Secrets Manager
+├── iam.tf                  # GitHub OIDC
+├── cloudwatch.tf           # Logs and alarms
+├── templates/
+│   └── user_data.sh        # EC2 bootstrap script
+└── environments/
+    └── prod.tfvars.example # Production config template
+```
 
 ### Documentation (`docs/`)
 - `OAUTH_SETUP.md` - Jira OAuth 2.0 setup guide

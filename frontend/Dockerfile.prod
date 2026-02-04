@@ -1,5 +1,6 @@
 # Production Dockerfile for frontend
 # Multi-stage build: build static files, serve with lightweight server
+# syntax=docker/dockerfile:1
 
 # Build stage
 FROM node:20-alpine as builder
@@ -19,7 +20,7 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 ENV VITE_BYPASS_AUTH=false
 
-# Copy source and build
+# Copy source and build (filtered by .dockerignore)
 COPY . .
 RUN npm run build
 
@@ -28,14 +29,20 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Create non-root user first
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 # Install serve for static file serving
 RUN npm install -g serve
 
-# Copy built files from builder
-COPY --from=builder /app/dist ./dist
+# Copy built files with secure permissions (read-only)
+# --chmod=555 = r-xr-xr-x (read+execute for dirs, no write)
+COPY --from=builder --chown=appuser:appgroup --chmod=555 /app/dist ./dist
 
-# Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Ensure files are read-only
+RUN find /app/dist -type f -exec chmod 444 {} \;
+
+# Switch to non-root user
 USER appuser
 
 EXPOSE 5173
