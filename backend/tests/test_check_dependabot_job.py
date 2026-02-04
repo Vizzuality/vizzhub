@@ -384,6 +384,7 @@ class TestCheckDependabotJob:
             github_alert_id=42,
             package_name="axios",
             severity="high",
+            last_notified_at=datetime.now(timezone.utc),
         )
         db_session.add(existing_tracked)
         await db_session.commit()
