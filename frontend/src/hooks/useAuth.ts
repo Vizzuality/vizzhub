@@ -8,9 +8,8 @@
  * - user: Current authenticated user (null if not authenticated)
  * - isAuthenticated: Boolean indicating if user is logged in
  * - isLoading: Boolean indicating if auth state is being initialized
- * - login: Function to initiate Google OAuth flow (TODO: implement)
+ * - login: Function to authenticate with Google credential
  * - logout: Function to clear authentication state
- * - setToken: Function to store JWT token
  * - getToken: Function to retrieve stored JWT token
  */
 

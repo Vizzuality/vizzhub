@@ -10,6 +10,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.api import admin_users as admin_users_router
+from app.api import auth as auth_router
 from app.api import capture as capture_router
 from app.api import collectors as collectors_router
 from app.api import config as config_router
@@ -146,6 +148,8 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
         )
 
 
+app.include_router(auth_router.router, prefix="/api")
+app.include_router(admin_users_router.router, prefix="/api")
 app.include_router(projects_router.router, prefix="/api/projects", tags=["projects"])
 app.include_router(metrics_router.router, prefix="/api/metrics", tags=["metrics"])
 app.include_router(scores_router.router, prefix="/api/scores", tags=["scores"])

@@ -20,7 +20,6 @@ settings = get_settings()
 
 # Security constants
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 security = HTTPBearer(auto_error=False)
 
@@ -29,6 +28,8 @@ class TokenData(BaseModel):
     """Token payload data."""
 
     user_id: str
+    email: str | None = None
+    role: str | None = None
     roles: list[str] = []
     exp: datetime | None = None
 
@@ -65,7 +66,7 @@ def create_access_token(
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours)
 
     to_encode.update({"exp": expire})
 
@@ -134,12 +135,18 @@ async def get_current_user(
 
         payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
         user_id: str | None = payload.get("sub")
+        email: str | None = payload.get("email")
+        role: str | None = payload.get("role")
         roles: list[str] = payload.get("roles", [])
 
         if user_id is None:
             raise credentials_exception
 
-        return TokenData(user_id=user_id, roles=roles)
+        # Add role to roles list for backward compatibility
+        if role and role not in roles:
+            roles = [role] + roles
+
+        return TokenData(user_id=user_id, email=email, role=role, roles=roles)
     except JWTError:
         raise credentials_exception
 

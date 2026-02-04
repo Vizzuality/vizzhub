@@ -6,6 +6,7 @@ import SilencesTab from '../components/NotificationsAdmin/SilencesTab';
 import AlertConfigTab from '../components/NotificationsAdmin/AlertConfigTab';
 import StatisticsTab from '../components/NotificationsAdmin/StatisticsTab';
 import JobsContent from '../components/Admin/JobsContent';
+import { UsersContent } from '../components/Admin/UsersContent';
 
 export default function Admin(): JSX.Element {
   return (
@@ -18,6 +19,7 @@ export default function Admin(): JSX.Element {
           <TabsTrigger value="slack">Slack</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
         </TabsList>
 
         <TabsContent value="configuration">
@@ -57,6 +59,10 @@ export default function Admin(): JSX.Element {
 
         <TabsContent value="jobs">
           <JobsContent />
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UsersContent />
         </TabsContent>
       </Tabs>
     </div>
