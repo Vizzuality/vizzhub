@@ -37,7 +37,9 @@ class AlertService:
             key = match.group(1)
             return str(context.get(key, match.group(0)))
 
-        return re.sub(r"\{(\w+)\}", replace_placeholder, template)
+        result = re.sub(r"\{(\w+)\}", replace_placeholder, template)
+        # Convert literal \n to actual newlines
+        return result.replace("\\n", "\n")
 
     @staticmethod
     async def is_silenced(
