@@ -7,6 +7,8 @@ collector modules (Jira, GitHub) to avoid duplication.
 
 from datetime import datetime
 
+HTTP_CLIENT_TIMEOUT = 30.0
+
 
 def parse_iso_datetime(dt_str: str | None) -> datetime | None:
     """
