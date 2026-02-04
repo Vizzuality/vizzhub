@@ -11,6 +11,7 @@ import httpx
 
 from app.config import get_settings
 from app.core.exceptions import ConfigurationError
+from app.services.collectors.utils import HTTP_CLIENT_TIMEOUT
 
 
 class GitHubClient:
@@ -38,7 +39,7 @@ class GitHubClient:
             self._client = httpx.AsyncClient(
                 base_url="https://api.github.com",
                 headers=headers,
-                timeout=30.0,
+                timeout=HTTP_CLIENT_TIMEOUT,
             )
 
         return self._client
