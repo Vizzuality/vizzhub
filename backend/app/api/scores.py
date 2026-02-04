@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
+from sqlalchemy import inspect
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
@@ -14,6 +15,34 @@ from app.services.metrics_service import MetricsService
 from app.services.score_computation import ScoreComputationService
 
 router = APIRouter()
+
+# Fields excluded from consolidation (metadata, not metrics data)
+_CONSOLIDATION_EXCLUDE_FIELDS = frozenset({
+    "id",
+    "project_id",
+    "period_start",
+    "period_end",
+    "period_year",
+    "period_month",
+    "snapshot_type",
+    "weights_applied",
+    "targets_applied",
+    "created_at",
+    "sev1_incident",  # Handled separately with OR logic
+})
+
+
+def _get_consolidation_fields() -> list[str]:
+    """Get list of MetricsDB fields that should be consolidated.
+
+    Uses SQLAlchemy introspection to automatically include all metric columns,
+    excluding metadata fields. This ensures new columns are automatically included.
+    """
+    mapper = inspect(MetricsDB)
+    return [
+        col.key for col in mapper.columns
+        if col.key not in _CONSOLIDATION_EXCLUDE_FIELDS
+    ]
 
 
 class ScoreRequest(BaseModel):
@@ -101,39 +130,18 @@ async def get_project_scores(
 
 
 def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
-    """Consolidate multiple metrics records, taking first non-null value for each field."""
+    """Consolidate multiple metrics records, taking first non-null value for each field.
+
+    Uses SQLAlchemy introspection to automatically discover fields, ensuring new
+    columns added to MetricsDB are automatically included in consolidation.
+    """
     if len(metrics_list) == 1:
         return metrics_list[0]
 
     base = metrics_list[0]
 
-    # Normalized columns to consolidate
-    normalized_fields = [
-        # EVM
-        "budget_total", "cost_to_date", "percent_completed", "percent_planned",
-        # Defects
-        "bugs_total", "tasks_completed", "escaped_defects", "mttr_hours",
-        "incidents_count", "post_contract_tasks",
-        # Flow
-        "lead_time_days", "lead_time_sample_size", "commitment_reliability",
-        "committed_issues", "single_sprint_issues", "multi_sprint_issues",
-        "total_stories", "stories_with_reviewer",
-        # GitHub
-        "prs_without_review", "total_merged_prs", "high_severity_vulns",
-        "high_severity_vulns_total", "pr_size_median", "review_turnaround_hours",
-        "deployment_frequency", "release_count_90d", "change_failure_rate",
-        "total_releases", "failed_releases",
-        # Manual
-        "governance_exceptions", "strategic_impact",
-    ]
-
-    # JSON fields to consolidate
-    json_fields = [
-        "milestones", "test_maturity", "architecture",
-        "pm_satisfaction", "client_survey",
-    ]
-
-    for field in normalized_fields + json_fields:
+    # Consolidate all metric fields (discovered via introspection)
+    for field in _get_consolidation_fields():
         if getattr(base, field) is None:
             for m in metrics_list[1:]:
                 value = getattr(m, field)
@@ -141,11 +149,9 @@ def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
                     setattr(base, field, value)
                     break
 
+    # sev1_incident uses OR logic: true if any record has it true
     if not base.sev1_incident:
-        for m in metrics_list[1:]:
-            if m.sev1_incident:
-                base.sev1_incident = True
-                break
+        base.sev1_incident = any(m.sev1_incident for m in metrics_list[1:])
 
     return base
 
