@@ -9,11 +9,11 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
-from app.core.exceptions import ConfigurationError
 from app.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.models.project import ProjectDB
 from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector
+from app.services.collectors.utils import execute_collector
 from app.services.metrics_service import MetricsService
 from app.services.score_computation import ScoreComputationService
 
@@ -24,8 +24,8 @@ class CapturePeriodRequest(BaseModel):
     """Request body for capturing a period.
 
     If year/month are not provided, defaults to current month with:
-    - Cumulative: project start → today
-    - Punctual: 1st of current month → today
+    - Cumulative: project start -> today
+    - Punctual: 1st of current month -> today
     """
 
     year: int | None = Field(default=None, ge=2020, le=2100)
@@ -62,23 +62,17 @@ async def _collect_from_jira(
         return {}
 
     collector = JiraCollector(db=db)
-    try:
-        result = await collector.collect(
+    result = await execute_collector(
+        collector,
+        collector.collect(
             project.jira_project_key,
             end_date=project.end_date,
             period_start=period_start,
             period_end=period_end,
-        )
-        return result.model_dump()
-    except ConfigurationError:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to collect Jira metrics: {type(e).__name__}",
-        ) from e
-    finally:
-        await collector.close()
+        ),
+        "Jira",
+    )
+    return result.model_dump()
 
 
 async def _collect_from_github(
@@ -91,22 +85,16 @@ async def _collect_from_github(
         return {}
 
     collector = GitHubCollector()
-    try:
-        result = await collector.collect(
+    result = await execute_collector(
+        collector,
+        collector.collect(
             project.github_repo,
             period_start=period_start,
             period_end=period_end,
-        )
-        return result.model_dump()
-    except ConfigurationError:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to collect GitHub metrics: {type(e).__name__}",
-        ) from e
-    finally:
-        await collector.close()
+        ),
+        "GitHub",
+    )
+    return result.model_dump()
 
 
 def _build_metrics_data(
@@ -170,8 +158,8 @@ async def capture_period(
     - Cumulative: metrics from project start through the specified month
 
     If year/month are not provided, defaults to current month:
-    - Punctual: 1st of current month → today
-    - Cumulative: project start → today
+    - Punctual: 1st of current month -> today
+    - Cumulative: project start -> today
 
     Args:
         project_id: Project UUID
