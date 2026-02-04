@@ -247,23 +247,27 @@ async def _notify_new_alert(
     if not template:
         template = (
             ":warning: New Dependabot alert in *{project_name}*: "
-            "{package_name} ({severity}) - {cve_id}"
+            "{package_name} ({severity}) - {cve_id}\n<{alert_url}|View in GitHub>"
         )
 
     severity = alert_info["severity"] or "Unknown"
     package_name = alert_info["package_name"] or "Unknown package"
     cve_id = alert_info["cve_id"] or "No CVE"
+    alert_id = alert_info["github_alert_id"]
+    alert_url = f"https://github.com/{project.github_repo}/security/dependabot/{alert_id}"
 
     context = {
         "project_name": project.name,
         "package_name": package_name,
         "severity": severity,
         "cve_id": cve_id,
-        "github_alert_id": alert_info["github_alert_id"],
+        "github_alert_id": alert_id,
+        "alert_url": alert_url,
         # Aliases for template compatibility
         "vuln_severity": severity,
         "vuln_package": package_name,
         "vuln_cve": cve_id,
+        "vuln_url": alert_url,
     }
 
     message = AlertService.render_template(template, context)
