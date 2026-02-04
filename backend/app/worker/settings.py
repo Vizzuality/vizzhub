@@ -56,7 +56,11 @@ from app.worker.tasks import capture_history_task  # noqa: E402
 from app.worker.check_dependabot import check_dependabot_alerts  # noqa: E402
 from app.worker.check_business_alerts import check_business_alerts  # noqa: E402
 
-WorkerSettings.functions = [capture_history_task]
+WorkerSettings.functions = [
+    capture_history_task,
+    check_dependabot_alerts,
+    check_business_alerts,
+]
 
 # Register cron jobs for scheduled execution
 WorkerSettings.cron_jobs = [
