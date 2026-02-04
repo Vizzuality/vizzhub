@@ -49,6 +49,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from app.services.collectors.jira.utils import (
+    build_jql_date_filter,
     business_days_diff,
     parse_jira_datetime,
 )
@@ -66,16 +67,6 @@ IN_PROGRESS_STATUSES = frozenset({
     "code review",
     "qa",
 })
-
-
-def _build_date_filter(period_start: date | None, period_end: date | None) -> str:
-    """Build JQL date filter clause."""
-    parts = []
-    if period_start:
-        parts.append(f'resolutiondate >= "{period_start.isoformat()}"')
-    if period_end:
-        parts.append(f'resolutiondate <= "{period_end.isoformat()}"')
-    return " AND " + " AND ".join(parts) if parts else ""
 
 
 def _calculate_issue_lead_time(issue: dict) -> float | None:
@@ -115,7 +106,7 @@ async def collect_lead_time(
     Returns:
         dict with lead_time_days and sample_size
     """
-    date_filter = _build_date_filter(period_start, period_end)
+    date_filter = build_jql_date_filter(period_start, period_end)
     jql = (
         f"type IN (Story, Task, Bug) AND statusCategory = Done{date_filter} "
         "ORDER BY resolutiondate DESC"

@@ -4,7 +4,7 @@ defect_density - Defects per 100 resolved tasks
 == SPEC ==
 
 Formula:
-    defect_density = (bugs_total / tasks_completed) × 100
+    defect_density = (bugs_total / tasks_completed) * 100
 
 JQL Queries:
     bugs:  project = "KEY" AND type = Bug
@@ -30,6 +30,8 @@ Edge Cases:
 from datetime import date
 from typing import TYPE_CHECKING
 
+from app.services.collectors.jira.utils import build_jql_date_filter
+
 if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
@@ -52,18 +54,11 @@ async def collect_defect_density(
     Returns:
         dict with bugs_total and tasks_completed counts
     """
-    bugs_filter = "type = Bug"
-    tasks_filter = "type in (Story, Task, Sub-task) AND statusCategory = Done"
+    bugs_date_filter = build_jql_date_filter(period_start, period_end, "created")
+    tasks_date_filter = build_jql_date_filter(period_start, period_end, "resolutiondate")
 
-    if period_start:
-        start_str = period_start.isoformat()
-        bugs_filter += f' AND created >= "{start_str}"'
-        tasks_filter += f' AND resolutiondate >= "{start_str}"'
-
-    if period_end:
-        date_str = period_end.isoformat()
-        bugs_filter += f' AND created <= "{date_str}"'
-        tasks_filter += f' AND resolutiondate <= "{date_str}"'
+    bugs_filter = f"type = Bug{bugs_date_filter}"
+    tasks_filter = f"type in (Story, Task, Sub-task) AND statusCategory = Done{tasks_date_filter}"
 
     bugs_total = await client.count_issues(
         project_key,
