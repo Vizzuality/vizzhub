@@ -1,5 +1,6 @@
 # Production Dockerfile for backend
 # Multi-stage build for smaller image size
+# syntax=docker/dockerfile:1
 
 FROM python:3.11-slim as builder
 
@@ -27,16 +28,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash appuser
 
-# Copy Python packages from builder
-COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
+# Copy Python packages from builder with secure permissions (read-only except bins)
+# --chmod=555 = r-xr-xr-x (read+execute, no write)
+COPY --from=builder --chown=appuser:appuser --chmod=555 /root/.local /home/appuser/.local
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Copy application code with secure permissions (read-only)
+# --chmod=555 for dirs (need execute to traverse), files get 444 via find below
+COPY --chown=appuser:appuser --chmod=555 . .
 
-# Set secure permissions: dirs=755 (rx), files=644 (r), bins=755 (rx)
-RUN find /app -type d -exec chmod 755 {} \; && \
-    find /app -type f -exec chmod 644 {} \; && \
-    find /home/appuser/.local/bin -type f -exec chmod 755 {} \;
+# Ensure files are read-only (644 -> 444 for extra security)
+RUN find /app -type f -exec chmod 444 {} \;
 
 # Set environment
 ENV PATH=/home/appuser/.local/bin:$PATH
