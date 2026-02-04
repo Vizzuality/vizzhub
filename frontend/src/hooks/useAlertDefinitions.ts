@@ -106,7 +106,9 @@ export function useTriggerScheduledJob(): ReturnType<
     onSuccess: (): void => {
       const refetchAll = (): void => {
         queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
+        // Invalidate all notification queries including stats
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.stats });
       };
       // Immediate invalidation
       refetchAll();
