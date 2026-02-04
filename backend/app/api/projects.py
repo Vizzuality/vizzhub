@@ -34,6 +34,7 @@ async def create_project(
         github_repo=project.github_repo,
         start_date=project.start_date,
         end_date=project.end_date,
+        slack_channel_id=project.slack_channel_id,
     )
     db.add(db_project)
     await db.flush()
@@ -96,6 +97,7 @@ async def replace_project(
     project.github_repo = project_data.github_repo
     project.start_date = project_data.start_date
     project.end_date = project_data.end_date
+    project.slack_channel_id = project_data.slack_channel_id
 
     await db.flush()
     await db.refresh(project)
