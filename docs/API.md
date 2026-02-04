@@ -644,6 +644,326 @@ GET /health
 
 ---
 
+## Slack Administration
+
+### Get Slack Configuration
+
+```http
+GET /admin/slack/config
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "bot_token_configured": true,
+  "leadership_channel_id": "C1234567890",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### Update Slack Configuration
+
+```http
+PUT /admin/slack/config
+Content-Type: application/json
+
+{
+  "bot_token": "xoxb-your-bot-token",
+  "leadership_channel_id": "C1234567890"
+}
+```
+
+### Test Slack Connection
+
+```http
+POST /admin/slack/test
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "team": "YourWorkspace",
+  "bot_id": "B1234567890",
+  "error": null
+}
+```
+
+### List Slack Channels
+
+```http
+GET /admin/slack/channels
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "C1234567890",
+    "name": "general",
+    "is_private": false
+  }
+]
+```
+
+---
+
+## Alert Definitions
+
+### List Alert Definitions
+
+```http
+GET /admin/alerts/
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "budget_exceeded",
+    "description": "Project budget has been fully consumed",
+    "category": "business",
+    "channel_type": "leadership",
+    "schedule": "daily_check_monthly_report",
+    "is_enabled": true,
+    "config_json": {},
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### Update Alert Definition
+
+```http
+PUT /admin/alerts/{alert_id}
+Content-Type: application/json
+
+{
+  "is_enabled": false,
+  "config_json": {"grace_days": 45}
+}
+```
+
+### Get Alert Templates
+
+```http
+GET /admin/alerts/{alert_id}/templates
+```
+
+### Send Test Alert
+
+```http
+POST /admin/alerts/{alert_id}/test
+Content-Type: application/json
+
+{
+  "project_id": "uuid"
+}
+```
+
+---
+
+## Message Templates
+
+### Update Message Template
+
+```http
+PUT /admin/templates/{template_id}
+Content-Type: application/json
+
+{
+  "message_template": ":warning: *{project_name}* budget alert: {budget_percent}%",
+  "is_active": true
+}
+```
+
+**Template placeholders:**
+- `{project_name}` - Project name
+- `{budget_percent}` - Budget percentage consumed
+- `{budget_consumed}` - Consumed budget amount
+- `{budget_total}` - Total budget
+- `{days_overdue}` - Days past end date
+- `{end_date}` - Project end date
+- `{remaining_issues}` - Remaining backlog items
+- `{weeks_remaining}` - Weeks until end date
+- `{velocity}` - Issues per week velocity
+- `{vuln_package}` - Vulnerable package name
+- `{vuln_severity}` - Vulnerability severity
+- `{vuln_cve}` - CVE identifier
+- `{vuln_count}` - Total open vulnerabilities
+- `{vuln_age_days}` - Days since first detected
+
+---
+
+## Alert Silences
+
+### List Active Silences
+
+```http
+GET /silences?project_id=uuid&include_expired=false
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "project_id": "uuid",
+    "project_name": "Project Alpha",
+    "alert_definition_id": 1,
+    "alert_name": "budget_exceeded",
+    "silenced_until": "2024-02-01T00:00:00Z",
+    "reason": "Expected budget overrun approved",
+    "created_by": "user@example.com",
+    "created_at": "2024-01-15T10:00:00Z"
+  }
+]
+```
+
+### Create Silence
+
+```http
+POST /silences
+Content-Type: application/json
+
+{
+  "project_id": "uuid",
+  "alert_definition_id": 1,
+  "silenced_until": "2024-02-01T00:00:00Z",
+  "reason": "Expected budget overrun approved"
+}
+```
+
+**Note:** `alert_definition_id` is optional. If null, silences all alerts for the project.
+
+### Delete Silence
+
+```http
+DELETE /silences/{silence_id}
+```
+
+---
+
+## Notification Log
+
+### List Notifications
+
+```http
+GET /notifications?project_id=uuid&alert_definition_id=1&status=sent&limit=50&offset=0
+```
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "project_id": "uuid",
+      "project_name": "Project Alpha",
+      "alert_definition_id": 1,
+      "alert_name": "budget_exceeded",
+      "channel_id": "C1234567890",
+      "message": ":warning: *Project Alpha* has exceeded budget (105%)",
+      "status": "sent",
+      "error_message": null,
+      "metadata_json": {"budget_percent": 105.3},
+      "sent_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### Get Notification Statistics
+
+```http
+GET /notifications/stats
+```
+
+**Response:**
+```json
+{
+  "total_sent": 150,
+  "total_failed": 5,
+  "by_alert_type": {
+    "budget_exceeded": 45,
+    "timeline_at_risk": 30,
+    "dependabot_high_critical": 75
+  },
+  "by_status": {
+    "sent": 145,
+    "failed": 5
+  },
+  "last_24_hours": 12,
+  "last_7_days": 45,
+  "avg_vulnerability_resolution_days": 5.2
+}
+```
+
+---
+
+## Scheduled Jobs
+
+### List Scheduled Jobs
+
+```http
+GET /scheduled-jobs/
+```
+
+**Response:**
+```json
+[
+  {
+    "name": "check_dependabot_alerts",
+    "description": "Check all projects for new Dependabot vulnerabilities",
+    "schedule": "Daily at 08:00 UTC",
+    "last_run": {
+      "started_at": "2024-01-15T08:00:00Z",
+      "completed_at": "2024-01-15T08:02:30Z",
+      "status": "completed",
+      "projects_checked": 15,
+      "alerts_sent": 3,
+      "error_message": null
+    }
+  },
+  {
+    "name": "check_business_alerts",
+    "description": "Check all projects for budget/timeline/overdue issues",
+    "schedule": "Daily at 09:00 UTC",
+    "last_run": {
+      "started_at": "2024-01-15T09:00:00Z",
+      "completed_at": "2024-01-15T09:01:15Z",
+      "status": "completed",
+      "projects_checked": 15,
+      "alerts_sent": 1,
+      "error_message": null
+    }
+  }
+]
+```
+
+### Trigger Scheduled Job
+
+```http
+POST /scheduled-jobs/{job_name}/trigger
+```
+
+**Response:** `202 Accepted`
+```json
+{
+  "message": "Job triggered",
+  "job_name": "check_dependabot_alerts"
+}
+```
+
+---
+
 ## Rate Limiting
 
 Rate limiting is active on all endpoints using slowapi:
