@@ -71,6 +71,48 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   }
 }
 
+# Enforce HTTPS-only access for logs bucket
+resource "aws_s3_bucket_policy" "logs_https_only" {
+  bucket = aws_s3_bucket.logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnforceHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.logs.arn,
+          "${aws_s3_bucket.logs.arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      },
+      {
+        Sid       = "AllowS3LogDelivery"
+        Effect    = "Allow"
+        Principal = {
+          Service = "logging.s3.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.logs.arn}/*"
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = aws_s3_bucket.state.arn
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.logs]
+}
+
 # S3 bucket for state storage
 resource "aws_s3_bucket" "state" {
   bucket = var.state_bucket_name

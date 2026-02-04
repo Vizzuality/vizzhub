@@ -231,6 +231,36 @@ docker compose -f /opt/hub/docker-compose.prod.yml logs frontend
 - IMDSv2 required (no IMDSv1)
 - Root volume encrypted
 
+### SonarQube-Compliant Security
+
+The infrastructure implements security best practices verified by SonarQube:
+
+**S3 Buckets:**
+- HTTPS-only access enforced via bucket policy (`aws:SecureTransport` condition)
+- Access logging enabled on state bucket
+- Server-side encryption with AES256
+- Public access blocked
+
+**SNS Topics:**
+- KMS encryption enabled (`alias/aws/sns`)
+
+**EC2 Instance:**
+- `associate_public_ip_address = false` (explicit, uses EIP)
+- Non-root user in containers
+- Read-only file permissions (`chmod 444/555`)
+
+**Docker Images:**
+- Multi-stage builds
+- Non-root user (`appuser`)
+- Secure COPY permissions (`--chmod=555`)
+- `.dockerignore` excludes sensitive files (`.env`, `.git`, tests)
+
+**GitHub Actions:**
+- Job-level permissions (not workflow-level)
+- SHA-pinned action versions (not tags)
+- OIDC authentication (no long-lived credentials)
+- Explicit secrets passing (not `secrets: inherit`)
+
 ## Costs
 
 | Resource | Monthly Cost |
