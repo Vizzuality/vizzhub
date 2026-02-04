@@ -250,12 +250,20 @@ async def _notify_new_alert(
             "{package_name} ({severity}) - {cve_id}"
         )
 
+    severity = alert_info["severity"] or "Unknown"
+    package_name = alert_info["package_name"] or "Unknown package"
+    cve_id = alert_info["cve_id"] or "No CVE"
+
     context = {
         "project_name": project.name,
-        "package_name": alert_info["package_name"] or "Unknown package",
-        "severity": alert_info["severity"] or "Unknown",
-        "cve_id": alert_info["cve_id"] or "No CVE",
+        "package_name": package_name,
+        "severity": severity,
+        "cve_id": cve_id,
         "github_alert_id": alert_info["github_alert_id"],
+        # Aliases for template compatibility
+        "vuln_severity": severity,
+        "vuln_package": package_name,
+        "vuln_cve": cve_id,
     }
 
     message = AlertService.render_template(template, context)
