@@ -670,7 +670,7 @@ class TestNotificationStats:
         response = await client.get("/api/notifications/stats")
         assert response.status_code == 200
         data = response.json()
-        assert data["avg_vulnerability_resolution_days"] == 15.0
+        assert data["avg_vulnerability_resolution_days"] == pytest.approx(15.0)
 
     @pytest.mark.asyncio
     async def test_stats_avg_vulnerability_resolution_no_resolved(

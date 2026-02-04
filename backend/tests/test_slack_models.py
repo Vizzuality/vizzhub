@@ -334,7 +334,7 @@ class TestAlertNotificationModel:
         assert notification.channel_id == "C123456789"
         assert "Budget variance alert" in notification.message
         assert notification.status == "sent"
-        assert notification.metadata_json["variance"] == 15.5
+        assert notification.metadata_json["variance"] == pytest.approx(15.5)
         assert notification.sent_at is not None
 
     @pytest.mark.asyncio

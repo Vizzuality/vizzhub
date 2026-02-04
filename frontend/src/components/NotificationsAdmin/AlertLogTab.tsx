@@ -93,7 +93,7 @@ export default function AlertLogTab(): JSX.Element {
             <Select
               value={filters.alert_definition_id?.toString() ?? 'all'}
               onValueChange={(value) =>
-                handleFilterChange('alert_definition_id', value === 'all' ? undefined : parseInt(value, 10))
+                handleFilterChange('alert_definition_id', value === 'all' ? undefined : Number.parseInt(value, 10))
               }
             >
               <SelectTrigger id="alert-type-filter">

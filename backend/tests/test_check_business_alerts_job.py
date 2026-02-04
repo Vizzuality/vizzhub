@@ -548,7 +548,7 @@ class TestCheckBusinessAlertsJob:
 
         call_count = 0
 
-        async def mock_send_with_error(*args, **kwargs):
+        def mock_send_with_error(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:

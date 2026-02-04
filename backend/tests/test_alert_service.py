@@ -646,4 +646,4 @@ class TestLogNotification:
         )
 
         assert notification.metadata_json == metadata
-        assert notification.metadata_json["budget_percent"] == 105.3
+        assert notification.metadata_json["budget_percent"] == pytest.approx(105.3)
