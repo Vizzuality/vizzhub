@@ -83,6 +83,7 @@ class TestTokenCreation:
 
         with patch("app.core.auth.settings") as mock_settings:
             mock_settings.jwt_secret_key = ""
+            mock_settings.jwt_expire_hours = 24
 
             with pytest.raises(ValueError) as exc_info:
                 create_access_token({"sub": "user-123"})
