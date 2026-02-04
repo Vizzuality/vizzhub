@@ -5,6 +5,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.config import ConfigParameter, ConfigParameterUpdate
 
 
+def _format_weight_error(category: str, total: Decimal) -> str:
+    """Format a weight validation error message."""
+    diff = total - Decimal("1.0")
+    direction = "over" if diff > 0 else "under"
+    action = "decrease" if diff > 0 else "increase"
+    abs_diff = abs(diff)
+    return (
+        f"{category}: Sum is {float(total):.4f}, which is {float(abs_diff):.4f} {direction} 1.0. "
+        f"Please {action} weights by {float(abs_diff):.4f} total."
+    )
+
+
 class ConfigService:
     """Business logic for configuration management."""
 
@@ -54,37 +66,25 @@ class ConfigService:
     @staticmethod
     async def validate_weight_groups(db: AsyncSession) -> list[str]:
         """Validate that all weight groups sum to 1.0."""
-        errors = []
-
-        # Get all weight categories
         result = await db.execute(
             select(ConfigParameter).where(ConfigParameter.category.like("%Weights"))
         )
         parameters = result.scalars().all()
 
         # Group by category and sum
-        grouped = {}
+        grouped: dict[str, Decimal] = {}
         for param in parameters:
             if param.category not in grouped:
                 grouped[param.category] = Decimal("0")
             grouped[param.category] += param.value
 
-        # Check each group sums to 1.0
-        for category, total in grouped.items():
-            if abs(total - Decimal("1.0")) > Decimal("0.001"):
-                diff = total - Decimal("1.0")
-                if diff > 0:
-                    errors.append(
-                        f"{category}: Sum is {float(total):.4f}, which is {float(diff):.4f} over 1.0. "
-                        f"Please decrease weights by {float(diff):.4f} total."
-                    )
-                else:
-                    errors.append(
-                        f"{category}: Sum is {float(total):.4f}, which is {float(abs(diff)):.4f} under 1.0. "
-                        f"Please increase weights by {float(abs(diff)):.4f} total."
-                    )
-
-        return errors
+        # Check each group and collect errors
+        tolerance = Decimal("0.001")
+        return [
+            _format_weight_error(category, total)
+            for category, total in grouped.items()
+            if abs(total - Decimal("1.0")) > tolerance
+        ]
 
     @staticmethod
     async def update_parameters(
