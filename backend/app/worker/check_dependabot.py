@@ -5,7 +5,7 @@ alerts and sends Slack notifications for high/critical severity vulnerabilities.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -26,6 +26,12 @@ from app.services.slack_service import SlackService
 logger = logging.getLogger(__name__)
 
 ALERT_NAME = "dependabot_high_critical"
+
+# Reminder intervals by severity
+REMINDER_DAYS = {
+    "critical": 2,
+    "high": 7,
+}
 
 
 async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
@@ -203,6 +209,11 @@ async def _process_project(
             if sent:
                 alerts_sent += 1
 
+    # Send reminders for unresolved alerts that need them
+    alerts_sent += await _send_reminders(
+        db, project, alert_definition, bot_token, tracked_alerts, current_alerts
+    )
+
     resolved_ids = tracked_alert_ids - current_alert_ids
     if resolved_ids:
         await _mark_alerts_resolved(db, project.id, resolved_ids)
@@ -308,6 +319,104 @@ async def _notify_new_alert(
         return True
 
     return False
+
+
+async def _send_reminders(
+    db: AsyncSession,
+    project: ProjectDB,
+    alert_definition: AlertDefinitionDB,
+    bot_token: str,
+    tracked_alerts: list[DependabotAlertTrackedDB],
+    current_alerts: list[dict],
+) -> int:
+    """Send reminders for unresolved alerts based on severity.
+
+    Critical: reminder every 2 days
+    High: reminder every 7 days
+
+    Args:
+        db: Database session
+        project: Project to check
+        alert_definition: Alert definition for templates
+        bot_token: Slack bot token
+        tracked_alerts: List of tracked alerts from DB
+        current_alerts: Current alerts from GitHub
+
+    Returns:
+        Number of reminders sent
+    """
+    now = datetime.now(timezone.utc)
+    reminders_sent = 0
+
+    # Build map of current alerts by ID for quick lookup
+    current_alerts_map = {alert["number"]: alert for alert in current_alerts}
+
+    template = await AlertService.get_template(db, alert_definition.id, "reminder")
+    if not template:
+        template = (
+            ":alarm_clock: Reminder: *{project_name}* has unresolved {severity} vulnerability\n"
+            "Package: {package_name} (open for {days_open} days)\n"
+            "<{alert_url}|View in GitHub>"
+        )
+
+    for tracked in tracked_alerts:
+        # Skip resolved alerts
+        if tracked.resolved_at:
+            continue
+
+        # Skip if not in current alerts (will be marked resolved)
+        if tracked.github_alert_id not in current_alerts_map:
+            continue
+
+        severity = (tracked.severity or "").lower()
+        reminder_days = REMINDER_DAYS.get(severity)
+
+        # Skip if severity doesn't have reminders configured
+        if not reminder_days:
+            continue
+
+        # Check if reminder is due
+        if tracked.last_notified_at:
+            next_reminder = tracked.last_notified_at + timedelta(days=reminder_days)
+            if now < next_reminder:
+                continue
+
+        # Calculate days open
+        days_open = (now - tracked.first_seen_at).days if tracked.first_seen_at else 0
+
+        alert_url = f"https://github.com/{project.github_repo}/security/dependabot/{tracked.github_alert_id}"
+
+        context = {
+            "project_name": project.name,
+            "package_name": tracked.package_name or "Unknown",
+            "severity": tracked.severity or "Unknown",
+            "cve_id": tracked.cve_id or "No CVE",
+            "days_open": days_open,
+            "alert_url": alert_url,
+            # Aliases
+            "vuln_severity": tracked.severity or "Unknown",
+            "vuln_package": tracked.package_name or "Unknown",
+            "vuln_cve": tracked.cve_id or "No CVE",
+            "vuln_url": alert_url,
+            "vuln_age_days": days_open,
+        }
+
+        message = AlertService.render_template(template, context)
+
+        response = await SlackService.send_message(
+            bot_token, project.slack_channel_id, message
+        )
+
+        if response.get("ok"):
+            tracked.last_notified_at = now
+            await db.commit()
+            reminders_sent += 1
+            logger.info(
+                f"Sent reminder for {severity} alert #{tracked.github_alert_id} "
+                f"in {project.name} (open {days_open} days)"
+            )
+
+    return reminders_sent
 
 
 async def _mark_alerts_resolved(
