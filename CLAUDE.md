@@ -400,33 +400,59 @@ This ensures:
 
 ### Authentication & Security
 
-**Status**: Full security implementation with JWT authentication + OAuth 2.0 for Jira.
+**Status**: Google SSO implemented with domain restriction + JWT authentication.
 
-#### Development Mode (Current)
-- `DEBUG=true` in `.env` → Authentication bypassed for development
-- Backend accepts requests without JWT tokens
-- Frontend `BYPASS_AUTH=true` → No login required
-- Security warnings logged for every bypass
+#### Google SSO (Implemented)
 
-#### Production Mode (Future)
-- Google OAuth (Google Sign-In) for company domain users only
-- JWT tokens required for all API endpoints (except `/health` and OAuth callbacks)
-- Rate limiting active on all endpoints
-- Full security headers (HSTS, CSP, X-Frame-Options, etc.)
+Users authenticate via Google Sign-In, restricted to `@vizzuality.com` domain.
 
-**See**:
-- `docs/SECURITY_QUICK_START.md` - 5-minute security guide
-- `docs/DEVELOPMENT_AUTH.md` - Development authentication details
-- `audits/security.md` - Complete security audit report
+**Configuration (`.env`):**
+```
+# Backend
+GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=xxx
+ALLOWED_GOOGLE_DOMAIN=vizzuality.com
+INITIAL_ADMIN_EMAIL=miguel.mendoza@vizzuality.com
+
+# Frontend
+VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+VITE_BYPASS_AUTH=false
+```
+
+**User roles:**
+- `user` - Default role for all new users
+- `admin` - Can manage users via Admin > Users tab
+
+**Flow:**
+1. User clicks "Sign in with Google"
+2. Google returns ID token to frontend
+3. Frontend sends token to `POST /api/auth/google`
+4. Backend validates token, checks domain, creates/gets user
+5. Backend returns JWT (24h expiry)
+6. Frontend stores JWT, includes in all requests
+
+**Key endpoints:**
+- `POST /api/auth/google` - Exchange Google token for JWT
+- `GET /api/auth/me` - Get current user info
+- `GET /api/admin/users` - List users (admin only)
+- `PATCH /api/admin/users/{id}` - Update user role (admin only)
+- `DELETE /api/admin/users/{id}` - Delete user (admin only)
+
+#### Development Mode
+- Backend: `DEBUG=true` → CORS allows localhost (required for local dev)
+- Frontend: `VITE_BYPASS_AUTH=true` → Skip authentication entirely
+- These are independent: use `DEBUG=true` + `VITE_BYPASS_AUTH=false` to test OAuth locally
 
 #### Security Features Implemented
-- ✅ JWT authentication system
+- ✅ Google SSO with domain restriction
+- ✅ JWT authentication (24h expiry)
+- ✅ Role-based access control (user/admin)
+- ✅ User management UI in Admin panel
 - ✅ OAuth CSRF protection (state parameter validation)
 - ✅ Rate limiting (slowapi)
 - ✅ Security headers middleware
 - ✅ Input validation (JQL injection prevention, UUID validation)
 - ✅ Security logging (structured JSON)
-- ✅ Error message sanitization
 
 ### OAuth 2.0 (Jira)
 
@@ -459,21 +485,22 @@ python test_jira_basic.py FIP               # Explore project data
 ```
 app/
 ├── api/              # API endpoints
+│   ├── auth.py       # Google SSO authentication
+│   ├── admin_users.py # User management (admin only)
 │   ├── projects.py   # Project CRUD
 │   ├── metrics.py    # Metrics CRUD
 │   ├── scores.py     # Score calculations
 │   ├── collectors.py # Jira/GitHub collection triggers
 │   ├── config.py     # Scoring configuration
 │   ├── jobs.py       # Background jobs
-│   ├── slack_admin.py # Slack config, alerts, templates, silences, notifications
-│   └── schemas/      # Pydantic schemas
-│       └── slack.py  # Slack-related schemas
+│   └── slack_admin.py # Slack config, alerts, templates
 ├── core/             # Core security modules (auth, oauth_state, security_logger, middleware)
 ├── models/           # SQLAlchemy models
+│   ├── user.py       # User model (Google SSO, roles)
 │   ├── project.py    # Project model (includes slack_channel_id)
 │   ├── metrics.py    # Metrics model
 │   ├── job.py        # Background job model
-│   ├── slack.py      # Slack models (config, alerts, silences, notifications, etc.)
+│   ├── slack.py      # Slack models (config, alerts, silences, notifications)
 │   └── ...
 ├── services/
 │   ├── calculators/  # Score calculators for 8 dimensions
@@ -571,7 +598,7 @@ The Admin page (`/admin`) consolidates all administrative functions:
 - `react-router-dom` - Routing
 - `@tanstack/react-query` - Data fetching
 - `tailwindcss` - Styling
-- Future: `@react-oauth/google` - Google Sign-In (when implemented)
+- `@react-oauth/google` - Google Sign-In
 
 ## Coding Standards
 
