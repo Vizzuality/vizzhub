@@ -38,6 +38,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from app.services.collectors.jira.utils import (
+    build_jql_date_filter,
     business_time_diff,
     parse_jira_datetime,
 )
@@ -64,12 +65,7 @@ async def collect_mttr(
     Returns:
         dict with incidents_count and mttr_hours
     """
-    date_filter = ""
-    if period_start:
-        date_filter += f' AND resolutiondate >= "{period_start.isoformat()}"'
-    if period_end:
-        date_filter += f' AND resolutiondate <= "{period_end.isoformat()}"'
-
+    date_filter = build_jql_date_filter(period_start, period_end)
     jql = (
         f"statusCategory = Done{date_filter} AND "
         "(type = Incident OR (type = Bug AND priority IN ('Highest', 'High', 'Fix now')))"

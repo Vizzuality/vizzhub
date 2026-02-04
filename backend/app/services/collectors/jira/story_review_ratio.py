@@ -35,6 +35,8 @@ Edge Cases:
 from datetime import date
 from typing import TYPE_CHECKING
 
+from app.services.collectors.jira.utils import build_jql_date_filter
+
 if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
@@ -57,18 +59,10 @@ async def collect_story_review_ratio(
     Returns:
         dict with total_stories and stories_with_reviewer counts
     """
-    total_filter = "type = Story AND status = Done"
-    reviewer_filter = "type = Story AND status = Done AND reviewers IS NOT EMPTY"
+    date_filter = build_jql_date_filter(period_start, period_end)
 
-    if period_start:
-        start_str = period_start.isoformat()
-        total_filter += f' AND resolutiondate >= "{start_str}"'
-        reviewer_filter += f' AND resolutiondate >= "{start_str}"'
-
-    if period_end:
-        date_str = period_end.isoformat()
-        total_filter += f' AND resolutiondate <= "{date_str}"'
-        reviewer_filter += f' AND resolutiondate <= "{date_str}"'
+    total_filter = f"type = Story AND status = Done{date_filter}"
+    reviewer_filter = f"type = Story AND status = Done AND reviewers IS NOT EMPTY{date_filter}"
 
     total_stories = await client.count_issues(
         project_key,

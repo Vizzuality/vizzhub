@@ -5,12 +5,37 @@ This module contains common functions used across multiple
 Jira collector modules to avoid duplication.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from app.services.collectors.utils import parse_iso_datetime
 
 # Re-export for backwards compatibility
 parse_jira_datetime = parse_iso_datetime
+
+
+def build_jql_date_filter(
+    period_start: date | None,
+    period_end: date | None,
+    date_field: str = "resolutiondate",
+) -> str:
+    """
+    Build a JQL date filter clause for the given period and date field.
+
+    Args:
+        period_start: Optional start date (inclusive)
+        period_end: Optional end date (inclusive)
+        date_field: JQL date field to filter on (e.g., "resolutiondate", "created")
+
+    Returns:
+        JQL clause string (e.g., ' AND resolutiondate >= "2024-01-01" AND resolutiondate <= "2024-01-31"')
+        or empty string if no period specified
+    """
+    parts = []
+    if period_start:
+        parts.append(f'{date_field} >= "{period_start.isoformat()}"')
+    if period_end:
+        parts.append(f'{date_field} <= "{period_end.isoformat()}"')
+    return " AND " + " AND ".join(parts) if parts else ""
 
 
 def business_time_diff(

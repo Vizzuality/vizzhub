@@ -35,6 +35,8 @@ Edge Cases:
 from datetime import date
 from typing import TYPE_CHECKING
 
+from app.services.collectors.jira.utils import build_jql_date_filter
+
 if TYPE_CHECKING:
     from app.services.collectors.jira.client import JiraClient
 
@@ -57,18 +59,11 @@ async def collect_escaped_rate(
     Returns:
         dict with escaped_defects and tasks_resolved counts
     """
-    escaped_filter = "type = Bug AND 'Environment' IN ('Staging', 'Production')"
-    tasks_filter = "type in (Story, Task, Bug) AND statusCategory = Done"
+    escaped_date_filter = build_jql_date_filter(period_start, period_end, "created")
+    tasks_date_filter = build_jql_date_filter(period_start, period_end, "resolutiondate")
 
-    if period_start:
-        start_str = period_start.isoformat()
-        escaped_filter += f' AND created >= "{start_str}"'
-        tasks_filter += f' AND resolutiondate >= "{start_str}"'
-
-    if period_end:
-        date_str = period_end.isoformat()
-        escaped_filter += f' AND created <= "{date_str}"'
-        tasks_filter += f' AND resolutiondate <= "{date_str}"'
+    escaped_filter = f"type = Bug AND 'Environment' IN ('Staging', 'Production'){escaped_date_filter}"
+    tasks_filter = f"type in (Story, Task, Bug) AND statusCategory = Done{tasks_date_filter}"
 
     escaped_defects = await client.count_issues(
         project_key,
