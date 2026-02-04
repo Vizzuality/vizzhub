@@ -116,8 +116,8 @@ async def google_auth(
             user=UserPublic.model_validate(user),
         )
 
-    except ValueError as e:
-        logger.error(f"Invalid Google token: {e}")
+    except ValueError:
+        logger.warning("Google token validation failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Google token",
