@@ -28,10 +28,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --shell /bin/bash appuser
 
 # Copy Python packages from builder
-COPY --from=builder /root/.local /home/appuser/.local
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser . .
+
+# Set secure permissions: dirs=755 (rx), files=644 (r), bins=755 (rx)
+RUN find /app -type d -exec chmod 755 {} \; && \
+    find /app -type f -exec chmod 644 {} \; && \
+    find /home/appuser/.local/bin -type f -exec chmod 755 {} \;
 
 # Set environment
 ENV PATH=/home/appuser/.local/bin:$PATH
