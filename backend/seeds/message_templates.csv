@@ -3,4 +3,4 @@ budget_exceeded,initial,":warning: *{project_name}* has exceeded budget ({budget
 timeline_at_risk,initial,":warning: *{project_name}* timeline at risk\n{remaining_issues} issues remaining | {weeks_remaining} weeks left | Velocity: {velocity}/week",true
 project_overdue,initial,":rotating_light: *{project_name}* is {days_overdue} days past planned end date\nPlanned end: {end_date}",true
 dependabot_high_critical,initial,":red_circle: New {vuln_severity} vulnerability in *{project_name}*\nPackage: {vuln_package}\nCVE: {vuln_cve}\n<{vuln_url}|View in GitHub>",true
-dependabot_high_critical,reminder,":alarm_clock: *{project_name}* has {vuln_count} open high/critical vulnerabilities\nOldest unresolved: {vuln_age_days} days",true
+dependabot_high_critical,reminder,":alarm_clock: Reminder: *{project_name}* has unresolved {vuln_severity} vulnerability\nPackage: {vuln_package} (open for {vuln_age_days} days)\n<{vuln_url}|View in GitHub>",true
