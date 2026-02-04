@@ -10,8 +10,6 @@ OpenTofu/Terraform configuration for deploying Hub (Project Scorecard) to AWS.
 - **Secrets Manager**: Secure storage for credentials
 - **SSM Session Manager**: Secure shell access (no SSH)
 
-Estimated monthly cost: ~$58 (on-demand) / ~$39 (reserved instances)
-
 ## Prerequisites
 
 - [OpenTofu](https://opentofu.org/) or Terraform >= 1.0
@@ -56,6 +54,7 @@ cp environments/prod.tfvars.example environments/prod.tfvars
 ```
 
 Required variables:
+
 - `github_org`: Your GitHub organization name
 - `github_repo`: Your GitHub repository name
 - `admin_email`: Email for Let's Encrypt certificates
@@ -82,14 +81,15 @@ hub.vizzuality.com → [elastic_ip_from_output]
 
 In AWS Console → Secrets Manager, fill these secrets:
 
-| Secret | Required Fields |
-|--------|-----------------|
+| Secret                   | Required Fields              |
+| ------------------------ | ---------------------------- |
 | `/hub/prod/google-oauth` | `client_id`, `client_secret` |
-| `/hub/prod/jira-oauth` | `client_id`, `client_secret` |
-| `/hub/prod/github` | `token`, `org` |
-| `/hub/prod/slack` | `bot_token` (optional) |
+| `/hub/prod/jira-oauth`   | `client_id`, `client_secret` |
+| `/hub/prod/github`       | `token`, `org`               |
+| `/hub/prod/slack`        | `bot_token` (optional)       |
 
 Auto-generated secrets (DO NOT EDIT):
+
 - `/hub/prod/db-password`
 - `/hub/prod/jwt-secrets`
 
@@ -97,11 +97,11 @@ Auto-generated secrets (DO NOT EDIT):
 
 In GitHub → Settings → Secrets and variables → Actions → Variables:
 
-| Variable | Value |
-|----------|-------|
-| `AWS_ACCOUNT_ID` | Your AWS account ID |
-| `AWS_REGION` | `eu-west-1` |
-| `EC2_INSTANCE_ID` | From tofu output |
+| Variable          | Value               |
+| ----------------- | ------------------- |
+| `AWS_ACCOUNT_ID`  | Your AWS account ID |
+| `AWS_REGION`      | `eu-west-1`         |
+| `EC2_INSTANCE_ID` | From tofu output    |
 
 No secrets needed - authentication uses OIDC.
 
@@ -236,26 +236,31 @@ docker compose -f /opt/hub/docker-compose.prod.yml logs frontend
 The infrastructure implements security best practices verified by SonarQube:
 
 **S3 Buckets:**
+
 - HTTPS-only access enforced via bucket policy (`aws:SecureTransport` condition)
 - Access logging enabled on state bucket
 - Server-side encryption with AES256
 - Public access blocked
 
 **SNS Topics:**
+
 - KMS encryption enabled (`alias/aws/sns`)
 
 **EC2 Instance:**
+
 - `associate_public_ip_address = false` (explicit, uses EIP)
 - Non-root user in containers
 - Read-only file permissions (`chmod 444/555`)
 
 **Docker Images:**
+
 - Multi-stage builds
 - Non-root user (`appuser`)
 - Secure COPY permissions (`--chmod=555`)
 - `.dockerignore` excludes sensitive files (`.env`, `.git`, tests)
 
 **GitHub Actions:**
+
 - Job-level permissions (not workflow-level)
 - SHA-pinned action versions (not tags)
 - OIDC authentication (no long-lived credentials)
@@ -263,13 +268,13 @@ The infrastructure implements security best practices verified by SonarQube:
 
 ## Costs
 
-| Resource | Monthly Cost |
-|----------|-------------|
-| EC2 t3.medium | ~$30 |
-| RDS db.t4g.small | ~$23 |
-| RDS Storage 20GB | ~$2.30 |
-| Secrets Manager | ~$2 |
-| Elastic IP | $0 (when attached) |
-| **Total** | **~$58** |
+| Resource         | Monthly Cost       |
+| ---------------- | ------------------ |
+| EC2 t3.medium    | ~$30               |
+| RDS db.t4g.small | ~$23               |
+| RDS Storage 20GB | ~$2.30             |
+| Secrets Manager  | ~$2                |
+| Elastic IP       | $0 (when attached) |
+| **Total**        | **~$58**           |
 
 With 1-year Reserved Instances: ~$39/month
