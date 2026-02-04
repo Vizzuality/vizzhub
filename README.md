@@ -335,10 +335,37 @@ npm test -- -t "ScoreCard"               # Tests with "ScoreCard" in name
 5. **Weights must sum to 1** within each group
 6. **Inverted normalization** for "lower is better" metrics
 
+## Features
+
+### Slack Notifications
+
+Automated alerts to Slack channels for proactive project management:
+
+- **Business Alerts** (to leadership channel):
+  - Budget exceeded (100%+ consumed)
+  - Timeline at risk (velocity insufficient)
+  - Project overdue (30+ days past end date)
+
+- **Security Alerts** (to project channels):
+  - High/critical Dependabot vulnerabilities
+
+**Setup:**
+1. Create a Slack app with Bot Token Scopes: `chat:write`, `channels:read`, `groups:read`
+2. Go to Admin → Slack tab
+3. Paste Bot User OAuth Token
+4. Select leadership channel
+5. Add bot to project channels and configure per-project
+
+### Global Dashboard
+
+Cross-project analytics at `/global`:
+- Portfolio health overview
+- Dimension comparisons across projects
+- Trend analysis
+
 ## Roadmap
 
 See [docs/TODO.md](docs/TODO.md) for planned features including:
-- Alerts system (early warning, threshold alerts, trend detection)
 - Predictions and forecasting (score trends, budget forecast, velocity estimates)
 - Visualization enhancements (trend charts, comparative views)
 - Google OAuth authentication
@@ -366,6 +393,10 @@ git push -u origin feature/my-feature
 ```
 
 ## Documentation
+
+### Slack Notifications
+- [Slack Notifications Design](docs/plans/2026-02-03-slack-notifications-design.md) - Architecture and design
+- [Slack Notifications Implementation](docs/plans/2026-02-03-slack-notifications-implementation.md) - Detailed implementation plan
 
 ### Testing
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
