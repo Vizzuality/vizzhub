@@ -131,6 +131,10 @@ resource "aws_instance" "main" {
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
+  # Public IP via Elastic IP (not instance IP) - EIP attached below
+  # Security: SG only allows 443/80 inbound, no SSH (port 22)
+  associate_public_ip_address = false
+
   # No SSH key - admin via SSM only
   key_name = null
 
