@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import type { JobStatus as JobStatusType, ScheduledJobInfo } from '../../types';
 
@@ -279,10 +280,20 @@ function ScheduledJobsSection(): JSX.Element {
   const { data: scheduledJobs, isLoading: jobsLoading } = useScheduledJobs();
   const triggerJob = useTriggerScheduledJob();
   const [triggerError, setTriggerError] = useState<string | null>(null);
+  const [triggerSuccess, setTriggerSuccess] = useState<string | null>(null);
 
   const handleTriggerJob = (jobName: string): void => {
     setTriggerError(null);
+    setTriggerSuccess(null);
     triggerJob.mutate(jobName, {
+      onSuccess: (response) => {
+        if (response.success) {
+          setTriggerSuccess(`${jobName} has been queued and will run shortly`);
+          setTimeout(() => setTriggerSuccess(null), 5000);
+        } else {
+          setTriggerError(response.message ?? 'Job could not be enqueued');
+        }
+      },
       onError: (error) => {
         const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
         setTriggerError(`Failed to trigger ${jobName}: ${message}`);
@@ -303,6 +314,14 @@ function ScheduledJobsSection(): JSX.Element {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {triggerSuccess && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <p className="text-sm text-green-700">{triggerSuccess}</p>
+            </div>
+          </div>
+        )}
         {triggerError && (
           <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
             <div className="flex items-center gap-2">
