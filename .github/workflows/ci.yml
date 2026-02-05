@@ -6,10 +6,11 @@ on:
   pull_request:
     branches: [main, dev]
   workflow_call:
-    secrets:
-      DB_PASSWORD_CI:
-        required: true
-        description: "Database password for CI tests"
+
+env:
+  DB_USER: scorecard
+  DB_PASSWORD: scorecard-ci
+  DB_NAME: scorecard
 
 jobs:
   backend:
@@ -22,9 +23,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: ${{ vars.DB_USER || 'test' }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_CI }}
-          POSTGRES_DB: ${{ vars.DB_NAME || 'test' }}
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
         ports:
           - 5432:5432
         options: >-
@@ -53,7 +54,7 @@ jobs:
         id: coverage
         working-directory: backend
         env:
-          DATABASE_URL: postgresql+asyncpg://${{ vars.DB_USER || 'test' }}:${{ secrets.DB_PASSWORD_CI }}@localhost:5432/${{ vars.DB_NAME || 'test' }}
+          DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_PASSWORD }}@localhost:5432/${{ env.DB_NAME }}
           DEBUG: "true"
         run: |
           pytest --cov=app --cov-report=term-missing | tee coverage.txt
