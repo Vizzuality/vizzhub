@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
+from app.models.global_metrics import GlobalMetricsDB
 from app.models.metrics import MetricsDB
 from app.models.project import ProjectDB
 from app.services.export_service import ExportService
@@ -164,10 +165,56 @@ class TestExportServiceProjectDetail:
         assert "Metrics" in wb.sheetnames
 
 
+@pytest_asyncio.fixture
+async def global_metrics_3_months(db_session: AsyncSession) -> list[GlobalMetricsDB]:
+    """Create 3 months of pre-computed global metrics."""
+    records = []
+    for month in range(1, 4):
+        record = GlobalMetricsDB(
+            period_year=2025,
+            period_month=month,
+            project_count=3,
+            score=75.0 + month,
+            score_count=3,
+            p_time=80.0,
+            p_time_count=3,
+            p_cost=70.0,
+            p_cost_count=2,
+            p_quality=65.0 + month,
+            p_quality_count=3,
+            p_value=60.0,
+            p_value_count=1,
+            p_satisfaction=85.0,
+            p_satisfaction_count=3,
+            p_flow=72.0,
+            p_flow_count=3,
+            p_engineering=78.0,
+            p_engineering_count=3,
+            p_risk=90.0,
+            p_risk_count=3,
+            spi=0.95,
+            spi_count=3,
+            cpi=0.88,
+            cpi_count=2,
+            on_time_milestones=0.8,
+            on_time_milestones_count=3,
+            defect_density=0.03,
+            defect_density_count=3,
+            pr_review_ratio=0.96,
+            pr_review_ratio_count=3,
+            governance_compliance=1.0,
+            governance_compliance_count=3,
+        )
+        db_session.add(record)
+        records.append(record)
+    await db_session.commit()
+    return records
+
+
 class TestExportServiceGlobalDashboard:
     @pytest.mark.asyncio
     async def test_generates_valid_xlsx(
-        self, db_session, scoring_config, project_with_3_months
+        self, db_session, scoring_config, global_metrics_3_months
     ):
         service = ExportService(scoring_config)
         output = await service.export_global_dashboard(
@@ -180,15 +227,14 @@ class TestExportServiceGlobalDashboard:
         )
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Overview" in wb.sheetnames
-        assert "Dimensions" in wb.sheetnames
+        assert "Summary" in wb.sheetnames
+        assert "Metrics" in wb.sheetnames
         assert "Methodology" in wb.sheetnames
 
     @pytest.mark.asyncio
-    async def test_overview_has_project_rows(
-        self, db_session, scoring_config, project_with_3_months
+    async def test_summary_has_scores_and_dimensions(
+        self, db_session, scoring_config, global_metrics_3_months
     ):
-        project = project_with_3_months
         service = ExportService(scoring_config)
         output = await service.export_global_dashboard(
             db=db_session,
@@ -199,11 +245,68 @@ class TestExportServiceGlobalDashboard:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Overview"]
-        assert ws.cell(row=2, column=1).value == "Export Test Project"
+        ws = wb["Summary"]
+        row_labels = [ws.cell(row=r, column=1).value for r in range(1, 15)]
+        assert "Projects" in row_labels
+        assert "Overall Score" in row_labels
 
     @pytest.mark.asyncio
-    async def test_empty_projects_returns_valid_xlsx(
+    async def test_summary_contains_project_count(
+        self, db_session, scoring_config, global_metrics_3_months
+    ):
+        service = ExportService(scoring_config)
+        output = await service.export_global_dashboard(
+            db=db_session,
+            start_year=2025,
+            start_month=1,
+            end_year=2025,
+            end_month=1,
+            snapshot_type="cumulative",
+        )
+        wb = load_workbook(output)
+        ws = wb["Summary"]
+        # Row 4 = Projects, Col 2 = first month value
+        assert ws.cell(row=4, column=2).value == 3
+
+    @pytest.mark.asyncio
+    async def test_metrics_sheet_has_hierarchical_rows(
+        self, db_session, scoring_config, global_metrics_3_months
+    ):
+        service = ExportService(scoring_config)
+        output = await service.export_global_dashboard(
+            db=db_session,
+            start_year=2025,
+            start_month=1,
+            end_year=2025,
+            end_month=3,
+            snapshot_type="cumulative",
+        )
+        wb = load_workbook(output)
+        ws = wb["Metrics"]
+        assert ws.cell(row=2, column=1).value == "FINAL SCORE"
+
+    @pytest.mark.asyncio
+    async def test_metrics_sheet_has_indicator_values(
+        self, db_session, scoring_config, global_metrics_3_months
+    ):
+        service = ExportService(scoring_config)
+        output = await service.export_global_dashboard(
+            db=db_session,
+            start_year=2025,
+            start_month=1,
+            end_year=2025,
+            end_month=1,
+            snapshot_type="cumulative",
+        )
+        wb = load_workbook(output)
+        ws = wb["Metrics"]
+        # Collect all values in column 5 (first month data column)
+        values = [ws.cell(row=r, column=5).value for r in range(2, ws.max_row + 1)]
+        non_none = [v for v in values if v is not None]
+        assert len(non_none) > 0
+
+    @pytest.mark.asyncio
+    async def test_no_data_returns_valid_xlsx(
         self, db_session, scoring_config
     ):
         service = ExportService(scoring_config)
@@ -217,7 +320,8 @@ class TestExportServiceGlobalDashboard:
         )
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Overview" in wb.sheetnames
+        assert "Summary" in wb.sheetnames
+        assert "Metrics" in wb.sheetnames
 
 
 class TestExportServiceHelpers:

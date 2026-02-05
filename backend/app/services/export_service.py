@@ -4,12 +4,12 @@ from io import BytesIO
 from uuid import UUID
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
+from app.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
 from app.models.metrics import MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
 from app.services.export_definitions import get_metric_rows
@@ -71,25 +71,17 @@ class ExportService:
         end_month: int,
         snapshot_type: str = "cumulative",
     ) -> BytesIO:
-        """Generate global dashboard XLSX with Overview, Dimensions, and Methodology sheets."""
-        projects = await self._get_all_projects(db)
-        periods = self._generate_periods(start_year, start_month, end_year, end_month)
+        """Generate global dashboard XLSX with Summary, Metrics, and Methodology sheets.
 
-        project_data: list[dict] = []
-        for project in projects:
-            metrics_by_period = await self._get_metrics_by_period(
-                db, str(project.id), periods, snapshot_type
-            )
-            scores_by_period = self._compute_scores(metrics_by_period)
-            project_data.append({
-                "project": project,
-                "scores": scores_by_period,
-            })
+        Uses pre-computed GlobalMetricsDB records (averaged across all projects).
+        """
+        periods = self._generate_periods(start_year, start_month, end_year, end_month)
+        global_by_period = await self._get_global_metrics_by_period(db, periods)
 
         wb = Workbook()
 
-        self._build_overview_sheet(wb, project_data, periods)
-        self._build_dimensions_sheet(wb, project_data, periods)
+        self._build_global_summary_sheet(wb, periods, global_by_period)
+        self._build_global_metrics_sheet(wb, periods, global_by_period)
         create_methodology_sheet(wb, self.config)
 
         if "Sheet" in wb.sheetnames:
@@ -106,11 +98,6 @@ class ExportService:
             select(ProjectDB).where(ProjectDB.id == project_uuid)
         )
         return result.scalar_one()
-
-    async def _get_all_projects(self, db: AsyncSession) -> list[ProjectDB]:
-        """Fetch all projects ordered by name."""
-        result = await db.execute(select(ProjectDB).order_by(ProjectDB.name))
-        return list(result.scalars().all())
 
     async def _get_metrics_by_period(
         self,
@@ -139,6 +126,33 @@ class ExportService:
             key = (row.period_year, row.period_month)
             if result[key] is None:
                 result[key] = row
+        return result
+
+    async def _get_global_metrics_by_period(
+        self,
+        db: AsyncSession,
+        periods: list[tuple[int, int]],
+    ) -> dict[tuple[int, int], GlobalMetricsRecord | None]:
+        """Fetch pre-computed global metrics for each period."""
+        result: dict[tuple[int, int], GlobalMetricsRecord | None] = {
+            p: None for p in periods
+        }
+        if not periods:
+            return result
+
+        query = (
+            select(GlobalMetricsDB)
+            .where(
+                tuple_(
+                    GlobalMetricsDB.period_year, GlobalMetricsDB.period_month
+                ).in_(periods)
+            )
+        )
+        res = await db.execute(query)
+        for row in res.scalars().all():
+            key = (row.period_year, row.period_month)
+            if key in result:
+                result[key] = GlobalMetricsRecord.from_db(row)
         return result
 
     # --- Score computation ---
@@ -255,51 +269,42 @@ class ExportService:
         set_column_widths(ws, widths)
         freeze_panes(ws, 2, 5)
 
-    def _build_overview_sheet(
+    def _build_global_summary_sheet(
         self,
         wb: Workbook,
-        project_data: list[dict],
         periods: list[tuple[int, int]],
+        global_by_period: dict[tuple[int, int], GlobalMetricsRecord | None],
     ) -> None:
-        """Build the Overview sheet with one row per project and final scores."""
+        """Build the Summary sheet with global info and averaged scores per period."""
         ws = wb.active
-        ws.title = "Overview"
+        ws.title = "Summary"
 
-        header = ["Project"] + [format_month_header(y, m) for y, m in periods]
+        ws.append(["Global Dashboard", "Averaged scores across all projects"])
+        ws.append([])
+
+        header = [""] + [format_month_header(y, m) for y, m in periods]
         ws.append(header)
-        apply_header_style(ws, 1)
+        apply_header_style(ws, ws.max_row)
 
-        for item in project_data:
-            project = item["project"]
-            scores = item["scores"]
-            row = [project.name]
-            for period in periods:
-                data = scores.get(period)
-                score = data["scores"].score if data else None
-                row.append(score)
-            ws.append(row)
+        # Project count row
+        counts = ["Projects"]
+        for period in periods:
+            record = global_by_period.get(period)
+            counts.append(record.project_count if record else None)
+        ws.append(counts)
 
-            current_row = ws.max_row
-            for col_idx in range(2, 2 + len(periods)):
-                cell = ws.cell(row=current_row, column=col_idx)
-                cell.border = THIN_BORDER
-                apply_traffic_light(cell, cell.value, 80)
+        # Overall score row
+        scores = ["Overall Score"]
+        for period in periods:
+            record = global_by_period.get(period)
+            scores.append(
+                round(record.scores.score.value, 1)
+                if record and record.scores.score.value is not None
+                else None
+            )
+        ws.append(scores)
 
-        widths = {"A": 30}
-        for i in range(len(periods)):
-            widths[get_column_letter(2 + i)] = 12
-        set_column_widths(ws, widths)
-        freeze_panes(ws, 2, 2)
-
-    def _build_dimensions_sheet(
-        self,
-        wb: Workbook,
-        project_data: list[dict],
-        periods: list[tuple[int, int]],
-    ) -> None:
-        """Build the Dimensions sheet with per-dimension tables for all projects."""
-        ws = wb.create_sheet("Dimensions")
-
+        # Dimension score rows
         dim_keys = [
             ("p_time", "P_time \u2014 Schedule"),
             ("p_cost", "P_cost \u2014 Budget"),
@@ -310,39 +315,76 @@ class ExportService:
             ("p_engineering", "P_engineering \u2014 Engineering"),
             ("p_risk", "P_risk \u2014 Risk"),
         ]
-
         for dim_key, dim_name in dim_keys:
-            ws.append([dim_name])
-            ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+            row = [dim_name]
+            for period in periods:
+                record = global_by_period.get(period)
+                value = None
+                if record:
+                    score_val = getattr(record.scores, dim_key, None)
+                    if score_val and score_val.value is not None:
+                        value = round(score_val.value, 1)
+                row.append(value)
+            ws.append(row)
 
-            header = ["Project"] + [format_month_header(y, m) for y, m in periods]
-            ws.append(header)
-            apply_header_style(ws, ws.max_row)
+            current_row = ws.max_row
+            for col_idx in range(2, 2 + len(periods)):
+                cell = ws.cell(row=current_row, column=col_idx)
+                cell.border = THIN_BORDER
+                apply_traffic_light(cell, cell.value, 80)
 
-            for item in project_data:
-                project = item["project"]
-                scores = item["scores"]
-                row = [project.name]
-                for period in periods:
-                    data = scores.get(period)
-                    value = None
-                    if data:
-                        value = getattr(data["scores"].dimensions, dim_key, None)
-                    row.append(value)
-                ws.append(row)
+        set_column_widths(ws, {"A": 35, "B": 30})
 
-                current_row = ws.max_row
-                for col_idx in range(2, 2 + len(periods)):
-                    cell = ws.cell(row=current_row, column=col_idx)
-                    cell.border = THIN_BORDER
-                    apply_traffic_light(cell, cell.value, 80)
+    def _build_global_metrics_sheet(
+        self,
+        wb: Workbook,
+        periods: list[tuple[int, int]],
+        global_by_period: dict[tuple[int, int], GlobalMetricsRecord | None],
+    ) -> None:
+        """Build the Metrics sheet with hierarchical rows using averaged global data."""
+        ws = wb.create_sheet("Metrics")
+        metric_rows = get_metric_rows()
 
-            ws.append([])
+        header = ["Name", "Description", "Formula", "Target"]
+        for year, month in periods:
+            header.append(format_month_header(year, month))
+        ws.append(header)
+        apply_header_style(ws, 1)
 
-        widths = {"A": 30}
-        for i in range(len(periods)):
-            widths[get_column_letter(2 + i)] = 12
+        for metric_row in metric_rows:
+            level = metric_row["level"]
+            indent = "  " * level
+            target = self._get_target_for_metric(metric_row["key"], level)
+
+            row_data = [
+                f"{indent}{metric_row['name']}",
+                metric_row["description"],
+                metric_row["formula"],
+                target if target else "-",
+            ]
+
+            for period in periods:
+                value = self._extract_global_value(
+                    metric_row["key"], level, global_by_period.get(period)
+                )
+                row_data.append(value)
+
+            ws.append(row_data)
+            current_row = ws.max_row
+            apply_row_style(ws, current_row, level)
+
+            target_num = self._parse_target(target)
+            for col_idx, _period in enumerate(periods, start=5):
+                cell = ws.cell(row=current_row, column=col_idx)
+                cell.border = THIN_BORDER
+                if level <= 1 and target_num is not None:
+                    apply_traffic_light(cell, cell.value, target_num)
+
+        widths = {"A": 35, "B": 50, "C": 45, "D": 12}
+        for i, _ in enumerate(periods):
+            widths[get_column_letter(5 + i)] = 12
         set_column_widths(ws, widths)
+        freeze_panes(ws, 2, 5)
 
     # --- Helpers ---
 
@@ -384,6 +426,26 @@ class ExportService:
         if level == 1:
             return getattr(score_data["scores"].dimensions, key, None)
         return getattr(score_data["indicators"], key, None)
+
+    @staticmethod
+    def _extract_global_value(
+        key: str, level: int, record: GlobalMetricsRecord | None
+    ) -> float | None:
+        """Extract averaged value from a GlobalMetricsRecord."""
+        if record is None:
+            return None
+        if level == 0:
+            val = record.scores.score.value
+            return round(val, 1) if val is not None else None
+        if level == 1:
+            score_val = getattr(record.scores, key, None)
+            if score_val and score_val.value is not None:
+                return round(score_val.value, 1)
+            return None
+        indicator_val = getattr(record.indicators, key, None)
+        if indicator_val and indicator_val.value is not None:
+            return round(indicator_val.value, 4)
+        return None
 
     @staticmethod
     def _parse_target(target: str | None) -> float | None:
