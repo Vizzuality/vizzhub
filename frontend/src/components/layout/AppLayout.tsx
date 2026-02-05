@@ -19,6 +19,8 @@ export function AppLayout() {
   const navigate = useNavigate();
   const auth = useAuth();
 
+  const isAdmin = auth.user?.role === 'admin';
+
   const isActive = (path: string): boolean => location.pathname === path;
 
   const handleLogout = async (): Promise<void> => {
@@ -62,13 +64,15 @@ export function AppLayout() {
                   Global
                 </Button>
               </Link>
-              <Link to="/admin">
-                <Button
-                  variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
-                >
-                  Admin
-                </Button>
-              </Link>
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button
+                    variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
+                  >
+                    Admin
+                  </Button>
+                </Link>
+              )}
             </div>
 
             <ThemeToggle />
@@ -121,9 +125,11 @@ export function AppLayout() {
                   <DropdownMenuItem asChild>
                     <Link to="/global">Global</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin">Admin</Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">Admin</Link>
+                    </DropdownMenuItem>
+                  )}
                   {auth.isAuthenticated && (
                     <>
                       <DropdownMenuSeparator />

@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig, get_scoring_config
-from app.core.auth import TokenData, get_current_user
+from app.core.auth import TokenData, get_current_user, require_role
 from app.core.exceptions import ProjectNotFoundError
 from app.database import get_db
 from app.models.project import ProjectDB
@@ -21,6 +21,7 @@ limiter = Limiter(key_func=get_remote_address)
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 ScoringConfigDep = Annotated[ScoringConfig, Depends(get_scoring_config)]
 CurrentUser = Annotated[TokenData, Depends(get_current_user)]
+AdminUser = Annotated[TokenData, Depends(require_role("admin"))]
 
 
 async def get_project_or_404(db: AsyncSession, project_id: UUID) -> ProjectDB:

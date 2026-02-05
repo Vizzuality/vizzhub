@@ -7,7 +7,7 @@ from arq.connections import RedisSettings
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, limiter
+from app.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.slack import (
     JobTriggerResponse,
     ScheduledJobInfo,
@@ -50,7 +50,7 @@ async def get_redis_pool():
 @limiter.limit("100/minute")
 async def list_scheduled_jobs(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> list[ScheduledJobInfo]:
     """List all scheduled jobs with their last run status.
@@ -101,7 +101,7 @@ async def list_scheduled_jobs(
 @limiter.limit("10/minute")
 async def trigger_scheduled_job(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     job_name: str,
 ) -> JobTriggerResponse:

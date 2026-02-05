@@ -200,6 +200,14 @@ vi.mock('../../hooks/useSnapshots', () => ({
   }),
 }));
 
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'user-1', email: 'admin@test.com', role: 'admin' },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
+
 function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {

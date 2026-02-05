@@ -22,3 +22,24 @@ export function ProtectedRoute(): JSX.Element {
 
   return <Outlet />;
 }
+
+/**
+ * Admin route wrapper - redirects to /projects if not admin
+ */
+export function AdminRoute(): JSX.Element {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return <Outlet />;
+}
