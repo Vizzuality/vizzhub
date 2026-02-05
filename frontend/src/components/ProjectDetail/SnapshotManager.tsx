@@ -12,6 +12,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { FileDown, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import HistoricalCaptureSection from './HistoricalCaptureSection';
 import { useExport } from '../../hooks/useExport';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SnapshotManagerProps {
   readonly projectId: string;
@@ -32,6 +33,8 @@ export default function SnapshotManager({
   const [snapshotType, setSnapshotType] = useState('cumulative');
 
   const { exportProject, isExporting, error } = useExport();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const handleExport = async (): Promise<void> => {
     await exportProject(
@@ -48,8 +51,8 @@ export default function SnapshotManager({
   const monthCount = (toYear - fromYear) * 12 + (toMonth - fromMonth) + 1;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <HistoricalCaptureSection projectId={projectId} />
+    <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-4`}>
+      {isAdmin && <HistoricalCaptureSection projectId={projectId} />}
 
       <Card>
         <CardHeader

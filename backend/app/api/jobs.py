@@ -5,7 +5,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import CurrentUser, DBSession, get_project_or_404
+from app.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404
 from app.api.schemas.job import (
     CaptureHistoryRequest,
     JobDetailResponse,
@@ -53,7 +53,7 @@ async def get_redis_pool():
 )
 async def create_capture_history_job(
     request: CaptureHistoryRequest,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> Job:
     """Create a historical capture job."""
@@ -161,7 +161,7 @@ async def list_jobs(
 @router.post("/{job_id}/cancel", response_model=JobResponse)
 async def cancel_job(
     job_id: uuid.UUID,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> Job:
     """Cancel a pending job."""
@@ -184,7 +184,7 @@ async def cancel_job(
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_job(
     job_id: uuid.UUID,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> None:
     """Delete a job. Only completed, failed, or cancelled jobs can be deleted."""
@@ -209,7 +209,7 @@ async def delete_job(
 )
 async def retry_job(
     job_id: uuid.UUID,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> Job:
     """Retry a failed job by creating a new one with same params."""

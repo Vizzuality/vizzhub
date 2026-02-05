@@ -9,7 +9,7 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
@@ -48,7 +48,9 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/global" element={<GlobalDashboard />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<Admin />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

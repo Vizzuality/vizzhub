@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, limiter
+from app.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
@@ -43,7 +43,7 @@ async def get_slack_config_or_create(db: DBSession) -> SlackConfigDB:
 @limiter.limit("100/minute")
 async def get_slack_config(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> SlackConfigResponse:
     """Get Slack config (token masked). Requires authentication."""
@@ -61,7 +61,7 @@ async def get_slack_config(
 @limiter.limit("10/minute")
 async def update_slack_config(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     update: SlackConfigUpdate,
 ) -> SlackConfigResponse:
@@ -90,7 +90,7 @@ async def update_slack_config(
 @limiter.limit("10/minute")
 async def test_slack_connection(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> SlackTestResult:
     """Test Slack connection using configured bot token. Requires authentication."""
@@ -118,7 +118,7 @@ async def test_slack_connection(
 @limiter.limit("10/minute")
 async def list_slack_channels(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> list[SlackChannel]:
     """List available Slack channels. Requires authentication."""
@@ -152,7 +152,7 @@ async def list_slack_channels(
 @limiter.limit("100/minute")
 async def list_alert_definitions(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> list[AlertDefinitionDB]:
     """List all alert definitions. Requires authentication."""
@@ -164,7 +164,7 @@ async def list_alert_definitions(
 @limiter.limit("10/minute")
 async def update_alert_definition(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     alert_id: int,
     update: AlertDefinitionUpdate,
@@ -196,7 +196,7 @@ async def update_alert_definition(
 @limiter.limit("5/minute")
 async def test_alert(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     alert_id: int,
 ) -> AlertTestResponse:
@@ -268,7 +268,7 @@ async def test_alert(
 @limiter.limit("100/minute")
 async def get_alert_templates(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     alert_id: int,
 ) -> list[MessageTemplateDB]:
@@ -296,7 +296,7 @@ async def get_alert_templates(
 @limiter.limit("10/minute")
 async def update_message_template(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     template_id: int,
     update: MessageTemplateUpdate,

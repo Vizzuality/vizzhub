@@ -21,6 +21,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Calculator, RefreshCw, Globe, FileDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExport } from '../../hooks/useExport';
+import { useAuth } from '@/hooks/useAuth';
 import type { Dimension } from '../../types';
 import { ALL_DIMENSIONS } from '../../types';
 import type { GlobalMetricsRecord } from '../../types/global';
@@ -55,6 +56,8 @@ export default function GlobalDashboard(): JSX.Element {
   const recalculateMutation = useRecalculateGlobalMetrics();
   const thresholds = useScoreThresholds();
   const { exportGlobal, isExporting, error: exportError } = useExport();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [exportFromYear, setExportFromYear] = useState(now.getFullYear());
   const [exportFromMonth, setExportFromMonth] = useState(1);
@@ -151,24 +154,26 @@ export default function GlobalDashboard(): JSX.Element {
             {hasData && ` • ${globalMetrics!.project_count} project${globalMetrics!.project_count !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleCalculateAll}
-            disabled={isCalculating}
-          >
-            <Calculator className="w-4 h-4 mr-2" />
-            {calculateMutation.isPending ? 'Calculating...' : 'Calculate All'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleRecalculateAll}
-            disabled={isCalculating}
-          >
-            <RefreshCw className={cn('w-4 h-4 mr-2', recalculateMutation.isPending && 'animate-spin')} />
-            Recalculate
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCalculateAll}
+              disabled={isCalculating}
+            >
+              <Calculator className="w-4 h-4 mr-2" />
+              {calculateMutation.isPending ? 'Calculating...' : 'Calculate All'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleRecalculateAll}
+              disabled={isCalculating}
+            >
+              <RefreshCw className={cn('w-4 h-4 mr-2', recalculateMutation.isPending && 'animate-spin')} />
+              Recalculate
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Export */}
@@ -243,10 +248,12 @@ export default function GlobalDashboard(): JSX.Element {
             <p className="text-muted-foreground mb-4">
               No global metrics calculated for {formatPeriodLabel(selectedPeriod.year, selectedPeriod.month)}
             </p>
-            <Button onClick={handleCalculateMonth} disabled={isCalculating}>
-              <Calculator className="w-4 h-4 mr-2" />
-              Calculate This Month
-            </Button>
+            {isAdmin && (
+              <Button onClick={handleCalculateMonth} disabled={isCalculating}>
+                <Calculator className="w-4 h-4 mr-2" />
+                Calculate This Month
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

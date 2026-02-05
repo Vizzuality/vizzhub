@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from app.api.deps import CurrentUser, DBSession, limiter
+from app.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertNotificationResponse,
     NotificationStatsResponse,
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @limiter.limit("100/minute")
 async def list_notifications(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     project_id: UUID | None = None,
     alert_definition_id: int | None = None,
@@ -114,7 +114,7 @@ async def list_notifications(
 @limiter.limit("60/minute")
 async def get_notification_stats(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> NotificationStatsResponse:
     """Get notification statistics."""

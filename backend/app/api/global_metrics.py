@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter
+from app.api.deps import AdminUser, CurrentUser, DBSession, ScoringConfigDep, limiter
 from app.models.global_metrics import (
     CalculateBatchRequest,
     CalculateBatchResponse,
@@ -89,7 +89,7 @@ async def calculate_global_metrics(
     batch_request: CalculateBatchRequest,
     db: DBSession,
     config: ScoringConfigDep,
-    current_user: CurrentUser,
+    current_user: AdminUser,
 ) -> CalculateBatchResponse:
     """Calculate and store global metrics for a date range (batch).
 
@@ -132,7 +132,7 @@ async def recalculate_global_metrics(
     batch_request: CalculateBatchRequest,
     db: DBSession,
     config: ScoringConfigDep,
-    current_user: CurrentUser,
+    current_user: AdminUser,
 ) -> CalculateBatchResponse:
     """Recalculate global metrics with current weights for a date range.
 
