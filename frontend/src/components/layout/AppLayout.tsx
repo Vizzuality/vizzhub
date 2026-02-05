@@ -1,19 +1,36 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from './ThemeToggle';
 import { VizzualityLogo } from './VizzualityLogo';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 
 export function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const auth = useAuth();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string): boolean => location.pathname === path;
+
+  const handleLogout = (): void => {
+    auth.logout();
+    navigate('/login');
+  };
+
+  const userInitials = [auth.user?.first_name, auth.user?.last_name]
+    .filter(Boolean)
+    .map((n) => n![0])
+    .join('')
+    .toUpperCase() || '?';
 
   return (
     <div className="min-h-screen">
@@ -56,6 +73,39 @@ export function AppLayout() {
 
             <ThemeToggle />
 
+            {/* User Menu (desktop) */}
+            {auth.isAuthenticated && (
+              <div className="hidden md:block">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={auth.user?.picture ?? undefined} alt={auth.user?.first_name ?? 'User'} />
+                        <AvatarFallback className="text-xs text-muted-foreground">{userInitials}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium leading-none">
+                          {[auth.user?.first_name, auth.user?.last_name].filter(Boolean).join(' ')}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {auth.user?.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+
             {/* Mobile Navigation */}
             <div className="md:hidden">
               <DropdownMenu>
@@ -74,6 +124,15 @@ export function AppLayout() {
                   <DropdownMenuItem asChild>
                     <Link to="/admin">Admin</Link>
                   </DropdownMenuItem>
+                  {auth.isAuthenticated && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Log out
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
