@@ -14,8 +14,8 @@ Users authenticate via Google Sign-In:
 2. Google returns an ID token to the frontend
 3. Frontend sends token to `POST /api/auth/google`
 4. Backend validates token, checks domain, creates/gets user
-5. Backend returns JWT (24h expiry)
-6. Frontend stores JWT, includes in all API requests
+5. Backend sets JWT in httpOnly cookie (24h expiry)
+6. Frontend uses `credentials: 'include'` for all API requests (cookies sent automatically)
 
 ### User Roles
 
@@ -32,6 +32,7 @@ When `DEBUG=true` in backend `.env`:
 
 - CORS allows localhost origins (`http://localhost:5173`, `http://localhost:3000`)
 - Authentication still **required** (Google SSO works locally)
+- Cookie `Secure=false` (allows non-HTTPS for local dev)
 - Security headers are relaxed for local development
 
 ### Frontend (VITE_BYPASS_AUTH=true)
@@ -92,7 +93,7 @@ See `.env.example` files for complete configuration.
 
 ### Protected Endpoints (JWT Required)
 
-All other endpoints require a valid JWT in the Authorization header:
+All other endpoints require a valid JWT. The JWT is sent automatically via httpOnly cookie (`access_token`). For testing with curl, use the `--cookie` flag or Bearer header fallback:
 
 ```http
 Authorization: Bearer <jwt_token>
@@ -102,9 +103,28 @@ Authorization: Bearer <jwt_token>
 
 Require `admin` role:
 
+**User Management:**
 - `GET /api/admin/users` - List all users
 - `PATCH /api/admin/users/{id}` - Update user role
 - `DELETE /api/admin/users/{id}` - Delete user
+
+**Slack & Notifications:**
+- `/admin/slack/*` - Slack configuration
+- `/admin/alerts/*` - Alert definitions and templates
+- `/admin/templates/*` - Message templates
+- `/admin/jobs/*` - Scheduled jobs management
+- `/notifications/*` - Notification log
+- `/silences/*` - Alert silences
+
+**Global Metrics:**
+- `POST /api/global/calculate` - Calculate global metrics
+- `POST /api/global/recalculate` - Recalculate global metrics
+
+**Background Jobs:**
+- `POST /api/jobs/capture-history` - Create batch capture job
+- `POST /api/jobs/{id}/cancel` - Cancel job
+- `POST /api/jobs/{id}/retry` - Retry job
+- `DELETE /api/jobs/{id}` - Delete job
 
 ## Testing Authentication
 
@@ -118,9 +138,11 @@ python scripts/generate_jwt_token.py --user-id "test-user" --roles "user,admin"
 ### Manual API Testing
 
 ```bash
-# Get a JWT after Google login (use browser)
-# Then test protected endpoints:
+# Option 1: Use Bearer header (for testing)
 curl -H "Authorization: Bearer <jwt_token>" http://localhost:8000/api/projects
+
+# Option 2: Use cookie (how browser does it)
+curl --cookie "access_token=<jwt_token>" http://localhost:8000/api/projects
 
 # Health endpoint (no auth needed)
 curl http://localhost:8000/health
@@ -144,7 +166,8 @@ pytest tests/test_auth.py -v
 
 ### Frontend Implementation
 
-- `src/contexts/AuthContext.tsx` - Authentication state management
+- `src/contexts/AuthContext.tsx` - Authentication state management (uses `credentials: 'include'`)
 - `src/pages/LoginPage.tsx` - Google Sign-In button
-- `src/components/ProtectedRoute.tsx` - Route protection
+- `src/components/ProtectedRoute.tsx` - Route protection (`ProtectedRoute` for auth, `AdminRoute` for admin)
 - `src/components/Admin/UsersContent.tsx` - User management UI
+- `src/services/api/client.ts` - Axios client with `withCredentials: true`
