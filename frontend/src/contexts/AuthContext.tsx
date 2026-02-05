@@ -1,11 +1,13 @@
 /**
  * Authentication Context for Google OAuth
+ *
+ * JWT is stored in an httpOnly cookie (set by the backend).
+ * Only user info is cached in localStorage to avoid UI flicker on reload.
  */
 
 import { createContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
-import { UserPublic, AuthState, AuthContextType, AuthResponse } from '../types/auth';
+import { UserPublic, AuthState, AuthContextType, AuthLoginResponse } from '../types/auth';
 
-const TOKEN_STORAGE_KEY = 'auth_token';
 const USER_STORAGE_KEY = 'auth_user';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -25,12 +27,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
 
   /**
-   * Login with Google credential
+   * Login with Google credential.
+   * Backend sets the httpOnly cookie; we only store user info locally.
    */
   const login = useCallback(async (credential: string): Promise<void> => {
     const response = await fetch(`${API_URL}/api/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ credential }),
     });
 
@@ -39,9 +43,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       throw new Error(error.detail || 'Authentication failed');
     }
 
-    const data: AuthResponse = await response.json();
+    const data: AuthLoginResponse = await response.json();
 
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
 
     setAuthState({
@@ -52,10 +55,18 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   }, []);
 
   /**
-   * Clear authentication state and tokens
+   * Logout: ask backend to clear the cookie, then clear local user cache.
    */
-  const logout = useCallback((): void => {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // Best-effort; clear local state regardless
+    }
+
     localStorage.removeItem(USER_STORAGE_KEY);
     setAuthState({
       user: null,
@@ -65,19 +76,12 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   }, []);
 
   /**
-   * Retrieve stored JWT token
+   * Validate current session by calling /auth/me with the cookie.
    */
-  const getToken = useCallback((): string | null => {
-    return localStorage.getItem(TOKEN_STORAGE_KEY);
-  }, []);
-
-  /**
-   * Validate token with backend
-   */
-  const validateToken = useCallback(async (token: string): Promise<boolean> => {
+  const validateSession = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -96,15 +100,20 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
   }, []);
 
-  // Initialize auth state from localStorage on mount
+  // On mount: if we have cached user info, try to validate the session cookie
   useEffect(() => {
     const initAuth = async (): Promise<void> => {
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+      const cachedUser = localStorage.getItem(USER_STORAGE_KEY);
 
-      if (token) {
-        const isValid = await validateToken(token);
+      if (cachedUser) {
+        const isValid = await validateSession();
         if (!isValid) {
-          logout();
+          localStorage.removeItem(USER_STORAGE_KEY);
+          setAuthState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
         }
       } else {
         setAuthState((prev) => ({ ...prev, isLoading: false }));
@@ -112,14 +121,13 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     };
 
     initAuth();
-  }, [logout, validateToken]);
+  }, [validateSession]);
 
   const contextValue = useMemo<AuthContextType>(() => ({
     ...authState,
     login,
     logout,
-    getToken,
-  }), [authState, login, logout, getToken]);
+  }), [authState, login, logout]);
 
   return (
     <AuthContext.Provider value={contextValue}>

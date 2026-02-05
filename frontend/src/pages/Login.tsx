@@ -1,19 +1,5 @@
 /**
  * Login Page - Google OAuth Authentication
- *
- * TODO: Implement Google Sign-In
- * Required steps:
- * 1. Add Google Sign-In library (@react-oauth/google or gapi)
- * 2. Configure Google OAuth client ID
- * 3. Implement handleGoogleLogin to:
- *    - Trigger Google OAuth popup
- *    - Get Google token/credentials
- *    - Send to backend /api/oauth/google/callback
- *    - Receive JWT token and user info
- *    - Store in auth context
- *    - Redirect to dashboard
- *
- * IMPORTANT: For development, users can bypass login since backend allows unauthenticated requests
  */
 
 import { useAuth } from '../hooks/useAuth';
@@ -78,15 +64,6 @@ export default function Login(): JSX.Element {
               Sign in with Google
             </button>
 
-            <div className="text-xs text-gray-500 text-center">
-              <p>For development mode, navigate to:</p>
-              <a
-                href="/"
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Dashboard (bypasses auth)
-              </a>
-            </div>
           </div>
         </div>
 

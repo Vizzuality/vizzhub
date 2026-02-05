@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
 from app.config import get_settings
-from app.core.auth import create_access_token
+from app.core.auth import create_access_token, get_cookie_settings
 from app.models.user import User, UserDB, UserPublic, UserRole
 
 logger = logging.getLogger(__name__)
@@ -26,19 +26,18 @@ class GoogleAuthRequest(BaseModel):
     credential: str
 
 
-class AuthResponse(BaseModel):
-    """Response for successful authentication."""
+class AuthLoginResponse(BaseModel):
+    """Response for successful authentication (no token in body)."""
 
-    access_token: str
-    token_type: str = "bearer"
     user: UserPublic
 
 
-@router.post("/google", response_model=AuthResponse)
+@router.post("/google", response_model=AuthLoginResponse)
 async def google_auth(
     request: GoogleAuthRequest,
     db: DBSession,
-) -> AuthResponse:
+    response: Response,
+) -> AuthLoginResponse:
     """
     Authenticate with Google OAuth.
 
@@ -102,7 +101,7 @@ async def google_auth(
             await db.commit()
             await db.refresh(user)
 
-        # Create JWT
+        # Create JWT and set as httpOnly cookie
         token = create_access_token(
             data={
                 "sub": str(user.id),
@@ -111,8 +110,9 @@ async def google_auth(
             }
         )
 
-        return AuthResponse(
-            access_token=token,
+        response.set_cookie(value=token, **get_cookie_settings())
+
+        return AuthLoginResponse(
             user=UserPublic.model_validate(user),
         )
 
@@ -145,11 +145,15 @@ async def get_current_user_info(
 
 
 @router.post("/logout")
-async def logout(current_user: CurrentUser) -> dict:
-    """
-    Logout endpoint (for logging purposes).
-
-    The actual logout happens client-side by clearing the JWT.
-    """
+async def logout(current_user: CurrentUser, response: Response) -> dict:
+    """Logout: clear the httpOnly cookie."""
+    cookie_settings = get_cookie_settings()
+    response.delete_cookie(
+        key=cookie_settings["key"],
+        path=cookie_settings["path"],
+        samesite=cookie_settings["samesite"],
+        secure=cookie_settings["secure"],
+        httponly=cookie_settings["httponly"],
+    )
     logger.info(f"User logged out: {current_user.user_id}")
     return {"message": "Logged out successfully"}

@@ -8,9 +8,7 @@ const mockUseAuth = vi.fn(() => ({
   isAuthenticated: false,
   user: null,
   login: vi.fn(),
-  logout: vi.fn(),
-  setToken: vi.fn(),
-  getToken: vi.fn(),
+  logout: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../hooks/useAuth', () => ({
@@ -41,9 +39,7 @@ describe('Login', () => {
       isAuthenticated: false,
       user: null,
       login: vi.fn(),
-      logout: vi.fn(),
-      setToken: vi.fn(),
-      getToken: vi.fn(),
+      logout: vi.fn().mockResolvedValue(undefined),
     });
   });
 
@@ -66,13 +62,6 @@ describe('Login', () => {
       expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
     });
 
-    it('renders development mode link', () => {
-      renderWithProviders(<Login />);
-
-      expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
-      expect(screen.getByText(/bypasses auth/i)).toBeInTheDocument();
-    });
-
     it('renders restricted access notice', () => {
       renderWithProviders(<Login />);
 
@@ -87,9 +76,7 @@ describe('Login', () => {
         isAuthenticated: false,
         user: null,
         login: vi.fn(),
-        logout: vi.fn(),
-        setToken: vi.fn(),
-        getToken: vi.fn(),
+        logout: vi.fn().mockResolvedValue(undefined),
       });
 
       renderWithProviders(<Login />);
@@ -110,15 +97,6 @@ describe('Login', () => {
       expect(alertSpy).toHaveBeenCalled();
 
       alertSpy.mockRestore();
-    });
-  });
-
-  describe('Development Mode Link', () => {
-    it('development link points to root path', () => {
-      renderWithProviders(<Login />);
-
-      const devLink = screen.getByRole('link', { name: /dashboard/i });
-      expect(devLink).toHaveAttribute('href', '/');
     });
   });
 

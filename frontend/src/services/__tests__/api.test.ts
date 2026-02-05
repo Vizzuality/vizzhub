@@ -16,31 +16,14 @@ describe('API Service', () => {
     mock.restore();
   });
 
-  describe('Request Interceptor', () => {
-    it('adds bearer token from localStorage', async () => {
-      localStorage.setItem('auth_token', 'test-jwt-token');
-
-      mock.onGet('/projects').reply((config) => {
-        expect(config.headers?.Authorization).toBe('Bearer test-jwt-token');
-        return [200, []];
-      });
-
-      await projectsApi.list();
-    });
-
-    it('does not add Authorization header when no token exists', async () => {
-      mock.onGet('/projects').reply((config) => {
-        expect(config.headers?.Authorization).toBeUndefined();
-        return [200, []];
-      });
-
-      await projectsApi.list();
+  describe('Axios Config', () => {
+    it('has withCredentials enabled', () => {
+      expect(api.defaults.withCredentials).toBe(true);
     });
   });
 
   describe('Response Interceptor', () => {
-    it('clears token and redirects on 401', async () => {
-      localStorage.setItem('auth_token', 'expired-token');
+    it('clears user cache and redirects on 401', async () => {
       localStorage.setItem('auth_user', JSON.stringify({ id: '123' }));
 
       mock.onGet('/projects').reply(401);
@@ -54,13 +37,12 @@ describe('API Service', () => {
         // Expected to throw
       }
 
-      expect(localStorage.getItem('auth_token')).toBeNull();
       expect(localStorage.getItem('auth_user')).toBeNull();
       expect((window as unknown as { location: { href: string } }).location.href).toBe('/login');
     });
 
     it('does not intercept 403 errors', async () => {
-      localStorage.setItem('auth_token', 'valid-token');
+      localStorage.setItem('auth_user', JSON.stringify({ id: '123' }));
 
       mock.onGet('/projects').reply(403);
 
@@ -71,13 +53,13 @@ describe('API Service', () => {
         await projectsApi.list();
         expect.fail('Should have thrown error');
       } catch {
-        expect(localStorage.getItem('auth_token')).toBe('valid-token');
+        expect(localStorage.getItem('auth_user')).toBe(JSON.stringify({ id: '123' }));
         expect((window as unknown as { location: { href: string } }).location.href).toBe('');
       }
     });
 
     it('does not intercept 500 errors', async () => {
-      localStorage.setItem('auth_token', 'valid-token');
+      localStorage.setItem('auth_user', JSON.stringify({ id: '123' }));
 
       mock.onGet('/projects').reply(500);
 
@@ -88,7 +70,7 @@ describe('API Service', () => {
         await projectsApi.list();
         expect.fail('Should have thrown error');
       } catch {
-        expect(localStorage.getItem('auth_token')).toBe('valid-token');
+        expect(localStorage.getItem('auth_user')).toBe(JSON.stringify({ id: '123' }));
         expect((window as unknown as { location: { href: string } }).location.href).toBe('');
       }
     });

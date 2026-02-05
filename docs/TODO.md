@@ -2,12 +2,7 @@
 
 ## Authentication
 
-- [ ] **Google OAuth** - Implement Google Sign-In for company domain users
-  - Install `@react-oauth/google` in frontend
-  - Configure Google OAuth client ID in environment
-  - Implement login flow in `frontend/src/pages/Login.tsx`
-  - Create backend endpoint `POST /api/auth/google` to exchange Google token for JWT
-  - Set `DEBUG=false` and `BYPASS_AUTH=false` to enable authentication
+- [x] **Google OAuth** - Google Sign-In with domain restriction (@vizzuality.com)
 
 - [ ] **Refactor JWT management** - Move from localStorage to httpOnly cookies for better security
 
@@ -49,16 +44,15 @@ Use monthly data points for trend analysis and forecasting:
 
 ## Visualization Enhancements
 
-- [ ] **Trend visualization** - Show score evolution over time, not just snapshots
-  - A 70 trending down is worse than 60 trending up
+- [x] **Trend visualization** - Score evolution over time in interactive timeline chart
 
-- [ ] **Month-over-month trend charts** - Sparklines showing last 6 months per metric
+- [x] **Month-over-month trend charts** - Sparklines showing last 6 months per metric
 
 - [ ] **Comparative view** - "This month vs last month vs project average"
 
 - [ ] **Monthly health summary** - Dashboard card showing punctual data
 
-- [ ] **Automated monthly reports** - Generate stakeholder summaries from punctual data
+- [x] **Automated monthly reports** - XLSX export for project scorecard and global dashboard
 
 ## Project Context & Benchmarks
 
@@ -68,15 +62,9 @@ Use monthly data points for trend analysis and forecasting:
 
 ## Integrations
 
-- [ ] **Slack integration** - Connect projects to Slack channels for notifications
-  - Add `slack_channel_id` field to projects
-  - Slack Bot with `chat:write` permission
+- [x] **Slack integration** - Projects linked to Slack channels, business alerts to leadership channel
 
-- [ ] **Dependabot Slack alerts** - Notify project channels when critical/high vulnerabilities detected
-  - Periodic worker task checks GitHub Dependabot API
-  - Tracks notified alerts to avoid duplicates
-  - Requires Slack integration (above)
-  - See `docs/plans/dependabot-slack-alerts.md` for full design
+- [x] **Dependabot Slack alerts** - Daily cron checks GitHub Dependabot, notifies project channels
 
 - [ ] **Team health** - Integrate optional anonymous team surveys (burnout risk, morale)
 

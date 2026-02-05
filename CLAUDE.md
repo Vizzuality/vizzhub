@@ -506,7 +506,7 @@ This ensures:
 
 ### Authentication & Security
 
-**Status**: Google SSO implemented with domain restriction + JWT authentication.
+**Status**: Google SSO implemented with domain restriction + JWT in httpOnly cookies.
 
 #### Google SSO (Implemented)
 
@@ -532,26 +532,52 @@ VITE_BYPASS_AUTH=false
 **Flow:**
 1. User clicks "Sign in with Google"
 2. Google returns ID token to frontend
-3. Frontend sends token to `POST /api/auth/google`
+3. Frontend sends token to `POST /api/auth/google` with `credentials: 'include'`
 4. Backend validates token, checks domain, creates/gets user
-5. Backend returns JWT (24h expiry)
-6. Frontend stores JWT, includes in all requests
+5. Backend sets JWT as httpOnly cookie (`access_token`, path `/api`, SameSite=Lax)
+6. Response body returns only `{ user }` (no token in body)
+7. All subsequent requests include cookie automatically (`withCredentials: true` / `credentials: 'include'`)
+
+**JWT Storage (httpOnly cookies):**
+
+| Aspect | Detail |
+|--------|--------|
+| Cookie name | `access_token` |
+| Path | `/api` (only sent on API requests) |
+| HttpOnly | Yes (inaccessible to JavaScript) |
+| Secure | `true` in production, `false` when `DEBUG=true` |
+| SameSite | `Lax` |
+| Max age | `jwt_expire_hours * 3600` (default 24h) |
+| CSRF | Not needed (SameSite=Lax + JSON Content-Type + CORS) |
+
+**Token resolution order in `get_current_user()`:**
+1. Read from cookie (`request.cookies.get("access_token")`)
+2. Fall back to `Authorization: Bearer` header
+3. If neither found and `DEBUG=true`, use dev bypass
+
+**Frontend auth state:**
+- Only `auth_user` is cached in `localStorage` (prevents UI flicker on reload)
+- No token in `localStorage` — cookie is httpOnly
+- `AuthContextType` has async `logout()`, no `getToken()`
+- Axios client uses `withCredentials: true` (cookies sent automatically)
+- `useUsers` hook uses `credentials: 'include'` on fetch calls
 
 **Key endpoints:**
-- `POST /api/auth/google` - Exchange Google token for JWT
-- `GET /api/auth/me` - Get current user info
+- `POST /api/auth/google` - Exchange Google token for JWT (set via cookie)
+- `POST /api/auth/logout` - Clear httpOnly cookie
+- `GET /api/auth/me` - Get current user info (validates session cookie)
 - `GET /api/admin/users` - List users (admin only)
 - `PATCH /api/admin/users/{id}` - Update user role (admin only)
 - `DELETE /api/admin/users/{id}` - Delete user (admin only)
 
 #### Development Mode
-- Backend: `DEBUG=true` → CORS allows localhost (required for local dev)
+- Backend: `DEBUG=true` → CORS allows localhost, cookie `Secure=false` (required for local dev)
 - Frontend: `VITE_BYPASS_AUTH=true` → Skip authentication entirely
 - These are independent: use `DEBUG=true` + `VITE_BYPASS_AUTH=false` to test OAuth locally
 
 #### Security Features Implemented
 - ✅ Google SSO with domain restriction
-- ✅ JWT authentication (24h expiry)
+- ✅ JWT in httpOnly cookies (XSS-proof token storage)
 - ✅ Role-based access control (user/admin)
 - ✅ User management UI in Admin panel
 - ✅ OAuth CSRF protection (state parameter validation)

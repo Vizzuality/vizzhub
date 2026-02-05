@@ -25,9 +25,7 @@ export interface UserPublic {
   role: UserRole;
 }
 
-export interface AuthResponse {
-  access_token: string;
-  token_type: string;
+export interface AuthLoginResponse {
   user: UserPublic;
 }
 
@@ -39,6 +37,5 @@ export interface AuthState {
 
 export interface AuthContextType extends AuthState {
   login: (credential: string) => Promise<void>;
-  logout: () => void;
-  getToken: () => string | null;
+  logout: () => Promise<void>;
 }

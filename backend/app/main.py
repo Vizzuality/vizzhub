@@ -75,6 +75,9 @@ app = FastAPI(
     description="API for evaluating software development projects across 8 dimensions",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
 # Add rate limiter to app state
