@@ -103,3 +103,24 @@ resource "aws_iam_role_policy" "github_ssm" {
     ]
   })
 }
+
+# Secrets Manager read permissions for GitHub Actions (build-time secrets)
+resource "aws_iam_role_policy" "github_secrets" {
+  name = "${var.project_name}-github-secrets"
+  role = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.google_oauth.arn
+        ]
+      }
+    ]
+  })
+}

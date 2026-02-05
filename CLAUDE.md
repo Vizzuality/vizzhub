@@ -391,36 +391,22 @@ Hub is deployed to AWS using OpenTofu/Terraform infrastructure-as-code.
 
 **Architecture:**
 ```
-                    ┌─────────────────────────────────────────┐
-                    │              AWS (eu-west-1)            │
-                    │                                         │
-Internet ──HTTPS──▶ │  ┌─────────────────────────────────┐   │
-                    │  │         EC2 t3.medium            │   │
-                    │  │  ┌────────────────────────────┐  │   │
-                    │  │  │     Docker Compose         │  │   │
-                    │  │  │  ┌────────┐ ┌──────────┐   │  │   │
-                    │  │  │  │ nginx  │ │ frontend │   │  │   │
-                    │  │  │  └────────┘ └──────────┘   │  │   │
-                    │  │  │  ┌────────┐ ┌──────────┐   │  │   │
-                    │  │  │  │backend │ │  worker  │   │  │   │
-                    │  │  │  └────────┘ └──────────┘   │  │   │
-                    │  │  │  ┌────────┐                │  │   │
-                    │  │  │  │ redis  │                │  │   │
-                    │  │  │  └────────┘                │  │   │
-                    │  │  └────────────────────────────┘  │   │
-                    │  └─────────────────────────────────┘   │
-                    │                    │                    │
-                    │                    ▼                    │
-                    │  ┌─────────────────────────────────┐   │
-                    │  │    RDS PostgreSQL (private)     │   │
-                    │  └─────────────────────────────────┘   │
-                    └─────────────────────────────────────────┘
+Internet → ALB (HTTPS/ACM) → EC2 (Docker Compose)
+              ↓ path routing       ├── backend:8000
+              ├── /api/*  ────────→│
+              └── /*      ────────→├── frontend:5173
+                                   ├── worker (arq)
+                                   └── redis
+
+                                   ↓
+                            RDS PostgreSQL
 ```
 
 **Components:**
 | Service | Type | Purpose |
 |---------|------|---------|
-| EC2 | t3.medium | Docker host (nginx, frontend, backend, worker, redis) |
+| ALB | - | HTTPS termination via ACM certificate, path-based routing |
+| EC2 | t3.medium | Docker host (frontend, backend, worker, redis) |
 | RDS | db.t4g.small | PostgreSQL 16 with automated backups |
 | ECR | - | Container registry |
 | Secrets Manager | - | Credentials storage |
@@ -434,20 +420,22 @@ Push to main → CI Tests → Build Images → Push to ECR → SSM Deploy → He
 1. **CI Tests**: Backend pytest + frontend vitest
 2. **Build**: Multi-stage Docker builds with SHA tags
 3. **Push**: To ECR via OIDC (no long-lived credentials)
-4. **Deploy**: SSM send-command triggers `/opt/hub/deploy.sh`
+4. **Deploy**: SSM send-command writes docker-compose.prod.yml + `docker compose up -d`
 5. **Verify**: Polling for command completion + health checks
 
 **Key Files:**
 ```
 infrastructure/
-├── bootstrap/           # S3 + DynamoDB for state (run first)
+├── state.tf             # S3 + DynamoDB for state
 ├── main.tf              # Provider, backend config
+├── alb.tf               # ALB, ACM certificate, target groups
 ├── network.tf           # VPC, subnets, routing
 ├── ec2.tf               # Instance, IAM roles
 ├── rds.tf               # PostgreSQL database
 ├── secrets.tf           # Secrets Manager
 ├── iam.tf               # GitHub OIDC provider
-└── templates/user_data.sh  # EC2 bootstrap script
+├── docker-compose.prod.yml  # Production compose file
+└── templates/user_data.sh   # EC2 bootstrap script (~100 lines)
 
 .github/workflows/
 ├── ci.yml               # Tests on push/PR
@@ -463,12 +451,14 @@ aws ssm start-session --target <instance-id>
 docker compose -f /opt/hub/docker-compose.prod.yml logs -f backend
 
 # Manual deploy
-/opt/hub/deploy.sh <git-sha>
+cd /opt/hub
+export TAG="<git-sha>" ECR_URI="<account>.dkr.ecr.eu-west-1.amazonaws.com"
+aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $ECR_URI
+docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
 
-# Rollback
-source /opt/hub/.env.infra && export TAG="<previous-sha>"
-docker compose -f /opt/hub/docker-compose.prod.yml pull
-docker compose -f /opt/hub/docker-compose.prod.yml up -d
+# Refresh secrets (after updating in Secrets Manager)
+/opt/hub/fetch-secrets.sh
+docker compose -f /opt/hub/docker-compose.prod.yml restart backend worker
 ```
 
 **Infrastructure Management:**

@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   workflow_dispatch:
     inputs:
       environment:
@@ -14,7 +14,7 @@ on:
           - prod
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
 
 jobs:
   test:
@@ -38,7 +38,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c  # v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/hub-github-actions-role
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/hub-github-actions-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -48,6 +48,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3
 
+      - name: Get Google Client ID from Secrets Manager
+        id: google-oauth
+        run: |
+          GOOGLE_SECRET=$(aws secretsmanager get-secret-value --secret-id /hub/prod/google-oauth --query SecretString --output text)
+          echo "client_id=$(echo $GOOGLE_SECRET | jq -r '.client_id')" >> $GITHUB_OUTPUT
+
       - name: Build and push backend
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25  # v5
         with:
@@ -55,7 +61,7 @@ jobs:
           file: ./backend/Dockerfile.prod
           push: true
           tags: |
-            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/hub/backend:${{ github.sha }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/hub/backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -66,9 +72,10 @@ jobs:
           file: ./frontend/Dockerfile.prod
           push: true
           tags: |
-            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/hub/frontend:${{ github.sha }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/hub/frontend:${{ github.sha }}
           build-args: |
             VITE_API_URL=https://hub.vizzuality.com
+            VITE_GOOGLE_CLIENT_ID=${{ steps.google-oauth.outputs.client_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -82,85 +89,141 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c  # v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/hub-github-actions-role
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/hub-github-actions-role
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy via SSM
+      - name: Setup EC2 environment
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
         run: |
-          # Send deploy command
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters '{"commands":["cd /opt/hub && ./deploy.sh ${{ github.sha }}"]}' \
+            --parameters 'commands=["mkdir -p /opt/hub", "mkdir -p /usr/local/lib/docker/cli-plugins", "test -f /usr/local/lib/docker/cli-plugins/docker-compose || curl -sL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose", "chmod +x /usr/local/lib/docker/cli-plugins/docker-compose"]' \
+            --query 'Command.CommandId' \
+            --output text
+          sleep 5
+
+      - name: Upload docker-compose.prod.yml
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          COMPOSE_B64=$(base64 -w0 infrastructure/docker-compose.prod.yml)
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[\"echo '$COMPOSE_B64' | base64 -d > /opt/hub/docker-compose.prod.yml\"]" \
+            --query 'Command.CommandId' \
+            --output text
+          sleep 5
+
+      - name: Create .env from Secrets Manager
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          DOMAIN_NAME: hub.vizzuality.com
+        run: |
+          # Build the script to create .env
+          ENV_SCRIPT=$(cat << 'SCRIPT'
+          cd /opt/hub
+          DB=$(aws secretsmanager get-secret-value --secret-id /hub/prod/db-password --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          JWT=$(aws secretsmanager get-secret-value --secret-id /hub/prod/jwt-secrets --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          GOOGLE=$(aws secretsmanager get-secret-value --secret-id /hub/prod/google-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          JIRA=$(aws secretsmanager get-secret-value --secret-id /hub/prod/jira-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          GITHUB_SEC=$(aws secretsmanager get-secret-value --secret-id /hub/prod/github --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          SLACK=$(aws secretsmanager get-secret-value --secret-id /hub/prod/slack --query SecretString --output text --region AWS_REGION_PLACEHOLDER 2>/dev/null || echo '{"bot_token":""}')
+
+          cat > .env << EOF
+          DATABASE_URL=postgresql+asyncpg://$(echo $DB | jq -r '.username'):$(echo $DB | jq -r '.password')@$(echo $DB | jq -r '.host'):5432/$(echo $DB | jq -r '.dbname')
+          JWT_SECRET_KEY=$(echo $JWT | jq -r '.jwt_secret_key')
+          SESSION_SECRET_KEY=$(echo $JWT | jq -r '.session_secret_key')
+          JWT_EXPIRE_HOURS=24
+          GOOGLE_CLIENT_ID=$(echo $GOOGLE | jq -r '.client_id')
+          GOOGLE_CLIENT_SECRET=$(echo $GOOGLE | jq -r '.client_secret')
+          ALLOWED_GOOGLE_DOMAIN=vizzuality.com
+          JIRA_OAUTH_CLIENT_ID=$(echo $JIRA | jq -r '.client_id')
+          JIRA_OAUTH_CLIENT_SECRET=$(echo $JIRA | jq -r '.client_secret')
+          JIRA_OAUTH_REDIRECT_URI=https://DOMAIN_PLACEHOLDER/api/oauth/jira/callback
+          JIRA_OAUTH_SCOPES=read:jira-work read:jira-user offline_access
+          GITHUB_TOKEN=$(echo $GITHUB_SEC | jq -r '.token')
+          GITHUB_ORG=$(echo $GITHUB_SEC | jq -r '.org')
+          SLACK_BOT_TOKEN=$(echo $SLACK | jq -r '.bot_token')
+          DEBUG=false
+          CORS_ORIGINS=["https://DOMAIN_PLACEHOLDER"]
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          EOF
+          chmod 600 .env
+          SCRIPT
+          )
+
+          # Replace placeholders
+          ENV_SCRIPT="${ENV_SCRIPT//AWS_REGION_PLACEHOLDER/${AWS_REGION}}"
+          ENV_SCRIPT="${ENV_SCRIPT//DOMAIN_PLACEHOLDER/${DOMAIN_NAME}}"
+
+          # Encode and send
+          ENV_SCRIPT_B64=$(echo "$ENV_SCRIPT" | base64 -w0)
+
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[\"echo '$ENV_SCRIPT_B64' | base64 -d | bash\"]" \
+            --query 'Command.CommandId' \
+            --output text
+
+          sleep 5
+
+      - name: Deploy containers
+        env:
+          TAG: ${{ github.sha }}
+          ECR_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"cd /opt/hub\",
+              \"export TAG=${TAG}\",
+              \"export ECR_URI=${ECR_URI}\",
+              \"aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}\",
+              \"docker compose -f docker-compose.prod.yml pull\",
+              \"docker compose -f docker-compose.prod.yml up -d --force-recreate\",
+              \"sleep 15\",
+              \"curl -sf http://localhost:8000/health && echo 'Backend healthy' || (docker compose -f docker-compose.prod.yml logs --tail=50 backend && exit 1)\",
+              \"docker compose -f docker-compose.prod.yml ps\",
+              \"docker image prune -af --filter until=168h || true\"
+            ]" \
             --query 'Command.CommandId' \
             --output text)
 
           echo "Command ID: $COMMAND_ID"
-          echo "Waiting for deployment to complete..."
 
-          # Poll for completion
           for i in {1..30}; do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
-              --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+              --instance-id "$INSTANCE_ID" \
               --query 'Status' \
               --output text 2>/dev/null || echo "Pending")
 
-            echo "Attempt $i: Status=$STATUS"
+            echo "Attempt $i: $STATUS"
 
             case "$STATUS" in
               Success)
-                echo "=== Deploy successful ==="
-                aws ssm get-command-invocation \
-                  --command-id "$COMMAND_ID" \
-                  --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
-                  --query 'StandardOutputContent' \
-                  --output text
-                exit 0
-                ;;
+                aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
+                exit 0 ;;
               Failed|Cancelled|TimedOut)
-                echo "=== Deploy failed: $STATUS ==="
-                echo "--- STDOUT ---"
-                aws ssm get-command-invocation \
-                  --command-id "$COMMAND_ID" \
-                  --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
-                  --query 'StandardOutputContent' \
-                  --output text || true
-                echo "--- STDERR ---"
-                aws ssm get-command-invocation \
-                  --command-id "$COMMAND_ID" \
-                  --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
-                  --query 'StandardErrorContent' \
-                  --output text || true
-                exit 1
-                ;;
-              InProgress|Pending|Delayed)
-                # Normal, keep waiting
-                ;;
-              *)
-                echo "Unknown status: $STATUS"
-                ;;
+                aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
+                aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
+                exit 1 ;;
             esac
-
             sleep 10
           done
-
-          echo "=== Timeout waiting for deploy ==="
-          echo "--- STDOUT ---"
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
-            --query 'StandardOutputContent' \
-            --output text || true
-          echo "--- STDERR ---"
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
-            --query 'StandardErrorContent' \
-            --output text || true
           exit 1
 
       - name: Deployment summary
