@@ -12,7 +12,7 @@ resource "aws_cloudwatch_log_group" "main" {
 resource "aws_sns_topic" "alarms" {
   count             = var.alarm_email != "" ? 1 : 0
   name              = "${var.project_name}-alarms"
-  kms_master_key_id = "alias/aws/sns"  # AWS managed key for encryption
+  kms_master_key_id = "alias/aws/sns" # AWS managed key for encryption
 }
 
 resource "aws_sns_topic_subscription" "alarms_email" {
@@ -108,7 +108,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = 2147483648  # 2 GB in bytes
+  threshold           = 2147483648 # 2 GB in bytes
   alarm_description   = "RDS free storage < 2 GB"
   alarm_actions       = [aws_sns_topic.alarms[0].arn]
 
@@ -127,7 +127,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = 80  # db.t4g.small has ~85 max connections
+  threshold           = 80 # db.t4g.small has ~85 max connections
   alarm_description   = "RDS connections > 80 (approaching limit)"
   alarm_actions       = [aws_sns_topic.alarms[0].arn]
 

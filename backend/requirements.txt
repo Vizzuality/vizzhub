@@ -25,6 +25,7 @@ pydantic-settings>=2.1.0,<3.0.0
 # HTTP clients for API integrations
 httpx>=0.26.0,<1.0.0
 aiohttp>=3.9.0,<4.0.0
+requests>=2.31.0,<3.0.0
 
 # Async job queue
 arq>=0.25,<1.0.0

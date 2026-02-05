@@ -1,45 +1,28 @@
-# Bootstrap: Creates S3 bucket and DynamoDB table for OpenTofu state
-# Run this ONCE before the main infrastructure
+# Terraform State Infrastructure
 #
-# Usage:
-#   cd infrastructure/bootstrap
-#   tofu init
-#   tofu apply
-
-terraform {
-  required_version = ">= 1.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = "hub"
-      Environment = "shared"
-      ManagedBy   = "opentofu"
-    }
-  }
-}
+# These resources store OpenTofu state in S3 with DynamoDB locking.
+# They were previously in bootstrap/ but are now managed alongside main infrastructure.
+#
+# IMPORTANT: After initial creation, uncomment the backend block in main.tf
+# and run `tofu init -migrate-state` to migrate local state to S3.
 
 # S3 bucket for access logs
-resource "aws_s3_bucket" "logs" {
-  bucket = "${var.state_bucket_name}-logs"
+resource "aws_s3_bucket" "state_logs" {
+  bucket = "hub-vizzuality-tfstate-logs"
 
   lifecycle {
     prevent_destroy = true
   }
+
+  tags = {
+    Name      = "hub-tfstate-logs"
+    Purpose   = "Access logs for state bucket"
+    ManagedBy = "opentofu"
+  }
 }
 
-resource "aws_s3_bucket_public_access_block" "logs" {
-  bucket = aws_s3_bucket.logs.id
+resource "aws_s3_bucket_public_access_block" "state_logs" {
+  bucket = aws_s3_bucket.state_logs.id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -47,8 +30,8 @@ resource "aws_s3_bucket_public_access_block" "logs" {
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
-  bucket = aws_s3_bucket.logs.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "state_logs" {
+  bucket = aws_s3_bucket.state_logs.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -57,9 +40,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   }
 }
 
-# Lifecycle rule to expire old logs
-resource "aws_s3_bucket_lifecycle_configuration" "logs" {
-  bucket = aws_s3_bucket.logs.id
+resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
+  bucket = aws_s3_bucket.state_logs.id
 
   rule {
     id     = "expire-old-logs"
@@ -71,9 +53,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   }
 }
 
-# Enforce HTTPS-only access for logs bucket
-resource "aws_s3_bucket_policy" "logs_https_only" {
-  bucket = aws_s3_bucket.logs.id
+resource "aws_s3_bucket_policy" "state_logs_https_only" {
+  bucket = aws_s3_bucket.state_logs.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -84,8 +65,8 @@ resource "aws_s3_bucket_policy" "logs_https_only" {
         Principal = "*"
         Action    = "s3:*"
         Resource = [
-          aws_s3_bucket.logs.arn,
-          "${aws_s3_bucket.logs.arn}/*"
+          aws_s3_bucket.state_logs.arn,
+          "${aws_s3_bucket.state_logs.arn}/*"
         ]
         Condition = {
           Bool = {
@@ -94,13 +75,13 @@ resource "aws_s3_bucket_policy" "logs_https_only" {
         }
       },
       {
-        Sid       = "AllowS3LogDelivery"
-        Effect    = "Allow"
+        Sid    = "AllowS3LogDelivery"
+        Effect = "Allow"
         Principal = {
           Service = "logging.s3.amazonaws.com"
         }
         Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.logs.arn}/*"
+        Resource = "${aws_s3_bucket.state_logs.arn}/*"
         Condition = {
           ArnLike = {
             "aws:SourceArn" = aws_s3_bucket.state.arn
@@ -110,23 +91,28 @@ resource "aws_s3_bucket_policy" "logs_https_only" {
     ]
   })
 
-  depends_on = [aws_s3_bucket_public_access_block.logs]
+  depends_on = [aws_s3_bucket_public_access_block.state_logs]
 }
 
 # S3 bucket for state storage
 resource "aws_s3_bucket" "state" {
-  bucket = var.state_bucket_name
+  bucket = "hub-vizzuality-tfstate"
 
   lifecycle {
     prevent_destroy = true
   }
+
+  tags = {
+    Name      = "hub-tfstate"
+    Purpose   = "OpenTofu state storage"
+    ManagedBy = "opentofu"
+  }
 }
 
-# Enable access logging
 resource "aws_s3_bucket_logging" "state" {
   bucket = aws_s3_bucket.state.id
 
-  target_bucket = aws_s3_bucket.logs.id
+  target_bucket = aws_s3_bucket.state_logs.id
   target_prefix = "state-access-logs/"
 }
 
@@ -157,7 +143,6 @@ resource "aws_s3_bucket_public_access_block" "state" {
   restrict_public_buckets = true
 }
 
-# Enforce HTTPS-only access
 resource "aws_s3_bucket_policy" "state_https_only" {
   bucket = aws_s3_bucket.state.id
 
@@ -186,8 +171,8 @@ resource "aws_s3_bucket_policy" "state_https_only" {
 }
 
 # DynamoDB table for state locking
-resource "aws_dynamodb_table" "lock" {
-  name         = var.lock_table_name
+resource "aws_dynamodb_table" "state_lock" {
+  name         = "hub-vizzuality-tflock"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 
@@ -198,5 +183,11 @@ resource "aws_dynamodb_table" "lock" {
 
   lifecycle {
     prevent_destroy = true
+  }
+
+  tags = {
+    Name      = "hub-tflock"
+    Purpose   = "OpenTofu state locking"
+    ManagedBy = "opentofu"
   }
 }

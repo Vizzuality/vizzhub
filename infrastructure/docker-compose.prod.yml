@@ -1,0 +1,62 @@
+# Production Docker Compose
+#
+# Deployed to EC2 via GitHub Actions pipeline.
+# Environment variables set by deploy workflow: ECR_URI, TAG
+# Application secrets in .env file (created by deploy pipeline from Secrets Manager)
+#
+# ALB routing:
+#   - /api/*, /health → backend:8000
+#   - /* → frontend:5173
+
+services:
+  frontend:
+    image: ${ECR_URI}/hub/frontend:${TAG}
+    container_name: hub-frontend
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  backend:
+    image: ${ECR_URI}/hub/backend:${TAG}
+    container_name: hub-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    image: ${ECR_URI}/hub/backend:${TAG}
+    container_name: hub-worker
+    command: arq app.worker.settings.WorkerSettings
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+
+  redis:
+    image: redis:7-alpine
+    container_name: hub-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

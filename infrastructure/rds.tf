@@ -3,12 +3,12 @@ resource "aws_db_instance" "main" {
   identifier = "${var.project_name}-db"
 
   # Engine
-  engine               = "postgres"
-  engine_version       = var.rds_engine_version
-  instance_class       = var.rds_instance_class
-  allocated_storage    = var.rds_allocated_storage
-  storage_type         = "gp3"
-  storage_encrypted    = true
+  engine            = "postgres"
+  engine_version    = var.rds_engine_version
+  instance_class    = var.rds_instance_class
+  allocated_storage = var.rds_allocated_storage
+  storage_type      = "gp3"
+  storage_encrypted = true
 
   # Database
   db_name  = var.project_name
@@ -26,8 +26,8 @@ resource "aws_db_instance" "main" {
   maintenance_window      = "Mon:04:00-Mon:05:00"
 
   # Protection
-  deletion_protection = true
-  skip_final_snapshot = false
+  deletion_protection       = true
+  skip_final_snapshot       = false
   final_snapshot_identifier = "${var.project_name}-db-final-snapshot"
 
   # Multi-AZ disabled for cost (single AZ is fine for internal app)

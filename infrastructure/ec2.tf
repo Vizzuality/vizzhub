@@ -1,11 +1,11 @@
-# Get latest Amazon Linux 2023 AMI
-data "aws_ami" "amazon_linux_2023" {
+# Get latest Amazon ECS-Optimized AMI (includes Docker pre-installed)
+data "aws_ami" "ecs_optimized" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["al2023-ami-ecs-hvm-*-x86_64"]
   }
 
   filter {
@@ -111,7 +111,7 @@ resource "aws_iam_role_policy" "ec2_cloudwatch" {
           "logs:PutLogEvents",
           "logs:DescribeLogStreams"
         ]
-        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/${var.project_name}/*"
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/${var.project_name}/*"
       }
     ]
   })
@@ -125,15 +125,14 @@ resource "aws_iam_instance_profile" "ec2" {
 
 # EC2 Instance
 resource "aws_instance" "main" {
-  ami                    = var.ec2_ami_id != "" ? var.ec2_ami_id : data.aws_ami.amazon_linux_2023.id
+  ami                    = data.aws_ami.ecs_optimized.id
   instance_type          = var.ec2_instance_type
-  subnet_id              = aws_subnet.public.id
+  subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
-  # Public IP via Elastic IP (not instance IP) - EIP attached below
-  # Security: SG only allows 443/80 inbound, no SSH (port 22)
-  associate_public_ip_address = false
+  # EC2 receives traffic from ALB, needs public IP for outbound to ECR/Secrets
+  associate_public_ip_address = true
 
   # No SSH key - admin via SSM only
   key_name = null
@@ -145,19 +144,11 @@ resource "aws_instance" "main" {
     delete_on_termination = true
   }
 
-  user_data = templatefile("${path.module}/templates/user_data.sh", {
-    aws_region    = var.aws_region
-    account_id    = data.aws_caller_identity.current.account_id
-    domain_name   = var.domain_name
-    admin_email   = var.admin_email
-    project_name  = var.project_name
-    rds_endpoint  = aws_db_instance.main.endpoint
-    rds_db_name   = aws_db_instance.main.db_name
-  })
+  # No user_data needed - ECS AMI has Docker, deploy pipeline handles the rest
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"  # IMDSv2 only
+    http_tokens                 = "required" # IMDSv2 only
     http_put_response_hop_limit = 1
   }
 
@@ -170,14 +161,4 @@ resource "aws_instance" "main" {
     aws_secretsmanager_secret_version.db_password,
     aws_secretsmanager_secret_version.jwt_secrets
   ]
-}
-
-# Elastic IP
-resource "aws_eip" "main" {
-  instance = aws_instance.main.id
-  domain   = "vpc"
-
-  tags = {
-    Name = "${var.project_name}-eip"
-  }
 }
