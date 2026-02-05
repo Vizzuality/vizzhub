@@ -9,8 +9,7 @@
  * - isAuthenticated: Boolean indicating if user is logged in
  * - isLoading: Boolean indicating if auth state is being initialized
  * - login: Function to authenticate with Google credential
- * - logout: Function to clear authentication state
- * - getToken: Function to retrieve stored JWT token
+ * - logout: Async function to clear authentication state and cookie
  */
 
 import { useContext } from 'react';

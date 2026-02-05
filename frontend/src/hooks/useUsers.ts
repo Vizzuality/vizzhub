@@ -9,14 +9,12 @@ import { queryKeys } from './queryKeys';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers, credentials: 'include' });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));

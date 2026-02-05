@@ -25,6 +25,7 @@ router = APIRouter(prefix="/silences", tags=["silences"])
 @limiter.limit("100/minute")
 async def list_silences(
     request: Request,
+    current_user: CurrentUser,
     db: DBSession,
     project_id: UUID | None = None,
     include_expired: bool = False,
@@ -153,6 +154,7 @@ async def update_silence(
     request: Request,
     silence_id: int,
     update: AlertSilenceUpdate,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> AlertSilenceResponse:
     """Update a silence."""
@@ -208,6 +210,7 @@ async def update_silence(
 async def delete_silence(
     request: Request,
     silence_id: int,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> None:
     """Delete a silence."""

@@ -126,6 +126,7 @@ async def create_capture_history_job(
 @router.get("/{job_id}", response_model=JobDetailResponse)
 async def get_job(
     job_id: uuid.UUID,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> Job:
     """Get job details for polling."""
@@ -140,6 +141,7 @@ async def get_job(
 
 @router.get("/", response_model=list[JobSummaryResponse])
 async def list_jobs(
+    current_user: CurrentUser,
     db: DBSession,
     project_id: uuid.UUID | None = None,
     status: JobStatus | None = None,
@@ -159,6 +161,7 @@ async def list_jobs(
 @router.post("/{job_id}/cancel", response_model=JobResponse)
 async def cancel_job(
     job_id: uuid.UUID,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> Job:
     """Cancel a pending job."""
@@ -181,6 +184,7 @@ async def cancel_job(
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_job(
     job_id: uuid.UUID,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> None:
     """Delete a job. Only completed, failed, or cancelled jobs can be deleted."""

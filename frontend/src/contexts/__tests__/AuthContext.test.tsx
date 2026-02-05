@@ -1,8 +1,8 @@
 /**
  * Tests for AuthContext authentication state management
  *
- * This module tests the AuthContext which manages authentication state,
- * token storage, and user session management via Google OAuth.
+ * JWT is now stored in httpOnly cookies (set by the backend).
+ * Only user info is cached in localStorage.
  */
 
 import { renderHook, waitFor, act } from '@testing-library/react';
@@ -36,11 +36,9 @@ describe('AuthContext', () => {
   });
 
   describe('Initialization', () => {
-    it('initializes from localStorage with valid token after API validation', async () => {
-      localStorage.setItem('auth_token', 'valid-jwt-token');
+    it('validates session via cookie when cached user exists', async () => {
       localStorage.setItem('auth_user', JSON.stringify(mockUser));
 
-      // Mock successful token validation
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockUser,
@@ -59,12 +57,12 @@ describe('AuthContext', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/auth/me'),
         expect.objectContaining({
-          headers: { Authorization: 'Bearer valid-jwt-token' },
+          credentials: 'include',
         })
       );
     });
 
-    it('initializes with empty state when no token in localStorage', async () => {
+    it('initializes with empty state when no cached user', async () => {
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
       });
@@ -78,11 +76,9 @@ describe('AuthContext', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('clears auth state when stored token is invalid', async () => {
-      localStorage.setItem('auth_token', 'invalid-token');
+    it('clears auth state when session cookie is invalid', async () => {
       localStorage.setItem('auth_user', JSON.stringify(mockUser));
 
-      // Mock failed token validation
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -98,15 +94,13 @@ describe('AuthContext', () => {
 
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
-      expect(localStorage.getItem('auth_token')).toBeNull();
+      expect(localStorage.getItem('auth_user')).toBeNull();
     });
   });
 
   describe('Login', () => {
-    it('authenticates with Google credential and stores token', async () => {
+    it('authenticates with Google credential and stores user info', async () => {
       const authResponse = {
-        access_token: 'new-jwt-token',
-        token_type: 'bearer',
         user: mockUser,
       };
 
@@ -129,11 +123,12 @@ describe('AuthContext', () => {
 
       expect(result.current.isAuthenticated).toBe(true);
       expect(result.current.user).toEqual(mockUser);
-      expect(localStorage.getItem('auth_token')).toBe('new-jwt-token');
+      expect(localStorage.getItem('auth_user')).toBe(JSON.stringify(mockUser));
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/auth/google'),
         expect.objectContaining({
           method: 'POST',
+          credentials: 'include',
           body: JSON.stringify({ credential: 'google-credential-token' }),
         })
       );
@@ -164,14 +159,19 @@ describe('AuthContext', () => {
   });
 
   describe('Logout', () => {
-    it('clears token and user from localStorage', async () => {
-      localStorage.setItem('auth_token', 'token-to-clear');
+    it('calls logout endpoint and clears user from localStorage', async () => {
       localStorage.setItem('auth_user', JSON.stringify(mockUser));
 
-      // Mock successful validation first
+      // First call: session validation
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockUser,
+      });
+
+      // Second call: logout endpoint
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Logged out successfully' }),
       });
 
       const { result } = renderHook(() => useAuth(), {
@@ -182,21 +182,31 @@ describe('AuthContext', () => {
         expect(result.current.isAuthenticated).toBe(true);
       });
 
-      act(() => {
-        result.current.logout();
+      await act(async () => {
+        await result.current.logout();
       });
 
-      expect(localStorage.getItem('auth_token')).toBeNull();
       expect(localStorage.getItem('auth_user')).toBeNull();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/logout'),
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+        })
+      );
     });
 
     it('updates state to unauthenticated after logout', async () => {
-      localStorage.setItem('auth_token', 'active-token');
       localStorage.setItem('auth_user', JSON.stringify(mockUser));
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockUser,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Logged out successfully' }),
       });
 
       const { result } = renderHook(() => useAuth(), {
@@ -207,8 +217,8 @@ describe('AuthContext', () => {
         expect(result.current.isAuthenticated).toBe(true);
       });
 
-      act(() => {
-        result.current.logout();
+      await act(async () => {
+        await result.current.logout();
       });
 
       expect(result.current.isAuthenticated).toBe(false);
@@ -217,49 +227,10 @@ describe('AuthContext', () => {
     });
   });
 
-  describe('Token Management', () => {
-    it('retrieves token from localStorage when getToken is called', async () => {
-      localStorage.setItem('auth_token', 'stored-token-value');
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUser,
-      });
-
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: AuthProvider,
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      const token = result.current.getToken();
-
-      expect(token).toBe('stored-token-value');
-    });
-
-    it('returns null when no token is stored', async () => {
-      const { result } = renderHook(() => useAuth(), {
-        wrapper: AuthProvider,
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      const token = result.current.getToken();
-
-      expect(token).toBeNull();
-    });
-  });
-
   describe('Error Handling', () => {
-    it('handles network errors during token validation gracefully', async () => {
-      localStorage.setItem('auth_token', 'valid-token');
+    it('handles network errors during session validation gracefully', async () => {
       localStorage.setItem('auth_user', JSON.stringify(mockUser));
 
-      // Mock network error
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useAuth(), {
@@ -270,7 +241,6 @@ describe('AuthContext', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Should clear auth state on validation failure
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
     });

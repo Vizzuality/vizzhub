@@ -21,8 +21,8 @@ export function AppLayout() {
 
   const isActive = (path: string): boolean => location.pathname === path;
 
-  const handleLogout = (): void => {
-    auth.logout();
+  const handleLogout = async (): Promise<void> => {
+    await auth.logout();
     navigate('/login');
   };
 

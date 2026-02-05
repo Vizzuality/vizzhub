@@ -1,14 +1,10 @@
-"""Authentication and authorization for the API.
-
-TODO: Implement Google OAuth (Google Sign-In) for production authentication.
-      Development mode bypass is temporary - production will require authentication.
-"""
+"""Authentication and authorization for the API."""
 
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -20,8 +16,21 @@ settings = get_settings()
 
 # Security constants
 ALGORITHM = "HS256"
+COOKIE_NAME = "access_token"
 
 security = HTTPBearer(auto_error=False)
+
+
+def get_cookie_settings() -> dict:
+    """Return cookie parameters based on environment."""
+    return {
+        "key": COOKIE_NAME,
+        "httponly": True,
+        "secure": not settings.debug,
+        "samesite": "lax",
+        "path": "/api",
+        "max_age": settings.jwt_expire_hours * 3600,
+    }
 
 
 class TokenData(BaseModel):
@@ -82,28 +91,24 @@ def create_access_token(
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)]
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
 ) -> TokenData:
     """
     Validate JWT token and extract user data.
 
-    In development mode (DEBUG=true), bypasses authentication if no token provided.
-    In production mode (DEBUG=false), always requires valid JWT token.
+    Reads the token from the httpOnly cookie first, then falls back to
+    the Authorization: Bearer header.
 
-    TODO: Replace with Google OAuth (Google Sign-In) for production.
-          Development bypass is temporary.
-
-    Args:
-        credentials: HTTP Authorization credentials from request (optional in dev mode)
-
-    Returns:
-        TokenData with user information
-
-    Raises:
-        HTTPException: If token is invalid or expired (production mode only)
+    In development mode (DEBUG=true), bypasses authentication if no token found.
     """
-    # Development mode: bypass authentication if no credentials provided
-    if settings.debug and credentials is None:
+    # Extract token: cookie first, then Bearer header
+    token: str | None = request.cookies.get(COOKIE_NAME)
+    if not token and credentials is not None:
+        token = credentials.credentials
+
+    # Development mode: bypass authentication if no token found
+    if settings.debug and token is None:
         logger.warning(
             "SECURITY: Development mode authentication bypass used. "
             "No authentication token provided - using mock development user."
@@ -113,8 +118,7 @@ async def get_current_user(
             roles=["user", "admin"],
         )
 
-    # Production mode or token provided: validate JWT
-    if credentials is None:
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. No bearer token provided.",
@@ -128,7 +132,6 @@ async def get_current_user(
     )
 
     try:
-        token = credentials.credentials
         secret_key = getattr(settings, "jwt_secret_key", "")
         if not secret_key:
             raise credentials_exception

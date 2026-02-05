@@ -159,6 +159,7 @@ def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
 @router.get("/project/{project_id}/history", response_model=list[ScoreResponse])
 async def get_project_score_history(
     project_id: UUID,
+    current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
     snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
