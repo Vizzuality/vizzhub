@@ -20,8 +20,6 @@ jobs:
   test:
     name: Run Tests
     uses: ./.github/workflows/ci.yml
-    secrets:
-      DB_PASSWORD_CI: ${{ secrets.DB_PASSWORD_CI }}
 
   build-and-push:
     name: Build and Push Images
