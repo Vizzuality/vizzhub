@@ -4,13 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SlackChannelCombobox } from '@/components/ui/SlackChannelCombobox';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { slackApi } from '@/services/api';
@@ -213,22 +207,14 @@ export default function SlackTab(): JSX.Element {
               </div>
 
               <div className="flex gap-2">
-                <Select
+                <SlackChannelCombobox
                   value={selectedChannel}
                   onValueChange={setSelectedChannel}
+                  channels={channels ?? []}
                   disabled={channelsLoading}
-                >
-                  <SelectTrigger className="w-[300px]">
-                    <SelectValue placeholder={channelsLoading ? 'Loading...' : 'Select channel'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {channels?.map((channel) => (
-                      <SelectItem key={channel.id} value={channel.id}>
-                        #{channel.name} {channel.is_private && '🔒'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder={channelsLoading ? 'Loading...' : 'Select channel'}
+                  className="w-[300px]"
+                />
                 <Button
                   onClick={handleSaveChannel}
                   disabled={!selectedChannel || updateConfig.isPending}

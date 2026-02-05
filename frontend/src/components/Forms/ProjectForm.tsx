@@ -4,13 +4,7 @@ import type { Project, ProjectCreate, ProjectStatus } from '../../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SlackChannelCombobox } from '@/components/ui/SlackChannelCombobox';
 import { Trash2, CheckCircle, RotateCcw, Lock, Loader2 } from 'lucide-react';
 import { useSlackChannels } from '../../hooks/useSlackChannels';
 
@@ -40,7 +34,6 @@ interface ProjectFormProps {
   readonly isUpdatingStatus?: boolean;
 }
 
-const NONE_VALUE = '__none__';
 
 export default function ProjectForm({
   project,
@@ -95,21 +88,6 @@ export default function ProjectForm({
     onSubmit(payload);
   };
 
-  const handleSlackChannelChange = (value: string): void => {
-    setSlackChannelId(value === NONE_VALUE ? '' : value);
-  };
-
-  const getSlackSelectValue = (): string => {
-    return slackChannelId || NONE_VALUE;
-  };
-
-  const getSlackChannelLabel = (): string => {
-    if (!slackChannelId) {
-      return 'Select a channel';
-    }
-    const channel = channels.find((c) => c.id === slackChannelId);
-    return channel ? `#${channel.name}` : 'Select a channel';
-  };
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
@@ -203,39 +181,16 @@ export default function ProjectForm({
             Slack is not configured
           </div>
         ) : (
-          <Select
-            value={getSlackSelectValue()}
-            onValueChange={handleSlackChannelChange}
+          <SlackChannelCombobox
+            id="slack_channel"
+            value={slackChannelId}
+            onValueChange={setSlackChannelId}
+            channels={channels}
             disabled={isLoadingChannels}
-          >
-            <SelectTrigger id="slack_channel">
-              {isLoadingChannels ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading channels...
-                </div>
-              ) : (
-                <SelectValue placeholder="Select a channel">
-                  {getSlackChannelLabel()}
-                </SelectValue>
-              )}
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>
-                <span className="text-muted-foreground">None</span>
-              </SelectItem>
-              {channels.map((channel) => (
-                <SelectItem key={channel.id} value={channel.id}>
-                  <span className="flex items-center gap-2">
-                    #{channel.name}
-                    {channel.is_private && (
-                      <Lock className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={isLoadingChannels ? 'Loading channels...' : 'Select a channel'}
+            includeNone
+            className="w-full"
+          />
         )}
         <p className="text-xs text-muted-foreground">
           Select a channel to receive Dependabot alert notifications
