@@ -10,12 +10,13 @@ version: '3.8'
 services:
   db:
     env_file:
-      - .env.docker
+      - path: .env.docker
+        required: false
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER:-scorecard}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-scorecard-ci}
+      POSTGRES_DB: ${DB_NAME:-scorecard}
     ports:
       - "5432:5432"
     volumes:
@@ -31,11 +32,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     env_file:
-      - .env.docker
+      - path: .env.docker
+        required: false
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-scorecard}:${DB_PASSWORD:-scorecard-ci}@db:5432/${DB_NAME:-scorecard}
       - DEBUG=${DEBUG:-true}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -83,9 +85,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     env_file:
-      - .env.docker
+      - path: .env.docker
+        required: false
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-scorecard}:${DB_PASSWORD:-scorecard-ci}@db:5432/${DB_NAME:-scorecard}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
