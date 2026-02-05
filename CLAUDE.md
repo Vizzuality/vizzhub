@@ -586,6 +586,26 @@ VITE_BYPASS_AUTH=false
 - ✅ Input validation (JQL injection prevention, UUID validation)
 - ✅ Security logging (structured JSON)
 
+#### Admin Role Protection
+
+**Backend** - Endpoints requiring admin role (use `AdminUser` dependency):
+- `/admin/users/*` - User management
+- `/admin/slack/*` - Slack configuration
+- `/admin/alerts/*` - Alert definitions and templates
+- `/admin/templates/*` - Message templates
+- `/admin/jobs/*` - Scheduled jobs management
+- `/notifications/*` - Notification log
+- `/silences/*` - Alert silences
+- `/global/calculate`, `/global/recalculate` - Global metrics calculation
+- `/jobs/capture-history` (POST) - Create batch capture job
+- `/jobs/{id}/cancel`, `/jobs/{id}/retry`, `/jobs/{id}` (DELETE) - Job management
+
+**Frontend** - Admin-only UI elements:
+- `/admin` route - Redirects non-admin to `/projects`
+- Admin nav link - Hidden for non-admin users
+- Batch Historical Capture section - Hidden in project details
+- Calculate All / Recalculate buttons - Hidden in Global dashboard
+
 ### OAuth 2.0 (Jira)
 
 Jira collector uses OAuth 2.0 with **classic scopes** (recommended by Atlassian).
@@ -867,6 +887,8 @@ All endpoints accept `?snapshot_type=punctual` to query punctual metrics instead
 
 ### Slack & Notifications Admin
 
+**All endpoints in this section require admin role.**
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/admin/slack/config` | GET | Get Slack config (token masked) |
@@ -883,8 +905,8 @@ All endpoints accept `?snapshot_type=punctual` to query punctual metrics instead
 | `/silences/` | GET | List active silences |
 | `/silences/` | POST | Create a silence |
 | `/silences/{id}` | DELETE | Remove a silence |
-| `/scheduled-jobs/` | GET | List scheduled jobs with last run info |
-| `/scheduled-jobs/{name}/trigger` | POST | Manually trigger a scheduled job |
+| `/admin/jobs/scheduled` | GET | List scheduled jobs with last run info |
+| `/admin/jobs/scheduled/{name}/run` | POST | Manually trigger a scheduled job |
 
 ## Backend Patterns
 
