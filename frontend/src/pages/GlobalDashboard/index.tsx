@@ -16,8 +16,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Calculator, RefreshCw, Globe } from 'lucide-react';
+import { MonthYearPicker } from '@/components/ui/month-year-picker';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Calculator, RefreshCw, Globe, FileDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useExport } from '../../hooks/useExport';
 import type { Dimension } from '../../types';
 import { ALL_DIMENSIONS } from '../../types';
 import type { GlobalMetricsRecord } from '../../types/global';
@@ -51,6 +54,23 @@ export default function GlobalDashboard(): JSX.Element {
   const calculateMutation = useCalculateGlobalMetrics();
   const recalculateMutation = useRecalculateGlobalMetrics();
   const thresholds = useScoreThresholds();
+  const { exportGlobal, isExporting, error: exportError } = useExport();
+
+  const [exportFromYear, setExportFromYear] = useState(now.getFullYear());
+  const [exportFromMonth, setExportFromMonth] = useState(1);
+  const [exportToYear, setExportToYear] = useState(now.getFullYear());
+  const [exportToMonth, setExportToMonth] = useState(now.getMonth() + 1);
+  const [exportSnapshotType, setExportSnapshotType] = useState('cumulative');
+
+  const handleExport = async (): Promise<void> => {
+    await exportGlobal(
+      exportFromYear,
+      exportFromMonth,
+      exportToYear,
+      exportToMonth,
+      exportSnapshotType,
+    );
+  };
 
   const periods = useMemo(() => generateGlobalMonthRange(TIMELINE_MONTHS), []);
 
@@ -150,6 +170,59 @@ export default function GlobalDashboard(): JSX.Element {
           </Button>
         </div>
       </div>
+
+      {/* Export */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <FileDown className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">From</span>
+            <MonthYearPicker
+              month={exportFromMonth}
+              year={exportFromYear}
+              onMonthChange={setExportFromMonth}
+              onYearChange={setExportFromYear}
+              disabled={isExporting}
+            />
+            <span className="text-sm text-muted-foreground">to</span>
+            <MonthYearPicker
+              month={exportToMonth}
+              year={exportToYear}
+              onMonthChange={setExportToMonth}
+              onYearChange={setExportToYear}
+              disabled={isExporting}
+            />
+            <NativeSelect
+              value={exportSnapshotType}
+              onChange={(e) => setExportSnapshotType(e.target.value)}
+              disabled={isExporting}
+            >
+              <option value="cumulative">Cumulative</option>
+              <option value="punctual">Punctual</option>
+            </NativeSelect>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Export XLSX
+                </>
+              )}
+            </Button>
+            {exportError && (
+              <span className="text-sm text-red-600">{exportError}</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Timeline */}
       <Card>
