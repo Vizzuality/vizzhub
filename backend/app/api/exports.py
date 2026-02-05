@@ -74,7 +74,7 @@ async def export_project_detail(
     service = ExportService(config)
     output = await service.export_project_detail(
         db=db,
-        project_id=str(project_id),
+        project=project,
         start_year=start_year,
         start_month=start_month,
         end_year=end_year,

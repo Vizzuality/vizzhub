@@ -13,7 +13,7 @@ function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-function formatPeriod(year: number, month: number): string {
+function formatApiPeriod(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
@@ -42,6 +42,30 @@ export function useExport(): UseExportReturn {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const runExport = async (
+    fetchBlob: (params: ExportParams) => Promise<Blob>,
+    filename: string,
+    fromYear: number,
+    fromMonth: number,
+    toYear: number,
+    toMonth: number,
+    snapshotType: string,
+  ): Promise<void> => {
+    setIsExporting(true);
+    setError(null);
+    try {
+      const start = formatApiPeriod(fromYear, fromMonth);
+      const end = formatApiPeriod(toYear, toMonth);
+      const params: ExportParams = { start, end, snapshotType };
+      const blob = await fetchBlob(params);
+      downloadBlob(blob, filename.replace('{start}', start).replace('{end}', end));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const exportProject = async (
     projectId: string,
     projectName: string,
@@ -51,20 +75,12 @@ export function useExport(): UseExportReturn {
     toMonth: number,
     snapshotType: string,
   ): Promise<void> => {
-    setIsExporting(true);
-    setError(null);
-    try {
-      const start = formatPeriod(fromYear, fromMonth);
-      const end = formatPeriod(toYear, toMonth);
-      const params: ExportParams = { start, end, snapshotType };
-      const blob = await exportsApi.exportProjectDetail(projectId, params);
-      const safeName = projectName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
-      downloadBlob(blob, `${safeName}_scorecard_${start}_${end}.xlsx`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
-    } finally {
-      setIsExporting(false);
-    }
+    const safeName = projectName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
+    await runExport(
+      (params) => exportsApi.exportProjectDetail(projectId, params),
+      `${safeName}_scorecard_{start}_{end}.xlsx`,
+      fromYear, fromMonth, toYear, toMonth, snapshotType,
+    );
   };
 
   const exportGlobal = async (
@@ -74,19 +90,11 @@ export function useExport(): UseExportReturn {
     toMonth: number,
     snapshotType: string,
   ): Promise<void> => {
-    setIsExporting(true);
-    setError(null);
-    try {
-      const start = formatPeriod(fromYear, fromMonth);
-      const end = formatPeriod(toYear, toMonth);
-      const params: ExportParams = { start, end, snapshotType };
-      const blob = await exportsApi.exportGlobalDashboard(params);
-      downloadBlob(blob, `global_scorecard_${start}_${end}.xlsx`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
-    } finally {
-      setIsExporting(false);
-    }
+    await runExport(
+      (params) => exportsApi.exportGlobalDashboard(params),
+      'global_scorecard_{start}_{end}.xlsx',
+      fromYear, fromMonth, toYear, toMonth, snapshotType,
+    );
   };
 
   return { exportProject, exportGlobal, isExporting, error };
