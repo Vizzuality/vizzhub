@@ -57,7 +57,6 @@ def apply_header_style(ws: Worksheet, row: int = 1) -> None:
         cell.fill = HEADER_FILL
         cell.alignment = HEADER_ALIGNMENT
         cell.border = THIN_BORDER
-    ws.freeze_panes = f"{get_column_letter(1)}{row + 1}"
 
 
 def apply_row_style(ws: Worksheet, row: int, level: int) -> None:

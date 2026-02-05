@@ -71,7 +71,7 @@ class TestExportServiceProjectDetail:
         service = ExportService(scoring_config)
         output = await service.export_project_detail(
             db=db_session,
-            project_id=str(project.id),
+            project=project,
             start_year=2025,
             start_month=1,
             end_year=2025,
@@ -92,7 +92,7 @@ class TestExportServiceProjectDetail:
         service = ExportService(scoring_config)
         output = await service.export_project_detail(
             db=db_session,
-            project_id=str(project.id),
+            project=project,
             start_year=2025,
             start_month=1,
             end_year=2025,
@@ -112,7 +112,7 @@ class TestExportServiceProjectDetail:
         service = ExportService(scoring_config)
         output = await service.export_project_detail(
             db=db_session,
-            project_id=str(project.id),
+            project=project,
             start_year=2025,
             start_month=1,
             end_year=2025,
@@ -134,7 +134,7 @@ class TestExportServiceProjectDetail:
         service = ExportService(scoring_config)
         output = await service.export_project_detail(
             db=db_session,
-            project_id=str(project.id),
+            project=project,
             start_year=2025,
             start_month=1,
             end_year=2025,
@@ -153,7 +153,7 @@ class TestExportServiceProjectDetail:
         service = ExportService(scoring_config)
         output = await service.export_project_detail(
             db=db_session,
-            project_id=str(project.id),
+            project=project,
             start_year=2024,
             start_month=1,
             end_year=2024,

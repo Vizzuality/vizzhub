@@ -1,5 +1,6 @@
 """XLSX export service for project scorecard data."""
 
+from collections.abc import Callable
 from io import BytesIO
 from uuid import UUID
 
@@ -12,7 +13,7 @@ from app.config import ScoringConfig
 from app.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
 from app.models.metrics import MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
-from app.services.export_definitions import get_metric_rows
+from app.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
 from app.services.export_helpers import (
     THIN_BORDER,
     apply_header_style,
@@ -25,6 +26,8 @@ from app.services.export_helpers import (
 )
 from app.services.score_computation import ScoreComputationService
 
+DIMENSION_TARGET = 80
+
 
 class ExportService:
     """Generates XLSX exports for scorecard data."""
@@ -36,7 +39,7 @@ class ExportService:
     async def export_project_detail(
         self,
         db: AsyncSession,
-        project_id: str,
+        project: ProjectDB,
         start_year: int,
         start_month: int,
         end_year: int,
@@ -44,17 +47,20 @@ class ExportService:
         snapshot_type: str = "cumulative",
     ) -> BytesIO:
         """Generate project detail XLSX with Summary, Metrics, and Methodology sheets."""
-        project = await self._get_project(db, project_id)
         periods = self._generate_periods(start_year, start_month, end_year, end_month)
         metrics_by_period = await self._get_metrics_by_period(
-            db, project_id, periods, snapshot_type
+            db, project.id, periods, snapshot_type
         )
         scores_by_period = self._compute_scores(metrics_by_period)
 
         wb = Workbook()
 
         self._build_summary_sheet(wb, project, periods, scores_by_period, snapshot_type)
-        self._build_metrics_sheet(wb, periods, metrics_by_period, scores_by_period)
+        self._build_hierarchical_metrics_sheet(
+            wb, periods, lambda key, level, period: self._extract_value(
+                key, level, scores_by_period.get(period)
+            )
+        )
         create_methodology_sheet(wb, self.config)
 
         if "Sheet" in wb.sheetnames:
@@ -81,7 +87,11 @@ class ExportService:
         wb = Workbook()
 
         self._build_global_summary_sheet(wb, periods, global_by_period)
-        self._build_global_metrics_sheet(wb, periods, global_by_period)
+        self._build_hierarchical_metrics_sheet(
+            wb, periods, lambda key, level, period: self._extract_global_value(
+                key, level, global_by_period.get(period)
+            )
+        )
         create_methodology_sheet(wb, self.config)
 
         if "Sheet" in wb.sheetnames:
@@ -91,30 +101,21 @@ class ExportService:
 
     # --- Data fetching ---
 
-    async def _get_project(self, db: AsyncSession, project_id: str) -> ProjectDB:
-        """Fetch a single project by ID."""
-        project_uuid = UUID(project_id) if isinstance(project_id, str) else project_id
-        result = await db.execute(
-            select(ProjectDB).where(ProjectDB.id == project_uuid)
-        )
-        return result.scalar_one()
-
     async def _get_metrics_by_period(
         self,
         db: AsyncSession,
-        project_id: str,
+        project_id: UUID,
         periods: list[tuple[int, int]],
         snapshot_type: str,
     ) -> dict[tuple[int, int], MetricsDB | None]:
         """Fetch metrics for each period, returns dict of (year, month) -> MetricsDB."""
-        project_uuid = UUID(project_id) if isinstance(project_id, str) else project_id
         result: dict[tuple[int, int], MetricsDB | None] = {p: None for p in periods}
         if not periods:
             return result
 
         query = (
             select(MetricsDB)
-            .where(MetricsDB.project_id == project_uuid)
+            .where(MetricsDB.project_id == project_id)
             .where(MetricsDB.snapshot_type == snapshot_type)
             .where(
                 tuple_(MetricsDB.period_year, MetricsDB.period_month).in_(periods)
@@ -217,14 +218,18 @@ class ExportService:
 
         set_column_widths(ws, {"A": 20, "B": 30})
 
-    def _build_metrics_sheet(
+    def _build_hierarchical_metrics_sheet(
         self,
         wb: Workbook,
         periods: list[tuple[int, int]],
-        metrics_by_period: dict,
-        scores_by_period: dict,
+        extract_fn: Callable[[str, int, tuple[int, int]], float | int | None],
     ) -> None:
-        """Build the Metrics sheet with hierarchical rows and traffic-light coloring."""
+        """Build the Metrics sheet with hierarchical rows and traffic-light coloring.
+
+        Args:
+            extract_fn: Callable(key, level, period) -> value. Abstracts the data
+                source so the same sheet layout works for both project and global exports.
+        """
         ws = wb.create_sheet("Metrics")
         metric_rows = get_metric_rows()
 
@@ -247,10 +252,7 @@ class ExportService:
             ]
 
             for period in periods:
-                value = self._extract_value(
-                    metric_row["key"], level, scores_by_period.get(period)
-                )
-                row_data.append(value)
+                row_data.append(extract_fn(metric_row["key"], level, period))
 
             ws.append(row_data)
             current_row = ws.max_row
@@ -286,14 +288,12 @@ class ExportService:
         ws.append(header)
         apply_header_style(ws, ws.max_row)
 
-        # Project count row
         counts = ["Projects"]
         for period in periods:
             record = global_by_period.get(period)
             counts.append(record.project_count if record else None)
         ws.append(counts)
 
-        # Overall score row
         scores = ["Overall Score"]
         for period in periods:
             record = global_by_period.get(period)
@@ -304,19 +304,9 @@ class ExportService:
             )
         ws.append(scores)
 
-        # Dimension score rows
-        dim_keys = [
-            ("p_time", "P_time \u2014 Schedule"),
-            ("p_cost", "P_cost \u2014 Budget"),
-            ("p_quality", "P_quality \u2014 Quality"),
-            ("p_value", "P_value \u2014 Strategic Value"),
-            ("p_satisfaction", "P_satisfaction \u2014 Satisfaction"),
-            ("p_flow", "P_flow \u2014 Flow"),
-            ("p_engineering", "P_engineering \u2014 Engineering"),
-            ("p_risk", "P_risk \u2014 Risk"),
-        ]
-        for dim_key, dim_name in dim_keys:
-            row = [dim_name]
+        for dim_def in DIMENSION_DEFINITIONS:
+            dim_key = dim_def["key"]
+            row = [dim_def["name"]]
             for period in periods:
                 record = global_by_period.get(period)
                 value = None
@@ -331,60 +321,9 @@ class ExportService:
             for col_idx in range(2, 2 + len(periods)):
                 cell = ws.cell(row=current_row, column=col_idx)
                 cell.border = THIN_BORDER
-                apply_traffic_light(cell, cell.value, 80)
+                apply_traffic_light(cell, cell.value, DIMENSION_TARGET)
 
         set_column_widths(ws, {"A": 35, "B": 30})
-
-    def _build_global_metrics_sheet(
-        self,
-        wb: Workbook,
-        periods: list[tuple[int, int]],
-        global_by_period: dict[tuple[int, int], GlobalMetricsRecord | None],
-    ) -> None:
-        """Build the Metrics sheet with hierarchical rows using averaged global data."""
-        ws = wb.create_sheet("Metrics")
-        metric_rows = get_metric_rows()
-
-        header = ["Name", "Description", "Formula", "Target"]
-        for year, month in periods:
-            header.append(format_month_header(year, month))
-        ws.append(header)
-        apply_header_style(ws, 1)
-
-        for metric_row in metric_rows:
-            level = metric_row["level"]
-            indent = "  " * level
-            target = self._get_target_for_metric(metric_row["key"], level)
-
-            row_data = [
-                f"{indent}{metric_row['name']}",
-                metric_row["description"],
-                metric_row["formula"],
-                target if target else "-",
-            ]
-
-            for period in periods:
-                value = self._extract_global_value(
-                    metric_row["key"], level, global_by_period.get(period)
-                )
-                row_data.append(value)
-
-            ws.append(row_data)
-            current_row = ws.max_row
-            apply_row_style(ws, current_row, level)
-
-            target_num = self._parse_target(target)
-            for col_idx, _period in enumerate(periods, start=5):
-                cell = ws.cell(row=current_row, column=col_idx)
-                cell.border = THIN_BORDER
-                if level <= 1 and target_num is not None:
-                    apply_traffic_light(cell, cell.value, target_num)
-
-        widths = {"A": 35, "B": 50, "C": 45, "D": 12}
-        for i, _ in enumerate(periods):
-            widths[get_column_letter(5 + i)] = 12
-        set_column_widths(ws, widths)
-        freeze_panes(ws, 2, 5)
 
     # --- Helpers ---
 
@@ -408,7 +347,7 @@ class ExportService:
         if level == 0:
             return None
         if level == 1:
-            return "80"
+            return str(DIMENSION_TARGET)
         try:
             return str(self.config.get_target(key))
         except (KeyError, ValueError):
