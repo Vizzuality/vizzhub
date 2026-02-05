@@ -1,10 +1,10 @@
-# Security Group - EC2
-resource "aws_security_group" "ec2" {
-  name        = "${var.project_name}-ec2-sg"
-  description = "Security group for EC2 instance"
+# Security Group - ALB
+resource "aws_security_group" "alb" {
+  name        = "${var.project_name}-alb-sg"
+  description = "Security group for Application Load Balancer"
   vpc_id      = aws_vpc.main.id
 
-  # HTTPS from anywhere (auth handled by Google SSO)
+  # HTTPS from anywhere
   ingress {
     description = "HTTPS"
     from_port   = 443
@@ -13,13 +13,51 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # HTTP for Let's Encrypt ACME challenge
+  # HTTP from anywhere (redirects to HTTPS)
   ingress {
-    description = "HTTP for ACME"
+    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Outbound: allow all (needed to reach EC2 target groups)
+  egress {
+    description = "All outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-alb-sg"
+  }
+}
+
+# Security Group - EC2
+resource "aws_security_group" "ec2" {
+  name        = "${var.project_name}-ec2-sg"
+  description = "Security group for EC2 instance"
+  vpc_id      = aws_vpc.main.id
+
+  # Backend from ALB
+  ingress {
+    description     = "Backend from ALB"
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  # Frontend from ALB
+  ingress {
+    description     = "Frontend from ALB"
+    from_port       = 5173
+    to_port         = 5173
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
 
   # No SSH - admin via SSM only

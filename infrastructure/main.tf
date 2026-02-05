@@ -1,11 +1,11 @@
 # Hub Infrastructure - Main Configuration
 #
-# Prerequisites:
-#   1. Run bootstrap/ first to create state bucket
-#   2. Configure backend below with bootstrap outputs
-#   3. Create prod.tfvars with your values
-#
 # Usage:
+#   1. First run with backend commented out: tofu init && tofu apply
+#   2. Uncomment backend block below
+#   3. Run: tofu init -migrate-state
+#
+# Commands:
 #   tofu init
 #   tofu plan -var-file=environments/prod.tfvars
 #   tofu apply -var-file=environments/prod.tfvars
@@ -22,20 +22,26 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+    github = {
+      source  = "integrations/github"
+      version = "~> 6.0"
+    }
   }
 
-  # Uncomment after running bootstrap/
-  # backend "s3" {
-  #   bucket         = "hub-vizzuality-tfstate"
-  #   key            = "hub/prod/terraform.tfstate"
-  #   region         = "eu-west-1"
-  #   dynamodb_table = "hub-vizzuality-tflock"
-  #   encrypt        = true
-  # }
+  # Uncomment after state resources are created (state.tf)
+  backend "s3" {
+    bucket         = "hub-vizzuality-tfstate"
+    key            = "hub/prod/terraform.tfstate"
+    region         = "eu-west-3"
+    dynamodb_table = "hub-vizzuality-tflock"
+    encrypt        = true
+    profile = "aws-vizzhub"
+  }
 }
 
 provider "aws" {
   region = var.aws_region
+  profile = var.aws_profile
 
   default_tags {
     tags = {
@@ -45,7 +51,3 @@ provider "aws" {
     }
   }
 }
-
-# Current AWS account and region data
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
