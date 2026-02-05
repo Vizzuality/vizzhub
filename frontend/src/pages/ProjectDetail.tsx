@@ -256,7 +256,7 @@ export default function ProjectDetail(): JSX.Element {
         </AlertDialogContent>
       </AlertDialog>
 
-      <SnapshotManager projectId={id!} />
+      <SnapshotManager projectId={id!} projectName={project?.name ?? ''} />
 
       {scoresLoading && (
         <>

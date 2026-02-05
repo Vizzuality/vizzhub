@@ -13,3 +13,4 @@ export {
   scheduledJobsApi,
   silencesApi,
 } from './api/notifications';
+export { exportsApi } from './api/exports';
