@@ -184,21 +184,60 @@ jobs:
           ECR_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
         run: |
+          # Build deploy script
+          DEPLOY_SCRIPT=$(cat << 'SCRIPT'
+          set -e
+          cd /opt/hub
+          export TAG=TAG_PLACEHOLDER
+          export ECR_URI=ECR_PLACEHOLDER
+
+          echo "=== ECR Login ==="
+          aws ecr get-login-password --region REGION_PLACEHOLDER | docker login --username AWS --password-stdin $ECR_URI
+
+          echo "=== Pulling images ==="
+          docker compose -f docker-compose.prod.yml pull
+
+          echo "=== Starting containers ==="
+          docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+          echo "=== Waiting for backend to start (30s) ==="
+          sleep 30
+
+          echo "=== Health check ==="
+          for i in 1 2 3 4 5; do
+            if curl -sf http://localhost:8000/health; then
+              echo "Backend healthy!"
+              break
+            fi
+            if [ $i -eq 5 ]; then
+              echo "Backend unhealthy after 5 attempts"
+              docker compose -f docker-compose.prod.yml logs --tail=100 backend
+              exit 1
+            fi
+            echo "Attempt $i failed, waiting 10s..."
+            sleep 10
+          done
+
+          echo "=== Container status ==="
+          docker compose -f docker-compose.prod.yml ps
+
+          echo "=== Cleanup old images ==="
+          docker image prune -af --filter until=168h || true
+          SCRIPT
+          )
+
+          # Replace placeholders
+          DEPLOY_SCRIPT="${DEPLOY_SCRIPT//TAG_PLACEHOLDER/${TAG}}"
+          DEPLOY_SCRIPT="${DEPLOY_SCRIPT//ECR_PLACEHOLDER/${ECR_URI}}"
+          DEPLOY_SCRIPT="${DEPLOY_SCRIPT//REGION_PLACEHOLDER/${AWS_REGION}}"
+
+          # Encode and send
+          DEPLOY_SCRIPT_B64=$(echo "$DEPLOY_SCRIPT" | base64 -w0)
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters "commands=[
-              \"cd /opt/hub\",
-              \"export TAG=${TAG}\",
-              \"export ECR_URI=${ECR_URI}\",
-              \"aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}\",
-              \"docker compose -f docker-compose.prod.yml pull\",
-              \"docker compose -f docker-compose.prod.yml up -d --force-recreate\",
-              \"sleep 15\",
-              \"curl -sf http://localhost:8000/health && echo 'Backend healthy' || (docker compose -f docker-compose.prod.yml logs --tail=50 backend && exit 1)\",
-              \"docker compose -f docker-compose.prod.yml ps\",
-              \"docker image prune -af --filter until=168h || true\"
-            ]" \
+            --parameters "commands=[\"echo '$DEPLOY_SCRIPT_B64' | base64 -d | bash\"]" \
             --query 'Command.CommandId' \
             --output text)
 
