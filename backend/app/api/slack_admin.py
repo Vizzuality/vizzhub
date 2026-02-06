@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import AdminUser, DBSession, limiter
+from app.api.deps import AdminUser, CurrentUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
@@ -43,7 +43,7 @@ async def get_slack_config_or_create(db: DBSession) -> SlackConfigDB:
 @limiter.limit("100/minute")
 async def get_slack_config(
     request: Request,
-    current_user: AdminUser,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> SlackConfigResponse:
     """Get Slack config (token masked). Requires authentication."""
@@ -118,7 +118,7 @@ async def test_slack_connection(
 @limiter.limit("10/minute")
 async def list_slack_channels(
     request: Request,
-    current_user: AdminUser,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> list[SlackChannel]:
     """List available Slack channels. Requires authentication."""
