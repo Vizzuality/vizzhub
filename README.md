@@ -1,21 +1,19 @@
 # Project Scorecard
 
-[![CI](https://github.com/Vizzuality/project-score-card/actions/workflows/ci.yml/badge.svg)](https://github.com/Vizzuality/project-score-card/actions/workflows/ci.yml)
-
-A modern web application for evaluating software development projects across 8 dimensions. Migrated from Google Sheets + Google Apps Script to FastAPI + React.
+A web application for evaluating software development projects across 8 dimensions.
 
 ## Dimensions
 
-| Dimension | Code | Focus |
-|-----------|------|-------|
-| Delivery Timeliness | P_time | Schedule adherence (SPI + milestones) |
-| Cost Control | P_cost | Budget discipline (CPI + variance) |
-| Product Quality | P_quality | Defects, governance, reviews |
-| Strategic Value | P_value | OKR impact |
-| Client Satisfaction | P_satisfaction | Survey + PM estimation |
-| Flow & Predictability | P_flow | Lead time, efficiency, commitment |
-| Engineering Maturity | P_engineering | Testing, reviews, architecture |
-| Risk Posture | P_risk | Security, code review |
+| Dimension             | Code           | Focus                                 |
+| --------------------- | -------------- | ------------------------------------- |
+| Delivery Timeliness   | P_time         | Schedule adherence (SPI + milestones) |
+| Cost Control          | P_cost         | Budget discipline (CPI + variance)    |
+| Product Quality       | P_quality      | Defects, governance, reviews          |
+| Strategic Value       | P_value        | OKR impact                            |
+| Client Satisfaction   | P_satisfaction | Survey + PM estimation                |
+| Flow & Predictability | P_flow         | Lead time, efficiency, commitment     |
+| Engineering Maturity  | P_engineering  | Testing, reviews, architecture        |
+| Risk Posture          | P_risk         | Security, code review                 |
 
 ## Quick Start
 
@@ -70,6 +68,7 @@ python run_server.py
 ```
 
 Backend will run on **http://localhost:8000**
+
 - API Docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
@@ -105,6 +104,7 @@ docker-compose down
 ### Development Mode
 
 The application runs in **development mode** by default:
+
 - Backend: `DEBUG=true` → Authentication bypassed (no JWT required)
 - Frontend: `BYPASS_AUTH=true` → No login required
 
@@ -152,9 +152,9 @@ Edit `backend/scoring_config.yaml` to adjust:
 
 ```yaml
 targets:
-  defect_density: 3      # defects per 100 tasks
-  escaped_rate: 0.01     # escapes per 100 tasks
-  mttr_hours: 24         # mean time to recover
+  defect_density: 3 # defects per 100 tasks
+  escaped_rate: 0.01 # escapes per 100 tasks
+  mttr_hours: 24 # mean time to recover
   # ...
 
 weights:
@@ -200,6 +200,7 @@ GITHUB_TOKEN=your-github-token
 ```
 
 **Important Notes:**
+
 - **Security Keys**: Generate random keys for production. Never commit real keys to git.
 - **OAuth 2.0** (Recommended): More secure, automatic token refresh, CSRF protection. See [`docs/OAUTH_SETUP.md`](docs/OAUTH_SETUP.md)
 - **Classic Scopes**: Use Atlassian's classic scopes (`read:jira-work read:jira-user`) instead of granular scopes
@@ -210,6 +211,7 @@ GITHUB_TOKEN=your-github-token
 ### Current State (Development)
 
 The application is configured for **development mode**:
+
 - **Backend**: JWT authentication implemented but bypassed when `DEBUG=true`
 - **Frontend**: Auth infrastructure ready but `BYPASS_AUTH=true` for development
 - **Security**: Full security implementation active (rate limiting, CSRF protection, security headers, input validation)
@@ -219,6 +221,7 @@ The application is configured for **development mode**:
 Google OAuth implementation is planned. See [docs/TODO.md](docs/TODO.md) for details.
 
 Implementation guides:
+
 - `docs/SECURITY_QUICK_START.md` - Quick start guide
 - `docs/DEVELOPMENT_AUTH.md` - Development authentication details
 - `docs/SECURITY_IMPLEMENTATION.md` - Full security implementation
@@ -226,6 +229,7 @@ Implementation guides:
 ### Security Features
 
 ✅ **Implemented**:
+
 - JWT authentication system (production-ready)
 - OAuth 2.0 for Jira with CSRF protection
 - Rate limiting on all endpoints
@@ -233,8 +237,6 @@ Implementation guides:
 - Input validation (JQL injection prevention, UUID validation)
 - Structured security logging (JSON format)
 - Error message sanitization
-
-📋 **Security Audit**: See `audits/security.md` for complete security audit report (12 vulnerabilities fixed)
 
 ## API Usage
 
@@ -349,6 +351,7 @@ Automated alerts to Slack channels for proactive project management:
   - High/critical Dependabot vulnerabilities
 
 **Setup:**
+
 1. Create a Slack app with Bot Token Scopes: `chat:write`, `channels:read`, `groups:read`
 2. Go to Admin → Slack tab
 3. Paste Bot User OAuth Token
@@ -358,6 +361,7 @@ Automated alerts to Slack channels for proactive project management:
 ### Global Dashboard
 
 Cross-project analytics at `/global`:
+
 - Portfolio health overview
 - Dimension comparisons across projects
 - Trend analysis
@@ -365,6 +369,7 @@ Cross-project analytics at `/global`:
 ## Roadmap
 
 See [docs/TODO.md](docs/TODO.md) for planned features including:
+
 - Predictions and forecasting (score trends, budget forecast, velocity estimates)
 - Visualization enhancements (trend charts, comparative views)
 - Google OAuth authentication
@@ -374,11 +379,11 @@ See [docs/TODO.md](docs/TODO.md) for planned features including:
 
 ### Git Workflow
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Production-ready code, releases only |
-| `dev` | Active development (default branch) |
-| `feature/*` | Feature branches → PR to `dev` |
+| Branch      | Purpose                              |
+| ----------- | ------------------------------------ |
+| `main`      | Production-ready code, releases only |
+| `dev`       | Active development (default branch)  |
+| `feature/*` | Feature branches → PR to `dev`       |
 
 ```bash
 # Start a new feature
@@ -394,13 +399,16 @@ git push -u origin feature/my-feature
 ## Documentation
 
 ### Slack Notifications
+
 - [Slack Notifications Design](docs/plans/2026-02-03-slack-notifications-design.md) - Architecture and design
 - [Slack Notifications Implementation](docs/plans/2026-02-03-slack-notifications-implementation.md) - Detailed implementation plan
 
 ### Testing
+
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
 
 ### Authentication & Security
+
 - [OAuth 2.0 Setup](docs/OAUTH_SETUP.md) - Jira OAuth authentication guide
 - [Security Quick Start](docs/SECURITY_QUICK_START.md) - 5-minute security guide
 - [Security Implementation](docs/SECURITY_IMPLEMENTATION.md) - Full security implementation
@@ -409,12 +417,12 @@ git push -u origin feature/my-feature
 - [Security Audit Report](audits/security.md) - Complete security audit (12 vulnerabilities fixed)
 
 ### Development
-- [CLAUDE.md](CLAUDE.md) - Guidance for Claude Code
+
 - [Migration Plan](docs/MIGRATION_PLAN.md) - Legacy to new system mapping
 - [API Documentation](docs/API.md) - REST API reference
-- [Legacy Documentation](legacy/README.md) - Original system docs
 
 ### Scripts & Utilities
+
 - `backend/scripts/generate_jwt_token.py` - Generate JWT tokens for testing
 - `backend/test_jira_oauth.py` - Test Jira OAuth connection and metrics
 - `backend/test_jira_basic.py` - Explore Jira project data
@@ -422,6 +430,7 @@ git push -u origin feature/my-feature
 ## Tech Stack
 
 ### Backend
+
 - Python 3.11+
 - FastAPI
 - PostgreSQL 16
@@ -430,6 +439,7 @@ git push -u origin feature/my-feature
 - pytest
 
 ### Frontend
+
 - React 18
 - TypeScript
 - Vite
