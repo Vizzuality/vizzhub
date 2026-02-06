@@ -20,7 +20,7 @@ class TestListNotifications:
     @pytest.mark.asyncio
     async def test_list_notifications_empty(self, client: AsyncClient) -> None:
         """List notifications returns empty list when none exist."""
-        response = await client.get("/api/notifications/")
+        response = await client.get("/api/notifications")
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
@@ -68,7 +68,7 @@ class TestListNotifications:
         db_session.add_all([notification1, notification2])
         await db_session.commit()
 
-        response = await client.get("/api/notifications/")
+        response = await client.get("/api/notifications")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 2
@@ -119,7 +119,7 @@ class TestListNotifications:
         db_session.add_all([notification1, notification2])
         await db_session.commit()
 
-        response = await client.get(f"/api/notifications/?project_id={project1.id}")
+        response = await client.get(f"/api/notifications?project_id={project1.id}")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
@@ -174,7 +174,7 @@ class TestListNotifications:
         db_session.add_all([notification1, notification2])
         await db_session.commit()
 
-        response = await client.get(f"/api/notifications/?alert_definition_id={alert1.id}")
+        response = await client.get(f"/api/notifications?alert_definition_id={alert1.id}")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
@@ -225,7 +225,7 @@ class TestListNotifications:
         start_date = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
         end_date = (now + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         response = await client.get(
-            f"/api/notifications/?start_date={start_date}&end_date={end_date}"
+            f"/api/notifications?start_date={start_date}&end_date={end_date}"
         )
         assert response.status_code == 200
         data = response.json()
@@ -269,7 +269,7 @@ class TestListNotifications:
         db_session.add_all(notifications)
         await db_session.commit()
 
-        response = await client.get("/api/notifications/?page=1&page_size=5")
+        response = await client.get("/api/notifications?page=1&page_size=5")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 5
@@ -278,13 +278,13 @@ class TestListNotifications:
         assert data["page_size"] == 5
         assert data["pages"] == 3
 
-        response = await client.get("/api/notifications/?page=2&page_size=5")
+        response = await client.get("/api/notifications?page=2&page_size=5")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 5
         assert data["page"] == 2
 
-        response = await client.get("/api/notifications/?page=3&page_size=5")
+        response = await client.get("/api/notifications?page=3&page_size=5")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 5
@@ -322,7 +322,7 @@ class TestListNotifications:
         db_session.add(notification)
         await db_session.commit()
 
-        response = await client.get("/api/notifications/")
+        response = await client.get("/api/notifications")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
@@ -362,7 +362,7 @@ class TestListNotifications:
         db_session.add(notification)
         await db_session.commit()
 
-        response = await client.get("/api/notifications/")
+        response = await client.get("/api/notifications")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
@@ -411,7 +411,7 @@ class TestListNotifications:
         db_session.add_all([notification_old, notification_new])
         await db_session.commit()
 
-        response = await client.get("/api/notifications/")
+        response = await client.get("/api/notifications")
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 2
@@ -423,7 +423,7 @@ class TestListNotifications:
         self, client: AsyncClient
     ) -> None:
         """List notifications enforces max page_size of 100."""
-        response = await client.get("/api/notifications/?page_size=150")
+        response = await client.get("/api/notifications?page_size=150")
         assert response.status_code == 400
 
     @pytest.mark.asyncio
@@ -431,7 +431,7 @@ class TestListNotifications:
         self, client: AsyncClient
     ) -> None:
         """List notifications enforces min page of 1."""
-        response = await client.get("/api/notifications/?page=0")
+        response = await client.get("/api/notifications?page=0")
         assert response.status_code == 400
 
 

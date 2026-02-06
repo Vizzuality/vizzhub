@@ -16,7 +16,7 @@ class TestListSilences:
     @pytest.mark.asyncio
     async def test_list_silences_empty(self, client: AsyncClient) -> None:
         """List silences returns empty list when none exist."""
-        response = await client.get("/api/silences/")
+        response = await client.get("/api/silences")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -46,7 +46,7 @@ class TestListSilences:
         db_session.add_all([silence1, silence2])
         await db_session.commit()
 
-        response = await client.get("/api/silences/")
+        response = await client.get("/api/silences")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
@@ -74,7 +74,7 @@ class TestListSilences:
         db_session.add_all([silence1, silence2])
         await db_session.commit()
 
-        response = await client.get(f"/api/silences/?project_id={project1.id}")
+        response = await client.get(f"/api/silences?project_id={project1.id}")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -112,7 +112,7 @@ class TestListSilences:
         db_session.add_all([active_silence, expired_silence, indefinite_silence])
         await db_session.commit()
 
-        response = await client.get("/api/silences/")
+        response = await client.get("/api/silences")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
@@ -143,7 +143,7 @@ class TestListSilences:
         db_session.add(expired_silence)
         await db_session.commit()
 
-        response = await client.get("/api/silences/?include_expired=true")
+        response = await client.get("/api/silences?include_expired=true")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -179,7 +179,7 @@ class TestListSilences:
         db_session.add(silence)
         await db_session.commit()
 
-        response = await client.get("/api/silences/")
+        response = await client.get("/api/silences")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -204,7 +204,7 @@ class TestCreateSilence:
         await db_session.commit()
 
         response = await client.post(
-            "/api/silences/",
+            "/api/silences",
             json={
                 "project_id": str(project.id),
                 "reason": "Maintenance window",
@@ -243,7 +243,7 @@ class TestCreateSilence:
         await db_session.refresh(alert)
 
         response = await client.post(
-            "/api/silences/",
+            "/api/silences",
             json={
                 "project_id": str(project.id),
                 "alert_definition_id": alert.id,
@@ -270,7 +270,7 @@ class TestCreateSilence:
 
         expiry = datetime.now(timezone.utc) + timedelta(days=7)
         response = await client.post(
-            "/api/silences/",
+            "/api/silences",
             json={
                 "project_id": str(project.id),
                 "silenced_until": expiry.isoformat(),
@@ -288,7 +288,7 @@ class TestCreateSilence:
         """Create silence returns 404 for non-existent project."""
         fake_id = str(uuid4())
         response = await client.post(
-            "/api/silences/",
+            "/api/silences",
             json={
                 "project_id": fake_id,
                 "reason": "Test",
@@ -311,7 +311,7 @@ class TestCreateSilence:
         await db_session.commit()
 
         response = await client.post(
-            "/api/silences/",
+            "/api/silences",
             json={
                 "project_id": str(project.id),
                 "alert_definition_id": 99999,
@@ -327,7 +327,7 @@ class TestCreateSilence:
     ) -> None:
         """Create silence returns 400 for invalid project ID format."""
         response = await client.post(
-            "/api/silences/",
+            "/api/silences",
             json={
                 "project_id": "not-a-uuid",
                 "reason": "Test",
@@ -338,7 +338,7 @@ class TestCreateSilence:
 
 
 class TestUpdateSilence:
-    """Tests for PUT /api/silences/{id} endpoint."""
+    """Tests for PUT /api/silences{id} endpoint."""
 
     @pytest.mark.asyncio
     async def test_update_silence_success(
@@ -455,7 +455,7 @@ class TestUpdateSilence:
 
 
 class TestDeleteSilence:
-    """Tests for DELETE /api/silences/{id} endpoint."""
+    """Tests for DELETE /api/silences{id} endpoint."""
 
     @pytest.mark.asyncio
     async def test_delete_silence_success(
@@ -481,7 +481,7 @@ class TestDeleteSilence:
         response = await client.delete(f"/api/silences/{silence.id}")
         assert response.status_code == 204
 
-        get_response = await client.get("/api/silences/?include_expired=true")
+        get_response = await client.get("/api/silences?include_expired=true")
         assert get_response.status_code == 200
         assert len(get_response.json()) == 0
 

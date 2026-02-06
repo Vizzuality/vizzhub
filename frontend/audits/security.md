@@ -46,7 +46,7 @@ The JWT httpOnly cookie refactor has been implemented with strong security funda
 
 The `get_cookie_settings()` function in `/Volumes/Work/Dev/project-score-card/backend/app/core/auth.py` (lines 24-33) does not explicitly set a `domain` attribute on the cookie. When `domain` is omitted, the cookie is scoped to the exact host that set it (no subdomain sharing), which is the default secure behavior per RFC 6265. However, this means the behavior is implicit rather than explicit.
 
-In the production deployment architecture (nginx reverse proxy on the same domain), the cookie is set by the backend (`backend:8000`) but proxied through nginx on the production domain. Since `proxy_pass` forwards the response headers including `Set-Cookie`, and the browser associates the cookie with the request origin (the production domain), this works correctly.
+In the production deployment architecture (ALB with path-based routing), the cookie is set by the backend (`backend:8000`) and forwarded through ALB to the client on the production domain. Since ALB forwards the response headers including `Set-Cookie`, and the browser associates the cookie with the request origin (the production domain), this works correctly.
 
 **Impact:**
 
@@ -94,7 +94,7 @@ The cookie `path` is set to `/api`, meaning the browser will only attach the coo
 This is verified to work correctly with the frontend because:
 - The axios client uses `baseURL: '/api'` (`/Volumes/Work/Dev/project-score-card/frontend/src/services/api/client.ts`, line 4)
 - The Vite dev proxy forwards `/api` to the backend (`/Volumes/Work/Dev/project-score-card/frontend/vite.config.ts`, lines 31-36)
-- In production, nginx proxies `/api/` to the backend (`/Volumes/Work/Dev/project-score-card/infrastructure/templates/user_data.sh`, lines 262-269)
+- In production, ALB routes `/api/*` to the backend target group (`/Volumes/Work/Dev/project-score-card/infrastructure/alb.tf`, listener rule)
 - All frontend `fetch()` calls that need auth use paths starting with `/api` and include `credentials: 'include'`
 
 **Evidence:**

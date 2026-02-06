@@ -12,7 +12,7 @@ class TestJobsAPI:
     @pytest.mark.asyncio
     async def test_list_jobs_returns_empty_list(self, client: AsyncClient) -> None:
         """List jobs returns empty list when no jobs exist."""
-        response = await client.get("/api/jobs/")
+        response = await client.get("/api/jobs")
         assert response.status_code == 200
         assert response.json() == []
 

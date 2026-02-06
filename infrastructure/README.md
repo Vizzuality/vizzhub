@@ -95,11 +95,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### Refresh Secrets
 
-If you update secrets in AWS Secrets Manager:
+If you update secrets in AWS Secrets Manager, re-run the deploy workflow or manually recreate .env:
 
 ```bash
-# SSH into EC2
-/opt/hub/fetch-secrets.sh
+# SSH into EC2 via SSM, then re-deploy to fetch new secrets
+# Or trigger the GitHub Actions deploy workflow
 docker compose -f /opt/hub/docker-compose.prod.yml restart backend worker
 ```
 
@@ -118,13 +118,11 @@ infrastructure/
 ├── rds.tf               # PostgreSQL database
 ├── ecr.tf               # Container registry
 ├── secrets.tf           # Secrets Manager
-├── iam.tf               # GitHub OIDC
+├── iam.tf               # IAM policies
+├── github.tf            # GitHub OIDC provider and role
 ├── cloudwatch.tf        # Logs and alarms
 │
 ├── docker-compose.prod.yml  # Production compose (deployed via SSM)
-│
-├── templates/
-│   └── user_data.sh     # EC2 bootstrap script (~100 lines)
 │
 ├── environments/
 │   └── prod.tfvars.example  # Production config template

@@ -66,7 +66,7 @@ async def test_get_job_not_found(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_list_jobs_empty(client: AsyncClient) -> None:
     """Test listing jobs when none exist."""
-    response = await client.get("/api/jobs/")
+    response = await client.get("/api/jobs")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
@@ -74,7 +74,7 @@ async def test_list_jobs_empty(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_cancel_job_not_found(client: AsyncClient) -> None:
     """Test cancelling non-existent job."""
-    response = await client.post("/api/jobs/00000000-0000-0000-0000-000000000000/cancel")
+    response = await client.post("/api/jobs00000000-0000-0000-0000-000000000000/cancel")
     assert response.status_code == 404
 
 
