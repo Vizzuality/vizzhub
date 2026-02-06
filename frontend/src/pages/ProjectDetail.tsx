@@ -258,62 +258,58 @@ export default function ProjectDetail(): JSX.Element {
 
       <SnapshotManager projectId={id!} projectName={project?.name ?? ''} />
 
-      {scoresLoading && (
+      {project.start_date && (
         <>
           <Separator className="my-6" />
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
+          <InteractiveTimelineChart
+            projectStartDate={project.start_date}
+            projectFinishedAt={project.finished_at}
+            snapshots={snapshots}
+            selectedPeriod={selectedPeriod}
+            onPeriodChange={setSelectedPeriod}
+            isCapturing={isPeriodCapturing}
+            onCollectMetrics={async (period, force) => {
+              await capturePeriod({ year: period.year, month: period.month, force });
+            }}
+            isCollecting={isPeriodCapturing}
+            hasCollectors={!!(project.jira_project_key || project.github_repo)}
+            isFinished={project.status === 'finished'}
+          />
+
+          <CollectorNotifications
+            error={periodCaptureError}
+            isSuccess={captureSuccess}
+            dismissedSuccess={dismissedSuccess}
+            onDismissSuccess={() => {
+              setDismissedSuccess(true);
+              resetCaptureState();
+            }}
+          />
         </>
       )}
 
-      {scoresError && (
-        <>
-          <Separator className="my-6" />
-          <Card className="bg-score-yellow/10 border-score-yellow/30">
-            <CardContent className="pt-6">
-              <p className="font-medium text-score-yellow">No metrics available yet</p>
-              <p className="text-sm mt-1 text-score-yellow/80">
-                {project.jira_project_key
-                  ? 'Click "Collect Metrics" to fetch data from Jira.'
-                  : 'Configure a Jira project key to collect metrics.'}
-              </p>
-            </CardContent>
-          </Card>
-        </>
+      {scoresLoading && (
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      )}
+
+      {scoresError && !scoresLoading && (
+        <Card className="bg-score-yellow/10 border-score-yellow/30">
+          <CardContent className="pt-6">
+            <p className="font-medium text-score-yellow">No metrics available yet</p>
+            <p className="text-sm mt-1 text-score-yellow/80">
+              {project.jira_project_key
+                ? 'Click "Collect Metrics" above to fetch data from Jira.'
+                : 'Configure a Jira project key to collect metrics.'}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {scores && (
         <>
-          <Separator className="my-6" />
           <div>
-            {project.start_date && (
-              <InteractiveTimelineChart
-                projectStartDate={project.start_date}
-                projectFinishedAt={project.finished_at}
-                snapshots={snapshots}
-                selectedPeriod={selectedPeriod}
-                onPeriodChange={setSelectedPeriod}
-                isCapturing={isPeriodCapturing}
-                onCollectMetrics={async (period, force) => {
-                  await capturePeriod({ year: period.year, month: period.month, force });
-                }}
-                isCollecting={isPeriodCapturing}
-                hasCollectors={!!(project.jira_project_key || project.github_repo)}
-                isFinished={project.status === 'finished'}
-              />
-            )}
-
-            <CollectorNotifications
-              error={periodCaptureError}
-              isSuccess={captureSuccess}
-              dismissedSuccess={dismissedSuccess}
-              onDismissSuccess={() => {
-                setDismissedSuccess(true);
-                resetCaptureState();
-              }}
-            />
-
             <div className="relative">
               {selectedPeriod && !periodHasData && (
                 <EmptyPeriodOverlay
