@@ -47,7 +47,7 @@ class GitHubCollectedMetrics(BaseModel):
     pr_review_ratio: float | None
 
     # pr_size
-    pr_size_median: int | None
+    pr_size_median: float | None
 
     # review_turnaround
     review_turnaround_hours: float | None

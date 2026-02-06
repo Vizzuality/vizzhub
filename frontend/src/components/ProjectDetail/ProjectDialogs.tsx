@@ -22,7 +22,7 @@ interface ProjectDialogsProps {
   projectName: string;
   showDeleteConfirm: boolean;
   onDeleteConfirmChange: (open: boolean) => void;
-  onConfirmDelete: () => void;
+  onConfirmDelete: () => Promise<void>;
   showFinishDialog: boolean;
   onFinishDialogChange: (open: boolean) => void;
   onConfirmFinish: (finishedAt: string) => Promise<unknown>;
@@ -65,7 +65,11 @@ export default function ProjectDialogs({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={onConfirmDelete}
+              onClick={async (e) => {
+                e.preventDefault();
+                await onConfirmDelete();
+                onDeleteConfirmChange(false);
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

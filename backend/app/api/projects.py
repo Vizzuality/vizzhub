@@ -3,9 +3,10 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
+from app.models.metrics.db import MetricsDB
 from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 
 router = APIRouter()
@@ -109,7 +110,8 @@ async def replace_project(
 async def delete_project(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> None:
-    """Delete a project. Requires authentication."""
+    """Delete a project and all associated metrics. Requires authentication."""
     project = await get_project_or_404(db, project_id)
 
+    await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))
     await db.delete(project)
