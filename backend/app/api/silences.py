@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/silences", tags=["silences"])
 
 
-@router.get("/", response_model=list[AlertSilenceResponse])
+@router.get("", response_model=list[AlertSilenceResponse])
 @limiter.limit("100/minute")
 async def list_silences(
     request: Request,
@@ -81,7 +81,7 @@ async def list_silences(
 
 
 @router.post(
-    "/", response_model=AlertSilenceResponse, status_code=status.HTTP_201_CREATED
+    "", response_model=AlertSilenceResponse, status_code=status.HTTP_201_CREATED
 )
 @limiter.limit("30/minute")
 async def create_silence(

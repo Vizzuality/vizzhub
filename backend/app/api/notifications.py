@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
-@router.get("/", response_model=PaginatedNotificationsResponse)
+@router.get("", response_model=PaginatedNotificationsResponse)
 @limiter.limit("100/minute")
 async def list_notifications(
     request: Request,

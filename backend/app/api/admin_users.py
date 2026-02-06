@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
-@router.get("/", response_model=list[User])
+@router.get("", response_model=list[User])
 async def list_users(
     current_user: AdminUser,
     db: DBSession,

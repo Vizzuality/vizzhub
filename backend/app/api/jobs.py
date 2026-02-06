@@ -139,7 +139,7 @@ async def get_job(
     return job
 
 
-@router.get("/", response_model=list[JobSummaryResponse])
+@router.get("", response_model=list[JobSummaryResponse])
 async def list_jobs(
     current_user: CurrentUser,
     db: DBSession,

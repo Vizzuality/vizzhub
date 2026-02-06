@@ -430,16 +430,21 @@ infrastructure/
 ├── main.tf              # Provider, backend config
 ├── alb.tf               # ALB, ACM certificate, target groups
 ├── network.tf           # VPC, subnets, routing
+├── security_groups.tf   # ALB and EC2 security groups
 ├── ec2.tf               # Instance, IAM roles
 ├── rds.tf               # PostgreSQL database
+├── ecr.tf               # Container registries
 ├── secrets.tf           # Secrets Manager
 ├── iam.tf               # GitHub OIDC provider
-├── docker-compose.prod.yml  # Production compose file
-└── templates/user_data.sh   # EC2 bootstrap script (~100 lines)
+├── github.tf            # GitHub Actions role
+├── cloudwatch.tf        # Log groups
+├── variables.tf         # Input variables
+├── outputs.tf           # Output values
+└── docker-compose.prod.yml  # Production compose file
 
 .github/workflows/
 ├── ci.yml               # Tests on push/PR
-└── deploy.yml           # Build + deploy on main
+└── deploy.yml           # Build + deploy (SSM commands)
 ```
 
 **Operations:**
@@ -456,8 +461,8 @@ export TAG="<git-sha>" ECR_URI="<account>.dkr.ecr.eu-west-1.amazonaws.com"
 aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $ECR_URI
 docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
 
-# Refresh secrets (after updating in Secrets Manager)
-/opt/hub/fetch-secrets.sh
+# Refresh secrets (re-run deploy or manually recreate .env)
+# Secrets are fetched from Secrets Manager during deploy
 docker compose -f /opt/hub/docker-compose.prod.yml restart backend worker
 ```
 
