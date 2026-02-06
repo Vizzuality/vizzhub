@@ -161,7 +161,7 @@ def _safe_get_target(config: ScoringConfig, indicator_key: str) -> str:
     """Get target value as string, return '-' if not configured."""
     try:
         val = config.get_target(indicator_key)
-        if val == 0.0:
+        if val is not None and abs(val) < 1e-9:
             return "-"
         return str(val)
     except (KeyError, ValueError):

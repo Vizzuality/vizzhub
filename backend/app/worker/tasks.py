@@ -6,21 +6,7 @@ from uuid import UUID
 
 from app.models.job import JobStatus
 from app.services.job_service import JobService
-
-MONTH_NAMES = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-]
+from app.utils.constants import MONTH_NAMES
 
 
 def generate_month_range(

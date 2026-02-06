@@ -3,28 +3,11 @@ import type {
   CapturePeriodRequest,
   CapturePeriodResponse,
   CaptureReport,
-  MetricsCreate,
   MetricsWithScores,
   SnapshotType,
 } from '../../types';
 import { TIMING } from '../../constants/timing';
 import api from './client';
-
-export const collectApi = {
-  collectJiraMetrics: async (projectId: string): Promise<MetricsCreate> => {
-    const response = await api.post<MetricsCreate>(`/collect/project/${projectId}/jira`);
-    return response.data;
-  },
-
-  collectGitHubMetrics: async (projectId: string): Promise<MetricsCreate> => {
-    const response = await api.post<MetricsCreate>(
-      `/collect/project/${projectId}/github`,
-      {},
-      { timeout: TIMING.API_TIMEOUT_GITHUB },
-    );
-    return response.data;
-  },
-};
 
 export const metricsHistoryApi = {
   getProjectHistory: async (
@@ -67,8 +50,6 @@ export const metricsHistoryApi = {
     return response.data;
   },
 };
-
-export const snapshotsApi = metricsHistoryApi;
 
 export const captureApi = {
   capturePeriod: async (

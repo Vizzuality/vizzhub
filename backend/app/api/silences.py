@@ -30,8 +30,19 @@ async def list_silences(
     project_id: UUID | None = None,
     include_expired: bool = False,
 ) -> list[AlertSilenceResponse]:
-    """List alert silences."""
-    query = select(AlertSilenceDB)
+    """List alert silences with project and alert names via JOIN."""
+    query = (
+        select(
+            AlertSilenceDB,
+            ProjectDB.name.label("project_name"),
+            AlertDefinitionDB.name.label("alert_name"),
+        )
+        .outerjoin(ProjectDB, AlertSilenceDB.project_id == ProjectDB.id)
+        .outerjoin(
+            AlertDefinitionDB,
+            AlertSilenceDB.alert_definition_id == AlertDefinitionDB.id,
+        )
+    )
 
     if project_id:
         query = query.where(AlertSilenceDB.project_id == project_id)
@@ -44,40 +55,22 @@ async def list_silences(
         )
 
     result = await db.execute(query)
-    silences = result.scalars().all()
+    rows = result.all()
 
-    responses = []
-    for silence in silences:
-        project_result = await db.execute(
-            select(ProjectDB).where(ProjectDB.id == silence.project_id)
+    return [
+        AlertSilenceResponse(
+            id=silence.id,
+            project_id=str(silence.project_id),
+            alert_definition_id=silence.alert_definition_id,
+            silenced_until=silence.silenced_until,
+            reason=silence.reason,
+            created_by=silence.created_by,
+            created_at=silence.created_at,
+            project_name=project_name,
+            alert_name=alert_name,
         )
-        project = project_result.scalar_one_or_none()
-
-        alert_name = None
-        if silence.alert_definition_id:
-            alert_result = await db.execute(
-                select(AlertDefinitionDB).where(
-                    AlertDefinitionDB.id == silence.alert_definition_id
-                )
-            )
-            alert = alert_result.scalar_one_or_none()
-            alert_name = alert.name if alert else None
-
-        responses.append(
-            AlertSilenceResponse(
-                id=silence.id,
-                project_id=str(silence.project_id),
-                alert_definition_id=silence.alert_definition_id,
-                silenced_until=silence.silenced_until,
-                reason=silence.reason,
-                created_by=silence.created_by,
-                created_at=silence.created_at,
-                project_name=project.name if project else None,
-                alert_name=alert_name,
-            )
-        )
-
-    return responses
+        for silence, project_name, alert_name in rows
+    ]
 
 
 @router.post(

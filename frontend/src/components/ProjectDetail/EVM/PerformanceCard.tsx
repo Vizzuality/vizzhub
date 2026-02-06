@@ -14,12 +14,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import InfoTooltip from './InfoTooltip';
-import type { EVMData } from '@/types';
-
-export interface HistoricalDataPoint {
-  readonly period: string;
-  readonly value: number | null;
-}
+import type { EVMData, HistoricalDataPoint } from '@/types';
 
 const DEFAULT_CHART_COLOR = 'oklch(0.7 0.15 250)';
 

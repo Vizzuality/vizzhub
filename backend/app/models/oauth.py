@@ -47,10 +47,10 @@ class OAuthToken(BaseModel):
     id: UUID
     provider: str
     token_type: str
-    expires_at: datetime | None
-    scope: str | None
-    cloud_id: str | None
-    site_url: str | None
+    expires_at: datetime | None = None
+    scope: str | None = None
+    cloud_id: str | None = None
+    site_url: str | None = None
     created_at: datetime
     updated_at: datetime
 

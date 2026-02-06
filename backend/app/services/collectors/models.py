@@ -17,25 +17,25 @@ class JiraCollectedMetrics(BaseModel):
 
     # mttr
     incidents_count: int
-    mttr_hours: float | None
+    mttr_hours: float | None = None
 
     # story_review_ratio
     total_stories: int
     stories_with_reviewer: int
 
     # commitment_reliability
-    commitment_reliability: float | None
+    commitment_reliability: float | None = None
     committed_issues: int
     single_sprint_issues: int
     multi_sprint_issues: int
 
     # lead_time
-    lead_time_days: float | None
+    lead_time_days: float | None = None
     lead_time_sample_size: int
 
     # post_contract_tasks
-    post_contract_tasks: int | None
-    post_contract_cutoff: date | str | None
+    post_contract_tasks: int | None = None
+    post_contract_cutoff: date | str | None = None
 
 
 class GitHubCollectedMetrics(BaseModel):
@@ -44,20 +44,20 @@ class GitHubCollectedMetrics(BaseModel):
     # pr_review
     prs_without_review: int
     total_merged_prs: int
-    pr_review_ratio: float | None
+    pr_review_ratio: float | None = None
 
     # pr_size
-    pr_size_median: float | None
+    pr_size_median: float | None = None
 
     # review_turnaround
-    review_turnaround_hours: float | None
+    review_turnaround_hours: float | None = None
 
     # deployment_frequency
-    deployment_frequency: float | None
+    deployment_frequency: float | None = None
     release_count_90d: int
 
     # change_failure_rate
-    change_failure_rate: float | None
+    change_failure_rate: float | None = None
     total_releases: int
     failed_releases: int
 

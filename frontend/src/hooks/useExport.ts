@@ -75,7 +75,7 @@ export function useExport(): UseExportReturn {
     toMonth: number,
     snapshotType: string,
   ): Promise<void> => {
-    const safeName = projectName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
+    const safeName = projectName.replaceAll(/[^\w\s-]/g, '').replaceAll(/\s+/g, '_');
     await runExport(
       (params) => exportsApi.exportProjectDetail(projectId, params),
       `${safeName}_scorecard_{start}_{end}.xlsx`,

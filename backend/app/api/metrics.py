@@ -7,11 +7,46 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
+from app.models.indicators import IndicatorsCreate
 from app.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
+from app.models.scores import FinalScore
 from app.services.metrics_service import MetricsService
 from app.services.score_computation import ScoreComputationService
 
 router = APIRouter()
+
+
+def _build_metrics_with_scores(
+    metrics_db: MetricsDB,
+    metrics: MetricsCreate,
+    indicators: IndicatorsCreate,
+    scores: FinalScore,
+) -> MetricsWithScores:
+    """Build a MetricsWithScores response from DB record and computed values."""
+    return MetricsWithScores(
+        id=str(metrics_db.id),
+        project_id=str(metrics_db.project_id),
+        period_year=metrics_db.period_year,
+        period_month=metrics_db.period_month,
+        snapshot_type=metrics_db.snapshot_type,
+        weights_applied=metrics_db.weights_applied,
+        targets_applied=metrics_db.targets_applied,
+        created_at=metrics_db.created_at,
+        indicators=indicators.model_dump(),
+        scores=scores.model_dump(),
+        evm_data=metrics.evm_data,
+        milestones=metrics.milestones,
+        jira_defects=metrics.jira_defects,
+        flow_metrics=metrics.flow_metrics,
+        github_metrics=metrics.github_metrics,
+        test_maturity=metrics.test_maturity,
+        architecture=metrics.architecture,
+        pm_satisfaction=metrics.pm_satisfaction,
+        client_survey=metrics.client_survey,
+        strategic_impact=metrics.strategic_impact,
+        governance_exceptions=metrics.governance_exceptions,
+        sev1_incident=metrics.sev1_incident,
+    )
 
 
 @router.get("/project/{project_id}", response_model=list[Metrics])
@@ -146,34 +181,7 @@ async def get_project_metrics_history(
     for metrics_db in history:
         metrics = MetricsCreate.from_db(metrics_db)
         indicators, scores = score_service.compute(metrics, sev1_incident=metrics_db.sev1_incident)
-
-        responses.append(
-            MetricsWithScores(
-                id=str(metrics_db.id),
-                project_id=str(metrics_db.project_id),
-                period_year=metrics_db.period_year,
-                period_month=metrics_db.period_month,
-                snapshot_type=metrics_db.snapshot_type,
-                weights_applied=metrics_db.weights_applied,
-                targets_applied=metrics_db.targets_applied,
-                created_at=metrics_db.created_at,
-                indicators=indicators.model_dump(),
-                scores=scores.model_dump(),
-                # Include raw metrics for period-specific views
-                evm_data=metrics.evm_data,
-                milestones=metrics.milestones,
-                jira_defects=metrics.jira_defects,
-                flow_metrics=metrics.flow_metrics,
-                github_metrics=metrics.github_metrics,
-                test_maturity=metrics.test_maturity,
-                architecture=metrics.architecture,
-                pm_satisfaction=metrics.pm_satisfaction,
-                client_survey=metrics.client_survey,
-                strategic_impact=metrics.strategic_impact,
-                governance_exceptions=metrics.governance_exceptions,
-                sev1_incident=metrics.sev1_incident,
-            )
-        )
+        responses.append(_build_metrics_with_scores(metrics_db, metrics, indicators, scores))
 
     return responses
 
@@ -208,28 +216,4 @@ async def get_metrics_by_period(
     metrics = MetricsCreate.from_db(metrics_db)
     indicators, scores = score_service.compute(metrics, sev1_incident=metrics_db.sev1_incident)
 
-    return MetricsWithScores(
-        id=str(metrics_db.id),
-        project_id=str(metrics_db.project_id),
-        period_year=metrics_db.period_year,
-        period_month=metrics_db.period_month,
-        snapshot_type=metrics_db.snapshot_type,
-        weights_applied=metrics_db.weights_applied,
-        targets_applied=metrics_db.targets_applied,
-        created_at=metrics_db.created_at,
-        indicators=indicators.model_dump(),
-        scores=scores.model_dump(),
-        # Include raw metrics for period-specific views
-        evm_data=metrics.evm_data,
-        milestones=metrics.milestones,
-        jira_defects=metrics.jira_defects,
-        flow_metrics=metrics.flow_metrics,
-        github_metrics=metrics.github_metrics,
-        test_maturity=metrics.test_maturity,
-        architecture=metrics.architecture,
-        pm_satisfaction=metrics.pm_satisfaction,
-        client_survey=metrics.client_survey,
-        strategic_impact=metrics.strategic_impact,
-        governance_exceptions=metrics.governance_exceptions,
-        sev1_incident=metrics.sev1_incident,
-    )
+    return _build_metrics_with_scores(metrics_db, metrics, indicators, scores)

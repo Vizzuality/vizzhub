@@ -10,7 +10,7 @@ class SlackConfigResponse(BaseModel):
 
     id: int
     bot_token_configured: bool
-    leadership_channel_id: str | None
+    leadership_channel_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -44,7 +44,7 @@ class AlertDefinitionResponse(BaseModel):
 
     id: int
     name: str
-    description: str | None
+    description: str | None = None
     category: str
     channel_type: str
     schedule: str
@@ -105,10 +105,10 @@ class AlertSilenceResponse(BaseModel):
 
     id: int
     project_id: str
-    alert_definition_id: int | None
-    silenced_until: datetime | None
-    reason: str | None
-    created_by: str | None
+    alert_definition_id: int | None = None
+    silenced_until: datetime | None = None
+    reason: str | None = None
+    created_by: str | None = None
     created_at: datetime
 
     project_name: str | None = None
@@ -126,8 +126,8 @@ class AlertNotificationResponse(BaseModel):
     channel_id: str
     message: str
     status: str
-    error_message: str | None
-    metadata_json: dict | None
+    error_message: str | None = None
+    metadata_json: dict | None = None
     sent_at: datetime
 
     project_name: str | None = None
@@ -142,7 +142,7 @@ class NotificationStatsResponse(BaseModel):
     total_this_month: int
     by_type: dict[str, int]
     by_project: list[dict]
-    avg_vulnerability_resolution_days: float | None
+    avg_vulnerability_resolution_days: float | None = None
 
 
 class PaginatedNotificationsResponse(BaseModel):
@@ -160,7 +160,7 @@ class ScheduledJobLastRun(BaseModel):
 
     id: int
     started_at: datetime
-    completed_at: datetime | None
+    completed_at: datetime | None = None
     status: str
     projects_checked: int
     alerts_sent: int

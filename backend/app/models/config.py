@@ -103,8 +103,8 @@ class ConfigParameterResponse(BaseModel):
     category: str
     name: str
     value: Decimal
-    unit: str | None
-    notes: str | None
+    unit: str | None = None
+    notes: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

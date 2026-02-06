@@ -54,12 +54,6 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.USER
 
 
-class UserCreate(UserBase):
-    """Schema for creating a user (internal use)."""
-
-    pass
-
-
 class UserUpdate(BaseModel):
     """Schema for updating a user."""
 

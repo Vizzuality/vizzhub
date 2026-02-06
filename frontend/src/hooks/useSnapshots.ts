@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { metricsHistoryApi } from '../services/api';
 import { queryKeys } from './queryKeys';
-import { getApiErrorMessage } from '../utils/apiErrors';
 import type { SnapshotType } from '../types';
 
 export function useProjectMetricsHistory(
@@ -48,10 +47,3 @@ export function useDeleteMetrics(projectId: string) {
   });
 }
 
-export function getSnapshotErrorMessage(error: Error): string {
-  return getApiErrorMessage(error, {
-    conflict: 'Metrics already exist for this period',
-    badRequest: 'Invalid request',
-    fallback: 'Failed to save metrics',
-  });
-}

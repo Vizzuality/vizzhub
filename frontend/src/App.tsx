@@ -10,6 +10,7 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import Projects from './pages/Projects';
@@ -60,9 +61,11 @@ function AppRoutes(): JSX.Element {
 
 function App(): JSX.Element {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

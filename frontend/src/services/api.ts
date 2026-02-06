@@ -2,7 +2,7 @@
 export { default } from './api/client';
 export { projectsApi } from './api/projects';
 export { configApi, scoresApi } from './api/scores';
-export { captureApi, collectApi, metricsHistoryApi, snapshotsApi } from './api/metrics';
+export { captureApi, metricsHistoryApi } from './api/metrics';
 export { jobsApi } from './api/jobs';
 export { globalMetricsApi } from './api/global';
 export { slackApi } from './api/slack';

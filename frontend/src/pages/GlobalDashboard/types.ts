@@ -1,7 +1,5 @@
-export interface Period {
-  year: number;
-  month: number;
-}
+export type { Period } from '@/utils/dateUtils';
+export type { HistoricalDataPoint } from '@/types';
 
 export interface TimelineDataPoint {
   readonly key: string;
@@ -15,9 +13,4 @@ export interface TimelineDataPoint {
 export interface MetricKPI {
   label: string;
   value: string | number | null;
-}
-
-export interface HistoricalPoint {
-  period: string;
-  value: number | null;
 }

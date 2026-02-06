@@ -9,7 +9,7 @@ export { projectsApi } from './projects';
 export { configApi, scoresApi } from './scores';
 
 // Metrics API
-export { captureApi, collectApi, metricsHistoryApi, snapshotsApi } from './metrics';
+export { captureApi, metricsHistoryApi } from './metrics';
 
 // Jobs API
 export { jobsApi } from './jobs';
@@ -28,3 +28,6 @@ export {
   scheduledJobsApi,
   silencesApi,
 } from './notifications';
+
+// Exports API
+export { exportsApi } from './exports';

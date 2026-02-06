@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { CHART_TOOLTIP_STYLE } from '@/utils/chartUtils';
 import { useTrendExpand } from '../../../hooks/useTrendExpand';
 import type { IndicatorValue } from '../../../types/global';
-import type { MetricKPI, HistoricalPoint } from '../types';
+import type { MetricKPI, HistoricalDataPoint } from '../types';
 
 interface MetricBadgeProps {
   readonly dimension: string;
@@ -54,7 +54,7 @@ interface GlobalMetricCardProps {
   readonly format?: 'ratio' | 'percent' | 'number' | 'hours' | 'days';
   readonly invert?: boolean;
   readonly kpis?: MetricKPI[];
-  readonly historicalData?: HistoricalPoint[];
+  readonly historicalData?: HistoricalDataPoint[];
 }
 
 export default function GlobalMetricCard({
@@ -97,7 +97,7 @@ export default function GlobalMetricCard({
   const hasHistoricalData = historicalData && historicalData.length > 1;
   const displayData = historicalData?.slice(-6);
 
-  const renderChart = (data: HistoricalPoint[], height: number): JSX.Element => (
+  const renderChart = (data: HistoricalDataPoint[], height: number): JSX.Element => (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
         <XAxis dataKey="period" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />

@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ParameterSection } from '../ParameterSection';
-import { ErrorHandler } from '../../utils/errorHandler';
-import { logger } from '../../utils/logger';
 
 const CONFIG_SECTIONS = [
   { key: 'Targets', showSumValidation: false },
@@ -31,7 +29,6 @@ export default function ConfigurationTab(): JSX.Element {
   const { data: parameters, isLoading: configLoading, error } = useConfigParameters();
   const { mutateAsync: updateConfig } = useUpdateConfigParameters();
 
-  logger.debug('ConfigurationTab state:', { parameters, configLoading, error });
 
   const {
     editedValues,
@@ -47,15 +44,14 @@ export default function ConfigurationTab(): JSX.Element {
     setSaveError(null);
     try {
       const updates = getUpdates();
-      logger.debug('Sending updates:', updates);
       await updateConfig(updates);
       setIsEditing(false);
       reset();
       setSaveError(null);
     } catch (err: unknown) {
-      logger.error('Failed to save configuration:', err);
-      const { title, message } = ErrorHandler.formatForDisplay(err);
-      setSaveError({ title, message });
+      console.error('Failed to save configuration:', err);
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setSaveError({ title: 'Error', message });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };

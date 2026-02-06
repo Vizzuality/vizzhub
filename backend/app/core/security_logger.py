@@ -30,22 +30,6 @@ class SecurityEventHandler(logging.Handler):
 security_logger.addHandler(SecurityEventHandler())
 
 
-def log_auth_success(user_id: str, ip: str) -> None:
-    """Log successful authentication event."""
-    security_logger.info(
-        f"Authentication successful for user {user_id}",
-        extra={"event_type": "auth_success", "user_id": user_id, "ip_address": ip},
-    )
-
-
-def log_auth_failure(username: str, ip: str, reason: str) -> None:
-    """Log failed authentication attempt."""
-    security_logger.warning(
-        f"Authentication failed for {username}: {reason}",
-        extra={"event_type": "auth_failure", "user_id": username, "ip_address": ip},
-    )
-
-
 def log_oauth_token_issued(provider: str, user_id: str, ip: str) -> None:
     """Log OAuth token issuance."""
     security_logger.info(
@@ -89,24 +73,3 @@ def log_oauth_state_validation_failed(ip: str, reason: str) -> None:
     )
 
 
-def log_rate_limit_exceeded(ip: str, endpoint: str) -> None:
-    """Log rate limit exceeded event."""
-    security_logger.warning(
-        f"Rate limit exceeded for endpoint {endpoint}",
-        extra={
-            "event_type": "rate_limit_exceeded",
-            "ip_address": ip,
-        },
-    )
-
-
-def log_authorization_failure(user_id: str, ip: str, resource: str) -> None:
-    """Log authorization failure (insufficient permissions)."""
-    security_logger.warning(
-        f"Authorization failed for user {user_id} accessing {resource}",
-        extra={
-            "event_type": "authz_failure",
-            "user_id": user_id,
-            "ip_address": ip,
-        },
-    )

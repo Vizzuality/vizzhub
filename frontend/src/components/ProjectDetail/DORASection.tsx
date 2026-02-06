@@ -23,6 +23,59 @@ function LevelBadge({ level }: { level: DoraLevel }): JSX.Element {
   );
 }
 
+interface DORANoDataCardProps {
+  readonly title: string;
+  readonly description: string;
+  readonly message: string;
+  readonly badge?: JSX.Element;
+}
+
+function DORANoDataCard({ title, description, message, badge }: DORANoDataCardProps): JSX.Element {
+  return (
+    <Card className="opacity-60">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                    F
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Flow metric</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {title}
+            {badge}
+          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{description}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">DORA metric: {description}</p>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-4">
+          <p className="text-2xl font-semibold text-muted-foreground">{message}</p>
+          <p className="text-xs text-muted-foreground mt-1">No {title.toLowerCase()} data available</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 interface DORASectionProps {
   readonly scores: FinalScore;
   readonly metrics: Metrics;
@@ -142,88 +195,18 @@ export default function DORASection({
                   )}
                 />
               ) : (
-                <Card className="opacity-60">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
-                                F
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Flow metric</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        Deployment Frequency
-                      </span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Info className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-sm">How often deployments occur</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">DORA metric: How often deployments occur</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <p className="text-2xl font-semibold text-muted-foreground">No data</p>
-                      <p className="text-xs text-muted-foreground mt-1">No release data available</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DORANoDataCard
+                  title="Deployment Frequency"
+                  description="How often deployments occur"
+                  message="No data"
+                />
               )}
             {indicators.lead_time_days === null ? (
-                <Card className="opacity-60">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
-                                F
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Flow metric</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        Lead Time
-                      </span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Info className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-sm">Time from issue creation to completion</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">DORA metric: Time from issue creation to completion</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <p className="text-2xl font-semibold text-muted-foreground">No data</p>
-                      <p className="text-xs text-muted-foreground mt-1">No lead time data available</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DORANoDataCard
+                  title="Lead Time"
+                  description="Time from issue creation to completion"
+                  message="No data"
+                />
               ) : (
                 <SubIndicatorCard
                   title="Lead Time"
@@ -266,46 +249,11 @@ export default function DORASection({
                   )}
                 />
               ) : (
-                <Card className="opacity-60">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
-                                F
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Flow metric</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        Change Failure Rate
-                      </span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Info className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-sm">Percentage of releases requiring hotfix</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">DORA metric: Releases requiring hotfix</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <p className="text-2xl font-semibold text-muted-foreground">No data</p>
-                      <p className="text-xs text-muted-foreground mt-1">No release data available</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DORANoDataCard
+                  title="Change Failure Rate"
+                  description="Percentage of releases requiring hotfix"
+                  message="No data"
+                />
               )}
             {(metrics.jira_defects?.incidents_count ?? 0) > 0 ? (
               <SubIndicatorCard
@@ -327,47 +275,12 @@ export default function DORASection({
                 )}
               />
             ) : (
-              <Card className="opacity-60">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
-                              F
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Flow metric</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      MTTR
-                      <LevelBadge level="Elite" />
-                    </span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-sm">Mean Time to Recovery - no incidents to measure</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">DORA metric: Time to restore service after incident</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4">
-                    <p className="text-2xl font-semibold text-muted-foreground">No incidents</p>
-                    <p className="text-xs text-muted-foreground mt-1">No failures to recover from</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <DORANoDataCard
+                title="MTTR"
+                description="Mean Time to Recovery - no incidents to measure"
+                message="No incidents"
+                badge={<LevelBadge level="Elite" />}
+              />
             )}
           </div>
         )}
