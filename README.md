@@ -398,11 +398,6 @@ git push -u origin feature/my-feature
 
 ## Documentation
 
-### Slack Notifications
-
-- [Slack Notifications Design](docs/plans/2026-02-03-slack-notifications-design.md) - Architecture and design
-- [Slack Notifications Implementation](docs/plans/2026-02-03-slack-notifications-implementation.md) - Detailed implementation plan
-
 ### Testing
 
 - [Testing Guide](docs/TESTING.md) - Comprehensive testing documentation
