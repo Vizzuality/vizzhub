@@ -2,8 +2,6 @@
 
 import logging
 
-from arq import create_pool
-from arq.connections import RedisSettings
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
@@ -13,8 +11,8 @@ from app.api.schemas.slack import (
     ScheduledJobInfo,
     ScheduledJobLastRun,
 )
-from app.config import get_settings
 from app.models.slack import ScheduledJobRunDB
+from app.utils.redis import get_redis_pool
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +30,6 @@ SCHEDULED_JOBS = {
         "description": "Checks projects for budget, timeline, and overdue alerts",
     },
 }
-
-
-async def get_redis_pool():
-    """Get ARQ Redis connection pool."""
-    settings = get_settings()
-    return await create_pool(
-        RedisSettings(
-            host=settings.redis_host or "localhost",
-            port=settings.redis_port,
-            password=settings.redis_password or None,
-        )
-    )
 
 
 @router.get("/scheduled", response_model=list[ScheduledJobInfo])

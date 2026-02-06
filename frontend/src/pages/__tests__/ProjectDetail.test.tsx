@@ -162,12 +162,6 @@ vi.mock('../../hooks/useMetrics', () => ({
 }));
 
 vi.mock('../../hooks/usePeriodCapture', () => ({
-  useCollectMetrics: () => ({
-    collectMetrics: vi.fn(),
-    isPending: false,
-    error: null,
-    isSuccess: false,
-  }),
   useCapturePeriod: () => ({
     mutate: vi.fn(),
     mutateAsync: vi.fn(),

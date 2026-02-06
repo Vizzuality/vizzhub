@@ -34,15 +34,15 @@ class JobResponse(BaseModel):
 class JobDetailResponse(JobResponse):
     """Detailed job response for polling."""
 
-    description: str | None
-    project_id: uuid.UUID | None
+    description: str | None = None
+    project_id: uuid.UUID | None = None
     params: dict
-    result: dict | None
-    progress_message: str | None
-    logs: str | None
-    error_message: str | None
-    started_at: datetime | None
-    completed_at: datetime | None
+    result: dict | None = None
+    progress_message: str | None = None
+    logs: str | None = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class JobSummaryResponse(BaseModel):
@@ -53,8 +53,8 @@ class JobSummaryResponse(BaseModel):
     status: JobStatus
     name: str
     progress: int
-    project_id: uuid.UUID | None
+    project_id: uuid.UUID | None = None
     created_at: datetime
-    completed_at: datetime | None
+    completed_at: datetime | None = None
 
     model_config = {"from_attributes": True}

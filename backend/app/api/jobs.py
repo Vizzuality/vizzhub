@@ -1,8 +1,6 @@
 """Jobs API endpoints."""
 import uuid
 
-from arq import create_pool
-from arq.connections import RedisSettings
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404
@@ -12,40 +10,14 @@ from app.api.schemas.job import (
     JobResponse,
     JobSummaryResponse,
 )
-from app.config import get_settings
 from app.models.job import Job, JobStatus, JobType
 from app.services.job_service import JobService
+from app.utils.constants import MONTH_NAMES
+from app.utils.redis import get_redis_pool
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 JOB_NOT_FOUND = "Job not found"
-
-MONTH_NAMES = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-]
-
-
-async def get_redis_pool():
-    """Get ARQ Redis connection pool."""
-    settings = get_settings()
-    return await create_pool(
-        RedisSettings(
-            host=settings.redis_host or "localhost",
-            port=settings.redis_port,
-            password=settings.redis_password or None,
-        )
-    )
 
 
 @router.post(

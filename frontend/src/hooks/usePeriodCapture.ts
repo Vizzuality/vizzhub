@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { captureApi } from '../services/api';
 import { invalidateProjectCaptureData } from './cacheUtils';
-import { getApiErrorMessage } from '../utils/apiErrors';
 import type { CapturePeriodRequest, CapturePeriodResponse, ApiErrorResponse } from '../types';
 
 interface UseCapturePeriodOptions {
@@ -29,29 +28,4 @@ export function useCapturePeriod(
       options.onError?.(error, detail);
     },
   });
-}
-
-export function getCapturePeriodErrorMessage(error: Error): string {
-  return getApiErrorMessage(error, {
-    conflict: 'Snapshot already exists for this period',
-    badRequest: 'Invalid capture request',
-    fallback: 'Failed to capture period. Verify that the project has Jira or GitHub configured.',
-  });
-}
-
-/**
- * Simplified hook for collecting metrics from Jira and GitHub.
- * Captures current month data with force=true (always overwrites).
- * Creates both punctual and cumulative snapshots.
- */
-export function useCollectMetrics(
-  projectId: string,
-  options: UseCapturePeriodOptions = {},
-) {
-  const mutation = useCapturePeriod(projectId, options);
-
-  return {
-    ...mutation,
-    collectMetrics: () => mutation.mutate({ force: true }),
-  };
 }

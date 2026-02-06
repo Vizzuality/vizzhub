@@ -4,15 +4,6 @@ from pydantic import ValidationError
 from fastapi import HTTPException
 
 
-class ConfigError(Exception):
-    """Base exception for configuration errors."""
-
-    def __init__(self, message: str, error_type: str = "config_error"):
-        self.message = message
-        self.error_type = error_type
-        super().__init__(self.message)
-
-
 class ValidationErrorHandler:
     """Handles validation errors with user-friendly messages."""
 
@@ -84,16 +75,6 @@ class ValidationErrorHandler:
                     "error": "Invalid Input",
                     "message": str(error),
                     "type": "value_error",
-                },
-            )
-
-        elif isinstance(error, ConfigError):
-            return HTTPException(
-                status_code=status_code,
-                detail={
-                    "error": "Configuration Error",
-                    "message": error.message,
-                    "type": error.error_type,
                 },
             )
 

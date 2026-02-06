@@ -28,7 +28,7 @@ import type { GlobalMetricsRecord } from '../../types/global';
 import { useScoreThresholds } from '@/hooks/useConfig';
 import { formatPeriod } from '@/utils/formatters';
 import { TIMELINE_MONTHS } from './constants';
-import type { Period, HistoricalPoint } from './types';
+import type { Period, HistoricalDataPoint } from './types';
 import { generateGlobalMonthRange, formatPeriodLabel } from './utils';
 import {
   GlobalTimelineChart,
@@ -78,7 +78,7 @@ export default function GlobalDashboard(): JSX.Element {
   const periods = useMemo(() => generateGlobalMonthRange(TIMELINE_MONTHS), []);
 
   const getIndicatorHistory = useCallback(
-    (indicatorKey: keyof GlobalMetricsRecord['indicators']): HistoricalPoint[] => {
+    (indicatorKey: keyof GlobalMetricsRecord['indicators']): HistoricalDataPoint[] => {
       if (!history || history.length < 2) return [];
       return history
         .slice()

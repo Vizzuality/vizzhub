@@ -26,10 +26,11 @@ from app.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
     ScheduledJobRunDB,
-    SlackConfigDB,
 )
 from app.services.alert_service import AlertService
 from app.services.slack_service import SlackService
+from app.utils.slack import get_slack_config
+from app.worker.utils import complete_with_error
 
 logger = logging.getLogger(__name__)
 
@@ -80,20 +81,20 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
     await db.refresh(job_run)
 
     try:
-        slack_config = await _get_slack_config(db)
+        slack_config = await get_slack_config(db)
         if not slack_config or not slack_config.bot_token_encrypted:
-            return await _complete_with_error(
+            return await complete_with_error(
                 db, job_run, "Slack not configured - missing bot token"
             )
 
         if not slack_config.leadership_channel_id:
-            return await _complete_with_error(
+            return await complete_with_error(
                 db, job_run, "Leadership channel not configured"
             )
 
         alert_definitions = await _get_alert_definitions(db)
         if not alert_definitions:
-            return await _complete_with_error(
+            return await complete_with_error(
                 db, job_run, "No business alert definitions found or enabled"
             )
 
@@ -140,13 +141,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
 
     except Exception as e:
         logger.exception("Business alerts check job failed")
-        return await _complete_with_error(db, job_run, str(e))
-
-
-async def _get_slack_config(db: AsyncSession) -> SlackConfigDB | None:
-    """Get the global Slack configuration."""
-    result = await db.execute(select(SlackConfigDB).limit(1))
-    return result.scalar_one_or_none()
+        return await complete_with_error(db, job_run, str(e))
 
 
 async def _get_alert_definitions(db: AsyncSession) -> dict[str, AlertDefinitionDB]:
@@ -559,21 +554,3 @@ async def _send_and_log_alert(
     return False
 
 
-async def _complete_with_error(
-    db: AsyncSession, job_run: ScheduledJobRunDB, error_message: str
-) -> dict[str, Any]:
-    """Complete the job run with an error status."""
-    job_run.status = "error"
-    job_run.error_message = error_message
-    job_run.completed_at = datetime.now(timezone.utc)
-    await db.commit()
-
-    logger.error(f"Business alerts check job failed: {error_message}")
-
-    return {
-        "status": "error",
-        "job_run_id": job_run.id,
-        "projects_checked": 0,
-        "alerts_sent": 0,
-        "error": error_message,
-    }

@@ -343,7 +343,8 @@ class TestExportServiceHelpers:
         assert ExportService._parse_target("-") is None
 
     def test_parse_target_valid(self, scoring_config):
-        assert ExportService._parse_target("80") == 80.0
+        result = ExportService._parse_target("80")
+        assert result is not None and abs(result - 80.0) < 1e-9
 
     def test_parse_target_none(self, scoring_config):
         assert ExportService._parse_target(None) is None

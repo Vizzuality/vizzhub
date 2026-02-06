@@ -43,21 +43,6 @@ class TokenData(BaseModel):
     exp: datetime | None = None
 
 
-class Token(BaseModel):
-    """Token response model."""
-
-    access_token: str
-    token_type: str = "bearer"
-
-
-class User(BaseModel):
-    """User model for authentication."""
-
-    user_id: str
-    username: str
-    roles: list[str] = []
-
-
 def create_access_token(
     data: dict[str, str | list[str]], expires_delta: timedelta | None = None
 ) -> str:
@@ -176,7 +161,3 @@ def require_role(required_role: str):
         return current_user
 
     return role_checker
-
-
-# Type alias for authenticated user dependency
-CurrentUser = Annotated[TokenData, Depends(get_current_user)]

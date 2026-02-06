@@ -113,7 +113,7 @@ pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/cmkliqxix000d04la3624132
 
 **CI/CD:**
 - Push to `main` or `dev` → runs CI tests (`.github/workflows/ci.yml`)
-- Push to `main` → builds, pushes to ECR, deploys to production (`.github/workflows/deploy.yml`)
+- Push to `main` only → builds, pushes to ECR, deploys to production (`.github/workflows/deploy.yml`)
 
 ## Architecture
 

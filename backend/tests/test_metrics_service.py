@@ -431,67 +431,6 @@ class TestMetricsServiceHistory:
         assert len(all_types) == 2
 
 
-class TestMetricsServiceDelete:
-    """Tests for MetricsService.delete_metrics."""
-
-    @pytest.mark.asyncio
-    async def test_delete_metrics_success(
-        self,
-        db_session: AsyncSession,
-        test_project: ProjectDB,
-        scoring_config: ScoringConfig,
-    ) -> None:
-        """Test deleting existing metrics."""
-        metrics = await MetricsService.upsert_metrics(
-            db_session,
-            test_project.id,
-            2024,
-            1,
-            SnapshotType.PUNCTUAL,
-            scoring_config,
-            {"period_start": date(2024, 1, 1), "period_end": date(2024, 1, 31)},
-        )
-        metrics_id = metrics.id
-
-        result = await MetricsService.delete_metrics(db_session, metrics_id)
-        assert result is True
-
-        found = await db_session.execute(
-            select(MetricsDB).where(MetricsDB.id == metrics_id)
-        )
-        assert found.scalar_one_or_none() is None
-
-    @pytest.mark.asyncio
-    async def test_delete_metrics_not_found(
-        self,
-        db_session: AsyncSession,
-    ) -> None:
-        """Test deleting non-existent metrics returns False."""
-        result = await MetricsService.delete_metrics(db_session, uuid4())
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_delete_metrics_with_string_id(
-        self,
-        db_session: AsyncSession,
-        test_project: ProjectDB,
-        scoring_config: ScoringConfig,
-    ) -> None:
-        """Test deleting metrics with string ID."""
-        metrics = await MetricsService.upsert_metrics(
-            db_session,
-            test_project.id,
-            2024,
-            1,
-            SnapshotType.PUNCTUAL,
-            scoring_config,
-            {"period_start": date(2024, 1, 1), "period_end": date(2024, 1, 31)},
-        )
-
-        result = await MetricsService.delete_metrics(db_session, str(metrics.id))
-        assert result is True
-
-
 class TestSnapshotTypeEnum:
     """Tests for SnapshotType enum."""
 

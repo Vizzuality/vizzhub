@@ -77,6 +77,13 @@ export type {
   TemplateType,
 } from './alerts';
 
+// Config types
+export type {
+  ConfigParameter,
+  ConfigParameterUpdate,
+  ValidationResponse,
+} from './config';
+
 // Common types
 export type { ApiErrorResponse } from './common';
 

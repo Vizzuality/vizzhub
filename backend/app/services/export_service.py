@@ -109,7 +109,7 @@ class ExportService:
         snapshot_type: str,
     ) -> dict[tuple[int, int], MetricsDB | None]:
         """Fetch metrics for each period, returns dict of (year, month) -> MetricsDB."""
-        result: dict[tuple[int, int], MetricsDB | None] = {p: None for p in periods}
+        result: dict[tuple[int, int], MetricsDB | None] = dict.fromkeys(periods)
         if not periods:
             return result
 
@@ -135,9 +135,7 @@ class ExportService:
         periods: list[tuple[int, int]],
     ) -> dict[tuple[int, int], GlobalMetricsRecord | None]:
         """Fetch pre-computed global metrics for each period."""
-        result: dict[tuple[int, int], GlobalMetricsRecord | None] = {
-            p: None for p in periods
-        }
+        result: dict[tuple[int, int], GlobalMetricsRecord | None] = dict.fromkeys(periods)
         if not periods:
             return result
 

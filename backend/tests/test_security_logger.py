@@ -1,23 +1,16 @@
 """Tests for security logging functionality.
 
 This module tests the security logger which provides structured JSON logging
-for security events including authentication, authorization, OAuth flows,
-and suspicious activity detection.
+for security events including OAuth flows and suspicious activity detection.
 """
 
 import json
 from io import StringIO
 
-import pytest
-
 from app.core.security_logger import (
     SecurityEventHandler,
-    log_auth_failure,
-    log_auth_success,
-    log_authorization_failure,
     log_oauth_state_validation_failed,
     log_oauth_token_issued,
-    log_rate_limit_exceeded,
     security_logger,
 )
 
@@ -68,35 +61,6 @@ class TestJSONLogging:
             sys.stdout = old_stdout
 
 
-class TestAuthEvents:
-    """Test authentication event logging."""
-
-    def test_log_auth_success_includes_user_and_ip(self, capfd) -> None:
-        """log_auth_success should log user_id and ip_address."""
-        log_auth_success("user-789", "10.0.0.1")
-
-        captured = capfd.readouterr()
-        parsed = json.loads(captured.out.strip())
-
-        assert parsed["event_type"] == "auth_success"
-        assert parsed["user_id"] == "user-789"
-        assert parsed["ip_address"] == "10.0.0.1"
-        assert "successful" in parsed["details"].lower()
-
-    def test_log_auth_failure_includes_reason(self, capfd) -> None:
-        """log_auth_failure should log failure reason."""
-        log_auth_failure("test-user", "192.168.1.100", "Invalid password")
-
-        captured = capfd.readouterr()
-        parsed = json.loads(captured.out.strip())
-
-        assert parsed["event_type"] == "auth_failure"
-        assert parsed["user_id"] == "test-user"
-        assert parsed["ip_address"] == "192.168.1.100"
-        assert "Invalid password" in parsed["details"]
-        assert parsed["severity"] == "WARNING"
-
-
 class TestOAuthEvents:
     """Test OAuth event logging."""
 
@@ -124,33 +88,4 @@ class TestOAuthEvents:
         assert parsed["event_type"] == "oauth_csrf_attempt"
         assert parsed["ip_address"] == "203.0.113.1"
         assert "CSRF" in parsed["details"]
-        assert parsed["severity"] == "WARNING"
-
-
-class TestSecurityEvents:
-    """Test security violation event logging."""
-
-    def test_log_rate_limit_exceeded_logs_endpoint(self, capfd) -> None:
-        """log_rate_limit_exceeded should log rate limit violation."""
-        log_rate_limit_exceeded("192.0.2.1", "/api/projects")
-
-        captured = capfd.readouterr()
-        parsed = json.loads(captured.out.strip())
-
-        assert parsed["event_type"] == "rate_limit_exceeded"
-        assert parsed["ip_address"] == "192.0.2.1"
-        assert "/api/projects" in parsed["details"]
-        assert parsed["severity"] == "WARNING"
-
-    def test_log_authorization_failure_logs_resource(self, capfd) -> None:
-        """log_authorization_failure should log authz failure."""
-        log_authorization_failure("user-999", "10.1.1.1", "/admin/settings")
-
-        captured = capfd.readouterr()
-        parsed = json.loads(captured.out.strip())
-
-        assert parsed["event_type"] == "authz_failure"
-        assert parsed["user_id"] == "user-999"
-        assert parsed["ip_address"] == "10.1.1.1"
-        assert "/admin/settings" in parsed["details"]
         assert parsed["severity"] == "WARNING"

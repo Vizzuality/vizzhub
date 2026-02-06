@@ -356,31 +356,3 @@ class MetricsService:
         )
 
         return preserved
-
-    @staticmethod
-    async def delete_metrics(
-        db: AsyncSession,
-        metrics_id: str | UUID,
-    ) -> bool:
-        """Delete metrics by ID.
-
-        Args:
-            db: Database session
-            metrics_id: Metrics UUID
-
-        Returns:
-            True if deleted, False if not found
-        """
-        metrics_uuid = UUID(str(metrics_id)) if isinstance(metrics_id, str) else metrics_id
-
-        result = await db.execute(
-            select(MetricsDB).where(MetricsDB.id == metrics_uuid)
-        )
-        metrics = result.scalar_one_or_none()
-
-        if not metrics:
-            return False
-
-        await db.delete(metrics)
-        await db.flush()
-        return True

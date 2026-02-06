@@ -3,26 +3,9 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../services/api';
 import { User, UserRole } from '../types/auth';
 import { queryKeys } from './queryKeys';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  const response = await fetch(url, { ...options, headers, credentials: 'include' });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
-  }
-
-  return response;
-}
 
 /**
  * Fetch all users (admin only)
@@ -31,8 +14,8 @@ export function useUsers(): ReturnType<typeof useQuery<User[], Error>> {
   return useQuery({
     queryKey: queryKeys.users.all,
     queryFn: async (): Promise<User[]> => {
-      const response = await fetchWithAuth(`${API_URL}/api/admin/users`);
-      return response.json();
+      const response = await api.get<User[]>('/admin/users');
+      return response.data;
     },
   });
 }
@@ -47,11 +30,8 @@ export function useUpdateUserRole(): ReturnType<
 
   return useMutation({
     mutationFn: async ({ userId, role }): Promise<User> => {
-      const response = await fetchWithAuth(`${API_URL}/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ role }),
-      });
-      return response.json();
+      const response = await api.patch<User>(`/admin/users/${userId}`, { role });
+      return response.data;
     },
     onSuccess: (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
@@ -67,9 +47,7 @@ export function useDeleteUser(): ReturnType<typeof useMutation<void, Error, stri
 
   return useMutation({
     mutationFn: async (userId): Promise<void> => {
-      await fetchWithAuth(`${API_URL}/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
+      await api.delete(`/admin/users/${userId}`);
     },
     onSuccess: (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });

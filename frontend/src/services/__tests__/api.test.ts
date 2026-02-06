@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import MockAdapter from 'axios-mock-adapter';
-import api, { projectsApi, scoresApi, configApi, collectApi } from '../api';
+import api, { projectsApi, scoresApi, configApi } from '../api';
 import type { Project, ProjectCreate, MetricsCreate, ScoreResponse, ScoringConfig } from '../../types';
 
 describe('API Service', () => {
@@ -455,59 +455,4 @@ describe('API Service', () => {
     });
   });
 
-  describe('Collect API', () => {
-    const mockMetrics: MetricsCreate = {
-      period_start: '2026-01-01',
-      period_end: '2026-01-31',
-      jira_defects: {
-        bugs_total: 10,
-        tasks_completed: 100,
-        escaped_defects: 2,
-        incidents_count: 1,
-      },
-      sev1_incident: false,
-    };
-
-    describe('collectJiraMetrics', () => {
-      it('collects Jira metrics for project', async () => {
-        const projectId = 'project-123';
-        mock.onPost(`/collect/project/${projectId}/jira`).reply(200, mockMetrics);
-
-        const result = await collectApi.collectJiraMetrics(projectId);
-
-        expect(result.jira_defects?.bugs_total).toBe(10);
-        expect(mock.history.post[0].url).toBe(`/collect/project/${projectId}/jira`);
-      });
-    });
-
-    describe('collectGitHubMetrics', () => {
-      it('collects GitHub metrics for project', async () => {
-        const projectId = 'project-123';
-        const githubMetrics: MetricsCreate = {
-          ...mockMetrics,
-          github_metrics: {
-            prs_without_review: 2,
-            total_merged_prs: 30,
-            high_severity_vulns: 0,
-          },
-        };
-
-        mock.onPost(`/collect/project/${projectId}/github`).reply(200, githubMetrics);
-
-        const result = await collectApi.collectGitHubMetrics(projectId);
-
-        expect(result.github_metrics?.prs_without_review).toBe(2);
-        expect(mock.history.post[0].url).toBe(`/collect/project/${projectId}/github`);
-      });
-
-      it('uses 60 second timeout', async () => {
-        const projectId = 'project-123';
-        mock.onPost(`/collect/project/${projectId}/github`).reply(200, mockMetrics);
-
-        await collectApi.collectGitHubMetrics(projectId);
-
-        expect(mock.history.post[0].timeout).toBe(60000);
-      });
-    });
-  });
 });

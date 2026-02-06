@@ -25,11 +25,3 @@ class ConfigurationError(HTTPException):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Configuration error: {message}",
         )
-
-
-class ValidationError(HTTPException):
-    def __init__(self, message: str):
-        super().__init__(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=message,
-        )
