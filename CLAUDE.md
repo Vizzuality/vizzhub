@@ -50,7 +50,7 @@ docker-compose down && docker-compose up -d --build
 cd backend
 
 # Run tests
-pytest                                        # All backend tests (520 total)
+pytest                                        # All backend tests (~795 total)
 pytest tests/test_calculators.py              # Single file
 pytest tests/test_normalizers.py::TestLowerIsBetter  # Single class
 pytest -k "test_perfect_score"                # By name pattern
@@ -90,7 +90,7 @@ cd frontend
 npm run dev      # Development server (http://localhost:5173)
 npm run build    # Production build
 npm run lint     # ESLint
-npm test         # Run tests (214 total)
+npm test         # Run tests (~325 total)
 
 # Theme (shadcn/tweakcn)
 # Current theme: https://tweakcn.com/r/themes/cmkliqxix000d04la3624132s
@@ -232,6 +232,7 @@ Manual fields are defined in `MetricsDB.MANUAL_FIELDS`.
 - Disabled governance tools get penalized (score = 0), not neutral
 - **Metrics consolidation**: Multiple metrics records with same `period_end` are consolidated (`_consolidate_metrics` in `app/api/scores.py`). This handles multiple collector runs creating separate records.
 - **Ideals for ratio metrics**: SPI/CPI use ideal=1.0 for scoring; value/ideal gives accurate percentage
+- **No trailing slashes**: `redirect_slashes=False` in FastAPI. Define routes as `""` not `"/"`. Trailing slash redirects (307) break auth cookies behind ALB.
 
 ### Database
 
@@ -406,7 +407,7 @@ Internet → ALB (HTTPS/ACM) → EC2 (Docker Compose)
 | Service | Type | Purpose |
 |---------|------|---------|
 | ALB | - | HTTPS termination via ACM certificate, path-based routing |
-| EC2 | t3.medium | Docker host (frontend, backend, worker, redis) |
+| EC2 | t3.micro | Docker host (frontend, backend, worker, redis) |
 | RDS | db.t4g.small | PostgreSQL 16 with automated backups |
 | ECR | - | Container registry |
 | Secrets Manager | - | Credentials storage |
@@ -447,22 +448,33 @@ infrastructure/
 └── deploy.yml           # Build + deploy (SSM commands)
 ```
 
+**AWS Access:**
+- **Profile**: `vizzhub` (SSO via assume role)
+- **Region**: `eu-west-3` (Paris)
+- **EC2 Instance**: `i-097d6d92ab30d9622`
+
 **Operations:**
 ```bash
 # Connect to EC2 via SSM
-aws ssm start-session --target <instance-id>
+aws ssm start-session --profile vizzhub --region eu-west-3 --target i-097d6d92ab30d9622
+
+# Run commands on EC2 non-interactively (useful from Claude Code)
+aws ssm send-command --profile vizzhub --region eu-west-3 \
+  --instance-ids "i-097d6d92ab30d9622" \
+  --document-name "AWS-RunShellScript" \
+  --parameters '{"commands":["docker ps"]}'
 
 # View container logs
 docker compose -f /opt/hub/docker-compose.prod.yml logs -f backend
 
 # Manual deploy
 cd /opt/hub
-export TAG="<git-sha>" ECR_URI="<account>.dkr.ecr.eu-west-1.amazonaws.com"
-aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $ECR_URI
+export TAG="<git-sha>" ECR_URI="<account>.dkr.ecr.eu-west-3.amazonaws.com"
+aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin $ECR_URI
 docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
 
-# Refresh secrets (re-run deploy or manually recreate .env)
-# Secrets are fetched from Secrets Manager during deploy
+# Refresh secrets (after updating in Secrets Manager)
+/opt/hub/fetch-secrets.sh
 docker compose -f /opt/hub/docker-compose.prod.yml restart backend worker
 ```
 
@@ -864,7 +876,7 @@ export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | n
 |----------|--------|-------------|
 | `/jobs/capture-history` | POST | Create batch historical capture job |
 | `/jobs/{id}` | GET | Get job status/progress (for polling) |
-| `/jobs/` | GET | List jobs (filter by project_id, status, type) |
+| `/jobs` | GET | List jobs (filter by project_id, status, type) |
 | `/jobs/{id}/cancel` | POST | Cancel pending job |
 | `/jobs/{id}/retry` | POST | Retry failed job |
 
@@ -890,15 +902,15 @@ All endpoints accept `?snapshot_type=punctual` to query punctual metrics instead
 | `/admin/slack/config` | PUT | Update bot token and/or leadership channel |
 | `/admin/slack/test` | POST | Test Slack bot token validity |
 | `/admin/slack/channels` | GET | List available Slack channels |
-| `/admin/alerts/` | GET | List all alert definitions |
+| `/admin/alerts` | GET | List all alert definitions |
 | `/admin/alerts/{id}` | PUT | Enable/disable alert, update config |
 | `/admin/alerts/{id}/templates` | GET | Get message templates for alert |
 | `/admin/alerts/{id}/test` | POST | Send test alert |
 | `/admin/templates/{id}` | PUT | Update message template |
-| `/notifications/` | GET | List sent notifications (with filters) |
+| `/notifications` | GET | List sent notifications (with filters) |
 | `/notifications/stats` | GET | Get notification statistics |
-| `/silences/` | GET | List active silences |
-| `/silences/` | POST | Create a silence |
+| `/silences` | GET | List active silences |
+| `/silences` | POST | Create a silence |
 | `/silences/{id}` | DELETE | Remove a silence |
 | `/admin/jobs/scheduled` | GET | List scheduled jobs with last run info |
 | `/admin/jobs/scheduled/{name}/run` | POST | Manually trigger a scheduled job |
