@@ -15,18 +15,19 @@ from app.models.metrics import MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
 from app.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
 from app.services.export_helpers import (
+    DEFAULT_GREEN_THRESHOLD,
+    DEFAULT_YELLOW_THRESHOLD,
     THIN_BORDER,
     apply_header_style,
+    apply_indicator_traffic_light,
     apply_row_style,
-    apply_traffic_light,
+    apply_score_traffic_light,
     create_methodology_sheet,
     format_month_header,
     freeze_panes,
     set_column_widths,
 )
 from app.services.score_computation import ScoreComputationService
-
-DIMENSION_TARGET = 80
 
 
 class ExportService:
@@ -35,6 +36,8 @@ class ExportService:
     def __init__(self, config: ScoringConfig):
         self.config = config
         self.score_service = ScoreComputationService(config)
+        self._green = self._get_threshold("threshold_green", DEFAULT_GREEN_THRESHOLD)
+        self._yellow = self._get_threshold("threshold_yellow", DEFAULT_YELLOW_THRESHOLD)
 
     async def export_project_detail(
         self,
@@ -46,7 +49,7 @@ class ExportService:
         end_month: int,
         snapshot_type: str = "cumulative",
     ) -> BytesIO:
-        """Generate project detail XLSX with Summary, Metrics, and Methodology sheets."""
+        """Generate project detail XLSX with Scorecard and Methodology sheets."""
         periods = self._generate_periods(start_year, start_month, end_year, end_month)
         metrics_by_period = await self._get_metrics_by_period(
             db, project.id, periods, snapshot_type
@@ -54,13 +57,18 @@ class ExportService:
         scores_by_period = self._compute_scores(metrics_by_period)
 
         wb = Workbook()
+        ws = wb.active
+        ws.title = "Scorecard"
 
-        self._build_summary_sheet(wb, project, periods, scores_by_period, snapshot_type)
-        self._build_hierarchical_metrics_sheet(
-            wb, periods, lambda key, level, period: self._extract_value(
+        self._write_project_summary(ws, project, snapshot_type)
+        ws.append([])
+        self._write_metrics_table(
+            ws, periods, lambda key, level, period: self._extract_value(
                 key, level, scores_by_period.get(period)
             )
         )
+        self._apply_scorecard_widths(ws, periods)
+
         create_methodology_sheet(wb, self.config)
 
         if "Sheet" in wb.sheetnames:
@@ -77,7 +85,7 @@ class ExportService:
         end_month: int,
         snapshot_type: str = "cumulative",
     ) -> BytesIO:
-        """Generate global dashboard XLSX with Summary, Metrics, and Methodology sheets.
+        """Generate global dashboard XLSX with Scorecard and Methodology sheets.
 
         Uses pre-computed GlobalMetricsDB records (averaged across all projects).
         """
@@ -85,13 +93,18 @@ class ExportService:
         global_by_period = await self._get_global_metrics_by_period(db, periods)
 
         wb = Workbook()
+        ws = wb.active
+        ws.title = "Scorecard"
 
-        self._build_global_summary_sheet(wb, periods, global_by_period)
-        self._build_hierarchical_metrics_sheet(
-            wb, periods, lambda key, level, period: self._extract_global_value(
+        self._write_global_summary(ws, periods, global_by_period)
+        ws.append([])
+        self._write_metrics_table(
+            ws, periods, lambda key, level, period: self._extract_global_value(
                 key, level, global_by_period.get(period)
             )
         )
+        self._apply_scorecard_widths(ws, periods)
+
         create_methodology_sheet(wb, self.config)
 
         if "Sheet" in wb.sheetnames:
@@ -178,18 +191,13 @@ class ExportService:
 
     # --- Sheet builders ---
 
-    def _build_summary_sheet(
-        self,
-        wb: Workbook,
+    @staticmethod
+    def _write_project_summary(
+        ws,
         project: ProjectDB,
-        periods: list[tuple[int, int]],
-        scores_by_period: dict,
         snapshot_type: str,
     ) -> None:
-        """Build the Summary sheet with project info and final scores per period."""
-        ws = wb.active
-        ws.title = "Summary"
-
+        """Write project info rows at the top of the active sheet."""
         info = [
             ("Project", project.name),
             ("Jira Key", project.jira_project_key or "-"),
@@ -202,83 +210,13 @@ class ExportService:
         for label, value in info:
             ws.append([label, value])
 
-        ws.append([])
-
-        header = ["Final Score"] + [format_month_header(y, m) for y, m in periods]
-        ws.append(header)
-        apply_header_style(ws, ws.max_row)
-
-        values = ["Score"]
-        for period in periods:
-            data = scores_by_period.get(period)
-            values.append(data["scores"].score if data else None)
-        ws.append(values)
-
-        set_column_widths(ws, {"A": 20, "B": 30})
-
-    def _build_hierarchical_metrics_sheet(
+    def _write_global_summary(
         self,
-        wb: Workbook,
-        periods: list[tuple[int, int]],
-        extract_fn: Callable[[str, int, tuple[int, int]], float | int | None],
-    ) -> None:
-        """Build the Metrics sheet with hierarchical rows and traffic-light coloring.
-
-        Args:
-            extract_fn: Callable(key, level, period) -> value. Abstracts the data
-                source so the same sheet layout works for both project and global exports.
-        """
-        ws = wb.create_sheet("Metrics")
-        metric_rows = get_metric_rows()
-
-        header = ["Name", "Description", "Formula", "Target"]
-        for year, month in periods:
-            header.append(format_month_header(year, month))
-        ws.append(header)
-        apply_header_style(ws, 1)
-
-        for metric_row in metric_rows:
-            level = metric_row["level"]
-            indent = "  " * level
-            target = self._get_target_for_metric(metric_row["key"], level)
-
-            row_data = [
-                f"{indent}{metric_row['name']}",
-                metric_row["description"],
-                metric_row["formula"],
-                target if target else "-",
-            ]
-
-            for period in periods:
-                row_data.append(extract_fn(metric_row["key"], level, period))
-
-            ws.append(row_data)
-            current_row = ws.max_row
-            apply_row_style(ws, current_row, level)
-
-            target_num = self._parse_target(target)
-            for col_idx, _period in enumerate(periods, start=5):
-                cell = ws.cell(row=current_row, column=col_idx)
-                cell.border = THIN_BORDER
-                if level <= 1 and target_num is not None:
-                    apply_traffic_light(cell, cell.value, target_num)
-
-        widths = {"A": 35, "B": 50, "C": 45, "D": 12}
-        for i, _ in enumerate(periods):
-            widths[get_column_letter(5 + i)] = 12
-        set_column_widths(ws, widths)
-        freeze_panes(ws, 2, 5)
-
-    def _build_global_summary_sheet(
-        self,
-        wb: Workbook,
+        ws,
         periods: list[tuple[int, int]],
         global_by_period: dict[tuple[int, int], GlobalMetricsRecord | None],
     ) -> None:
-        """Build the Summary sheet with global info and averaged scores per period."""
-        ws = wb.active
-        ws.title = "Summary"
-
+        """Write global summary rows at the top of the active sheet."""
         ws.append(["Global Dashboard", "Averaged scores across all projects"])
         ws.append([])
 
@@ -302,6 +240,14 @@ class ExportService:
             )
         ws.append(scores)
 
+        score_row = ws.max_row
+        for col_idx in range(2, 2 + len(periods)):
+            cell = ws.cell(row=score_row, column=col_idx)
+            cell.border = THIN_BORDER
+            apply_score_traffic_light(
+                cell, cell.value, self._green, self._yellow
+            )
+
         for dim_def in DIMENSION_DEFINITIONS:
             dim_key = dim_def["key"]
             row = [dim_def["name"]]
@@ -319,9 +265,70 @@ class ExportService:
             for col_idx in range(2, 2 + len(periods)):
                 cell = ws.cell(row=current_row, column=col_idx)
                 cell.border = THIN_BORDER
-                apply_traffic_light(cell, cell.value, DIMENSION_TARGET)
+                apply_score_traffic_light(
+                    cell, cell.value, self._green, self._yellow
+                )
 
-        set_column_widths(ws, {"A": 35, "B": 30})
+    def _write_metrics_table(
+        self,
+        ws,
+        periods: list[tuple[int, int]],
+        extract_fn: Callable[[str, int, tuple[int, int]], float | int | None],
+    ) -> None:
+        """Write hierarchical metrics table with traffic-light coloring onto ws.
+
+        Appends rows to the current sheet starting at the next available row.
+        """
+        metric_rows = get_metric_rows()
+
+        header = ["Name", "Description", "Formula", "Target"]
+        for year, month in periods:
+            header.append(format_month_header(year, month))
+        ws.append(header)
+        header_row = ws.max_row
+        apply_header_style(ws, header_row)
+
+        for metric_row in metric_rows:
+            level = metric_row["level"]
+            indent = "  " * level
+            target = self._get_target_for_metric(metric_row["key"], level)
+
+            row_data = [
+                f"{indent}{metric_row['name']}",
+                metric_row["description"],
+                metric_row["formula"],
+                target if target else "-",
+            ]
+
+            for period in periods:
+                row_data.append(extract_fn(metric_row["key"], level, period))
+
+            ws.append(row_data)
+            current_row = ws.max_row
+            apply_row_style(ws, current_row, level)
+
+            for col_idx, _period in enumerate(periods, start=5):
+                cell = ws.cell(row=current_row, column=col_idx)
+                cell.border = THIN_BORDER
+                if level <= 1:
+                    apply_score_traffic_light(
+                        cell, cell.value, self._green, self._yellow
+                    )
+                else:
+                    apply_indicator_traffic_light(
+                        cell, cell.value,
+                        self._green / 100, self._yellow / 100,
+                    )
+
+        freeze_panes(ws, header_row + 1, 5)
+
+    @staticmethod
+    def _apply_scorecard_widths(ws, periods: list[tuple[int, int]]) -> None:
+        """Set column widths for the combined Scorecard sheet."""
+        widths = {"A": 35, "B": 50, "C": 45, "D": 12}
+        for i, _ in enumerate(periods):
+            widths[get_column_letter(5 + i)] = 12
+        set_column_widths(ws, widths)
 
     # --- Helpers ---
 
@@ -343,13 +350,21 @@ class ExportService:
     def _get_target_for_metric(self, key: str, level: int) -> str | None:
         """Get a display-friendly target string for a metric row."""
         if level == 0:
-            return None
+            return str(int(self._green))
         if level == 1:
-            return str(DIMENSION_TARGET)
+            return str(int(self._green))
         try:
             return str(self.config.get_target(key))
         except (KeyError, ValueError):
             return None
+
+    def _get_threshold(self, name: str, default: float) -> float:
+        """Get a threshold constant from config, falling back to default."""
+        try:
+            val = self.config.get_constant(name)
+            return val if val > 0 else default
+        except (KeyError, ValueError):
+            return default
 
     @staticmethod
     def _extract_value(
@@ -359,10 +374,13 @@ class ExportService:
         if score_data is None:
             return None
         if level == 0:
-            return score_data["scores"].score
+            val = score_data["scores"].score
+            return round(val, 1) if val is not None else None
         if level == 1:
-            return getattr(score_data["scores"].dimensions, key, None)
-        return getattr(score_data["indicators"], key, None)
+            val = getattr(score_data["scores"].dimensions, key, None)
+            return round(val, 1) if val is not None else None
+        val = getattr(score_data["indicators"], key, None)
+        return round(val, 1) if val is not None else None
 
     @staticmethod
     def _extract_global_value(
@@ -381,18 +399,8 @@ class ExportService:
             return None
         indicator_val = getattr(record.indicators, key, None)
         if indicator_val and indicator_val.value is not None:
-            return round(indicator_val.value, 4)
+            return round(indicator_val.value, 1)
         return None
-
-    @staticmethod
-    def _parse_target(target: str | None) -> float | None:
-        """Parse a target string to a float for traffic-light comparison."""
-        if not target or target == "-":
-            return None
-        try:
-            return float(target)
-        except (ValueError, TypeError):
-            return None
 
     @staticmethod
     def _save_to_bytes(wb: Workbook) -> BytesIO:

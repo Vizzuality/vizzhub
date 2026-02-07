@@ -80,12 +80,11 @@ class TestExportServiceProjectDetail:
         )
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Summary" in wb.sheetnames
-        assert "Metrics" in wb.sheetnames
+        assert "Scorecard" in wb.sheetnames
         assert "Methodology" in wb.sheetnames
 
     @pytest.mark.asyncio
-    async def test_summary_sheet_has_project_info(
+    async def test_scorecard_has_project_info(
         self, db_session, scoring_config, project_with_3_months
     ):
         project = project_with_3_months
@@ -100,12 +99,12 @@ class TestExportServiceProjectDetail:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Summary"]
+        ws = wb["Scorecard"]
         values = [ws.cell(row=r, column=2).value for r in range(1, 10)]
         assert "Export Test Project" in values
 
     @pytest.mark.asyncio
-    async def test_metrics_sheet_has_month_columns(
+    async def test_scorecard_has_month_columns(
         self, db_session, scoring_config, project_with_3_months
     ):
         project = project_with_3_months
@@ -120,14 +119,16 @@ class TestExportServiceProjectDetail:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Metrics"]
-        headers = [ws.cell(row=1, column=c).value for c in range(5, 8)]
-        assert "Jan 2025" in headers
-        assert "Feb 2025" in headers
-        assert "Mar 2025" in headers
+        ws = wb["Scorecard"]
+        all_values = []
+        for row in ws.iter_rows(values_only=True):
+            all_values.extend([v for v in row if v])
+        assert "Jan 2025" in all_values
+        assert "Feb 2025" in all_values
+        assert "Mar 2025" in all_values
 
     @pytest.mark.asyncio
-    async def test_metrics_sheet_has_hierarchical_rows(
+    async def test_scorecard_has_hierarchical_rows(
         self, db_session, scoring_config, project_with_3_months
     ):
         project = project_with_3_months
@@ -142,11 +143,12 @@ class TestExportServiceProjectDetail:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Metrics"]
-        assert ws.cell(row=2, column=1).value == "FINAL SCORE"
+        ws = wb["Scorecard"]
+        all_col_a = [ws.cell(row=r, column=1).value for r in range(1, ws.max_row + 1)]
+        assert "FINAL SCORE" in all_col_a
 
     @pytest.mark.asyncio
-    async def test_empty_range_returns_xlsx_with_no_data_columns(
+    async def test_empty_range_returns_valid_xlsx(
         self, db_session, scoring_config, project_with_3_months
     ):
         project = project_with_3_months
@@ -162,7 +164,7 @@ class TestExportServiceProjectDetail:
         )
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Metrics" in wb.sheetnames
+        assert "Scorecard" in wb.sheetnames
 
 
 @pytest_asyncio.fixture
@@ -227,12 +229,11 @@ class TestExportServiceGlobalDashboard:
         )
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Summary" in wb.sheetnames
-        assert "Metrics" in wb.sheetnames
+        assert "Scorecard" in wb.sheetnames
         assert "Methodology" in wb.sheetnames
 
     @pytest.mark.asyncio
-    async def test_summary_has_scores_and_dimensions(
+    async def test_scorecard_has_scores_and_dimensions(
         self, db_session, scoring_config, global_metrics_3_months
     ):
         service = ExportService(scoring_config)
@@ -245,13 +246,13 @@ class TestExportServiceGlobalDashboard:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Summary"]
-        row_labels = [ws.cell(row=r, column=1).value for r in range(1, 15)]
-        assert "Projects" in row_labels
-        assert "Overall Score" in row_labels
+        ws = wb["Scorecard"]
+        all_col_a = [ws.cell(row=r, column=1).value for r in range(1, ws.max_row + 1)]
+        assert "Projects" in all_col_a
+        assert "Overall Score" in all_col_a
 
     @pytest.mark.asyncio
-    async def test_summary_contains_project_count(
+    async def test_scorecard_contains_project_count(
         self, db_session, scoring_config, global_metrics_3_months
     ):
         service = ExportService(scoring_config)
@@ -264,12 +265,12 @@ class TestExportServiceGlobalDashboard:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Summary"]
+        ws = wb["Scorecard"]
         # Row 4 = Projects, Col 2 = first month value
         assert ws.cell(row=4, column=2).value == 3
 
     @pytest.mark.asyncio
-    async def test_metrics_sheet_has_hierarchical_rows(
+    async def test_scorecard_has_hierarchical_rows(
         self, db_session, scoring_config, global_metrics_3_months
     ):
         service = ExportService(scoring_config)
@@ -282,11 +283,12 @@ class TestExportServiceGlobalDashboard:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Metrics"]
-        assert ws.cell(row=2, column=1).value == "FINAL SCORE"
+        ws = wb["Scorecard"]
+        all_col_a = [ws.cell(row=r, column=1).value for r in range(1, ws.max_row + 1)]
+        assert "FINAL SCORE" in all_col_a
 
     @pytest.mark.asyncio
-    async def test_metrics_sheet_has_indicator_values(
+    async def test_scorecard_has_indicator_values(
         self, db_session, scoring_config, global_metrics_3_months
     ):
         service = ExportService(scoring_config)
@@ -299,11 +301,11 @@ class TestExportServiceGlobalDashboard:
             snapshot_type="cumulative",
         )
         wb = load_workbook(output)
-        ws = wb["Metrics"]
-        # Collect all values in column 5 (first month data column)
-        values = [ws.cell(row=r, column=5).value for r in range(2, ws.max_row + 1)]
-        non_none = [v for v in values if v is not None]
-        assert len(non_none) > 0
+        ws = wb["Scorecard"]
+        all_values = []
+        for row in ws.iter_rows(values_only=True):
+            all_values.extend([v for v in row if v is not None and isinstance(v, float)])
+        assert len(all_values) > 0
 
     @pytest.mark.asyncio
     async def test_no_data_returns_valid_xlsx(
@@ -320,8 +322,7 @@ class TestExportServiceGlobalDashboard:
         )
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Summary" in wb.sheetnames
-        assert "Metrics" in wb.sheetnames
+        assert "Scorecard" in wb.sheetnames
 
 
 class TestExportServiceHelpers:
@@ -339,12 +340,7 @@ class TestExportServiceHelpers:
         service = ExportService(scoring_config)
         assert service._extract_value("final_score", 0, None) is None
 
-    def test_parse_target_dash(self, scoring_config):
-        assert ExportService._parse_target("-") is None
-
-    def test_parse_target_valid(self, scoring_config):
-        result = ExportService._parse_target("80")
-        assert result is not None and abs(result - 80.0) < 1e-9
-
-    def test_parse_target_none(self, scoring_config):
-        assert ExportService._parse_target(None) is None
+    def test_thresholds_from_config(self, scoring_config):
+        service = ExportService(scoring_config)
+        assert service._green == 80.0
+        assert service._yellow == 60.0
