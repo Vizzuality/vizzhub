@@ -10,9 +10,16 @@ from openpyxl.worksheet.worksheet import Worksheet
 from app.config import ScoringConfig
 from app.services.export_definitions import DIMENSION_DEFINITIONS, INDICATOR_DEFINITIONS
 
-GREEN_FILL = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
-YELLOW_FILL = PatternFill(start_color="FFC107", end_color="FFC107", fill_type="solid")
-RED_FILL = PatternFill(start_color="F44336", end_color="F44336", fill_type="solid")
+# Soft palette — same hues (#4CAF50, #FFC107, #F44336) at two opacity levels on white.
+# Strong (~35% opacity): scores and dimensions (level 0-1)
+GREEN_FILL = PatternFill(start_color="C1E3C2", end_color="C1E3C2", fill_type="solid")
+YELLOW_FILL = PatternFill(start_color="FFE9A8", end_color="FFE9A8", fill_type="solid")
+RED_FILL = PatternFill(start_color="FBBDB9", end_color="FBBDB9", fill_type="solid")
+
+# Subtle (~15% opacity): indicators (level 2)
+GREEN_FILL_SUBTLE = PatternFill(start_color="E4F3E5", end_color="E4F3E5", fill_type="solid")
+YELLOW_FILL_SUBTLE = PatternFill(start_color="FFF6DA", end_color="FFF6DA", fill_type="solid")
+RED_FILL_SUBTLE = PatternFill(start_color="FDE3E1", end_color="FDE3E1", fill_type="solid")
 
 HEADER_FILL = PatternFill(start_color="1F2937", end_color="1F2937", fill_type="solid")
 HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
@@ -31,23 +38,42 @@ THIN_BORDER = Border(
     bottom=Side(style="thin", color="D1D5DB"),
 )
 
-YELLOW_THRESHOLD = 0.8
+DEFAULT_GREEN_THRESHOLD = 80
+DEFAULT_YELLOW_THRESHOLD = 60
 
 
-def apply_traffic_light(
+def apply_score_traffic_light(
     cell,
     value: float | int | None,
-    target: float | int | None,
+    green: float = DEFAULT_GREEN_THRESHOLD,
+    yellow: float = DEFAULT_YELLOW_THRESHOLD,
 ) -> None:
-    """Apply green/yellow/red fill based on value vs target."""
-    if value is None or target is None:
+    """Apply strong green/yellow/red fill for scores and dimensions (0-100 scale)."""
+    if value is None:
         return
-    if value >= target:
+    if value >= green:
         cell.fill = GREEN_FILL
-    elif value >= target * YELLOW_THRESHOLD:
+    elif value >= yellow:
         cell.fill = YELLOW_FILL
     else:
         cell.fill = RED_FILL
+
+
+def apply_indicator_traffic_light(
+    cell,
+    value: float | int | None,
+    green: float = 0.80,
+    yellow: float = 0.60,
+) -> None:
+    """Apply subtle green/yellow/red fill for indicators (0-1 scale)."""
+    if value is None:
+        return
+    if value >= green:
+        cell.fill = GREEN_FILL_SUBTLE
+    elif value >= yellow:
+        cell.fill = YELLOW_FILL_SUBTLE
+    else:
+        cell.fill = RED_FILL_SUBTLE
 
 
 def apply_header_style(ws: Worksheet, row: int = 1) -> None:
@@ -91,6 +117,9 @@ def create_methodology_sheet(wb: Workbook, config: ScoringConfig) -> Worksheet:
     """Create the Methodology sheet with scoring model explanation and current config."""
     ws = wb.create_sheet("Methodology")
 
+    green_th = _get_threshold(config, "threshold_green", DEFAULT_GREEN_THRESHOLD)
+    yellow_th = _get_threshold(config, "threshold_yellow", DEFAULT_YELLOW_THRESHOLD)
+
     ws.append(["Scoring Methodology"])
     ws.cell(row=1, column=1).font = Font(bold=True, size=14)
     ws.append([])
@@ -104,15 +133,29 @@ def create_methodology_sheet(wb: Workbook, config: ScoringConfig) -> Worksheet:
 
     ws.append(["Traffic Light Legend"])
     ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+    ind_green = green_th / 100
+    ind_yellow = yellow_th / 100
+
     row = ws.max_row + 1
-    ws.cell(row=row, column=1, value="Green").fill = GREEN_FILL
-    ws.cell(row=row, column=2, value="Value >= Target")
+    ws.cell(row=row, column=1, value="Scores & Dimensions (0-100)")
+    ws.cell(row=row, column=1).font = Font(bold=True, size=10)
+    ws.cell(row=row, column=2, value="Indicators (0-1)")
+    ws.cell(row=row, column=2).font = Font(bold=True, size=10)
+    ws.cell(row=row, column=3, value="Category")
+    ws.cell(row=row, column=3).font = Font(bold=True, size=10)
     row += 1
-    ws.cell(row=row, column=1, value="Yellow").fill = YELLOW_FILL
-    ws.cell(row=row, column=2, value="Value >= 80% of Target")
+    ws.cell(row=row, column=1, value=f"Score >= {green_th:.0f}").fill = GREEN_FILL
+    ws.cell(row=row, column=2, value=f"Value >= {ind_green:.2f}").fill = GREEN_FILL_SUBTLE
+    ws.cell(row=row, column=3, value="Good performance")
     row += 1
-    ws.cell(row=row, column=1, value="Red").fill = RED_FILL
-    ws.cell(row=row, column=2, value="Value < 80% of Target")
+    ws.cell(row=row, column=1, value=f"Score >= {yellow_th:.0f}").fill = YELLOW_FILL
+    ws.cell(row=row, column=2, value=f"Value >= {ind_yellow:.2f}").fill = YELLOW_FILL_SUBTLE
+    ws.cell(row=row, column=3, value="At risk / needs attention")
+    row += 1
+    ws.cell(row=row, column=1, value=f"Score < {yellow_th:.0f}").fill = RED_FILL
+    ws.cell(row=row, column=2, value=f"Value < {ind_yellow:.2f}").fill = RED_FILL_SUBTLE
+    ws.cell(row=row, column=3, value="Critical / poor performance")
     ws.append([])
 
     ws.append(["Snapshot Types"])
@@ -155,6 +198,15 @@ def create_methodology_sheet(wb: Workbook, config: ScoringConfig) -> Worksheet:
     set_column_widths(ws, {"A": 25, "B": 28, "C": 50, "D": 60, "E": 12, "F": 12})
 
     return ws
+
+
+def _get_threshold(config: ScoringConfig, name: str, default: float) -> float:
+    """Get a threshold constant from config, falling back to default."""
+    try:
+        val = config.get_constant(name)
+        return val if val > 0 else default
+    except (KeyError, ValueError):
+        return default
 
 
 def _safe_get_target(config: ScoringConfig, indicator_key: str) -> str:
