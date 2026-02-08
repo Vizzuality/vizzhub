@@ -529,6 +529,7 @@ During the transition (scorecard still uses flat `CurrentUser`):
 - Projects and Teams - central entity linking both modules
 - Slack notifications - already implemented
 - Infrastructure and deploy - single docker compose
+- **ARQ worker + Redis** — single worker, single Redis instance. Shared across modules. Each module defines its own tasks in `modules/<name>/worker/tasks.py` and exports `FUNCTIONS` and `CRON_JOBS` lists. `app/worker/settings.py` aggregates them. No Phase 0 work needed — handled naturally when trackr adds its first background job.
 
 ### Independent per Module
 
