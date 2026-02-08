@@ -119,11 +119,11 @@ pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/cmkliqxix000d04la3624132
 
 ### Modular Architecture Rules (MUST FOLLOW)
 
-The Hub is evolving into a multi-module platform (scorecard, trackr, future tools). These rules apply to ALL new code and to any existing code being modified. See `docs/vizztracker_integration.md` for full context.
+The Hub is evolving into a multi-module platform (scorecard, tracker, future tools). These rules apply to ALL new code and to any existing code being modified. See `docs/vizztracker_integration.md` for full context.
 
 **1. New code goes in modules, not in flat `app/` directories.**
 
-- New trackr code → `app/modules/trackr/`
+- New tracker code → `app/modules/tracker/`
 - New frontend features for tracker → `src/modules/tracker/`
 - Existing scorecard code stays in place until organically migrated
 
@@ -135,7 +135,7 @@ When `core/models/` exists, import from there. Until extracted, existing `app/mo
 
 ```python
 # ALLOWED
-from app.modules.trackr.services.public import get_budget_summary
+from app.modules.tracker.services.public import get_budget_summary
 from app.core.models.project import ProjectDB
 
 # FORBIDDEN — never import another module's internals
@@ -144,7 +144,7 @@ from app.modules.scorecard.services.calculators.time import TimeCalculator
 
 **4. Write isolation, read flexibility.**
 
-Each module only writes to its own tables (scorecard cannot INSERT into trackr's `contracts`). For business logic reads, use `public.py` interfaces. For analytical/reporting reads (dashboards, exports), direct JOINs across module tables are allowed in dedicated query services under `app/core/services/`.
+Each module only writes to its own tables (scorecard cannot INSERT into tracker's `contracts`). For business logic reads, use `public.py` interfaces. For analytical/reporting reads (dashboards, exports), direct JOINs across module tables are allowed in dedicated query services under `app/core/services/`.
 
 **5. Entity placement decision rule:**
 
@@ -162,11 +162,11 @@ Each module has a `router.py` that aggregates its sub-routers with `include_rout
 
 **8. New endpoints use project-scoped permissions.**
 
-New trackr endpoints must use `ProjectViewer`, `ProjectContributor`, or `ProjectManager` dependencies from `app/core/permissions.py` (not bare `CurrentUser`). Existing scorecard endpoints can keep `CurrentUser` until migrated. Admin role always bypasses project-level checks.
+New tracker endpoints must use `ProjectViewer`, `ProjectContributor`, or `ProjectManager` dependencies from `app/core/permissions.py` (not bare `CurrentUser`). Existing scorecard endpoints can keep `CurrentUser` until migrated. Admin role always bypasses project-level checks.
 
 **9. URL is the single source of truth for frontend view state.**
 
-All user-visible state (selected period, active tab, filters, snapshot type) must be reflected in the URL via search params or path segments. Use `useUrlState` hook from `src/shared/hooks/useUrlState.ts` instead of bare `useState` for any view state. Tabs use nested routes, not `<Tabs defaultValue>`. Page reload must preserve the exact view. New modules (trackr) must be URL-driven from day 1.
+All user-visible state (selected period, active tab, filters, snapshot type) must be reflected in the URL via search params or path segments. Use `useUrlState` hook from `src/shared/hooks/useUrlState.ts` instead of bare `useState` for any view state. Tabs use nested routes, not `<Tabs defaultValue>`. Page reload must preserve the exact view. New modules (tracker) must be URL-driven from day 1.
 
 ### Backend Data Flow
 

@@ -41,7 +41,7 @@ A platform consolidating multiple internal tools, starting with:
 
 ## Context
 
-VizzTracker is a Ruby on Rails application used to track development time reports, project budgets, and costs. It runs on PostgreSQL (`vizz_trackr_development`). The goal is to integrate it into the Hub to consolidate project management tools into a single platform.
+VizzTracker is a Ruby on Rails application used to track development time reports, project budgets, and costs. It runs on PostgreSQL (`vizz_tracker_development`). The goal is to integrate it into the Hub to consolidate project management tools into a single platform.
 
 ## Business Value
 
@@ -68,7 +68,7 @@ Entities that every module needs and that have no natural "home" in any one modu
 | **projects** | Both modules operate on projects |
 | **users** | Auth, ownership, assignment |
 | **teams** | Organizational grouping |
-| **roles** | Used by trackr (budget lines) and potentially scorecard (team metrics) |
+| **roles** | Used by tracker (budget lines) and potentially scorecard (team metrics) |
 
 #### Level 2: Source-of-truth ownership — one module owns, others consume
 
@@ -76,9 +76,9 @@ When data is genuinely used by multiple modules but one module is the **creator 
 
 | Data | Owner | Consumer | Interface |
 |------|-------|----------|-----------|
-| **Budget** (total, consumed, remaining) | **trackr** (contracts, budget_lines, invoices) | scorecard (P_cost calculation) | `trackr.public.get_budget_summary(project_id)` |
-| **Time allocation** (hours, dedication) | **trackr** (reports, report_parts) | scorecard (P_flow, team metrics) | `trackr.public.get_time_summary(project_id, period)` |
-| **Project scores** (8 dimensions) | **scorecard** (calculators, normalizers) | trackr (health indicators in budget views) | `scorecard.public.get_project_scores(project_id)` |
+| **Budget** (total, consumed, remaining) | **tracker** (contracts, budget_lines, invoices) | scorecard (P_cost calculation) | `tracker.public.get_budget_summary(project_id)` |
+| **Time allocation** (hours, dedication) | **tracker** (reports, report_parts) | scorecard (P_flow, team metrics) | `tracker.public.get_time_summary(project_id, period)` |
+| **Project scores** (8 dimensions) | **scorecard** (calculators, normalizers) | tracker (health indicators in budget views) | `scorecard.public.get_project_scores(project_id)` |
 
 This replaces manual fields in scorecard (like `budget_total`, `budget_consumed`) with live data from tracker — the source of truth.
 
@@ -87,7 +87,7 @@ This replaces manual fields in scorecard (like `budget_total`, `budget_consumed`
 | Owner | Entities |
 |-------|----------|
 | **scorecard** | metrics, config_parameters, oauth_tokens, slack, alerts |
-| **trackr** | invoices, non_staff_costs, reporting_periods, progress_reports |
+| **tracker** | invoices, non_staff_costs, reporting_periods, progress_reports |
 
 #### What about timeline?
 
@@ -97,8 +97,8 @@ Timeline has components at different levels:
 |--------|-------|--------|
 | Project dates (start_date, end_date, finished_at) | **core** | Every module needs them |
 | Milestones (delivery milestones, grace periods) | **scorecard** | Used for P_time scoring |
-| Reporting periods (monthly open/close) | **trackr** | Time tracking cadence |
-| Contract dates (contract start/end) | **trackr** | Budget/contract lifecycle |
+| Reporting periods (monthly open/close) | **tracker** | Time tracking cadence |
+| Contract dates (contract start/end) | **tracker** | Budget/contract lifecycle |
 
 Both modules render timelines in their UIs, but each reads from its own data + core project dates. No single "timeline entity" — it's a UI concept composed from multiple sources.
 
@@ -123,7 +123,7 @@ All tables live in the default `public` schema. No multi-schema separation.
 ```
 Core:       projects, users, teams, roles
 Scorecard:  metrics, config_parameters, oauth_tokens, slack_config, alert_definitions, ...
-Trackr:     contracts, invoices, budget_lines, reports, report_parts, rates, ...
+Tracker:     contracts, invoices, budget_lines, reports, report_parts, rates, ...
 ```
 
 Table names are already descriptive enough — no prefixes needed.
@@ -133,7 +133,7 @@ Table names are already descriptive enough — no prefixes needed.
 | Operation | Rule | Example |
 |-----------|------|---------|
 | **Writes** | Only through the owning module | Scorecard cannot INSERT into `contracts` |
-| **Business reads** | Through `public.py` interfaces | Scorecard calls `trackr.public.get_budget_summary()` |
+| **Business reads** | Through `public.py` interfaces | Scorecard calls `tracker.public.get_budget_summary()` |
 | **Analytical reads** | Direct JOINs allowed | Dashboard/export services can JOIN across module tables |
 
 The distinction matters: business logic stays decoupled through service interfaces, but reporting/dashboards can use SQL JOINs freely — that's what SQL is designed for.
@@ -173,12 +173,12 @@ app/
 │   │   │   └── public.py      # Public interface for cross-module use
 │   │   └── router.py          # include_router() with prefix="/api/scorecard"
 │   │
-│   ├── trackr/
+│   ├── tracker/
 │   │   ├── api/               # Routers (contracts, budgets, reports)
 │   │   ├── models/            # contracts, invoices, budget_lines, etc.
 │   │   ├── services/          # budget calculations, report generation
 │   │   │   └── public.py      # Public interface for cross-module use
-│   │   └── router.py          # prefix="/api/trackr"
+│   │   └── router.py          # prefix="/api/tracker"
 │   │
 │   └── notifications/         # Slack, alerts (cross-module)
 │       ├── api/
@@ -194,7 +194,7 @@ app/
 /api/auth/*          -> core
 /api/projects/*      -> core
 /api/scorecard/*     -> scorecard module
-/api/trackr/*        -> trackr module
+/api/tracker/*        -> tracker module
 ```
 
 ### Frontend Structure
@@ -226,7 +226,7 @@ src/
 /projects            -> unified list
 /projects/:id        -> project view with tabs from both modules
 /projects/:id/scores -> scorecard
-/projects/:id/budget -> trackr
+/projects/:id/budget -> tracker
 ```
 
 ### URL-Driven State Strategy
@@ -248,7 +248,7 @@ src/
 /projects/:id/scores                          → scorecard tab (default)
 /projects/:id/scores?period=2025-06           → specific period
 /projects/:id/scores?period=2025-06&snapshot=punctual
-/projects/:id/budget                          → trackr tab
+/projects/:id/budget                          → tracker tab
 /projects/:id/budget/contracts?status=active  → filtered view
 /projects/:id/members                         → team/membership
 /projects/:id/settings                        → project settings
@@ -340,7 +340,7 @@ async def get_project_scores(project_id: str, db: AsyncSession) -> dict:
     """Public interface: returns latest scores for a project."""
     ...
 
-# modules/trackr/services/budget_analysis.py
+# modules/tracker/services/budget_analysis.py
 from app.modules.scorecard.services.public import get_project_scores  # OK
 from app.modules.scorecard.services.calculators.time import ...       # FORBIDDEN
 ```
@@ -357,7 +357,7 @@ Each module only writes to its own tables. For business logic reads, use `public
 
 ### Routing Strategy
 
-**Problem**: Currently 18 routers mounted flat in `main.py` with inconsistent prefix strategies (some in the router file, some in `include_router`), a prefix collision (`projects_router` and `capture_router` share `/api/projects`), and inconsistent tags. With trackr this becomes 30+ routers — unmanageable.
+**Problem**: Currently 18 routers mounted flat in `main.py` with inconsistent prefix strategies (some in the router file, some in `include_router`), a prefix collision (`projects_router` and `capture_router` share `/api/projects`), and inconsistent tags. With tracker this becomes 30+ routers — unmanageable.
 
 **Solution**: Each module owns a `router.py` that aggregates its sub-routers. `main.py` only mounts module-level routers.
 
@@ -377,7 +377,7 @@ app.include_router(scores_router, prefix="/api/scores")
 # main.py — clean, only module-level routers
 app.include_router(core_router)            # /api/auth/*, /api/projects/*, /api/admin/users/*
 app.include_router(scorecard_router)       # /api/scorecard/*
-app.include_router(trackr_router)          # /api/trackr/*
+app.include_router(tracker_router)          # /api/tracker/*
 app.include_router(notifications_router)   # /api/notifications/*
 ```
 
@@ -395,8 +395,8 @@ router.include_router(exports.router, prefix="/exports")
 ```
 
 ```python
-# app/modules/trackr/router.py
-router = APIRouter(prefix="/api/trackr", tags=["trackr"])
+# app/modules/tracker/router.py
+router = APIRouter(prefix="/api/tracker", tags=["tracker"])
 router.include_router(contracts.router, prefix="/contracts")
 router.include_router(budgets.router, prefix="/budgets")
 router.include_router(reports.router, prefix="/reports")
@@ -419,7 +419,7 @@ router.include_router(admin_users.router, prefix="/admin/users")
 
 ### Permissions Strategy
 
-**Problem**: Currently only two global roles (`user`, `admin`). All authenticated users can view and edit all projects. This doesn't scale for trackr where:
+**Problem**: Currently only two global roles (`user`, `admin`). All authenticated users can view and edit all projects. This doesn't scale for tracker where:
 - A PM should manage budget for **their** projects, not everyone's
 - A finance user should approve invoices but not edit scorecard metrics
 - A viewer should see dashboards but not modify anything
@@ -435,7 +435,7 @@ AdminUser = Annotated[TokenData, Depends(require_role("admin"))]  # platform adm
 
 Kept as-is. Admin = platform administration (user management, system config).
 
-#### Layer 2: Project membership (new — required for trackr)
+#### Layer 2: Project membership (new — required for tracker)
 
 New `project_members` table in core:
 
@@ -509,7 +509,7 @@ Optional — restrict which modules a user can access per project. Only implemen
 
 ```sql
 -- Future: add to project_members
-modules TEXT[] DEFAULT '{scorecard,trackr}'  -- modules this user can access on this project
+modules TEXT[] DEFAULT '{scorecard,tracker}'  -- modules this user can access on this project
 ```
 
 Not needed for Phase 1. By default all project members access all modules.
@@ -518,7 +518,7 @@ Not needed for Phase 1. By default all project members access all modules.
 
 During the transition (scorecard still uses flat `CurrentUser`):
 - Existing scorecard endpoints keep using `CurrentUser` — no breakage
-- New trackr endpoints use `ProjectContributor` / `ProjectManager`
+- New tracker endpoints use `ProjectContributor` / `ProjectManager`
 - Scorecard endpoints migrate to project-scoped permissions gradually (Phase 2)
 - Admin role always bypasses project-level checks
 
@@ -529,12 +529,12 @@ During the transition (scorecard still uses flat `CurrentUser`):
 - Projects and Teams - central entity linking both modules
 - Slack notifications - already implemented
 - Infrastructure and deploy - single docker compose
-- **ARQ worker + Redis** — single worker, single Redis instance. Shared across modules. Each module defines its own tasks in `modules/<name>/worker/tasks.py` and exports `FUNCTIONS` and `CRON_JOBS` lists. `app/worker/settings.py` aggregates them. No Phase 0 work needed — handled naturally when trackr adds its first background job.
+- **ARQ worker + Redis** — single worker, single Redis instance. Shared across modules. Each module defines its own tasks in `modules/<name>/worker/tasks.py` and exports `FUNCTIONS` and `CRON_JOBS` lists. `app/worker/settings.py` aggregates them. No Phase 0 work needed — handled naturally when tracker adds its first background job.
 
 ### Independent per Module
 
 - **Scorecard**: metrics, calculators, normalizers, collectors (Jira/GitHub)
-- **Trackr**: contracts, invoices, budget lines, time reports, rates
+- **Tracker**: contracts, invoices, budget lines, time reports, rates
 
 ## Current VizzTracker Data Model
 
@@ -613,7 +613,7 @@ The Hub uses UUIDs, VizzTracker uses sequential bigint. Migration requires:
 2. **Write migration script** (one-time execution) with ID mapping
 3. **Run on local copy first** - never touch production until verified
 4. **Validate**: row counts, FK integrity, financial totals match
-5. **Build CRUD endpoints** under `/api/trackr/`
+5. **Build CRUD endpoints** under `/api/tracker/`
 6. **Build React components** for budget/time tracking views
 7. **Integrate with project view** as additional tabs
 
@@ -683,7 +683,7 @@ app/
 │   │   │   └── public.py          # Cross-module interface
 │   │   └── worker/
 │   │
-│   ├── trackr/                    # ← NEW, born clean
+│   ├── tracker/                    # ← NEW, born clean
 │   │   ├── api/
 │   │   ├── models/
 │   │   ├── services/
@@ -762,7 +762,7 @@ src/
 |----------|------|--------------|----------------|
 | **Big-bang refactor** | High — 220+ files touched at once | ~2 weeks, nothing ships | Zero until done |
 | **Divide & conquer** | Medium — still refactoring before building | ~1 week | Zero until done |
-| **Strangler fig** | Low — old code keeps working as-is | ~2-3h upfront, rest organic | Trackr features ship immediately |
+| **Strangler fig** | Low — old code keeps working as-is | ~2-3h upfront, rest organic | Tracker features ship immediately |
 
 ### Execution order
 
@@ -785,16 +785,16 @@ Phase 0 (prerequisite — MUST complete before Phase 1)
 │    useUrlState hook, admin nested routes
 │    Scorecard views: period, snapshot, filters in URL
 │
-Phase 1 (trackr development)
-│  Build app/modules/trackr/ from scratch — clean structure from day 1
+Phase 1 (tracker development)
+│  Build app/modules/tracker/ from scratch — clean structure from day 1
 │  Build src/modules/tracker/ — clean frontend module
-│  All trackr endpoints use project-scoped permissions from T0.5
+│  All tracker endpoints use project-scoped permissions from T0.5
 │  Scorecard stays exactly where it is, untouched
 │
 Phase 2 (organic scorecard migration, no deadline)
 │  As scorecard files need changes for other reasons, move them to modules/scorecard/
 │  Migrate scorecard endpoints to project-scoped permissions (gradually)
-│  Extract notifications to modules/notifications/ when trackr needs alerts
+│  Extract notifications to modules/notifications/ when tracker needs alerts
 │  Eventually all scorecard code lands in modules/scorecard/
 │
 Phase 3 (cleanup)
@@ -811,12 +811,12 @@ During phases 1-2, both layouts coexist:
 from app.models.metrics import MetricsDB
 from app.services.calculators.time import TimeCalculator
 
-# New trackr code — follows target structure
-from app.modules.trackr.models.contract import ContractDB
+# New tracker code — follows target structure
+from app.modules.tracker.models.contract import ContractDB
 from app.core.models.project import ProjectDB
 
 # Cross-module — through public interface only
-from app.modules.trackr.services.public import get_budget_summary
+from app.modules.tracker.services.public import get_budget_summary
 ```
 
 This is intentional, not technical debt. The old paths keep working until organically replaced.
@@ -829,12 +829,12 @@ This is intentional, not technical debt. The old paths keep working until organi
 | 0. Module routers (T0.4) | 3-4h | URL verification | 3-4h |
 | 0. Permissions (T0.5-T0.6) | 3-4h | 1-2h | 4-5h |
 | 0. URL-driven state (T0.7-T0.8) | — | 4-5h | 4-5h |
-| 1. Build trackr module | New code, no refactor | New code, no refactor | (part of trackr dev) |
+| 1. Build tracker module | New code, no refactor | New code, no refactor | (part of tracker dev) |
 | 2. Migrate scorecard (organic) | ~4-5h spread over weeks | ~3-4h spread over weeks | ~7-9h |
 | 3. Cleanup | ~1h | ~1h | ~2h |
 | **Total refactor overhead** | | | **~23-28h** |
 
-Phase 0 is ~14-17h total — a solid investment before building trackr. Without it, trackr would have wrong-direction imports, no project-scoped permissions, a routing mess, and URLs that can't be shared or traced by the MCP. Most of the work is mechanical or well-defined. Zero circular dependencies in current code makes it safe.
+Phase 0 is ~14-17h total — a solid investment before building tracker. Without it, tracker would have wrong-direction imports, no project-scoped permissions, a routing mess, and URLs that can't be shared or traced by the MCP. Most of the work is mechanical or well-defined. Zero circular dependencies in current code makes it safe.
 
 ## Guardrails: Enforcing the Pattern
 
@@ -849,8 +849,8 @@ Module boundary rules are documented in CLAUDE.md (see "Modular Architecture Rul
 Backend — custom Ruff rule or pre-commit check:
 ```python
 # Forbidden: cross-module internal imports
-# modules/trackr/ importing from modules/scorecard/services/calculators/ → ERROR
-# modules/trackr/ importing from modules/scorecard/services/public → OK
+# modules/tracker/ importing from modules/scorecard/services/calculators/ → ERROR
+# modules/tracker/ importing from modules/scorecard/services/public → OK
 # Any module importing from core/ → OK
 ```
 
@@ -896,15 +896,15 @@ Claude (MCP client)
   │
   │  Tools (read — single module)
   ├── get_project_scores(project_id)        → scorecard.public
-  ├── get_budget_summary(project_id)        → trackr.public
-  ├── get_budget_forecast(project_id)       → trackr.public
+  ├── get_budget_summary(project_id)        → tracker.public
+  ├── get_budget_forecast(project_id)       → tracker.public
   │
   │  Tools (analytics — cross-module)
-  ├── get_project_health(project_id)        → scorecard.public + trackr.public
+  ├── get_project_health(project_id)        → scorecard.public + tracker.public
   ├── compare_projects(ids[])               → core.services.reporting
   ├── find_at_risk_projects()               → core.services.reporting
   ├── generate_monthly_report(project_id)   → core.services.reporting (cross-module JOINs)
-  ├── team_workload_analysis(team_id)       → trackr.public + scorecard.public
+  ├── team_workload_analysis(team_id)       → tracker.public + scorecard.public
   │
   │  Resources
   ├── projects://list                       → project listing
@@ -928,7 +928,7 @@ async def get_project_health(project_id: str) -> dict:
     """Get combined health view: scores + budget + timeline."""
     async with httpx.AsyncClient(base_url=HUB_API_URL, headers=auth_headers) as client:
         scores = await client.get(f"/api/scorecard/scores/project/{project_id}")
-        budget = await client.get(f"/api/trackr/contracts/project/{project_id}/summary")
+        budget = await client.get(f"/api/tracker/contracts/project/{project_id}/summary")
         return {"scores": scores.json(), "budget": budget.json()}
 ```
 
@@ -948,7 +948,7 @@ Claude → MCP Server → Python imports → Hub services + DB (SELECT only)
 ```python
 # mcp_server/tools/analytics.py
 from app.modules.scorecard.services.public import get_project_scores
-from app.modules.trackr.services.public import get_budget_summary
+from app.modules.tracker.services.public import get_budget_summary
 from app.core.services.reporting import get_project_overview
 
 @mcp.tool()
@@ -1128,10 +1128,10 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] Dimension visibility uses `?dimensions=P_time,P_cost,...` (optional, lower priority)
 - [ ] All frontend tests pass
 
-### Phase 1: Build Trackr Module
+### Phase 1: Build Tracker Module
 
-**T1.1 — SQLAlchemy models for trackr**
-- [ ] All 14 business tables modeled in `app/modules/trackr/models/`
+**T1.1 — SQLAlchemy models for tracker**
+- [ ] All 14 business tables modeled in `app/modules/tracker/models/`
 - [ ] UUID primary keys (not bigint)
 - [ ] Financial fields use `Numeric(12,2)` (not float)
 - [ ] State machine fields modeled as Enum types
@@ -1152,27 +1152,27 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] Tested on local copy of production data
 - [ ] Production data never touched until local validation passes
 
-**T1.3 — Trackr CRUD endpoints**
-- [ ] `app/modules/trackr/router.py` aggregates sub-routers, prefix="/api/trackr"
+**T1.3 — Tracker CRUD endpoints**
+- [ ] `app/modules/tracker/router.py` aggregates sub-routers, prefix="/api/tracker"
 - [ ] Sub-routers for: contracts, budget_lines, invoices, reports, reporting_periods
 - [ ] Project-scoped permissions on all endpoints:
   - [ ] Read endpoints use `ProjectViewer`
   - [ ] Write endpoints use `ProjectContributor` or `ProjectManager`
   - [ ] Approve/manage endpoints use `ProjectManager`
 - [ ] Input validation (Pydantic schemas with proper types)
-- [ ] Write operations scoped to trackr's own tables only
+- [ ] Write operations scoped to tracker's own tables only
 - [ ] Tests for each endpoint (happy path + permission denied + validation errors)
 - [ ] No trailing slashes on routes
 
-**T1.4 — Trackr `public.py` interface**
-- [ ] `app/modules/trackr/services/public.py` exists
+**T1.4 — Tracker `public.py` interface**
+- [ ] `app/modules/tracker/services/public.py` exists
 - [ ] `get_budget_summary(project_id, db)` → returns `BudgetSummary` (total, consumed, remaining, burn_rate)
 - [ ] `get_time_summary(project_id, period, db)` → returns aggregated time data
 - [ ] Functions have typed parameters, typed returns, and docstrings
 - [ ] Return rich structured data (not just numbers — include names, dates, context)
 - [ ] Unit tests for each public function
 
-**T1.5 — Trackr frontend module**
+**T1.5 — Tracker frontend module**
 - [ ] `src/modules/tracker/` directory with `components/`, `hooks/`, `pages/`
 - [ ] Hooks use centralized query keys (extend `queryKeys.ts`)
 - [ ] API client uses `credentials: 'include'` for auth
@@ -1191,7 +1191,7 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] Project detail page shows tabs from both modules (scores + budget)
 - [ ] Tab navigation works without full page reload
 - [ ] Unified project list shows summary data from both modules
-- [ ] Projects without trackr data show graceful empty state (not errors)
+- [ ] Projects without tracker data show graceful empty state (not errors)
 
 ### Phase 2: Organic Scorecard Migration
 
@@ -1207,7 +1207,7 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 **T2.2 — Extract notifications module**
 - [ ] Slack service, alert service, templates in `app/modules/notifications/`
 - [ ] Notification models in `app/modules/notifications/models/`
-- [ ] Both scorecard and trackr can trigger notifications via `notifications.public`
+- [ ] Both scorecard and tracker can trigger notifications via `notifications.public`
 - [ ] All notification tests pass
 
 **T2.3 — Migrate scorecard frontend to `src/modules/scorecard/`**
@@ -1282,7 +1282,7 @@ T0.7 (useUrlState + admin routes) ──► T0.8 (scorecard URL state)
   ↑ independent of T0.1-T0.6, can run in parallel
                                             │
                                             ▼
-Phase 1 (trackr — critical path):        GATE: Phase 0 complete (T0.1-T0.8)
+Phase 1 (tracker — critical path):        GATE: Phase 0 complete (T0.1-T0.8)
                                             │
                     T1.1 ──► T1.2 ──► T1.3 ──► T1.4 ──► T1.6
                                        T1.5 ──────────────► T1.6
@@ -1296,7 +1296,7 @@ Analytical + MCP:                                             │
                     T-MCP.1 ──► T-MCP.2 ──► T-MCP.3 ──► T-MCP.4
 ```
 
-**Phase 0 is a hard gate.** No Phase 1 work starts until T0.1-T0.6 are complete. This ensures trackr is built on the right foundation: core entities extracted, routers modularized, and project-scoped permissions available.
+**Phase 0 is a hard gate.** No Phase 1 work starts until T0.1-T0.6 are complete. This ensures tracker is built on the right foundation: core entities extracted, routers modularized, and project-scoped permissions available.
 
 Phase 2 (scorecard migration) runs in parallel when convenient. MCP depends on the analytical layer (T-A.1) being in place.
 
