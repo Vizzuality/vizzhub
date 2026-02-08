@@ -55,6 +55,63 @@ VizzTracker is a Ruby on Rails application used to track development time report
 
 Single deploy, clear module boundaries. No microservices overhead.
 
+### Core Principle: Entity Ownership
+
+The boundary between modules is defined by **who owns what data**. There are three levels of sharing:
+
+#### Level 1: Core entities — genuinely shared, no single owner
+
+Entities that every module needs and that have no natural "home" in any one module. These live in `core/` and the `shared` schema.
+
+| Entity | Why core |
+|--------|----------|
+| **projects** | Both modules operate on projects |
+| **users** | Auth, ownership, assignment |
+| **teams** | Organizational grouping |
+| **roles** | Used by trackr (budget lines) and potentially scorecard (team metrics) |
+
+#### Level 2: Source-of-truth ownership — one module owns, others consume
+
+When data is genuinely used by multiple modules but one module is the **creator and manager** of that data. The owning module exposes aggregated views via `public.py`; consumers never touch the underlying tables.
+
+| Data | Owner | Consumer | Interface |
+|------|-------|----------|-----------|
+| **Budget** (total, consumed, remaining) | **trackr** (contracts, budget_lines, invoices) | scorecard (P_cost calculation) | `trackr.public.get_budget_summary(project_id)` |
+| **Time allocation** (hours, dedication) | **trackr** (reports, report_parts) | scorecard (P_flow, team metrics) | `trackr.public.get_time_summary(project_id, period)` |
+| **Project scores** (8 dimensions) | **scorecard** (calculators, normalizers) | trackr (health indicators in budget views) | `scorecard.public.get_project_scores(project_id)` |
+
+This replaces manual fields in scorecard (like `budget_total`, `budget_consumed`) with live data from tracker — the source of truth.
+
+#### Level 3: Module-private — no sharing needed
+
+| Owner | Entities |
+|-------|----------|
+| **scorecard** | metrics, config_parameters, oauth_tokens, slack, alerts |
+| **trackr** | invoices, non_staff_costs, reporting_periods, progress_reports |
+
+#### What about timeline?
+
+Timeline has components at different levels:
+
+| Aspect | Owner | Reason |
+|--------|-------|--------|
+| Project dates (start_date, end_date, finished_at) | **core** | Every module needs them |
+| Milestones (delivery milestones, grace periods) | **scorecard** | Used for P_time scoring |
+| Reporting periods (monthly open/close) | **trackr** | Time tracking cadence |
+| Contract dates (contract start/end) | **trackr** | Budget/contract lifecycle |
+
+Both modules render timelines in their UIs, but each reads from its own data + core project dates. No single "timeline entity" — it's a UI concept composed from multiple sources.
+
+#### Decision rule for new entities
+
+```
+Is it needed by ALL current and foreseeable modules?
+  → YES: core (shared schema)
+  → NO: Does one module create/manage it and others just read it?
+    → YES: Owner module + public.py interface
+    → NO (only one module uses it): Module-private
+```
+
 ### Database: One PostgreSQL, Three Schemas
 
 ```
@@ -63,16 +120,76 @@ scorecard.*     -> metrics, config_parameters, oauth_tokens, slack...
 trackr.*        -> contracts, invoices, budget_lines, reports, rates...
 ```
 
-### Backend: One FastAPI, Separate Routers
+Cross-schema reads happen ONLY through service functions, never through direct JOINs. This keeps extraction possible.
+
+### Backend Structure
 
 ```
-/api/auth/*          -> shared
-/api/projects/*      -> shared
+app/
+├── core/                      # Shared kernel
+│   ├── auth.py                # Auth, middleware, dependencies
+│   ├── database.py            # DB engine, session
+│   └── models/
+│       ├── user.py            # User (shared)
+│       ├── project.py         # Project (shared)
+│       └── team.py            # Team (shared)
+│
+├── modules/
+│   ├── scorecard/
+│   │   ├── api/               # Routers (metrics, scores, collectors, config)
+│   │   ├── models/            # metrics, config_parameters, oauth_tokens
+│   │   ├── services/          # calculators, normalizers, collectors
+│   │   │   └── public.py      # Public interface for cross-module use
+│   │   └── router.py          # include_router() with prefix="/api/scorecard"
+│   │
+│   ├── trackr/
+│   │   ├── api/               # Routers (contracts, budgets, reports)
+│   │   ├── models/            # contracts, invoices, budget_lines, etc.
+│   │   ├── services/          # budget calculations, report generation
+│   │   │   └── public.py      # Public interface for cross-module use
+│   │   └── router.py          # prefix="/api/trackr"
+│   │
+│   └── notifications/         # Slack, alerts (cross-module)
+│       ├── api/
+│       ├── models/
+│       └── services/
+│
+└── main.py                    # Mounts all module routers
+```
+
+**API routing:**
+
+```
+/api/auth/*          -> core
+/api/projects/*      -> core
 /api/scorecard/*     -> scorecard module
 /api/trackr/*        -> trackr module
 ```
 
-### Frontend: One React App, Routes per Module
+### Frontend Structure
+
+```
+src/
+├── shared/                    # Layout, auth, UI primitives
+│   ├── components/            # AppShell, Nav, common UI
+│   ├── contexts/              # AuthContext
+│   └── hooks/                 # useAuth, useProjects
+│
+├── modules/
+│   ├── scorecard/
+│   │   ├── components/        # ScoreCard, MetricsForm, Timeline
+│   │   ├── hooks/             # useScores, useMetrics, useConfig
+│   │   └── pages/             # ProjectScores, GlobalDashboard
+│   │
+│   ├── tracker/
+│   │   ├── components/        # BudgetTable, TimeReport, ContractForm
+│   │   ├── hooks/             # useBudget, useReports, useContracts
+│   │   └── pages/             # ProjectBudget, TimeReports
+│
+└── App.tsx                    # Root routing
+```
+
+**Routes:**
 
 ```
 /projects            -> unified list
@@ -80,6 +197,33 @@ trackr.*        -> contracts, invoices, budget_lines, reports, rates...
 /projects/:id/scores -> scorecard
 /projects/:id/budget -> trackr
 ```
+
+### Module Boundary Rules
+
+**1. A module NEVER imports directly from another module's internals.**
+
+If tracker needs scores from scorecard, it goes through the public interface:
+
+```python
+# modules/scorecard/services/public.py  — the only file other modules can import
+async def get_project_scores(project_id: str, db: AsyncSession) -> dict:
+    """Public interface: returns latest scores for a project."""
+    ...
+
+# modules/trackr/services/budget_analysis.py
+from app.modules.scorecard.services.public import get_project_scores  # OK
+from app.modules.scorecard.services.calculators.time import ...       # FORBIDDEN
+```
+
+This means scorecard can refactor its internals freely — only `public.py` is a contract.
+
+**2. Core imports are always allowed.**
+
+Any module can import from `app.core.*`. Core never imports from modules.
+
+**3. No cross-schema queries.**
+
+Modules interact through service functions, not by joining tables across schemas. This keeps the option open to extract a module later if needed.
 
 ### Shared Services
 
@@ -173,6 +317,252 @@ The Hub uses UUIDs, VizzTracker uses sequential bigint. Migration requires:
 5. **Build CRUD endpoints** under `/api/trackr/`
 6. **Build React components** for budget/time tracking views
 7. **Integrate with project view** as additional tabs
+
+## Structure: AS IS → TO BE
+
+### Backend AS IS
+
+```
+app/
+├── api/                  # 21 router files, all flat
+│   ├── auth.py
+│   ├── projects.py
+│   ├── metrics.py
+│   ├── scores.py
+│   ├── collectors.py
+│   ├── capture.py
+│   ├── jobs.py
+│   ├── slack_admin.py
+│   └── ...
+├── core/                 # 7 files (auth, security)
+├── models/               # 16 files, single __init__.py re-exports all
+│   ├── project.py
+│   ├── user.py
+│   ├── metrics.py
+│   ├── slack.py
+│   └── ...
+├── services/             # 53 files
+│   ├── calculators/      # 13 scorecard calculators
+│   ├── collectors/       # 25 files (Jira, GitHub, Dependabot)
+│   ├── normalizers/      # 3 files
+│   ├── metrics_service.py
+│   ├── slack_service.py
+│   ├── alert_service.py
+│   └── ...
+├── worker/               # 6 files (ARQ tasks, cron jobs)
+├── utils/                # 4 files
+├── config.py
+├── database.py
+└── main.py               # Mounts 17 routers
+```
+
+**111 Python files, 277 internal imports, 0 circular dependencies.**
+Dependency direction is clean: models ← services ← api.
+
+### Backend TO BE
+
+```
+app/
+├── core/                          # Shared kernel (extracted first)
+│   ├── auth.py
+│   ├── config.py
+│   ├── database.py
+│   ├── middleware/
+│   └── models/
+│       ├── project.py             # ← moved from app/models/
+│       ├── user.py                # ← moved from app/models/
+│       └── team.py
+│
+├── modules/
+│   ├── scorecard/                 # ← current app/ code, relocated gradually
+│   │   ├── api/
+│   │   ├── models/
+│   │   ├── services/
+│   │   │   ├── calculators/
+│   │   │   ├── collectors/
+│   │   │   ├── normalizers/
+│   │   │   └── public.py          # Cross-module interface
+│   │   └── worker/
+│   │
+│   ├── trackr/                    # ← NEW, born clean
+│   │   ├── api/
+│   │   ├── models/
+│   │   ├── services/
+│   │   │   └── public.py
+│   │   └── worker/
+│   │
+│   └── notifications/             # ← extracted from scorecard (Slack, alerts)
+│       ├── api/
+│       ├── models/
+│       └── services/
+│
+└── main.py
+```
+
+### Frontend AS IS
+
+```
+src/
+├── components/           # 90 files, flat feature folders
+│   ├── ui/               # 26 shadcn primitives
+│   ├── ProjectDetail/    # 21 files (biggest cluster)
+│   ├── SubIndicatorCard/ # 5 files
+│   ├── Forms/            # 5 files
+│   ├── Admin/            # 2 files
+│   ├── NotificationsAdmin/ # 4 files
+│   ├── Settings/         # 2 files
+│   ├── Dashboard/        # 2 files
+│   ├── layout/           # 3 files
+│   └── ScoreCard/        # 2 files
+├── hooks/                # 22 files, all relative imports
+├── pages/                # 12 files
+├── services/             # 12 API client files
+├── types/                # 10 files
+├── utils/                # 6 files
+├── constants/            # 2 files
+├── contexts/             # 2 files
+└── App.tsx
+```
+
+**154 source files, ~368 import statements, mixed relative/absolute paths.**
+
+### Frontend TO BE
+
+```
+src/
+├── shared/                        # Extracted shared kernel
+│   ├── components/                # ← ui/, layout/, ErrorBoundary, ProtectedRoute
+│   ├── contexts/                  # ← AuthContext
+│   ├── hooks/                     # ← useAuth, useProjects (shared)
+│   ├── services/                  # ← API client
+│   ├── types/                     # ← shared types
+│   ├── utils/                     # ← formatters, dateUtils
+│   └── constants/                 # ← dates, timing
+│
+├── modules/
+│   ├── scorecard/                 # ← current scorecard code, relocated gradually
+│   │   ├── components/            # ProjectDetail/, ScoreCard/, SubIndicatorCard/
+│   │   ├── hooks/                 # useScores, useMetrics, useConfig
+│   │   └── pages/                 # ProjectScores, GlobalDashboard
+│   │
+│   ├── tracker/                   # ← NEW, born clean
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── pages/
+│
+└── App.tsx
+```
+
+## Migration Strategy: Strangler Fig
+
+**NOT a big-bang refactor.** New code follows the target structure from day 1. Existing code migrates gradually, driven by need.
+
+### Why strangler fig, not big-bang
+
+| Approach | Risk | Time blocked | Value delivery |
+|----------|------|--------------|----------------|
+| **Big-bang refactor** | High — 220+ files touched at once | ~2 weeks, nothing ships | Zero until done |
+| **Divide & conquer** | Medium — still refactoring before building | ~1 week | Zero until done |
+| **Strangler fig** | Low — old code keeps working as-is | ~2-3h upfront, rest organic | Trackr features ship immediately |
+
+### Execution order
+
+```
+Phase 0 (prerequisite, ~2-3h)
+│  Extract Project + User models to app/core/models/
+│  Update imports in existing code (9 files for Project, 3 for User)
+│  This unblocks trackr without creating wrong-direction dependencies
+│
+Phase 1 (trackr development)
+│  Build app/modules/trackr/ from scratch — clean structure from day 1
+│  Build src/modules/tracker/ — clean frontend module
+│  Scorecard stays exactly where it is, untouched
+│
+Phase 2 (organic scorecard migration, no deadline)
+│  As scorecard files need changes for other reasons, move them to modules/scorecard/
+│  Extract notifications to modules/notifications/ when trackr needs alerts
+│  Eventually all scorecard code lands in modules/scorecard/
+│
+Phase 3 (cleanup)
+│  Remove old app/api/, app/models/, app/services/ once empty
+│  Verify no legacy imports remain
+```
+
+### Coexistence during migration
+
+During phases 1-2, both layouts coexist:
+
+```python
+# Old scorecard code — still works, untouched
+from app.models.metrics import MetricsDB
+from app.services.calculators.time import TimeCalculator
+
+# New trackr code — follows target structure
+from app.modules.trackr.models.contract import ContractDB
+from app.core.models.project import ProjectDB
+
+# Cross-module — through public interface only
+from app.modules.trackr.services.public import get_budget_summary
+```
+
+This is intentional, not technical debt. The old paths keep working until organically replaced.
+
+### Effort estimate
+
+| Phase | Backend | Frontend | Total |
+|-------|---------|----------|-------|
+| 0. Extract core entities | 2-3h | — | 2-3h |
+| 1. Build trackr module | New code, no refactor | New code, no refactor | (part of trackr dev) |
+| 2. Migrate scorecard (organic) | ~4-5h spread over weeks | ~3-4h spread over weeks | ~7-9h |
+| 3. Cleanup | ~1h | ~1h | ~2h |
+| **Total refactor overhead** | | | **~12-14h** |
+
+Most of this is mechanical (move file + update imports), not architectural. Zero circular dependencies in current code makes it safe.
+
+## Guardrails: Enforcing the Pattern
+
+The modular structure only works if it's enforced consistently. Three layers of protection:
+
+### 1. CLAUDE.md rules (AI enforcement)
+
+Module boundary rules are documented in CLAUDE.md (see "Modular Architecture Rules" section). Every Claude Code session reads these rules before writing code. This is the primary enforcement mechanism during development.
+
+### 2. Import linting (CI enforcement)
+
+Backend — custom Ruff rule or pre-commit check:
+```python
+# Forbidden: cross-module internal imports
+# modules/trackr/ importing from modules/scorecard/services/calculators/ → ERROR
+# modules/trackr/ importing from modules/scorecard/services/public → OK
+# Any module importing from core/ → OK
+```
+
+Frontend — ESLint `import/no-restricted-paths`:
+```json
+{
+  "rules": {
+    "import/no-restricted-paths": ["error", {
+      "zones": [{
+        "target": "./src/modules/tracker",
+        "from": "./src/modules/scorecard",
+        "except": ["./public"]
+      }, {
+        "target": "./src/modules/scorecard",
+        "from": "./src/modules/tracker",
+        "except": ["./public"]
+      }]
+    }]
+  }
+}
+```
+
+### 3. Code review checklist
+
+For any PR that touches module boundaries:
+- [ ] New models placed in correct module (core vs module-private)?
+- [ ] Cross-module imports go through `public.py` / `public/` only?
+- [ ] No direct cross-schema DB queries?
+- [ ] New shared entity follows the decision rule (Level 1/2/3)?
 
 ## Future Scalability
 
