@@ -156,6 +156,18 @@ Each module only writes to its own tables (scorecard cannot INSERT into trackr's
 
 Each module under `src/modules/` has its own `components/`, `hooks/`, `pages/`. Shared UI primitives, auth, and utilities live in `src/shared/`.
 
+**7. Module routers aggregate sub-routers. `main.py` only mounts module-level routers.**
+
+Each module has a `router.py` that aggregates its sub-routers with `include_router`. Prefixes are always defined in `include_router`, never inside router files. No two routers share the same prefix.
+
+**8. New endpoints use project-scoped permissions.**
+
+New trackr endpoints must use `ProjectViewer`, `ProjectContributor`, or `ProjectManager` dependencies from `app/core/permissions.py` (not bare `CurrentUser`). Existing scorecard endpoints can keep `CurrentUser` until migrated. Admin role always bypasses project-level checks.
+
+**9. URL is the single source of truth for frontend view state.**
+
+All user-visible state (selected period, active tab, filters, snapshot type) must be reflected in the URL via search params or path segments. Use `useUrlState` hook from `src/shared/hooks/useUrlState.ts` instead of bare `useState` for any view state. Tabs use nested routes, not `<Tabs defaultValue>`. Page reload must preserve the exact view. New modules (trackr) must be URL-driven from day 1.
+
 ### Backend Data Flow
 
 ```
