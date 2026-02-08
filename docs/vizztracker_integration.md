@@ -597,7 +597,9 @@ For any PR that touches module boundaries:
 
 ## Future: MCP Server for AI-Powered Analysis
 
-An MCP (Model Context Protocol) server would allow Claude (Desktop, Code, or custom agents) to interact with the Hub's data across all modules — cross-referencing scores, budgets, timelines, and generating complex reports conversationally.
+An MCP (Model Context Protocol) server would allow Claude (Desktop, Code, or custom agents) to query the Hub's data across all modules — cross-referencing scores, budgets, timelines, and generating complex reports conversationally.
+
+**IMPORTANT: The MCP server is READ-ONLY.** No write tools. This is a deliberate constraint — AI agents can analyze and report, but cannot modify project data. Write operations remain under human control through the Hub UI. This can be revisited later with proper audit trails and approval workflows.
 
 ### Why the modular architecture enables this
 
@@ -606,19 +608,17 @@ Each `public.py` is already a tool candidate. Each query service in `core/servic
 ```
 Claude (MCP client)
   │
-  │  Tools (read)
+  │  Tools (read — single module)
+  ├── get_project_scores(project_id)        → scorecard.public
+  ├── get_budget_summary(project_id)        → trackr.public
+  ├── get_budget_forecast(project_id)       → trackr.public
+  │
+  │  Tools (analytics — cross-module)
   ├── get_project_health(project_id)        → scorecard.public + trackr.public
   ├── compare_projects(ids[])               → core.services.reporting
   ├── find_at_risk_projects()               → core.services.reporting
-  │
-  │  Tools (analytics)
   ├── generate_monthly_report(project_id)   → core.services.reporting (cross-module JOINs)
-  ├── budget_forecast(project_id)           → trackr.public
   ├── team_workload_analysis(team_id)       → trackr.public + scorecard.public
-  │
-  │  Tools (write)
-  ├── update_metrics(project_id, data)      → scorecard services
-  ├── log_time_report(project_id, data)     → trackr services
   │
   │  Resources
   ├── projects://list                       → project listing
@@ -627,12 +627,12 @@ Claude (MCP client)
 
 ### Integration strategy: two phases
 
-**Phase 1 — API wrapper (start here)**
+**Phase 1 — Read-only API wrapper (start here)**
 
-The MCP server makes HTTP calls to the Hub's existing API. Simplest path, no code duplication.
+The MCP server makes GET requests to the Hub's existing API. Simplest path, no code duplication, inherently read-only.
 
 ```
-Claude → MCP Server → HTTP requests → Hub API (localhost:8000)
+Claude → MCP Server → HTTP GET only → Hub API (localhost:8000)
 ```
 
 ```python
@@ -646,16 +646,17 @@ async def get_project_health(project_id: str) -> dict:
         return {"scores": scores.json(), "budget": budget.json()}
 ```
 
+- Only GET endpoints exposed — no POST/PUT/DELETE
 - Reuses all existing validation and auth
 - Limited to what the API exposes
 - Effort: ~3-4 days for a useful set of read tools
 
-**Phase 2 — Direct service imports (when needed)**
+**Phase 2 — Read-only direct service imports (when needed)**
 
-The MCP server imports the Hub's Python service layer directly. Enables analytical queries that the API doesn't expose.
+The MCP server imports the Hub's Python service layer directly. Enables analytical queries that the API doesn't expose. Still read-only.
 
 ```
-Claude → MCP Server → Python imports → Hub services + DB
+Claude → MCP Server → Python imports → Hub services + DB (SELECT only)
 ```
 
 ```python
@@ -672,9 +673,16 @@ async def cross_module_analysis(project_id: str) -> dict:
         return overview
 ```
 
-- Full access to business logic and cross-module JOINs
+- Full access to read operations and cross-module JOINs
 - More powerful but coupled to deployment
 - Effort: ~2-3 additional days on top of Phase 1
+
+**Phase 3 (future, not planned) — Write tools with approval workflow**
+
+Write tools should only be considered when:
+- Audit trail is implemented (who changed what, when, via which tool)
+- Approval workflow exists (AI proposes change → human approves → change applied)
+- Scope is limited to low-risk operations first (e.g., updating manual metrics, not deleting projects)
 
 ### Authentication for MCP
 
@@ -711,18 +719,9 @@ Auth flow:
 
 Effort: ~2-3 days. Requires session management in the MCP server.
 
-**Level 3 — Granular permissions**
+**Level 3 (future) — Granular permissions for write tools**
 
-Different tools require different roles. This works automatically if using the API wrapper approach — the Hub already validates roles per endpoint.
-
-```python
-@mcp.tool()
-async def delete_project(project_id: str) -> dict:
-    """Requires admin role. Hub API validates the user's JWT."""
-    response = await client.delete(f"/api/projects/{project_id}")
-    # Hub returns 403 if user is not admin — MCP propagates the error
-    ...
-```
+Only relevant if/when write tools are introduced. The Hub's existing role-based auth (user/admin) would apply automatically through the API wrapper — no extra work needed in the MCP server.
 
 ### Design guidelines for MCP readiness
 
@@ -750,14 +749,188 @@ async def get_budget(project_id: str, db: AsyncSession) -> float:
 | Component | Effort | Dependencies |
 |-----------|--------|--------------|
 | MCP server skeleton (Python SDK) | ~1 day | None |
-| Read tools (API wrapper) | ~2-3 days | Existing API endpoints |
+| Read tools (API wrapper, Phase 1) | ~2-3 days | Existing GET endpoints |
 | API key auth (Level 1) | ~half day | `api_keys` table |
-| Write tools | ~1-2 days | Existing API endpoints |
-| Analytical tools (direct imports) | ~2-3 days | `core/services/reporting.py` |
+| Analytical tools (direct imports, Phase 2) | ~2-3 days | `core/services/reporting.py` |
 | Shared MCP with OAuth (Level 2) | ~2-3 days | Session management |
-| **Total (full MCP server)** | **~8-12 days** | |
+| **Total (read-only MCP server)** | **~6-9 days** | |
 
-Not a priority now, but the modular architecture is pre-building the foundation. Every `public.py` written today is a tool ready to expose tomorrow.
+Not a priority now, but the modular architecture is pre-building the foundation. Every `public.py` written today is a read-only tool ready to expose tomorrow.
+
+## Tasklist & Definition of Done
+
+Each task has explicit acceptance criteria. A task is **not done** until all criteria are met.
+
+### Phase 0: Extract Core Entities
+
+**T0.1 — Extract `ProjectDB` model to `app/core/models/`**
+- [ ] `app/core/models/project.py` exists with `ProjectDB` class
+- [ ] `app/core/models/__init__.py` re-exports `ProjectDB`
+- [ ] All existing imports (`from app.models.project import ...`) updated (~9 files)
+- [ ] Old `app/models/project.py` either removed or re-exports from core
+- [ ] All backend tests pass (`pytest`)
+- [ ] No circular imports
+
+**T0.2 — Extract `User` model to `app/core/models/`**
+- [ ] `app/core/models/user.py` exists with `User` class
+- [ ] All existing imports updated (~3 files)
+- [ ] All backend tests pass
+- [ ] Auth flow works end-to-end (login → cookie → authenticated request)
+
+**T0.3 — Extract shared infra to `app/core/`**
+- [ ] `app/core/database.py` — DB engine, session maker, `DBSession` dependency
+- [ ] `app/core/config.py` — Pydantic settings
+- [ ] `app/core/auth.py` — `get_current_user`, `AdminUser`, JWT logic
+- [ ] All existing imports updated
+- [ ] All backend tests pass
+- [ ] Server starts and all API endpoints respond correctly
+
+### Phase 1: Build Trackr Module
+
+**T1.1 — SQLAlchemy models for trackr**
+- [ ] All 14 business tables modeled in `app/modules/trackr/models/`
+- [ ] UUID primary keys (not bigint)
+- [ ] Financial fields use `Numeric(12,2)` (not float)
+- [ ] State machine fields modeled as Enum types
+- [ ] FK relationships defined with proper `ondelete` behavior
+- [ ] Alembic migration creates all tables
+- [ ] Migration is reversible (`alembic downgrade` works)
+
+**T1.2 — Data migration script (Rails → Hub)**
+- [ ] Mapping tables: `legacy_id (bigint) → new_id (UUID)` per entity
+- [ ] Inserts in dependency order (teams/roles first, then projects, contracts, etc.)
+- [ ] FKs resolved via mapping tables
+- [ ] Validation checks:
+  - [ ] Row counts match source per table
+  - [ ] Financial totals match (sum of budgets, costs, amounts)
+  - [ ] All FKs resolve (no orphans)
+  - [ ] No data truncation on text fields
+- [ ] Script is idempotent (can re-run safely)
+- [ ] Tested on local copy of production data
+- [ ] Production data never touched until local validation passes
+
+**T1.3 — Trackr CRUD endpoints**
+- [ ] Routers in `app/modules/trackr/api/` mounted under `/api/trackr/`
+- [ ] Endpoints for: contracts, budget_lines, invoices, reports, reporting_periods
+- [ ] Auth required on all endpoints (JWT cookie)
+- [ ] Input validation (Pydantic schemas with proper types)
+- [ ] Write operations scoped to trackr's own tables only
+- [ ] Tests for each endpoint (happy path + auth + validation errors)
+- [ ] No trailing slashes on routes
+
+**T1.4 — Trackr `public.py` interface**
+- [ ] `app/modules/trackr/services/public.py` exists
+- [ ] `get_budget_summary(project_id, db)` → returns `BudgetSummary` (total, consumed, remaining, burn_rate)
+- [ ] `get_time_summary(project_id, period, db)` → returns aggregated time data
+- [ ] Functions have typed parameters, typed returns, and docstrings
+- [ ] Return rich structured data (not just numbers — include names, dates, context)
+- [ ] Unit tests for each public function
+
+**T1.5 — Trackr frontend module**
+- [ ] `src/modules/tracker/` directory with `components/`, `hooks/`, `pages/`
+- [ ] Hooks use centralized query keys (extend `queryKeys.ts`)
+- [ ] API client uses `credentials: 'include'` for auth
+- [ ] Pages accessible via routes under `/projects/:id/budget`
+- [ ] No imports from `src/modules/scorecard/` internals
+- [ ] Shared components imported from `src/shared/` only
+- [ ] Responsive layout (follows existing UI patterns)
+- [ ] All frontend tests pass (`npm test`)
+
+**T1.6 — Project view integration**
+- [ ] Project detail page shows tabs from both modules (scores + budget)
+- [ ] Tab navigation works without full page reload
+- [ ] Unified project list shows summary data from both modules
+- [ ] Projects without trackr data show graceful empty state (not errors)
+
+### Phase 2: Organic Scorecard Migration
+
+**T2.1 — Migrate scorecard to `app/modules/scorecard/`**
+- [ ] All scorecard API routers in `app/modules/scorecard/api/`
+- [ ] All scorecard models in `app/modules/scorecard/models/`
+- [ ] All scorecard services in `app/modules/scorecard/services/`
+- [ ] `app/modules/scorecard/services/public.py` exposes `get_project_scores(project_id, db)`
+- [ ] No remaining scorecard code in flat `app/api/`, `app/models/`, `app/services/`
+- [ ] All backend tests pass
+- [ ] All frontend tests pass
+
+**T2.2 — Extract notifications module**
+- [ ] Slack service, alert service, templates in `app/modules/notifications/`
+- [ ] Notification models in `app/modules/notifications/models/`
+- [ ] Both scorecard and trackr can trigger notifications via `notifications.public`
+- [ ] All notification tests pass
+
+**T2.3 — Migrate scorecard frontend to `src/modules/scorecard/`**
+- [ ] All scorecard components in `src/modules/scorecard/components/`
+- [ ] All scorecard hooks in `src/modules/scorecard/hooks/`
+- [ ] All scorecard pages in `src/modules/scorecard/pages/`
+- [ ] Shared UI components in `src/shared/components/`
+- [ ] No remaining scorecard code in flat `src/components/`, `src/hooks/`, `src/pages/`
+- [ ] All frontend tests pass
+
+### Phase 3: Cleanup
+
+**T3.1 — Remove legacy structure**
+- [ ] Empty `app/api/`, `app/models/`, `app/services/` directories removed
+- [ ] No orphan imports pointing to old paths
+- [ ] `app/models/__init__.py` removed or redirects to core + modules
+- [ ] All tests pass (backend + frontend)
+
+**T3.2 — Import linting in CI**
+- [ ] Backend: pre-commit or CI check blocks cross-module internal imports
+- [ ] Frontend: ESLint `import/no-restricted-paths` configured and passing
+- [ ] CI pipeline rejects violations
+
+### Analytical Layer
+
+**T-A.1 — Core reporting services**
+- [ ] `app/core/services/reporting.py` exists
+- [ ] Cross-module queries for dashboards (project overview, comparatives)
+- [ ] Functions have typed parameters, typed returns, and docstrings
+- [ ] Used by frontend for unified views (Global Dashboard, project overview)
+- [ ] Tests validate correctness of cross-module aggregations
+
+### MCP Server (Future — Read Only)
+
+**T-MCP.1 — MCP server skeleton**
+- [ ] `mcp_server/` directory at repo root (or `app/mcp/`)
+- [ ] Python MCP SDK integrated
+- [ ] Server starts and responds to MCP protocol
+- [ ] **READ-ONLY: no write tools exposed**
+- [ ] Configuration via environment variables (HUB_API_URL, HUB_API_KEY)
+
+**T-MCP.2 — API key authentication**
+- [ ] `api_keys` table (user_id, key_hash, scopes, created_at, last_used_at)
+- [ ] `get_current_user()` accepts `X-API-Key` header
+- [ ] API keys scoped to read-only operations
+- [ ] Admin UI to create/revoke API keys
+
+**T-MCP.3 — Read tools (Phase 1 — API wrapper)**
+- [ ] Tools call Hub GET endpoints only (no POST/PUT/DELETE)
+- [ ] Minimum viable tools: `get_project_health`, `compare_projects`, `find_at_risk_projects`
+- [ ] Error handling: Hub errors propagated as clear MCP tool errors
+- [ ] Tool descriptions and parameter types suitable for AI agent consumption
+
+**T-MCP.4 — Analytical tools (Phase 2 — direct imports)**
+- [ ] Tools import from `public.py` interfaces and `core/services/reporting.py`
+- [ ] Cross-module analysis: `generate_monthly_report`, `team_workload_analysis`
+- [ ] DB sessions are read-only (no commits)
+- [ ] Tests validate tool outputs match expected data
+
+### Task dependencies
+
+```
+T0.1 ─┐
+T0.2 ─┼── T0.3 ──► T1.1 ──► T1.2 ──► T1.3 ──► T1.4 ──► T1.6
+T0.3 ─┘                                T1.5 ──────────────► T1.6
+                                                              │
+                    T2.1 ──► T2.2 ──► T2.3 ──► T3.1 ──► T3.2 │ (organic, no deadline)
+                                                              │
+                    T-A.1 ◄───────────────────────────────────┘
+                      │
+                    T-MCP.1 ──► T-MCP.2 ──► T-MCP.3 ──► T-MCP.4
+```
+
+Phase 1 (trackr) is the critical path. Phase 2 (scorecard migration) runs in parallel when convenient. MCP depends on the analytical layer (T-A.1) being in place.
 
 ## Future Scalability
 
