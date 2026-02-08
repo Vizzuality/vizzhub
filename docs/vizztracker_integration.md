@@ -595,6 +595,170 @@ For any PR that touches module boundaries:
 - [ ] Module only writes to its own tables? (reads via `public.py` or `core/services/` for analytics)
 - [ ] New shared entity follows the decision rule (Level 1/2/3)?
 
+## Future: MCP Server for AI-Powered Analysis
+
+An MCP (Model Context Protocol) server would allow Claude (Desktop, Code, or custom agents) to interact with the Hub's data across all modules — cross-referencing scores, budgets, timelines, and generating complex reports conversationally.
+
+### Why the modular architecture enables this
+
+Each `public.py` is already a tool candidate. Each query service in `core/services/` is an analytical tool candidate. No new abstraction layer needed.
+
+```
+Claude (MCP client)
+  │
+  │  Tools (read)
+  ├── get_project_health(project_id)        → scorecard.public + trackr.public
+  ├── compare_projects(ids[])               → core.services.reporting
+  ├── find_at_risk_projects()               → core.services.reporting
+  │
+  │  Tools (analytics)
+  ├── generate_monthly_report(project_id)   → core.services.reporting (cross-module JOINs)
+  ├── budget_forecast(project_id)           → trackr.public
+  ├── team_workload_analysis(team_id)       → trackr.public + scorecard.public
+  │
+  │  Tools (write)
+  ├── update_metrics(project_id, data)      → scorecard services
+  ├── log_time_report(project_id, data)     → trackr services
+  │
+  │  Resources
+  ├── projects://list                       → project listing
+  └── projects://{id}/summary               → project summary
+```
+
+### Integration strategy: two phases
+
+**Phase 1 — API wrapper (start here)**
+
+The MCP server makes HTTP calls to the Hub's existing API. Simplest path, no code duplication.
+
+```
+Claude → MCP Server → HTTP requests → Hub API (localhost:8000)
+```
+
+```python
+# mcp_server/tools/health.py
+@mcp.tool()
+async def get_project_health(project_id: str) -> dict:
+    """Get combined health view: scores + budget + timeline."""
+    async with httpx.AsyncClient(base_url=HUB_API_URL, headers=auth_headers) as client:
+        scores = await client.get(f"/api/scorecard/scores/project/{project_id}")
+        budget = await client.get(f"/api/trackr/contracts/project/{project_id}/summary")
+        return {"scores": scores.json(), "budget": budget.json()}
+```
+
+- Reuses all existing validation and auth
+- Limited to what the API exposes
+- Effort: ~3-4 days for a useful set of read tools
+
+**Phase 2 — Direct service imports (when needed)**
+
+The MCP server imports the Hub's Python service layer directly. Enables analytical queries that the API doesn't expose.
+
+```
+Claude → MCP Server → Python imports → Hub services + DB
+```
+
+```python
+# mcp_server/tools/analytics.py
+from app.modules.scorecard.services.public import get_project_scores
+from app.modules.trackr.services.public import get_budget_summary
+from app.core.services.reporting import get_project_overview
+
+@mcp.tool()
+async def cross_module_analysis(project_id: str) -> dict:
+    """Deep analysis combining all module data in a single efficient query."""
+    async with async_session_maker() as db:
+        overview = await get_project_overview(project_id, db)
+        return overview
+```
+
+- Full access to business logic and cross-module JOINs
+- More powerful but coupled to deployment
+- Effort: ~2-3 additional days on top of Phase 1
+
+### Authentication for MCP
+
+Three levels depending on deployment context:
+
+**Level 1 — Local MCP (Claude Desktop / Claude Code)**
+
+MCP server runs on the developer's machine. Auth via dedicated API key.
+
+```bash
+# MCP server config
+HUB_API_URL=http://localhost:8000
+HUB_API_KEY=mcp-dev-key-xxx
+```
+
+Backend change: extend `get_current_user()` to accept `X-API-Key` header. Add `api_keys` table (user_id, key_hash, scopes, created_at, last_used_at).
+
+Effort: ~half day.
+
+**Level 2 — Shared MCP (team, runs on EC2)**
+
+MCP server runs alongside the Hub. Users connect via SSE/Streamable HTTP transport.
+
+```
+Claude Desktop → SSE → MCP Server (EC2:3001) → Hub API (localhost:8000)
+```
+
+Auth flow:
+1. MCP client requests a tool → MCP server returns "auth required" + login URL
+2. User authenticates via Google SSO in browser
+3. Callback delivers JWT to MCP server
+4. MCP server stores JWT per user session
+5. All Hub requests use the user's JWT (not a service account)
+
+Effort: ~2-3 days. Requires session management in the MCP server.
+
+**Level 3 — Granular permissions**
+
+Different tools require different roles. This works automatically if using the API wrapper approach — the Hub already validates roles per endpoint.
+
+```python
+@mcp.tool()
+async def delete_project(project_id: str) -> dict:
+    """Requires admin role. Hub API validates the user's JWT."""
+    response = await client.delete(f"/api/projects/{project_id}")
+    # Hub returns 403 if user is not admin — MCP propagates the error
+    ...
+```
+
+### Design guidelines for MCP readiness
+
+These apply now, during normal development, not when building the MCP server:
+
+1. **`public.py` signatures should be self-describing.** Clear parameter names, typed returns, docstrings. An AI agent will use these as tool descriptions.
+
+2. **Return rich, structured data.** Not just IDs — include names, dates, status. The AI needs context to reason about results.
+
+```python
+# Good — AI can reason about this
+async def get_budget_summary(project_id: str, db: AsyncSession) -> BudgetSummary:
+    """Returns budget total, consumed, remaining, burn rate, and forecast date."""
+    ...
+
+# Bad — AI gets a number with no context
+async def get_budget(project_id: str, db: AsyncSession) -> float:
+    ...
+```
+
+3. **Analytical query services in `core/services/`** are the highest-value MCP tools. Prioritize cross-module queries that would be tedious to do manually (project comparisons, trend analysis, risk detection).
+
+### Complexity summary
+
+| Component | Effort | Dependencies |
+|-----------|--------|--------------|
+| MCP server skeleton (Python SDK) | ~1 day | None |
+| Read tools (API wrapper) | ~2-3 days | Existing API endpoints |
+| API key auth (Level 1) | ~half day | `api_keys` table |
+| Write tools | ~1-2 days | Existing API endpoints |
+| Analytical tools (direct imports) | ~2-3 days | `core/services/reporting.py` |
+| Shared MCP with OAuth (Level 2) | ~2-3 days | Session management |
+| **Total (full MCP server)** | **~8-12 days** | |
+
+Not a priority now, but the modular architecture is pre-building the foundation. Every `public.py` written today is a tool ready to expose tomorrow.
+
 ## Future Scalability
 
 The modular monolith makes it straightforward to:
@@ -602,3 +766,4 @@ The modular monolith makes it straightforward to:
 - Add more modules to the Hub (same pattern: new module folder, new router, new routes)
 - Extract a module to its own service if ever needed (write isolation already in place)
 - Share data between modules through service interfaces (writes) and direct JOINs in core query services (analytics)
+- Expose module capabilities to AI agents via MCP — `public.py` interfaces map directly to MCP tools
