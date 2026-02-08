@@ -117,6 +117,45 @@ pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/cmkliqxix000d04la3624132
 
 ## Architecture
 
+### Modular Architecture Rules (MUST FOLLOW)
+
+The Hub is evolving into a multi-module platform (scorecard, trackr, future tools). These rules apply to ALL new code and to any existing code being modified. See `docs/vizztracker_integration.md` for full context.
+
+**1. New code goes in modules, not in flat `app/` directories.**
+
+- New trackr code → `app/modules/trackr/`
+- New frontend features for tracker → `src/modules/tracker/`
+- Existing scorecard code stays in place until organically migrated
+
+**2. Core entities (`Project`, `User`) live in `app/core/models/`.**
+
+When `core/models/` exists, import from there. Until extracted, existing `app/models/` paths are acceptable for scorecard code.
+
+**3. Cross-module imports go through `public.py` ONLY.**
+
+```python
+# ALLOWED
+from app.modules.trackr.services.public import get_budget_summary
+from app.core.models.project import ProjectDB
+
+# FORBIDDEN — never import another module's internals
+from app.modules.scorecard.services.calculators.time import TimeCalculator
+```
+
+**4. No cross-schema database JOINs.**
+
+Modules communicate through service functions. Never write a query that joins tables from different schemas (shared.*, scorecard.*, trackr.*).
+
+**5. Entity placement decision rule:**
+
+- Needed by ALL modules → `core/` (shared schema)
+- One module creates it, others read → owner module + `public.py`
+- Only one module uses it → module-private
+
+**6. Frontend modules are self-contained.**
+
+Each module under `src/modules/` has its own `components/`, `hooks/`, `pages/`. Shared UI primitives, auth, and utilities live in `src/shared/`.
+
 ### Backend Data Flow
 
 ```
