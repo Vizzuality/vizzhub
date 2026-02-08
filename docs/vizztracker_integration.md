@@ -229,6 +229,105 @@ src/
 /projects/:id/budget -> trackr
 ```
 
+### URL-Driven State Strategy
+
+**Problem**: Currently zero usage of `useSearchParams`. All view state (selected period, active tab, dimension filters, snapshot type) lives in `useState` — lost on page reload, impossible to share as a link, and invisible to the MCP server.
+
+**Why this matters beyond UX:**
+- **Shareable links**: PM sends a link to a specific project's March 2025 budget → recipient sees exactly that view
+- **MCP traceability**: When the MCP returns "Project X budget is 120% consumed", it includes a URL like `/projects/abc/budget?period=2025-03` — the user clicks it and sees the exact data the AI analyzed
+- **Audit trail**: ISO audits can reference specific URLs as evidence ("see scorecard at /projects/abc/scores?period=2025-06&snapshot=cumulative")
+- **Browser behavior**: Back button, bookmarks, and tab restoration all work correctly
+
+**Principle: The URL is the single source of truth for view state.** If the user can see it or configure it, it should be reflected in the URL.
+
+#### URL Schema
+
+```
+# Project detail — period and tab in URL
+/projects/:id/scores                          → scorecard tab (default)
+/projects/:id/scores?period=2025-06           → specific period
+/projects/:id/scores?period=2025-06&snapshot=punctual
+/projects/:id/budget                          → trackr tab
+/projects/:id/budget/contracts?status=active  → filtered view
+/projects/:id/members                         → team/membership
+/projects/:id/settings                        → project settings
+
+# Global dashboard — period and filters in URL
+/global?year=2025&month=6
+/global?year=2025&month=6&dimensions=P_time,P_cost
+
+# Admin — tab and subtab in URL
+/admin/config                                 → configuration tab
+/admin/slack                                  → slack tab
+/admin/notifications/log                      → notifications > alert log
+/admin/notifications/silences                 → notifications > silences
+/admin/jobs                                   → jobs tab
+/admin/users                                  → users tab
+
+# Project list — filters in URL
+/projects?view=grid&status=in_progress&search=foo
+```
+
+#### Implementation: `useUrlState` hook
+
+A shared hook that syncs `useState`-like API with URL search params:
+
+```typescript
+// src/shared/hooks/useUrlState.ts
+function useUrlState<T>(key: string, defaultValue: T): [T, (value: T) => void] {
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Read from URL, fall back to default
+  // Write updates URL without navigation
+  ...
+}
+
+// Usage in components — drop-in replacement for useState
+const [period, setPeriod] = useUrlState('period', null);
+const [snapshot, setSnapshot] = useUrlState('snapshot', 'cumulative');
+```
+
+For tabs, use path segments instead of query params (cleaner URLs, better navigation):
+
+```typescript
+// Admin page uses nested routes instead of Tabs component state
+<Route path="/admin/config" element={<ConfigurationTab />} />
+<Route path="/admin/slack" element={<SlackTab />} />
+<Route path="/admin/notifications/:subtab" element={<NotificationsTab />} />
+<Route path="/admin/jobs" element={<JobsTab />} />
+<Route path="/admin/users" element={<UsersTab />} />
+```
+
+#### MCP URL Generation
+
+`public.py` interfaces and reporting services return URLs alongside data:
+
+```python
+# app/core/services/reporting.py
+async def get_project_overview(project_id: str, db: AsyncSession) -> ProjectOverview:
+    ...
+    return ProjectOverview(
+        scores=scores,
+        budget=budget,
+        url=f"/projects/{project_id}/scores?period={period}",  # direct link to this view
+    )
+```
+
+MCP tools include these URLs in their responses, so the AI can say:
+> "Project X scored 72 in P_cost this month. [View in Hub](/projects/abc/scores?period=2025-06)"
+
+#### What breaks on reload today (will be fixed)
+
+| View | State lost | Fix |
+|------|-----------|-----|
+| ProjectDetail — period | Reverts to latest | `?period=2025-06` |
+| ProjectDetail — dimensions | All shown | `?dimensions=P_time,P_cost` |
+| Admin — primary tab | Resets to Configuration | `/admin/jobs` path segment |
+| Admin — nested tab | Resets to Alert Log | `/admin/notifications/silences` path |
+| GlobalDashboard — period | Resets to current month | `?year=2025&month=6` |
+| GlobalDashboard — export range | Lost completely | `?exportFrom=2025-01&exportTo=2025-06` |
+| Projects — search/filters | Lost | `?search=foo&status=in_progress` |
+
 ### Module Boundary Rules
 
 **1. A module NEVER imports directly from another module's internals.**
@@ -256,9 +355,177 @@ Any module can import from `app.core.*`. Core never imports from modules.
 
 Each module only writes to its own tables. For business logic reads, use `public.py` interfaces to stay decoupled. For analytical/reporting reads (dashboards, exports), direct JOINs across module tables are allowed in dedicated query services under `core/services/`.
 
+### Routing Strategy
+
+**Problem**: Currently 18 routers mounted flat in `main.py` with inconsistent prefix strategies (some in the router file, some in `include_router`), a prefix collision (`projects_router` and `capture_router` share `/api/projects`), and inconsistent tags. With trackr this becomes 30+ routers — unmanageable.
+
+**Solution**: Each module owns a `router.py` that aggregates its sub-routers. `main.py` only mounts module-level routers.
+
+**AS IS** (18 flat mounts in main.py):
+```python
+# main.py — 18 include_router calls with mixed prefix strategies
+app.include_router(auth_router, prefix="/api")              # prefix in router file
+app.include_router(projects_router, prefix="/api/projects") # prefix in include_router
+app.include_router(capture_router, prefix="/api/projects")  # COLLISION with above
+app.include_router(metrics_router, prefix="/api/metrics")
+app.include_router(scores_router, prefix="/api/scores")
+# ... 13 more
+```
+
+**TO BE** (4-5 module mounts in main.py):
+```python
+# main.py — clean, only module-level routers
+app.include_router(core_router)            # /api/auth/*, /api/projects/*, /api/admin/users/*
+app.include_router(scorecard_router)       # /api/scorecard/*
+app.include_router(trackr_router)          # /api/trackr/*
+app.include_router(notifications_router)   # /api/notifications/*
+```
+
+```python
+# app/modules/scorecard/router.py — module aggregates its own routers
+from fastapi import APIRouter
+from .api import metrics, scores, config, collectors, capture, exports
+
+router = APIRouter(prefix="/api/scorecard", tags=["scorecard"])
+router.include_router(metrics.router, prefix="/metrics")
+router.include_router(scores.router, prefix="/scores")
+router.include_router(config.router, prefix="/config")
+router.include_router(capture.router)  # /api/scorecard/projects/{id}/capture-period
+router.include_router(exports.router, prefix="/exports")
+```
+
+```python
+# app/modules/trackr/router.py
+router = APIRouter(prefix="/api/trackr", tags=["trackr"])
+router.include_router(contracts.router, prefix="/contracts")
+router.include_router(budgets.router, prefix="/budgets")
+router.include_router(reports.router, prefix="/reports")
+router.include_router(invoices.router, prefix="/invoices")
+```
+
+```python
+# app/core/router.py — shared endpoints
+router = APIRouter(prefix="/api", tags=["core"])
+router.include_router(auth.router, prefix="/auth")
+router.include_router(projects.router, prefix="/projects")
+router.include_router(admin_users.router, prefix="/admin/users")
+```
+
+**Rules:**
+- Prefixes always defined in `include_router`, never inside router files
+- Every router has explicit `tags` for OpenAPI docs
+- No two routers share the same prefix
+- Module routers own all endpoints under their prefix — no cross-module routes
+
+### Permissions Strategy
+
+**Problem**: Currently only two global roles (`user`, `admin`). All authenticated users can view and edit all projects. This doesn't scale for trackr where:
+- A PM should manage budget for **their** projects, not everyone's
+- A finance user should approve invoices but not edit scorecard metrics
+- A viewer should see dashboards but not modify anything
+
+**Solution**: Three-layer permission model, built incrementally.
+
+#### Layer 1: Global roles (exists today)
+
+```python
+CurrentUser = Annotated[TokenData, Depends(get_current_user)]  # any authenticated user
+AdminUser = Annotated[TokenData, Depends(require_role("admin"))]  # platform admin
+```
+
+Kept as-is. Admin = platform administration (user management, system config).
+
+#### Layer 2: Project membership (new — required for trackr)
+
+New `project_members` table in core:
+
+```sql
+project_members
+├── id           UUID PRIMARY KEY
+├── user_id      FK → users
+├── project_id   FK → projects
+├── role         ENUM('viewer', 'contributor', 'manager', 'owner')
+├── created_at   TIMESTAMP
+└── UNIQUE(user_id, project_id)
+```
+
+| Project Role | Can view | Can edit metrics/budget | Can manage project settings | Can assign members |
+|-------------|----------|------------------------|---------------------------|-------------------|
+| **viewer** | Yes | No | No | No |
+| **contributor** | Yes | Yes (own data) | No | No |
+| **manager** | Yes | Yes (all) | Yes | Yes |
+| **owner** | Yes | Yes (all) | Yes | Yes |
+
+Composable dependencies:
+
+```python
+# app/core/permissions.py
+
+class ProjectRole(str, Enum):
+    VIEWER = "viewer"
+    CONTRIBUTOR = "contributor"
+    MANAGER = "manager"
+    OWNER = "owner"
+
+def require_project_role(min_role: ProjectRole):
+    """Factory: checks user has at least min_role on the project."""
+    async def dependency(
+        project_id: UUID,
+        current_user: CurrentUser,
+        db: DBSession,
+    ) -> ProjectMembership:
+        # Admins bypass project-level checks
+        if "admin" in current_user.roles:
+            return ProjectMembership(role=ProjectRole.OWNER, ...)
+        membership = await get_membership(current_user.user_id, project_id, db)
+        if not membership or membership.role < min_role:
+            raise HTTPException(403, "Insufficient project permissions")
+        return membership
+    return dependency
+
+# Dependency aliases
+ProjectViewer = Annotated[ProjectMembership, Depends(require_project_role(ProjectRole.VIEWER))]
+ProjectContributor = Annotated[ProjectMembership, Depends(require_project_role(ProjectRole.CONTRIBUTOR))]
+ProjectManager = Annotated[ProjectMembership, Depends(require_project_role(ProjectRole.MANAGER))]
+```
+
+Usage in endpoints:
+
+```python
+# Anyone on the project can view budget
+@router.get("/contracts/{project_id}")
+async def get_contracts(project_id: UUID, member: ProjectViewer, db: DBSession):
+    ...
+
+# Only managers can approve invoices
+@router.post("/invoices/{invoice_id}/approve")
+async def approve_invoice(invoice_id: UUID, member: ProjectManager, db: DBSession):
+    ...
+```
+
+#### Layer 3: Module access (future, not Phase 1)
+
+Optional — restrict which modules a user can access per project. Only implement if there's a real need (e.g., finance team shouldn't see scorecard metrics).
+
+```sql
+-- Future: add to project_members
+modules TEXT[] DEFAULT '{scorecard,trackr}'  -- modules this user can access on this project
+```
+
+Not needed for Phase 1. By default all project members access all modules.
+
+#### Backward compatibility
+
+During the transition (scorecard still uses flat `CurrentUser`):
+- Existing scorecard endpoints keep using `CurrentUser` — no breakage
+- New trackr endpoints use `ProjectContributor` / `ProjectManager`
+- Scorecard endpoints migrate to project-scoped permissions gradually (Phase 2)
+- Admin role always bypasses project-level checks
+
 ### Shared Services
 
 - Authentication (Google SSO + JWT) - already implemented
+- Project membership and permissions — new, in core
 - Projects and Teams - central entity linking both modules
 - Slack notifications - already implemented
 - Infrastructure and deploy - single docker compose
@@ -499,18 +766,33 @@ src/
 ### Execution order
 
 ```
-Phase 0 (prerequisite, ~2-3h)
-│  Extract Project + User models to app/core/models/
-│  Update imports in existing code (9 files for Project, 3 for User)
-│  This unblocks trackr without creating wrong-direction dependencies
+Phase 0 (prerequisite — MUST complete before Phase 1)
+│
+│  T0.1-T0.3: Extract core entities + shared infra (~2-3h)
+│    Project, User → app/core/models/
+│    database, config, auth → app/core/
+│
+│  T0.4: Module router architecture (~3-4h)
+│    18 flat mounts → 3-5 module routers
+│    Fix prefix collision, consistent tags
+│
+│  T0.5-T0.6: Project membership + permissions (~4-5h)
+│    project_members table, require_project_role()
+│    Membership CRUD endpoints + frontend UI
+│
+│  T0.7-T0.8: URL-driven state (~4-5h)
+│    useUrlState hook, admin nested routes
+│    Scorecard views: period, snapshot, filters in URL
 │
 Phase 1 (trackr development)
 │  Build app/modules/trackr/ from scratch — clean structure from day 1
 │  Build src/modules/tracker/ — clean frontend module
+│  All trackr endpoints use project-scoped permissions from T0.5
 │  Scorecard stays exactly where it is, untouched
 │
 Phase 2 (organic scorecard migration, no deadline)
 │  As scorecard files need changes for other reasons, move them to modules/scorecard/
+│  Migrate scorecard endpoints to project-scoped permissions (gradually)
 │  Extract notifications to modules/notifications/ when trackr needs alerts
 │  Eventually all scorecard code lands in modules/scorecard/
 │
@@ -542,13 +824,16 @@ This is intentional, not technical debt. The old paths keep working until organi
 
 | Phase | Backend | Frontend | Total |
 |-------|---------|----------|-------|
-| 0. Extract core entities | 2-3h | — | 2-3h |
+| 0. Core entities (T0.1-T0.3) | 2-3h | — | 2-3h |
+| 0. Module routers (T0.4) | 3-4h | URL verification | 3-4h |
+| 0. Permissions (T0.5-T0.6) | 3-4h | 1-2h | 4-5h |
+| 0. URL-driven state (T0.7-T0.8) | — | 4-5h | 4-5h |
 | 1. Build trackr module | New code, no refactor | New code, no refactor | (part of trackr dev) |
 | 2. Migrate scorecard (organic) | ~4-5h spread over weeks | ~3-4h spread over weeks | ~7-9h |
 | 3. Cleanup | ~1h | ~1h | ~2h |
-| **Total refactor overhead** | | | **~12-14h** |
+| **Total refactor overhead** | | | **~23-28h** |
 
-Most of this is mechanical (move file + update imports), not architectural. Zero circular dependencies in current code makes it safe.
+Phase 0 is ~14-17h total — a solid investment before building trackr. Without it, trackr would have wrong-direction imports, no project-scoped permissions, a routing mess, and URLs that can't be shared or traced by the MCP. Most of the work is mechanical or well-defined. Zero circular dependencies in current code makes it safe.
 
 ## Guardrails: Enforcing the Pattern
 
@@ -761,7 +1046,7 @@ Not a priority now, but the modular architecture is pre-building the foundation.
 
 Each task has explicit acceptance criteria. A task is **not done** until all criteria are met.
 
-### Phase 0: Extract Core Entities
+### Phase 0: Extract Core + Hub Infrastructure
 
 **T0.1 — Extract `ProjectDB` model to `app/core/models/`**
 - [ ] `app/core/models/project.py` exists with `ProjectDB` class
@@ -784,6 +1069,63 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] All existing imports updated
 - [ ] All backend tests pass
 - [ ] Server starts and all API endpoints respond correctly
+
+**T0.4 — Module router architecture**
+- [ ] `app/core/router.py` aggregates core sub-routers (auth, projects, admin/users)
+- [ ] Existing scorecard routers grouped into a temporary `scorecard_router` (can still live in `app/api/` but mounted as a single unit)
+- [ ] `main.py` reduced from 18 `include_router` calls to 3-5 module mounts
+- [ ] Prefix collision resolved (capture_router no longer shares `/api/projects`)
+- [ ] All routers use prefix in `include_router`, never inside router files
+- [ ] All routers have explicit `tags` for OpenAPI docs
+- [ ] OpenAPI docs (`/docs`) show endpoints grouped by module
+- [ ] All existing frontend API calls still work (no URL changes for existing endpoints, or frontend updated in sync)
+- [ ] All backend tests pass
+- [ ] All frontend tests pass
+
+**T0.5 — Project membership model + permissions**
+- [ ] `app/core/models/project_member.py` with `ProjectMemberDB` model
+- [ ] `ProjectRole` enum: `viewer`, `contributor`, `manager`, `owner`
+- [ ] Alembic migration creates `project_members` table with UNIQUE(user_id, project_id)
+- [ ] `app/core/permissions.py` with `require_project_role()` factory
+- [ ] Dependency aliases: `ProjectViewer`, `ProjectContributor`, `ProjectManager`
+- [ ] Admin role bypasses project-level checks (always treated as owner)
+- [ ] CRUD endpoints for project membership:
+  - [ ] `GET /api/projects/{id}/members` — list members
+  - [ ] `POST /api/projects/{id}/members` — add member (ProjectManager or Admin)
+  - [ ] `PATCH /api/projects/{id}/members/{user_id}` — update role (ProjectManager or Admin)
+  - [ ] `DELETE /api/projects/{id}/members/{user_id}` — remove member (ProjectManager or Admin)
+- [ ] Seed data: project creators are automatically assigned `owner` role
+- [ ] Tests: permission denied (403) for insufficient role, permission granted for sufficient role
+- [ ] Tests: admin bypass works for all project-level checks
+- [ ] Existing scorecard endpoints unchanged (still use `CurrentUser`, no breakage)
+
+**T0.6 — Frontend project membership UI**
+- [ ] Members tab or section in project settings
+- [ ] Add/remove members with role selector
+- [ ] Current user's role visible in project view
+- [ ] Non-members see appropriate access denied state (or are filtered from project list)
+- [ ] Admin sees all projects regardless of membership
+- [ ] All frontend tests pass
+
+**T0.7 — URL-driven state: shared hook + admin routes**
+- [ ] `src/shared/hooks/useUrlState.ts` hook implemented (syncs useState with URL search params)
+- [ ] Admin page migrated from `<Tabs defaultValue>` to nested routes:
+  - [ ] `/admin/config`, `/admin/slack`, `/admin/notifications/:subtab`, `/admin/jobs`, `/admin/users`
+  - [ ] Active tab determined by route, not component state
+  - [ ] Direct navigation to any admin tab works (paste URL → correct tab shown)
+- [ ] All admin tab links updated in navigation
+- [ ] Browser back/forward works between admin tabs
+- [ ] All frontend tests pass
+
+**T0.8 — URL-driven state: scorecard views**
+- [ ] ProjectDetail period selection uses `?period=YYYY-MM` search param
+- [ ] Snapshot type uses `?snapshot=cumulative|punctual` search param
+- [ ] Page reload preserves selected period and snapshot type
+- [ ] GlobalDashboard period uses `?year=YYYY&month=M` search params
+- [ ] Projects list search/filter uses `?search=X&status=Y&view=list|grid` search params
+- [ ] Shareable: copy URL → paste in new tab → identical view
+- [ ] Dimension visibility uses `?dimensions=P_time,P_cost,...` (optional, lower priority)
+- [ ] All frontend tests pass
 
 ### Phase 1: Build Trackr Module
 
@@ -810,12 +1152,15 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] Production data never touched until local validation passes
 
 **T1.3 — Trackr CRUD endpoints**
-- [ ] Routers in `app/modules/trackr/api/` mounted under `/api/trackr/`
-- [ ] Endpoints for: contracts, budget_lines, invoices, reports, reporting_periods
-- [ ] Auth required on all endpoints (JWT cookie)
+- [ ] `app/modules/trackr/router.py` aggregates sub-routers, prefix="/api/trackr"
+- [ ] Sub-routers for: contracts, budget_lines, invoices, reports, reporting_periods
+- [ ] Project-scoped permissions on all endpoints:
+  - [ ] Read endpoints use `ProjectViewer`
+  - [ ] Write endpoints use `ProjectContributor` or `ProjectManager`
+  - [ ] Approve/manage endpoints use `ProjectManager`
 - [ ] Input validation (Pydantic schemas with proper types)
 - [ ] Write operations scoped to trackr's own tables only
-- [ ] Tests for each endpoint (happy path + auth + validation errors)
+- [ ] Tests for each endpoint (happy path + permission denied + validation errors)
 - [ ] No trailing slashes on routes
 
 **T1.4 — Trackr `public.py` interface**
@@ -831,6 +1176,11 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] Hooks use centralized query keys (extend `queryKeys.ts`)
 - [ ] API client uses `credentials: 'include'` for auth
 - [ ] Pages accessible via routes under `/projects/:id/budget`
+- [ ] All view state URL-driven from day 1 (uses `useUrlState` hook from T0.7):
+  - [ ] Contract filters: `?status=active&sort=date`
+  - [ ] Reporting period: `?period=2025-06`
+  - [ ] Invoice filters: `?invoiceStatus=pending`
+- [ ] Page reload preserves all filter/view state
 - [ ] No imports from `src/modules/scorecard/` internals
 - [ ] Shared components imported from `src/shared/` only
 - [ ] Responsive layout (follows existing UI patterns)
@@ -919,18 +1269,35 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 ### Task dependencies
 
 ```
+Phase 0 (prerequisite — all must complete before Phase 1):
+
 T0.1 ─┐
-T0.2 ─┼── T0.3 ──► T1.1 ──► T1.2 ──► T1.3 ──► T1.4 ──► T1.6
-T0.3 ─┘                                T1.5 ──────────────► T1.6
+T0.2 ─┼── T0.3 ──► T0.4 (routers)
+      │              │
+      │              ▼
+      └──────────► T0.5 (permissions) ──► T0.6 (membership UI)
+
+T0.7 (useUrlState + admin routes) ──► T0.8 (scorecard URL state)
+  ↑ independent of T0.1-T0.6, can run in parallel
+                                            │
+                                            ▼
+Phase 1 (trackr — critical path):        GATE: Phase 0 complete (T0.1-T0.8)
+                                            │
+                    T1.1 ──► T1.2 ──► T1.3 ──► T1.4 ──► T1.6
+                                       T1.5 ──────────────► T1.6
                                                               │
-                    T2.1 ──► T2.2 ──► T2.3 ──► T3.1 ──► T3.2 │ (organic, no deadline)
+Phase 2 (organic, no deadline):                               │
+                    T2.1 ──► T2.2 ──► T2.3 ──► T3.1 ──► T3.2 │
                                                               │
+Analytical + MCP:                                             │
                     T-A.1 ◄───────────────────────────────────┘
                       │
                     T-MCP.1 ──► T-MCP.2 ──► T-MCP.3 ──► T-MCP.4
 ```
 
-Phase 1 (trackr) is the critical path. Phase 2 (scorecard migration) runs in parallel when convenient. MCP depends on the analytical layer (T-A.1) being in place.
+**Phase 0 is a hard gate.** No Phase 1 work starts until T0.1-T0.6 are complete. This ensures trackr is built on the right foundation: core entities extracted, routers modularized, and project-scoped permissions available.
+
+Phase 2 (scorecard migration) runs in parallel when convenient. MCP depends on the analytical layer (T-A.1) being in place.
 
 ## Future Scalability
 
