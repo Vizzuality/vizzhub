@@ -142,9 +142,9 @@ from app.core.models.project import ProjectDB
 from app.modules.scorecard.services.calculators.time import TimeCalculator
 ```
 
-**4. No cross-schema database JOINs.**
+**4. Write isolation, read flexibility.**
 
-Modules communicate through service functions. Never write a query that joins tables from different schemas (shared.*, scorecard.*, trackr.*).
+Each module only writes to its own tables (scorecard cannot INSERT into trackr's `contracts`). For business logic reads, use `public.py` interfaces. For analytical/reporting reads (dashboards, exports), direct JOINs across module tables are allowed in dedicated query services under `app/core/services/`.
 
 **5. Entity placement decision rule:**
 
