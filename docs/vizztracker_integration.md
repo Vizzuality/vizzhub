@@ -61,7 +61,7 @@ The boundary between modules is defined by **who owns what data**. There are thr
 
 #### Level 1: Core entities — genuinely shared, no single owner
 
-Entities that every module needs and that have no natural "home" in any one module. These live in `core/` and the `shared` schema.
+Entities that every module needs and that have no natural "home" in any one module. These live in `core/`.
 
 | Entity | Why core |
 |--------|----------|
@@ -106,21 +106,52 @@ Both modules render timelines in their UIs, but each reads from its own data + c
 
 ```
 Is it needed by ALL current and foreseeable modules?
-  → YES: core (shared schema)
+  → YES: core
   → NO: Does one module create/manage it and others just read it?
     → YES: Owner module + public.py interface
     → NO (only one module uses it): Module-private
 ```
 
-### Database: One PostgreSQL, Three Schemas
+### Database: One PostgreSQL, Single Schema
+
+All tables live in the default `public` schema. No multi-schema separation.
+
+**Why not separate schemas?** Schemas are just namespaces — they don't provide real isolation (same engine, same connection, same transactions). Separate schemas add Alembic complexity and create an artificial barrier against JOINs that hurts reporting and analytics use cases, without meaningful benefit at this scale.
+
+**Table ownership by module:**
 
 ```
-shared.*        -> users, teams, projects, roles (common entities)
-scorecard.*     -> metrics, config_parameters, oauth_tokens, slack...
-trackr.*        -> contracts, invoices, budget_lines, reports, rates...
+Core:       projects, users, teams, roles
+Scorecard:  metrics, config_parameters, oauth_tokens, slack_config, alert_definitions, ...
+Trackr:     contracts, invoices, budget_lines, reports, report_parts, rates, ...
 ```
 
-Cross-schema reads happen ONLY through service functions, never through direct JOINs. This keeps extraction possible.
+Table names are already descriptive enough — no prefixes needed.
+
+**Read/Write rules:**
+
+| Operation | Rule | Example |
+|-----------|------|---------|
+| **Writes** | Only through the owning module | Scorecard cannot INSERT into `contracts` |
+| **Business reads** | Through `public.py` interfaces | Scorecard calls `trackr.public.get_budget_summary()` |
+| **Analytical reads** | Direct JOINs allowed | Dashboard/export services can JOIN across module tables |
+
+The distinction matters: business logic stays decoupled through service interfaces, but reporting/dashboards can use SQL JOINs freely — that's what SQL is designed for.
+
+**Analytical query services** live in `core/` (not in any module) since they read across module boundaries:
+
+```python
+# app/core/services/reporting.py — allowed to JOIN any table
+async def get_project_overview(project_id: str, db: AsyncSession) -> ProjectOverview:
+    """Combines scores + budget + timeline in a single efficient query."""
+    result = await db.execute(
+        select(ProjectDB, MetricsDB, ContractDB)
+        .join(MetricsDB, ...)
+        .join(ContractDB, ...)
+        .where(ProjectDB.id == project_id)
+    )
+    ...
+```
 
 ### Backend Structure
 
@@ -221,9 +252,9 @@ This means scorecard can refactor its internals freely — only `public.py` is a
 
 Any module can import from `app.core.*`. Core never imports from modules.
 
-**3. No cross-schema queries.**
+**3. Write isolation, read flexibility.**
 
-Modules interact through service functions, not by joining tables across schemas. This keeps the option open to extract a module later if needed.
+Each module only writes to its own tables. For business logic reads, use `public.py` interfaces to stay decoupled. For analytical/reporting reads (dashboards, exports), direct JOINs across module tables are allowed in dedicated query services under `core/services/`.
 
 ### Shared Services
 
@@ -310,7 +341,7 @@ The Hub uses UUIDs, VizzTracker uses sequential bigint. Migration requires:
 
 ## Migration Strategy
 
-1. **Create SQLAlchemy models** in `trackr` schema matching the optimized structure
+1. **Create SQLAlchemy models** matching the optimized structure
 2. **Write migration script** (one-time execution) with ID mapping
 3. **Run on local copy first** - never touch production until verified
 4. **Validate**: row counts, FK integrity, financial totals match
@@ -561,13 +592,13 @@ Frontend — ESLint `import/no-restricted-paths`:
 For any PR that touches module boundaries:
 - [ ] New models placed in correct module (core vs module-private)?
 - [ ] Cross-module imports go through `public.py` / `public/` only?
-- [ ] No direct cross-schema DB queries?
+- [ ] Module only writes to its own tables? (reads via `public.py` or `core/services/` for analytics)
 - [ ] New shared entity follows the decision rule (Level 1/2/3)?
 
 ## Future Scalability
 
-The modular monolith with separate schemas makes it straightforward to:
+The modular monolith makes it straightforward to:
 
-- Add more modules to the Hub (same pattern: new schema, new router, new routes)
-- Extract a module to its own service if needed (schema is already isolated)
-- Share data between modules through well-defined service interfaces, not cross-schema queries
+- Add more modules to the Hub (same pattern: new module folder, new router, new routes)
+- Extract a module to its own service if ever needed (write isolation already in place)
+- Share data between modules through service interfaces (writes) and direct JOINs in core query services (analytics)
