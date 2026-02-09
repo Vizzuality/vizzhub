@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
-@router.get("", response_model=list[User])
+@router.get("")
 async def list_users(
     current_user: AdminUser,
     db: DBSession,
@@ -25,7 +25,7 @@ async def list_users(
     return [User.model_validate(u) for u in users]
 
 
-@router.patch("/{user_id}", response_model=User)
+@router.patch("/{user_id}")
 async def update_user(
     user_id: UUID,
     update: UserUpdate,

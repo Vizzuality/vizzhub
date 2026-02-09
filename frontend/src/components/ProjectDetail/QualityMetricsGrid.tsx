@@ -439,28 +439,31 @@ export default function QualityMetricsGrid({
                 isPending={isUpdatingGovernance}
                 historicalData={getHistoricalData(snapshots, 'governance_compliance')}
               />
-              {indicators.post_contract_tasks === null ? (
-                <MutedCard title="Post-Contract Tasks" dimension="Risk" description="New tasks created >30 days after contract end" message="No post-contract data available" />
-              ) : (
-                <SubIndicatorCard
-                  title="Post-Contract Tasks"
-                  dimension="Risk"
-                  indicatorValue={indicators.post_contract_tasks}
-                  indicatorLabel="Tasks after closure"
-                  indicatorSuffix=""
-                  description="New tasks created >30 days after contract end"
-                  target={getTarget('target_post_contract_tasks')}
-                  lowerIsBetter={true}
-                  formula="count(tasks created after end_date + 30d)"
-                  historicalData={getHistoricalData(snapshots, 'post_contract_tasks')}
-                  metrics={[
-                    {
-                      label: 'Contract End',
-                      value: project.end_date ? formatDate(project.end_date) : 'Not set',
-                    },
-                  ]}
-                />
-              )}
+              {renderConditionalCard({
+                hasData: indicators.post_contract_tasks !== null,
+                hasParentData: true,
+                card: (
+                  <SubIndicatorCard
+                    title="Post-Contract Tasks"
+                    dimension="Risk"
+                    indicatorValue={indicators.post_contract_tasks}
+                    indicatorLabel="Tasks after closure"
+                    indicatorSuffix=""
+                    description="New tasks created >30 days after contract end"
+                    target={getTarget('target_post_contract_tasks')}
+                    lowerIsBetter={true}
+                    formula="count(tasks created after end_date + 30d)"
+                    historicalData={getHistoricalData(snapshots, 'post_contract_tasks')}
+                    metrics={[
+                      {
+                        label: 'Contract End',
+                        value: project.end_date ? formatDate(project.end_date) : 'Not set',
+                      },
+                    ]}
+                  />
+                ),
+                mutedProps: { title: 'Post-Contract Tasks', dimension: 'Risk', description: 'New tasks created >30 days after contract end', message: 'No post-contract data available' },
+              })}
             </>
           )}
         </div>

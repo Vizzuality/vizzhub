@@ -1,6 +1,7 @@
 """XLSX export endpoints."""
 
 import re
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -53,7 +54,7 @@ def _sanitize_filename(name: str) -> str:
     return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
 
 
-@router.get("/exports/project/{project_id}")
+@router.get("/exports/project/{project_id}", responses={400: {"description": "Bad request"}})
 @limiter.limit("10/minute")
 async def export_project_detail(
     request: Request,
@@ -61,9 +62,9 @@ async def export_project_detail(
     current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
-    start: str = Query(..., description="Start period (YYYY-MM)"),
-    end: str = Query(..., description="End period (YYYY-MM)"),
-    snapshot_type: SnapshotType = Query(SnapshotType.CUMULATIVE, description="cumulative or punctual"),
+    start: Annotated[str, Query(description="Start period (YYYY-MM)")],
+    end: Annotated[str, Query(description="End period (YYYY-MM)")],
+    snapshot_type: Annotated[SnapshotType, Query(description="cumulative or punctual")] = SnapshotType.CUMULATIVE,
 ) -> Response:
     """Export project scorecard data to XLSX."""
     project = await get_project_or_404(db, project_id)
@@ -90,16 +91,16 @@ async def export_project_detail(
     )
 
 
-@router.get("/exports/global")
+@router.get("/exports/global", responses={400: {"description": "Bad request"}})
 @limiter.limit("10/minute")
 async def export_global_dashboard(
     request: Request,
     current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
-    start: str = Query(..., description="Start period (YYYY-MM)"),
-    end: str = Query(..., description="End period (YYYY-MM)"),
-    snapshot_type: SnapshotType = Query(SnapshotType.CUMULATIVE, description="cumulative or punctual"),
+    start: Annotated[str, Query(description="Start period (YYYY-MM)")],
+    end: Annotated[str, Query(description="End period (YYYY-MM)")],
+    snapshot_type: Annotated[SnapshotType, Query(description="cumulative or punctual")] = SnapshotType.CUMULATIVE,
 ) -> Response:
     """Export global dashboard data to XLSX."""
     start_year, start_month = _parse_month_param(start)

@@ -70,34 +70,39 @@ export default function ArchitectureCard({
       isPending={isPending}
       defaultFormState={DEFAULT_FORM}
       editButtonLabel={data ? 'Edit Checklist' : 'Add Checklist'}
-      renderEditForm={(form, setForm) => (
-        <>
-          {CHECKLIST_ITEMS.map(({ key, label, description }) => (
-            <div key={key}>
-              <label className="text-sm font-medium text-muted-foreground">{label}</label>
-              <p className="text-xs text-muted-foreground mb-2">{description}</p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={form[key] === true ? 'default' : 'outline'}
-                  onClick={() => setForm((prev) => ({ ...prev, [key]: true }))}
-                  className="flex-1"
-                >
-                  Yes
-                </Button>
-                <Button
-                  size="sm"
-                  variant={form[key] === false ? 'default' : 'outline'}
-                  onClick={() => setForm((prev) => ({ ...prev, [key]: false }))}
-                  className="flex-1"
-                >
-                  No
-                </Button>
+      renderEditForm={(form, setForm) => {
+        const handleChecklistChange = (itemKey: ChecklistKey, value: boolean): void => {
+          setForm((prev) => ({ ...prev, [itemKey]: value }));
+        };
+        return (
+          <>
+            {CHECKLIST_ITEMS.map(({ key, label, description }) => (
+              <div key={key}>
+                <label className="text-sm font-medium text-muted-foreground">{label}</label>
+                <p className="text-xs text-muted-foreground mb-2">{description}</p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={form[key] === true ? 'default' : 'outline'}
+                    onClick={() => handleChecklistChange(key, true)}
+                    className="flex-1"
+                  >
+                    Yes
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={form[key] === false ? 'default' : 'outline'}
+                    onClick={() => handleChecklistChange(key, false)}
+                    className="flex-1"
+                  >
+                    No
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </>
-      )}
+            ))}
+          </>
+        );
+      }}
       renderDisplay={(displayData) => (
         <>
           <IndicatorScoreDisplay

@@ -41,9 +41,12 @@ export function SlackChannelCombobox({
   const [open, setOpen] = useState(false);
 
   const selectedChannel = channels.find((c) => c.id === value);
-  const displayLabel = selectedChannel
-    ? `#${selectedChannel.name}`
-    : (includeNone && !value && channels.length > 0) ? 'None' : placeholder;
+  let displayLabel = placeholder;
+  if (selectedChannel) {
+    displayLabel = `#${selectedChannel.name}`;
+  } else if (includeNone && !value && channels.length > 0) {
+    displayLabel = 'None';
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

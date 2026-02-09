@@ -170,17 +170,19 @@ export default function ProjectForm({
         <Label htmlFor="slack_channel">
           Slack Channel
         </Label>
-        {isCheckingStatus ? (
+        {isCheckingStatus && (
           <div className="flex items-center gap-2 h-9 px-3 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
             Checking Slack configuration...
           </div>
-        ) : !isSlackConfigured ? (
+        )}
+        {!isCheckingStatus && !isSlackConfigured && (
           <div className="flex items-center gap-2 h-9 px-3 text-sm text-muted-foreground border border-input rounded-md bg-muted/50">
             <Lock className="w-4 h-4" />
             Slack is not configured
           </div>
-        ) : (
+        )}
+        {!isCheckingStatus && isSlackConfigured && (
           <SlackChannelCombobox
             id="slack_channel"
             value={slackChannelId}

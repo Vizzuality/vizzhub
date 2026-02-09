@@ -99,8 +99,8 @@ export default function StatisticsTab(): JSX.Element {
           <CardContent>
             {stats && stats.by_project.length > 0 ? (
               <div className="space-y-3">
-                {stats.by_project.map((project, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
+                {stats.by_project.map((project) => (
+                  <div key={project.project_name} className="flex items-center justify-between">
                     <span className="text-sm">{project.project_name}</span>
                     <Badge variant="secondary">{project.count}</Badge>
                   </div>

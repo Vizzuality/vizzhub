@@ -50,6 +50,18 @@ UPDATES = [
 ]
 
 
+def _detect_changes(param: ConfigParameter, update_data: dict) -> list[str]:
+    """Compare current param against update data and return list of change descriptions."""
+    changes = []
+    if param.value != update_data["value"]:
+        changes.append(f"value: {param.value} → {update_data['value']}")
+    if param.unit != update_data["unit"]:
+        changes.append(f"unit: '{param.unit}' → '{update_data['unit']}'")
+    if param.notes != update_data["notes"]:
+        changes.append("notes: updated")
+    return changes
+
+
 async def migrate_percentage_targets(dry_run: bool = False) -> None:
     """Update config parameters to use percentage format."""
     async with async_session_maker() as db:
@@ -68,14 +80,7 @@ async def migrate_percentage_targets(dry_run: bool = False) -> None:
                 print(f"  SKIP: {name} not found in database")
                 continue
 
-            changes = []
-            if param.value != update_data["value"]:
-                changes.append(f"value: {param.value} → {update_data['value']}")
-            if param.unit != update_data["unit"]:
-                changes.append(f"unit: '{param.unit}' → '{update_data['unit']}'")
-            if param.notes != update_data["notes"]:
-                changes.append("notes: updated")
-
+            changes = _detect_changes(param, update_data)
             if not changes:
                 print(f"  OK: {name} - already up to date")
                 continue

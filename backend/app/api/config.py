@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("", response_model=ScoringConfigModel)
+@router.get("")
 @limiter.limit("100/minute")
 async def get_scoring_config(
     request: Request, current_user: CurrentUser, config: ScoringConfigDep

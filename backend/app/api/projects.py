@@ -12,7 +12,7 @@ from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 router = APIRouter()
 
 
-@router.get("", response_model=list[Project])
+@router.get("")
 @limiter.limit("100/minute")
 async def list_projects(
     request: Request, current_user: CurrentUser, db: DBSession
@@ -23,7 +23,7 @@ async def list_projects(
     return [Project.model_validate(p) for p in projects]
 
 
-@router.post("", response_model=Project, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
 async def create_project(
     request: Request, project: ProjectCreate, current_user: CurrentUser, db: DBSession
@@ -43,7 +43,7 @@ async def create_project(
     return Project.model_validate(db_project)
 
 
-@router.get("/{project_id}", response_model=Project)
+@router.get("/{project_id}")
 @limiter.limit("100/minute")
 async def get_project(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
@@ -53,7 +53,7 @@ async def get_project(
     return Project.model_validate(project)
 
 
-@router.patch("/{project_id}", response_model=Project)
+@router.patch("/{project_id}")
 @limiter.limit("30/minute")
 async def update_project(
     request: Request,
@@ -81,7 +81,7 @@ async def update_project(
     return Project.model_validate(project)
 
 
-@router.put("/{project_id}", response_model=Project)
+@router.put("/{project_id}")
 @limiter.limit("30/minute")
 async def replace_project(
     request: Request,

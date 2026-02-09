@@ -49,7 +49,7 @@ def _build_metrics_with_scores(
     )
 
 
-@router.get("/project/{project_id}", response_model=list[Metrics])
+@router.get("/project/{project_id}")
 @limiter.limit("100/minute")
 async def list_project_metrics(
     request: Request,
@@ -75,7 +75,7 @@ async def list_project_metrics(
     return [Metrics.from_db(m) for m in metrics_list]
 
 
-@router.post("/project/{project_id}", response_model=Metrics, status_code=status.HTTP_201_CREATED)
+@router.post("/project/{project_id}", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
 async def create_metrics(
     request: Request,
@@ -122,7 +122,7 @@ async def create_metrics(
     return Metrics.from_db(db_metrics)
 
 
-@router.get("/{metrics_id}", response_model=Metrics)
+@router.get("/{metrics_id}")
 @limiter.limit("100/minute")
 async def get_metrics(
     request: Request, metrics_id: UUID, current_user: CurrentUser, db: DBSession
@@ -152,7 +152,7 @@ async def delete_metrics(
     await db.delete(metrics)
 
 
-@router.get("/project/{project_id}/history", response_model=list[MetricsWithScores])
+@router.get("/project/{project_id}/history")
 @limiter.limit("100/minute")
 async def get_project_metrics_history(
     request: Request,
@@ -186,7 +186,7 @@ async def get_project_metrics_history(
     return responses
 
 
-@router.get("/project/{project_id}/{year}/{month}", response_model=MetricsWithScores)
+@router.get("/project/{project_id}/{year}/{month}")
 @limiter.limit("100/minute")
 async def get_metrics_by_period(
     request: Request,

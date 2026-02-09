@@ -17,7 +17,6 @@ router = APIRouter()
 
 @router.post(
     "/project/{project_id}/jira",
-    response_model=Metrics,
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("10/minute")
@@ -105,7 +104,6 @@ async def collect_jira_metrics(
 
 @router.post(
     "/project/{project_id}/github",
-    response_model=Metrics,
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("10/minute")

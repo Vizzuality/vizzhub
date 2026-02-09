@@ -22,6 +22,9 @@ from app.services.slack_service import SlackService
 
 logger = logging.getLogger(__name__)
 
+ALERT_DEFINITION_NOT_FOUND = "Alert definition not found"
+FAILED_TO_SEND_TEST_ALERT = "Failed to send test alert"
+
 router = APIRouter(prefix="/admin/slack", tags=["slack-admin"])
 alerts_router = APIRouter(prefix="/admin/alerts", tags=["alerts-admin"])
 templates_router = APIRouter(prefix="/admin/templates", tags=["templates-admin"])
@@ -39,7 +42,7 @@ async def get_slack_config_or_create(db: DBSession) -> SlackConfigDB:
     return config
 
 
-@router.get("/config", response_model=SlackConfigResponse)
+@router.get("/config")
 @limiter.limit("100/minute")
 async def get_slack_config(
     request: Request,
@@ -57,7 +60,7 @@ async def get_slack_config(
     )
 
 
-@router.put("/config", response_model=SlackConfigResponse)
+@router.put("/config")
 @limiter.limit("10/minute")
 async def update_slack_config(
     request: Request,
@@ -86,7 +89,7 @@ async def update_slack_config(
     )
 
 
-@router.post("/test", response_model=SlackTestResult)
+@router.post("/test")
 @limiter.limit("10/minute")
 async def test_slack_connection(
     request: Request,
@@ -114,7 +117,7 @@ async def test_slack_connection(
         return SlackTestResult(ok=False, error=str(e))
 
 
-@router.get("/channels", response_model=list[SlackChannel])
+@router.get("/channels")
 @limiter.limit("10/minute")
 async def list_slack_channels(
     request: Request,
@@ -178,7 +181,7 @@ async def update_alert_definition(
     if alert is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Alert definition not found",
+            detail=ALERT_DEFINITION_NOT_FOUND,
         )
 
     if update.is_enabled is not None:
@@ -192,7 +195,7 @@ async def update_alert_definition(
     return alert
 
 
-@alerts_router.post("/{alert_id}/test", response_model=AlertTestResponse)
+@alerts_router.post("/{alert_id}/test")
 @limiter.limit("5/minute")
 async def test_alert(
     request: Request,
@@ -209,7 +212,7 @@ async def test_alert(
     if alert is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Alert definition not found",
+            detail=ALERT_DEFINITION_NOT_FOUND,
         )
 
     config = await get_slack_config_or_create(db)
@@ -246,20 +249,20 @@ async def test_alert(
         if slack_result.get("ok"):
             return AlertTestResponse(
                 ok=True,
-                message=f"Test alert sent successfully to channel",
+                message="Test alert sent successfully to channel",
                 channel_id=channel_id,
             )
         else:
             return AlertTestResponse(
                 ok=False,
-                message="Failed to send test alert",
+                message=FAILED_TO_SEND_TEST_ALERT,
                 error=slack_result.get("error", "Unknown Slack error"),
             )
     except Exception as e:
-        logger.exception("Failed to send test alert")
+        logger.exception(FAILED_TO_SEND_TEST_ALERT)
         return AlertTestResponse(
             ok=False,
-            message="Failed to send test alert",
+            message=FAILED_TO_SEND_TEST_ALERT,
             error=str(e),
         )
 
@@ -281,7 +284,7 @@ async def get_alert_templates(
     if alert is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Alert definition not found",
+            detail=ALERT_DEFINITION_NOT_FOUND,
         )
 
     result = await db.execute(

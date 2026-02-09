@@ -32,7 +32,7 @@ SCHEDULED_JOBS = {
 }
 
 
-@router.get("/scheduled", response_model=list[ScheduledJobInfo])
+@router.get("/scheduled")
 @limiter.limit("100/minute")
 async def list_scheduled_jobs(
     request: Request,
@@ -83,7 +83,7 @@ async def list_scheduled_jobs(
     return result
 
 
-@router.post("/scheduled/{job_name}/run", response_model=JobTriggerResponse)
+@router.post("/scheduled/{job_name}/run")
 @limiter.limit("10/minute")
 async def trigger_scheduled_job(
     request: Request,

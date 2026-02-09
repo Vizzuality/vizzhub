@@ -552,7 +552,7 @@ class TestCheckBusinessAlertsJob:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                raise Exception("Slack API error")
+                raise RuntimeError("Slack API error")
             return {"ok": True}
 
         ctx = {"db": db_session}

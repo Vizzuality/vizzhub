@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import {
   LineChart,
@@ -76,6 +76,17 @@ function PerformanceHistoricalChart({
   const domainMin = Math.max(0, Math.floor(Math.min(dataMin, targetPct) - padding));
   const domainMax = Math.ceil(Math.max(dataMax, targetPct) + padding);
 
+  const renderTooltipContent = useCallback(
+    ({ active, payload }: { active?: boolean; payload?: unknown[] }): JSX.Element | null => (
+      <PerformanceChartTooltip
+        active={active}
+        payload={payload as PerformanceChartTooltipProps['payload']}
+        chartColor={chartColor}
+      />
+    ),
+    [chartColor],
+  );
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
@@ -97,15 +108,7 @@ function PerformanceHistoricalChart({
           strokeDasharray="4 2"
           label={{ value: 'KPI', position: 'right', fontSize: 8, fill: '#22c55e' }}
         />
-        <RechartsTooltip
-          content={(props) => (
-            <PerformanceChartTooltip
-              active={props.active}
-              payload={props.payload as PerformanceChartTooltipProps['payload']}
-              chartColor={chartColor}
-            />
-          )}
-        />
+        <RechartsTooltip content={renderTooltipContent} />
         <Line
           type="monotone"
           dataKey="value"

@@ -220,7 +220,7 @@ def _safe_get_target(config: ScoringConfig, indicator_key: str) -> str:
         return "-"
 
 
-def _safe_get_weight(config: ScoringConfig, dim_key: str, ind_key: str) -> str:
+def _safe_get_weight(config: ScoringConfig, _dim_key: str, ind_key: str) -> str:
     """Get weight value as string, return '-' if not configured."""
     weight_map = {
         "spi": ("time", "spi"),

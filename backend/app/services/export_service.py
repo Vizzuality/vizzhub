@@ -89,6 +89,7 @@ class ExportService:
 
         Uses pre-computed GlobalMetricsDB records (averaged across all projects).
         """
+        _ = snapshot_type
         periods = self._generate_periods(start_year, start_month, end_year, end_month)
         global_by_period = await self._get_global_metrics_by_period(db, periods)
 
@@ -210,6 +211,34 @@ class ExportService:
         for label, value in info:
             ws.append([label, value])
 
+    @staticmethod
+    def _get_global_overall_score(record: GlobalMetricsRecord | None) -> float | None:
+        """Extract overall score from a global metrics record."""
+        if record and record.scores.score.value is not None:
+            return round(record.scores.score.value, 1)
+        return None
+
+    @staticmethod
+    def _get_global_dimension_score(
+        record: GlobalMetricsRecord | None, dim_key: str
+    ) -> float | None:
+        """Extract a dimension score from a global metrics record."""
+        if not record:
+            return None
+        score_val = getattr(record.scores, dim_key, None)
+        if score_val and score_val.value is not None:
+            return round(score_val.value, 1)
+        return None
+
+    def _apply_score_row_styling(
+        self, ws, row: int, num_periods: int
+    ) -> None:
+        """Apply border and traffic-light styling to score cells in a row."""
+        for col_idx in range(2, 2 + num_periods):
+            cell = ws.cell(row=row, column=col_idx)
+            cell.border = THIN_BORDER
+            apply_score_traffic_light(cell, cell.value, self._green, self._yellow)
+
     def _write_global_summary(
         self,
         ws,
@@ -232,42 +261,19 @@ class ExportService:
 
         scores = ["Overall Score"]
         for period in periods:
-            record = global_by_period.get(period)
-            scores.append(
-                round(record.scores.score.value, 1)
-                if record and record.scores.score.value is not None
-                else None
-            )
+            scores.append(self._get_global_overall_score(global_by_period.get(period)))
         ws.append(scores)
-
-        score_row = ws.max_row
-        for col_idx in range(2, 2 + len(periods)):
-            cell = ws.cell(row=score_row, column=col_idx)
-            cell.border = THIN_BORDER
-            apply_score_traffic_light(
-                cell, cell.value, self._green, self._yellow
-            )
+        self._apply_score_row_styling(ws, ws.max_row, len(periods))
 
         for dim_def in DIMENSION_DEFINITIONS:
             dim_key = dim_def["key"]
             row = [dim_def["name"]]
             for period in periods:
-                record = global_by_period.get(period)
-                value = None
-                if record:
-                    score_val = getattr(record.scores, dim_key, None)
-                    if score_val and score_val.value is not None:
-                        value = round(score_val.value, 1)
-                row.append(value)
-            ws.append(row)
-
-            current_row = ws.max_row
-            for col_idx in range(2, 2 + len(periods)):
-                cell = ws.cell(row=current_row, column=col_idx)
-                cell.border = THIN_BORDER
-                apply_score_traffic_light(
-                    cell, cell.value, self._green, self._yellow
+                row.append(
+                    self._get_global_dimension_score(global_by_period.get(period), dim_key)
                 )
+            ws.append(row)
+            self._apply_score_row_styling(ws, ws.max_row, len(periods))
 
     def _write_metrics_table(
         self,

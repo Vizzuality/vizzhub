@@ -230,6 +230,19 @@ export default function InteractiveTimelineChart({
     }
   }, [effectivePeriod, onCollectMetrics]);
 
+  const renderDot = useCallback(
+    (props: { cx?: number; cy?: number; payload?: ChartDataPoint; index?: number }): JSX.Element => (
+      <ChartDot
+        cx={props.cx}
+        cy={props.cy}
+        payload={props.payload}
+        index={props.index}
+        effectivePeriod={effectivePeriod}
+      />
+    ),
+    [effectivePeriod],
+  );
+
   const tickInterval = getTickInterval(periods.length);
 
   return (
@@ -348,15 +361,7 @@ export default function InteractiveTimelineChart({
               strokeWidth={2}
               fill="url(#scoreGradient)"
               connectNulls={false}
-              dot={(props) => (
-                <ChartDot
-                  cx={props.cx}
-                  cy={props.cy}
-                  payload={props.payload as ChartDataPoint}
-                  index={props.index}
-                  effectivePeriod={effectivePeriod}
-                />
-              )}
+              dot={renderDot}
               activeDot={{
                 r: 8,
                 fill: TIMELINE_CHART_COLORS.primary,

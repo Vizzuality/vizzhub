@@ -139,7 +139,6 @@ def _build_response(
 
 @router.post(
     "/{project_id}/capture-period",
-    response_model=CapturePeriodResponse,
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("5/minute")

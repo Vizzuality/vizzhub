@@ -154,7 +154,25 @@ export default function GlobalTimelineChart({
     [periods, selectedPeriod, onPeriodChange],
   );
 
-  const tickInterval = periods.length > 24 ? 5 : periods.length > 12 ? 2 : 0;
+  const renderDot = useCallback(
+    (props: { cx?: number; cy?: number; payload?: TimelineDataPoint; index?: number }): JSX.Element => (
+      <TimelineDot
+        cx={props.cx}
+        cy={props.cy}
+        payload={props.payload}
+        index={props.index}
+        selectedPeriod={selectedPeriod}
+      />
+    ),
+    [selectedPeriod],
+  );
+
+  let tickInterval = 0;
+  if (periods.length > 24) {
+    tickInterval = 5;
+  } else if (periods.length > 12) {
+    tickInterval = 2;
+  }
 
   return (
     <div
@@ -237,15 +255,7 @@ export default function GlobalTimelineChart({
               strokeWidth={2}
               fill="url(#globalScoreGradient)"
               connectNulls={false}
-              dot={(props) => (
-                <TimelineDot
-                  cx={props.cx}
-                  cy={props.cy}
-                  payload={props.payload as TimelineDataPoint}
-                  index={props.index}
-                  selectedPeriod={selectedPeriod}
-                />
-              )}
+              dot={renderDot}
               activeDot={{
                 r: 8,
                 fill: TIMELINE_COLORS.primary,

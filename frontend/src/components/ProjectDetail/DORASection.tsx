@@ -95,7 +95,7 @@ export default function DORASection({
 }: DORASectionProps): JSX.Element | null {
   const showFlow = !visibleDimensions || visibleDimensions.has('Flow');
 
-  if (!scores.dora || scores.dora.score === null) return null;
+  if (scores.dora?.score == null) return null;
   if (!showFlow) return null;
 
   return (

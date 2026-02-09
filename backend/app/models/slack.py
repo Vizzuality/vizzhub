@@ -12,6 +12,9 @@ from sqlalchemy.sql import func
 
 from app.database import Base
 
+FK_ALERT_DEFINITIONS_ID = "alert_definitions.id"
+FK_PROJECTS_ID = "projects.id"
+
 
 class AlertCategory(str, Enum):
     """Category of alerts."""
@@ -86,7 +89,7 @@ class MessageTemplateDB(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     alert_definition_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("alert_definitions.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey(FK_ALERT_DEFINITIONS_ID, ondelete="CASCADE"), nullable=False
     )
     template_type: Mapped[str] = mapped_column(String(50), nullable=False)
     message_template: Mapped[str] = mapped_column(Text, nullable=False)
@@ -107,11 +110,11 @@ class AlertSilenceDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
+        ForeignKey(FK_PROJECTS_ID, ondelete="CASCADE"),
         nullable=False,
     )
     alert_definition_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("alert_definitions.id", ondelete="CASCADE"), nullable=True
+        Integer, ForeignKey(FK_ALERT_DEFINITIONS_ID, ondelete="CASCADE"), nullable=True
     )
     silenced_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -131,11 +134,11 @@ class AlertNotificationDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
+        ForeignKey(FK_PROJECTS_ID, ondelete="CASCADE"),
         nullable=False,
     )
     alert_definition_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("alert_definitions.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey(FK_ALERT_DEFINITIONS_ID, ondelete="CASCADE"), nullable=False
     )
     channel_id: Mapped[str] = mapped_column(String(50), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -155,7 +158,7 @@ class DependabotAlertTrackedDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
+        ForeignKey(FK_PROJECTS_ID, ondelete="CASCADE"),
         nullable=False,
     )
     github_alert_id: Mapped[int] = mapped_column(Integer, nullable=False)

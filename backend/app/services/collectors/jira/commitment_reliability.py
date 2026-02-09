@@ -78,6 +78,30 @@ def _is_sprint_within_period(
     return True
 
 
+def _compute_reliability(issue_sprint_count: dict[str, set[int]]) -> dict:
+    """Compute commitment reliability from issue-sprint mapping."""
+    committed = 0
+    single = 0
+    multi = 0
+
+    for sprints in issue_sprint_count.values():
+        count = len(sprints)
+        if count >= 1:
+            committed += 1
+            if count == 1:
+                single += 1
+            else:
+                multi += 1
+
+    ratio = (single / committed) if committed > 0 else None
+    return {
+        "commitment_reliability": ratio,
+        "committed_issues": committed,
+        "single_sprint_issues": single,
+        "multi_sprint_issues": multi,
+    }
+
+
 async def collect_commitment_reliability(
     client: "JiraClient",
     project_key: str,
@@ -115,27 +139,7 @@ async def collect_commitment_reliability(
                 issue_sprint_count[key] = set()
             issue_sprint_count[key].add(sprint_id)
 
-    committed = 0
-    single = 0
-    multi = 0
-
-    for sprints in issue_sprint_count.values():
-        count = len(sprints)
-        if count >= 1:
-            committed += 1
-            if count == 1:
-                single += 1
-            else:
-                multi += 1
-
-    ratio = (single / committed) if committed > 0 else None
-
-    return {
-        "commitment_reliability": ratio,
-        "committed_issues": committed,
-        "single_sprint_issues": single,
-        "multi_sprint_issues": multi,
-    }
+    return _compute_reliability(issue_sprint_count)
 
 
 async def _get_scrum_board(client: "JiraClient", project_key: str) -> dict | None:

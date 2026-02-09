@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
-@router.get("", response_model=PaginatedNotificationsResponse)
+@router.get("")
 @limiter.limit("100/minute")
 async def list_notifications(
     request: Request,
@@ -31,8 +32,8 @@ async def list_notifications(
     alert_definition_id: int | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginatedNotificationsResponse:
     """List sent notifications with filtering and pagination."""
     query = select(AlertNotificationDB).order_by(AlertNotificationDB.sent_at.desc())
@@ -110,7 +111,7 @@ async def list_notifications(
     )
 
 
-@router.get("/stats", response_model=NotificationStatsResponse)
+@router.get("/stats")
 @limiter.limit("60/minute")
 async def get_notification_stats(
     request: Request,
