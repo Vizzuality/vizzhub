@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import type { ProjectStatus } from '../types';
 
 export type StatusFilter = 'all' | ProjectStatus;
@@ -20,30 +21,53 @@ export interface UseProjectFiltersReturn {
   clearFilters: () => void;
 }
 
+const filterSchema = {
+  search: { defaultValue: '' },
+  status: { defaultValue: 'all' },
+  from: { defaultValue: '' },
+  to: { defaultValue: '' },
+};
+
 export function useProjectFilters(): UseProjectFiltersReturn {
-  const [searchName, setSearchName] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [startDateFrom, setStartDateFrom] = useState('');
-  const [startDateTo, setStartDateTo] = useState('');
+  const { state, setState, resetState } = useUrlState(filterSchema);
+
+  const filters: ProjectFilters = useMemo(() => ({
+    searchName: state.search,
+    statusFilter: state.status as StatusFilter,
+    startDateFrom: state.from,
+    startDateTo: state.to,
+  }), [state.search, state.status, state.from, state.to]);
+
+  const setSearchName = useCallback(
+    (value: string) => setState({ search: value }),
+    [setState],
+  );
+
+  const setStatusFilter = useCallback(
+    (value: StatusFilter) => setState({ status: value }),
+    [setState],
+  );
+
+  const setStartDateFrom = useCallback(
+    (value: string) => setState({ from: value }),
+    [setState],
+  );
+
+  const setStartDateTo = useCallback(
+    (value: string) => setState({ to: value }),
+    [setState],
+  );
 
   const hasActiveFilters = Boolean(
-    searchName || statusFilter !== 'all' || startDateFrom || startDateTo,
+    state.search || state.status !== 'all' || state.from || state.to,
   );
 
   const clearFilters = useCallback((): void => {
-    setSearchName('');
-    setStatusFilter('all');
-    setStartDateFrom('');
-    setStartDateTo('');
-  }, []);
+    resetState();
+  }, [resetState]);
 
   return {
-    filters: {
-      searchName,
-      statusFilter,
-      startDateFrom,
-      startDateTo,
-    },
+    filters,
     setSearchName,
     setStatusFilter,
     setStartDateFrom,

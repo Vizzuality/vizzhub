@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useProjects } from '../../hooks/useProjects';
 import { useAlertDefinitions } from '../../hooks/useAlertDefinitions';
@@ -36,23 +37,48 @@ function getStatusBadge(status: NotificationStatus): JSX.Element {
   );
 }
 
+const alertLogSchema = {
+  page: { defaultValue: 1 },
+  page_size: { defaultValue: 20 },
+  project: { defaultValue: '' },
+  alert: { defaultValue: '' },
+  start: { defaultValue: '' },
+  end: { defaultValue: '' },
+};
+
 export default function AlertLogTab(): JSX.Element {
-  const [filters, setFilters] = useState<NotificationFilters>({
-    page: 1,
-    page_size: 20,
-  });
+  const { state, setState } = useUrlState(alertLogSchema);
+
+  const filters: NotificationFilters = useMemo(() => ({
+    page: state.page,
+    page_size: state.page_size,
+    project_id: state.project || undefined,
+    alert_definition_id: state.alert ? Number.parseInt(state.alert, 10) : undefined,
+    start_date: state.start || undefined,
+    end_date: state.end || undefined,
+  }), [state.page, state.page_size, state.project, state.alert, state.start, state.end]);
 
   const { data: notifications, isLoading } = useNotifications(filters);
   const { data: projects } = useProjects();
   const { data: alertDefinitions } = useAlertDefinitions();
 
-  const handleFilterChange = (key: keyof NotificationFilters, value: string | number | undefined): void => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value === 'all' ? undefined : value,
-      page: key === 'page' ? (value as number) : 1,
-    }));
-  };
+  const handleFilterChange = useCallback(
+    (key: string, value: string | number | undefined): void => {
+      const urlKey = key === 'project_id' ? 'project'
+        : key === 'alert_definition_id' ? 'alert'
+          : key === 'start_date' ? 'start'
+            : key === 'end_date' ? 'end'
+              : key;
+
+      if (urlKey === 'page') {
+        setState({ page: value as number });
+      } else {
+        const strValue = value === 'all' || value === undefined ? '' : String(value);
+        setState({ [urlKey]: strValue, page: 1 } as Record<string, string | number>);
+      }
+    },
+    [setState],
+  );
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -71,7 +97,7 @@ export default function AlertLogTab(): JSX.Element {
           <div className="space-y-2">
             <Label htmlFor="project-filter">Project</Label>
             <Select
-              value={filters.project_id ?? 'all'}
+              value={state.project || 'all'}
               onValueChange={(value) => handleFilterChange('project_id', value)}
             >
               <SelectTrigger id="project-filter">
@@ -91,7 +117,7 @@ export default function AlertLogTab(): JSX.Element {
           <div className="space-y-2">
             <Label htmlFor="alert-type-filter">Alert Type</Label>
             <Select
-              value={filters.alert_definition_id?.toString() ?? 'all'}
+              value={state.alert || 'all'}
               onValueChange={(value) =>
                 handleFilterChange('alert_definition_id', value === 'all' ? undefined : Number.parseInt(value, 10))
               }
@@ -115,7 +141,7 @@ export default function AlertLogTab(): JSX.Element {
             <Input
               id="start-date"
               type="date"
-              value={filters.start_date ?? ''}
+              value={state.start}
               onChange={(e) => handleFilterChange('start_date', e.target.value || undefined)}
             />
           </div>
@@ -125,7 +151,7 @@ export default function AlertLogTab(): JSX.Element {
             <Input
               id="end-date"
               type="date"
-              value={filters.end_date ?? ''}
+              value={state.end}
               onChange={(e) => handleFilterChange('end_date', e.target.value || undefined)}
             />
           </div>

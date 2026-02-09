@@ -1,31 +1,27 @@
 import { NavLink, Outlet, Navigate, useMatch } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-const TABS = [
-  { to: 'configuration', label: 'Configuration' },
-  { to: 'slack', label: 'Slack' },
-  { to: 'notifications', label: 'Notifications' },
-  { to: 'jobs', label: 'Jobs' },
-  { to: 'users', label: 'Users' },
+const SUB_TABS = [
+  { to: 'log', label: 'Alert Log' },
+  { to: 'silences', label: 'Active Silences' },
+  { to: 'config', label: 'Alert Configuration' },
+  { to: 'stats', label: 'Statistics' },
 ] as const;
 
-export default function Admin(): JSX.Element {
-  const isIndex = useMatch('/admin');
+export default function AdminNotificationsLayout(): JSX.Element {
+  const isIndex = useMatch('/admin/notifications');
 
   if (isIndex) {
-    return <Navigate to="configuration" replace />;
+    return <Navigate to="log" replace />;
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Admin</h1>
-
+    <div className="mt-4 space-y-2">
       <nav className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-        {TABS.map(({ to, label }) => (
+        {SUB_TABS.map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}
-            end={to !== 'notifications'}
             className={({ isActive }) =>
               cn(
                 'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
@@ -39,7 +35,6 @@ export default function Admin(): JSX.Element {
           </NavLink>
         ))}
       </nav>
-
       <Outlet />
     </div>
   );
