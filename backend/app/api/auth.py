@@ -32,7 +32,7 @@ class AuthLoginResponse(BaseModel):
     user: UserPublic
 
 
-@router.post("/google", response_model=AuthLoginResponse)
+@router.post("/google")
 async def google_auth(
     request: GoogleAuthRequest,
     db: DBSession,
@@ -124,7 +124,7 @@ async def google_auth(
         )
 
 
-@router.get("/me", response_model=User)
+@router.get("/me")
 async def get_current_user_info(
     current_user: CurrentUser,
     db: DBSession,

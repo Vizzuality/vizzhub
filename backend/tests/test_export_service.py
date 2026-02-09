@@ -342,5 +342,5 @@ class TestExportServiceHelpers:
 
     def test_thresholds_from_config(self, scoring_config):
         service = ExportService(scoring_config)
-        assert service._green == 80.0
-        assert service._yellow == 60.0
+        assert service._green == pytest.approx(80.0)
+        assert service._yellow == pytest.approx(60.0)

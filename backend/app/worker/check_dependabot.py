@@ -27,6 +27,7 @@ from app.worker.utils import complete_with_error
 logger = logging.getLogger(__name__)
 
 ALERT_NAME = "dependabot_high_critical"
+NO_CVE = "No CVE"
 
 # Reminder intervals by severity
 REMINDER_DAYS = {
@@ -258,7 +259,7 @@ async def _notify_new_alert(
 
     severity = alert_info["severity"] or "Unknown"
     package_name = alert_info["package_name"] or "Unknown package"
-    cve_id = alert_info["cve_id"] or "No CVE"
+    cve_id = alert_info["cve_id"] or NO_CVE
     alert_id = alert_info["github_alert_id"]
     alert_url = f"https://github.com/{project.github_repo}/security/dependabot/{alert_id}"
 
@@ -316,6 +317,57 @@ async def _notify_new_alert(
     return False
 
 
+def _is_reminder_due(
+    tracked: DependabotAlertTrackedDB,
+    current_alert_ids: set[int],
+    now: datetime,
+) -> bool:
+    """Check if a tracked alert needs a reminder notification."""
+    if tracked.resolved_at:
+        return False
+    if tracked.github_alert_id not in current_alert_ids:
+        return False
+
+    severity = (tracked.severity or "").lower()
+    reminder_days = REMINDER_DAYS.get(severity)
+    if not reminder_days:
+        return False
+
+    if tracked.last_notified_at:
+        next_reminder = tracked.last_notified_at + timedelta(days=reminder_days)
+        if now < next_reminder:
+            return False
+
+    return True
+
+
+def _build_reminder_context(
+    project: ProjectDB,
+    tracked: DependabotAlertTrackedDB,
+    now: datetime,
+) -> dict:
+    """Build template context for a reminder notification."""
+    days_open = (now - tracked.first_seen_at).days if tracked.first_seen_at else 0
+    alert_url = (
+        f"https://github.com/{project.github_repo}"
+        f"/security/dependabot/{tracked.github_alert_id}"
+    )
+
+    return {
+        "project_name": project.name,
+        "package_name": tracked.package_name or "Unknown",
+        "severity": tracked.severity or "Unknown",
+        "cve_id": tracked.cve_id or NO_CVE,
+        "days_open": days_open,
+        "alert_url": alert_url,
+        "vuln_severity": tracked.severity or "Unknown",
+        "vuln_package": tracked.package_name or "Unknown",
+        "vuln_cve": tracked.cve_id or NO_CVE,
+        "vuln_url": alert_url,
+        "vuln_age_days": days_open,
+    }
+
+
 async def _send_reminders(
     db: AsyncSession,
     project: ProjectDB,
@@ -328,23 +380,10 @@ async def _send_reminders(
 
     Critical: reminder every 2 days
     High: reminder every 7 days
-
-    Args:
-        db: Database session
-        project: Project to check
-        alert_definition: Alert definition for templates
-        bot_token: Slack bot token
-        tracked_alerts: List of tracked alerts from DB
-        current_alerts: Current alerts from GitHub
-
-    Returns:
-        Number of reminders sent
     """
     now = datetime.now(timezone.utc)
     reminders_sent = 0
-
-    # Build map of current alerts by ID for quick lookup
-    current_alerts_map = {alert["number"]: alert for alert in current_alerts}
+    current_alert_ids = {alert["number"] for alert in current_alerts}
 
     template = await AlertService.get_template(db, alert_definition.id, "reminder")
     if not template:
@@ -355,47 +394,10 @@ async def _send_reminders(
         )
 
     for tracked in tracked_alerts:
-        # Skip resolved alerts
-        if tracked.resolved_at:
+        if not _is_reminder_due(tracked, current_alert_ids, now):
             continue
 
-        # Skip if not in current alerts (will be marked resolved)
-        if tracked.github_alert_id not in current_alerts_map:
-            continue
-
-        severity = (tracked.severity or "").lower()
-        reminder_days = REMINDER_DAYS.get(severity)
-
-        # Skip if severity doesn't have reminders configured
-        if not reminder_days:
-            continue
-
-        # Check if reminder is due
-        if tracked.last_notified_at:
-            next_reminder = tracked.last_notified_at + timedelta(days=reminder_days)
-            if now < next_reminder:
-                continue
-
-        # Calculate days open
-        days_open = (now - tracked.first_seen_at).days if tracked.first_seen_at else 0
-
-        alert_url = f"https://github.com/{project.github_repo}/security/dependabot/{tracked.github_alert_id}"
-
-        context = {
-            "project_name": project.name,
-            "package_name": tracked.package_name or "Unknown",
-            "severity": tracked.severity or "Unknown",
-            "cve_id": tracked.cve_id or "No CVE",
-            "days_open": days_open,
-            "alert_url": alert_url,
-            # Aliases
-            "vuln_severity": tracked.severity or "Unknown",
-            "vuln_package": tracked.package_name or "Unknown",
-            "vuln_cve": tracked.cve_id or "No CVE",
-            "vuln_url": alert_url,
-            "vuln_age_days": days_open,
-        }
-
+        context = _build_reminder_context(project, tracked, now)
         message = AlertService.render_template(template, context)
 
         response = await SlackService.send_message(
@@ -407,8 +409,8 @@ async def _send_reminders(
             await db.commit()
             reminders_sent += 1
             logger.info(
-                f"Sent reminder for {severity} alert #{tracked.github_alert_id} "
-                f"in {project.name} (open {days_open} days)"
+                f"Sent reminder for {tracked.severity} alert #{tracked.github_alert_id} "
+                f"in {project.name} (open {context['days_open']} days)"
             )
 
     return reminders_sent

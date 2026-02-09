@@ -95,7 +95,7 @@ export default function ProjectDialogs({
                     </SelectTrigger>
                     <SelectContent>
                       {MONTH_NAMES.map((name, idx) => (
-                        <SelectItem key={idx} value={String(idx + 1)}>
+                        <SelectItem key={name} value={String(idx + 1)}>
                           {name}
                         </SelectItem>
                       ))}

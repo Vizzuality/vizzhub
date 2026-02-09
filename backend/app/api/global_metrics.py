@@ -1,5 +1,7 @@
 """Global Metrics API endpoints."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.deps import AdminUser, CurrentUser, DBSession, ScoringConfigDep, limiter
@@ -19,14 +21,14 @@ def get_service(config: ScoringConfigDep) -> GlobalMetricsService:
     return GlobalMetricsService(config)
 
 
-@router.get("/history", response_model=GlobalMetricsHistoryResponse)
+@router.get("/history")
 @limiter.limit("100/minute")
 async def get_global_metrics_history(
     request: Request,
     db: DBSession,
     config: ScoringConfigDep,
     current_user: CurrentUser,
-    limit: int = Query(12, ge=1, le=48, description="Number of months to return"),
+    limit: Annotated[int, Query(ge=1, le=48, description="Number of months to return")] = 12,
 ) -> GlobalMetricsHistoryResponse:
     """Get historical global metrics for trend display.
 
@@ -56,7 +58,7 @@ async def get_available_months(
     return [{"year": year, "month": month} for year, month in months]
 
 
-@router.get("/{year}/{month}", response_model=GlobalMetricsRecord | None)
+@router.get("/{year}/{month}", responses={400: {"description": "Bad request"}})
 @limiter.limit("100/minute")
 async def get_global_metrics(
     request: Request,
@@ -82,7 +84,7 @@ async def get_global_metrics(
     return GlobalMetricsRecord.from_db(record)
 
 
-@router.post("/calculate", response_model=CalculateBatchResponse)
+@router.post("/calculate", responses={400: {"description": "Bad request"}})
 @limiter.limit("10/minute")
 async def calculate_global_metrics(
     request: Request,
@@ -125,7 +127,7 @@ async def calculate_global_metrics(
     )
 
 
-@router.post("/recalculate", response_model=CalculateBatchResponse)
+@router.post("/recalculate")
 @limiter.limit("10/minute")
 async def recalculate_global_metrics(
     request: Request,

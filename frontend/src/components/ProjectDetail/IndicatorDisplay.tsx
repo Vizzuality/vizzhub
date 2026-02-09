@@ -76,7 +76,8 @@ export function KPIDisplay({
     if (format === 'percentage') {
       return `${prefix}${target}%`;
     }
-    return `${prefix}${target}${unit ? ` ${unit}` : ''}`;
+    const unitSuffix = unit ? ` ${unit}` : '';
+    return `${prefix}${target}${unitSuffix}`;
   };
 
   return (

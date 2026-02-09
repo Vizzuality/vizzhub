@@ -188,7 +188,7 @@ export default function EVMSection({
         {/* EVM Data Card */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            {isEditingEVM ? (
+            {isEditingEVM && (
               <div className="space-y-6">
                 <EVMForm
                   initialData={evmData ?? undefined}
@@ -210,9 +210,11 @@ export default function EVMSection({
                   onValuesChange={handleMilestonesValuesChange}
                 />
               </div>
-            ) : evmData ? (
+            )}
+            {!isEditingEVM && evmData && (
               <EVMDataGrid evmData={evmData} />
-            ) : (
+            )}
+            {!isEditingEVM && !evmData && (
               <p className="text-muted-foreground">
                 No budget data available. Click "Add EVM Data" to enter budget and schedule
                 information.

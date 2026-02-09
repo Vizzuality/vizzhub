@@ -86,14 +86,12 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
       >
         <td className="py-3 pr-4">
           <div className="flex items-center gap-2">
-            {hasLastRun ? (
-              isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              )
-            ) : (
-              <span className="w-4" />
+            {!hasLastRun && <span className="w-4" />}
+            {hasLastRun && isExpanded && (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+            {hasLastRun && !isExpanded && (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             )}
             <div>
               <span className="font-medium">{job.name}</span>

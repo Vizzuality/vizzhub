@@ -104,7 +104,7 @@ export default function Projects(): JSX.Element {
     });
   }, [projects, sortField, sortOrder, scoresMap, filters]);
 
-  const SortButton = ({ field, label }: { field: SortField; label: string }): JSX.Element => {
+  const renderSortButton = (field: SortField, label: string): JSX.Element => {
     const isActive = sortField === field;
     return (
       <button
@@ -315,10 +315,10 @@ export default function Projects(): JSX.Element {
       {projects && projects.length > 0 && (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Sort by:</span>
-          <SortButton field="name" label="Name" />
-          <SortButton field="created_at" label="Created" />
-          <SortButton field="status" label="Status" />
-          <SortButton field="score" label="Score" />
+          {renderSortButton('name', 'Name')}
+          {renderSortButton('created_at', 'Created')}
+          {renderSortButton('status', 'Status')}
+          {renderSortButton('score', 'Score')}
         </div>
       )}
 

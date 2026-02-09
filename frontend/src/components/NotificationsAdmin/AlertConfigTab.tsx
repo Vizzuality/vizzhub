@@ -288,13 +288,13 @@ export default function AlertConfigTab(): JSX.Element {
           </DialogHeader>
 
           <div className="space-y-4 py-4 max-h-96 overflow-y-auto">
-            {templatesLoading ? (
-              <LoadingSpinner />
-            ) : !templates || templates.length === 0 ? (
+            {templatesLoading && <LoadingSpinner />}
+            {!templatesLoading && (!templates || templates.length === 0) && (
               <p className="text-muted-foreground text-sm">
                 No templates configured for this alert.
               </p>
-            ) : (
+            )}
+            {!templatesLoading && templates && templates.length > 0 &&
               templates.map((template) => (
                 <div key={template.id} className="space-y-2 p-3 border rounded-lg">
                   <div className="flex items-center justify-between">
@@ -338,8 +338,7 @@ export default function AlertConfigTab(): JSX.Element {
                     </pre>
                   )}
                 </div>
-              ))
-            )}
+              ))}
           </div>
 
           <DialogFooter>

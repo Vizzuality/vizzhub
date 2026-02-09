@@ -27,6 +27,9 @@ down_revision: Union[str, None] = "010_add_global_metrics_table"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+FK_ALERT_DEFINITIONS_ID = "alert_definitions.id"
+FK_PROJECTS_ID = "projects.id"
+
 
 def upgrade() -> None:
     # Add slack_channel_id to projects
@@ -64,7 +67,7 @@ def upgrade() -> None:
         sa.Column(
             "alert_definition_id",
             sa.Integer(),
-            sa.ForeignKey("alert_definitions.id", ondelete="CASCADE"),
+            sa.ForeignKey(FK_ALERT_DEFINITIONS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("template_type", sa.String(50), nullable=False),
@@ -81,13 +84,13 @@ def upgrade() -> None:
         sa.Column(
             "project_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey(FK_PROJECTS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "alert_definition_id",
             sa.Integer(),
-            sa.ForeignKey("alert_definitions.id", ondelete="CASCADE"),
+            sa.ForeignKey(FK_ALERT_DEFINITIONS_ID, ondelete="CASCADE"),
             nullable=True,
         ),
         sa.Column("silenced_until", sa.DateTime(timezone=True), nullable=True),
@@ -104,13 +107,13 @@ def upgrade() -> None:
         sa.Column(
             "project_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey(FK_PROJECTS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "alert_definition_id",
             sa.Integer(),
-            sa.ForeignKey("alert_definitions.id", ondelete="CASCADE"),
+            sa.ForeignKey(FK_ALERT_DEFINITIONS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("channel_id", sa.String(50), nullable=False),
@@ -130,7 +133,7 @@ def upgrade() -> None:
         sa.Column(
             "project_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey(FK_PROJECTS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("github_alert_id", sa.Integer(), nullable=False),

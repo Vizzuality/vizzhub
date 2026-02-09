@@ -1,6 +1,7 @@
 """OAuth endpoints for external service authentication."""
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
@@ -47,9 +48,9 @@ async def authorize_jira(request: Request, current_user: CurrentUser) -> Redirec
 @limiter.limit("10/minute")
 async def jira_callback(
     request: Request,
-    code: str = Query(..., description="Authorization code from Jira"),
-    state: str = Query(..., description="State parameter for CSRF protection"),
-    db: DBSession = None,
+    code: Annotated[str, Query(description="Authorization code from Jira")],
+    state: Annotated[str, Query(description="State parameter for CSRF protection")],
+    db: DBSession,
 ) -> dict[str, str]:
     """
     Handle Jira OAuth callback with state validation and CSRF protection.

@@ -59,7 +59,7 @@ class ScoreResponse(BaseModel):
     scores: FinalScore
 
 
-@router.post("/calculate", response_model=ScoreResponse)
+@router.post("/calculate")
 @limiter.limit("30/minute")
 async def calculate_scores(
     request: Request,
@@ -76,7 +76,7 @@ async def calculate_scores(
     return ScoreResponse(indicators=indicators, scores=scores)
 
 
-@router.get("/project/{project_id}", response_model=ScoreResponse)
+@router.get("/project/{project_id}")
 @limiter.limit("100/minute")
 async def get_project_scores(
     request: Request,
@@ -156,7 +156,7 @@ def _consolidate_metrics(metrics_list: list[MetricsDB]) -> MetricsDB:
     return base
 
 
-@router.get("/project/{project_id}/history", response_model=list[ScoreResponse])
+@router.get("/project/{project_id}/history")
 async def get_project_score_history(
     project_id: UUID,
     current_user: CurrentUser,

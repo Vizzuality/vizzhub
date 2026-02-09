@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface RatingOption<T extends string | number> {
   value: T;
@@ -29,7 +30,7 @@ export function RatingButtons<T extends string | number>({
   'aria-labelledby': ariaLabelledBy,
 }: RatingButtonsProps<T>): JSX.Element {
   return (
-    <div className={className} role="group" aria-labelledby={ariaLabelledBy}>
+    <fieldset className={cn('border-none p-0 m-0', className)} aria-labelledby={ariaLabelledBy}>
       {options.map((opt) => {
         const value = isOptionObject(opt) ? opt.value : opt;
         const label = isOptionObject(opt) ? (opt.label ?? String(value)) : String(value);
@@ -45,6 +46,6 @@ export function RatingButtons<T extends string | number>({
           </Button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

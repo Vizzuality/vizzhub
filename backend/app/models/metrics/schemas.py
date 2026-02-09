@@ -172,20 +172,23 @@ class MetricsCreate(BaseModel):
         )
 
     @staticmethod
+    def _compute_pr_review_ratio(db: "MetricsDB") -> float | None:
+        """Compute PR review ratio from DB columns."""
+        if not db.total_merged_prs or db.total_merged_prs <= 0:
+            return None
+        reviewed = db.total_merged_prs - (db.prs_without_review or 0)
+        return reviewed / db.total_merged_prs
+
+    @staticmethod
     def _build_github_metrics(db: "MetricsDB") -> GitHubMetrics | None:
         """Build GitHubMetrics from DB columns."""
         if db.total_merged_prs is None and db.prs_without_review is None:
             return None
 
-        pr_review_ratio = None
-        if db.total_merged_prs and db.total_merged_prs > 0:
-            reviewed = db.total_merged_prs - (db.prs_without_review or 0)
-            pr_review_ratio = reviewed / db.total_merged_prs
-
         return GitHubMetrics(
             prs_without_review=db.prs_without_review or 0,
             total_merged_prs=db.total_merged_prs or 0,
-            pr_review_ratio=pr_review_ratio,
+            pr_review_ratio=MetricsCreate._compute_pr_review_ratio(db),
             high_severity_vulns=db.high_severity_vulns or 0,
             high_severity_vulns_total=db.high_severity_vulns_total or 0,
             pr_size_median=float(db.pr_size_median) if db.pr_size_median is not None else None,

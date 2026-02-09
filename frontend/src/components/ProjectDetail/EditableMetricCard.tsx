@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type Dispatch, type SetStateAction } from 'react';
+import { useState, useCallback, type ReactNode, type Dispatch, type SetStateAction } from 'react';
 import { Pencil, Info, TrendingUp, BarChart3, Maximize2, Minimize2 } from 'lucide-react';
 import {
   LineChart,
@@ -264,6 +264,18 @@ export default function EditableMetricCard<T>({
   const handleLineToggle = createChartModeToggleHandler('line', showTrend, chartMode, setShowTrend, setChartMode);
   const handleBarToggle = createChartModeToggleHandler('bar', showTrend, chartMode, setShowTrend, setChartMode);
 
+  const renderTooltipContent = useCallback(
+    (props: { active?: boolean; payload?: unknown[] }): JSX.Element | null => (
+      <MetricChartTooltip
+        active={props.active}
+        payload={props.payload as MetricChartTooltipProps['payload']}
+        chartColor={chartColor}
+        indicatorSuffix={indicatorSuffix}
+      />
+    ),
+    [chartColor, indicatorSuffix],
+  );
+
   const renderChart = (chartData: HistoricalDataPoint[], height: number): JSX.Element => {
     const values = chartData.map(d => d.value).filter((v): v is number => v !== null);
     const dataMin = values.length > 0 ? Math.min(...values) : 0;
@@ -287,16 +299,7 @@ export default function EditableMetricCard<T>({
             <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v.toFixed(1)}`} />
             {referenceLine}
-            <RechartsTooltip
-              content={(props) => (
-                <MetricChartTooltip
-                  active={props.active}
-                  payload={props.payload as MetricChartTooltipProps['payload']}
-                  chartColor={chartColor}
-                  indicatorSuffix={indicatorSuffix}
-                />
-              )}
-            />
+            <RechartsTooltip content={renderTooltipContent} />
             <Line type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} dot={{ r: 3, fill: chartColor }} connectNulls />
           </LineChart>
         ) : (
@@ -305,17 +308,7 @@ export default function EditableMetricCard<T>({
             <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v.toFixed(1)}`} />
             {referenceLine}
-            <RechartsTooltip
-              cursor={false}
-              content={(props) => (
-                <MetricChartTooltip
-                  active={props.active}
-                  payload={props.payload as MetricChartTooltipProps['payload']}
-                  chartColor={chartColor}
-                  indicatorSuffix={indicatorSuffix}
-                />
-              )}
-            />
+            <RechartsTooltip cursor={false} content={renderTooltipContent} />
             <Bar dataKey="value" fill={chartColor} radius={[4, 4, 0, 0]} />
           </BarChart>
         )}
