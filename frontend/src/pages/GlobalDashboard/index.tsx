@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   useGlobalMetrics,
   useGlobalMetricsHistory,
@@ -39,10 +40,18 @@ import {
 
 export default function GlobalDashboard(): JSX.Element {
   const now = new Date();
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>({
-    year: now.getFullYear(),
-    month: now.getMonth() + 1,
-  });
+  const periodSchema = useMemo(() => ({
+    year: { defaultValue: now.getFullYear() },
+    month: { defaultValue: now.getMonth() + 1 },
+  }), []);
+  const { state: periodState, setState: setPeriodState } = useUrlState(periodSchema);
+  const selectedPeriod: Period = { year: periodState.year, month: periodState.month };
+  const setSelectedPeriod = useCallback(
+    (period: Period) => {
+      setPeriodState({ year: period.year, month: period.month }, { replace: false });
+    },
+    [setPeriodState],
+  );
   const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(
     new Set(ALL_DIMENSIONS),
   );

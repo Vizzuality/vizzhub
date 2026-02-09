@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '../hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
@@ -45,7 +46,23 @@ export default function ProjectDetail(): JSX.Element {
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
   const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(new Set(ALL_DIMENSIONS));
-  const [selectedPeriod, setSelectedPeriod] = useState<{ year: number; month: number } | null>(null);
+  const periodSchema = useMemo(() => ({
+    year: { defaultValue: 0 },
+    month: { defaultValue: 0 },
+  }), []);
+  const { state: periodState, setState: setPeriodState } = useUrlState(periodSchema);
+  const selectedPeriod = periodState.year && periodState.month
+    ? { year: periodState.year, month: periodState.month }
+    : null;
+  const setSelectedPeriod = useCallback(
+    (period: { year: number; month: number } | null) => {
+      setPeriodState(
+        { year: period?.year ?? 0, month: period?.month ?? 0 },
+        { replace: false },
+      );
+    },
+    [setPeriodState],
+  );
   const [showHistoricalWarning, setShowHistoricalWarning] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<(() => Promise<void>) | null>(null);
 

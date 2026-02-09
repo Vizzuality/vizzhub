@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { Plus, LayoutGrid, List, ArrowUp, ArrowDown, ArrowUpDown, Search, X } from 'lucide-react';
 import { useProjects, useCreateProject } from '../hooks/useProjects';
 import { useProjectFilters, type StatusFilter } from '../hooks/useProjectFilters';
@@ -31,11 +32,14 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
   return <ArrowDown className="w-3.5 h-3.5" />;
 }
 
+const viewModeSchema = {
+  view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'list' },
+};
+
 export default function Projects(): JSX.Element {
   const [showForm, setShowForm] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    return (localStorage.getItem('projectsViewMode') as ViewMode) || 'list';
-  });
+  const { state: viewState, setState: setViewState } = useUrlState(viewModeSchema);
+  const viewMode = viewState.view as ViewMode;
 
   const { data: projects, isLoading, error } = useProjects();
   const {
@@ -51,10 +55,10 @@ export default function Projects(): JSX.Element {
   const { scoresMap } = useProjectScoresMap(projects);
   const createProject = useCreateProject();
 
-  const handleViewModeChange = (mode: ViewMode): void => {
-    setViewMode(mode);
+  const handleViewModeChange = useCallback((mode: ViewMode): void => {
+    setViewState({ view: mode });
     localStorage.setItem('projectsViewMode', mode);
-  };
+  }, [setViewState]);
 
   const filteredAndSortedProjects = useMemo(() => {
     if (!projects) return [];
