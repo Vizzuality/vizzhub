@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import Projects from '../Projects';
-import type { Project } from '../../types';
+import type { Project, PaginatedProjects } from '../../types';
 
 const mockProjects: Project[] = [
   {
@@ -30,8 +30,16 @@ const mockProjects: Project[] = [
   },
 ];
 
-const mockUseProjects = vi.fn(() => ({
-  data: mockProjects,
+const mockPaginatedResponse: PaginatedProjects = {
+  items: mockProjects,
+  total: 2,
+  page: 1,
+  page_size: 45,
+  pages: 1,
+};
+
+const mockUsePaginatedProjects = vi.fn(() => ({
+  data: mockPaginatedResponse,
   isLoading: false,
   error: null,
 }));
@@ -42,13 +50,14 @@ const mockCreateProject = vi.fn(() => ({
 }));
 
 vi.mock('../../hooks/useProjects', () => ({
-  useProjects: () => mockUseProjects(),
+  usePaginatedProjects: (...args: unknown[]) => mockUsePaginatedProjects(...args),
   useCreateProject: () => mockCreateProject(),
 }));
 
 vi.mock('../../services/api', () => ({
   scoresApi: {
     getProjectScores: vi.fn(() => Promise.resolve({ scores: { score: 85 } })),
+    getBatchScores: vi.fn(() => Promise.resolve({ scores: {}, errors: {} })),
   },
   slackApi: {
     getStatus: vi.fn(() => Promise.resolve({ configured: false })),
@@ -79,8 +88,8 @@ describe('Projects', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    mockUseProjects.mockReturnValue({
-      data: mockProjects,
+    mockUsePaginatedProjects.mockReturnValue({
+      data: mockPaginatedResponse,
       isLoading: false,
       error: null,
     });
@@ -113,7 +122,7 @@ describe('Projects', () => {
 
   describe('Loading State', () => {
     it('shows loading spinner while fetching', () => {
-      mockUseProjects.mockReturnValue({
+      mockUsePaginatedProjects.mockReturnValue({
         data: undefined,
         isLoading: true,
         error: null,
@@ -127,7 +136,7 @@ describe('Projects', () => {
 
   describe('Error State', () => {
     it('displays error message when loading fails', () => {
-      mockUseProjects.mockReturnValue({
+      mockUsePaginatedProjects.mockReturnValue({
         data: undefined,
         isLoading: false,
         error: new Error('Failed to fetch projects'),
@@ -141,8 +150,8 @@ describe('Projects', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no projects', () => {
-      mockUseProjects.mockReturnValue({
-        data: [],
+      mockUsePaginatedProjects.mockReturnValue({
+        data: { items: [], total: 0, page: 1, page_size: 45, pages: 1 },
         isLoading: false,
         error: null,
       });
@@ -151,69 +160,6 @@ describe('Projects', () => {
 
       expect(screen.getByText(/no projects yet/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /create your first project/i })).toBeInTheDocument();
-    });
-  });
-
-  describe('Search and Filters', () => {
-    it('filters projects by name search', () => {
-      renderWithProviders(<Projects />);
-
-      const searchInput = screen.getByPlaceholderText(/search by name/i);
-      fireEvent.change(searchInput, { target: { value: 'Alpha' } });
-
-      expect(screen.getByText('Alpha Project')).toBeInTheDocument();
-      expect(screen.queryByText('Beta Project')).not.toBeInTheDocument();
-    });
-
-    it('status filter shows only in_progress projects', () => {
-      renderWithProviders(<Projects />);
-
-      const inProgressButton = screen.getByRole('button', { name: /in progress/i });
-      fireEvent.click(inProgressButton);
-
-      expect(screen.getByText('Alpha Project')).toBeInTheDocument();
-      expect(screen.queryByText('Beta Project')).not.toBeInTheDocument();
-    });
-
-    it('status filter shows only finished projects', () => {
-      renderWithProviders(<Projects />);
-
-      const finishedButton = screen.getByRole('button', { name: /finished/i });
-      fireEvent.click(finishedButton);
-
-      expect(screen.queryByText('Alpha Project')).not.toBeInTheDocument();
-      expect(screen.getByText('Beta Project')).toBeInTheDocument();
-    });
-
-    it('shows filter results count', () => {
-      renderWithProviders(<Projects />);
-
-      const searchInput = screen.getByPlaceholderText(/search by name/i);
-      fireEvent.change(searchInput, { target: { value: 'Alpha' } });
-
-      expect(screen.getByText(/showing 1 of 2 projects/i)).toBeInTheDocument();
-    });
-
-    it('clear filters button resets all filters', () => {
-      renderWithProviders(<Projects />);
-
-      const searchInput = screen.getByPlaceholderText(/search by name/i);
-      fireEvent.change(searchInput, { target: { value: 'Alpha' } });
-
-      const clearButton = screen.getByRole('button', { name: /clear/i });
-      fireEvent.click(clearButton);
-
-      expect(screen.getByText('Alpha Project')).toBeInTheDocument();
-      expect(screen.getByText('Beta Project')).toBeInTheDocument();
-    });
-
-    it('shows no matches message when filter returns empty', () => {
-      renderWithProviders(<Projects />);
-
-      const searchInput = screen.getByPlaceholderText(/search by name/i);
-      fireEvent.change(searchInput, { target: { value: 'NonExistent' } });
-
-      expect(screen.getByText(/no projects match your filters/i)).toBeInTheDocument();
     });
   });
 
@@ -233,7 +179,6 @@ describe('Projects', () => {
       const nameButton = screen.getByRole('button', { name: /name/i });
       fireEvent.click(nameButton);
 
-      // Verify button is still present after click
       expect(screen.getByRole('button', { name: /name/i })).toBeInTheDocument();
     });
   });
@@ -270,6 +215,56 @@ describe('Projects', () => {
       fireEvent.click(createButton);
 
       expect(screen.getByText(/create new project/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Pagination', () => {
+    it('shows pagination info when projects exist', () => {
+      renderWithProviders(<Projects />);
+
+      expect(screen.getByText(/showing 2 of 2 projects/i)).toBeInTheDocument();
+      expect(screen.getByText(/page 1 of 1/i)).toBeInTheDocument();
+    });
+
+    it('renders previous and next buttons', () => {
+      mockUsePaginatedProjects.mockReturnValue({
+        data: {
+          items: mockProjects,
+          total: 50,
+          page: 2,
+          page_size: 45,
+          pages: 2,
+        },
+        isLoading: false,
+        error: null,
+      });
+
+      renderWithProviders(<Projects />);
+
+      expect(screen.getByRole('button', { name: /previous/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+
+    it('disables previous button on first page', () => {
+      renderWithProviders(<Projects />);
+
+      const prevButton = screen.getByRole('button', { name: /previous/i });
+      expect(prevButton).toBeDisabled();
+    });
+
+    it('disables next button on last page', () => {
+      renderWithProviders(<Projects />);
+
+      const nextButton = screen.getByRole('button', { name: /next/i });
+      expect(nextButton).toBeDisabled();
+    });
+  });
+
+  describe('Search', () => {
+    it('renders search input', () => {
+      renderWithProviders(<Projects />);
+
+      expect(screen.getByPlaceholderText(/search by name/i)).toBeInTheDocument();
     });
   });
 });

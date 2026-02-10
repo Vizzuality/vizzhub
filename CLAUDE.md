@@ -50,7 +50,7 @@ docker-compose down && docker-compose up -d --build
 cd backend
 
 # Run tests
-pytest                                        # All backend tests (~760 total)
+pytest                                        # All backend tests (~830 total)
 pytest tests/test_calculators.py              # Single file
 pytest tests/test_normalizers.py::TestLowerIsBetter  # Single class
 pytest -k "test_perfect_score"                # By name pattern
@@ -90,7 +90,7 @@ cd frontend
 npm run dev      # Development server (http://localhost:5173)
 npm run build    # Production build
 npm run lint     # ESLint
-npm test         # Run tests (~325 total)
+npm test         # Run tests (~294 total)
 
 # Theme (shadcn/tweakcn)
 # Current theme: https://tweakcn.com/r/themes/cmkliqxix000d04la3624132s
@@ -736,13 +736,15 @@ app/
 ├── api/              # API endpoints
 │   ├── auth.py       # Google SSO authentication
 │   ├── admin_users.py # User management (admin only)
-│   ├── projects.py   # Project CRUD
+│   ├── projects.py   # Project CRUD (paginated list, lightweight mode)
 │   ├── metrics.py    # Metrics CRUD
 │   ├── scores.py     # Score calculations
 │   ├── collectors.py # Jira/GitHub collection triggers
 │   ├── config.py     # Scoring configuration
 │   ├── jobs.py       # Background jobs
-│   └── slack_admin.py # Slack config, alerts, templates
+│   ├── slack_admin.py # Slack config, alerts, templates
+│   └── schemas/       # Pydantic response schemas
+│       └── project.py # PaginatedProjectsResponse, ProjectSummary
 ├── core/             # Core security modules (auth, oauth_state, security_logger, middleware)
 ├── models/           # SQLAlchemy models
 │   ├── user.py       # User model (Google SSO, roles)
@@ -773,8 +775,9 @@ app/
 └── main.py           # FastAPI app
 
 scripts/              # Utility scripts (generate_jwt_token.py)
-tests/                # Pytest tests (~760 total)
+tests/                # Pytest tests (~830 total)
     test_integration.py   # Integration tests (scores API, auth, config, collectors)
+    test_projects.py      # Project pagination tests (15 tests)
     test_score_cache.py   # Score cache unit tests (14 tests)
     test_slack_*.py       # Slack-related tests
     test_alert_*.py       # Alert service tests
@@ -806,7 +809,7 @@ contexts/             # React contexts (AuthContext)
 hooks/                # Custom hooks (useProjects, useMetrics, useJobs, etc.)
 pages/                # Page components
   Admin.tsx           # Admin page with tabs (Configuration, Slack, Notifications, Jobs)
-  Projects.tsx        # Projects list
+  Projects.tsx        # Projects list (server-side pagination, debounced search)
   ProjectDetail.tsx   # Single project view
   GlobalDashboard.tsx # Cross-project metrics
   Login.tsx           # Login page
@@ -910,7 +913,7 @@ queryKey: queryKeys.scores.byProject(projectId)
 ```
 
 Available keys:
-- `queryKeys.projects.all` / `.detail(id)`
+- `queryKeys.projects.all` / `.list(params)` / `.summary` / `.detail(id)`
 - `queryKeys.metrics.byProject(projectId)`
 - `queryKeys.scores.all` / `.byProject(projectId)` / `.history(projectId, limit)` / `.batch(ids)`
 - `queryKeys.config.all` / `.parameters` / `.validation`
@@ -944,7 +947,8 @@ export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | n
 
 ### Hook Organization
 
-- `useProjects.ts` - Project CRUD operations
+- `useProjects.ts` - `usePaginatedProjects(params)` (paginated list with `keepPreviousData`), `useProjectSummaries()` (lightweight `[{id, name}]` for dropdowns), `useProject(id)`, CRUD mutations
+- `useProjectListParams.ts` - Merged filter/sort/page state via `useUrlState`. Returns `ProjectListParams` for the API. Resets page on any filter/sort change
 - `useMetrics.ts` - Metrics mutations (all field-specific hooks, period-aware)
 - `useScores.ts` - Score queries only
 - `useProjectScoresMap.ts` - Batch score fetching for projects index (`POST /scores/batch`)
@@ -956,6 +960,25 @@ export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | n
 - `cacheUtils.ts` - Centralized query invalidation helpers (invalidates batch key on any project data change)
 
 ## Key API Endpoints
+
+### Projects
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/projects` | GET | List projects (paginated). Params: `page` (default 1), `page_size` (default 45, max 100), `search` (case-insensitive name), `status` (`in_progress`/`finished`), `sort` (`name`/`created_at`/`status`), `order` (`asc`/`desc`), `start_date_from`, `start_date_to` |
+| `/projects?lightweight=true` | GET | Returns `[{id, name}]` for dropdown consumers (no pagination) |
+| `/projects/{id}` | GET | Get single project |
+| `/projects` | POST | Create project |
+| `/projects/{id}` | PATCH | Partial update |
+| `/projects/{id}` | PUT | Full replacement |
+| `/projects/{id}` | DELETE | Delete project |
+
+**Paginated response** (`GET /projects`):
+```json
+{ "items": [...], "total": 50, "page": 1, "page_size": 45, "pages": 2 }
+```
+
+**Sort by score** is client-side only (within current page) since scores are computed on-the-fly.
 
 ### Metrics Capture
 

@@ -1,9 +1,23 @@
-import type { Project, ProjectCreate, ProjectUpdate } from '../../types';
+import type {
+  PaginatedProjects,
+  Project,
+  ProjectCreate,
+  ProjectListParams,
+  ProjectSummary,
+  ProjectUpdate,
+} from '../../types';
 import api from './client';
 
 export const projectsApi = {
-  list: async (): Promise<Project[]> => {
-    const response = await api.get<Project[]>('/projects');
+  list: async (params: ProjectListParams = {}): Promise<PaginatedProjects> => {
+    const response = await api.get<PaginatedProjects>('/projects', { params });
+    return response.data;
+  },
+
+  listSummary: async (): Promise<ProjectSummary[]> => {
+    const response = await api.get<ProjectSummary[]>('/projects', {
+      params: { lightweight: true },
+    });
     return response.data;
   },
 

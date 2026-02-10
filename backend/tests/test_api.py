@@ -137,7 +137,8 @@ class TestListProjects:
         response = await client.get("/api/projects")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 2
+        assert data["total"] == 2
+        assert len(data["items"]) == 2
 
     @pytest.mark.asyncio
     async def test_list_projects_empty(self, client: AsyncClient) -> None:
@@ -145,7 +146,8 @@ class TestListProjects:
         response = await client.get("/api/projects")
         assert response.status_code == 200
         data = response.json()
-        assert data == []
+        assert data["items"] == []
+        assert data["total"] == 0
 
 
 class TestGetProject:
@@ -411,13 +413,13 @@ class TestDeleteProject:
         project_id = create_response.json()["id"]
 
         list_before = await client.get("/api/projects")
-        assert len(list_before.json()) == 2
+        assert list_before.json()["total"] == 2
 
         await client.delete(f"/api/projects/{project_id}")
 
         list_after = await client.get("/api/projects")
-        assert len(list_after.json()) == 1
-        assert all(p["id"] != project_id for p in list_after.json())
+        assert list_after.json()["total"] == 1
+        assert all(p["id"] != project_id for p in list_after.json()["items"])
 
 
 @pytest.mark.asyncio

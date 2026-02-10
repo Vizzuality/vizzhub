@@ -1,13 +1,27 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useProjects, useProject, useCreateProject, useUpdateProject, useDeleteProject } from '../useProjects';
+import {
+  usePaginatedProjects,
+  useProjectSummaries,
+  useProject,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+} from '../useProjects';
 import { projectsApi } from '../../services/api';
-import type { Project, ProjectCreate, ProjectUpdate } from '../../types';
+import type {
+  PaginatedProjects,
+  Project,
+  ProjectCreate,
+  ProjectSummary,
+  ProjectUpdate,
+} from '../../types';
 
 vi.mock('../../services/api', () => ({
   projectsApi: {
     list: vi.fn(),
+    listSummary: vi.fn(),
     get: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -37,61 +51,88 @@ describe('useProjects', () => {
     vi.clearAllMocks();
   });
 
-  describe('useProjects', () => {
-    it('fetches and returns list of projects', async () => {
-      const mockProjects: Project[] = [
-        {
-          id: '1',
-          name: 'Project 1',
-          jira_project_key: 'PROJ1',
-          github_repo: 'org/repo1',
-          created_at: '2026-01-01',
-          updated_at: '2026-01-01',
-        },
-        {
-          id: '2',
-          name: 'Project 2',
-          jira_project_key: 'PROJ2',
-          github_repo: 'org/repo2',
-          created_at: '2026-01-01',
-          updated_at: '2026-01-01',
-        },
-      ];
+  describe('usePaginatedProjects', () => {
+    it('fetches paginated projects', async () => {
+      const mockResponse: PaginatedProjects = {
+        items: [
+          {
+            id: '1',
+            name: 'Project 1',
+            jira_project_key: 'PROJ1',
+            github_repo: 'org/repo1',
+            created_at: '2026-01-01',
+            updated_at: '2026-01-01',
+          } as Project,
+        ],
+        total: 1,
+        page: 1,
+        page_size: 45,
+        pages: 1,
+      };
 
-      vi.mocked(projectsApi.list).mockResolvedValue(mockProjects);
+      vi.mocked(projectsApi.list).mockResolvedValue(mockResponse);
 
-      const { result } = renderHook(() => useProjects(), {
+      const { result } = renderHook(() => usePaginatedProjects({ page: 1 }), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockProjects);
-      expect(projectsApi.list).toHaveBeenCalledTimes(1);
+      expect(result.current.data).toEqual(mockResponse);
+      expect(projectsApi.list).toHaveBeenCalledWith({ page: 1 });
     });
 
-    it('handles empty project list', async () => {
-      vi.mocked(projectsApi.list).mockResolvedValue([]);
+    it('passes search params to API', async () => {
+      const mockResponse: PaginatedProjects = {
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 45,
+        pages: 1,
+      };
 
-      const { result } = renderHook(() => useProjects(), {
+      vi.mocked(projectsApi.list).mockResolvedValue(mockResponse);
+
+      const params = { page: 1, search: 'test', status: 'in_progress' };
+      const { result } = renderHook(() => usePaginatedProjects(params), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual([]);
+      expect(projectsApi.list).toHaveBeenCalledWith(params);
     });
 
     it('handles API errors', async () => {
       vi.mocked(projectsApi.list).mockRejectedValue(new Error('API Error'));
 
-      const { result } = renderHook(() => useProjects(), {
+      const { result } = renderHook(() => usePaginatedProjects({}), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isError).toBe(true));
 
       expect(result.current.error).toBeDefined();
+    });
+  });
+
+  describe('useProjectSummaries', () => {
+    it('fetches project summaries', async () => {
+      const mockSummaries: ProjectSummary[] = [
+        { id: '1', name: 'Alpha' },
+        { id: '2', name: 'Beta' },
+      ];
+
+      vi.mocked(projectsApi.listSummary).mockResolvedValue(mockSummaries);
+
+      const { result } = renderHook(() => useProjectSummaries(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(result.current.data).toEqual(mockSummaries);
+      expect(projectsApi.listSummary).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -104,7 +145,7 @@ describe('useProjects', () => {
         github_repo: 'org/repo',
         created_at: '2026-01-01',
         updated_at: '2026-01-01',
-      };
+      } as Project;
 
       vi.mocked(projectsApi.get).mockResolvedValue(mockProject);
 
@@ -152,7 +193,7 @@ describe('useProjects', () => {
         ...newProject,
         created_at: '2026-01-01',
         updated_at: '2026-01-01',
-      };
+      } as Project;
 
       vi.mocked(projectsApi.create).mockResolvedValue(createdProject);
 
@@ -206,7 +247,7 @@ describe('useProjects', () => {
         github_repo: 'org/repo',
         created_at: '2026-01-01',
         updated_at: '2026-01-02',
-      };
+      } as Project;
 
       vi.mocked(projectsApi.update).mockResolvedValue(updatedProject);
 
@@ -235,7 +276,7 @@ describe('useProjects', () => {
         github_repo: 'org/repo',
         created_at: '2026-01-01',
         updated_at: '2026-01-02',
-      };
+      } as Project;
 
       vi.mocked(projectsApi.update).mockResolvedValue(updatedProject);
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAllJobs, useCancelJob, useDeleteJob } from '../../hooks/useJobs';
 import { useScheduledJobs, useTriggerScheduledJob } from '../../hooks/useAlertDefinitions';
-import { useProjects } from '../../hooks/useProjects';
+import { useProjectSummaries } from '../../hooks/useProjects';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -172,7 +172,7 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
 
 function BackgroundJobsSection(): JSX.Element {
   const { data: jobs, isLoading: jobsLoading } = useAllJobs();
-  const { data: projects } = useProjects();
+  const { data: projects } = useProjectSummaries();
   const cancelJob = useCancelJob();
   const deleteJob = useDeleteJob();
 

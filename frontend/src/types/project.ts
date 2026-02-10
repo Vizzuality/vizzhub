@@ -41,3 +41,27 @@ export interface SlackChannel {
   name: string;
   is_private: boolean;
 }
+
+export interface PaginatedProjects {
+  items: Project[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+}
+
+export interface ProjectListParams {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  status?: string;
+  sort?: string;
+  order?: string;
+  start_date_from?: string;
+  start_date_to?: string;
+}

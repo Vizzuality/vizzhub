@@ -1,9 +1,24 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
-import { Plus, LayoutGrid, List, ArrowUp, ArrowDown, ArrowUpDown, Search, X } from 'lucide-react';
-import { useProjects, useCreateProject } from '../hooks/useProjects';
-import { useProjectFilters, type StatusFilter } from '../hooks/useProjectFilters';
-import { useProjectSort, type SortField } from '../hooks/useProjectSort';
+import {
+  Plus,
+  LayoutGrid,
+  List,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { usePaginatedProjects, useCreateProject } from '../hooks/useProjects';
+import {
+  useProjectListParams,
+  type SortField,
+  type StatusFilter,
+  type SortOrder,
+} from '../hooks/useProjectListParams';
 import { useProjectScoresMap } from '../hooks/useProjectScoresMap';
 import ProjectCard from '../components/Dashboard/ProjectCard';
 import ProjectForm from '../components/Forms/ProjectForm';
@@ -20,7 +35,8 @@ import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 type ViewMode = 'list' | 'grid';
-type SortOrder = 'asc' | 'desc';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
   if (!isActive) {
@@ -32,81 +48,72 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
   return <ArrowDown className="w-3.5 h-3.5" />;
 }
 
-const viewModeSchema = {
-  view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'list' },
-};
-
 export default function Projects(): JSX.Element {
   const [showForm, setShowForm] = useState(false);
+  const [viewModeSchema] = useState(() => ({
+    view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'list' },
+  }));
   const { state: viewState, setState: setViewState } = useUrlState(viewModeSchema);
   const viewMode = viewState.view as ViewMode;
 
-  const { data: projects, isLoading, error } = useProjects();
   const {
-    filters,
+    params,
+    page,
+    searchName,
+    statusFilter,
+    startDateFrom,
+    startDateTo,
+    sortField,
+    sortOrder,
+    hasActiveFilters,
     setSearchName,
     setStatusFilter,
     setStartDateFrom,
     setStartDateTo,
-    hasActiveFilters,
+    setPage,
+    handleSort,
     clearFilters,
-  } = useProjectFilters();
-  const { sortField, sortOrder, handleSort } = useProjectSort();
+  } = useProjectListParams();
+
+  const { data, isLoading, error } = usePaginatedProjects(params);
+  const projects = data?.items;
+  const total = data?.total ?? 0;
+  const pages = data?.pages ?? 1;
+
   const { scoresMap } = useProjectScoresMap(projects);
   const createProject = useCreateProject();
+
+  const [localSearch, setLocalSearch] = useState(searchName);
+
+  useEffect(() => {
+    setLocalSearch(searchName);
+  }, [searchName]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== searchName) {
+        setSearchName(localSearch);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [localSearch, searchName, setSearchName]);
 
   const handleViewModeChange = useCallback((mode: ViewMode): void => {
     setViewState({ view: mode });
     localStorage.setItem('projectsViewMode', mode);
   }, [setViewState]);
 
-  const filteredAndSortedProjects = useMemo(() => {
+  const displayedProjects = useMemo(() => {
     if (!projects) return [];
+    if (sortField !== 'score') return projects;
 
-    const filtered = projects.filter((project) => {
-      if (filters.searchName && !project.name.toLowerCase().includes(filters.searchName.toLowerCase())) {
-        return false;
-      }
-
-      if (filters.statusFilter !== 'all' && project.status !== filters.statusFilter) {
-        return false;
-      }
-
-      if (filters.startDateFrom && project.start_date) {
-        if (new Date(project.start_date) < new Date(filters.startDateFrom)) {
-          return false;
-        }
-      }
-
-      if (filters.startDateTo && project.start_date) {
-        if (new Date(project.start_date) > new Date(filters.startDateTo)) {
-          return false;
-        }
-      }
-
-      if ((filters.startDateFrom || filters.startDateTo) && !project.start_date) {
-        return false;
-      }
-
-      return true;
-    });
-
-    return filtered.sort((a, b) => {
-      let comparison = 0;
-      if (sortField === 'name') {
-        comparison = a.name.localeCompare(b.name);
-      } else if (sortField === 'created_at') {
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else if (sortField === 'status') {
-        comparison = a.status.localeCompare(b.status);
-      } else if (sortField === 'score') {
-        const scoreA = scoresMap[a.id] ?? -1;
-        const scoreB = scoresMap[b.id] ?? -1;
-        comparison = scoreA - scoreB;
-      }
+    return [...projects].sort((a, b) => {
+      const scoreA = scoresMap[a.id] ?? -1;
+      const scoreB = scoresMap[b.id] ?? -1;
+      const comparison = scoreA - scoreB;
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [projects, sortField, sortOrder, scoresMap, filters]);
+  }, [projects, sortField, sortOrder, scoresMap]);
 
   const renderSortButton = (field: SortField, label: string): JSX.Element => {
     const isActive = sortField === field;
@@ -129,14 +136,49 @@ export default function Projects(): JSX.Element {
     setShowForm(false);
   };
 
+  const renderPagination = (): JSX.Element | null => {
+    if (total === 0) return null;
+
+    return (
+      <div className="flex items-center justify-between pt-4">
+        <p className="text-sm text-muted-foreground">
+          Showing {displayedProjects.length} of {total} projects
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(page - 1)}
+            disabled={page <= 1}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {pages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(page + 1)}
+            disabled={page >= pages}
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   const renderProjectsContent = (): JSX.Element => {
-    if (filteredAndSortedProjects.length > 0) {
+    if (displayedProjects.length > 0) {
       return (
         <div className={cn(
           "grid gap-4",
           viewMode === 'grid' && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         )}>
-          {filteredAndSortedProjects.map((project) => (
+          {displayedProjects.map((project) => (
             <ProjectCard
               key={project.id}
               project={project}
@@ -173,7 +215,7 @@ export default function Projects(): JSX.Element {
     );
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <LoadingSpinner />;
   }
 
@@ -239,95 +281,87 @@ export default function Projects(): JSX.Element {
       )}
 
       {/* Search and Filters */}
-      {projects && projects.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Name Search */}
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by name..."
-                value={filters.searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
-              <div className="flex items-center border rounded-lg p-1">
-                {([
-                  { value: 'all', label: 'All' },
-                  { value: 'in_progress', label: 'In Progress' },
-                  { value: 'finished', label: 'Finished' },
-                ] as const).map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setStatusFilter(option.value as StatusFilter)}
-                    className={cn(
-                      "px-3 py-1 text-sm rounded transition-colors",
-                      filters.statusFilter === option.value ? "bg-muted font-medium" : "hover:bg-muted/50"
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Date Range */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Start date:</span>
-              <Input
-                type="date"
-                value={filters.startDateFrom}
-                onChange={(e) => setStartDateFrom(e.target.value)}
-                className="w-36"
-                placeholder="From"
-              />
-              <span className="text-muted-foreground">-</span>
-              <Input
-                type="date"
-                value={filters.startDateTo}
-                onChange={(e) => setStartDateTo(e.target.value)}
-                className="w-36"
-                placeholder="To"
-              />
-            </div>
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-                <X className="w-4 h-4" />
-                Clear
-              </Button>
-            )}
+      <div className="space-y-3">
+        <div className="flex flex-col md:flex-row gap-3">
+          {/* Name Search */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by name..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="pl-9"
+            />
           </div>
 
-          {/* Results count */}
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
+            <div className="flex items-center border rounded-lg p-1">
+              {([
+                { value: 'all', label: 'All' },
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'finished', label: 'Finished' },
+              ] as const).map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setStatusFilter(option.value as StatusFilter)}
+                  className={cn(
+                    "px-3 py-1 text-sm rounded transition-colors",
+                    statusFilter === option.value ? "bg-muted font-medium" : "hover:bg-muted/50"
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Start date:</span>
+            <Input
+              type="date"
+              value={startDateFrom}
+              onChange={(e) => setStartDateFrom(e.target.value)}
+              className="w-36"
+              placeholder="From"
+            />
+            <span className="text-muted-foreground">-</span>
+            <Input
+              type="date"
+              value={startDateTo}
+              onChange={(e) => setStartDateTo(e.target.value)}
+              className="w-36"
+              placeholder="To"
+            />
+          </div>
+
+          {/* Clear Filters */}
           {hasActiveFilters && (
-            <p className="text-sm text-muted-foreground">
-              Showing {filteredAndSortedProjects.length} of {projects.length} projects
-            </p>
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+              <X className="w-4 h-4" />
+              Clear
+            </Button>
           )}
         </div>
-      )}
+      </div>
 
       {/* Sort Controls */}
-      {projects && projects.length > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Sort by:</span>
-          {renderSortButton('name', 'Name')}
-          {renderSortButton('created_at', 'Created')}
-          {renderSortButton('status', 'Status')}
-          {renderSortButton('score', 'Score')}
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Sort by:</span>
+        {renderSortButton('name', 'Name')}
+        {renderSortButton('created_at', 'Created')}
+        {renderSortButton('status', 'Status')}
+        {renderSortButton('score', 'Score')}
+      </div>
 
       {/* Projects List */}
       {renderProjectsContent()}
+
+      {/* Pagination */}
+      {renderPagination()}
     </div>
   );
 }

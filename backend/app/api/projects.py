@@ -1,26 +1,95 @@
 """Project CRUD endpoints."""
 
+import math
+from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Query, Request, status
+from sqlalchemy import delete, func, select
 
 from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
+from app.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
 from app.models.metrics.db import MetricsDB
 from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 
 router = APIRouter()
 
+ALLOWED_SORT_FIELDS = {"name", "created_at", "status"}
+MAX_PAGE_SIZE = 100
+
+
+def _escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcard characters in user input."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 
 @router.get("")
 @limiter.limit("100/minute")
 async def list_projects(
-    request: Request, current_user: CurrentUser, db: DBSession
-) -> list[Project]:
-    """List all projects. Requires authentication."""
-    result = await db.execute(select(ProjectDB))
+    request: Request,
+    current_user: CurrentUser,
+    db: DBSession,
+    lightweight: bool = False,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(45, ge=1, le=MAX_PAGE_SIZE),
+    search: str | None = None,
+    filter_status: str | None = Query(None, alias="status"),
+    sort: str | None = None,
+    order: str | None = None,
+    start_date_from: date | None = None,
+    start_date_to: date | None = None,
+) -> PaginatedProjectsResponse | list[ProjectSummary]:
+    """List projects with pagination, filtering, and sorting."""
+    if lightweight:
+        result = await db.execute(
+            select(ProjectDB).order_by(ProjectDB.name)
+        )
+        projects = result.scalars().all()
+        return [ProjectSummary.model_validate(p) for p in projects]
+
+    filters = []
+
+    if search:
+        safe = _escape_like(search)
+        filters.append(ProjectDB.name.ilike(f"%{safe}%"))
+
+    if filter_status and filter_status in ("in_progress", "finished"):
+        filters.append(ProjectDB.status == filter_status)
+
+    if start_date_from:
+        filters.append(ProjectDB.start_date >= start_date_from)
+
+    if start_date_to:
+        filters.append(ProjectDB.start_date <= start_date_to)
+
+    query = select(ProjectDB).where(*filters)
+    count_query = select(func.count()).select_from(ProjectDB).where(*filters)
+
+    sort_field = sort if sort in ALLOWED_SORT_FIELDS else "created_at"
+    sort_order = order if order in ("asc", "desc") else "desc"
+    sort_column = getattr(ProjectDB, sort_field)
+    if sort_order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    pages = max(1, math.ceil(total / page_size))
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await db.execute(query)
     projects = result.scalars().all()
-    return [Project.model_validate(p) for p in projects]
+
+    return PaginatedProjectsResponse(
+        items=[Project.model_validate(p) for p in projects],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=pages,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
