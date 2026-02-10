@@ -1,6 +1,12 @@
+import { AxiosError } from 'axios';
 import { X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+
+function getErrorDetail(error: Error): string {
+  const axiosError = error as AxiosError<{ detail?: string }>;
+  return axiosError.response?.data?.detail || 'An unknown error occurred';
+}
 
 interface CollectorNotificationsProps {
   error: Error | null;
@@ -19,6 +25,8 @@ export default function CollectorNotifications({
 
   if (!hasNotification) return null;
 
+  const errorDetail = error ? getErrorDetail(error) : '';
+
   return (
     <>
       {error && (
@@ -28,9 +36,9 @@ export default function CollectorNotifications({
             <CardContent className="pt-6">
               <p className="font-medium text-score-red">Failed to collect metrics</p>
               <p className="text-sm mt-1 text-score-red/80">
-                {error.message || 'An unknown error occurred'}
+                {errorDetail}
               </p>
-              {error.message?.includes('authentication') && (
+              {errorDetail.includes('authentication') && (
                 <div className="mt-3 p-3 bg-score-red/10 rounded border border-score-red/30">
                   <p className="text-sm font-medium text-score-red mb-2">
                     OAuth not configured

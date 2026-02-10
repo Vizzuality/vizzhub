@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar } from 'lucide-react';
 import type { Period } from '../../utils/dateUtils';
@@ -31,7 +32,8 @@ export default function EmptyPeriodOverlay({
 
         {error && (
           <p className="text-sm text-destructive">
-            {error.message || 'Failed to capture metrics. Please try again.'}
+            {(error as AxiosError<{ detail?: string }>).response?.data?.detail
+              || 'Failed to capture metrics. Please try again.'}
           </p>
         )}
 
