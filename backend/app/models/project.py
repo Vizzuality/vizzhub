@@ -18,6 +18,14 @@ class ProjectStatus(str, Enum):
     FINISHED = "finished"
 
 
+def _strip_or_none(value: str | None) -> str | None:
+    """Strip whitespace and convert empty strings to None."""
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def validate_github_repo_format(value: str | None) -> str | None:
     """
     Validate GitHub repo format.
@@ -31,6 +39,7 @@ def validate_github_repo_format(value: str | None) -> str | None:
     Raises:
         ValueError: If repo format is invalid
     """
+    value = _strip_or_none(value)
     if value is not None and "/" not in value:
         raise ValueError("GitHub repo must be in format: owner/repo")
     if value is not None and value.count("/") != 1:
@@ -74,6 +83,11 @@ class ProjectBase(BaseModel):
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
 
+    @field_validator("jira_project_key")
+    @classmethod
+    def sanitize_jira_key(cls, v: str | None) -> str | None:
+        return _strip_or_none(v)
+
     @field_validator("github_repo")
     @classmethod
     def validate_github_repo(cls, v: str | None) -> str | None:
@@ -108,6 +122,11 @@ class ProjectUpdate(BaseModel):
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
     clear_finished_at: bool = False  # Set to true to explicitly clear finished_at
+
+    @field_validator("jira_project_key")
+    @classmethod
+    def sanitize_jira_key(cls, v: str | None) -> str | None:
+        return _strip_or_none(v)
 
     @field_validator("github_repo")
     @classmethod
