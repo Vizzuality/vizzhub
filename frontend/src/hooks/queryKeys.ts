@@ -26,7 +26,7 @@ export const queryKeys = {
       ['scores', projectId, year, month] as const,
     history: (projectId: string, limit: number) =>
       ['scores', projectId, 'history', limit] as const,
-    batch: (ids: string[]) => ['scores', 'batch', ...ids.toSorted((a, b) => a.localeCompare(b))] as const,
+    batch: (ids: string[]) => ['scores', 'batch', ...[...ids].sort((a, b) => a.localeCompare(b))] as const,
   },
   config: {
     all: ['config'] as const,
