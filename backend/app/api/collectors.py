@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
+from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, get_project_or_404, limiter
 from app.core.exceptions import ConfigurationError
 from app.models.metrics import Metrics, MetricsDB, SnapshotType
 from app.services.collectors.github import GitHubCollector
@@ -21,7 +21,7 @@ router = APIRouter()
 )
 @limiter.limit("10/minute")
 async def collect_jira_metrics(
-    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
+    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession, cache: OptionalScoreCache,
 ) -> Metrics:
     """
     Collect metrics from Jira for a project and save to database.
@@ -99,6 +99,10 @@ async def collect_jira_metrics(
     db.add(db_metrics)
     await db.flush()
     await db.refresh(db_metrics)
+
+    if cache:
+        await cache.invalidate(str(project_id))
+
     return Metrics.from_db(db_metrics)
 
 
@@ -108,7 +112,7 @@ async def collect_jira_metrics(
 )
 @limiter.limit("10/minute")
 async def collect_github_metrics(
-    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
+    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession, cache: OptionalScoreCache,
 ) -> Metrics:
     """
     Collect metrics from GitHub for a project and update latest metrics record.
@@ -175,6 +179,10 @@ async def collect_github_metrics(
 
         await db.flush()
         await db.refresh(existing_metrics)
+
+        if cache:
+            await cache.invalidate(str(project_id))
+
         return Metrics.from_db(existing_metrics)
     else:
         # Create new record with only GitHub data
@@ -193,4 +201,8 @@ async def collect_github_metrics(
         db.add(db_metrics)
         await db.flush()
         await db.refresh(db_metrics)
+
+        if cache:
+            await cache.invalidate(str(project_id))
+
         return Metrics.from_db(db_metrics)

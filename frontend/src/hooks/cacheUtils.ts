@@ -14,6 +14,7 @@ export function invalidateProjectData(
 ): void {
   queryClient.invalidateQueries({ queryKey: queryKeys.metrics.byProject(projectId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.scores.byProject(projectId) });
+  queryClient.invalidateQueries({ queryKey: ['scores', 'batch'] });
 }
 
 /**

@@ -123,10 +123,10 @@ async def test_get_config_parameters(client: AsyncClient, seeded_db: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_update_config_parameters(client: AsyncClient, seeded_db: AsyncSession):
-    """Test PUT /api/config/parameters updates values."""
+    """Test PATCH /api/config/parameters updates values."""
     updates = [{"name": "DefDensity_t", "value": "2.5000"}]
 
-    response = await client.put("/api/config/parameters", json=updates)
+    response = await client.patch("/api/config/parameters", json=updates)
 
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -138,7 +138,7 @@ async def test_update_config_parameters(client: AsyncClient, seeded_db: AsyncSes
     assert defect_param["value"] == "2.5000"
 
     # Restore original
-    await client.put(
+    await client.patch(
         "/api/config/parameters", json=[{"name": "DefDensity_t", "value": "3.0000"}]
     )
 
@@ -147,10 +147,10 @@ async def test_update_config_parameters(client: AsyncClient, seeded_db: AsyncSes
 async def test_update_config_parameters_rejects_invalid_weights(
     client: AsyncClient, seeded_db: AsyncSession
 ):
-    """Test PUT rejects updates that break weight validation."""
+    """Test PATCH rejects updates that break weight validation."""
     updates = [{"name": "W_time_spi", "value": "1.0000"}]  # Breaks Time Weights sum
 
-    response = await client.put("/api/config/parameters", json=updates)
+    response = await client.patch("/api/config/parameters", json=updates)
 
     assert response.status_code == 400
     detail = response.json()["detail"]

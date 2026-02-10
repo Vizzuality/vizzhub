@@ -50,7 +50,7 @@ docker-compose down && docker-compose up -d --build
 cd backend
 
 # Run tests
-pytest                                        # All backend tests (~795 total)
+pytest                                        # All backend tests (~760 total)
 pytest tests/test_calculators.py              # Single file
 pytest tests/test_normalizers.py::TestLowerIsBetter  # Single class
 pytest -k "test_perfect_score"                # By name pattern
@@ -277,13 +277,14 @@ Manual fields are defined in `MetricsDB.MANUAL_FIELDS`.
 
 ### Key Design Rules
 
-- Scores are computed on-the-fly, not stored (ensures config changes apply immediately)
+- Scores are computed on-the-fly, not stored (ensures config changes apply immediately). Results are cached in Redis with write-through warming and invalidation on every write path. See **Redis Score Cache** section.
 - Sev1 incidents cap P_quality at 60 points
 - Milestones have a grace period (default 3 days)
 - Disabled governance tools get penalized (score = 0), not neutral
 - **Metrics consolidation**: Multiple metrics records with same `period_end` are consolidated (`_consolidate_metrics` in `app/api/scores.py`). This handles multiple collector runs creating separate records.
 - **Ideals for ratio metrics**: SPI/CPI use ideal=1.0 for scoring; value/ideal gives accurate percentage
 - **No trailing slashes**: `redirect_slashes=False` in FastAPI. Define routes as `""` not `"/"`. Trailing slash redirects (307) break auth cookies behind ALB.
+- **PUT vs PATCH**: Use the correct HTTP method. `PUT` = full resource replacement. `PATCH` = partial update. They are not interchangeable. Match frontend calls, backend decorators, and tests to the same method.
 
 ### Database
 
@@ -436,6 +437,44 @@ async def jira_callback(
     await db.commit()  # ✅ Explicit commit when needed
     return {"status": "success"}
 ```
+
+### Redis Score Cache
+
+Computed scores are cached in Redis to eliminate N+1 network calls on the projects index page. The cache is **optional** — if Redis is unavailable, endpoints fall back to on-demand computation.
+
+**Cache key**: `scores:latest:{project_id}:{snapshot_type}` — stores serialized `ScoreResponse` JSON.
+
+**Strategy:**
+
+| Event | Action |
+|-------|--------|
+| `GET /scores/project/{id}` (latest, no year/month) | Read-through: check cache → compute on miss → cache result |
+| `POST /scores/batch` | MGET from cache → compute misses → SET misses → return all |
+| `POST /projects/{id}/capture-period` | Write-through: cache freshly computed scores for both snapshot types |
+| Metrics create/delete (`POST/DELETE /metrics/...`) | Invalidate: delete both snapshot type keys for project |
+| Legacy collectors (`POST /collect/...`) | Invalidate: delete both snapshot type keys for project |
+| Config update (`PUT /config/parameters`) | Invalidate all: SCAN + delete all `scores:latest:*` keys, reload `ScoringConfig` |
+| Worker batch capture (`capture_history_task`) | Invalidate: delete keys after each month's upsert |
+
+**TTL**: 1 hour safety net. Invalidation is the primary freshness mechanism.
+
+**Graceful degradation**: Every `ScoreCacheService` method wraps Redis calls in `try/except` — Redis errors are logged as warnings, never propagated to callers.
+
+**Key files:**
+- `app/services/score_cache.py` — `ScoreCacheService` class
+- `app/api/deps.py` — `OptionalScoreCache` dependency (`None` when Redis unavailable)
+- `app/main.py` — Redis client init/cleanup in lifespan
+- `app/worker/settings.py` — Redis client init for worker context
+
+**Dependency**: `OptionalScoreCache` (from `deps.py`) is `ScoreCacheService | None`. Always check for `None` before calling cache methods:
+```python
+cache: OptionalScoreCache  # injected by FastAPI
+
+if cache:
+    await cache.invalidate(str(project_id))
+```
+
+**Frontend**: The projects index page uses `POST /scores/batch` via `useProjectScoresMap` hook (single request instead of N parallel `GET` calls). Batch query key `['scores', 'batch', ...sortedIds]` is invalidated by `invalidateProjectData()` in `cacheUtils.ts`.
 
 ### Production Deployment (AWS)
 
@@ -722,6 +761,7 @@ app/
 │   ├── slack_service.py   # Slack API wrapper
 │   ├── job_service.py     # Background job CRUD operations
 │   ├── metrics_service.py # Metrics upsert with manual field sync
+│   ├── score_cache.py     # Redis score cache (get/mget/set/invalidate)
 │   └── normalizers/  # Metric normalization (raw → 0-1 scale)
 ├── worker/           # ARQ background worker
 │   ├── settings.py   # Worker configuration (Redis, timeouts, cron jobs)
@@ -733,11 +773,14 @@ app/
 └── main.py           # FastAPI app
 
 scripts/              # Utility scripts (generate_jwt_token.py)
-tests/                # Pytest tests (~750 total)
+tests/                # Pytest tests (~760 total)
     test_integration.py   # Integration tests (scores API, auth, config, collectors)
+    test_score_cache.py   # Score cache unit tests (14 tests)
     test_slack_*.py       # Slack-related tests
     test_alert_*.py       # Alert service tests
     test_notifications_*.py  # Notifications API tests
+    integration/
+        test_scores_batch.py  # Batch scores endpoint tests
 ```
 
 ### Frontend (`frontend/src/`)
@@ -825,7 +868,7 @@ infrastructure/
 - `httpx` - Async HTTP client (for Jira/GitHub APIs)
 - `itsdangerous` - OAuth state tokens
 - `arq` - Async job queue (Redis-backed)
-- `redis` - Redis client for ARQ
+- `redis` - Redis client (ARQ job queue + score cache)
 
 **Frontend**:
 - `react` + `typescript` - UI framework
@@ -869,7 +912,7 @@ queryKey: queryKeys.scores.byProject(projectId)
 Available keys:
 - `queryKeys.projects.all` / `.detail(id)`
 - `queryKeys.metrics.byProject(projectId)`
-- `queryKeys.scores.all` / `.byProject(projectId)` / `.history(projectId, limit)`
+- `queryKeys.scores.all` / `.byProject(projectId)` / `.history(projectId, limit)` / `.batch(ids)`
 - `queryKeys.config.all` / `.parameters` / `.validation`
 
 ### Generic Mutation Hooks
@@ -904,11 +947,13 @@ export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | n
 - `useProjects.ts` - Project CRUD operations
 - `useMetrics.ts` - Metrics mutations (all field-specific hooks, period-aware)
 - `useScores.ts` - Score queries only
+- `useProjectScoresMap.ts` - Batch score fetching for projects index (`POST /scores/batch`)
 - `useConfig.ts` - Config parameters and validation
 - `usePeriodCapture.ts` - **Primary** - `useCapturePeriod` for single period capture (UI "Collect Metrics" button)
 - `useJobs.ts` - Background job management (`useCaptureHistoryJob`, `useJobStatus` with polling)
 - `useSnapshots.ts` - Metrics history queries (alias: `useProjectSnapshots`)
 - `useCollectors.ts` - ⚠️ Legacy - separate Jira/GitHub triggers (use `usePeriodCapture` instead)
+- `cacheUtils.ts` - Centralized query invalidation helpers (invalidates batch key on any project data change)
 
 ## Key API Endpoints
 
@@ -937,11 +982,14 @@ export function useUpdateEVMData(projectId: string, existingMetrics: Metrics | n
 |----------|--------|-------------------------|
 | `/scores/project/{id}` | GET | cumulative |
 | `/scores/project/{id}/history` | GET | cumulative |
+| `/scores/batch` | POST | cumulative (request body: `{ project_ids, snapshot_type }`) |
 | `/metrics/project/{id}` | GET | cumulative |
 | `/metrics/project/{id}/history` | GET | cumulative |
 | `/metrics/project/{id}/{year}/{month}` | GET | cumulative |
 
-All endpoints accept `?snapshot_type=punctual` to query punctual metrics instead.
+All GET endpoints accept `?snapshot_type=punctual` to query punctual metrics instead.
+
+**Batch scores** (`POST /scores/batch`): Returns `{ scores: Record<id, ScoreResponse>, errors: Record<id, string> }`. Used by the projects index page to fetch all scores in one request. Accepts up to 50 project IDs. Uses Redis cache for hits, computes and caches misses.
 
 ### Slack & Notifications Admin
 

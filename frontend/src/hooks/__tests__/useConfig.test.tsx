@@ -7,7 +7,7 @@ import api from '../../services/api';
 vi.mock('../../services/api', () => ({
   default: {
     get: vi.fn(),
-    put: vi.fn(),
+    patch: vi.fn(),
   },
 }));
 
@@ -90,7 +90,7 @@ describe('useConfig hooks', () => {
     ];
 
     const mockResponse = { message: 'Parameters updated successfully' };
-    vi.mocked(api.put).mockResolvedValue({ data: mockResponse });
+    vi.mocked(api.patch).mockResolvedValue({ data: mockResponse });
 
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -102,7 +102,7 @@ describe('useConfig hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(api.put).toHaveBeenCalledWith('/config/parameters', mockUpdates);
+    expect(api.patch).toHaveBeenCalledWith('/config/parameters', mockUpdates);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['config'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['scores'] });
   });

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { scoresApi } from '../services/api';
 import { queryKeys } from './queryKeys';
 import { TIMING } from '../constants/timing';
@@ -13,25 +13,25 @@ export interface UseProjectScoresMapReturn {
 export function useProjectScoresMap(
   projects: Project[] | undefined,
 ): UseProjectScoresMapReturn {
-  const scoreQueries = useQueries({
-    queries: (projects ?? []).map((project) => ({
-      queryKey: queryKeys.scores.byProject(project.id),
-      queryFn: () => scoresApi.getProjectScores(project.id),
-      staleTime: TIMING.QUERY_STALE_TIME,
-      retry: false,
-    })),
+  const projectIds = useMemo(
+    () => (projects ?? []).map((p) => p.id),
+    [projects],
+  );
+
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.scores.batch(projectIds),
+    queryFn: () => scoresApi.getBatchScores(projectIds),
+    staleTime: TIMING.QUERY_STALE_TIME,
+    enabled: projectIds.length > 0,
   });
 
   const scoresMap = useMemo(() => {
     const map: Record<string, number | null> = {};
-    (projects ?? []).forEach((project, index) => {
-      const query = scoreQueries[index];
-      map[project.id] = query?.data?.scores?.score ?? null;
-    });
+    for (const id of projectIds) {
+      map[id] = data?.scores[id]?.scores?.score ?? null;
+    }
     return map;
-  }, [projects, scoreQueries]);
-
-  const isLoading = scoreQueries.some((q) => q.isLoading);
+  }, [projectIds, data]);
 
   return {
     scoresMap,

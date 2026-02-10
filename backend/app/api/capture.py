@@ -8,7 +8,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
+from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
+from app.api.scores import ScoreResponse
 from app.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.models.project import ProjectDB
 from app.services.collectors.github import GitHubCollector
@@ -149,6 +150,7 @@ async def capture_period(
     current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
+    cache: OptionalScoreCache,
 ) -> CapturePeriodResponse:
     """Capture metrics for a specific period from Jira and GitHub.
 
@@ -241,7 +243,31 @@ async def capture_period(
         db, project_id, year, month, SnapshotType.CUMULATIVE, config, cumulative_data
     )
 
+    punctual_response = _build_response(punctual_db, config)
+    cumulative_response = _build_response(cumulative_db, config)
+
+    # Write-through: cache the freshly computed scores
+    # Build ScoreResponse to guarantee consistent shape with read-through path
+    if cache:
+        pid = str(project_id)
+        await cache.set(
+            pid,
+            ScoreResponse(
+                indicators=cumulative_response.indicators,
+                scores=cumulative_response.scores,
+            ).model_dump(),
+            "cumulative",
+        )
+        await cache.set(
+            pid,
+            ScoreResponse(
+                indicators=punctual_response.indicators,
+                scores=punctual_response.scores,
+            ).model_dump(),
+            "punctual",
+        )
+
     return CapturePeriodResponse(
-        punctual=_build_response(punctual_db, config),
-        cumulative=_build_response(cumulative_db, config),
+        punctual=punctual_response,
+        cumulative=cumulative_response,
     )

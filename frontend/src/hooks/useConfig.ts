@@ -28,7 +28,7 @@ export function useUpdateConfigParameters() {
 
   return useMutation({
     mutationFn: async (updates: ConfigParameterUpdate[]) => {
-      const response = await api.put('/config/parameters', updates);
+      const response = await api.patch('/config/parameters', updates);
       return response.data;
     },
     onSuccess: () => {
