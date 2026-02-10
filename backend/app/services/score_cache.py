@@ -68,7 +68,7 @@ class ScoreCacheService:
             return result
         except Exception:
             logger.warning("score_cache.mget failed", exc_info=True)
-            return {pid: None for pid in project_ids}
+            return dict.fromkeys(project_ids)
 
     async def set(
         self, project_id: str, data: dict, snapshot_type: str = "cumulative"

@@ -369,7 +369,7 @@ export default function AlertConfigTab(): JSX.Element {
               thresholdEntries.map((entry, index) => (
                 <div key={entry.key} className="space-y-2">
                   <Label htmlFor={`threshold-${entry.key}`} className="font-medium">
-                    {entry.key.replaceAll(/_/g, ' ').replaceAll(/\b\w/g, (c: string) => c.toUpperCase())}
+                    {entry.key.replaceAll('_', ' ').replaceAll(/\b\w/g, (c: string) => c.toUpperCase())}
                   </Label>
                   <Input
                     id={`threshold-${entry.key}`}
