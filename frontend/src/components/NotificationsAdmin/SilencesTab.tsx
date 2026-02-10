@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSilences, useCreateSilence, useUpdateSilence, useDeleteSilence } from '../../hooks/useSilences';
-import { useProjects } from '../../hooks/useProjects';
+import { useProjectSummaries } from '../../hooks/useProjects';
 import { useAlertDefinitions } from '../../hooks/useAlertDefinitions';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +47,7 @@ export default function SilencesTab(): JSX.Element {
   const [formData, setFormData] = useState<SilenceFormData>(DEFAULT_FORM_DATA);
 
   const { data: silences, isLoading } = useSilences();
-  const { data: projects } = useProjects();
+  const { data: projects } = useProjectSummaries();
   const { data: alertDefinitions } = useAlertDefinitions();
   const createSilence = useCreateSilence();
   const updateSilence = useUpdateSilence();

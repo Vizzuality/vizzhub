@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useNotifications } from '../../hooks/useNotifications';
-import { useProjects } from '../../hooks/useProjects';
+import { useProjectSummaries } from '../../hooks/useProjects';
 import { useAlertDefinitions } from '../../hooks/useAlertDefinitions';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +59,7 @@ export default function AlertLogTab(): JSX.Element {
   }), [state.page, state.page_size, state.project, state.alert, state.start, state.end]);
 
   const { data: notifications, isLoading } = useNotifications(filters);
-  const { data: projects } = useProjects();
+  const { data: projects } = useProjectSummaries();
   const { data: alertDefinitions } = useAlertDefinitions();
 
   const handleFilterChange = useCallback(

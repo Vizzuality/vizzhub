@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.common import PaginatedResponse
+
 
 class SlackConfigResponse(BaseModel):
     """Slack config response (token masked)."""
@@ -145,14 +147,7 @@ class NotificationStatsResponse(BaseModel):
     avg_vulnerability_resolution_days: float | None = None
 
 
-class PaginatedNotificationsResponse(BaseModel):
-    """Paginated notifications list."""
-
-    items: list[AlertNotificationResponse]
-    total: int
-    page: int
-    page_size: int
-    pages: int
+PaginatedNotificationsResponse = PaginatedResponse[AlertNotificationResponse]
 
 
 class ScheduledJobLastRun(BaseModel):

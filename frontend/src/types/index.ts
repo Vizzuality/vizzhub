@@ -1,8 +1,11 @@
 // Project types
 export type {
+  PaginatedProjects,
   Project,
   ProjectCreate,
+  ProjectListParams,
   ProjectStatus,
+  ProjectSummary,
   ProjectUpdate,
   SlackChannel,
 } from './project';

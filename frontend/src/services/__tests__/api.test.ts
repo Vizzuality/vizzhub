@@ -90,21 +90,35 @@ describe('API Service', () => {
     };
 
     describe('list', () => {
-      it('fetches all projects', async () => {
-        mock.onGet('/projects').reply(200, [mockProject]);
+      it('fetches paginated projects', async () => {
+        const paginatedResponse = {
+          items: [mockProject],
+          total: 1,
+          page: 1,
+          page_size: 45,
+          pages: 1,
+        };
+        mock.onGet('/projects').reply(200, paginatedResponse);
 
         const result = await projectsApi.list();
 
-        expect(result).toEqual([mockProject]);
+        expect(result).toEqual(paginatedResponse);
         expect(mock.history.get[0].url).toBe('/projects');
       });
 
-      it('returns empty array when no projects exist', async () => {
-        mock.onGet('/projects').reply(200, []);
+      it('passes query params', async () => {
+        const paginatedResponse = {
+          items: [],
+          total: 0,
+          page: 1,
+          page_size: 45,
+          pages: 1,
+        };
+        mock.onGet('/projects').reply(200, paginatedResponse);
 
-        const result = await projectsApi.list();
+        await projectsApi.list({ search: 'test', page: 2 });
 
-        expect(result).toEqual([]);
+        expect(mock.history.get[0].params).toEqual({ search: 'test', page: 2 });
       });
     });
 

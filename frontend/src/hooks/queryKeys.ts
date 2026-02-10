@@ -5,9 +5,13 @@
  * All hooks should import keys from here instead of using string literals.
  */
 
+import type { ProjectListParams } from '../types';
+
 export const queryKeys = {
   projects: {
     all: ['projects'] as const,
+    list: (params: ProjectListParams) => ['projects', 'list', params] as const,
+    summary: ['projects', 'summary'] as const,
     detail: (id: string) => ['projects', id] as const,
   },
   metrics: {

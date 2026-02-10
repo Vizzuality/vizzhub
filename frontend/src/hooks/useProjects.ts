@@ -1,12 +1,25 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { projectsApi } from '../services/api';
-import type { ProjectCreate, ProjectUpdate, ProjectStatus } from '../types';
+import type { ProjectCreate, ProjectListParams, ProjectUpdate, ProjectStatus } from '../types';
 import { queryKeys } from './queryKeys';
 
-export function useProjects() {
+export function usePaginatedProjects(params: ProjectListParams) {
   return useQuery({
-    queryKey: queryKeys.projects.all,
-    queryFn: projectsApi.list,
+    queryKey: queryKeys.projects.list(params),
+    queryFn: () => projectsApi.list(params),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useProjectSummaries() {
+  return useQuery({
+    queryKey: queryKeys.projects.summary,
+    queryFn: projectsApi.listSummary,
   });
 }
 
