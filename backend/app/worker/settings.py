@@ -13,10 +13,24 @@ async def startup(ctx: dict) -> None:
     """Initialize worker context on startup."""
     ctx["db_session_maker"] = async_session_maker
 
+    # Initialize score cache for invalidation during batch capture
+    ctx["score_cache"] = None
+    ctx["redis_client"] = None
+    if settings.redis_host:
+        from app.services.score_cache import create_score_cache
+
+        redis_client, score_cache = await create_score_cache(
+            settings.redis_host, settings.redis_port, settings.redis_password,
+        )
+        ctx["redis_client"] = redis_client
+        ctx["score_cache"] = score_cache
+
 
 async def shutdown(ctx: dict) -> None:
     """Cleanup on worker shutdown."""
-    pass
+    redis_client = ctx.get("redis_client")
+    if redis_client:
+        await redis_client.aclose()
 
 
 async def on_job_start(ctx: dict) -> None:

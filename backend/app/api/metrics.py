@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
+from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
 from app.models.indicators import IndicatorsCreate
 from app.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
@@ -84,6 +84,7 @@ async def create_metrics(
     current_user: CurrentUser,
     db: DBSession,
     config: ScoringConfigDep,
+    cache: OptionalScoreCache,
 ) -> Metrics:
     """Create or update metrics for a project. Uses upsert behavior.
 
@@ -119,6 +120,10 @@ async def create_metrics(
         config,
         db_data,
     )
+
+    if cache:
+        await cache.invalidate(str(project_id))
+
     return Metrics.from_db(db_metrics)
 
 
@@ -140,7 +145,11 @@ async def get_metrics(
 @router.delete("/{metrics_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("10/minute")
 async def delete_metrics(
-    request: Request, metrics_id: UUID, current_user: CurrentUser, db: DBSession
+    request: Request,
+    metrics_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+    cache: OptionalScoreCache,
 ) -> None:
     """Delete metrics by ID. Requires authentication."""
     result = await db.execute(
@@ -149,7 +158,12 @@ async def delete_metrics(
     metrics = result.scalar_one_or_none()
     if metrics is None:
         raise MetricsNotFoundError(str(metrics_id))
+
+    project_id = metrics.project_id
     await db.delete(metrics)
+
+    if cache:
+        await cache.invalidate(str(project_id))
 
 
 @router.get("/project/{project_id}/history")

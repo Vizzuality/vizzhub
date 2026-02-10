@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Request
 from pydantic import ValidationError
 
-from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter
+from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, limiter
 from app.core.error_handler import ValidationErrorHandler
 from app.models.config import (
     ConfigParameterResponse,
@@ -16,6 +16,7 @@ from app.models.config import (
     ScoringConfigModel,
     TargetsConfig,
 )
+from app.config import load_scoring_config_from_db
 from app.services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
@@ -106,17 +107,24 @@ async def get_config_parameters(
     return response
 
 
-@router.put("/parameters")
+@router.patch("/parameters")
 @limiter.limit("10/minute")
 async def update_config_parameters(
     request: Request,
     current_user: CurrentUser,
     db: DBSession,
+    cache: OptionalScoreCache,
     updates: list[ConfigParameterUpdate],
 ) -> dict[str, str]:
     """Update multiple config parameters. Validates weight groups. Requires authentication."""
     try:
         await ConfigService.update_parameters(db, updates)
+
+        await load_scoring_config_from_db()
+
+        if cache:
+            await cache.invalidate_all()
+
         return {"status": "success"}
     except (ValidationError, ValueError) as e:
         raise ValidationErrorHandler.to_http_exception(e)

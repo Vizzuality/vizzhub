@@ -120,6 +120,10 @@ async def capture_history_task(
                     db, project_uuid, year, month, SnapshotType.CUMULATIVE, config, cumulative_data
                 )
 
+                score_cache = ctx.get("score_cache")
+                if score_cache:
+                    await score_cache.invalidate(project_id)
+
                 await JobService.append_log(db, job_uuid, f"OK: {month_name}")
                 results.append({
                     "year": year,

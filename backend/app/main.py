@@ -67,7 +67,24 @@ async def lifespan(app: FastAPI) -> Any:
     await load_scoring_config_from_db()
     logger.info("Scoring configuration loaded from database")
 
+    # Initialize Redis score cache (optional — graceful degradation if unavailable)
+    redis_client = None
+    score_cache = None
+    if settings.redis_host:
+        from app.services.score_cache import create_score_cache
+
+        redis_client, score_cache = await create_score_cache(
+            settings.redis_host, settings.redis_port, settings.redis_password,
+        )
+        if score_cache:
+            logger.info("Redis score cache initialized")
+
+    app.state.score_cache = score_cache
+
     yield
+
+    if redis_client:
+        await redis_client.aclose()
 
 
 app = FastAPI(

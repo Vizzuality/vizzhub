@@ -1,6 +1,11 @@
 import type { MetricsCreate, ScoreResponse, ScoringConfig } from '../../types';
 import api from './client';
 
+interface BatchScoresResponse {
+  scores: Record<string, ScoreResponse>;
+  errors: Record<string, string>;
+}
+
 export const scoresApi = {
   getProjectScores: async (
     projectId: string,
@@ -15,6 +20,17 @@ export const scoresApi = {
       `/scores/project/${projectId}`,
       { params },
     );
+    return response.data;
+  },
+
+  getBatchScores: async (
+    projectIds: string[],
+    snapshotType = 'cumulative',
+  ): Promise<BatchScoresResponse> => {
+    const response = await api.post<BatchScoresResponse>('/scores/batch', {
+      project_ids: projectIds,
+      snapshot_type: snapshotType,
+    });
     return response.data;
   },
 
