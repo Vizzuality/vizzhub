@@ -35,6 +35,7 @@ from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
 from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import init_db
+from scripts.seed_alert_definitions import seed_alert_definitions
 from scripts.seed_config_parameters import seed_config_parameters
 
 # Configure detailed logging
@@ -60,8 +61,9 @@ async def lifespan(app: FastAPI) -> Any:
 
     await init_db()
 
-    # Seed config parameters from CSV if not already seeded
+    # Seed config parameters and alert definitions from CSV if not already seeded
     await seed_config_parameters()
+    await seed_alert_definitions()
 
     # Load scoring config from database into memory
     await load_scoring_config_from_db()
