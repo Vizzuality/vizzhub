@@ -125,7 +125,7 @@ resource "aws_iam_instance_profile" "ec2" {
 
 # EC2 Instance
 resource "aws_instance" "main" {
-  ami                    = data.aws_ami.ecs_optimized.id
+  ami                    = "ami-084615fd61d33352c" # Pinned to avoid forced replacement on AMI updates
   instance_type          = var.ec2_instance_type
   subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.ec2.id]
