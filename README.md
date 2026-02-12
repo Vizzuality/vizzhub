@@ -1,3 +1,5 @@
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Vizzuality_project-score-card&metric=alert_status&token=811581c16b7bc79cd92bc6a63ddd87cfe028dbfc)](https://sonarcloud.io/summary/new_code?id=Vizzuality_project-score-card)
+
 # Project Scorecard
 
 A web application for evaluating software development projects across 8 dimensions.
