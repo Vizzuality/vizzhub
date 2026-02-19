@@ -165,6 +165,7 @@ class DependabotAlertTrackedDB(Base):
     package_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     cve_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    manifest_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

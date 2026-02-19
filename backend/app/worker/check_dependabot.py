@@ -197,6 +197,9 @@ async def _process_project(
 
     new_alert_ids = current_alert_ids - tracked_alert_ids
 
+    # Backfill manifest_path for tracked alerts missing it
+    await _backfill_manifest_paths(db, tracked_alerts, current_alerts)
+
     for alert in current_alerts:
         if alert["number"] in new_alert_ids:
             sent = await _notify_new_alert(
@@ -215,6 +218,30 @@ async def _process_project(
         await _mark_alerts_resolved(db, project.id, resolved_ids)
 
     return alerts_sent
+
+
+async def _backfill_manifest_paths(
+    db: AsyncSession,
+    tracked_alerts: list[DependabotAlertTrackedDB],
+    current_alerts: list[dict],
+) -> None:
+    """Fill manifest_path for tracked alerts that are missing it."""
+    alerts_by_id = {alert["number"]: alert for alert in current_alerts}
+    updated = False
+
+    for tracked in tracked_alerts:
+        if tracked.manifest_path or tracked.resolved_at:
+            continue
+        current = alerts_by_id.get(tracked.github_alert_id)
+        if not current:
+            continue
+        manifest = current.get("dependency", {}).get("manifest_path")
+        if manifest:
+            tracked.manifest_path = manifest
+            updated = True
+
+    if updated:
+        await db.commit()
 
 
 async def _get_tracked_alerts(
@@ -254,12 +281,14 @@ async def _notify_new_alert(
     if not template:
         template = (
             ":warning: New Dependabot alert in *{project_name}*: "
-            "{package_name} ({severity}) - {cve_id}\n<{alert_url}|View in GitHub>"
+            "{package_name} ({severity}) - {cve_id}\n"
+            "Module: {manifest_path}\n<{alert_url}|View in GitHub>"
         )
 
     severity = alert_info["severity"] or "Unknown"
     package_name = alert_info["package_name"] or "Unknown package"
     cve_id = alert_info["cve_id"] or NO_CVE
+    manifest_path = alert_info.get("manifest_path") or ""
     alert_id = alert_info["github_alert_id"]
     alert_url = f"https://github.com/{project.github_repo}/security/dependabot/{alert_id}"
 
@@ -268,6 +297,7 @@ async def _notify_new_alert(
         "package_name": package_name,
         "severity": severity,
         "cve_id": cve_id,
+        "manifest_path": manifest_path,
         "github_alert_id": alert_id,
         "alert_url": alert_url,
         # Aliases for template compatibility
@@ -308,6 +338,7 @@ async def _notify_new_alert(
             package_name=alert_info["package_name"],
             severity=alert_info["severity"],
             cve_id=alert_info["cve_id"],
+            manifest_path=alert_info.get("manifest_path"),
             last_notified_at=datetime.now(timezone.utc),
         )
         db.add(tracked)
@@ -358,6 +389,7 @@ def _build_reminder_context(
         "package_name": tracked.package_name or "Unknown",
         "severity": tracked.severity or "Unknown",
         "cve_id": tracked.cve_id or NO_CVE,
+        "manifest_path": tracked.manifest_path or "",
         "days_open": days_open,
         "alert_url": alert_url,
         "vuln_severity": tracked.severity or "Unknown",
@@ -390,7 +422,7 @@ async def _send_reminders(
         template = (
             ":alarm_clock: Reminder: *{project_name}* has unresolved {severity} vulnerability\n"
             "Package: {package_name} (open for {days_open} days)\n"
-            "<{alert_url}|View in GitHub>"
+            "Module: {manifest_path}\n<{alert_url}|View in GitHub>"
         )
 
     for tracked in tracked_alerts:

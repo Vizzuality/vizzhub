@@ -254,6 +254,9 @@ class TestCheckDependabotJob:
                 "security_advisory": {
                     "identifiers": [{"type": "CVE", "value": "CVE-2024-1234"}],
                 },
+                "dependency": {
+                    "manifest_path": "frontend/package-lock.json",
+                },
             }
         ]
 
@@ -319,6 +322,7 @@ class TestCheckDependabotJob:
                     "package": {"name": "axios"},
                 },
                 "security_advisory": {"identifiers": []},
+                "dependency": {"manifest_path": "package-lock.json"},
             }
         ]
 
@@ -352,6 +356,7 @@ class TestCheckDependabotJob:
         assert tracked is not None
         assert tracked.package_name == "axios"
         assert tracked.severity == "high"
+        assert tracked.manifest_path == "package-lock.json"
 
     @pytest.mark.asyncio
     async def test_job_skips_already_tracked_alerts(
@@ -397,6 +402,7 @@ class TestCheckDependabotJob:
                     "package": {"name": "axios"},
                 },
                 "security_advisory": {"identifiers": []},
+                "dependency": {"manifest_path": "package-lock.json"},
             }
         ]
 
@@ -518,6 +524,7 @@ class TestCheckDependabotJob:
                     "package": {"name": "lodash"},
                 },
                 "security_advisory": {"identifiers": []},
+                "dependency": {"manifest_path": "package-lock.json"},
             }
         ]
 
