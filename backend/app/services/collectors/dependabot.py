@@ -70,6 +70,8 @@ class DependabotCollector:
         vuln = alert.get("security_vulnerability", {})
         advisory = alert.get("security_advisory", {})
 
+        dependency = alert.get("dependency", {})
+
         return {
             "github_alert_id": alert.get("number"),
             "package_name": vuln.get("package", {}).get("name"),
@@ -82,4 +84,5 @@ class DependabotCollector:
                 ),
                 None,
             ),
+            "manifest_path": dependency.get("manifest_path"),
         }
