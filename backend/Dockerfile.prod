@@ -36,8 +36,8 @@ COPY --from=builder --chown=appuser:appuser --chmod=555 /root/.local /home/appus
 # --chmod=555 for dirs (need execute to traverse), files get 444 via find below
 COPY --chown=appuser:appuser --chmod=555 . .
 
-# Ensure files are read-only (644 -> 444 for extra security)
-RUN find /app -type f -exec chmod 444 {} \;
+# Ensure files are read-only, except entrypoint which needs execute
+RUN find /app -type f -exec chmod 444 {} \; && chmod 555 /app/entrypoint.sh
 
 # Set environment
 ENV PATH=/home/appuser/.local/bin:$PATH
@@ -53,4 +53,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["./entrypoint.sh"]
