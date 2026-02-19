@@ -109,7 +109,8 @@ async def trigger_scheduled_job(
 
         if arq_job:
             logger.info(
-                f"Manually triggered job {job_name} with ARQ job ID: {arq_job.job_id}"
+                "Manually triggered job %s with ARQ job ID: %s",
+                job_name, arq_job.job_id,
             )
             return JobTriggerResponse(
                 success=True,
@@ -123,7 +124,7 @@ async def trigger_scheduled_job(
             )
 
     except Exception as e:
-        logger.exception(f"Failed to enqueue job {job_name}")
+        logger.exception("Failed to enqueue job %s", job_name)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enqueue job: {e}. Is Redis running?",
