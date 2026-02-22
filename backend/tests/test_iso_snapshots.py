@@ -259,3 +259,35 @@ class TestListSnapshots:
         data = response.json()
         assert data["total"] == 1
         assert data["items"][0]["provider"] == "google_workspace"
+
+
+class TestSnapshotDetail:
+    @pytest.mark.asyncio
+    async def test_get_snapshot_detail(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={"domain": "empresa.com"},
+            data={"users": [{"id": "u1", "email": "a@empresa.com"}]},
+            summary={"total_users": 1},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        response = await client.get(f"/api/iso/snapshots/{snap.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(snap.id)
+        assert data["data"]["users"][0]["email"] == "a@empresa.com"
+        assert data["source_metadata"]["domain"] == "empresa.com"
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_not_found(self, client: AsyncClient) -> None:
+        fake_id = uuid4()
+        response = await client.get(f"/api/iso/snapshots/{fake_id}")
+        assert response.status_code == 404

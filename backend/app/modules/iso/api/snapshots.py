@@ -88,3 +88,14 @@ async def list_snapshots(
         "page_size": page_size,
         "pages": math.ceil(total / page_size) if total > 0 else 0,
     }
+
+
+@router.get("/{snapshot_id}", response_model=AccessSnapshotResponse)
+async def get_snapshot(snapshot_id: UUID, db: DBSession) -> AccessSnapshotDB:
+    result = await db.execute(
+        select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    return snapshot
