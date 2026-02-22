@@ -276,3 +276,132 @@ class TestCollectGroups:
             "name": "DevOps Team",
         }
         await collector._client.aclose()
+
+
+class TestCollectGroupMembers:
+    @pytest.mark.asyncio
+    async def test_collect_group_members(self, db_session) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        collector = GoogleWorkspaceCollector(db_session)
+        await collector._init_client()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "members": [
+                {"email": "maria@empresa.com", "role": "OWNER", "type": "USER"},
+                {"email": "external@vendor.com", "role": "MEMBER", "type": "USER"},
+            ],
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        groups = [{"id": "g1", "email": "devops@empresa.com", "name": "DevOps"}]
+
+        with patch.object(
+            collector._client,
+            "get",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
+            members = await collector.collect_group_members(groups)
+
+        assert "devops@empresa.com" in members
+        assert len(members["devops@empresa.com"]) == 2
+        assert members["devops@empresa.com"][0]["email"] == "maria@empresa.com"
+        assert members["devops@empresa.com"][0]["role"] == "OWNER"
+        await collector._client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_collect_group_members_empty_group(self, db_session) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        collector = GoogleWorkspaceCollector(db_session)
+        await collector._init_client()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_response.raise_for_status = MagicMock()
+
+        groups = [{"id": "g1", "email": "empty@empresa.com", "name": "Empty"}]
+
+        with patch.object(
+            collector._client,
+            "get",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
+            members = await collector.collect_group_members(groups)
+
+        assert members["empty@empresa.com"] == []
+        await collector._client.aclose()
+
+
+class TestCollectRoleAssignments:
+    @pytest.mark.asyncio
+    async def test_collect_role_assignments(self, db_session) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        collector = GoogleWorkspaceCollector(db_session)
+        await collector._init_client()
+
+        roles_response = MagicMock()
+        roles_response.json.return_value = {
+            "items": [
+                {"roleId": "1001", "roleName": "Super Admin"},
+                {"roleId": "1002", "roleName": "Groups Admin"},
+            ],
+        }
+        roles_response.raise_for_status = MagicMock()
+
+        assignments_response = MagicMock()
+        assignments_response.json.return_value = {
+            "items": [
+                {"assignedTo": "user-1", "roleId": "1001"},
+                {"assignedTo": "user-2", "roleId": "1002"},
+            ],
+        }
+        assignments_response.raise_for_status = MagicMock()
+
+        with patch.object(
+            collector._client,
+            "get",
+            new_callable=AsyncMock,
+            side_effect=[roles_response, assignments_response],
+        ):
+            assignments = await collector.collect_role_assignments()
+
+        assert len(assignments) == 2
+        assert assignments[0]["user_id"] == "user-1"
+        assert assignments[0]["role_name"] == "Super Admin"
+        assert assignments[1]["role_name"] == "Groups Admin"
+        await collector._client.aclose()
