@@ -35,7 +35,10 @@ async def authorize_google_workspace(
     request.session["oauth_state"] = state
     request.session["gw_domain"] = domain
 
-    url = GoogleWorkspaceOAuth.get_authorization_url(state=state, domain=domain)
+    callback_url = str(request.url_for("google_workspace_callback"))
+    url = GoogleWorkspaceOAuth.get_authorization_url(
+        state=state, redirect_uri=callback_url, domain=domain
+    )
     return RedirectResponse(url=url, status_code=307)
 
 
@@ -56,7 +59,10 @@ async def google_workspace_callback(
         raise HTTPException(status_code=400, detail="State expired or already used")
 
     domain = request.session.get("gw_domain", "")
-    await GoogleWorkspaceOAuth.exchange_code_for_token(code=code, domain=domain, db=db)
+    callback_url = str(request.url_for("google_workspace_callback"))
+    await GoogleWorkspaceOAuth.exchange_code_for_token(
+        code=code, domain=domain, redirect_uri=callback_url, db=db
+    )
 
     request.session.pop("oauth_state", None)
     request.session.pop("gw_domain", None)

@@ -16,10 +16,8 @@ class TestGoogleWorkspaceConfig:
         settings = get_settings()
         assert hasattr(settings, "google_workspace_client_id")
         assert hasattr(settings, "google_workspace_client_secret")
-        assert hasattr(settings, "google_workspace_redirect_uri")
         assert settings.google_workspace_client_id == ""
         assert settings.google_workspace_client_secret == ""
-        assert settings.google_workspace_redirect_uri == ""
 
 
 class TestGoogleWorkspaceOAuthService:
@@ -28,12 +26,16 @@ class TestGoogleWorkspaceOAuthService:
             GoogleWorkspaceOAuth,
         )
 
-        url = GoogleWorkspaceOAuth.get_authorization_url(state="test-state")
+        url = GoogleWorkspaceOAuth.get_authorization_url(
+            state="test-state",
+            redirect_uri="http://localhost:8000/api/iso/config/google-workspace/callback",
+        )
         assert "accounts.google.com" in url
         assert "test-state" in url
         assert "response_type=code" in url
         assert "access_type=offline" in url
         assert "admin.directory.user.readonly" in url
+        assert "redirect_uri=" in url
 
     def test_authorization_url_includes_domain(self) -> None:
         from app.modules.iso.services.google_workspace_oauth import (
@@ -41,7 +43,9 @@ class TestGoogleWorkspaceOAuthService:
         )
 
         url = GoogleWorkspaceOAuth.get_authorization_url(
-            state="s", domain="empresa.com"
+            state="s",
+            redirect_uri="http://localhost:8000/callback",
+            domain="empresa.com",
         )
         assert "empresa.com" in url
 
@@ -69,6 +73,7 @@ class TestGoogleWorkspaceOAuthService:
             token = await GoogleWorkspaceOAuth.exchange_code_for_token(
                 code="test-code",
                 domain="empresa.com",
+                redirect_uri="http://localhost:8000/callback",
                 db=db_session,
             )
 
@@ -111,6 +116,7 @@ class TestGoogleWorkspaceOAuthService:
             token = await GoogleWorkspaceOAuth.exchange_code_for_token(
                 code="code",
                 domain="new.com",
+                redirect_uri="http://localhost:8000/callback",
                 db=db_session,
             )
 

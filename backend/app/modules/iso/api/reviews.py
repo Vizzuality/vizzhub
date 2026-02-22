@@ -185,3 +185,24 @@ async def sign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
     await db.refresh(review)
 
     return review
+
+
+@router.post("/{review_id}/unsign", response_model=AccessReviewResponse)
+async def unsign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
+    result = await db.execute(
+        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
+    )
+    review = result.scalar_one_or_none()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    if review.status != "signed":
+        raise HTTPException(status_code=409, detail="Review is not signed")
+
+    review.status = "draft"
+    review.signed_at = None
+    review.signed_by = None
+    await db.flush()
+    await db.refresh(review)
+
+    return review

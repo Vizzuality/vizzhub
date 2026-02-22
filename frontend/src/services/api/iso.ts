@@ -94,4 +94,11 @@ export const isoApi = {
     );
     return response.data;
   },
+
+  unsignReview: async (id: string): Promise<AccessReviewDetail> => {
+    const response = await api.post<AccessReviewDetail>(
+      `/iso/reviews/${id}/unsign`,
+    );
+    return response.data;
+  },
 };

@@ -29,15 +29,17 @@ SCOPES = " ".join(
 
 class GoogleWorkspaceOAuth:
     @staticmethod
-    def get_authorization_url(state: str, domain: str | None = None) -> str:
+    def get_authorization_url(
+        state: str, redirect_uri: str, domain: str | None = None
+    ) -> str:
         settings = get_settings()
         params = {
-            "client_id": settings.google_workspace_client_id,
-            "redirect_uri": settings.google_workspace_redirect_uri,
+            "client_id": settings.google_workspace_client_id or settings.google_client_id,
+            "redirect_uri": redirect_uri,
             "response_type": "code",
             "scope": SCOPES,
             "access_type": "offline",
-            "prompt": "consent",
+            "prompt": "consent select_account",
             "state": state,
         }
         if domain:
@@ -47,7 +49,7 @@ class GoogleWorkspaceOAuth:
 
     @staticmethod
     async def exchange_code_for_token(
-        code: str, domain: str, db: AsyncSession
+        code: str, domain: str, redirect_uri: str, db: AsyncSession
     ) -> OAuthTokenDB:
         settings = get_settings()
         async with httpx.AsyncClient() as client:
@@ -55,10 +57,10 @@ class GoogleWorkspaceOAuth:
                 GOOGLE_TOKEN_URL,
                 data={
                     "grant_type": "authorization_code",
-                    "client_id": settings.google_workspace_client_id,
-                    "client_secret": settings.google_workspace_client_secret,
+                    "client_id": settings.google_workspace_client_id or settings.google_client_id,
+                    "client_secret": settings.google_workspace_client_secret or settings.google_client_secret,
                     "code": code,
-                    "redirect_uri": settings.google_workspace_redirect_uri,
+                    "redirect_uri": redirect_uri,
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
@@ -108,8 +110,8 @@ class GoogleWorkspaceOAuth:
                 GOOGLE_TOKEN_URL,
                 data={
                     "grant_type": "refresh_token",
-                    "client_id": settings.google_workspace_client_id,
-                    "client_secret": settings.google_workspace_client_secret,
+                    "client_id": settings.google_workspace_client_id or settings.google_client_id,
+                    "client_secret": settings.google_workspace_client_secret or settings.google_client_secret,
                     "refresh_token": token.refresh_token,
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},

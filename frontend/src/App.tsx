@@ -12,6 +12,7 @@ import ISOSnapshots from './pages/ISOSnapshots';
 import ISOReviews from './pages/ISOReviews';
 import ISOConfig from './pages/ISOConfig';
 import ISOReviewDetail from './pages/ISOReviewDetail';
+import ISOSnapshotDetail from './pages/ISOSnapshotDetail';
 import { LoginPage } from './pages/LoginPage';
 import ConfigurationTab from './components/Settings/ConfigurationTab';
 import SlackTab from './components/Settings/SlackTab';
@@ -56,6 +57,7 @@ function AppRoutes(): JSX.Element {
           </Route>
           <Route path="/iso" element={<ISO />}>
             <Route path="snapshots" element={<ISOSnapshots />} />
+            <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
             <Route path="reviews" element={<ISOReviews />} />
             <Route path="reviews/:id" element={<ISOReviewDetail />} />
             <Route path="config" element={<ISOConfig />} />
@@ -81,6 +83,7 @@ function AppRoutes(): JSX.Element {
             </Route>
             <Route path="/iso" element={<ISO />}>
               <Route path="snapshots" element={<ISOSnapshots />} />
+              <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
               <Route path="reviews" element={<ISOReviews />} />
               <Route path="reviews/:id" element={<ISOReviewDetail />} />
               <Route path="config" element={<ISOConfig />} />
