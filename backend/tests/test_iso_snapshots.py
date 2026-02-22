@@ -96,9 +96,7 @@ class TestCaptureEndpoint:
         snapshot_id = response.json()["id"]
 
         result = await db_session.execute(
-            select(AccessReviewDB).where(
-                AccessReviewDB.snapshot_id == snapshot_id
-            )
+            select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot_id)
         )
         review = result.scalar_one_or_none()
         assert review is not None
@@ -127,7 +125,12 @@ class TestCaptureEndpoint:
             captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             data_version="1",
             source_metadata={},
-            data={"users": [], "groups": [], "group_members": {}, "role_assignments": []},
+            data={
+                "users": [],
+                "groups": [],
+                "group_members": {},
+                "role_assignments": [],
+            },
             summary={},
         )
         db_session.add(previous)
@@ -154,9 +157,7 @@ class TestCaptureEndpoint:
         snapshot_id = response.json()["id"]
 
         result = await db_session.execute(
-            select(AccessReviewDB).where(
-                AccessReviewDB.snapshot_id == snapshot_id
-            )
+            select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot_id)
         )
         review = result.scalar_one()
         assert review.previous_snapshot_id == previous_id
@@ -253,9 +254,7 @@ class TestListSnapshots:
         db_session.add_all([snap1, snap2])
         await db_session.flush()
 
-        response = await client.get(
-            "/api/iso/snapshots?provider=google_workspace"
-        )
+        response = await client.get("/api/iso/snapshots?provider=google_workspace")
         data = response.json()
         assert data["total"] == 1
         assert data["items"][0]["provider"] == "google_workspace"
@@ -263,9 +262,7 @@ class TestListSnapshots:
 
 class TestSnapshotDetail:
     @pytest.mark.asyncio
-    async def test_get_snapshot_detail(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_get_snapshot_detail(self, client: AsyncClient, db_session) -> None:
         from datetime import datetime, timezone
 
         snap = AccessSnapshotDB(
