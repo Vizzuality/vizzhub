@@ -25,10 +25,10 @@ class AccessReviewDB(Base):
         ForeignKey("access_snapshots.id"),
         nullable=True,
     )
-    reviewer_id: Mapped[UUID] = mapped_column(
+    reviewer_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id"),
-        nullable=False,
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     scope: Mapped[str] = mapped_column(String(255), nullable=False)
