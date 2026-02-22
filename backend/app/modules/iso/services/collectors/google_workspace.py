@@ -108,9 +108,7 @@ class GoogleWorkspaceCollector:
         return members
 
     async def collect_role_assignments(self) -> list[dict[str, Any]]:
-        roles_raw = await self._paginate(
-            "/customer/my_customer/roles", {}, "items"
-        )
+        roles_raw = await self._paginate("/customer/my_customer/roles", {}, "items")
         role_map = {str(r["roleId"]): r["roleName"] for r in roles_raw}
 
         assignments_raw = await self._paginate(
