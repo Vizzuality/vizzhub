@@ -73,6 +73,15 @@ export function AppLayout() {
                   </Button>
                 </Link>
               )}
+              {isAdmin && (
+                <Link to="/iso">
+                  <Button
+                    variant={location.pathname.startsWith('/iso') ? 'secondary' : 'ghost'}
+                  >
+                    ISO
+                  </Button>
+                </Link>
+              )}
             </div>
 
             <ThemeToggle />
@@ -128,6 +137,11 @@ export function AppLayout() {
                   {isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link to="/admin">Admin</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/iso">ISO</Link>
                     </DropdownMenuItem>
                   )}
                   {auth.isAuthenticated && (
