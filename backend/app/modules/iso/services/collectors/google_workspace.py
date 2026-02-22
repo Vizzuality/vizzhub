@@ -83,3 +83,43 @@ class GoogleWorkspaceCollector:
             }
             for g in raw
         ]
+
+    async def collect_group_members(
+        self, groups: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
+        members: dict[str, list[dict[str, Any]]] = {}
+        for group in groups:
+            raw = await self._paginate(
+                f"/groups/{group['email']}/members",
+                {"maxResults": 200},
+                "members",
+            )
+            members[group["email"]] = [
+                {
+                    "email": m.get("email", ""),
+                    "role": m.get("role", "MEMBER"),
+                    "type": m.get("type", "USER"),
+                }
+                for m in raw
+            ]
+        return members
+
+    async def collect_role_assignments(self) -> list[dict[str, Any]]:
+        roles_raw = await self._paginate(
+            "/customer/my_customer/roles", {}, "items"
+        )
+        role_map = {str(r["roleId"]): r["roleName"] for r in roles_raw}
+
+        assignments_raw = await self._paginate(
+            "/customer/my_customer/roleassignments",
+            {"maxResults": 200},
+            "items",
+        )
+        return [
+            {
+                "user_id": a["assignedTo"],
+                "role_id": str(a["roleId"]),
+                "role_name": role_map.get(str(a["roleId"]), "Unknown"),
+            }
+            for a in assignments_raw
+        ]
