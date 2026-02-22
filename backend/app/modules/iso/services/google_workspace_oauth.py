@@ -17,12 +17,14 @@ logger = logging.getLogger(__name__)
 PROVIDER = "google_workspace"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-SCOPES = " ".join([
-    "https://www.googleapis.com/auth/admin.directory.user.readonly",
-    "https://www.googleapis.com/auth/admin.directory.group.readonly",
-    "https://www.googleapis.com/auth/admin.directory.group.member.readonly",
-    "https://www.googleapis.com/auth/admin.directory.rolemanagement.readonly",
-])
+SCOPES = " ".join(
+    [
+        "https://www.googleapis.com/auth/admin.directory.user.readonly",
+        "https://www.googleapis.com/auth/admin.directory.group.readonly",
+        "https://www.googleapis.com/auth/admin.directory.group.member.readonly",
+        "https://www.googleapis.com/auth/admin.directory.rolemanagement.readonly",
+    ]
+)
 
 
 class GoogleWorkspaceOAuth:
@@ -66,9 +68,7 @@ class GoogleWorkspaceOAuth:
         expires_in = token_data.get("expires_in")
         expires_at = None
         if expires_in:
-            expires_at = datetime.now(timezone.utc) + timedelta(
-                seconds=expires_in
-            )
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
         result = await db.execute(
             select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
@@ -90,9 +90,7 @@ class GoogleWorkspaceOAuth:
         await db.flush()
         await db.refresh(oauth_token)
 
-        logger.info(
-            "Google Workspace OAuth token stored for domain %s", domain
-        )
+        logger.info("Google Workspace OAuth token stored for domain %s", domain)
         return oauth_token
 
     @staticmethod
