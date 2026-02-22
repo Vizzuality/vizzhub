@@ -253,3 +253,103 @@ class TestAccessReviewActionModel:
         assert action.action_taken == "exception"
         assert action.exception_until == date(2026, 6, 30)
         assert action.approved_by == user.id
+
+
+class TestIsoSchemas:
+    def test_snapshot_response_from_dict(self) -> None:
+        from app.modules.iso.schemas import AccessSnapshotResponse
+
+        data = {
+            "id": uuid4(),
+            "provider": "google_workspace",
+            "captured_at": datetime.now(timezone.utc),
+            "captured_by": None,
+            "data_version": "1",
+            "source_metadata": {"domain": "test.com"},
+            "data": {"users": []},
+            "summary": {"total_users": 0},
+            "created_at": datetime.now(timezone.utc),
+        }
+        schema = AccessSnapshotResponse(**data)
+        assert schema.provider == "google_workspace"
+
+    def test_snapshot_summary_excludes_data(self) -> None:
+        from app.modules.iso.schemas import AccessSnapshotSummary
+
+        data = {
+            "id": uuid4(),
+            "provider": "google_workspace",
+            "captured_at": datetime.now(timezone.utc),
+            "captured_by": None,
+            "data_version": "1",
+            "summary": {"total_users": 5},
+            "created_at": datetime.now(timezone.utc),
+        }
+        schema = AccessSnapshotSummary(**data)
+        assert schema.summary["total_users"] == 5
+        assert not hasattr(schema, "data")
+
+    def test_review_response_schema(self) -> None:
+        from app.modules.iso.schemas import AccessReviewResponse
+
+        data = {
+            "id": uuid4(),
+            "snapshot_id": uuid4(),
+            "previous_snapshot_id": None,
+            "reviewer_id": uuid4(),
+            "status": "draft",
+            "scope": "All users and groups",
+            "diff_summary": None,
+            "notes": None,
+            "signed_by": None,
+            "signed_at": None,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+        schema = AccessReviewResponse(**data)
+        assert schema.status == "draft"
+
+    def test_review_update_schema(self) -> None:
+        from app.modules.iso.schemas import AccessReviewUpdate
+
+        update = AccessReviewUpdate(notes="Looks good")
+        assert update.notes == "Looks good"
+        assert update.reviewer_id is None
+
+    def test_action_update_valid(self) -> None:
+        from app.modules.iso.schemas import AccessReviewActionUpdate
+
+        update = AccessReviewActionUpdate(
+            action_taken="accepted",
+            justification="Expected change from onboarding",
+        )
+        assert update.action_taken == "accepted"
+
+    def test_action_update_invalid_action(self) -> None:
+        from app.modules.iso.schemas import AccessReviewActionUpdate
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            AccessReviewActionUpdate(action_taken="invalid_value")
+
+    def test_action_response_schema(self) -> None:
+        from app.modules.iso.schemas import AccessReviewActionResponse
+
+        data = {
+            "id": uuid4(),
+            "review_id": uuid4(),
+            "subject_type": "user",
+            "subject_id": "user@test.com",
+            "subject_label": "Test User",
+            "change_type": "new_user",
+            "previous_value": None,
+            "current_value": {"email": "user@test.com"},
+            "action_taken": None,
+            "justification": None,
+            "approved_by": None,
+            "exception_until": None,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+        schema = AccessReviewActionResponse(**data)
+        assert schema.subject_type == "user"
