@@ -7,6 +7,10 @@ import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import GlobalDashboard from './pages/GlobalDashboard';
 import Admin from './pages/Admin';
+import ISO from './pages/ISO';
+import ISOSnapshots from './pages/ISOSnapshots';
+import ISOReviews from './pages/ISOReviews';
+import ISOConfig from './pages/ISOConfig';
 import { LoginPage } from './pages/LoginPage';
 import ConfigurationTab from './components/Settings/ConfigurationTab';
 import SlackTab from './components/Settings/SlackTab';
@@ -49,6 +53,11 @@ function AppRoutes(): JSX.Element {
           <Route path="/admin" element={<Admin />}>
             {AdminRoutes()}
           </Route>
+          <Route path="/iso" element={<ISO />}>
+            <Route path="snapshots" element={<ISOSnapshots />} />
+            <Route path="reviews" element={<ISOReviews />} />
+            <Route path="config" element={<ISOConfig />} />
+          </Route>
         </Route>
         <Route path="/login" element={<Navigate to="/projects" replace />} />
       </Routes>
@@ -67,6 +76,11 @@ function AppRoutes(): JSX.Element {
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
+            </Route>
+            <Route path="/iso" element={<ISO />}>
+              <Route path="snapshots" element={<ISOSnapshots />} />
+              <Route path="reviews" element={<ISOReviews />} />
+              <Route path="config" element={<ISOConfig />} />
             </Route>
           </Route>
         </Route>
