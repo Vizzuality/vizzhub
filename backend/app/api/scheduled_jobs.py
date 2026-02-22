@@ -115,7 +115,8 @@ async def trigger_scheduled_job(
         if arq_job:
             logger.info(
                 "Manually triggered job %s with ARQ job ID: %s",
-                job_name, arq_job.job_id,
+                job_name,
+                arq_job.job_id,
             )
             return JobTriggerResponse(
                 success=True,
