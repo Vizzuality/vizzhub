@@ -61,7 +61,7 @@ class AccessReviewResponse(BaseModel):
     id: UUID
     snapshot_id: UUID
     previous_snapshot_id: UUID | None = None
-    reviewer_id: UUID
+    reviewer_id: UUID | None = None
     status: str
     scope: str
     diff_summary: dict | None = None
