@@ -159,9 +159,7 @@ class TestWorkerRegistration:
 
         cron_function_names = []
         for cron_job in WorkerSettings.cron_jobs:
-            name = getattr(cron_job, "name", None) or getattr(
-                cron_job.coroutine, "__name__", ""
-            )
+            name = getattr(cron_job.coroutine, "__name__", "")
             cron_function_names.append(name)
         assert "collect_iso_snapshot" in cron_function_names
 
