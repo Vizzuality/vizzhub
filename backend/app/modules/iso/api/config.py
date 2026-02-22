@@ -35,9 +35,7 @@ async def authorize_google_workspace(
     request.session["oauth_state"] = state
     request.session["gw_domain"] = domain
 
-    url = GoogleWorkspaceOAuth.get_authorization_url(
-        state=state, domain=domain
-    )
+    url = GoogleWorkspaceOAuth.get_authorization_url(state=state, domain=domain)
     return RedirectResponse(url=url, status_code=307)
 
 
@@ -50,23 +48,15 @@ async def google_workspace_callback(
 ) -> dict:
     session_state = request.session.get("oauth_state")
     if not session_state or session_state != state:
-        logger.warning(
-            "OAuth state mismatch in Google Workspace callback"
-        )
-        raise HTTPException(
-            status_code=400, detail="Invalid state parameter"
-        )
+        logger.warning("OAuth state mismatch in Google Workspace callback")
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     if not OAuthStateManager.validate_state(state):
         logger.warning("OAuth state expired or already used")
-        raise HTTPException(
-            status_code=400, detail="State expired or already used"
-        )
+        raise HTTPException(status_code=400, detail="State expired or already used")
 
     domain = request.session.get("gw_domain", "")
-    await GoogleWorkspaceOAuth.exchange_code_for_token(
-        code=code, domain=domain, db=db
-    )
+    await GoogleWorkspaceOAuth.exchange_code_for_token(code=code, domain=domain, db=db)
 
     request.session.pop("oauth_state", None)
     request.session.pop("gw_domain", None)
