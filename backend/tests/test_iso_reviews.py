@@ -141,6 +141,108 @@ class TestReviewDetail:
         assert response.status_code == 404
 
 
+class TestUpdateReview:
+    @pytest.mark.asyncio
+    async def test_update_review_notes(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+
+        response = await client.patch(
+            f"/api/iso/reviews/{review.id}",
+            json={"notes": "Updated notes"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] == "Updated notes"
+
+    @pytest.mark.asyncio
+    async def test_update_review_rejects_signed(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id, status="signed")
+
+        response = await client.patch(
+            f"/api/iso/reviews/{review.id}",
+            json={"notes": "Should fail"},
+        )
+        assert response.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_update_review_not_found(self, client: AsyncClient) -> None:
+        fake_id = uuid4()
+        response = await client.patch(
+            f"/api/iso/reviews/{fake_id}",
+            json={"notes": "No review"},
+        )
+        assert response.status_code == 404
+
+
+class TestUpdateAction:
+    @pytest.mark.asyncio
+    async def test_update_action_taken_and_justification(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        action = await _make_action(db_session, review.id)
+
+        response = await client.patch(
+            f"/api/iso/reviews/{review.id}/actions/{action.id}",
+            json={"action_taken": "accepted", "justification": "Looks good"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["action_taken"] == "accepted"
+        assert data["justification"] == "Looks good"
+
+    @pytest.mark.asyncio
+    async def test_update_action_rejects_signed_review(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id, status="signed")
+        action = await _make_action(db_session, review.id)
+
+        response = await client.patch(
+            f"/api/iso/reviews/{review.id}/actions/{action.id}",
+            json={"action_taken": "accepted"},
+        )
+        assert response.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_update_action_not_found(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        fake_action_id = uuid4()
+
+        response = await client.patch(
+            f"/api/iso/reviews/{review.id}/actions/{fake_action_id}",
+            json={"action_taken": "accepted"},
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_action_wrong_review_returns_404(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review1 = await _make_review(db_session, snapshot.id)
+        snapshot2 = await _make_snapshot(db_session)
+        review2 = await _make_review(db_session, snapshot2.id)
+        action = await _make_action(db_session, review1.id)
+
+        response = await client.patch(
+            f"/api/iso/reviews/{review2.id}/actions/{action.id}",
+            json={"action_taken": "accepted"},
+        )
+        assert response.status_code == 404
+
+
 class TestReviewRouterWiring:
     @pytest.mark.asyncio
     async def test_reviews_accessible_via_iso_prefix(
