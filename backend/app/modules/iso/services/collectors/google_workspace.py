@@ -55,3 +55,31 @@ class GoogleWorkspaceCollector:
                 break
             params["pageToken"] = page_token
         return items
+
+    async def collect_users(self) -> list[dict[str, Any]]:
+        raw = await self._paginate(
+            "/users", {"customer": "my_customer", "maxResults": 500}, "users"
+        )
+        return [
+            {
+                "id": u["id"],
+                "email": u["primaryEmail"],
+                "name": u.get("name", {}).get("fullName", ""),
+                "suspended": u.get("suspended", False),
+                "org_unit_path": u.get("orgUnitPath", "/"),
+            }
+            for u in raw
+        ]
+
+    async def collect_groups(self) -> list[dict[str, Any]]:
+        raw = await self._paginate(
+            "/groups", {"customer": "my_customer", "maxResults": 200}, "groups"
+        )
+        return [
+            {
+                "id": g["id"],
+                "email": g["email"],
+                "name": g.get("name", ""),
+            }
+            for g in raw
+        ]
