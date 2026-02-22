@@ -103,3 +103,7 @@ class AccessReviewActionUpdate(BaseModel):
     justification: str | None = None
     approved_by: UUID | None = None
     exception_until: date | None = None
+
+
+class AccessReviewDetailResponse(AccessReviewResponse):
+    actions: list[AccessReviewActionResponse] = []
