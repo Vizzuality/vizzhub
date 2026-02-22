@@ -1,17 +1,20 @@
 """ISO snapshot API endpoints."""
 
 import logging
+import math
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
 
+from app.api.schemas.common import PaginatedResponse
 from app.database import get_db
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
-from app.modules.iso.schemas import AccessSnapshotResponse
+from app.modules.iso.schemas import AccessSnapshotResponse, AccessSnapshotSummary
 from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
@@ -52,3 +55,36 @@ async def capture_snapshot(db: DBSession) -> AccessSnapshotDB:
 
     logger.info("Snapshot captured, review %s created in draft", review.id)
     return snapshot
+
+
+@router.get("", response_model=PaginatedResponse[AccessSnapshotSummary])
+async def list_snapshots(
+    db: DBSession,
+    provider: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> dict:
+    query = select(AccessSnapshotDB).order_by(
+        AccessSnapshotDB.captured_at.desc()
+    )
+    count_query = select(func.count(AccessSnapshotDB.id))
+
+    if provider:
+        query = query.where(AccessSnapshotDB.provider == provider)
+        count_query = count_query.where(AccessSnapshotDB.provider == provider)
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+    result = await db.execute(query)
+    snapshots = result.scalars().all()
+
+    return {
+        "items": snapshots,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if total > 0 else 0,
+    }

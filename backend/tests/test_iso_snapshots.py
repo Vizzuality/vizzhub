@@ -167,3 +167,95 @@ class TestCaptureEndpoint:
     ) -> None:
         response = await client.post("/api/iso/snapshots/capture")
         assert response.status_code == 400
+
+
+class TestListSnapshots:
+    @pytest.mark.asyncio
+    async def test_list_snapshots_empty(self, client: AsyncClient) -> None:
+        response = await client.get("/api/iso/snapshots")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+        assert data["page"] == 1
+
+    @pytest.mark.asyncio
+    async def test_list_snapshots_returns_summaries(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={"domain": "test.com"},
+            data={"users": []},
+            summary={"total_users": 5},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        response = await client.get("/api/iso/snapshots")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["summary"]["total_users"] == 5
+        assert "data" not in data["items"][0]
+
+    @pytest.mark.asyncio
+    async def test_list_snapshots_pagination(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        for i in range(3):
+            snap = AccessSnapshotDB(
+                provider="google_workspace",
+                captured_at=datetime(2026, 1, i + 1, tzinfo=timezone.utc),
+                data_version="1",
+                source_metadata={},
+                data={"users": []},
+                summary={},
+            )
+            db_session.add(snap)
+        await db_session.flush()
+
+        response = await client.get("/api/iso/snapshots?page=1&page_size=2")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 3
+        assert len(data["items"]) == 2
+        assert data["pages"] == 2
+
+    @pytest.mark.asyncio
+    async def test_list_snapshots_filter_by_provider(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap1 = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={},
+            summary={},
+        )
+        snap2 = AccessSnapshotDB(
+            provider="azure_ad",
+            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={},
+            summary={},
+        )
+        db_session.add_all([snap1, snap2])
+        await db_session.flush()
+
+        response = await client.get(
+            "/api/iso/snapshots?provider=google_workspace"
+        )
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["provider"] == "google_workspace"
