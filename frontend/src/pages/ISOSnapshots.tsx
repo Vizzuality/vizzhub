@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +66,7 @@ export default function ISOSnapshots(): JSX.Element {
                   <th className="pb-3 font-medium">Admins</th>
                   <th className="pb-3 font-medium">Groups</th>
                   <th className="pb-3 font-medium">External</th>
+                  <th className="pb-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -89,6 +91,13 @@ export default function ISOSnapshots(): JSX.Element {
                       </td>
                       <td className="py-3 pr-4 text-sm">
                         {summary.external_members ?? 0}
+                      </td>
+                      <td className="py-3">
+                        <Link to={`/iso/snapshots/${snap.id}`}>
+                          <Button variant="ghost" size="sm">
+                            View
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   );

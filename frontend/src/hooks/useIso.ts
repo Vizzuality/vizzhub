@@ -123,3 +123,17 @@ export function useSignReview(id: string) {
     },
   });
 }
+
+export function useUnsignReview(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => isoApi.unsignReview(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.reviews.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.iso.reviews.detail(id),
+      });
+    },
+  });
+}

@@ -36,6 +36,7 @@ import {
   useUpdateReview,
   useUpdateReviewAction,
   useSignReview,
+  useUnsignReview,
 } from '@/hooks/useIso';
 import { useUsers } from '@/hooks/useUsers';
 import { formatDate } from '@/utils/formatters';
@@ -188,11 +189,11 @@ interface DiffSummaryCardsProps {
 function DiffSummaryCards({ diffSummary }: DiffSummaryCardsProps): JSX.Element {
   const stats = diffSummary as Record<string, number>;
   const items: { label: string; key: string }[] = [
-    { label: 'New Users', key: 'new_users' },
-    { label: 'Removed Users', key: 'removed_users' },
-    { label: 'Role Changes', key: 'role_changes' },
+    { label: 'New Users', key: 'new_user' },
+    { label: 'Removed Users', key: 'removed_user' },
+    { label: 'Role Changes', key: 'role_change' },
     { label: 'New External', key: 'new_external' },
-    { label: 'Group Changes', key: 'group_changes' },
+    { label: 'Group Changes', key: 'group_membership_change' },
   ];
 
   return (
@@ -215,10 +216,12 @@ export default function ISOReviewDetail(): JSX.Element {
   const { data: review, isLoading, error } = useIsoReview(id ?? '');
   const updateReview = useUpdateReview(id ?? '');
   const signReview = useSignReview(id ?? '');
+  const unsignReview = useUnsignReview(id ?? '');
   const { data: users } = useUsers();
 
   const [notes, setNotes] = useState('');
   const [signDialogOpen, setSignDialogOpen] = useState(false);
+  const [unsignDialogOpen, setUnsignDialogOpen] = useState(false);
 
   useEffect(() => {
     if (review?.notes !== undefined) {
@@ -254,6 +257,21 @@ export default function ISOReviewDetail(): JSX.Element {
       });
     },
     [signReview],
+  );
+
+  const handleUnsign = useCallback(
+    (e: React.MouseEvent): void => {
+      e.preventDefault();
+      unsignReview.mutate(undefined, {
+        onSuccess: () => {
+          setUnsignDialogOpen(false);
+        },
+        onError: () => {
+          setUnsignDialogOpen(false);
+        },
+      });
+    },
+    [unsignReview],
   );
 
   if (isLoading) {
@@ -342,23 +360,28 @@ export default function ISOReviewDetail(): JSX.Element {
 
           <div className="space-y-2">
             <Label htmlFor="review-notes">Notes</Label>
-            <Textarea
-              id="review-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add notes about this review..."
-              disabled={isSigned}
-              rows={3}
-            />
-            {!isSigned && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSaveNotes}
-                disabled={!notesChanged || updateReview.isPending}
-              >
-                {updateReview.isPending ? 'Saving...' : 'Save Notes'}
-              </Button>
+            {isSigned ? (
+              <p className="text-sm mt-1">
+                {review.notes || '\u2014'}
+              </p>
+            ) : (
+              <>
+                <Textarea
+                  id="review-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes about this review..."
+                  rows={3}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveNotes}
+                  disabled={!notesChanged || updateReview.isPending}
+                >
+                  {updateReview.isPending ? 'Saving...' : 'Save Notes'}
+                </Button>
+              </>
             )}
           </div>
         </CardContent>
@@ -403,51 +426,83 @@ export default function ISOReviewDetail(): JSX.Element {
         </div>
       )}
 
-      {/* Sign section */}
-      {!isSigned && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                {unresolvedCount > 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {unresolvedCount} action{unresolvedCount !== 1 ? 's' : ''}{' '}
-                    still unresolved. All actions must be resolved before
-                    signing.
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    All actions resolved. Ready to sign.
-                  </p>
-                )}
-              </div>
-              <AlertDialog
-                open={signDialogOpen}
-                onOpenChange={setSignDialogOpen}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button disabled={unresolvedCount > 0}>Sign Review</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Sign this review?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Signing this review will lock all actions and mark the
-                      review as complete. This cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSign}>
-                      {signReview.isPending ? 'Signing...' : 'Sign'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Sign / Unsign section */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            {isSigned ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  This review is signed and locked.
+                </p>
+                <AlertDialog
+                  open={unsignDialogOpen}
+                  onOpenChange={setUnsignDialogOpen}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline">Unsign Review</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Unsign this review?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will reopen the review for editing. All action
+                        decisions will be preserved but the review will no
+                        longer be considered signed.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleUnsign}>
+                        {unsignReview.isPending ? 'Unsigning...' : 'Unsign'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            ) : (
+              <>
+                <div>
+                  {unresolvedCount > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {unresolvedCount} action{unresolvedCount !== 1 ? 's' : ''}{' '}
+                      still unresolved. All actions must be resolved before
+                      signing.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      All actions resolved. Ready to sign.
+                    </p>
+                  )}
+                </div>
+                <AlertDialog
+                  open={signDialogOpen}
+                  onOpenChange={setSignDialogOpen}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={unresolvedCount > 0}>Sign Review</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Sign this review?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Signing this review will lock all actions and mark the
+                        review as complete.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSign}>
+                        {signReview.isPending ? 'Signing...' : 'Sign'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

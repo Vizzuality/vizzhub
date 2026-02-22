@@ -43,7 +43,6 @@ class Settings(BaseSettings):
     # Google Workspace Admin SDK (ISO module)
     google_workspace_client_id: str = ""
     google_workspace_client_secret: str = ""
-    google_workspace_redirect_uri: str = ""
 
     # Redis (for async job queue)
     redis_host: str = ""
