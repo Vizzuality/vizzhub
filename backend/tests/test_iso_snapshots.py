@@ -291,3 +291,12 @@ class TestSnapshotDetail:
         fake_id = uuid4()
         response = await client.get(f"/api/iso/snapshots/{fake_id}")
         assert response.status_code == 404
+
+
+class TestSnapshotRouterWiring:
+    @pytest.mark.asyncio
+    async def test_snapshots_accessible_via_iso_prefix(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get("/api/iso/snapshots")
+        assert response.status_code == 200
