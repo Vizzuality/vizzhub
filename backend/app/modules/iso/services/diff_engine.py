@@ -12,6 +12,8 @@ def compute_diff(
 
     changes.extend(_diff_users(current_data, previous_data))
     changes.extend(_diff_admins(current_data, previous_data))
+    changes.extend(_diff_group_members(current_data, previous_data))
+    changes.extend(_diff_externals(current_data, previous_data, domain))
 
     return changes
 
@@ -84,5 +86,74 @@ def _diff_admins(
             "previous_value": {"is_admin": True},
             "current_value": {"is_admin": False},
         })
+
+    return changes
+
+
+def _diff_group_members(
+    current: dict[str, Any], previous: dict[str, Any]
+) -> list[dict[str, Any]]:
+    current_members = current.get("group_members", {})
+    previous_members = previous.get("group_members", {})
+    current_groups = {g["email"]: g for g in current.get("groups", [])}
+    all_group_emails = set(current_members.keys()) | set(previous_members.keys())
+    changes: list[dict[str, Any]] = []
+
+    for group_email in all_group_emails:
+        curr_emails = {m["email"] for m in current_members.get(group_email, [])}
+        prev_emails = {m["email"] for m in previous_members.get(group_email, [])}
+        added = curr_emails - prev_emails
+        removed = prev_emails - curr_emails
+
+        if added or removed:
+            group = current_groups.get(group_email, {})
+            changes.append({
+                "subject_type": "group",
+                "subject_id": group_email,
+                "subject_label": group.get("name", ""),
+                "change_type": "group_membership_change",
+                "previous_value": {"members": sorted(prev_emails)},
+                "current_value": {
+                    "added": sorted(added),
+                    "removed": sorted(removed),
+                },
+            })
+
+    return changes
+
+
+def _diff_externals(
+    current: dict[str, Any],
+    previous: dict[str, Any],
+    domain: str,
+) -> list[dict[str, Any]]:
+    current_members = current.get("group_members", {})
+    previous_members = previous.get("group_members", {})
+    current_groups = {g["email"]: g for g in current.get("groups", [])}
+    changes: list[dict[str, Any]] = []
+
+    for group_email, members in current_members.items():
+        curr_external = {
+            m["email"]
+            for m in members
+            if m.get("email") and not m["email"].endswith(f"@{domain}")
+        }
+        prev_external = {
+            m["email"]
+            for m in previous_members.get(group_email, [])
+            if m.get("email") and not m["email"].endswith(f"@{domain}")
+        }
+        new_external = curr_external - prev_external
+
+        if new_external:
+            group = current_groups.get(group_email, {})
+            changes.append({
+                "subject_type": "group",
+                "subject_id": group_email,
+                "subject_label": group.get("name", ""),
+                "change_type": "new_external",
+                "previous_value": None,
+                "current_value": {"external_added": sorted(new_external)},
+            })
 
     return changes
