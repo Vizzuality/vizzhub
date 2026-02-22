@@ -83,15 +83,6 @@ export default function ISOConfig(): JSX.Element {
               <span className="font-medium">{config.domain}</span>
             </div>
           )}
-          {config?.connected && config.last_token_refresh && (
-            <div className="text-sm">
-              <span className="text-muted-foreground">Last token refresh: </span>
-              <span className="font-medium">
-                {new Date(config.last_token_refresh).toLocaleString()}
-              </span>
-            </div>
-          )}
-
           <div className="flex gap-2">
             {!config?.connected && (
               <Button onClick={handleConnect}>

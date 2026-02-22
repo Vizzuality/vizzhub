@@ -24,12 +24,14 @@ export interface ReviewListParams {
 
 export const isoApi = {
   getConfigStatus: async (): Promise<IsoConfigStatus> => {
-    const response = await api.get<IsoConfigStatus>('/iso/config/status');
+    const response = await api.get<IsoConfigStatus>(
+      '/iso/config/google-workspace',
+    );
     return response.data;
   },
 
   disconnect: async (): Promise<void> => {
-    await api.delete('/iso/config/google-workspace');
+    await api.delete('/iso/config/google-workspace/disconnect');
   },
 
   captureSnapshot: async (): Promise<AccessSnapshot> => {

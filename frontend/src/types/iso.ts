@@ -78,7 +78,5 @@ export interface PaginatedResponse<T> {
 
 export interface IsoConfigStatus {
   connected: boolean;
-  provider: string;
   domain: string | null;
-  last_token_refresh: string | null;
 }
