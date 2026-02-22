@@ -1,11 +1,14 @@
 """Google Workspace collector for ISO access snapshots."""
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
+from uuid import UUID
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
     PROVIDER,
@@ -123,3 +126,71 @@ class GoogleWorkspaceCollector:
             }
             for a in assignments_raw
         ]
+
+    def _build_summary(self, data: dict[str, Any]) -> dict[str, Any]:
+        users = data["users"]
+        role_assignments = data["role_assignments"]
+        admin_user_ids = {a["user_id"] for a in role_assignments}
+
+        external_count = 0
+        for members_list in data["group_members"].values():
+            for m in members_list:
+                email = m.get("email", "")
+                if email and not email.endswith(f"@{self._domain}"):
+                    external_count += 1
+
+        return {
+            "total_users": len(users),
+            "active_users": sum(1 for u in users if not u["suspended"]),
+            "suspended_users": sum(1 for u in users if u["suspended"]),
+            "total_admins": len(admin_user_ids),
+            "external_members": external_count,
+            "total_groups": len(data["groups"]),
+        }
+
+    def _build_source_metadata(self, run_mode: str) -> dict[str, Any]:
+        return {
+            "domain": self._domain,
+            "collector": "google_workspace",
+            "collector_version": COLLECTOR_VERSION,
+            "scopes": SCOPES.split(" "),
+            "run_mode": run_mode,
+        }
+
+    async def capture(
+        self,
+        captured_by: UUID | None = None,
+        run_mode: str = "manual",
+    ) -> AccessSnapshotDB:
+        await self._init_client()
+        try:
+            users = await self.collect_users()
+            groups = await self.collect_groups()
+            group_members = await self.collect_group_members(groups)
+            role_assignments = await self.collect_role_assignments()
+
+            user_id_to_email = {u["id"]: u["email"] for u in users}
+            for ra in role_assignments:
+                ra["user_email"] = user_id_to_email.get(ra["user_id"], "")
+
+            data = {
+                "users": users,
+                "groups": groups,
+                "group_members": group_members,
+                "role_assignments": role_assignments,
+            }
+
+            snapshot = AccessSnapshotDB(
+                provider=PROVIDER,
+                captured_at=datetime.now(timezone.utc),
+                captured_by=captured_by,
+                data_version="1",
+                source_metadata=self._build_source_metadata(run_mode),
+                data=data,
+                summary=self._build_summary(data),
+            )
+            self.db.add(snapshot)
+            await self.db.flush()
+            return snapshot
+        finally:
+            await self._client.aclose()

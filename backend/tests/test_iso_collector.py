@@ -405,3 +405,230 @@ class TestCollectRoleAssignments:
         assert assignments[0]["role_name"] == "Super Admin"
         assert assignments[1]["role_name"] == "Groups Admin"
         await collector._client.aclose()
+
+
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
+
+
+class TestBuildSummary:
+    def test_build_summary(self) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        collector = GoogleWorkspaceCollector.__new__(GoogleWorkspaceCollector)
+        collector._domain = "empresa.com"
+
+        data = {
+            "users": [
+                {
+                    "id": "u1",
+                    "email": "a@empresa.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
+                {
+                    "id": "u2",
+                    "email": "b@empresa.com",
+                    "name": "B",
+                    "suspended": True,
+                    "org_unit_path": "/",
+                },
+                {
+                    "id": "u3",
+                    "email": "c@empresa.com",
+                    "name": "C",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
+            ],
+            "groups": [
+                {"id": "g1", "email": "team@empresa.com", "name": "Team"},
+            ],
+            "group_members": {
+                "team@empresa.com": [
+                    {"email": "a@empresa.com", "role": "OWNER", "type": "USER"},
+                    {"email": "ext@vendor.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [
+                {
+                    "user_id": "u1",
+                    "role_id": "1",
+                    "role_name": "Super Admin",
+                    "user_email": "a@empresa.com",
+                },
+            ],
+        }
+
+        summary = collector._build_summary(data)
+
+        assert summary["total_users"] == 3
+        assert summary["active_users"] == 2
+        assert summary["suspended_users"] == 1
+        assert summary["total_admins"] == 1
+        assert summary["external_members"] == 1
+        assert summary["total_groups"] == 1
+
+
+class TestBuildSourceMetadata:
+    def test_build_source_metadata(self) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        collector = GoogleWorkspaceCollector.__new__(GoogleWorkspaceCollector)
+        collector._domain = "empresa.com"
+
+        meta = collector._build_source_metadata("manual")
+
+        assert meta["domain"] == "empresa.com"
+        assert meta["collector"] == "google_workspace"
+        assert meta["collector_version"] == "1"
+        assert meta["run_mode"] == "manual"
+        assert (
+            "https://www.googleapis.com/auth/admin.directory.user.readonly"
+            in meta["scopes"]
+        )
+
+
+class TestCapture:
+    @pytest.mark.asyncio
+    async def test_capture_creates_snapshot(self, db_session) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        users_resp = MagicMock()
+        users_resp.json.return_value = {
+            "users": [
+                {
+                    "id": "u1",
+                    "primaryEmail": "a@empresa.com",
+                    "name": {"fullName": "A"},
+                    "suspended": False,
+                    "orgUnitPath": "/",
+                },
+            ],
+        }
+        users_resp.raise_for_status = MagicMock()
+
+        groups_resp = MagicMock()
+        groups_resp.json.return_value = {
+            "groups": [
+                {"id": "g1", "email": "team@empresa.com", "name": "Team"},
+            ],
+        }
+        groups_resp.raise_for_status = MagicMock()
+
+        members_resp = MagicMock()
+        members_resp.json.return_value = {
+            "members": [
+                {"email": "a@empresa.com", "role": "MEMBER", "type": "USER"},
+            ],
+        }
+        members_resp.raise_for_status = MagicMock()
+
+        roles_resp = MagicMock()
+        roles_resp.json.return_value = {
+            "items": [{"roleId": "1001", "roleName": "Super Admin"}],
+        }
+        roles_resp.raise_for_status = MagicMock()
+
+        assignments_resp = MagicMock()
+        assignments_resp.json.return_value = {
+            "items": [{"assignedTo": "u1", "roleId": "1001"}],
+        }
+        assignments_resp.raise_for_status = MagicMock()
+
+        collector = GoogleWorkspaceCollector(db_session)
+
+        with patch(
+            "httpx.AsyncClient.get",
+            new_callable=AsyncMock,
+            side_effect=[
+                users_resp,
+                groups_resp,
+                members_resp,
+                roles_resp,
+                assignments_resp,
+            ],
+        ):
+            snapshot = await collector.capture(run_mode="manual")
+
+        assert isinstance(snapshot, AccessSnapshotDB)
+        assert snapshot.provider == "google_workspace"
+        assert snapshot.data_version == "1"
+        assert len(snapshot.data["users"]) == 1
+        assert len(snapshot.data["groups"]) == 1
+        assert snapshot.summary["total_users"] == 1
+        assert snapshot.summary["total_admins"] == 1
+        assert snapshot.source_metadata["domain"] == "empresa.com"
+        assert snapshot.source_metadata["run_mode"] == "manual"
+
+    @pytest.mark.asyncio
+    async def test_capture_maps_user_email_to_role_assignments(
+        self, db_session
+    ) -> None:
+        from app.modules.iso.services.collectors.google_workspace import (
+            GoogleWorkspaceCollector,
+        )
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        users_resp = MagicMock()
+        users_resp.json.return_value = {
+            "users": [
+                {
+                    "id": "u1",
+                    "primaryEmail": "admin@empresa.com",
+                    "name": {"fullName": "Admin"},
+                    "suspended": False,
+                    "orgUnitPath": "/",
+                },
+            ],
+        }
+        users_resp.raise_for_status = MagicMock()
+
+        groups_resp = MagicMock()
+        groups_resp.json.return_value = {"groups": []}
+        groups_resp.raise_for_status = MagicMock()
+
+        roles_resp = MagicMock()
+        roles_resp.json.return_value = {
+            "items": [{"roleId": "1001", "roleName": "Super Admin"}],
+        }
+        roles_resp.raise_for_status = MagicMock()
+
+        assignments_resp = MagicMock()
+        assignments_resp.json.return_value = {
+            "items": [{"assignedTo": "u1", "roleId": "1001"}],
+        }
+        assignments_resp.raise_for_status = MagicMock()
+
+        collector = GoogleWorkspaceCollector(db_session)
+
+        with patch(
+            "httpx.AsyncClient.get",
+            new_callable=AsyncMock,
+            side_effect=[users_resp, groups_resp, roles_resp, assignments_resp],
+        ):
+            snapshot = await collector.capture(run_mode="manual")
+
+        ra = snapshot.data["role_assignments"][0]
+        assert ra["user_email"] == "admin@empresa.com"
