@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
         sa.Column("snapshot_id", UUID(as_uuid=True), sa.ForeignKey("access_snapshots.id"), nullable=False),
         sa.Column("previous_snapshot_id", UUID(as_uuid=True), sa.ForeignKey("access_snapshots.id"), nullable=True),
-        sa.Column("reviewer_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("reviewer_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
         sa.Column("scope", sa.String(255), nullable=False),
         sa.Column("diff_summary", JSONB, nullable=True),
