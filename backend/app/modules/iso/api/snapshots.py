@@ -18,6 +18,11 @@ from app.modules.iso.schemas import AccessSnapshotResponse, AccessSnapshotSummar
 from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
+from app.modules.iso.services.diff_engine import (
+    build_diff_summary,
+    compute_diff,
+    create_review_actions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +57,13 @@ async def capture_snapshot(db: DBSession) -> AccessSnapshotDB:
     )
     db.add(review)
     await db.flush()
+
+    if previous:
+        domain = snapshot.source_metadata.get("domain", "")
+        changes = compute_diff(snapshot.data, previous.data, domain)
+        review.diff_summary = build_diff_summary(changes)
+        await create_review_actions(db, review.id, changes)
+        await db.flush()
 
     logger.info("Snapshot captured, review %s created in draft", review.id)
     return snapshot

@@ -33,25 +33,29 @@ def _diff_users(
 
     for email in current_emails.keys() - previous_emails.keys():
         u = current_emails[email]
-        changes.append({
-            "subject_type": "user",
-            "subject_id": email,
-            "subject_label": u.get("name", ""),
-            "change_type": "new_user",
-            "previous_value": None,
-            "current_value": {"email": email, "name": u.get("name", "")},
-        })
+        changes.append(
+            {
+                "subject_type": "user",
+                "subject_id": email,
+                "subject_label": u.get("name", ""),
+                "change_type": "new_user",
+                "previous_value": None,
+                "current_value": {"email": email, "name": u.get("name", "")},
+            }
+        )
 
     for email in previous_emails.keys() - current_emails.keys():
         u = previous_emails[email]
-        changes.append({
-            "subject_type": "user",
-            "subject_id": email,
-            "subject_label": u.get("name", ""),
-            "change_type": "removed_user",
-            "previous_value": {"email": email, "name": u.get("name", "")},
-            "current_value": None,
-        })
+        changes.append(
+            {
+                "subject_type": "user",
+                "subject_id": email,
+                "subject_label": u.get("name", ""),
+                "change_type": "removed_user",
+                "previous_value": {"email": email, "name": u.get("name", "")},
+                "current_value": None,
+            }
+        )
 
     return changes
 
@@ -59,12 +63,8 @@ def _diff_users(
 def _diff_admins(
     current: dict[str, Any], previous: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    current_admin_emails = {
-        ra["user_email"] for ra in current["role_assignments"]
-    }
-    previous_admin_emails = {
-        ra["user_email"] for ra in previous["role_assignments"]
-    }
+    current_admin_emails = {ra["user_email"] for ra in current["role_assignments"]}
+    previous_admin_emails = {ra["user_email"] for ra in previous["role_assignments"]}
 
     current_users = {u["email"]: u for u in current["users"]}
     previous_users = {u["email"]: u for u in previous["users"]}
@@ -73,25 +73,29 @@ def _diff_admins(
 
     for email in current_admin_emails - previous_admin_emails:
         user = all_users.get(email, {})
-        changes.append({
-            "subject_type": "user",
-            "subject_id": email,
-            "subject_label": user.get("name", ""),
-            "change_type": "role_change",
-            "previous_value": {"is_admin": False},
-            "current_value": {"is_admin": True},
-        })
+        changes.append(
+            {
+                "subject_type": "user",
+                "subject_id": email,
+                "subject_label": user.get("name", ""),
+                "change_type": "role_change",
+                "previous_value": {"is_admin": False},
+                "current_value": {"is_admin": True},
+            }
+        )
 
     for email in previous_admin_emails - current_admin_emails:
         user = all_users.get(email, {})
-        changes.append({
-            "subject_type": "user",
-            "subject_id": email,
-            "subject_label": user.get("name", ""),
-            "change_type": "role_change",
-            "previous_value": {"is_admin": True},
-            "current_value": {"is_admin": False},
-        })
+        changes.append(
+            {
+                "subject_type": "user",
+                "subject_id": email,
+                "subject_label": user.get("name", ""),
+                "change_type": "role_change",
+                "previous_value": {"is_admin": True},
+                "current_value": {"is_admin": False},
+            }
+        )
 
     return changes
 
@@ -113,17 +117,19 @@ def _diff_group_members(
 
         if added or removed:
             group = current_groups.get(group_email, {})
-            changes.append({
-                "subject_type": "group",
-                "subject_id": group_email,
-                "subject_label": group.get("name", ""),
-                "change_type": "group_membership_change",
-                "previous_value": {"members": sorted(prev_emails)},
-                "current_value": {
-                    "added": sorted(added),
-                    "removed": sorted(removed),
-                },
-            })
+            changes.append(
+                {
+                    "subject_type": "group",
+                    "subject_id": group_email,
+                    "subject_label": group.get("name", ""),
+                    "change_type": "group_membership_change",
+                    "previous_value": {"members": sorted(prev_emails)},
+                    "current_value": {
+                        "added": sorted(added),
+                        "removed": sorted(removed),
+                    },
+                }
+            )
 
     return changes
 
@@ -153,14 +159,16 @@ def _diff_externals(
 
         if new_external:
             group = current_groups.get(group_email, {})
-            changes.append({
-                "subject_type": "group",
-                "subject_id": group_email,
-                "subject_label": group.get("name", ""),
-                "change_type": "new_external",
-                "previous_value": None,
-                "current_value": {"external_added": sorted(new_external)},
-            })
+            changes.append(
+                {
+                    "subject_type": "group",
+                    "subject_id": group_email,
+                    "subject_label": group.get("name", ""),
+                    "change_type": "new_external",
+                    "previous_value": None,
+                    "current_value": {"external_added": sorted(new_external)},
+                }
+            )
 
     return changes
 
