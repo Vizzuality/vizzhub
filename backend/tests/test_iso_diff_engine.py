@@ -1,8 +1,17 @@
 """Tests for ISO diff engine."""
 
 import pytest
+from datetime import datetime, timezone
+from uuid import uuid4
 
-from app.modules.iso.services.diff_engine import compute_diff
+from app.modules.iso.services.diff_engine import (
+    build_diff_summary,
+    compute_diff,
+    create_review_actions,
+)
+from app.modules.iso.models.access_review import AccessReviewDB
+from app.modules.iso.models.access_review_action import AccessReviewActionDB
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
 class TestUserDiff:
@@ -245,3 +254,96 @@ class TestExternalMemberDiff:
         changes = compute_diff(data, data, "test.com")
         externals = [c for c in changes if c["change_type"] == "new_external"]
         assert len(externals) == 0
+
+
+class TestBuildDiffSummary:
+    def test_counts_by_change_type(self) -> None:
+        changes = [
+            {"change_type": "new_user", "subject_type": "user", "subject_id": "a@t.com"},
+            {"change_type": "new_user", "subject_type": "user", "subject_id": "b@t.com"},
+            {"change_type": "role_change", "subject_type": "user", "subject_id": "c@t.com"},
+            {"change_type": "group_membership_change", "subject_type": "group", "subject_id": "g@t.com"},
+        ]
+
+        summary = build_diff_summary(changes)
+        assert summary["total_changes"] == 4
+        assert summary["new_user"] == 2
+        assert summary["role_change"] == 1
+        assert summary["group_membership_change"] == 1
+
+    def test_empty_changes(self) -> None:
+        summary = build_diff_summary([])
+        assert summary["total_changes"] == 0
+
+
+class TestCreateReviewActions:
+    @pytest.mark.asyncio
+    async def test_creates_action_rows(self, db_session) -> None:
+        from sqlalchemy import select
+
+        snapshot = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add(snapshot)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snapshot.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+        review_id = review.id
+
+        changes = [
+            {
+                "subject_type": "user",
+                "subject_id": "a@test.com",
+                "subject_label": "A",
+                "change_type": "new_user",
+                "previous_value": None,
+                "current_value": {"email": "a@test.com"},
+            },
+            {
+                "subject_type": "group",
+                "subject_id": "team@test.com",
+                "subject_label": "Team",
+                "change_type": "group_membership_change",
+                "previous_value": {"members": []},
+                "current_value": {"added": ["b@test.com"], "removed": []},
+            },
+        ]
+
+        await create_review_actions(db_session, review_id, changes)
+
+        result = await db_session.execute(
+            select(AccessReviewActionDB).where(
+                AccessReviewActionDB.review_id == review_id
+            )
+        )
+        actions = result.scalars().all()
+        assert len(actions) == 2
+        assert actions[0].subject_id == "a@test.com"
+        assert actions[0].change_type == "new_user"
+        assert actions[0].action_taken is None
+
+    @pytest.mark.asyncio
+    async def test_no_actions_for_empty_changes(self, db_session) -> None:
+        from sqlalchemy import select
+
+        review_id = uuid4()
+        await create_review_actions(db_session, review_id, [])
+
+        result = await db_session.execute(
+            select(AccessReviewActionDB).where(
+                AccessReviewActionDB.review_id == review_id
+            )
+        )
+        actions = result.scalars().all()
+        assert len(actions) == 0

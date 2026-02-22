@@ -1,6 +1,12 @@
 """Diff engine for comparing access snapshots."""
 
+from collections import Counter
 from typing import Any
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.iso.models.access_review_action import AccessReviewActionDB
 
 
 def compute_diff(
@@ -157,3 +163,34 @@ def _diff_externals(
             })
 
     return changes
+
+
+def build_diff_summary(changes: list[dict[str, Any]]) -> dict[str, Any]:
+    counts = Counter(c["change_type"] for c in changes)
+    return {
+        "total_changes": len(changes),
+        "new_user": counts.get("new_user", 0),
+        "removed_user": counts.get("removed_user", 0),
+        "role_change": counts.get("role_change", 0),
+        "new_external": counts.get("new_external", 0),
+        "group_membership_change": counts.get("group_membership_change", 0),
+    }
+
+
+async def create_review_actions(
+    db: AsyncSession,
+    review_id: UUID,
+    changes: list[dict[str, Any]],
+) -> None:
+    for change in changes:
+        action = AccessReviewActionDB(
+            review_id=review_id,
+            subject_type=change["subject_type"],
+            subject_id=change["subject_id"],
+            subject_label=change.get("subject_label"),
+            change_type=change["change_type"],
+            previous_value=change.get("previous_value"),
+            current_value=change.get("current_value"),
+        )
+        db.add(action)
+    await db.flush()
