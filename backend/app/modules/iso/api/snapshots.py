@@ -64,9 +64,7 @@ async def list_snapshots(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> dict:
-    query = select(AccessSnapshotDB).order_by(
-        AccessSnapshotDB.captured_at.desc()
-    )
+    query = select(AccessSnapshotDB).order_by(AccessSnapshotDB.captured_at.desc())
     count_query = select(func.count(AccessSnapshotDB.id))
 
     if provider:
