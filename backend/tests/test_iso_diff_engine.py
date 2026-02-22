@@ -18,8 +18,20 @@ class TestUserDiff:
     def test_new_user(self) -> None:
         current = {
             "users": [
-                {"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"},
-                {"id": "u2", "email": "b@test.com", "name": "B", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
+                {
+                    "id": "u2",
+                    "email": "b@test.com",
+                    "name": "B",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
@@ -27,7 +39,13 @@ class TestUserDiff:
         }
         previous = {
             "users": [
-                {"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
@@ -51,7 +69,13 @@ class TestUserDiff:
         }
         previous = {
             "users": [
-                {"id": "u1", "email": "gone@test.com", "name": "Gone", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "gone@test.com",
+                    "name": "Gone",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
@@ -66,14 +90,24 @@ class TestUserDiff:
 
     def test_no_user_changes(self) -> None:
         data = {
-            "users": [{"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"}],
+            "users": [
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                }
+            ],
             "groups": [],
             "group_members": {},
             "role_assignments": [],
         }
 
         changes = compute_diff(data, data, "test.com")
-        user_changes = [c for c in changes if c["change_type"] in ("new_user", "removed_user")]
+        user_changes = [
+            c for c in changes if c["change_type"] in ("new_user", "removed_user")
+        ]
         assert len(user_changes) == 0
 
 
@@ -81,17 +115,34 @@ class TestAdminDiff:
     def test_new_admin(self) -> None:
         current = {
             "users": [
-                {"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
             "role_assignments": [
-                {"user_id": "u1", "user_email": "a@test.com", "role_id": "1", "role_name": "Super Admin"},
+                {
+                    "user_id": "u1",
+                    "user_email": "a@test.com",
+                    "role_id": "1",
+                    "role_name": "Super Admin",
+                },
             ],
         }
         previous = {
             "users": [
-                {"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
@@ -109,7 +160,13 @@ class TestAdminDiff:
     def test_removed_admin(self) -> None:
         current = {
             "users": [
-                {"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
@@ -117,12 +174,23 @@ class TestAdminDiff:
         }
         previous = {
             "users": [
-                {"id": "u1", "email": "a@test.com", "name": "A", "suspended": False, "org_unit_path": "/"},
+                {
+                    "id": "u1",
+                    "email": "a@test.com",
+                    "name": "A",
+                    "suspended": False,
+                    "org_unit_path": "/",
+                },
             ],
             "groups": [],
             "group_members": {},
             "role_assignments": [
-                {"user_id": "u1", "user_email": "a@test.com", "role_id": "1", "role_name": "Super Admin"},
+                {
+                    "user_id": "u1",
+                    "user_email": "a@test.com",
+                    "role_id": "1",
+                    "role_name": "Super Admin",
+                },
             ],
         }
 
@@ -161,7 +229,9 @@ class TestGroupMembershipDiff:
 
         changes = compute_diff(current, previous, "test.com")
 
-        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
+        membership = [
+            c for c in changes if c["change_type"] == "group_membership_change"
+        ]
         assert len(membership) == 1
         assert membership[0]["subject_type"] == "group"
         assert membership[0]["subject_id"] == "team@test.com"
@@ -181,7 +251,9 @@ class TestGroupMembershipDiff:
         }
 
         changes = compute_diff(data, data, "test.com")
-        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
+        membership = [
+            c for c in changes if c["change_type"] == "group_membership_change"
+        ]
         assert len(membership) == 0
 
     def test_new_group_detected(self) -> None:
@@ -203,7 +275,9 @@ class TestGroupMembershipDiff:
         }
 
         changes = compute_diff(current, previous, "test.com")
-        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
+        membership = [
+            c for c in changes if c["change_type"] == "group_membership_change"
+        ]
         assert len(membership) == 1
         assert "a@test.com" in membership[0]["current_value"]["added"]
 
@@ -259,10 +333,26 @@ class TestExternalMemberDiff:
 class TestBuildDiffSummary:
     def test_counts_by_change_type(self) -> None:
         changes = [
-            {"change_type": "new_user", "subject_type": "user", "subject_id": "a@t.com"},
-            {"change_type": "new_user", "subject_type": "user", "subject_id": "b@t.com"},
-            {"change_type": "role_change", "subject_type": "user", "subject_id": "c@t.com"},
-            {"change_type": "group_membership_change", "subject_type": "group", "subject_id": "g@t.com"},
+            {
+                "change_type": "new_user",
+                "subject_type": "user",
+                "subject_id": "a@t.com",
+            },
+            {
+                "change_type": "new_user",
+                "subject_type": "user",
+                "subject_id": "b@t.com",
+            },
+            {
+                "change_type": "role_change",
+                "subject_type": "user",
+                "subject_id": "c@t.com",
+            },
+            {
+                "change_type": "group_membership_change",
+                "subject_type": "group",
+                "subject_id": "g@t.com",
+            },
         ]
 
         summary = build_diff_summary(changes)

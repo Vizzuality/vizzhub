@@ -290,6 +290,152 @@ class TestSnapshotDetail:
         assert response.status_code == 404
 
 
+class TestCaptureWithDiff:
+    @pytest.mark.asyncio
+    async def test_capture_populates_diff_and_actions(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+        from sqlalchemy import select
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        previous = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={"domain": "empresa.com"},
+            data={
+                "users": [
+                    {
+                        "id": "u1",
+                        "email": "a@empresa.com",
+                        "name": "A",
+                        "suspended": False,
+                        "org_unit_path": "/",
+                    },
+                ],
+                "groups": [],
+                "group_members": {},
+                "role_assignments": [],
+            },
+            summary={"total_users": 1},
+        )
+        db_session.add(previous)
+        await db_session.flush()
+
+        users_resp = MagicMock()
+        users_resp.json.return_value = {
+            "users": [
+                {
+                    "id": "u1",
+                    "primaryEmail": "a@empresa.com",
+                    "name": {"fullName": "A"},
+                    "suspended": False,
+                    "orgUnitPath": "/",
+                },
+                {
+                    "id": "u2",
+                    "primaryEmail": "new@empresa.com",
+                    "name": {"fullName": "New"},
+                    "suspended": False,
+                    "orgUnitPath": "/",
+                },
+            ],
+        }
+        users_resp.raise_for_status = MagicMock()
+
+        empty_resp = MagicMock()
+        empty_resp.json.return_value = {}
+        empty_resp.raise_for_status = MagicMock()
+
+        with patch(
+            "httpx.AsyncClient.get",
+            new_callable=AsyncMock,
+            side_effect=[users_resp, empty_resp, empty_resp, empty_resp],
+        ):
+            response = await client.post("/api/iso/snapshots/capture")
+
+        assert response.status_code == 201
+
+        result = await db_session.execute(
+            select(AccessReviewDB).where(
+                AccessReviewDB.snapshot_id == response.json()["id"]
+            )
+        )
+        review = result.scalar_one()
+        assert review.diff_summary is not None
+        assert review.diff_summary["total_changes"] >= 1
+        assert review.diff_summary["new_user"] >= 1
+
+        from app.modules.iso.models.access_review_action import AccessReviewActionDB
+
+        result = await db_session.execute(
+            select(AccessReviewActionDB).where(
+                AccessReviewActionDB.review_id == review.id
+            )
+        )
+        actions = result.scalars().all()
+        assert len(actions) >= 1
+        new_user_actions = [a for a in actions if a.change_type == "new_user"]
+        assert len(new_user_actions) >= 1
+
+    @pytest.mark.asyncio
+    async def test_first_snapshot_no_diff(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from sqlalchemy import select
+
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="ya29.test",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "users": [
+                {
+                    "id": "u1",
+                    "primaryEmail": "a@empresa.com",
+                    "name": {"fullName": "A"},
+                    "suspended": False,
+                    "orgUnitPath": "/",
+                },
+            ],
+            "groups": [],
+            "members": [],
+            "items": [],
+        }
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch(
+            "httpx.AsyncClient.get",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
+        ):
+            response = await client.post("/api/iso/snapshots/capture")
+
+        assert response.status_code == 201
+
+        result = await db_session.execute(
+            select(AccessReviewDB).where(
+                AccessReviewDB.snapshot_id == response.json()["id"]
+            )
+        )
+        review = result.scalar_one()
+        assert review.diff_summary is None
+        assert review.previous_snapshot_id is None
+
+
 class TestSnapshotRouterWiring:
     @pytest.mark.asyncio
     async def test_snapshots_accessible_via_iso_prefix(
