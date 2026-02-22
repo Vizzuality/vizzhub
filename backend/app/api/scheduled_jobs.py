@@ -29,6 +29,11 @@ SCHEDULED_JOBS = {
         "schedule": "Daily at 9:00 AM",
         "description": "Checks projects for budget, timeline, and overdue alerts",
     },
+    "collect_iso_snapshot": {
+        "name": "collect_iso_snapshot",
+        "schedule": "Monthly on 1st at 6:00 AM UTC",
+        "description": "Captures Google Workspace access snapshot for ISO compliance review",
+    },
 }
 
 
