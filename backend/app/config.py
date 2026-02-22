@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     github_oauth_client_id: str = ""
     github_oauth_client_secret: str = ""
 
+    # Google Workspace Admin SDK (ISO module)
+    google_workspace_client_id: str = ""
+    google_workspace_client_secret: str = ""
+    google_workspace_redirect_uri: str = ""
+
     # Redis (for async job queue)
     redis_host: str = ""
     redis_port: int = 6379
