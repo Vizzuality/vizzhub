@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from httpx import AsyncClient
+
 from app.config import get_settings
 from app.models.oauth import OAuthTokenDB
 
@@ -232,3 +234,94 @@ class TestGoogleWorkspaceOAuthService:
         status = await GoogleWorkspaceOAuth.get_status(db_session)
         assert status["connected"] is False
         assert status["domain"] is None
+
+
+class TestIsoConfigEndpoints:
+    @pytest.mark.asyncio
+    async def test_status_disconnected(self, client: AsyncClient) -> None:
+        response = await client.get("/api/iso/config/google-workspace")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connected"] is False
+        assert data["domain"] is None
+
+    @pytest.mark.asyncio
+    async def test_authorize_redirects(self, client: AsyncClient) -> None:
+        response = await client.get(
+            "/api/iso/config/google-workspace/authorize",
+            params={"domain": "test.com"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        location = response.headers["location"]
+        assert "accounts.google.com" in location
+        assert "test.com" in location
+
+    @pytest.mark.asyncio
+    async def test_authorize_requires_domain(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get(
+            "/api/iso/config/google-workspace/authorize",
+            follow_redirects=False,
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_callback_rejects_missing_state(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get(
+            "/api/iso/config/google-workspace/callback",
+            params={"code": "test-code"},
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_disconnect_when_not_connected(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.delete(
+            "/api/iso/config/google-workspace/disconnect"
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_status_after_manual_token_insert(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="test-token",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        response = await client.get("/api/iso/config/google-workspace")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connected"] is True
+        assert data["domain"] == "empresa.com"
+
+    @pytest.mark.asyncio
+    async def test_disconnect_removes_connection(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="test-token",
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        response = await client.delete(
+            "/api/iso/config/google-workspace/disconnect"
+        )
+        assert response.status_code == 200
+
+        status_response = await client.get(
+            "/api/iso/config/google-workspace"
+        )
+        assert status_response.json()["connected"] is False
