@@ -102,3 +102,16 @@ export type {
   IndicatorValue,
   ScoreValue,
 } from './global';
+
+// ISO types
+export type {
+  AccessReview,
+  AccessReviewAction,
+  AccessReviewActionUpdate,
+  AccessReviewDetail,
+  AccessReviewUpdate,
+  AccessSnapshot,
+  AccessSnapshotSummary,
+  IsoConfigStatus,
+  PaginatedResponse,
+} from './iso';
