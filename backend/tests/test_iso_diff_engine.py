@@ -123,3 +123,125 @@ class TestAdminDiff:
         assert len(role_changes) == 1
         assert role_changes[0]["current_value"] == {"is_admin": False}
         assert role_changes[0]["previous_value"] == {"is_admin": True}
+
+
+class TestGroupMembershipDiff:
+    def test_members_added_and_removed(self) -> None:
+        current = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "team@test.com", "name": "Team"}],
+            "group_members": {
+                "team@test.com": [
+                    {"email": "a@test.com", "role": "MEMBER", "type": "USER"},
+                    {"email": "c@test.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+        previous = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "team@test.com", "name": "Team"}],
+            "group_members": {
+                "team@test.com": [
+                    {"email": "a@test.com", "role": "MEMBER", "type": "USER"},
+                    {"email": "b@test.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+
+        changes = compute_diff(current, previous, "test.com")
+
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
+        assert len(membership) == 1
+        assert membership[0]["subject_type"] == "group"
+        assert membership[0]["subject_id"] == "team@test.com"
+        assert "c@test.com" in membership[0]["current_value"]["added"]
+        assert "b@test.com" in membership[0]["current_value"]["removed"]
+
+    def test_no_membership_change(self) -> None:
+        data = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "team@test.com", "name": "Team"}],
+            "group_members": {
+                "team@test.com": [
+                    {"email": "a@test.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+
+        changes = compute_diff(data, data, "test.com")
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
+        assert len(membership) == 0
+
+    def test_new_group_detected(self) -> None:
+        current = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "new@test.com", "name": "New"}],
+            "group_members": {
+                "new@test.com": [
+                    {"email": "a@test.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+        previous = {
+            "users": [],
+            "groups": [],
+            "group_members": {},
+            "role_assignments": [],
+        }
+
+        changes = compute_diff(current, previous, "test.com")
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
+        assert len(membership) == 1
+        assert "a@test.com" in membership[0]["current_value"]["added"]
+
+
+class TestExternalMemberDiff:
+    def test_new_external_detected(self) -> None:
+        current = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "team@test.com", "name": "Team"}],
+            "group_members": {
+                "team@test.com": [
+                    {"email": "a@test.com", "role": "MEMBER", "type": "USER"},
+                    {"email": "ext@vendor.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+        previous = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "team@test.com", "name": "Team"}],
+            "group_members": {
+                "team@test.com": [
+                    {"email": "a@test.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+
+        changes = compute_diff(current, previous, "test.com")
+        externals = [c for c in changes if c["change_type"] == "new_external"]
+        assert len(externals) == 1
+        assert externals[0]["subject_type"] == "group"
+        assert externals[0]["subject_id"] == "team@test.com"
+        assert "ext@vendor.com" in externals[0]["current_value"]["external_added"]
+
+    def test_existing_external_not_flagged(self) -> None:
+        data = {
+            "users": [],
+            "groups": [{"id": "g1", "email": "team@test.com", "name": "Team"}],
+            "group_members": {
+                "team@test.com": [
+                    {"email": "ext@vendor.com", "role": "MEMBER", "type": "USER"},
+                ],
+            },
+            "role_assignments": [],
+        }
+
+        changes = compute_diff(data, data, "test.com")
+        externals = [c for c in changes if c["change_type"] == "new_external"]
+        assert len(externals) == 0
