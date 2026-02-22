@@ -243,6 +243,64 @@ class TestUpdateAction:
         assert response.status_code == 404
 
 
+class TestSignReview:
+    @pytest.mark.asyncio
+    async def test_sign_review_success(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        await _make_action(
+            db_session, review.id, action_taken="accepted"
+        )
+
+        response = await client.post(f"/api/iso/reviews/{review.id}/sign")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "signed"
+        assert data["signed_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_sign_review_fails_with_unresolved_actions(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        await _make_action(db_session, review.id)
+
+        response = await client.post(f"/api/iso/reviews/{review.id}/sign")
+        assert response.status_code == 409
+        assert "1 unresolved action(s)" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_sign_review_already_signed(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id, status="signed")
+
+        response = await client.post(f"/api/iso/reviews/{review.id}/sign")
+        assert response.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_sign_review_not_found(self, client: AsyncClient) -> None:
+        fake_id = uuid4()
+        response = await client.post(f"/api/iso/reviews/{fake_id}/sign")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_sign_review_no_actions_succeeds(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+
+        response = await client.post(f"/api/iso/reviews/{review.id}/sign")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "signed"
+
+
 class TestReviewRouterWiring:
     @pytest.mark.asyncio
     async def test_reviews_accessible_via_iso_prefix(

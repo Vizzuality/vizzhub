@@ -2,6 +2,7 @@
 
 import logging
 import math
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated
 from uuid import UUID
@@ -149,3 +150,42 @@ async def update_action(
     await db.refresh(action)
 
     return action
+
+
+@router.post("/{review_id}/sign", response_model=AccessReviewResponse)
+async def sign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
+    result = await db.execute(
+        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
+    )
+    review = result.scalar_one_or_none()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    if review.status == "signed":
+        raise HTTPException(
+            status_code=409, detail="Review is already signed"
+        )
+
+    unresolved_result = await db.execute(
+        select(func.count(AccessReviewActionDB.id)).where(
+            AccessReviewActionDB.review_id == review_id,
+            AccessReviewActionDB.action_taken.is_(None),
+        )
+    )
+    unresolved_count = unresolved_result.scalar() or 0
+
+    if unresolved_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"{unresolved_count} unresolved action(s) must be "
+                f"completed before signing"
+            ),
+        )
+
+    review.status = "signed"
+    review.signed_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(review)
+
+    return review
