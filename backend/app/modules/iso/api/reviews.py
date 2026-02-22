@@ -96,9 +96,7 @@ async def update_review(
         raise HTTPException(status_code=404, detail="Review not found")
 
     if review.status == "signed":
-        raise HTTPException(
-            status_code=409, detail="Cannot modify a signed review"
-        )
+        raise HTTPException(status_code=409, detail="Cannot modify a signed review")
 
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
@@ -162,9 +160,7 @@ async def sign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
         raise HTTPException(status_code=404, detail="Review not found")
 
     if review.status == "signed":
-        raise HTTPException(
-            status_code=409, detail="Review is already signed"
-        )
+        raise HTTPException(status_code=409, detail="Review is already signed")
 
     unresolved_result = await db.execute(
         select(func.count(AccessReviewActionDB.id)).where(
