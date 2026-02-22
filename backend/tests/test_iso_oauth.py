@@ -1,7 +1,11 @@
 """Tests for ISO Google Workspace OAuth."""
 
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from app.config import get_settings
+from app.models.oauth import OAuthTokenDB
 
 
 class TestGoogleWorkspaceConfig:
@@ -14,3 +18,217 @@ class TestGoogleWorkspaceConfig:
         assert settings.google_workspace_client_id == ""
         assert settings.google_workspace_client_secret == ""
         assert settings.google_workspace_redirect_uri == ""
+
+
+class TestGoogleWorkspaceOAuthService:
+    def test_authorization_url_contains_required_params(self) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        url = GoogleWorkspaceOAuth.get_authorization_url(state="test-state")
+        assert "accounts.google.com" in url
+        assert "test-state" in url
+        assert "response_type=code" in url
+        assert "access_type=offline" in url
+        assert "admin.directory.user.readonly" in url
+
+    def test_authorization_url_includes_domain(self) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        url = GoogleWorkspaceOAuth.get_authorization_url(
+            state="s", domain="empresa.com"
+        )
+        assert "empresa.com" in url
+
+    @pytest.mark.asyncio
+    async def test_exchange_code_stores_token(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "access_token": "ya29.test-access-token",
+            "refresh_token": "1//test-refresh-token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+            "scope": "https://www.googleapis.com/auth/admin.directory.user.readonly",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch(
+            "httpx.AsyncClient.post",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
+            token = await GoogleWorkspaceOAuth.exchange_code_for_token(
+                code="test-code",
+                domain="empresa.com",
+                db=db_session,
+            )
+
+        assert token.provider == "google_workspace"
+        assert token.access_token == "ya29.test-access-token"
+        assert token.refresh_token == "1//test-refresh-token"
+        assert token.site_url == "empresa.com"
+        assert token.expires_at is not None
+
+    @pytest.mark.asyncio
+    async def test_exchange_code_replaces_existing_token(
+        self, db_session
+    ) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        existing = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="old-token",
+            site_url="old.com",
+        )
+        db_session.add(existing)
+        await db_session.flush()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "access_token": "new-token",
+            "refresh_token": "new-refresh",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch(
+            "httpx.AsyncClient.post",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
+            token = await GoogleWorkspaceOAuth.exchange_code_for_token(
+                code="code",
+                domain="new.com",
+                db=db_session,
+            )
+
+        assert token.access_token == "new-token"
+        assert token.site_url == "new.com"
+
+    @pytest.mark.asyncio
+    async def test_refresh_token(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        existing = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="expired",
+            refresh_token="valid-refresh",
+            site_url="test.com",
+        )
+        db_session.add(existing)
+        await db_session.flush()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "access_token": "refreshed-token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch(
+            "httpx.AsyncClient.post",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
+            refreshed = await GoogleWorkspaceOAuth.refresh_token(db_session)
+
+        assert refreshed is not None
+        assert refreshed.access_token == "refreshed-token"
+
+    @pytest.mark.asyncio
+    async def test_refresh_returns_none_when_no_token(
+        self, db_session
+    ) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        result = await GoogleWorkspaceOAuth.refresh_token(db_session)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_valid_token(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        existing = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="valid-token",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            site_url="test.com",
+        )
+        db_session.add(existing)
+        await db_session.flush()
+
+        token = await GoogleWorkspaceOAuth.get_valid_token(db_session)
+        assert token == "valid-token"
+
+    @pytest.mark.asyncio
+    async def test_get_valid_token_returns_none(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        token = await GoogleWorkspaceOAuth.get_valid_token(db_session)
+        assert token is None
+
+    @pytest.mark.asyncio
+    async def test_disconnect(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        existing = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="token",
+            site_url="test.com",
+        )
+        db_session.add(existing)
+        await db_session.flush()
+
+        await GoogleWorkspaceOAuth.disconnect(db_session)
+        token = await GoogleWorkspaceOAuth.get_valid_token(db_session)
+        assert token is None
+
+    @pytest.mark.asyncio
+    async def test_get_status_connected(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        existing = OAuthTokenDB(
+            provider="google_workspace",
+            access_token="token",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            site_url="empresa.com",
+        )
+        db_session.add(existing)
+        await db_session.flush()
+
+        status = await GoogleWorkspaceOAuth.get_status(db_session)
+        assert status["connected"] is True
+        assert status["domain"] == "empresa.com"
+
+    @pytest.mark.asyncio
+    async def test_get_status_disconnected(self, db_session) -> None:
+        from app.modules.iso.services.google_workspace_oauth import (
+            GoogleWorkspaceOAuth,
+        )
+
+        status = await GoogleWorkspaceOAuth.get_status(db_session)
+        assert status["connected"] is False
+        assert status["domain"] is None
