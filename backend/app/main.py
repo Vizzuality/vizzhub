@@ -30,6 +30,7 @@ from app.api.slack_admin import (
     router as slack_router,
     templates_router as slack_templates_router,
 )
+from app.modules.iso.router import router as iso_router
 from app.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
@@ -194,6 +195,7 @@ app.include_router(silences_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(scheduled_jobs_router, prefix="/api")
 app.include_router(exports_router.router, prefix="/api", tags=["exports"])
+app.include_router(iso_router, prefix="/api/iso", tags=["iso"])
 
 
 @app.get("/health")
