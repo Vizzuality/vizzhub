@@ -30,13 +30,9 @@ class AccessReviewDB(Base):
         ForeignKey("users.id"),
         nullable=False,
     )
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="draft"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     scope: Mapped[str] = mapped_column(String(255), nullable=False)
-    diff_summary: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True
-    )
+    diff_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     signed_by: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
