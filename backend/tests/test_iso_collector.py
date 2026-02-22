@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.models.oauth import OAuthTokenDB
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
 class TestGoogleWorkspaceCollectorInit:
@@ -406,8 +407,6 @@ class TestCollectRoleAssignments:
         assert assignments[1]["role_name"] == "Groups Admin"
         await collector._client.aclose()
 
-
-from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
 class TestBuildSummary:
