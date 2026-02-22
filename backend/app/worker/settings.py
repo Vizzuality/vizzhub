@@ -20,7 +20,9 @@ async def startup(ctx: dict) -> None:
         from app.services.score_cache import create_score_cache
 
         redis_client, score_cache = await create_score_cache(
-            settings.redis_host, settings.redis_port, settings.redis_password,
+            settings.redis_host,
+            settings.redis_port,
+            settings.redis_password,
         )
         ctx["redis_client"] = redis_client
         ctx["score_cache"] = score_cache
