@@ -6,6 +6,7 @@ from datetime import datetime, date, timezone
 from uuid import uuid4
 
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
+from app.modules.iso.models.access_review import AccessReviewDB
 
 
 class TestIsoRouterMount:
@@ -78,3 +79,79 @@ class TestAccessSnapshotModel:
         await db_session.flush()
 
         assert snapshot.captured_by == user.id
+
+
+class TestAccessReviewModel:
+    @pytest.mark.asyncio
+    async def test_create_review(self, db_session) -> None:
+        from app.models.user import UserDB
+
+        user = UserDB(email="reviewer@test.com", role="admin")
+        db_session.add(user)
+        await db_session.flush()
+
+        snapshot = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime.now(timezone.utc),
+            data={
+                "users": [],
+                "groups": [],
+                "group_members": {},
+                "role_assignments": [],
+            },
+            summary={},
+            source_metadata={},
+        )
+        db_session.add(snapshot)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snapshot.id,
+            previous_snapshot_id=None,
+            reviewer_id=user.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        assert review.id is not None
+        assert review.status == "draft"
+        assert review.snapshot_id == snapshot.id
+        assert review.previous_snapshot_id is None
+        assert review.signed_by is None
+        assert review.signed_at is None
+        assert review.created_at is not None
+
+    @pytest.mark.asyncio
+    async def test_review_signed(self, db_session) -> None:
+        from app.models.user import UserDB
+
+        user = UserDB(email="signer@test.com", role="admin")
+        db_session.add(user)
+        await db_session.flush()
+
+        snapshot = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime.now(timezone.utc),
+            data={},
+            summary={},
+            source_metadata={},
+        )
+        db_session.add(snapshot)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snapshot.id,
+            reviewer_id=user.id,
+            status="signed",
+            scope="All users and groups",
+            signed_by=user.id,
+            signed_at=datetime.now(timezone.utc),
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        assert review.status == "signed"
+        assert review.signed_by == user.id
+        assert review.signed_at is not None
