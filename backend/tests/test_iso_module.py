@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.models.access_review import AccessReviewDB
+from app.modules.iso.models.access_review_action import AccessReviewActionDB
 
 
 class TestIsoRouterMount:
@@ -155,3 +156,100 @@ class TestAccessReviewModel:
         assert review.status == "signed"
         assert review.signed_by == user.id
         assert review.signed_at is not None
+
+
+class TestAccessReviewActionModel:
+    @pytest.mark.asyncio
+    async def test_create_action(self, db_session) -> None:
+        from app.models.user import UserDB
+
+        user = UserDB(email="reviewer@test.com", role="admin")
+        db_session.add(user)
+        await db_session.flush()
+
+        snapshot = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime.now(timezone.utc),
+            data={},
+            summary={},
+            source_metadata={},
+        )
+        db_session.add(snapshot)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snapshot.id,
+            reviewer_id=user.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        action = AccessReviewActionDB(
+            review_id=review.id,
+            subject_type="user",
+            subject_id="newuser@test.com",
+            subject_label="New User",
+            change_type="new_user",
+            previous_value=None,
+            current_value={
+                "email": "newuser@test.com",
+                "name": "New User",
+            },
+        )
+        db_session.add(action)
+        await db_session.flush()
+
+        assert action.id is not None
+        assert action.subject_type == "user"
+        assert action.change_type == "new_user"
+        assert action.action_taken is None
+        assert action.justification is None
+
+    @pytest.mark.asyncio
+    async def test_action_with_decision(self, db_session) -> None:
+        from app.models.user import UserDB
+
+        user = UserDB(email="approver@test.com", role="admin")
+        db_session.add(user)
+        await db_session.flush()
+
+        snapshot = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime.now(timezone.utc),
+            data={},
+            summary={},
+            source_metadata={},
+        )
+        db_session.add(snapshot)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snapshot.id,
+            reviewer_id=user.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        action = AccessReviewActionDB(
+            review_id=review.id,
+            subject_type="user",
+            subject_id="external@vendor.com",
+            change_type="new_external",
+            current_value={
+                "external_added": ["external@vendor.com"],
+            },
+            action_taken="exception",
+            justification="Approved vendor access for Q1 project",
+            approved_by=user.id,
+            exception_until=date(2026, 6, 30),
+        )
+        db_session.add(action)
+        await db_session.flush()
+
+        assert action.action_taken == "exception"
+        assert action.exception_until == date(2026, 6, 30)
+        assert action.approved_by == user.id
