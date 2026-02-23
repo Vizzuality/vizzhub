@@ -17,7 +17,11 @@ export function PaginationControls({
   shownItems,
   label,
   onPageChange,
-}: PaginationControlsProps): JSX.Element {
+}: PaginationControlsProps): JSX.Element | null {
+  if (totalPages <= 1) {
+    return null;
+  }
+
   return (
     <div className="flex items-center justify-between pt-4">
       <p className="text-sm text-muted-foreground">

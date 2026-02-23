@@ -1,5 +1,7 @@
 import { NavLink, Outlet, Navigate, useMatch } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useIsoSnapshots } from '@/hooks/useIso';
+import { isSnapshotStale } from '@/hooks/isoStaleCheck';
 
 const TABS = [
   { to: 'snapshots', label: 'Snapshots' },
@@ -9,6 +11,9 @@ const TABS = [
 
 export default function ISO(): JSX.Element {
   const isIndex = useMatch('/iso');
+  const { data: snapshotData } = useIsoSnapshots({ page: 1, page_size: 1 });
+  const latestCapturedAt = snapshotData?.items?.[0]?.captured_at ?? null;
+  const snapshotsStale = isSnapshotStale(latestCapturedAt);
 
   if (isIndex) {
     return <Navigate to="snapshots" replace />;
@@ -33,6 +38,9 @@ export default function ISO(): JSX.Element {
             }
           >
             {label}
+            {to === 'snapshots' && snapshotsStale && (
+              <span className="ml-1.5 h-2 w-2 rounded-full bg-amber-500 inline-block" />
+            )}
           </NavLink>
         ))}
       </nav>
