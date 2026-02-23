@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -68,6 +67,28 @@ function formatChangeDetails(
   return parts.join(' | ') || '\u2014';
 }
 
+function getChangeTypeBadgeClasses(changeType: string): string {
+  switch (changeType) {
+    case 'new_user':
+    case 'new_external':
+      return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
+    case 'removed_user':
+      return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
+    case 'role_change':
+    case 'group_membership_change':
+      return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
+    default:
+      return '';
+  }
+}
+
+function formatChangeType(changeType: string): string {
+  return changeType
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 interface ActionRowProps {
   readonly action: AccessReviewAction;
   readonly reviewId: string;
@@ -81,12 +102,16 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
   const [justification, setJustification] = useState<string>(
     action.justification ?? '',
   );
+  const [exceptionUntil, setExceptionUntil] = useState<string>(
+    action.exception_until ?? '',
+  );
   const updateAction = useUpdateReviewAction(reviewId);
 
   useEffect(() => {
     setActionTaken(action.action_taken ?? '');
     setJustification(action.justification ?? '');
-  }, [action.action_taken, action.justification]);
+    setExceptionUntil(action.exception_until ?? '');
+  }, [action.action_taken, action.justification, action.exception_until]);
 
   const handleSave = (): void => {
     if (!actionTaken) return;
@@ -95,13 +120,17 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
       data: {
         action_taken: actionTaken as ActionTaken,
         justification: justification || undefined,
+        exception_until: actionTaken === 'exception' && exceptionUntil
+          ? exceptionUntil
+          : undefined,
       },
     });
   };
 
   const hasChanges =
     actionTaken !== (action.action_taken ?? '') ||
-    justification !== (action.justification ?? '');
+    justification !== (action.justification ?? '') ||
+    exceptionUntil !== (action.exception_until ?? '');
 
   return (
     <tr className="border-b last:border-b-0">
@@ -114,7 +143,9 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
         </div>
       </td>
       <td className="py-3 pr-4">
-        <Badge variant="outline">{action.change_type}</Badge>
+        <Badge variant="outline" className={getChangeTypeBadgeClasses(action.change_type)}>
+          {formatChangeType(action.change_type)}
+        </Badge>
       </td>
       <td className="py-3 pr-4 text-sm max-w-xs truncate">
         {formatChangeDetails(action.previous_value, action.current_value)}
@@ -146,13 +177,25 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
         {isSigned ? (
           <span className="text-sm">{action.justification ?? '\u2014'}</span>
         ) : (
-          <Input
-            value={justification}
-            onChange={(e) => setJustification(e.target.value)}
-            placeholder="Justification..."
-            className="w-40"
-            disabled={isSigned}
-          />
+          <div className="space-y-2">
+            <Textarea
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+              placeholder="Justification..."
+              className="w-48 min-h-[60px]"
+              rows={2}
+              disabled={isSigned}
+            />
+            {actionTaken === 'exception' && (
+              <input
+                type="date"
+                value={exceptionUntil}
+                onChange={(e) => setExceptionUntil(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                disabled={isSigned}
+              />
+            )}
+          </div>
         )}
       </td>
       <td className="py-3">

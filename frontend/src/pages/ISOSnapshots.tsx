@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { PaginationControls } from '@/components/ui/pagination-controls';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useIsoSnapshots, useCaptureSnapshot } from '@/hooks/useIso';
+import { isSnapshotStale } from '@/hooks/isoStaleCheck';
 import { formatDate } from '@/utils/formatters';
 
 const snapshotsUrlSchema = {
@@ -32,6 +33,7 @@ export default function ISOSnapshots(): JSX.Element {
   const totalPages = data?.pages ?? 0;
   const firstSnapshot = data?.items?.[0];
   const lastCaptureDate = firstSnapshot?.captured_at ?? null;
+  const isStale = isSnapshotStale(lastCaptureDate);
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -39,6 +41,17 @@ export default function ISOSnapshots(): JSX.Element {
 
   return (
     <div className="space-y-4">
+      {isStale && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            {lastCaptureDate
+              ? 'Last access snapshot is over 35 days old. Consider capturing a new snapshot to maintain ISO 27001 compliance.'
+              : 'No access snapshots have been captured yet. Capture your first snapshot to begin ISO 27001 access reviews.'}
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {lastCaptureDate
