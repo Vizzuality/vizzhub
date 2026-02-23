@@ -367,4 +367,4 @@ class TestRoleAuthorization:
 
             assert any("SECURITY" in record.message for record in caplog.records)
             assert any("Development mode" in record.message for record in caplog.records)
-            assert user.user_id == "dev-user-id"
+            assert user.user_id == "00000000-0000-0000-0000-000000000001"

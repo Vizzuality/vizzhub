@@ -27,32 +27,16 @@ class GoogleWorkspaceCollector:
         self._client: httpx.AsyncClient | None = None
         self._domain: str | None = None
 
-    async def _init_client(self) -> None:
-        token = await GoogleWorkspaceOAuth.get_valid_token(self.db)
-        if not token:
-            raise ValueError("Google Workspace not connected")
-
-        status = await GoogleWorkspaceOAuth.get_status(self.db)
-        domain = status.get("domain")
-        if not domain:
-            raise ValueError("Google Workspace domain not configured")
-
-        self._domain = domain
-        self._client = httpx.AsyncClient(
-            base_url=BASE_URL,
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=30.0,
-        )
-
     async def _paginate(
-        self, path: str, params: dict[str, Any], result_key: str
+        self, path: str, key: str, params: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
+        params = dict(params) if params else {}
         items: list[dict[str, Any]] = []
         while True:
             response = await self._client.get(path, params=params)
             response.raise_for_status()
             data = response.json()
-            items.extend(data.get(result_key, []))
+            items.extend(data.get(key, []))
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
@@ -61,7 +45,7 @@ class GoogleWorkspaceCollector:
 
     async def collect_users(self) -> list[dict[str, Any]]:
         raw = await self._paginate(
-            "/users", {"customer": "my_customer", "maxResults": 500}, "users"
+            "/users", "users", {"customer": "my_customer", "maxResults": 500}
         )
         return [
             {
@@ -76,7 +60,7 @@ class GoogleWorkspaceCollector:
 
     async def collect_groups(self) -> list[dict[str, Any]]:
         raw = await self._paginate(
-            "/groups", {"customer": "my_customer", "maxResults": 200}, "groups"
+            "/groups", "groups", {"customer": "my_customer", "maxResults": 200}
         )
         return [
             {
@@ -94,8 +78,8 @@ class GoogleWorkspaceCollector:
         for group in groups:
             raw = await self._paginate(
                 f"/groups/{group['email']}/members",
-                {"maxResults": 200},
                 "members",
+                {"maxResults": 200},
             )
             members[group["email"]] = [
                 {
@@ -108,13 +92,13 @@ class GoogleWorkspaceCollector:
         return members
 
     async def collect_role_assignments(self) -> list[dict[str, Any]]:
-        roles_raw = await self._paginate("/customer/my_customer/roles", {}, "items")
+        roles_raw = await self._paginate("/customer/my_customer/roles", "items")
         role_map = {str(r["roleId"]): r["roleName"] for r in roles_raw}
 
         assignments_raw = await self._paginate(
             "/customer/my_customer/roleassignments",
-            {"maxResults": 200},
             "items",
+            {"maxResults": 200},
         )
         return [
             {
@@ -160,35 +144,49 @@ class GoogleWorkspaceCollector:
         captured_by: UUID | None = None,
         run_mode: str = "manual",
     ) -> AccessSnapshotDB:
-        await self._init_client()
-        try:
+        token = await GoogleWorkspaceOAuth.get_valid_token(self.db)
+        if not token:
+            raise ValueError("Google Workspace not connected")
+
+        status = await GoogleWorkspaceOAuth.get_status(self.db)
+        domain = status.get("domain")
+        if not domain:
+            raise ValueError("Google Workspace domain not configured")
+
+        self._domain = domain
+
+        async with httpx.AsyncClient(
+            base_url=BASE_URL,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30.0,
+        ) as client:
+            self._client = client
+
             users = await self.collect_users()
             groups = await self.collect_groups()
             group_members = await self.collect_group_members(groups)
             role_assignments = await self.collect_role_assignments()
 
-            user_id_to_email = {u["id"]: u["email"] for u in users}
-            for ra in role_assignments:
-                ra["user_email"] = user_id_to_email.get(ra["user_id"], "")
+        user_id_to_email = {u["id"]: u["email"] for u in users}
+        for ra in role_assignments:
+            ra["user_email"] = user_id_to_email.get(ra["user_id"], "")
 
-            data = {
-                "users": users,
-                "groups": groups,
-                "group_members": group_members,
-                "role_assignments": role_assignments,
-            }
+        data = {
+            "users": users,
+            "groups": groups,
+            "group_members": group_members,
+            "role_assignments": role_assignments,
+        }
 
-            snapshot = AccessSnapshotDB(
-                provider=PROVIDER,
-                captured_at=datetime.now(timezone.utc),
-                captured_by=captured_by,
-                data_version="1",
-                source_metadata=self._build_source_metadata(run_mode),
-                data=data,
-                summary=self._build_summary(data),
-            )
-            self.db.add(snapshot)
-            await self.db.flush()
-            return snapshot
-        finally:
-            await self._client.aclose()
+        snapshot = AccessSnapshotDB(
+            provider=PROVIDER,
+            captured_at=datetime.now(timezone.utc),
+            captured_by=captured_by,
+            data_version="1",
+            source_metadata=self._build_source_metadata(run_mode),
+            data=data,
+            summary=self._build_summary(data),
+        )
+        self.db.add(snapshot)
+        await self.db.flush()
+        return snapshot

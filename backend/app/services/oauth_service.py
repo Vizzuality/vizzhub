@@ -143,7 +143,7 @@ class OAuthService:
         token.token_type = token_data.get("token_type", "Bearer")
         token.scope = token_data.get("scope")
 
-        await db.commit()
+        await db.flush()
         await db.refresh(token)
 
         return token

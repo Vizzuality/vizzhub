@@ -29,12 +29,26 @@ SCOPES = " ".join(
 
 class GoogleWorkspaceOAuth:
     @staticmethod
+    def _get_client_credentials() -> tuple[str, str]:
+        settings = get_settings()
+        client_id = settings.google_workspace_client_id or settings.google_client_id
+        client_secret = settings.google_workspace_client_secret or settings.google_client_secret
+        return client_id, client_secret
+
+    @staticmethod
+    async def _get_token(db: AsyncSession) -> OAuthTokenDB | None:
+        result = await db.execute(
+            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     def get_authorization_url(
         state: str, redirect_uri: str, domain: str | None = None
     ) -> str:
-        settings = get_settings()
+        client_id, _ = GoogleWorkspaceOAuth._get_client_credentials()
         params = {
-            "client_id": settings.google_workspace_client_id or settings.google_client_id,
+            "client_id": client_id,
             "redirect_uri": redirect_uri,
             "response_type": "code",
             "scope": SCOPES,
@@ -51,14 +65,14 @@ class GoogleWorkspaceOAuth:
     async def exchange_code_for_token(
         code: str, domain: str, redirect_uri: str, db: AsyncSession
     ) -> OAuthTokenDB:
-        settings = get_settings()
+        client_id, client_secret = GoogleWorkspaceOAuth._get_client_credentials()
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 GOOGLE_TOKEN_URL,
                 data={
                     "grant_type": "authorization_code",
-                    "client_id": settings.google_workspace_client_id or settings.google_client_id,
-                    "client_secret": settings.google_workspace_client_secret or settings.google_client_secret,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
                     "code": code,
                     "redirect_uri": redirect_uri,
                 },
@@ -72,10 +86,7 @@ class GoogleWorkspaceOAuth:
         if expires_in:
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
-        existing = result.scalar_one_or_none()
+        existing = await GoogleWorkspaceOAuth._get_token(db)
         if existing:
             await db.delete(existing)
 
@@ -97,21 +108,18 @@ class GoogleWorkspaceOAuth:
 
     @staticmethod
     async def refresh_token(db: AsyncSession) -> OAuthTokenDB | None:
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
-        token = result.scalar_one_or_none()
+        token = await GoogleWorkspaceOAuth._get_token(db)
         if not token or not token.refresh_token:
             return None
 
-        settings = get_settings()
+        client_id, client_secret = GoogleWorkspaceOAuth._get_client_credentials()
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 GOOGLE_TOKEN_URL,
                 data={
                     "grant_type": "refresh_token",
-                    "client_id": settings.google_workspace_client_id or settings.google_client_id,
-                    "client_secret": settings.google_workspace_client_secret or settings.google_client_secret,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
                     "refresh_token": token.refresh_token,
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -128,7 +136,7 @@ class GoogleWorkspaceOAuth:
         if "refresh_token" in token_data:
             token.refresh_token = token_data["refresh_token"]
 
-        await db.commit()
+        await db.flush()
         await db.refresh(token)
 
         logger.info("Google Workspace OAuth token refreshed")
@@ -136,10 +144,7 @@ class GoogleWorkspaceOAuth:
 
     @staticmethod
     async def get_valid_token(db: AsyncSession) -> str | None:
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
-        token = result.scalar_one_or_none()
+        token = await GoogleWorkspaceOAuth._get_token(db)
         if not token:
             return None
 
@@ -155,10 +160,7 @@ class GoogleWorkspaceOAuth:
 
     @staticmethod
     async def disconnect(db: AsyncSession) -> None:
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
-        token = result.scalar_one_or_none()
+        token = await GoogleWorkspaceOAuth._get_token(db)
         if token:
             await db.delete(token)
             await db.flush()
@@ -166,10 +168,7 @@ class GoogleWorkspaceOAuth:
 
     @staticmethod
     async def get_status(db: AsyncSession) -> dict[str, Any]:
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
-        token = result.scalar_one_or_none()
+        token = await GoogleWorkspaceOAuth._get_token(db)
         if not token:
             return {"connected": False, "domain": None}
         return {"connected": True, "domain": token.site_url}

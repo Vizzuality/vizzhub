@@ -19,6 +19,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ErrorBanner } from '@/components/ui/error-banner';
 import { useIsoConfig, useDisconnectGoogleWorkspace } from '@/hooks/useIso';
 
 export default function ISOConfig(): JSX.Element {
@@ -44,19 +46,11 @@ export default function ISOConfig(): JSX.Element {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingSpinner className="py-12" />;
   }
 
   if (error) {
-    return (
-      <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">
-        Failed to load configuration status.
-      </div>
-    );
+    return <ErrorBanner message="Failed to load configuration status." />;
   }
 
   return (

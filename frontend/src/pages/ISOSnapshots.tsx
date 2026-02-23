@@ -1,20 +1,32 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { ErrorBanner } from '@/components/ui/error-banner';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useIsoSnapshots, useCaptureSnapshot } from '@/hooks/useIso';
 import { formatDate } from '@/utils/formatters';
 
+const snapshotsUrlSchema = {
+  page: { defaultValue: 1 },
+};
+
 export default function ISOSnapshots(): JSX.Element {
-  const [page, setPage] = useState(1);
+  const { state, setState } = useUrlState(snapshotsUrlSchema);
+  const page = state.page;
+
   const { data, isLoading } = useIsoSnapshots({ page, page_size: 20 });
   const capture = useCaptureSnapshot();
 
   const handleCapture = (): void => {
     capture.mutate();
+  };
+
+  const handlePageChange = (newPage: number): void => {
+    setState({ page: newPage });
   };
 
   const totalPages = data?.pages ?? 0;
@@ -42,9 +54,7 @@ export default function ISOSnapshots(): JSX.Element {
       </div>
 
       {capture.isError && (
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          Failed to capture snapshot. Please try again.
-        </div>
+        <ErrorBanner message="Failed to capture snapshot. Please try again." />
       )}
 
       {!data || data.items.length === 0 ? (
@@ -70,68 +80,47 @@ export default function ISOSnapshots(): JSX.Element {
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((snap) => {
-                  const summary = snap.summary as Record<string, number>;
-                  return (
-                    <tr key={snap.id} className="border-b last:border-b-0">
-                      <td className="py-3 pr-4 text-sm">
-                        {formatDate(snap.captured_at)}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <Badge variant="outline">{snap.provider}</Badge>
-                      </td>
-                      <td className="py-3 pr-4 text-sm">
-                        {summary.total_users ?? 0}
-                      </td>
-                      <td className="py-3 pr-4 text-sm">
-                        {summary.total_admins ?? 0}
-                      </td>
-                      <td className="py-3 pr-4 text-sm">
-                        {summary.total_groups ?? 0}
-                      </td>
-                      <td className="py-3 pr-4 text-sm">
-                        {summary.external_members ?? 0}
-                      </td>
-                      <td className="py-3">
-                        <Link to={`/iso/snapshots/${snap.id}`}>
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {data.items.map((snap) => (
+                  <tr key={snap.id} className="border-b last:border-b-0">
+                    <td className="py-3 pr-4 text-sm">
+                      {formatDate(snap.captured_at)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Badge variant="outline">{snap.provider}</Badge>
+                    </td>
+                    <td className="py-3 pr-4 text-sm">
+                      {snap.summary.total_users ?? 0}
+                    </td>
+                    <td className="py-3 pr-4 text-sm">
+                      {snap.summary.total_admins ?? 0}
+                    </td>
+                    <td className="py-3 pr-4 text-sm">
+                      {snap.summary.total_groups ?? 0}
+                    </td>
+                    <td className="py-3 pr-4 text-sm">
+                      {snap.summary.external_members ?? 0}
+                    </td>
+                    <td className="py-3">
+                      <Link to={`/iso/snapshots/${snap.id}`}>
+                        <Button variant="ghost" size="sm">
+                          View
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
-          <div className="flex items-center justify-between pt-4">
-            <p className="text-sm text-muted-foreground">
-              Showing {data.items.length} of {data.total} snapshots
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            totalItems={data.total}
+            shownItems={data.items.length}
+            label="snapshots"
+            onPageChange={handlePageChange}
+          />
         </>
       )}
     </div>

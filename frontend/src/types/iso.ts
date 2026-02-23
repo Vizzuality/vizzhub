@@ -1,3 +1,21 @@
+export type { PaginatedResponse } from './common';
+
+export interface DiffSummary {
+  total_changes: number;
+  new_user: number;
+  removed_user: number;
+  role_change: number;
+  new_external: number;
+  group_membership_change: number;
+}
+
+export interface SnapshotSummary {
+  total_users: number;
+  total_admins: number;
+  total_groups: number;
+  external_members: number;
+}
+
 export interface AccessSnapshot {
   id: string;
   provider: string;
@@ -6,7 +24,7 @@ export interface AccessSnapshot {
   data_version: string;
   source_metadata: Record<string, unknown>;
   data: Record<string, unknown>;
-  summary: Record<string, unknown>;
+  summary: SnapshotSummary;
   created_at: string;
 }
 
@@ -16,7 +34,7 @@ export interface AccessSnapshotSummary {
   captured_at: string;
   captured_by: string | null;
   data_version: string;
-  summary: Record<string, unknown>;
+  summary: SnapshotSummary;
   created_at: string;
 }
 
@@ -27,7 +45,7 @@ export interface AccessReview {
   reviewer_id: string | null;
   status: 'draft' | 'completed' | 'signed';
   scope: string;
-  diff_summary: Record<string, unknown> | null;
+  diff_summary: DiffSummary | null;
   notes: string | null;
   signed_by: string | null;
   signed_at: string | null;
@@ -66,14 +84,6 @@ export interface AccessReviewActionUpdate {
   justification?: string;
   approved_by?: string;
   exception_until?: string;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  page_size: number;
-  pages: number;
 }
 
 export interface IsoConfigStatus {

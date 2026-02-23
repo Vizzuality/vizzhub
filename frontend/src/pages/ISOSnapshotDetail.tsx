@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ErrorBanner } from '@/components/ui/error-banner';
+import { StatCards } from '@/components/ui/stat-cards';
 import { useIsoSnapshot } from '@/hooks/useIso';
 import { formatDate } from '@/utils/formatters';
+import type { SnapshotSummary } from '@/types';
 
 // --- Data interfaces for the snapshot detail ---
 
@@ -44,13 +46,6 @@ interface SnapshotData {
   role_assignments: RoleAssignment[];
 }
 
-interface SnapshotSummary {
-  total_users: number;
-  total_admins: number;
-  total_groups: number;
-  external_members: number;
-}
-
 type TabKey = 'users' | 'groups' | 'group_members' | 'admins';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -60,32 +55,15 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'admins', label: 'Admins' },
 ];
 
-// --- Summary cards ---
+// --- Summary cards helper ---
 
-interface SummaryCardsProps {
-  readonly summary: SnapshotSummary;
-}
-
-function SummaryCards({ summary }: SummaryCardsProps): JSX.Element {
-  const items: { label: string; value: number }[] = [
+function buildSummaryStatItems(summary: SnapshotSummary): { label: string; value: number }[] {
+  return [
     { label: 'Total Users', value: summary.total_users },
     { label: 'Total Admins', value: summary.total_admins },
     { label: 'Total Groups', value: summary.total_groups },
     { label: 'External Members', value: summary.external_members },
   ];
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {items.map(({ label, value }) => (
-        <Card key={label}>
-          <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-semibold">{value}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
 }
 
 // --- Users tab ---
@@ -292,15 +270,13 @@ export default function ISOSnapshotDetail(): JSX.Element {
           <ArrowLeft className="h-4 w-4" />
           Back to Snapshots
         </Button>
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          Failed to load snapshot.
-        </div>
+        <ErrorBanner message="Failed to load snapshot." />
       </div>
     );
   }
 
   const snapshotData = snapshot.data as unknown as SnapshotData;
-  const summary = snapshot.summary as unknown as SnapshotSummary;
+  const summary = snapshot.summary;
 
   const users = snapshotData.users ?? [];
   const groups = snapshotData.groups ?? [];
@@ -329,7 +305,7 @@ export default function ISOSnapshotDetail(): JSX.Element {
       </div>
 
       {/* Summary cards */}
-      <SummaryCards summary={summary} />
+      <StatCards items={buildSummaryStatItems(summary)} columns={4} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b">
