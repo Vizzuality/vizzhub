@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.sql import func
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import AdminUser, DBSession
 from app.api.schemas.common import PaginatedResponse
 from app.modules.iso.api.helpers import get_review_or_404, paginate
 from app.modules.iso.models.access_review import AccessReviewDB
@@ -30,7 +30,7 @@ router = APIRouter()
 
 @router.get("", response_model=PaginatedResponse[AccessReviewResponse])
 async def list_reviews(
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     status: str | None = None,
     page: int = Query(1, ge=1),
@@ -48,7 +48,7 @@ async def list_reviews(
 
 @router.get("/{review_id}", response_model=AccessReviewDetailResponse)
 async def get_review(
-    review_id: UUID, current_user: CurrentUser, db: DBSession
+    review_id: UUID, current_user: AdminUser, db: DBSession
 ) -> dict:
     review = await get_review_or_404(db, review_id)
 
@@ -69,7 +69,7 @@ async def get_review(
 async def update_review(
     review_id: UUID,
     body: AccessReviewUpdate,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
@@ -94,7 +94,7 @@ async def update_action(
     review_id: UUID,
     action_id: UUID,
     body: AccessReviewActionUpdate,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
 ) -> AccessReviewActionDB:
     review = await get_review_or_404(db, review_id)
@@ -127,7 +127,7 @@ async def update_action(
 
 @router.post("/{review_id}/sign", response_model=AccessReviewResponse)
 async def sign_review(
-    review_id: UUID, current_user: CurrentUser, db: DBSession
+    review_id: UUID, current_user: AdminUser, db: DBSession
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
 
@@ -162,7 +162,7 @@ async def sign_review(
 
 @router.post("/{review_id}/unsign", response_model=AccessReviewResponse)
 async def unsign_review(
-    review_id: UUID, current_user: CurrentUser, db: DBSession
+    review_id: UUID, current_user: AdminUser, db: DBSession
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
 

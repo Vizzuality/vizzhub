@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.sql import func
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import AdminUser, DBSession
 from app.api.schemas.common import PaginatedResponse
 from app.modules.iso.api.helpers import paginate
 from app.modules.iso.models.access_review import AccessReviewDB
@@ -34,7 +34,7 @@ router = APIRouter()
 
 @router.post("/capture", response_model=AccessSnapshotResponse, status_code=201)
 async def capture_snapshot(
-    current_user: CurrentUser, db: DBSession
+    current_user: AdminUser, db: DBSession
 ) -> AccessSnapshotDB:
     collector = GoogleWorkspaceCollector(db)
     try:
@@ -84,7 +84,7 @@ async def capture_snapshot(
 
 @router.get("", response_model=PaginatedResponse[AccessSnapshotSummary])
 async def list_snapshots(
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     provider: str | None = None,
     page: int = Query(1, ge=1),
@@ -102,7 +102,7 @@ async def list_snapshots(
 
 @router.get("/{snapshot_id}", response_model=AccessSnapshotResponse)
 async def get_snapshot(
-    snapshot_id: UUID, current_user: CurrentUser, db: DBSession
+    snapshot_id: UUID, current_user: AdminUser, db: DBSession
 ) -> AccessSnapshotDB:
     result = await db.execute(
         select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
