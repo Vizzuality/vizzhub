@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import AdminUser, DBSession
 from app.core.oauth_state import OAuthStateManager
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get("/google-workspace")
 async def get_google_workspace_status(
-    current_user: CurrentUser, db: DBSession
+    current_user: AdminUser, db: DBSession
 ) -> dict:
     return await GoogleWorkspaceOAuth.get_status(db)
 
@@ -26,7 +26,7 @@ async def get_google_workspace_status(
 @router.get("/google-workspace/authorize")
 async def authorize_google_workspace(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     domain: str = Query(..., description="Google Workspace domain"),
 ) -> RedirectResponse:
@@ -44,7 +44,7 @@ async def authorize_google_workspace(
 @router.get("/google-workspace/callback")
 async def google_workspace_callback(
     request: Request,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DBSession,
     code: str = Query(...),
     state: str = Query(""),
@@ -77,7 +77,7 @@ async def google_workspace_callback(
 
 @router.delete("/google-workspace/disconnect")
 async def disconnect_google_workspace(
-    current_user: CurrentUser, db: DBSession
+    current_user: AdminUser, db: DBSession
 ) -> dict:
     await GoogleWorkspaceOAuth.disconnect(db)
     return {"status": "success", "message": "Google Workspace disconnected"}
