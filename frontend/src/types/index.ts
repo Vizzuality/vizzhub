@@ -88,7 +88,7 @@ export type {
 } from './config';
 
 // Common types
-export type { ApiErrorResponse } from './common';
+export type { ApiErrorResponse, PaginatedResponse } from './common';
 
 // Global metrics types
 export type {
@@ -112,6 +112,7 @@ export type {
   AccessReviewUpdate,
   AccessSnapshot,
   AccessSnapshotSummary,
+  DiffSummary,
   IsoConfigStatus,
-  PaginatedResponse,
+  SnapshotSummary,
 } from './iso';

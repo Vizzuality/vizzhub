@@ -3,23 +3,24 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 from app.models.oauth import OAuthTokenDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
-class TestGoogleWorkspaceCollectorInit:
+class TestCaptureValidation:
     @pytest.mark.asyncio
-    async def test_init_raises_when_no_token(self, db_session) -> None:
+    async def test_capture_raises_when_no_token(self, db_session) -> None:
         from app.modules.iso.services.collectors.google_workspace import (
             GoogleWorkspaceCollector,
         )
 
         collector = GoogleWorkspaceCollector(db_session)
         with pytest.raises(ValueError, match="not connected"):
-            await collector._init_client()
+            await collector.capture()
 
     @pytest.mark.asyncio
-    async def test_init_raises_when_no_domain(self, db_session) -> None:
+    async def test_capture_raises_when_no_domain(self, db_session) -> None:
         from app.modules.iso.services.collectors.google_workspace import (
             GoogleWorkspaceCollector,
         )
@@ -34,47 +35,29 @@ class TestGoogleWorkspaceCollectorInit:
 
         collector = GoogleWorkspaceCollector(db_session)
         with pytest.raises(ValueError, match="domain not configured"):
-            await collector._init_client()
+            await collector.capture()
 
-    @pytest.mark.asyncio
-    async def test_init_creates_client(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
 
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
+def _setup_collector_with_client(db_session):
+    """Create a collector with a manually configured httpx client for unit tests."""
+    from app.modules.iso.services.collectors.google_workspace import (
+        GoogleWorkspaceCollector,
+    )
 
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
-
-        assert collector._domain == "empresa.com"
-        assert collector._client is not None
-        await collector._client.aclose()
+    collector = GoogleWorkspaceCollector(db_session)
+    collector._domain = "empresa.com"
+    collector._client = httpx.AsyncClient(
+        base_url="https://admin.googleapis.com/admin/directory/v1",
+        headers={"Authorization": "Bearer ya29.test"},
+        timeout=30.0,
+    )
+    return collector
 
 
 class TestPagination:
     @pytest.mark.asyncio
     async def test_paginate_single_page(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -85,9 +68,7 @@ class TestPagination:
         with patch.object(
             collector._client, "get", new_callable=AsyncMock, return_value=mock_response
         ):
-            result = await collector._paginate(
-                "/users", {"customer": "my_customer"}, "users"
-            )
+            result = await collector._paginate("/users", "users", {"customer": "my_customer"})
 
         assert len(result) == 1
         assert result[0]["id"] == "1"
@@ -95,20 +76,7 @@ class TestPagination:
 
     @pytest.mark.asyncio
     async def test_paginate_multiple_pages(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         page1 = MagicMock()
         page1.json.return_value = {
@@ -129,31 +97,46 @@ class TestPagination:
             new_callable=AsyncMock,
             side_effect=[page1, page2],
         ):
-            result = await collector._paginate(
-                "/users", {"customer": "my_customer"}, "users"
-            )
+            result = await collector._paginate("/users", "users", {"customer": "my_customer"})
 
         assert len(result) == 2
+        await collector._client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_paginate_does_not_mutate_params(self, db_session) -> None:
+        collector = _setup_collector_with_client(db_session)
+
+        page1 = MagicMock()
+        page1.json.return_value = {
+            "users": [{"id": "1"}],
+            "nextPageToken": "token2",
+        }
+        page1.raise_for_status = MagicMock()
+
+        page2 = MagicMock()
+        page2.json.return_value = {
+            "users": [{"id": "2"}],
+        }
+        page2.raise_for_status = MagicMock()
+
+        original_params = {"customer": "my_customer"}
+
+        with patch.object(
+            collector._client,
+            "get",
+            new_callable=AsyncMock,
+            side_effect=[page1, page2],
+        ):
+            await collector._paginate("/users", "users", original_params)
+
+        assert "pageToken" not in original_params
         await collector._client.aclose()
 
 
 class TestCollectUsers:
     @pytest.mark.asyncio
     async def test_collect_users_extracts_fields(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -197,20 +180,7 @@ class TestCollectUsers:
 
     @pytest.mark.asyncio
     async def test_collect_users_handles_missing_fields(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -235,20 +205,7 @@ class TestCollectUsers:
 class TestCollectGroups:
     @pytest.mark.asyncio
     async def test_collect_groups_extracts_fields(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -282,20 +239,7 @@ class TestCollectGroups:
 class TestCollectGroupMembers:
     @pytest.mark.asyncio
     async def test_collect_group_members(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -324,20 +268,7 @@ class TestCollectGroupMembers:
 
     @pytest.mark.asyncio
     async def test_collect_group_members_empty_group(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {}
@@ -360,20 +291,7 @@ class TestCollectGroupMembers:
 class TestCollectRoleAssignments:
     @pytest.mark.asyncio
     async def test_collect_role_assignments(self, db_session) -> None:
-        from app.modules.iso.services.collectors.google_workspace import (
-            GoogleWorkspaceCollector,
-        )
-
-        token = OAuthTokenDB(
-            provider="google_workspace",
-            access_token="ya29.test",
-            site_url="empresa.com",
-        )
-        db_session.add(token)
-        await db_session.flush()
-
-        collector = GoogleWorkspaceCollector(db_session)
-        await collector._init_client()
+        collector = _setup_collector_with_client(db_session)
 
         roles_response = MagicMock()
         roles_response.json.return_value = {
@@ -406,7 +324,6 @@ class TestCollectRoleAssignments:
         assert assignments[0]["role_name"] == "Super Admin"
         assert assignments[1]["role_name"] == "Groups Admin"
         await collector._client.aclose()
-
 
 
 class TestBuildSummary:

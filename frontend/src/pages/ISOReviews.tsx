@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ReviewStatusBadge } from '@/components/ui/review-status-badge';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import {
   Select,
   SelectContent,
@@ -12,40 +12,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useIsoReviews } from '@/hooks/useIso';
 import { formatDate } from '@/utils/formatters';
-import type { AccessReview } from '@/types';
 
-type ReviewStatus = AccessReview['status'];
-
-function getStatusBadge(status: ReviewStatus): JSX.Element {
-  const config: Record<
-    ReviewStatus,
-    { variant: 'default' | 'secondary' | 'outline'; label: string }
-  > = {
-    draft: { variant: 'secondary', label: 'Draft' },
-    completed: { variant: 'outline', label: 'Completed' },
-    signed: { variant: 'default', label: 'Signed' },
-  };
-  const { variant, label } = config[status];
-  return <Badge variant={variant}>{label}</Badge>;
-}
+const reviewsUrlSchema = {
+  page: { defaultValue: 1 },
+  status: { defaultValue: 'all' },
+};
 
 export default function ISOReviews(): JSX.Element {
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const { state, setState } = useUrlState(reviewsUrlSchema);
+  const page = state.page;
+  const statusFilter = state.status;
 
-  const params = {
+  const params = useMemo(() => ({
     page,
     page_size: 20,
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-  };
+  }), [page, statusFilter]);
 
   const { data, isLoading } = useIsoReviews(params);
 
   const handleStatusChange = (value: string): void => {
-    setStatusFilter(value);
-    setPage(1);
+    setState({ status: value, page: 1 });
+  };
+
+  const handlePageChange = (newPage: number): void => {
+    setState({ page: newPage });
   };
 
   const totalPages = data?.pages ?? 0;
@@ -95,18 +89,14 @@ export default function ISOReviews(): JSX.Element {
               </thead>
               <tbody>
                 {data.items.map((review) => {
-                  const diffSummary = review.diff_summary as Record<
-                    string,
-                    number
-                  > | null;
-                  const totalChanges = diffSummary?.total_changes ?? 0;
+                  const totalChanges = review.diff_summary?.total_changes ?? 0;
                   return (
                     <tr key={review.id} className="border-b last:border-b-0">
                       <td className="py-3 pr-4 text-sm">
                         {formatDate(review.created_at)}
                       </td>
                       <td className="py-3 pr-4">
-                        {getStatusBadge(review.status)}
+                        <ReviewStatusBadge status={review.status} />
                       </td>
                       <td className="py-3 pr-4 text-sm">{review.scope}</td>
                       <td className="py-3 pr-4 text-sm">{totalChanges}</td>
@@ -129,32 +119,14 @@ export default function ISOReviews(): JSX.Element {
             </table>
           </div>
 
-          <div className="flex items-center justify-between pt-4">
-            <p className="text-sm text-muted-foreground">
-              Showing {data.items.length} of {data.total} reviews
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            totalItems={data.total}
+            shownItems={data.items.length}
+            label="reviews"
+            onPageChange={handlePageChange}
+          />
         </>
       )}
     </div>

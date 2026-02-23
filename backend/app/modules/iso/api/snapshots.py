@@ -1,20 +1,23 @@
 """ISO snapshot API endpoints."""
 
 import logging
-import math
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import httpx
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
+from app.api.deps import CurrentUser, DBSession
 from app.api.schemas.common import PaginatedResponse
-from app.database import get_db
+from app.modules.iso.api.helpers import paginate
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
-from app.modules.iso.schemas import AccessSnapshotResponse, AccessSnapshotSummary
+from app.modules.iso.schemas import (
+    AccessSnapshotResponse,
+    AccessSnapshotSummary,
+    ReviewStatus,
+)
 from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
@@ -26,18 +29,28 @@ from app.modules.iso.services.diff_engine import (
 
 logger = logging.getLogger(__name__)
 
-DBSession = Annotated[AsyncSession, Depends(get_db)]
-
 router = APIRouter()
 
 
 @router.post("/capture", response_model=AccessSnapshotResponse, status_code=201)
-async def capture_snapshot(db: DBSession) -> AccessSnapshotDB:
+async def capture_snapshot(
+    current_user: CurrentUser, db: DBSession
+) -> AccessSnapshotDB:
     collector = GoogleWorkspaceCollector(db)
     try:
         snapshot = await collector.capture(run_mode="manual")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except httpx.HTTPStatusError as e:
+        logger.warning("Google Workspace API error: %s", e.response.status_code)
+        raise HTTPException(
+            status_code=502, detail="Google Workspace API error"
+        ) from e
+    except httpx.RequestError:
+        logger.exception("Google Workspace connection error")
+        raise HTTPException(
+            status_code=502, detail="Failed to connect to Google Workspace"
+        )
 
     result = await db.execute(
         select(AccessSnapshotDB)
@@ -52,7 +65,7 @@ async def capture_snapshot(db: DBSession) -> AccessSnapshotDB:
         snapshot_id=snapshot.id,
         previous_snapshot_id=previous.id if previous else None,
         reviewer_id=snapshot.captured_by,
-        status="draft",
+        status=ReviewStatus.DRAFT,
         scope="All users and groups",
     )
     db.add(review)
@@ -71,6 +84,7 @@ async def capture_snapshot(db: DBSession) -> AccessSnapshotDB:
 
 @router.get("", response_model=PaginatedResponse[AccessSnapshotSummary])
 async def list_snapshots(
+    current_user: CurrentUser,
     db: DBSession,
     provider: str | None = None,
     page: int = Query(1, ge=1),
@@ -83,25 +97,13 @@ async def list_snapshots(
         query = query.where(AccessSnapshotDB.provider == provider)
         count_query = count_query.where(AccessSnapshotDB.provider == provider)
 
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size)
-    result = await db.execute(query)
-    snapshots = result.scalars().all()
-
-    return {
-        "items": snapshots,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "pages": math.ceil(total / page_size) if total > 0 else 0,
-    }
+    return await paginate(db, query, count_query, page, page_size)
 
 
 @router.get("/{snapshot_id}", response_model=AccessSnapshotResponse)
-async def get_snapshot(snapshot_id: UUID, db: DBSession) -> AccessSnapshotDB:
+async def get_snapshot(
+    snapshot_id: UUID, current_user: CurrentUser, db: DBSession
+) -> AccessSnapshotDB:
     result = await db.execute(
         select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
     )

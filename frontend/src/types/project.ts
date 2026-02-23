@@ -1,3 +1,5 @@
+import type { PaginatedResponse } from './common';
+
 export type ProjectStatus = 'in_progress' | 'finished';
 
 export interface Project {
@@ -42,13 +44,7 @@ export interface SlackChannel {
   is_private: boolean;
 }
 
-export interface PaginatedProjects {
-  items: Project[];
-  total: number;
-  page: number;
-  page_size: number;
-  pages: number;
-}
+export type PaginatedProjects = PaginatedResponse<Project>;
 
 export interface ProjectSummary {
   id: string;

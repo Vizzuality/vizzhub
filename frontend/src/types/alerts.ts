@@ -1,3 +1,5 @@
+import type { PaginatedResponse } from './common';
+
 export type AlertCategory = 'business' | 'project';
 export type ChannelType = 'leadership' | 'project';
 export type AlertSchedule = 'daily_check_monthly_report' | 'daily';
@@ -73,13 +75,7 @@ export interface AlertNotification {
   alert_name: string | null;
 }
 
-export interface PaginatedNotifications {
-  items: AlertNotification[];
-  total: number;
-  page: number;
-  page_size: number;
-  pages: number;
-}
+export type PaginatedNotifications = PaginatedResponse<AlertNotification>;
 
 export interface NotificationFilters {
   project_id?: string;

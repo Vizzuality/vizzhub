@@ -99,7 +99,7 @@ async def get_current_user(
             "No authentication token provided - using mock development user."
         )
         return TokenData(
-            user_id="dev-user-id",
+            user_id="00000000-0000-0000-0000-000000000001",
             roles=["user", "admin"],
         )
 

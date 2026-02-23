@@ -31,6 +31,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ReviewStatusBadge } from '@/components/ui/review-status-badge';
+import { ErrorBanner } from '@/components/ui/error-banner';
+import { StatCards } from '@/components/ui/stat-cards';
 import {
   useIsoReview,
   useUpdateReview,
@@ -40,9 +43,8 @@ import {
 } from '@/hooks/useIso';
 import { useUsers } from '@/hooks/useUsers';
 import { formatDate } from '@/utils/formatters';
-import type { AccessReviewAction, AccessReviewDetail } from '@/types';
+import type { AccessReviewAction, DiffSummary } from '@/types';
 
-type ReviewStatus = AccessReviewDetail['status'];
 type ActionTaken = NonNullable<AccessReviewAction['action_taken']>;
 
 const ACTION_OPTIONS: { value: ActionTaken; label: string }[] = [
@@ -51,19 +53,6 @@ const ACTION_OPTIONS: { value: ActionTaken; label: string }[] = [
   { value: 'corrected', label: 'Corrected' },
   { value: 'exception', label: 'Exception' },
 ];
-
-function getStatusBadge(status: ReviewStatus): JSX.Element {
-  const config: Record<
-    ReviewStatus,
-    { variant: 'default' | 'secondary' | 'outline'; label: string }
-  > = {
-    draft: { variant: 'secondary', label: 'Draft' },
-    completed: { variant: 'outline', label: 'Completed' },
-    signed: { variant: 'default', label: 'Signed' },
-  };
-  const { variant, label } = config[status];
-  return <Badge variant={variant}>{label}</Badge>;
-}
 
 function formatChangeDetails(
   previousValue: Record<string, unknown> | null,
@@ -182,32 +171,14 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
   );
 }
 
-interface DiffSummaryCardsProps {
-  readonly diffSummary: Record<string, unknown>;
-}
-
-function DiffSummaryCards({ diffSummary }: DiffSummaryCardsProps): JSX.Element {
-  const stats = diffSummary as Record<string, number>;
-  const items: { label: string; key: string }[] = [
-    { label: 'New Users', key: 'new_user' },
-    { label: 'Removed Users', key: 'removed_user' },
-    { label: 'Role Changes', key: 'role_change' },
-    { label: 'New External', key: 'new_external' },
-    { label: 'Group Changes', key: 'group_membership_change' },
+function buildDiffStatItems(diffSummary: DiffSummary): { label: string; value: number }[] {
+  return [
+    { label: 'New Users', value: diffSummary.new_user },
+    { label: 'Removed Users', value: diffSummary.removed_user },
+    { label: 'Role Changes', value: diffSummary.role_change },
+    { label: 'New External', value: diffSummary.new_external },
+    { label: 'Group Changes', value: diffSummary.group_membership_change },
   ];
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-      {items.map(({ label, key }) => (
-        <Card key={key}>
-          <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-semibold">{stats[key] ?? 0}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
 }
 
 export default function ISOReviewDetail(): JSX.Element {
@@ -289,9 +260,7 @@ export default function ISOReviewDetail(): JSX.Element {
           <ArrowLeft className="h-4 w-4" />
           Back to Reviews
         </Button>
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          Failed to load review.
-        </div>
+        <ErrorBanner message="Failed to load review." />
       </div>
     );
   }
@@ -316,7 +285,7 @@ export default function ISOReviewDetail(): JSX.Element {
             Back to Reviews
           </Button>
           <h2 className="text-2xl font-semibold">Access Review</h2>
-          {getStatusBadge(review.status)}
+          <ReviewStatusBadge status={review.status} />
         </div>
         <div className="text-sm text-muted-foreground">
           <span>Created {formatDate(review.created_at)}</span>
@@ -391,7 +360,10 @@ export default function ISOReviewDetail(): JSX.Element {
       {review.diff_summary && (
         <div className="space-y-2">
           <h3 className="text-lg font-medium">Diff Summary</h3>
-          <DiffSummaryCards diffSummary={review.diff_summary} />
+          <StatCards
+            items={buildDiffStatItems(review.diff_summary)}
+            columns={5}
+          />
         </div>
       )}
 

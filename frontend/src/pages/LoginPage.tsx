@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export function LoginPage(): JSX.Element {
   const { login, isAuthenticated, isLoading } = useAuth();
@@ -38,11 +39,7 @@ export function LoginPage(): JSX.Element {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingSpinner className="min-h-screen" />;
   }
 
   return (

@@ -1,19 +1,17 @@
 """ISO access review API endpoints."""
 
 import logging
-import math
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
+from app.api.deps import CurrentUser, DBSession
 from app.api.schemas.common import PaginatedResponse
-from app.database import get_db
+from app.modules.iso.api.helpers import get_review_or_404, paginate
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.schemas import (
@@ -22,17 +20,17 @@ from app.modules.iso.schemas import (
     AccessReviewDetailResponse,
     AccessReviewResponse,
     AccessReviewUpdate,
+    ReviewStatus,
 )
 
 logger = logging.getLogger(__name__)
-
-DBSession = Annotated[AsyncSession, Depends(get_db)]
 
 router = APIRouter()
 
 
 @router.get("", response_model=PaginatedResponse[AccessReviewResponse])
 async def list_reviews(
+    current_user: CurrentUser,
     db: DBSession,
     status: str | None = None,
     page: int = Query(1, ge=1),
@@ -45,31 +43,14 @@ async def list_reviews(
         query = query.where(AccessReviewDB.status == status)
         count_query = count_query.where(AccessReviewDB.status == status)
 
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size)
-    result = await db.execute(query)
-    reviews = result.scalars().all()
-
-    return {
-        "items": reviews,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "pages": math.ceil(total / page_size) if total > 0 else 0,
-    }
+    return await paginate(db, query, count_query, page, page_size)
 
 
 @router.get("/{review_id}", response_model=AccessReviewDetailResponse)
-async def get_review(review_id: UUID, db: DBSession) -> dict:
-    result = await db.execute(
-        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
-    )
-    review = result.scalar_one_or_none()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
+async def get_review(
+    review_id: UUID, current_user: CurrentUser, db: DBSession
+) -> dict:
+    review = await get_review_or_404(db, review_id)
 
     actions_result = await db.execute(
         select(AccessReviewActionDB)
@@ -86,16 +67,14 @@ async def get_review(review_id: UUID, db: DBSession) -> dict:
 
 @router.patch("/{review_id}", response_model=AccessReviewResponse)
 async def update_review(
-    review_id: UUID, body: AccessReviewUpdate, db: DBSession
+    review_id: UUID,
+    body: AccessReviewUpdate,
+    current_user: CurrentUser,
+    db: DBSession,
 ) -> AccessReviewDB:
-    result = await db.execute(
-        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
-    )
-    review = result.scalar_one_or_none()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
+    review = await get_review_or_404(db, review_id)
 
-    if review.status == "signed":
+    if review.status == ReviewStatus.SIGNED:
         raise HTTPException(status_code=409, detail="Cannot modify a signed review")
 
     updates = body.model_dump(exclude_unset=True)
@@ -115,16 +94,12 @@ async def update_action(
     review_id: UUID,
     action_id: UUID,
     body: AccessReviewActionUpdate,
+    current_user: CurrentUser,
     db: DBSession,
 ) -> AccessReviewActionDB:
-    review_result = await db.execute(
-        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
-    )
-    review = review_result.scalar_one_or_none()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
+    review = await get_review_or_404(db, review_id)
 
-    if review.status == "signed":
+    if review.status == ReviewStatus.SIGNED:
         raise HTTPException(
             status_code=409, detail="Cannot modify actions on a signed review"
         )
@@ -151,15 +126,12 @@ async def update_action(
 
 
 @router.post("/{review_id}/sign", response_model=AccessReviewResponse)
-async def sign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
-    result = await db.execute(
-        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
-    )
-    review = result.scalar_one_or_none()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
+async def sign_review(
+    review_id: UUID, current_user: CurrentUser, db: DBSession
+) -> AccessReviewDB:
+    review = await get_review_or_404(db, review_id)
 
-    if review.status == "signed":
+    if review.status == ReviewStatus.SIGNED:
         raise HTTPException(status_code=409, detail="Review is already signed")
 
     unresolved_result = await db.execute(
@@ -179,7 +151,8 @@ async def sign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
             ),
         )
 
-    review.status = "signed"
+    review.status = ReviewStatus.SIGNED
+    review.signed_by = UUID(current_user.user_id)
     review.signed_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(review)
@@ -188,18 +161,15 @@ async def sign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
 
 
 @router.post("/{review_id}/unsign", response_model=AccessReviewResponse)
-async def unsign_review(review_id: UUID, db: DBSession) -> AccessReviewDB:
-    result = await db.execute(
-        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
-    )
-    review = result.scalar_one_or_none()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
+async def unsign_review(
+    review_id: UUID, current_user: CurrentUser, db: DBSession
+) -> AccessReviewDB:
+    review = await get_review_or_404(db, review_id)
 
-    if review.status != "signed":
+    if review.status != ReviewStatus.SIGNED:
         raise HTTPException(status_code=409, detail="Review is not signed")
 
-    review.status = "draft"
+    review.status = ReviewStatus.DRAFT
     review.signed_at = None
     review.signed_by = None
     await db.flush()

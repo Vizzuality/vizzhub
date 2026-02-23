@@ -1,14 +1,29 @@
 """Tests for ISO access review API endpoints."""
 
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
 
+from app.models.user import UserDB
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
+
+DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+
+
+async def _ensure_dev_user(db_session) -> None:
+    """Create the dev user in the DB so FK constraints pass."""
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(UserDB).where(UserDB.id == DEV_USER_ID)
+    )
+    if not result.scalar_one_or_none():
+        db_session.add(UserDB(id=DEV_USER_ID, email="dev@test.com"))
+        await db_session.flush()
 
 
 async def _make_snapshot(db_session) -> AccessSnapshotDB:
@@ -248,6 +263,7 @@ class TestSignReview:
     async def test_sign_review_success(
         self, client: AsyncClient, db_session
     ) -> None:
+        await _ensure_dev_user(db_session)
         snapshot = await _make_snapshot(db_session)
         review = await _make_review(db_session, snapshot.id)
         await _make_action(
@@ -259,6 +275,7 @@ class TestSignReview:
         data = response.json()
         assert data["status"] == "signed"
         assert data["signed_at"] is not None
+        assert data["signed_by"] == str(DEV_USER_ID)
 
     @pytest.mark.asyncio
     async def test_sign_review_fails_with_unresolved_actions(
@@ -292,6 +309,7 @@ class TestSignReview:
     async def test_sign_review_no_actions_succeeds(
         self, client: AsyncClient, db_session
     ) -> None:
+        await _ensure_dev_user(db_session)
         snapshot = await _make_snapshot(db_session)
         review = await _make_review(db_session, snapshot.id)
 
