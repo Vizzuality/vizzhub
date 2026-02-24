@@ -7,6 +7,7 @@ import type {
   AccessSnapshotSummary,
   IsoConfigStatus,
   PaginatedResponse,
+  SignReviewPayload,
 } from '../../types';
 import api from './client';
 
@@ -47,6 +48,10 @@ export const isoApi = {
       { params },
     );
     return response.data;
+  },
+
+  deleteSnapshot: async (id: string): Promise<void> => {
+    await api.delete(`/iso/snapshots/${id}`);
   },
 
   getSnapshot: async (id: string): Promise<AccessSnapshot> => {
@@ -95,9 +100,13 @@ export const isoApi = {
     await api.patch(`/iso/reviews/${reviewId}/actions/${actionId}`, data);
   },
 
-  signReview: async (id: string): Promise<AccessReviewDetail> => {
+  signReview: async (
+    id: string,
+    payload?: SignReviewPayload,
+  ): Promise<AccessReviewDetail> => {
     const response = await api.post<AccessReviewDetail>(
       `/iso/reviews/${id}/sign`,
+      payload,
     );
     return response.data;
   },

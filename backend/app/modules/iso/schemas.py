@@ -53,6 +53,7 @@ class AccessSnapshotSummary(BaseModel):
     data_version: str
     summary: dict
     created_at: datetime
+    review_status: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -103,6 +104,18 @@ class AccessReviewActionUpdate(BaseModel):
     justification: str | None = None
     approved_by: UUID | None = None
     exception_until: date | None = None
+
+
+class ActionDecision(BaseModel):
+    action_id: UUID
+    action_taken: ActionTaken
+    justification: str | None = None
+    exception_until: date | None = None
+
+
+class SignReviewRequest(BaseModel):
+    notes: str | None = None
+    actions: list[ActionDecision] | None = None
 
 
 class AccessReviewDetailResponse(AccessReviewResponse):

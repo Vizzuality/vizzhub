@@ -107,7 +107,6 @@ const mockUseIsoSnapshot = vi.fn();
 const mockUseSnapshotReview = vi.fn();
 const mockUpdateMutate = vi.fn();
 const mockUseUpdateReview = vi.fn();
-const mockUseUpdateReviewAction = vi.fn();
 const mockSignMutate = vi.fn();
 const mockUseSignReview = vi.fn();
 const mockUnsignMutate = vi.fn();
@@ -125,7 +124,6 @@ vi.mock('../../hooks/useIso', () => ({
   useIsoSnapshot: (...args: unknown[]) => mockUseIsoSnapshot(...args),
   useSnapshotReview: (...args: unknown[]) => mockUseSnapshotReview(...args),
   useUpdateReview: (...args: unknown[]) => mockUseUpdateReview(...args),
-  useUpdateReviewAction: (...args: unknown[]) => mockUseUpdateReviewAction(...args),
   useSignReview: (...args: unknown[]) => mockUseSignReview(...args),
   useUnsignReview: (...args: unknown[]) => mockUseUnsignReview(...args),
 }));
@@ -164,10 +162,6 @@ describe('ISOSnapshotDetail', () => {
     });
     mockUseUpdateReview.mockReturnValue({
       mutate: mockUpdateMutate,
-      isPending: false,
-    });
-    mockUseUpdateReviewAction.mockReturnValue({
-      mutate: vi.fn(),
       isPending: false,
     });
     mockUseSignReview.mockReturnValue({
@@ -381,6 +375,16 @@ describe('ISOSnapshotDetail', () => {
 
     const dateInput = document.querySelector('input[type="date"]');
     expect(dateInput).toBeTruthy();
+  });
+
+  // --- Bulk sign flow ---
+
+  it('does not render individual Save buttons in action rows', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    const saveButtons = screen.queryAllByRole('button', { name: /^save$/i });
+    expect(saveButtons).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /save notes/i })).not.toBeInTheDocument();
   });
 
   // --- No review scenario ---

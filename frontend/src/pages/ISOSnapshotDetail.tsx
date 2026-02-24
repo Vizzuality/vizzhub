@@ -37,7 +37,6 @@ import {
   useIsoSnapshot,
   useSnapshotReview,
   useUpdateReview,
-  useUpdateReviewAction,
   useSignReview,
   useUnsignReview,
 } from '@/hooks/useIso';
@@ -48,6 +47,7 @@ import type {
   AccessReviewAction,
   AccessReviewDetail,
   DiffSummary,
+  ActionDecision,
 } from '@/types';
 
 // --- Data interfaces for the snapshot detail ---
@@ -167,51 +167,24 @@ function buildSummaryStatItems(
   ];
 }
 
-// --- Action row component ---
+// --- Action state for local editing ---
+
+interface ActionState {
+  actionTaken: string;
+  justification: string;
+  exceptionUntil: string;
+}
+
+// --- Action row component (controlled) ---
 
 interface ActionRowProps {
   readonly action: AccessReviewAction;
-  readonly reviewId: string;
+  readonly state: ActionState;
   readonly isSigned: boolean;
+  readonly onChange: (state: ActionState) => void;
 }
 
-function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element {
-  const [actionTaken, setActionTaken] = useState<string>(
-    action.action_taken ?? '',
-  );
-  const [justification, setJustification] = useState<string>(
-    action.justification ?? '',
-  );
-  const [exceptionUntil, setExceptionUntil] = useState<string>(
-    action.exception_until ?? '',
-  );
-  const updateAction = useUpdateReviewAction(reviewId);
-
-  useEffect(() => {
-    setActionTaken(action.action_taken ?? '');
-    setJustification(action.justification ?? '');
-    setExceptionUntil(action.exception_until ?? '');
-  }, [action.action_taken, action.justification, action.exception_until]);
-
-  const handleSave = (): void => {
-    if (!actionTaken) return;
-    updateAction.mutate({
-      actionId: action.id,
-      data: {
-        action_taken: actionTaken as ActionTaken,
-        justification: justification || undefined,
-        exception_until: actionTaken === 'exception' && exceptionUntil
-          ? exceptionUntil
-          : undefined,
-      },
-    });
-  };
-
-  const hasChanges =
-    actionTaken !== (action.action_taken ?? '') ||
-    justification !== (action.justification ?? '') ||
-    exceptionUntil !== (action.exception_until ?? '');
-
+function ActionRow({ action, state, isSigned, onChange }: ActionRowProps): JSX.Element {
   return (
     <tr className="border-b last:border-b-0">
       <td className="py-3 pr-4 text-sm">
@@ -235,9 +208,10 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
           <span className="text-sm">{action.action_taken ?? '\u2014'}</span>
         ) : (
           <Select
-            value={actionTaken || 'none'}
-            onValueChange={(v) => setActionTaken(v === 'none' ? '' : v)}
-            disabled={isSigned}
+            value={state.actionTaken || 'none'}
+            onValueChange={(v) =>
+              onChange({ ...state, actionTaken: v === 'none' ? '' : v })
+            }
           >
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Select..." />
@@ -259,35 +233,25 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
         ) : (
           <div className="space-y-2">
             <Textarea
-              value={justification}
-              onChange={(e) => setJustification(e.target.value)}
+              value={state.justification}
+              onChange={(e) =>
+                onChange({ ...state, justification: e.target.value })
+              }
               placeholder="Justification..."
               className="w-48 min-h-[60px]"
               rows={2}
-              disabled={isSigned}
             />
-            {actionTaken === 'exception' && (
+            {state.actionTaken === 'exception' && (
               <input
                 type="date"
-                value={exceptionUntil}
-                onChange={(e) => setExceptionUntil(e.target.value)}
+                value={state.exceptionUntil}
+                onChange={(e) =>
+                  onChange({ ...state, exceptionUntil: e.target.value })
+                }
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                disabled={isSigned}
               />
             )}
           </div>
-        )}
-      </td>
-      <td className="py-3">
-        {!isSigned && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSave}
-            disabled={!actionTaken || !hasChanges || updateAction.isPending}
-          >
-            {updateAction.isPending ? 'Saving...' : 'Save'}
-          </Button>
         )}
       </td>
     </tr>
@@ -295,6 +259,20 @@ function ActionRow({ action, reviewId, isSigned }: ActionRowProps): JSX.Element 
 }
 
 // --- Review panel component ---
+
+function initActionStates(
+  actions: AccessReviewAction[],
+): Record<string, ActionState> {
+  const states: Record<string, ActionState> = {};
+  for (const action of actions) {
+    states[action.id] = {
+      actionTaken: action.action_taken ?? '',
+      justification: action.justification ?? '',
+      exceptionUntil: action.exception_until ?? '',
+    };
+  }
+  return states;
+}
 
 interface ReviewPanelProps {
   readonly review: AccessReviewDetail;
@@ -307,6 +285,9 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
   const { data: users } = useUsers();
 
   const [notes, setNotes] = useState('');
+  const [actionStates, setActionStates] = useState<Record<string, ActionState>>(
+    () => initActionStates(review.actions),
+  );
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [unsignDialogOpen, setUnsignDialogOpen] = useState(false);
 
@@ -315,6 +296,10 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
       setNotes(review.notes ?? '');
     }
   }, [review?.notes]);
+
+  useEffect(() => {
+    setActionStates(initActionStates(review.actions));
+  }, [review.actions]);
 
   const isSigned = review.status === 'signed';
 
@@ -327,19 +312,37 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
     [updateReview],
   );
 
-  const handleSaveNotes = useCallback((): void => {
-    updateReview.mutate({ notes });
-  }, [updateReview, notes]);
+  const handleActionChange = useCallback(
+    (actionId: string, state: ActionState): void => {
+      setActionStates((prev) => ({ ...prev, [actionId]: state }));
+    },
+    [],
+  );
 
   const handleSign = useCallback(
     (e: React.MouseEvent): void => {
       e.preventDefault();
-      signReview.mutate(undefined, {
-        onSuccess: () => setSignDialogOpen(false),
-        onError: () => setSignDialogOpen(false),
+      const actions: ActionDecision[] = review.actions.map((action) => {
+        const state = actionStates[action.id];
+        return {
+          action_id: action.id,
+          action_taken: state.actionTaken as ActionDecision['action_taken'],
+          justification: state.justification || undefined,
+          exception_until:
+            state.actionTaken === 'exception' && state.exceptionUntil
+              ? state.exceptionUntil
+              : undefined,
+        };
       });
+      signReview.mutate(
+        { notes: notes || undefined, actions },
+        {
+          onSuccess: () => setSignDialogOpen(false),
+          onError: () => setSignDialogOpen(false),
+        },
+      );
     },
-    [signReview],
+    [signReview, notes, review.actions, actionStates],
   );
 
   const handleUnsign = useCallback(
@@ -353,11 +356,9 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
     [unsignReview],
   );
 
-  const unresolvedCount = review.actions.filter(
-    (a) => a.action_taken === null,
+  const unresolvedCount = Object.values(actionStates).filter(
+    (s) => !s.actionTaken,
   ).length;
-
-  const notesChanged = notes !== (review.notes ?? '');
 
   return (
     <div className="space-y-6" data-testid="review-panel">
@@ -400,23 +401,13 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
                 {review.notes || '\u2014'}
               </p>
             ) : (
-              <>
-                <Textarea
-                  id="review-notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes about this review..."
-                  rows={3}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveNotes}
-                  disabled={!notesChanged || updateReview.isPending}
-                >
-                  {updateReview.isPending ? 'Saving...' : 'Save Notes'}
-                </Button>
-              </>
+              <Textarea
+                id="review-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add notes about this review..."
+                rows={3}
+              />
             )}
           </div>
         </CardContent>
@@ -446,7 +437,6 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
                   <th className="pb-3 font-medium">Details</th>
                   <th className="pb-3 font-medium">Action</th>
                   <th className="pb-3 font-medium">Justification</th>
-                  {!isSigned && <th className="pb-3 font-medium" />}
                 </tr>
               </thead>
               <tbody>
@@ -454,8 +444,13 @@ function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
                   <ActionRow
                     key={action.id}
                     action={action}
-                    reviewId={review.id}
+                    state={actionStates[action.id] ?? {
+                      actionTaken: '',
+                      justification: '',
+                      exceptionUntil: '',
+                    }}
                     isSigned={isSigned}
+                    onChange={(s) => handleActionChange(action.id, s)}
                   />
                 ))}
               </tbody>

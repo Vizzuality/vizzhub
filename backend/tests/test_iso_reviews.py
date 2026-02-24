@@ -319,6 +319,128 @@ class TestSignReview:
         assert data["status"] == "signed"
 
 
+    @pytest.mark.asyncio
+    async def test_sign_with_bulk_actions_and_notes(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        await _ensure_dev_user(db_session)
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        action = await _make_action(db_session, review.id)
+
+        response = await client.post(
+            f"/api/iso/reviews/{review.id}/sign",
+            json={
+                "notes": "Bulk review notes",
+                "actions": [
+                    {
+                        "action_id": str(action.id),
+                        "action_taken": "accepted",
+                        "justification": "Looks good",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "signed"
+        assert data["notes"] == "Bulk review notes"
+
+        detail = await client.get(f"/api/iso/reviews/{review.id}")
+        action_data = detail.json()["actions"][0]
+        assert action_data["action_taken"] == "accepted"
+        assert action_data["justification"] == "Looks good"
+
+    @pytest.mark.asyncio
+    async def test_sign_with_unresolved_actions_after_partial_bulk(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        action1 = await _make_action(db_session, review.id)
+        await _make_action(db_session, review.id)
+
+        response = await client.post(
+            f"/api/iso/reviews/{review.id}/sign",
+            json={
+                "actions": [
+                    {
+                        "action_id": str(action1.id),
+                        "action_taken": "accepted",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 409
+        assert "1 unresolved action(s)" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_sign_with_empty_body_when_resolved(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        await _ensure_dev_user(db_session)
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        await _make_action(db_session, review.id, action_taken="accepted")
+
+        response = await client.post(
+            f"/api/iso/reviews/{review.id}/sign",
+            json={},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "signed"
+
+    @pytest.mark.asyncio
+    async def test_sign_with_invalid_action_id(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+
+        response = await client.post(
+            f"/api/iso/reviews/{review.id}/sign",
+            json={
+                "actions": [
+                    {
+                        "action_id": str(uuid4()),
+                        "action_taken": "accepted",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_sign_with_exception_and_date(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        await _ensure_dev_user(db_session)
+        snapshot = await _make_snapshot(db_session)
+        review = await _make_review(db_session, snapshot.id)
+        action = await _make_action(db_session, review.id)
+
+        response = await client.post(
+            f"/api/iso/reviews/{review.id}/sign",
+            json={
+                "actions": [
+                    {
+                        "action_id": str(action.id),
+                        "action_taken": "exception",
+                        "justification": "Temporary access",
+                        "exception_until": "2026-06-01",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 200
+
+        detail = await client.get(f"/api/iso/reviews/{review.id}")
+        action_data = detail.json()["actions"][0]
+        assert action_data["action_taken"] == "exception"
+        assert action_data["exception_until"] == "2026-06-01"
+
+
 class TestReviewRouterWiring:
     @pytest.mark.asyncio
     async def test_reviews_accessible_via_iso_prefix(

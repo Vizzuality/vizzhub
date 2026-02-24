@@ -112,7 +112,9 @@ export type {
   AccessReviewUpdate,
   AccessSnapshot,
   AccessSnapshotSummary,
+  ActionDecision,
   DiffSummary,
   IsoConfigStatus,
+  SignReviewPayload,
   SnapshotSummary,
 } from './iso';

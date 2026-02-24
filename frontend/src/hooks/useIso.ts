@@ -6,7 +6,11 @@ import {
 } from '@tanstack/react-query';
 import { isoApi } from '../services/api';
 import type { SnapshotListParams, ReviewListParams } from '../services/api';
-import type { AccessReviewActionUpdate, AccessReviewUpdate } from '../types';
+import type {
+  AccessReviewActionUpdate,
+  AccessReviewUpdate,
+  SignReviewPayload,
+} from '../types';
 import { queryKeys } from './queryKeys';
 
 // --- Config ---
@@ -53,6 +57,18 @@ export function useSnapshotReview(snapshotId: string) {
     queryFn: () => isoApi.getSnapshotReview(snapshotId),
     enabled: !!snapshotId,
     retry: false,
+  });
+}
+
+export function useDeleteSnapshot() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => isoApi.deleteSnapshot(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.snapshots.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.reviews.all });
+    },
   });
 }
 
@@ -123,12 +139,14 @@ export function useSignReview(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => isoApi.signReview(id),
+    mutationFn: (payload?: SignReviewPayload) =>
+      isoApi.signReview(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.iso.reviews.all });
       queryClient.invalidateQueries({
         queryKey: queryKeys.iso.reviews.detail(id),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.snapshots.all });
     },
   });
 }
@@ -143,6 +161,7 @@ export function useUnsignReview(id: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.iso.reviews.detail(id),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.snapshots.all });
     },
   });
 }
