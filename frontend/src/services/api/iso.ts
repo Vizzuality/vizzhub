@@ -117,4 +117,19 @@ export const isoApi = {
     );
     return response.data;
   },
+
+  exportSnapshots: async (from: string, to: string): Promise<Blob> => {
+    const response = await api.get('/iso/exports/snapshots', {
+      params: { from, to },
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  exportSnapshot: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/iso/exports/snapshots/${id}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };

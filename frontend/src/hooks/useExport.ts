@@ -1,17 +1,7 @@
 import { useState } from 'react';
 import { exportsApi } from '../services/api/exports';
 import type { ExportParams } from '../services/api/exports';
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+import { downloadBlob } from '../utils/file';
 
 function formatApiPeriod(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
