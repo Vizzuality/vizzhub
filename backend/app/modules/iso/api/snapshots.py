@@ -5,11 +5,11 @@ import math
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.sql import func
 
-from app.api.deps import AdminUser, DBSession
+from app.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.common import PaginatedResponse
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
@@ -28,6 +28,7 @@ from app.modules.iso.services.diff_engine import (
     compute_diff,
     create_review_actions,
 )
+from app.modules.iso.api.helpers import load_review_with_actions
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,15 @@ router = APIRouter()
 
 
 @router.post("/capture", response_model=AccessSnapshotResponse, status_code=201)
+@limiter.limit("5/minute")
 async def capture_snapshot(
-    current_user: AdminUser, db: DBSession
+    request: Request, current_user: AdminUser, db: DBSession
 ) -> AccessSnapshotDB:
     collector = GoogleWorkspaceCollector(db)
     try:
-        snapshot = await collector.capture(run_mode="manual")
+        snapshot = await collector.capture(
+            captured_by=UUID(current_user.user_id), run_mode="manual"
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except httpx.HTTPStatusError as e:
@@ -85,7 +89,9 @@ async def capture_snapshot(
 
 
 @router.get("", response_model=PaginatedResponse[AccessSnapshotSummary])
+@limiter.limit("30/minute")
 async def list_snapshots(
+    request: Request,
     current_user: AdminUser,
     db: DBSession,
     provider: str | None = None,
@@ -137,8 +143,9 @@ async def list_snapshots(
 
 
 @router.get("/{snapshot_id}", response_model=AccessSnapshotResponse)
+@limiter.limit("30/minute")
 async def get_snapshot(
-    snapshot_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
 ) -> AccessSnapshotDB:
     result = await db.execute(
         select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
@@ -150,8 +157,9 @@ async def get_snapshot(
 
 
 @router.delete("/{snapshot_id}", status_code=204)
+@limiter.limit("10/minute")
 async def delete_snapshot(
-    snapshot_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
 ) -> Response:
     result = await db.execute(
         select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
@@ -186,8 +194,9 @@ async def delete_snapshot(
 
 
 @router.get("/{snapshot_id}/review", response_model=AccessReviewDetailResponse)
+@limiter.limit("30/minute")
 async def get_snapshot_review(
-    snapshot_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
 ) -> dict:
     result = await db.execute(
         select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot_id)
@@ -196,14 +205,4 @@ async def get_snapshot_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    actions_result = await db.execute(
-        select(AccessReviewActionDB)
-        .where(AccessReviewActionDB.review_id == review.id)
-        .order_by(AccessReviewActionDB.created_at)
-    )
-    actions = actions_result.scalars().all()
-
-    return {
-        **{c.key: getattr(review, c.key) for c in review.__table__.columns},
-        "actions": actions,
-    }
+    return await load_review_with_actions(db, review)

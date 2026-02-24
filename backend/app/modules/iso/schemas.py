@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReviewStatus(str, Enum):
@@ -31,31 +31,26 @@ class ActionTaken(str, Enum):
     EXCEPTION = "exception"
 
 
-class AccessSnapshotResponse(BaseModel):
+class _AccessSnapshotBase(BaseModel):
     id: UUID
     provider: str
     captured_at: datetime
     captured_by: UUID | None = None
     data_version: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AccessSnapshotResponse(_AccessSnapshotBase):
     source_metadata: dict
     data: dict
     summary: dict
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
-class AccessSnapshotSummary(BaseModel):
-    id: UUID
-    provider: str
-    captured_at: datetime
-    captured_by: UUID | None = None
-    data_version: str
+class AccessSnapshotSummary(_AccessSnapshotBase):
     summary: dict
-    created_at: datetime
     review_status: str | None = None
-
-    model_config = {"from_attributes": True}
 
 
 class AccessReviewResponse(BaseModel):
@@ -76,7 +71,7 @@ class AccessReviewResponse(BaseModel):
 
 
 class AccessReviewUpdate(BaseModel):
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
     reviewer_id: UUID | None = None
 
 
@@ -101,20 +96,19 @@ class AccessReviewActionResponse(BaseModel):
 
 class AccessReviewActionUpdate(BaseModel):
     action_taken: ActionTaken | None = None
-    justification: str | None = None
-    approved_by: UUID | None = None
+    justification: str | None = Field(default=None, max_length=1000)
     exception_until: date | None = None
 
 
 class ActionDecision(BaseModel):
     action_id: UUID
     action_taken: ActionTaken
-    justification: str | None = None
+    justification: str | None = Field(default=None, max_length=1000)
     exception_until: date | None = None
 
 
 class SignReviewRequest(BaseModel):
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
     actions: list[ActionDecision] | None = None
 
 

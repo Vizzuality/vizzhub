@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { exportsApi } from '../services/api/exports';
 import type { ExportParams } from '../services/api/exports';
-import { downloadBlob } from '../utils/file';
+import { useDownload } from './useDownload';
 
 function formatApiPeriod(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
@@ -29,8 +28,7 @@ interface UseExportReturn {
 }
 
 export function useExport(): UseExportReturn {
-  const [isExporting, setIsExporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { run, isDownloading, error } = useDownload();
 
   const runExport = async (
     fetchBlob: (params: ExportParams) => Promise<Blob>,
@@ -41,19 +39,13 @@ export function useExport(): UseExportReturn {
     toMonth: number,
     snapshotType: string,
   ): Promise<void> => {
-    setIsExporting(true);
-    setError(null);
-    try {
-      const start = formatApiPeriod(fromYear, fromMonth);
-      const end = formatApiPeriod(toYear, toMonth);
-      const params: ExportParams = { start, end, snapshotType };
-      const blob = await fetchBlob(params);
-      downloadBlob(blob, filename.replace('{start}', start).replace('{end}', end));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
-    } finally {
-      setIsExporting(false);
-    }
+    const start = formatApiPeriod(fromYear, fromMonth);
+    const end = formatApiPeriod(toYear, toMonth);
+    const params: ExportParams = { start, end, snapshotType };
+    await run(
+      () => fetchBlob(params),
+      filename.replace('{start}', start).replace('{end}', end),
+    );
   };
 
   const exportProject = async (
@@ -87,5 +79,5 @@ export function useExport(): UseExportReturn {
     );
   };
 
-  return { exportProject, exportGlobal, isExporting, error };
+  return { exportProject, exportGlobal, isExporting: isDownloading, error };
 }

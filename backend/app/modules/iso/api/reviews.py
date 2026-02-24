@@ -5,13 +5,17 @@ from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.sql import func
 
-from app.api.deps import AdminUser, DBSession
+from app.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.common import PaginatedResponse
-from app.modules.iso.api.helpers import get_review_or_404, paginate
+from app.modules.iso.api.helpers import (
+    get_review_or_404,
+    load_review_with_actions,
+    paginate,
+)
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.schemas import (
@@ -30,7 +34,9 @@ router = APIRouter()
 
 
 @router.get("", response_model=PaginatedResponse[AccessReviewResponse])
+@limiter.limit("30/minute")
 async def list_reviews(
+    request: Request,
     current_user: AdminUser,
     db: DBSession,
     status: str | None = None,
@@ -48,26 +54,18 @@ async def list_reviews(
 
 
 @router.get("/{review_id}", response_model=AccessReviewDetailResponse)
+@limiter.limit("30/minute")
 async def get_review(
-    review_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, review_id: UUID, current_user: AdminUser, db: DBSession
 ) -> dict:
     review = await get_review_or_404(db, review_id)
-
-    actions_result = await db.execute(
-        select(AccessReviewActionDB)
-        .where(AccessReviewActionDB.review_id == review_id)
-        .order_by(AccessReviewActionDB.created_at)
-    )
-    actions = actions_result.scalars().all()
-
-    return {
-        **{c.key: getattr(review, c.key) for c in review.__table__.columns},
-        "actions": actions,
-    }
+    return await load_review_with_actions(db, review)
 
 
 @router.patch("/{review_id}", response_model=AccessReviewResponse)
+@limiter.limit("10/minute")
 async def update_review(
+    request: Request,
     review_id: UUID,
     body: AccessReviewUpdate,
     current_user: AdminUser,
@@ -91,7 +89,9 @@ async def update_review(
     "/{review_id}/actions/{action_id}",
     response_model=AccessReviewActionResponse,
 )
+@limiter.limit("10/minute")
 async def update_action(
+    request: Request,
     review_id: UUID,
     action_id: UUID,
     body: AccessReviewActionUpdate,
@@ -120,6 +120,8 @@ async def update_action(
         if isinstance(value, Enum):
             value = value.value
         setattr(action, field, value)
+    if updates.get("action_taken"):
+        action.approved_by = UUID(current_user.user_id)
     await db.flush()
     await db.refresh(action)
 
@@ -127,7 +129,9 @@ async def update_action(
 
 
 @router.post("/{review_id}/sign", response_model=AccessReviewResponse)
+@limiter.limit("10/minute")
 async def sign_review(
+    request: Request,
     review_id: UUID,
     current_user: AdminUser,
     db: DBSession,
@@ -190,8 +194,9 @@ async def sign_review(
 
 
 @router.post("/{review_id}/unsign", response_model=AccessReviewResponse)
+@limiter.limit("10/minute")
 async def unsign_review(
-    review_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, review_id: UUID, current_user: AdminUser, db: DBSession
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
 

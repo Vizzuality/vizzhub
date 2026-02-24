@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import AdminUser, DBSession, limiter
+from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.models.user import UserDB
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
@@ -16,10 +17,6 @@ from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.services.export_service import IsoExportService
 
 router = APIRouter()
-
-XLSX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
 
 
 def _parse_date_param(value: str, param_name: str) -> date:

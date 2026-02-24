@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from app.models.oauth import OAuthTokenDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.models.access_review import AccessReviewDB
+from tests.iso_fixtures import ensure_dev_user
 
 
 class TestCaptureEndpoint:
@@ -16,6 +17,7 @@ class TestCaptureEndpoint:
     async def test_capture_creates_snapshot(
         self, client: AsyncClient, db_session
     ) -> None:
+        await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="ya29.test",
@@ -60,6 +62,7 @@ class TestCaptureEndpoint:
     ) -> None:
         from sqlalchemy import select
 
+        await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="ya29.test",
@@ -103,7 +106,7 @@ class TestCaptureEndpoint:
         assert review.status == "draft"
         assert review.scope == "All users and groups"
         assert review.previous_snapshot_id is None
-        assert review.reviewer_id is None
+        assert review.reviewer_id is not None
 
     @pytest.mark.asyncio
     async def test_capture_links_previous_snapshot(
@@ -112,6 +115,7 @@ class TestCaptureEndpoint:
         from datetime import datetime, timezone
         from sqlalchemy import select
 
+        await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="ya29.test",
@@ -298,6 +302,7 @@ class TestCaptureWithDiff:
         from datetime import datetime, timezone
         from sqlalchemy import select
 
+        await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="ya29.test",
@@ -392,6 +397,7 @@ class TestCaptureWithDiff:
     ) -> None:
         from sqlalchemy import select
 
+        await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="ya29.test",

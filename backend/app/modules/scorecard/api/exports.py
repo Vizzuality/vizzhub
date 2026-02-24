@@ -8,14 +8,13 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
+from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.models.metrics import SnapshotType
 from app.modules.scorecard.services.export_service import ExportService
 
 MAX_EXPORT_MONTHS = 60
 
 router = APIRouter()
-
-XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _parse_month_param(value: str) -> tuple[int, int]:
