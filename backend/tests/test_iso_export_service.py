@@ -149,9 +149,11 @@ class TestIsoExportService:
         tab_name = [s for s in wb.sheetnames if s != "Summary"][0]
         ws = wb[tab_name]
 
-        labels = [ws.cell(row=r, column=1).value for r in range(1, 12)]
+        labels = [ws.cell(row=r, column=1).value for r in range(1, 16)]
         assert "Organization" in labels
         assert "Provider" in labels
+        assert "Total Users" in labels
+        assert "Total Admins" in labels
         assert "Review Scope" in labels
 
         org_row = labels.index("Organization") + 1
