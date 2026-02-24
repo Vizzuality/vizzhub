@@ -12,16 +12,20 @@ const mockSnapshot = {
   data_version: '1',
   summary: { total_users: 25, total_admins: 3, total_groups: 5, external_members: 2 },
   created_at: '2026-02-20T10:00:00Z',
+  review_status: null as string | null,
 };
 
 const mockUseIsoSnapshots = vi.fn();
 const mockCaptureMutate = vi.fn();
 const mockUseCaptureSnapshot = vi.fn();
+const mockDeleteMutate = vi.fn();
+const mockUseDeleteSnapshot = vi.fn();
 const mockIsSnapshotStale = vi.fn();
 
 vi.mock('../../hooks/useIso', () => ({
   useIsoSnapshots: (...args: unknown[]) => mockUseIsoSnapshots(...args),
   useCaptureSnapshot: () => mockUseCaptureSnapshot(),
+  useDeleteSnapshot: () => mockUseDeleteSnapshot(),
 }));
 
 vi.mock('../../hooks/isoStaleCheck', () => ({
@@ -50,6 +54,10 @@ describe('ISOSnapshots', () => {
       mutate: mockCaptureMutate,
       isPending: false,
       isError: false,
+    });
+    mockUseDeleteSnapshot.mockReturnValue({
+      mutate: mockDeleteMutate,
+      isPending: false,
     });
     mockIsSnapshotStale.mockReturnValue(false);
     mockUseIsoSnapshots.mockReturnValue({
@@ -169,5 +177,44 @@ describe('ISOSnapshots', () => {
     renderWithProviders(<ISOSnapshots />);
 
     expect(screen.queryByText(/page 1 of/i)).not.toBeInTheDocument();
+  });
+
+  it('renders review status badge when review_status is present', () => {
+    mockUseIsoSnapshots.mockReturnValue({
+      data: {
+        items: [{ ...mockSnapshot, review_status: 'signed' }],
+        total: 1,
+        page: 1,
+        page_size: 20,
+        pages: 1,
+      },
+      isLoading: false,
+    });
+
+    renderWithProviders(<ISOSnapshots />);
+
+    expect(screen.getByText('Signed')).toBeInTheDocument();
+  });
+
+  it('renders dash when review_status is null', () => {
+    renderWithProviders(<ISOSnapshots />);
+
+    expect(screen.getByText('\u2014')).toBeInTheDocument();
+  });
+
+  it('renders delete button per row', () => {
+    renderWithProviders(<ISOSnapshots />);
+
+    const deleteButtons = screen.getAllByRole('button', { name: /delete snapshot/i });
+    expect(deleteButtons).toHaveLength(1);
+  });
+
+  it('opens confirmation dialog when delete button is clicked', () => {
+    renderWithProviders(<ISOSnapshots />);
+
+    const deleteButton = screen.getByRole('button', { name: /delete snapshot/i });
+    fireEvent.click(deleteButton);
+
+    expect(screen.getByText('Delete this snapshot?')).toBeInTheDocument();
   });
 });

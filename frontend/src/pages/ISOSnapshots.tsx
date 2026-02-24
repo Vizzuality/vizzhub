@@ -1,13 +1,29 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { ErrorBanner } from '@/components/ui/error-banner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ReviewStatusBadge } from '@/components/ui/review-status-badge';
 import { useUrlState } from '@/shared/hooks/useUrlState';
-import { useIsoSnapshots, useCaptureSnapshot } from '@/hooks/useIso';
+import {
+  useIsoSnapshots,
+  useCaptureSnapshot,
+  useDeleteSnapshot,
+} from '@/hooks/useIso';
 import { isSnapshotStale } from '@/hooks/isoStaleCheck';
 import { formatDate } from '@/utils/formatters';
 
@@ -21,6 +37,8 @@ export default function ISOSnapshots(): JSX.Element {
 
   const { data, isLoading } = useIsoSnapshots({ page, page_size: 20 });
   const capture = useCaptureSnapshot();
+  const deleteSnapshot = useDeleteSnapshot();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const handleCapture = (): void => {
     capture.mutate();
@@ -28,6 +46,14 @@ export default function ISOSnapshots(): JSX.Element {
 
   const handlePageChange = (newPage: number): void => {
     setState({ page: newPage });
+  };
+
+  const handleDelete = (e: React.MouseEvent): void => {
+    e.preventDefault();
+    if (!deleteTargetId) return;
+    deleteSnapshot.mutate(deleteTargetId, {
+      onSettled: () => setDeleteTargetId(null),
+    });
   };
 
   const totalPages = data?.pages ?? 0;
@@ -89,6 +115,7 @@ export default function ISOSnapshots(): JSX.Element {
                   <th className="pb-3 font-medium">Admins</th>
                   <th className="pb-3 font-medium">Groups</th>
                   <th className="pb-3 font-medium">External</th>
+                  <th className="pb-3 font-medium">Review</th>
                   <th className="pb-3 font-medium" />
                 </tr>
               </thead>
@@ -113,12 +140,31 @@ export default function ISOSnapshots(): JSX.Element {
                     <td className="py-3 pr-4 text-sm">
                       {snap.summary.external_members ?? 0}
                     </td>
+                    <td className="py-3 pr-4">
+                      {snap.review_status ? (
+                        <ReviewStatusBadge status={snap.review_status} />
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          {'\u2014'}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3">
-                      <Link to={`/iso/snapshots/${snap.id}`}>
-                        <Button variant="ghost" size="sm">
-                          View
+                      <div className="flex items-center gap-1">
+                        <Link to={`/iso/snapshots/${snap.id}`}>
+                          <Button variant="ghost" size="sm">
+                            View
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTargetId(snap.id)}
+                          aria-label="Delete snapshot"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
-                      </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -136,6 +182,29 @@ export default function ISOSnapshots(): JSX.Element {
           />
         </>
       )}
+
+      <AlertDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this snapshot?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the snapshot and its associated
+              review and actions. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              {deleteSnapshot.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
