@@ -147,7 +147,7 @@ export default function ProjectDetail(): JSX.Element {
 
   const handleDelete = async (): Promise<void> => {
     await deleteProject.mutateAsync(id!);
-    navigate('/projects');
+    navigate('/scorecard');
   };
 
   const handleUpdateEVM = async (data: EVMData): Promise<void> => {

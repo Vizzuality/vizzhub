@@ -249,12 +249,12 @@ Implementation guides:
 
 ```bash
 # Create a Project
-curl -X POST http://localhost:8000/api/projects \
+curl -X POST http://localhost:8000/api/scorecards \
   -H "Content-Type: application/json" \
   -d '{"name": "My Project", "jira_project_key": "PROJ", "github_repo": "org/repo"}'
 
 # Collect Metrics (Jira + GitHub, creates both snapshot types)
-curl -X POST http://localhost:8000/api/projects/{project_id}/capture-period \
+curl -X POST http://localhost:8000/api/scorecards/{project_id}/capture-period \
   -H "Content-Type: application/json" \
   -d '{"force": true}'
 
@@ -271,7 +271,7 @@ python scripts/generate_jwt_token.py --user-id "user@company.com" --roles "user"
 
 # Use token in API calls
 curl -H "Authorization: Bearer <your-jwt-token>" \
-  http://localhost:8000/api/projects
+  http://localhost:8000/api/scorecards
 ```
 
 ## Testing

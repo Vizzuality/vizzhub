@@ -216,9 +216,9 @@ function renderWithProviders(ui: React.ReactElement): ReturnType<typeof render> 
   const queryClient = createQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/projects/project-123']}>
+      <MemoryRouter initialEntries={['/scorecard/project-123']}>
         <Routes>
-          <Route path="/projects/:id" element={ui} />
+          <Route path="/scorecard/:id" element={ui} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>

@@ -254,7 +254,7 @@ async def test_jira_collector():
 async def test_sql_injection_prevention(client: AsyncClient):
     """Test that SQL injection is prevented."""
     response = await client.post(
-        "/api/projects",
+        "/api/scorecards",
         json={"name": "Project'; DROP TABLE projects--"}
     )
     assert response.status_code == 201
@@ -316,7 +316,7 @@ beforeEach(() => {
 });
 
 it('fetches data from API', async () => {
-  mock.onGet('/api/projects').reply(200, [{ id: 1, name: 'Test' }]);
+  mock.onGet('/api/scorecards').reply(200, [{ id: 1, name: 'Test' }]);
   // Test code here
 });
 ```

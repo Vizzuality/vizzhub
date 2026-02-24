@@ -38,7 +38,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
 
   if (viewMode === 'grid') {
     return (
-      <Link to={`/projects/${project.id}`} className="block">
+      <Link to={`/scorecard/${project.id}`} className="block">
         <Card className="hover:shadow-lg transition-shadow h-full">
           <div className="p-5 space-y-3">
             <div className="flex items-start justify-between gap-2">
@@ -121,7 +121,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
         <div className="flex items-center gap-6 md:flex-shrink-0">
           <ScoreBadge score={score} thresholds={thresholds} />
           <Link
-            to={`/projects/${project.id}`}
+            to={`/scorecard/${project.id}`}
             className="text-base font-medium text-primary hover:underline"
           >
             View Details →

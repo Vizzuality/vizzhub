@@ -44,7 +44,7 @@ export const metricsHistoryApi = {
     request: CaptureHistoryRequest,
   ): Promise<CaptureReport> => {
     const response = await api.post<CaptureReport>(
-      `/projects/${projectId}/capture-history`,
+      `/scorecards/${projectId}/capture-history`,
       request,
     );
     return response.data;
@@ -57,7 +57,7 @@ export const captureApi = {
     request: CapturePeriodRequest,
   ): Promise<CapturePeriodResponse> => {
     const response = await api.post<CapturePeriodResponse>(
-      `/projects/${projectId}/capture-period`,
+      `/scorecards/${projectId}/capture-period`,
       request,
       { timeout: TIMING.API_TIMEOUT_CAPTURE },
     );

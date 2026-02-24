@@ -2,8 +2,9 @@ import { NavLink, Outlet, Navigate, useMatch } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { to: 'configuration', label: 'Configuration' },
-  { to: 'slack', label: 'Slack' },
+  { to: 'global-scores', label: 'Global Scores' },
+  { to: 'scorecard-parameters', label: 'Scorecard Parameters' },
+  { to: 'integrations', label: 'Integrations' },
   { to: 'notifications', label: 'Notifications' },
   { to: 'jobs', label: 'Jobs' },
   { to: 'users', label: 'Users' },
@@ -13,13 +14,11 @@ export default function Admin(): JSX.Element {
   const isIndex = useMatch('/admin');
 
   if (isIndex) {
-    return <Navigate to="configuration" replace />;
+    return <Navigate to="global-scores" replace />;
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Admin</h1>
-
       <nav className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
         {TABS.map(({ to, label }) => (
           <NavLink

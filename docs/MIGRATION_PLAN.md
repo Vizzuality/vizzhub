@@ -219,11 +219,11 @@ Indicators and scores are computed on-the-fly rather than stored, following the 
 
 | Operation | Endpoint | Method |
 |-----------|----------|--------|
-| List projects | `/api/projects` | GET |
-| Create project | `/api/projects` | POST |
-| Get project | `/api/projects/{id}` | GET |
-| Update project | `/api/projects/{id}` | PATCH |
-| Delete project | `/api/projects/{id}` | DELETE |
+| List projects | `/api/scorecards` | GET |
+| Create project | `/api/scorecards` | POST |
+| Get project | `/api/scorecards/{id}` | GET |
+| Update project | `/api/scorecards/{id}` | PATCH |
+| Delete project | `/api/scorecards/{id}` | DELETE |
 | Add metrics | `/api/metrics/project/{id}` | POST |
 | Get latest metrics | `/api/metrics/project/{id}/latest` | GET |
 | Calculate scores (ad-hoc) | `/api/scores/calculate` | POST |

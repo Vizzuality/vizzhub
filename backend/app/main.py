@@ -175,7 +175,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 app.include_router(auth_router.router, prefix="/api")
 app.include_router(admin_users_router.router, prefix="/api")
-app.include_router(projects_router.router, prefix="/api/projects", tags=["projects"])
+app.include_router(projects_router.router, prefix="/api/scorecards", tags=["projects"])
 app.include_router(metrics_router.router, prefix="/api/metrics", tags=["metrics"])
 app.include_router(scores_router.router, prefix="/api/scores", tags=["scores"])
 app.include_router(config_router.router, prefix="/api/config", tags=["config"])
@@ -184,7 +184,7 @@ app.include_router(
     collectors_router.router, prefix="/api/collect", tags=["collectors"]
 )
 app.include_router(
-    capture_router.router, prefix="/api/projects", tags=["capture"]
+    capture_router.router, prefix="/api/scorecards", tags=["capture"]
 )
 app.include_router(jobs_router.router, prefix="/api")
 app.include_router(global_metrics_router.router, prefix="/api", tags=["global"])

@@ -27,7 +27,7 @@ class TestProjectsSQLInjection:
     ) -> None:
         """Test that SQL injection in UUID parameter returns 422."""
         sql_payload = "'; DROP TABLE projects--"
-        response = await client.get(f"/api/projects/{sql_payload}")
+        response = await client.get(f"/api/scorecards/{sql_payload}")
         assert response.status_code == 400
 
 
@@ -42,7 +42,7 @@ class TestProjectsCascadeDelete:
     ) -> None:
         """Verify that deleting a project cascades to metrics."""
         create_response = await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Project to Delete", "jira_project_key": "TEST"},
         )
         project_id = create_response.json()["id"]
@@ -56,10 +56,10 @@ class TestProjectsCascadeDelete:
             )
             assert initial_count > 0
 
-            delete_response = await client.delete(f"/api/projects/{project_id}")
+            delete_response = await client.delete(f"/api/scorecards/{project_id}")
             assert delete_response.status_code == 204
 
-            get_project_response = await client.get(f"/api/projects/{project_id}")
+            get_project_response = await client.get(f"/api/scorecards/{project_id}")
             assert get_project_response.status_code == 404
 
             metrics_list_response = await client.get(
@@ -67,7 +67,7 @@ class TestProjectsCascadeDelete:
             )
             assert metrics_list_response.status_code == 404
         else:
-            delete_response = await client.delete(f"/api/projects/{project_id}")
+            delete_response = await client.delete(f"/api/scorecards/{project_id}")
             assert delete_response.status_code == 204
 
 
@@ -80,7 +80,7 @@ class TestProjectsInputValidation:
     ) -> None:
         """Test that PATCH update preserves fields not included in request."""
         create_response = await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={
                 "name": "Original Name",
                 "jira_project_key": "ORIG",
@@ -90,7 +90,7 @@ class TestProjectsInputValidation:
         project_id = create_response.json()["id"]
 
         update_response = await client.patch(
-            f"/api/projects/{project_id}",
+            f"/api/scorecards/{project_id}",
             json={"name": "Updated Name"},
         )
         assert update_response.status_code == 200
@@ -120,7 +120,7 @@ class TestCollectorsValidation:
     ) -> None:
         """Test that error occurs when project has no jira_project_key."""
         create_response = await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Project Without Jira Key"},
         )
         project_id = create_response.json()["id"]
@@ -135,7 +135,7 @@ class TestCollectorsValidation:
     ) -> None:
         """Test that error occurs when no Jira authentication is configured."""
         create_response = await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Project With Jira Key", "jira_project_key": "TEST"},
         )
         project_id = create_response.json()["id"]
@@ -165,7 +165,7 @@ class TestCollectorsJQLInjection:
         """Test that project key is validated before JQL query construction."""
         jql_injection = "TEST' OR '1'='1"
         create_response = await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Test Project", "jira_project_key": jql_injection},
         )
         project_id = create_response.json()["id"]
@@ -194,7 +194,7 @@ class TestMetricsValidation:
     ) -> None:
         """Test that invalid date format returns 422."""
         await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Test Project", "jira_project_key": "TEST"},
         )
 
@@ -253,7 +253,7 @@ class TestScoresEdgeCases:
     ) -> None:
         """Test that no metrics returns 404 error."""
         create_response = await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Project Without Metrics"},
         )
         project_id = create_response.json()["id"]

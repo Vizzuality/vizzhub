@@ -156,13 +156,10 @@ export default function GlobalDashboard(): JSX.Element {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Global Metrics</h1>
-          <p className="text-muted-foreground mt-1">
-            {formatPeriodLabel(selectedPeriod.year, selectedPeriod.month)}
-            {hasData && ` • ${globalMetrics!.project_count} project${globalMetrics!.project_count !== 1 ? 's' : ''}`}
-          </p>
-        </div>
+        <p className="text-muted-foreground">
+          {formatPeriodLabel(selectedPeriod.year, selectedPeriod.month)}
+          {hasData && ` • ${globalMetrics!.project_count} project${globalMetrics!.project_count !== 1 ? 's' : ''}`}
+        </p>
         {isAdmin && (
           <div className="flex gap-2">
             <Button

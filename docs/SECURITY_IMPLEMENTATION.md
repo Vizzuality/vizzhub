@@ -36,7 +36,7 @@ All API endpoints now require JWT authentication (except `/health` and OAuth cal
 ```python
 from app.api.deps import CurrentUser
 
-@router.get("/projects")
+@router.get("/scorecards")
 async def list_projects(current_user: CurrentUser, db: DBSession):
     # current_user contains: user_id, roles
     pass
@@ -307,7 +307,7 @@ print(f"Authorization: Bearer {token}")
 export TOKEN="your-jwt-token-here"
 
 # Make authenticated requests
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/scorecards
 ```
 
 ### 3. API Testing Tools

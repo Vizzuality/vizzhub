@@ -37,11 +37,11 @@ export default function ProjectHeader({
   return (
     <>
       <Link
-        to="/projects"
+        to="/scorecard"
         className="inline-flex items-center gap-2 text-base text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-5 h-5" />
-        Back to Projects
+        Back to Scorecard
       </Link>
 
       <Card>

@@ -23,6 +23,12 @@ export function AppLayout() {
 
   const isActive = (path: string): boolean => location.pathname === path;
 
+  const getPageTitle = (): string => {
+    if (location.pathname.startsWith('/admin')) return 'Admin';
+    if (location.pathname.startsWith('/iso')) return 'ISO';
+    return 'Scorecard';
+  };
+
   const handleLogout = async (): Promise<void> => {
     await auth.logout();
     navigate('/login');
@@ -40,45 +46,40 @@ export function AppLayout() {
       <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           {/* Logo */}
-          <Link to="/projects" className="flex items-center gap-3">
-            <VizzualityLogo className="h-8 w-auto" />
+          <div className="flex items-center gap-3">
+            <Link to="/scorecard">
+              <VizzualityLogo className="h-8 w-auto" />
+            </Link>
             <div className="hidden sm:block h-6 w-px bg-border" />
-            <span className="text-xl font-semibold hidden sm:inline">Project Scorecard</span>
-          </Link>
+            <span className="text-xl font-semibold hidden sm:inline">{getPageTitle()}</span>
+          </div>
 
           {/* Right side: Navigation + Theme Toggle */}
           <div className="flex items-center gap-2">
             {/* Desktop Navigation */}
             <div className="hidden md:flex gap-1">
-              <Link to="/projects">
+              <Link to="/scorecard">
                 <Button
-                  variant={isActive('/projects') ? 'secondary' : 'ghost'}
+                  variant={isActive('/scorecard') ? 'secondary' : 'ghost'}
                 >
-                  Projects
+                  Scorecard
                 </Button>
               </Link>
-              <Link to="/global">
-                <Button
-                  variant={isActive('/global') ? 'secondary' : 'ghost'}
-                >
-                  Global
-                </Button>
-              </Link>
-              {isAdmin && (
-                <Link to="/admin">
-                  <Button
-                    variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
-                  >
-                    Admin
-                  </Button>
-                </Link>
-              )}
               {isAdmin && (
                 <Link to="/iso">
                   <Button
                     variant={location.pathname.startsWith('/iso') ? 'secondary' : 'ghost'}
                   >
                     ISO
+                  </Button>
+                </Link>
+              )}
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button
+                    variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
+                  >
+                    Admin
                   </Button>
                 </Link>
               )}
@@ -129,19 +130,16 @@ export function AppLayout() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
-                    <Link to="/projects">Projects</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/global">Global</Link>
+                    <Link to="/scorecard">Scorecard</Link>
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem asChild>
-                      <Link to="/admin">Admin</Link>
+                      <Link to="/iso">ISO</Link>
                     </DropdownMenuItem>
                   )}
                   {isAdmin && (
                     <DropdownMenuItem asChild>
-                      <Link to="/iso">ISO</Link>
+                      <Link to="/admin">Admin</Link>
                     </DropdownMenuItem>
                   )}
                   {auth.isAuthenticated && (

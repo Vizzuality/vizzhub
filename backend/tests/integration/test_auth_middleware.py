@@ -19,7 +19,7 @@ class TestAuthMiddlewareIntegration:
         test_project: ProjectDB,
     ) -> None:
         """Verify development mode allows requests without JWT."""
-        response = await client.get(f"/api/projects/{test_project.id}")
+        response = await client.get(f"/api/scorecards/{test_project.id}")
 
         assert response.status_code != 401
 
@@ -33,7 +33,7 @@ class TestAuthMiddlewareIntegration:
         token = create_access_token({"sub": "test-user", "roles": ["user"]})
 
         response = await client.get(
-            f"/api/projects/{test_project.id}",
+            f"/api/scorecards/{test_project.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -46,7 +46,7 @@ class TestAuthMiddlewareIntegration:
     ) -> None:
         """Verify invalid JWT token is rejected."""
         response = await client.get(
-            "/api/projects",
+            "/api/scorecards",
             headers={"Authorization": "Bearer invalid-token-here"},
         )
 
@@ -64,7 +64,7 @@ class TestAuthMiddlewareIntegration:
         )
 
         response = await client.get(
-            "/api/projects",
+            "/api/scorecards",
             headers={"Authorization": f"Bearer {token}"},
         )
 

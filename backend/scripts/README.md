@@ -47,12 +47,12 @@ Usage:
 --------------------------------------------------------------------------------
 
 curl -H "Authorization: Bearer eyJhbG..." \
-     http://localhost:8000/api/projects
+     http://localhost:8000/api/scorecards
 
 OR set as environment variable:
 --------------------------------------------------------------------------------
 export TOKEN="eyJhbG..."
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/scorecards
 
 ================================================================================
 ```
