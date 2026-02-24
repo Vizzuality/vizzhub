@@ -100,12 +100,6 @@ describe('Projects', () => {
   });
 
   describe('Page Rendering', () => {
-    it('renders Projects heading', () => {
-      renderWithProviders(<Projects />);
-
-      expect(screen.getByText('Projects')).toBeInTheDocument();
-    });
-
     it('renders project cards when data loaded', () => {
       renderWithProviders(<Projects />);
 

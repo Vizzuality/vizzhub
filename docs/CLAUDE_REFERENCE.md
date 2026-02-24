@@ -139,7 +139,7 @@ Scores cached in Redis to avoid N+1 on projects index. **Optional** — falls ba
 |-------|--------|
 | `GET /scores/project/{id}` (latest) | Read-through: cache → compute on miss → cache |
 | `POST /scores/batch` | MGET → compute misses → SET misses |
-| `POST /projects/{id}/capture-period` | Write-through: cache both snapshot types |
+| `POST /scorecards/{id}/capture-period` | Write-through: cache both snapshot types |
 | Metrics create/delete | Invalidate project keys |
 | Config update | Invalidate ALL (`SCAN + delete scores:latest:*`) |
 | Worker batch capture | Invalidate after each month |
@@ -206,13 +206,13 @@ docker compose -f /opt/hub/docker-compose.prod.yml restart backend worker
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/projects` | GET | Paginated list. Params: `page`, `page_size` (45), `search`, `status`, `sort` (`name`/`created_at`/`status`), `order`, `start_date_from/to` |
-| `/projects?lightweight=true` | GET | `[{id, name}]` for dropdowns (no pagination) |
-| `/projects/{id}` | GET | Single project |
-| `/projects` | POST | Create |
-| `/projects/{id}` | PATCH | Partial update |
-| `/projects/{id}` | PUT | Full replacement |
-| `/projects/{id}` | DELETE | Delete |
+| `/scorecards` | GET | Paginated list. Params: `page`, `page_size` (45), `search`, `status`, `sort` (`name`/`created_at`/`status`), `order`, `start_date_from/to` |
+| `/scorecards?lightweight=true` | GET | `[{id, name}]` for dropdowns (no pagination) |
+| `/scorecards/{id}` | GET | Single project |
+| `/scorecards` | POST | Create |
+| `/scorecards/{id}` | PATCH | Partial update |
+| `/scorecards/{id}` | PUT | Full replacement |
+| `/scorecards/{id}` | DELETE | Delete |
 
 Response: `{ items, total, page, page_size, pages }`
 
@@ -220,7 +220,7 @@ Response: `{ items, total, page, page_size, pages }`
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/projects/{id}/capture-period` | POST | **Primary** - Jira+GitHub, creates both snapshot types |
+| `/scorecards/{id}/capture-period` | POST | **Primary** - Jira+GitHub, creates both snapshot types |
 | `/jobs/capture-history` | POST | Batch background job |
 | `/collect/project/{id}/jira` | POST | Legacy |
 | `/collect/project/{id}/github` | POST | Legacy |

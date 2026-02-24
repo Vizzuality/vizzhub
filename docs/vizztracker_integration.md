@@ -192,7 +192,7 @@ app/
 
 ```
 /api/auth/*          -> core
-/api/projects/*      -> core
+/api/scorecards/*    -> core
 /api/scorecard/*     -> scorecard module
 /api/tracker/*        -> tracker module
 ```
@@ -357,7 +357,7 @@ Each module only writes to its own tables. For business logic reads, use `public
 
 ### Routing Strategy
 
-**Problem**: Currently 18 routers mounted flat in `main.py` with inconsistent prefix strategies (some in the router file, some in `include_router`), a prefix collision (`projects_router` and `capture_router` share `/api/projects`), and inconsistent tags. With tracker this becomes 30+ routers — unmanageable.
+**Problem**: Currently 18 routers mounted flat in `main.py` with inconsistent prefix strategies (some in the router file, some in `include_router`), a prefix collision (`projects_router` and `capture_router` share `/api/scorecards`), and inconsistent tags. With tracker this becomes 30+ routers — unmanageable.
 
 **Solution**: Each module owns a `router.py` that aggregates its sub-routers. `main.py` only mounts module-level routers.
 
@@ -365,8 +365,8 @@ Each module only writes to its own tables. For business logic reads, use `public
 ```python
 # main.py — 18 include_router calls with mixed prefix strategies
 app.include_router(auth_router, prefix="/api")              # prefix in router file
-app.include_router(projects_router, prefix="/api/projects") # prefix in include_router
-app.include_router(capture_router, prefix="/api/projects")  # COLLISION with above
+app.include_router(projects_router, prefix="/api/scorecards") # prefix in include_router
+app.include_router(capture_router, prefix="/api/scorecards")  # COLLISION with above
 app.include_router(metrics_router, prefix="/api/metrics")
 app.include_router(scores_router, prefix="/api/scores")
 # ... 13 more
@@ -375,7 +375,7 @@ app.include_router(scores_router, prefix="/api/scores")
 **TO BE** (4-5 module mounts in main.py):
 ```python
 # main.py — clean, only module-level routers
-app.include_router(core_router)            # /api/auth/*, /api/projects/*, /api/admin/users/*
+app.include_router(core_router)            # /api/auth/*, /api/scorecards/*, /api/admin/users/*
 app.include_router(scorecard_router)       # /api/scorecard/*
 app.include_router(tracker_router)          # /api/tracker/*
 app.include_router(notifications_router)   # /api/notifications/*
@@ -407,7 +407,7 @@ router.include_router(invoices.router, prefix="/invoices")
 # app/core/router.py — shared endpoints
 router = APIRouter(prefix="/api", tags=["core"])
 router.include_router(auth.router, prefix="/auth")
-router.include_router(projects.router, prefix="/projects")
+router.include_router(projects.router, prefix="/scorecards")
 router.include_router(admin_users.router, prefix="/admin/users")
 ```
 
@@ -1075,7 +1075,7 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] `app/core/router.py` aggregates core sub-routers (auth, projects, admin/users)
 - [ ] Existing scorecard routers grouped into a temporary `scorecard_router` (can still live in `app/api/` but mounted as a single unit)
 - [ ] `main.py` reduced from 18 `include_router` calls to 3-5 module mounts
-- [ ] Prefix collision resolved (capture_router no longer shares `/api/projects`)
+- [ ] Prefix collision resolved (capture_router no longer shares `/api/scorecards`)
 - [ ] All routers use prefix in `include_router`, never inside router files
 - [ ] All routers have explicit `tags` for OpenAPI docs
 - [ ] OpenAPI docs (`/docs`) show endpoints grouped by module
@@ -1091,10 +1091,10 @@ Each task has explicit acceptance criteria. A task is **not done** until all cri
 - [ ] Dependency aliases: `ProjectViewer`, `ProjectContributor`, `ProjectManager`
 - [ ] Admin role bypasses project-level checks (always treated as owner)
 - [ ] CRUD endpoints for project membership:
-  - [ ] `GET /api/projects/{id}/members` — list members
-  - [ ] `POST /api/projects/{id}/members` — add member (ProjectManager or Admin)
-  - [ ] `PATCH /api/projects/{id}/members/{user_id}` — update role (ProjectManager or Admin)
-  - [ ] `DELETE /api/projects/{id}/members/{user_id}` — remove member (ProjectManager or Admin)
+  - [ ] `GET /api/scorecards/{id}/members` — list members
+  - [ ] `POST /api/scorecards/{id}/members` — add member (ProjectManager or Admin)
+  - [ ] `PATCH /api/scorecards/{id}/members/{user_id}` — update role (ProjectManager or Admin)
+  - [ ] `DELETE /api/scorecards/{id}/members/{user_id}` — remove member (ProjectManager or Admin)
 - [ ] Seed data: project creators are automatically assigned `owner` role
 - [ ] Tests: permission denied (403) for insufficient role, permission granted for sufficient role
 - [ ] Tests: admin bypass works for all project-level checks

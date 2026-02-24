@@ -33,7 +33,7 @@ class TestCaptureEndpointIntegration:
         await db_session.commit()
 
         response = await client.post(
-            f"/api/projects/{project.id}/capture-period",
+            f"/api/scorecards/{project.id}/capture-period",
             json={"year": 2024, "month": 1},
         )
         assert response.status_code == 400
@@ -62,7 +62,7 @@ class TestCaptureEndpointIntegration:
         await db_session.commit()
 
         response = await client.post(
-            f"/api/projects/{test_project.id}/capture-period",
+            f"/api/scorecards/{test_project.id}/capture-period",
             json={"year": today.year, "month": today.month, "force": False},
         )
         assert response.status_code == 409
@@ -77,7 +77,7 @@ class TestCaptureEndpointIntegration:
         """Verify request validation for year/month bounds."""
         # Invalid year (too old) - returns 400 with validation error
         response = await client.post(
-            f"/api/projects/{test_project.id}/capture-period",
+            f"/api/scorecards/{test_project.id}/capture-period",
             json={"year": 2019, "month": 1},
         )
         assert response.status_code == 400
@@ -87,7 +87,7 @@ class TestCaptureEndpointIntegration:
 
         # Invalid month (out of range)
         response = await client.post(
-            f"/api/projects/{test_project.id}/capture-period",
+            f"/api/scorecards/{test_project.id}/capture-period",
             json={"year": 2024, "month": 13},
         )
         assert response.status_code == 400
@@ -119,7 +119,7 @@ class TestCaptureEndpointIntegration:
         # Empty body should be accepted (default to current month)
         # Will fail with 400 due to no sources, but that's a different error
         response = await client.post(
-            f"/api/projects/{project.id}/capture-period",
+            f"/api/scorecards/{project.id}/capture-period",
             json={},
         )
         # Should get 400 for missing sources, not 422 for validation

@@ -139,7 +139,7 @@ class TestSecurityHeadersMiddleware:
         # Test multiple endpoints
         endpoints = [
             "/health",
-            "/api/projects",
+            "/api/scorecards",
             "/api/config",
         ]
 

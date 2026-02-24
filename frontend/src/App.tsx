@@ -9,11 +9,10 @@ import GlobalDashboard from './pages/GlobalDashboard';
 import Admin from './pages/Admin';
 import ISO from './pages/ISO';
 import ISOSnapshots from './pages/ISOSnapshots';
-import ISOConfig from './pages/ISOConfig';
 import ISOSnapshotDetail from './pages/iso/ISOSnapshotDetail';
 import { LoginPage } from './pages/LoginPage';
 import ConfigurationTab from './components/Settings/ConfigurationTab';
-import SlackTab from './components/Settings/SlackTab';
+import IntegrationsTab from './components/Settings/IntegrationsTab';
 import AdminNotificationsLayout from './components/NotificationsAdmin/AdminNotificationsLayout';
 import AlertLogTab from './components/NotificationsAdmin/AlertLogTab';
 import SilencesTab from './components/NotificationsAdmin/SilencesTab';
@@ -27,8 +26,9 @@ const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
 function AdminRoutes(): JSX.Element {
   return (
     <>
-      <Route path="configuration" element={<ConfigurationTab />} />
-      <Route path="slack" element={<SlackTab />} />
+      <Route path="global-scores" element={<GlobalDashboard />} />
+      <Route path="scorecard-parameters" element={<ConfigurationTab />} />
+      <Route path="integrations" element={<IntegrationsTab />} />
       <Route path="notifications" element={<AdminNotificationsLayout />}>
         <Route path="log" element={<AlertLogTab />} />
         <Route path="silences" element={<SilencesTab />} />
@@ -46,20 +46,18 @@ function AppRoutes(): JSX.Element {
     return (
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/global" element={<GlobalDashboard />} />
+          <Route path="/" element={<Navigate to="/scorecard" replace />} />
+          <Route path="/scorecard" element={<Projects />} />
+          <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route path="/admin" element={<Admin />}>
             {AdminRoutes()}
           </Route>
           <Route path="/iso" element={<ISO />}>
             <Route path="snapshots" element={<ISOSnapshots />} />
             <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
-            <Route path="config" element={<ISOConfig />} />
           </Route>
         </Route>
-        <Route path="/login" element={<Navigate to="/projects" replace />} />
+        <Route path="/login" element={<Navigate to="/scorecard" replace />} />
       </Routes>
     );
   }
@@ -69,10 +67,9 @@ function AppRoutes(): JSX.Element {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/global" element={<GlobalDashboard />} />
+          <Route path="/" element={<Navigate to="/scorecard" replace />} />
+          <Route path="/scorecard" element={<Projects />} />
+          <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
@@ -80,7 +77,6 @@ function AppRoutes(): JSX.Element {
             <Route path="/iso" element={<ISO />}>
               <Route path="snapshots" element={<ISOSnapshots />} />
               <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
-              <Route path="config" element={<ISOConfig />} />
             </Route>
           </Route>
         </Route>

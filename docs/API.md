@@ -162,7 +162,7 @@ Authorization: Bearer <admin_jwt_token>
 ### List Projects
 
 ```http
-GET /projects
+GET /scorecards
 ```
 
 **Response:**
@@ -186,7 +186,7 @@ GET /projects
 ### Create Project
 
 ```http
-POST /projects
+POST /scorecards
 Content-Type: application/json
 
 {
@@ -218,13 +218,13 @@ Content-Type: application/json
 ### Get Project
 
 ```http
-GET /projects/{project_id}
+GET /scorecards/{project_id}
 ```
 
 ### Update Project
 
 ```http
-PATCH /projects/{project_id}
+PATCH /scorecards/{project_id}
 Content-Type: application/json
 
 {
@@ -235,7 +235,7 @@ Content-Type: application/json
 ### Delete Project
 
 ```http
-DELETE /projects/{project_id}
+DELETE /scorecards/{project_id}
 ```
 
 **Response:** `204 No Content`
@@ -249,7 +249,7 @@ DELETE /projects/{project_id}
 Capture metrics from Jira and GitHub for a specific month. **Creates BOTH punctual and cumulative snapshots.**
 
 ```http
-POST /projects/{project_id}/capture-period
+POST /scorecards/{project_id}/capture-period
 Content-Type: application/json
 
 {
@@ -267,7 +267,7 @@ Content-Type: application/json
 
 **Typical request** (from UI "Collect Metrics" button for selected period):
 ```http
-POST /projects/{project_id}/capture-period
+POST /scorecards/{project_id}/capture-period
 Content-Type: application/json
 
 {"year": 2024, "month": 6, "force": true}
@@ -305,7 +305,7 @@ Content-Type: application/json
 
 ### Collect Jira Metrics Only (Legacy)
 
-> ⚠️ **Deprecated**: Use `POST /projects/{id}/capture-period` instead. It collects both Jira and GitHub and creates both snapshot types automatically.
+> ⚠️ **Deprecated**: Use `POST /scorecards/{id}/capture-period` instead. It collects both Jira and GitHub and creates both snapshot types automatically.
 
 ```http
 POST /collect/project/{project_id}/jira
@@ -313,7 +313,7 @@ POST /collect/project/{project_id}/jira
 
 ### Collect GitHub Metrics Only (Legacy)
 
-> ⚠️ **Deprecated**: Use `POST /projects/{id}/capture-period` instead.
+> ⚠️ **Deprecated**: Use `POST /scorecards/{id}/capture-period` instead.
 
 ```http
 POST /collect/project/{project_id}/github

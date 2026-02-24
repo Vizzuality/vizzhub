@@ -80,7 +80,7 @@ All API clients must now include JWT tokens.
 ```python
 import requests
 
-response = requests.get("http://localhost:8000/api/projects")
+response = requests.get("http://localhost:8000/api/scorecards")
 projects = response.json()
 ```
 
@@ -93,7 +93,7 @@ headers = {
 }
 
 response = requests.get(
-    "http://localhost:8000/api/projects",
+    "http://localhost:8000/api/scorecards",
     headers=headers
 )
 projects = response.json()
@@ -103,13 +103,13 @@ projects = response.json()
 
 **Before**:
 ```typescript
-const response = await fetch('http://localhost:8000/api/projects');
+const response = await fetch('http://localhost:8000/api/scorecards');
 const projects = await response.json();
 ```
 
 **After**:
 ```typescript
-const response = await fetch('http://localhost:8000/api/projects', {
+const response = await fetch('http://localhost:8000/api/scorecards', {
   headers: {
     'Authorization': `Bearer ${jwtToken}`
   }
@@ -121,13 +121,13 @@ const projects = await response.json();
 
 **Before**:
 ```bash
-curl http://localhost:8000/api/projects
+curl http://localhost:8000/api/scorecards
 ```
 
 **After**:
 ```bash
 curl -H "Authorization: Bearer $JWT_TOKEN" \
-     http://localhost:8000/api/projects
+     http://localhost:8000/api/scorecards
 ```
 
 ### Step 6: Generate Test Tokens
@@ -176,14 +176,14 @@ api.interceptors.request.use(config => {
 });
 
 // Use it
-const projects = await api.get('/api/projects');
+const projects = await api.get('/api/scorecards');
 ```
 
 **Fetch Example**:
 ```typescript
 const token = localStorage.getItem('jwt_token');
 
-const response = await fetch('http://localhost:8000/api/projects', {
+const response = await fetch('http://localhost:8000/api/scorecards', {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -244,7 +244,7 @@ curl http://localhost:8000/health
 ### 2. Test Protected Endpoint Without Token
 
 ```bash
-curl http://localhost:8000/api/projects
+curl http://localhost:8000/api/scorecards
 # Should return: 401 Unauthorized
 ```
 
@@ -252,7 +252,7 @@ curl http://localhost:8000/api/projects
 
 ```bash
 TOKEN="your-jwt-token"
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/scorecards
 # Should return: [...projects...]
 ```
 
@@ -261,7 +261,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects
 ```bash
 # Run 150 requests quickly
 for i in {1..150}; do
-  curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects
+  curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/scorecards
 done
 # After 100, should see: 429 Too Many Requests
 ```

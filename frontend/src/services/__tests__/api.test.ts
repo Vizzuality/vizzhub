@@ -26,7 +26,7 @@ describe('API Service', () => {
     it('clears user cache and redirects on 401', async () => {
       localStorage.setItem('auth_user', JSON.stringify({ id: '123' }));
 
-      mock.onGet('/projects').reply(401);
+      mock.onGet('/scorecards').reply(401);
 
       delete (window as unknown as { location?: Location }).location;
       (window as unknown as { location: { href: string } }).location = { href: '' };
@@ -44,7 +44,7 @@ describe('API Service', () => {
     it('does not intercept 403 errors', async () => {
       localStorage.setItem('auth_user', JSON.stringify({ id: '123' }));
 
-      mock.onGet('/projects').reply(403);
+      mock.onGet('/scorecards').reply(403);
 
       delete (window as unknown as { location?: Location }).location;
       (window as unknown as { location: { href: string } }).location = { href: '' };
@@ -61,7 +61,7 @@ describe('API Service', () => {
     it('does not intercept 500 errors', async () => {
       localStorage.setItem('auth_user', JSON.stringify({ id: '123' }));
 
-      mock.onGet('/projects').reply(500);
+      mock.onGet('/scorecards').reply(500);
 
       delete (window as unknown as { location?: Location }).location;
       (window as unknown as { location: { href: string } }).location = { href: '' };
@@ -98,12 +98,12 @@ describe('API Service', () => {
           page_size: 45,
           pages: 1,
         };
-        mock.onGet('/projects').reply(200, paginatedResponse);
+        mock.onGet('/scorecards').reply(200, paginatedResponse);
 
         const result = await projectsApi.list();
 
         expect(result).toEqual(paginatedResponse);
-        expect(mock.history.get[0].url).toBe('/projects');
+        expect(mock.history.get[0].url).toBe('/scorecards');
       });
 
       it('passes query params', async () => {
@@ -114,7 +114,7 @@ describe('API Service', () => {
           page_size: 45,
           pages: 1,
         };
-        mock.onGet('/projects').reply(200, paginatedResponse);
+        mock.onGet('/scorecards').reply(200, paginatedResponse);
 
         await projectsApi.list({ search: 'test', page: 2 });
 
@@ -125,17 +125,17 @@ describe('API Service', () => {
     describe('get', () => {
       it('fetches project by id', async () => {
         const projectId = '123e4567-e89b-12d3-a456-426614174000';
-        mock.onGet(`/projects/${projectId}`).reply(200, mockProject);
+        mock.onGet(`/scorecards/${projectId}`).reply(200, mockProject);
 
         const result = await projectsApi.get(projectId);
 
         expect(result.id).toBe(projectId);
-        expect(mock.history.get[0].url).toBe(`/projects/${projectId}`);
+        expect(mock.history.get[0].url).toBe(`/scorecards/${projectId}`);
       });
 
       it('throws error when project not found', async () => {
         const projectId = 'nonexistent';
-        mock.onGet(`/projects/${projectId}`).reply(404, { detail: 'Project not found' });
+        mock.onGet(`/scorecards/${projectId}`).reply(404, { detail: 'Project not found' });
 
         await expect(projectsApi.get(projectId)).rejects.toThrow();
       });
@@ -149,12 +149,12 @@ describe('API Service', () => {
           github_repo: 'org/new-repo',
         };
 
-        mock.onPost('/projects').reply(201, { ...mockProject, ...projectData });
+        mock.onPost('/scorecards').reply(201, { ...mockProject, ...projectData });
 
         const result = await projectsApi.create(projectData);
 
         expect(result.name).toBe('New Project');
-        expect(mock.history.post[0].url).toBe('/projects');
+        expect(mock.history.post[0].url).toBe('/scorecards');
         expect(JSON.parse(mock.history.post[0].data)).toEqual(projectData);
       });
 
@@ -163,7 +163,7 @@ describe('API Service', () => {
           name: 'Minimal Project',
         };
 
-        mock.onPost('/projects').reply(201, {
+        mock.onPost('/scorecards').reply(201, {
           ...mockProject,
           ...projectData,
           jira_project_key: null,
@@ -181,19 +181,19 @@ describe('API Service', () => {
         const projectId = '123e4567-e89b-12d3-a456-426614174000';
         const updateData = { name: 'Updated Name' };
 
-        mock.onPatch(`/projects/${projectId}`).reply(200, { ...mockProject, ...updateData });
+        mock.onPatch(`/scorecards/${projectId}`).reply(200, { ...mockProject, ...updateData });
 
         const result = await projectsApi.update(projectId, updateData);
 
         expect(result.name).toBe('Updated Name');
-        expect(mock.history.patch[0].url).toBe(`/projects/${projectId}`);
+        expect(mock.history.patch[0].url).toBe(`/scorecards/${projectId}`);
       });
 
       it('updates project status', async () => {
         const projectId = '123e4567-e89b-12d3-a456-426614174000';
         const updateData = { status: 'finished' as const };
 
-        mock.onPatch(`/projects/${projectId}`).reply(200, { ...mockProject, ...updateData });
+        mock.onPatch(`/scorecards/${projectId}`).reply(200, { ...mockProject, ...updateData });
 
         const result = await projectsApi.update(projectId, updateData);
 
@@ -209,28 +209,28 @@ describe('API Service', () => {
           jira_project_key: 'REPLACED',
         };
 
-        mock.onPut(`/projects/${projectId}`).reply(200, { ...mockProject, ...projectData });
+        mock.onPut(`/scorecards/${projectId}`).reply(200, { ...mockProject, ...projectData });
 
         const result = await projectsApi.replace(projectId, projectData);
 
         expect(result.name).toBe('Replaced Project');
-        expect(mock.history.put[0].url).toBe(`/projects/${projectId}`);
+        expect(mock.history.put[0].url).toBe(`/scorecards/${projectId}`);
       });
     });
 
     describe('delete', () => {
       it('deletes project', async () => {
         const projectId = '123e4567-e89b-12d3-a456-426614174000';
-        mock.onDelete(`/projects/${projectId}`).reply(204);
+        mock.onDelete(`/scorecards/${projectId}`).reply(204);
 
         await projectsApi.delete(projectId);
 
-        expect(mock.history.delete[0].url).toBe(`/projects/${projectId}`);
+        expect(mock.history.delete[0].url).toBe(`/scorecards/${projectId}`);
       });
 
       it('throws error when project not found', async () => {
         const projectId = 'nonexistent';
-        mock.onDelete(`/projects/${projectId}`).reply(404, { detail: 'Project not found' });
+        mock.onDelete(`/scorecards/${projectId}`).reply(404, { detail: 'Project not found' });
 
         await expect(projectsApi.delete(projectId)).rejects.toThrow();
       });

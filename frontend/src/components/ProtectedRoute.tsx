@@ -21,7 +21,7 @@ export function ProtectedRoute(): JSX.Element {
 }
 
 /**
- * Admin route wrapper - redirects to /projects if not admin
+ * Admin route wrapper - redirects to /scorecard if not admin
  */
 export function AdminRoute(): JSX.Element {
   const { user, isLoading } = useAuth();
@@ -31,7 +31,7 @@ export function AdminRoute(): JSX.Element {
   }
 
   if (user?.role !== 'admin') {
-    return <Navigate to="/projects" replace />;
+    return <Navigate to="/scorecard" replace />;
   }
 
   return <Outlet />;

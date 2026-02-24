@@ -139,10 +139,10 @@ python scripts/generate_jwt_token.py --user-id "test-user" --roles "user,admin"
 
 ```bash
 # Option 1: Use Bearer header (for testing)
-curl -H "Authorization: Bearer <jwt_token>" http://localhost:8000/api/projects
+curl -H "Authorization: Bearer <jwt_token>" http://localhost:8000/api/scorecards
 
 # Option 2: Use cookie (how browser does it)
-curl --cookie "access_token=<jwt_token>" http://localhost:8000/api/projects
+curl --cookie "access_token=<jwt_token>" http://localhost:8000/api/scorecards
 
 # Health endpoint (no auth needed)
 curl http://localhost:8000/health

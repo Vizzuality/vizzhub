@@ -231,39 +231,6 @@ export default function Projects(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center border rounded-lg p-1">
-            <button
-              onClick={() => handleViewModeChange('list')}
-              className={cn(
-                "p-1.5 rounded transition-colors",
-                viewMode === 'list' ? "bg-muted" : "hover:bg-muted/50"
-              )}
-              title="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleViewModeChange('grid')}
-              className={cn(
-                "p-1.5 rounded transition-colors",
-                viewMode === 'grid' ? "bg-muted" : "hover:bg-muted/50"
-              )}
-              title="Grid view"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="w-5 h-5 mr-2" />
-            Create Project
-          </Button>
-        </div>
-      </div>
-
       {/* Create Form */}
       {showForm && (
         <Card>
@@ -280,7 +247,7 @@ export default function Projects(): JSX.Element {
         </Card>
       )}
 
-      {/* Search and Filters */}
+      {/* Search, Filters & Actions */}
       <div className="space-y-3">
         <div className="flex flex-col md:flex-row gap-3">
           {/* Name Search */}
@@ -345,6 +312,35 @@ export default function Projects(): JSX.Element {
               Clear
             </Button>
           )}
+
+          <div className="flex items-center gap-2 md:ml-auto">
+            <div className="flex items-center border rounded-lg p-1">
+              <button
+                onClick={() => handleViewModeChange('list')}
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  viewMode === 'list' ? "bg-muted" : "hover:bg-muted/50"
+                )}
+                title="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('grid')}
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  viewMode === 'grid' ? "bg-muted" : "hover:bg-muted/50"
+                )}
+                title="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="w-5 h-5 mr-2" />
+              Create Project
+            </Button>
+          </div>
         </div>
       </div>
 

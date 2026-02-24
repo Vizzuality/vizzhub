@@ -66,11 +66,11 @@ def main():
         print("Usage:")
         print("-" * 80)
         print(f'\ncurl -H "Authorization: Bearer {token}" \\')
-        print("     http://localhost:8000/api/projects")
+        print("     http://localhost:8000/api/scorecards")
         print("\nOR set as environment variable:")
         print("-" * 80)
         print(f'export TOKEN="{token}"')
-        print('curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects')
+        print('curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/scorecards')
         print("\n" + "=" * 80 + "\n")
 
     except Exception as e:

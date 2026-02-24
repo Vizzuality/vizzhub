@@ -16,7 +16,7 @@ class TestJiraProjectKeyUppercase:
     async def test_create_uppercases_key(self, client: AsyncClient) -> None:
         """POST /projects should uppercase jira_project_key."""
         response = await client.post(
-            "/api/projects", json={"name": "Test", "jira_project_key": "fip"}
+            "/api/scorecards", json={"name": "Test", "jira_project_key": "fip"}
         )
         assert response.status_code == 201
         assert response.json()["jira_project_key"] == "FIP"
@@ -24,7 +24,7 @@ class TestJiraProjectKeyUppercase:
     @pytest.mark.asyncio
     async def test_create_preserves_none(self, client: AsyncClient) -> None:
         """POST /projects should preserve None for jira_project_key."""
-        response = await client.post("/api/projects", json={"name": "Test"})
+        response = await client.post("/api/scorecards", json={"name": "Test"})
         assert response.status_code == 201
         assert response.json()["jira_project_key"] is None
 
@@ -33,7 +33,7 @@ class TestJiraProjectKeyUppercase:
         """POST /projects should uppercase mixed case keys."""
         for input_key, expected in [("Fip", "FIP"), ("fIp", "FIP"), ("proj-123", "PROJ-123")]:
             response = await client.post(
-                "/api/projects", json={"name": f"Test {input_key}", "jira_project_key": input_key}
+                "/api/scorecards", json={"name": f"Test {input_key}", "jira_project_key": input_key}
             )
             assert response.json()["jira_project_key"] == expected, f"Failed for {input_key}"
 
@@ -44,7 +44,7 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_default_pagination_shape(self, client: AsyncClient) -> None:
         """Response has correct pagination envelope."""
-        response = await client.get("/api/projects")
+        response = await client.get("/api/scorecards")
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
@@ -59,25 +59,25 @@ class TestProjectPagination:
     async def test_pagination_navigation(self, client: AsyncClient) -> None:
         """Page navigation returns correct slices."""
         for i in range(5):
-            await client.post("/api/projects", json={"name": f"Project {i}"})
+            await client.post("/api/scorecards", json={"name": f"Project {i}"})
 
-        response = await client.get("/api/projects", params={"page_size": 2, "page": 1})
+        response = await client.get("/api/scorecards", params={"page_size": 2, "page": 1})
         data = response.json()
         assert data["total"] == 5
         assert len(data["items"]) == 2
         assert data["pages"] == 3
 
-        response = await client.get("/api/projects", params={"page_size": 2, "page": 3})
+        response = await client.get("/api/scorecards", params={"page_size": 2, "page": 3})
         data = response.json()
         assert len(data["items"]) == 1
 
     @pytest.mark.asyncio
     async def test_search_case_insensitive(self, client: AsyncClient) -> None:
         """Search filters by name case-insensitively."""
-        await client.post("/api/projects", json={"name": "Alpha Bravo"})
-        await client.post("/api/projects", json={"name": "Charlie Delta"})
+        await client.post("/api/scorecards", json={"name": "Alpha Bravo"})
+        await client.post("/api/scorecards", json={"name": "Charlie Delta"})
 
-        response = await client.get("/api/projects", params={"search": "alpha"})
+        response = await client.get("/api/scorecards", params={"search": "alpha"})
         data = response.json()
         assert data["total"] == 1
         assert data["items"][0]["name"] == "Alpha Bravo"
@@ -85,24 +85,24 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_search_escapes_wildcards(self, client: AsyncClient) -> None:
         """Search with SQL wildcards should not match everything."""
-        await client.post("/api/projects", json={"name": "Alpha"})
-        await client.post("/api/projects", json={"name": "Bravo"})
+        await client.post("/api/scorecards", json={"name": "Alpha"})
+        await client.post("/api/scorecards", json={"name": "Bravo"})
 
-        response = await client.get("/api/projects", params={"search": "%"})
+        response = await client.get("/api/scorecards", params={"search": "%"})
         assert response.json()["total"] == 0
 
-        response = await client.get("/api/projects", params={"search": "_"})
+        response = await client.get("/api/scorecards", params={"search": "_"})
         assert response.json()["total"] == 0
 
     @pytest.mark.asyncio
     async def test_status_filter(self, client: AsyncClient) -> None:
         """Status filter returns only matching projects."""
-        resp = await client.post("/api/projects", json={"name": "Active"})
+        resp = await client.post("/api/scorecards", json={"name": "Active"})
         pid = resp.json()["id"]
-        await client.post("/api/projects", json={"name": "Done"})
-        await client.patch(f"/api/projects/{pid}", json={"status": "in_progress"})
+        await client.post("/api/scorecards", json={"name": "Done"})
+        await client.patch(f"/api/scorecards/{pid}", json={"status": "in_progress"})
 
-        response = await client.get("/api/projects", params={"status": "in_progress"})
+        response = await client.get("/api/scorecards", params={"status": "in_progress"})
         data = response.json()
         for item in data["items"]:
             assert item["status"] == "in_progress"
@@ -111,16 +111,16 @@ class TestProjectPagination:
     async def test_date_range_filter(self, client: AsyncClient) -> None:
         """Date range filter returns matching projects."""
         await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Early", "start_date": "2025-01-15"},
         )
         await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Late", "start_date": "2025-06-15"},
         )
 
         response = await client.get(
-            "/api/projects",
+            "/api/scorecards",
             params={"start_date_from": "2025-05-01"},
         )
         data = response.json()
@@ -131,20 +131,20 @@ class TestProjectPagination:
     async def test_combined_filters(self, client: AsyncClient) -> None:
         """Multiple filters combine with AND logic."""
         await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Alpha Active", "start_date": "2025-03-01"},
         )
         await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Alpha Old", "start_date": "2024-01-01"},
         )
         await client.post(
-            "/api/projects",
+            "/api/scorecards",
             json={"name": "Bravo Active", "start_date": "2025-03-01"},
         )
 
         response = await client.get(
-            "/api/projects",
+            "/api/scorecards",
             params={
                 "search": "Alpha",
                 "start_date_from": "2025-01-01",
@@ -157,11 +157,11 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_sort_asc(self, client: AsyncClient) -> None:
         """Sort by name ascending."""
-        await client.post("/api/projects", json={"name": "Zulu"})
-        await client.post("/api/projects", json={"name": "Alpha"})
+        await client.post("/api/scorecards", json={"name": "Zulu"})
+        await client.post("/api/scorecards", json={"name": "Alpha"})
 
         response = await client.get(
-            "/api/projects", params={"sort": "name", "order": "asc"}
+            "/api/scorecards", params={"sort": "name", "order": "asc"}
         )
         data = response.json()
         assert data["items"][0]["name"] == "Alpha"
@@ -170,11 +170,11 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_sort_desc(self, client: AsyncClient) -> None:
         """Sort by name descending."""
-        await client.post("/api/projects", json={"name": "Alpha"})
-        await client.post("/api/projects", json={"name": "Zulu"})
+        await client.post("/api/scorecards", json={"name": "Alpha"})
+        await client.post("/api/scorecards", json={"name": "Zulu"})
 
         response = await client.get(
-            "/api/projects", params={"sort": "name", "order": "desc"}
+            "/api/scorecards", params={"sort": "name", "order": "desc"}
         )
         data = response.json()
         assert data["items"][0]["name"] == "Zulu"
@@ -183,20 +183,20 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_invalid_sort_ignored(self, client: AsyncClient) -> None:
         """Invalid sort field falls back to created_at."""
-        await client.post("/api/projects", json={"name": "Test"})
+        await client.post("/api/scorecards", json={"name": "Test"})
 
         response = await client.get(
-            "/api/projects", params={"sort": "invalid_field"}
+            "/api/scorecards", params={"sort": "invalid_field"}
         )
         assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_empty_results(self, client: AsyncClient) -> None:
         """Search with no matches returns empty items."""
-        await client.post("/api/projects", json={"name": "Alpha"})
+        await client.post("/api/scorecards", json={"name": "Alpha"})
 
         response = await client.get(
-            "/api/projects", params={"search": "nonexistent"}
+            "/api/scorecards", params={"search": "nonexistent"}
         )
         data = response.json()
         assert data["items"] == []
@@ -207,10 +207,10 @@ class TestProjectPagination:
     async def test_pagination_metadata(self, client: AsyncClient) -> None:
         """Pagination metadata is accurate."""
         for i in range(7):
-            await client.post("/api/projects", json={"name": f"Project {i}"})
+            await client.post("/api/scorecards", json={"name": f"Project {i}"})
 
         response = await client.get(
-            "/api/projects", params={"page_size": 3, "page": 2}
+            "/api/scorecards", params={"page_size": 3, "page": 2}
         )
         data = response.json()
         assert data["total"] == 7
@@ -223,10 +223,10 @@ class TestProjectPagination:
     async def test_search_resets_pagination_context(self, client: AsyncClient) -> None:
         """Searching while on page 2 returns from beginning of results."""
         for i in range(5):
-            await client.post("/api/projects", json={"name": f"Project {i}"})
+            await client.post("/api/scorecards", json={"name": f"Project {i}"})
 
         response = await client.get(
-            "/api/projects", params={"search": "Project", "page": 1, "page_size": 2}
+            "/api/scorecards", params={"search": "Project", "page": 1, "page_size": 2}
         )
         data = response.json()
         assert data["total"] == 5
@@ -240,11 +240,11 @@ class TestLightweightMode:
     @pytest.mark.asyncio
     async def test_lightweight_returns_summaries(self, client: AsyncClient) -> None:
         """Lightweight mode returns id and name only."""
-        await client.post("/api/projects", json={"name": "Project A"})
-        await client.post("/api/projects", json={"name": "Project B"})
+        await client.post("/api/scorecards", json={"name": "Project A"})
+        await client.post("/api/scorecards", json={"name": "Project B"})
 
         response = await client.get(
-            "/api/projects", params={"lightweight": "true"}
+            "/api/scorecards", params={"lightweight": "true"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -258,11 +258,11 @@ class TestLightweightMode:
     @pytest.mark.asyncio
     async def test_lightweight_sorted_by_name(self, client: AsyncClient) -> None:
         """Lightweight results are sorted alphabetically by name."""
-        await client.post("/api/projects", json={"name": "Zulu"})
-        await client.post("/api/projects", json={"name": "Alpha"})
+        await client.post("/api/scorecards", json={"name": "Zulu"})
+        await client.post("/api/scorecards", json={"name": "Alpha"})
 
         response = await client.get(
-            "/api/projects", params={"lightweight": "true"}
+            "/api/scorecards", params={"lightweight": "true"}
         )
         data = response.json()
         assert data[0]["name"] == "Alpha"

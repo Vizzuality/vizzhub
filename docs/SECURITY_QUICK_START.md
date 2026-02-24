@@ -57,7 +57,7 @@ export TOKEN="paste-your-jwt-token-here"
 
 # Test authentication
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:8000/api/projects
+     http://localhost:8000/api/scorecards
 
 # Should work (authenticated)
 # Without token will return 401 Unauthorized
@@ -86,7 +86,7 @@ python scripts/generate_jwt_token.py --user-id "YOUR_USER_ID"
 
 ```bash
 # This should fail with 401 Unauthorized
-curl http://localhost:8000/api/projects
+curl http://localhost:8000/api/scorecards
 
 # This should succeed
 curl http://localhost:8000/health
@@ -97,7 +97,7 @@ curl http://localhost:8000/health
 ```bash
 # Run 200 requests quickly
 for i in {1..200}; do
-  curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/projects
+  curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/scorecards
 done
 
 # After 100 requests/minute, you'll see 429 Too Many Requests
@@ -119,7 +119,7 @@ curl -I http://localhost:8000/health
 ### Postman / Insomnia
 
 1. Create new request
-2. Set URL: `http://localhost:8000/api/projects`
+2. Set URL: `http://localhost:8000/api/scorecards`
 3. Go to Authorization tab
 4. Type: Bearer Token
 5. Token: Paste your JWT token
@@ -132,7 +132,7 @@ curl -I http://localhost:8000/health
 export API_TOKEN="your-jwt-token"
 
 # Use in multiple requests
-curl -H "Authorization: Bearer $API_TOKEN" http://localhost:8000/api/projects
+curl -H "Authorization: Bearer $API_TOKEN" http://localhost:8000/api/scorecards
 curl -H "Authorization: Bearer $API_TOKEN" http://localhost:8000/api/config
 ```
 
