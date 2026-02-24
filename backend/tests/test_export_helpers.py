@@ -8,10 +8,10 @@ from app.core.services.export_helpers import (
     apply_header_style,
     apply_indicator_traffic_light,
     apply_score_traffic_light,
-    create_methodology_sheet,
     format_month_header,
     set_column_widths,
 )
+from app.modules.scorecard.services.export_helpers import create_methodology_sheet
 from tests.conftest import load_config_from_csv
 from app.config import ScoringConfig
 

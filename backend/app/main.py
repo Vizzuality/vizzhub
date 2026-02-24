@@ -15,7 +15,7 @@ from app.api import auth as auth_router
 from app.api import capture as capture_router
 from app.api import collectors as collectors_router
 from app.api import config as config_router
-from app.api import exports as exports_router
+from app.modules.scorecard.router import router as scorecard_router
 from app.api import global_metrics as global_metrics_router
 from app.api import jobs as jobs_router
 from app.api import metrics as metrics_router
@@ -194,7 +194,7 @@ app.include_router(slack_templates_router, prefix="/api")
 app.include_router(silences_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(scheduled_jobs_router, prefix="/api")
-app.include_router(exports_router.router, prefix="/api", tags=["exports"])
+app.include_router(scorecard_router, prefix="/api", tags=["scorecard"])
 app.include_router(iso_router, prefix="/api/iso", tags=["iso"])
 
 
