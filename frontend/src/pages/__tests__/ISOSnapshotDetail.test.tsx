@@ -128,6 +128,17 @@ vi.mock('../../hooks/useIso', () => ({
   useUnsignReview: (...args: unknown[]) => mockUseUnsignReview(...args),
 }));
 
+const mockExportSnapshot = vi.fn();
+
+vi.mock('../../hooks/useIsoExport', () => ({
+  useIsoExport: () => ({
+    exportSnapshots: vi.fn(),
+    exportSnapshot: mockExportSnapshot,
+    isExporting: false,
+    error: null,
+  }),
+}));
+
 vi.mock('../../hooks/useUsers', () => ({
   useUsers: () => ({ data: [] }),
 }));
@@ -414,5 +425,15 @@ describe('ISOSnapshotDetail', () => {
 
     expect(screen.getByText('Total Users')).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
+  });
+
+  // --- Export ---
+
+  it('renders export button on detail page', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    expect(
+      screen.getByRole('button', { name: /export/i }),
+    ).toBeInTheDocument();
   });
 });
