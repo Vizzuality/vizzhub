@@ -8,6 +8,10 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
 # Soft palette — same hues (#4CAF50, #FFC107, #F44336) at two opacity levels on white.
 # Strong (~35% opacity): scores and dimensions (level 0-1)
 GREEN_FILL = PatternFill(start_color="C1E3C2", end_color="C1E3C2", fill_type="solid")

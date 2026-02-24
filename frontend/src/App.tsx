@@ -10,7 +10,7 @@ import Admin from './pages/Admin';
 import ISO from './pages/ISO';
 import ISOSnapshots from './pages/ISOSnapshots';
 import ISOConfig from './pages/ISOConfig';
-import ISOSnapshotDetail from './pages/ISOSnapshotDetail';
+import ISOSnapshotDetail from './pages/iso/ISOSnapshotDetail';
 import { LoginPage } from './pages/LoginPage';
 import ConfigurationTab from './components/Settings/ConfigurationTab';
 import SlackTab from './components/Settings/SlackTab';

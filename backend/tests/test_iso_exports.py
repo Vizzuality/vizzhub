@@ -2,74 +2,15 @@
 
 from datetime import datetime, timezone
 from io import BytesIO
-from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
 from openpyxl import load_workbook
 
-from app.models.user import UserDB
-from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
-from app.modules.iso.models.access_snapshot import AccessSnapshotDB
-
-DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+from tests.iso_fixtures import ensure_dev_user, make_review, make_snapshot
 
 XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-async def _ensure_dev_user(db_session) -> None:
-    from sqlalchemy import select
-
-    result = await db_session.execute(
-        select(UserDB).where(UserDB.id == DEV_USER_ID)
-    )
-    if not result.scalar_one_or_none():
-        db_session.add(UserDB(id=DEV_USER_ID, email="dev@test.com"))
-        await db_session.flush()
-
-
-async def _make_snapshot(db_session, captured_at=None) -> AccessSnapshotDB:
-    snapshot = AccessSnapshotDB(
-        provider="google_workspace",
-        captured_at=captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
-        data_version="1",
-        source_metadata={"domain": "test.com"},
-        data={
-            "users": [
-                {
-                    "id": "u1",
-                    "name": "Alice",
-                    "email": "alice@test.com",
-                    "suspended": False,
-                    "org_unit_path": "/",
-                }
-            ],
-            "groups": [],
-            "group_members": {},
-            "role_assignments": [],
-        },
-        summary={
-            "total_users": 1,
-            "total_admins": 0,
-            "total_groups": 0,
-            "external_members": 0,
-        },
-    )
-    db_session.add(snapshot)
-    await db_session.flush()
-    return snapshot
-
-
-async def _make_review(db_session, snapshot_id, status="draft") -> AccessReviewDB:
-    review = AccessReviewDB(
-        snapshot_id=snapshot_id,
-        status=status,
-        scope="All users and groups",
-    )
-    db_session.add(review)
-    await db_session.flush()
-    return review
 
 
 class TestExportSnapshotRange:
@@ -77,12 +18,12 @@ class TestExportSnapshotRange:
     async def test_export_date_range(
         self, client: AsyncClient, db_session
     ) -> None:
-        await _ensure_dev_user(db_session)
-        await _make_snapshot(
+        await ensure_dev_user(db_session)
+        await make_snapshot(
             db_session,
             captured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
         )
-        await _make_snapshot(
+        await make_snapshot(
             db_session,
             captured_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
         )
@@ -133,12 +74,12 @@ class TestExportSnapshotRange:
     async def test_export_filters_by_date_range(
         self, client: AsyncClient, db_session
     ) -> None:
-        await _ensure_dev_user(db_session)
-        await _make_snapshot(
+        await ensure_dev_user(db_session)
+        await make_snapshot(
             db_session,
             captured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
         )
-        await _make_snapshot(
+        await make_snapshot(
             db_session,
             captured_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
         )
@@ -171,8 +112,31 @@ class TestExportSingleSnapshot:
     async def test_export_single_snapshot(
         self, client: AsyncClient, db_session
     ) -> None:
-        await _ensure_dev_user(db_session)
-        snapshot = await _make_snapshot(db_session)
+        await ensure_dev_user(db_session)
+        snapshot = await make_snapshot(
+            db_session,
+            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+            data={
+                "users": [
+                    {
+                        "id": "u1",
+                        "name": "Alice",
+                        "email": "alice@test.com",
+                        "suspended": False,
+                        "org_unit_path": "/",
+                    }
+                ],
+                "groups": [],
+                "group_members": {},
+                "role_assignments": [],
+            },
+            summary={
+                "total_users": 1,
+                "total_admins": 0,
+                "total_groups": 0,
+                "external_members": 0,
+            },
+        )
 
         response = await client.get(
             f"/api/iso/exports/snapshots/{snapshot.id}",
@@ -185,6 +149,8 @@ class TestExportSingleSnapshot:
 
     @pytest.mark.asyncio
     async def test_export_snapshot_not_found(self, client: AsyncClient) -> None:
+        from uuid import uuid4
+
         fake_id = uuid4()
         response = await client.get(f"/api/iso/exports/snapshots/{fake_id}")
         assert response.status_code == 404
@@ -193,8 +159,8 @@ class TestExportSingleSnapshot:
     async def test_export_single_has_content_disposition(
         self, client: AsyncClient, db_session
     ) -> None:
-        await _ensure_dev_user(db_session)
-        snapshot = await _make_snapshot(
+        await ensure_dev_user(db_session)
+        snapshot = await make_snapshot(
             db_session,
             captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
         )
@@ -211,9 +177,32 @@ class TestExportSingleSnapshot:
     async def test_export_snapshot_with_review_and_actions(
         self, client: AsyncClient, db_session
     ) -> None:
-        await _ensure_dev_user(db_session)
-        snapshot = await _make_snapshot(db_session)
-        review = await _make_review(db_session, snapshot.id, status="signed")
+        await ensure_dev_user(db_session)
+        snapshot = await make_snapshot(
+            db_session,
+            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+            data={
+                "users": [
+                    {
+                        "id": "u1",
+                        "name": "Alice",
+                        "email": "alice@test.com",
+                        "suspended": False,
+                        "org_unit_path": "/",
+                    }
+                ],
+                "groups": [],
+                "group_members": {},
+                "role_assignments": [],
+            },
+            summary={
+                "total_users": 1,
+                "total_admins": 0,
+                "total_groups": 0,
+                "external_members": 0,
+            },
+        )
+        review = await make_review(db_session, snapshot.id, status="signed")
         action = AccessReviewActionDB(
             review_id=review.id,
             subject_type="user",

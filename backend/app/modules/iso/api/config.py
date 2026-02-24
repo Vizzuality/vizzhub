@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
-from app.api.deps import AdminUser, DBSession
+from app.api.deps import AdminUser, DBSession, limiter
 from app.core.oauth_state import OAuthStateManager
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
@@ -15,20 +15,26 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+DOMAIN_PATTERN = r"^[a-zA-Z0-9]([a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$"
+
 
 @router.get("/google-workspace")
+@limiter.limit("30/minute")
 async def get_google_workspace_status(
-    current_user: AdminUser, db: DBSession
+    request: Request, current_user: AdminUser, db: DBSession
 ) -> dict:
     return await GoogleWorkspaceOAuth.get_status(db)
 
 
 @router.get("/google-workspace/authorize")
+@limiter.limit("10/minute")
 async def authorize_google_workspace(
     request: Request,
     current_user: AdminUser,
     db: DBSession,
-    domain: str = Query(..., description="Google Workspace domain"),
+    domain: str = Query(
+        ..., description="Google Workspace domain", pattern=DOMAIN_PATTERN
+    ),
 ) -> RedirectResponse:
     state = OAuthStateManager.generate_state()
     request.session["oauth_state"] = state
@@ -42,6 +48,7 @@ async def authorize_google_workspace(
 
 
 @router.get("/google-workspace/callback")
+@limiter.limit("10/minute")
 async def google_workspace_callback(
     request: Request,
     current_user: AdminUser,
@@ -76,8 +83,9 @@ async def google_workspace_callback(
 
 
 @router.delete("/google-workspace/disconnect")
+@limiter.limit("10/minute")
 async def disconnect_google_workspace(
-    current_user: AdminUser, db: DBSession
+    request: Request, current_user: AdminUser, db: DBSession
 ) -> dict:
     await GoogleWorkspaceOAuth.disconnect(db)
     return {"status": "success", "message": "Google Workspace disconnected"}

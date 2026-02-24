@@ -8,6 +8,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.iso.models.access_review import AccessReviewDB
+from app.modules.iso.models.access_review_action import AccessReviewActionDB
 
 
 async def paginate(
@@ -39,3 +40,19 @@ async def get_review_or_404(db: AsyncSession, review_id: UUID) -> AccessReviewDB
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     return review
+
+
+async def load_review_with_actions(
+    db: AsyncSession, review: AccessReviewDB
+) -> dict:
+    """Fetch a review's actions and build a dict suitable for response serialization."""
+    actions_result = await db.execute(
+        select(AccessReviewActionDB)
+        .where(AccessReviewActionDB.review_id == review.id)
+        .order_by(AccessReviewActionDB.created_at)
+    )
+    actions = actions_result.scalars().all()
+    return {
+        **{c.key: getattr(review, c.key) for c in review.__table__.columns},
+        "actions": actions,
+    }
