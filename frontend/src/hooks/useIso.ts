@@ -47,6 +47,15 @@ export function useIsoSnapshot(id: string) {
   });
 }
 
+export function useSnapshotReview(snapshotId: string) {
+  return useQuery({
+    queryKey: queryKeys.iso.reviews.bySnapshot(snapshotId),
+    queryFn: () => isoApi.getSnapshotReview(snapshotId),
+    enabled: !!snapshotId,
+    retry: false,
+  });
+}
+
 export function useCaptureSnapshot() {
   const queryClient = useQueryClient();
 

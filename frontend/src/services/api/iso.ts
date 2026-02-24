@@ -1,4 +1,5 @@
 import type {
+  AccessReview,
   AccessReviewActionUpdate,
   AccessReviewDetail,
   AccessReviewUpdate,
@@ -7,7 +8,6 @@ import type {
   IsoConfigStatus,
   PaginatedResponse,
 } from '../../types';
-import type { AccessReview } from '../../types';
 import api from './client';
 
 export interface SnapshotListParams {
@@ -51,6 +51,13 @@ export const isoApi = {
 
   getSnapshot: async (id: string): Promise<AccessSnapshot> => {
     const response = await api.get<AccessSnapshot>(`/iso/snapshots/${id}`);
+    return response.data;
+  },
+
+  getSnapshotReview: async (snapshotId: string): Promise<AccessReviewDetail> => {
+    const response = await api.get<AccessReviewDetail>(
+      `/iso/snapshots/${snapshotId}/review`,
+    );
     return response.data;
   },
 

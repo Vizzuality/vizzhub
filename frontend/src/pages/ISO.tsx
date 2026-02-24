@@ -5,7 +5,6 @@ import { isSnapshotStale } from '@/hooks/isoStaleCheck';
 
 const TABS = [
   { to: 'snapshots', label: 'Snapshots' },
-  { to: 'reviews', label: 'Reviews' },
   { to: 'config', label: 'Configuration' },
 ] as const;
 

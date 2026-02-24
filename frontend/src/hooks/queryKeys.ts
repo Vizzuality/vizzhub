@@ -95,6 +95,8 @@ export const queryKeys = {
       list: (params: { status?: string; page?: number; page_size?: number }) =>
         ['iso', 'reviews', 'list', params] as const,
       detail: (id: string) => ['iso', 'reviews', id] as const,
+      bySnapshot: (snapshotId: string) =>
+        ['iso', 'reviews', 'bySnapshot', snapshotId] as const,
     },
   },
 } as const;

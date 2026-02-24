@@ -12,8 +12,10 @@ from app.api.deps import AdminUser, DBSession
 from app.api.schemas.common import PaginatedResponse
 from app.modules.iso.api.helpers import paginate
 from app.modules.iso.models.access_review import AccessReviewDB
+from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.schemas import (
+    AccessReviewDetailResponse,
     AccessSnapshotResponse,
     AccessSnapshotSummary,
     ReviewStatus,
@@ -111,3 +113,27 @@ async def get_snapshot(
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snapshot
+
+
+@router.get("/{snapshot_id}/review", response_model=AccessReviewDetailResponse)
+async def get_snapshot_review(
+    snapshot_id: UUID, current_user: AdminUser, db: DBSession
+) -> dict:
+    result = await db.execute(
+        select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot_id)
+    )
+    review = result.scalar_one_or_none()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    actions_result = await db.execute(
+        select(AccessReviewActionDB)
+        .where(AccessReviewActionDB.review_id == review.id)
+        .order_by(AccessReviewActionDB.created_at)
+    )
+    actions = actions_result.scalars().all()
+
+    return {
+        **{c.key: getattr(review, c.key) for c in review.__table__.columns},
+        "actions": actions,
+    }
