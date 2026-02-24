@@ -36,6 +36,7 @@ export interface AccessSnapshotSummary {
   data_version: string;
   summary: SnapshotSummary;
   created_at: string;
+  review_status: 'draft' | 'completed' | 'signed' | null;
 }
 
 export interface AccessReview {
@@ -84,6 +85,18 @@ export interface AccessReviewActionUpdate {
   justification?: string;
   approved_by?: string;
   exception_until?: string;
+}
+
+export interface ActionDecision {
+  action_id: string;
+  action_taken: 'accepted' | 'removed' | 'corrected' | 'exception';
+  justification?: string;
+  exception_until?: string;
+}
+
+export interface SignReviewPayload {
+  notes?: string;
+  actions?: ActionDecision[];
 }
 
 export interface IsoConfigStatus {

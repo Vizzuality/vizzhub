@@ -21,6 +21,7 @@ from app.modules.iso.schemas import (
     AccessReviewResponse,
     AccessReviewUpdate,
     ReviewStatus,
+    SignReviewRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -127,12 +128,40 @@ async def update_action(
 
 @router.post("/{review_id}/sign", response_model=AccessReviewResponse)
 async def sign_review(
-    review_id: UUID, current_user: AdminUser, db: DBSession
+    review_id: UUID,
+    current_user: AdminUser,
+    db: DBSession,
+    body: SignReviewRequest | None = None,
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
 
     if review.status == ReviewStatus.SIGNED:
         raise HTTPException(status_code=409, detail="Review is already signed")
+
+    if body and body.notes is not None:
+        review.notes = body.notes
+
+    if body and body.actions:
+        action_ids = [a.action_id for a in body.actions]
+        actions_result = await db.execute(
+            select(AccessReviewActionDB).where(
+                AccessReviewActionDB.id.in_(action_ids),
+                AccessReviewActionDB.review_id == review_id,
+            )
+        )
+        db_actions = {a.id: a for a in actions_result.scalars().all()}
+
+        for decision in body.actions:
+            db_action = db_actions.get(decision.action_id)
+            if not db_action:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Action {decision.action_id} not found in this review",
+                )
+            db_action.action_taken = decision.action_taken.value
+            db_action.justification = decision.justification
+            db_action.exception_until = decision.exception_until
+        await db.flush()
 
     unresolved_result = await db.execute(
         select(func.count(AccessReviewActionDB.id)).where(
