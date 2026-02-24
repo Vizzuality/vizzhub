@@ -227,4 +227,14 @@ describe('ISOSnapshots', () => {
 
     expect(screen.getByText('Delete this snapshot?')).toBeInTheDocument();
   });
+
+  // --- Export ---
+
+  it('renders export year button', () => {
+    renderWithProviders(<ISOSnapshots />);
+
+    expect(
+      screen.getByRole('button', { name: /export year/i }),
+    ).toBeInTheDocument();
+  });
 });
