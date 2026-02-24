@@ -436,6 +436,114 @@ class TestCaptureWithDiff:
         assert review.previous_snapshot_id is None
 
 
+class TestSnapshotReview:
+    @pytest.mark.asyncio
+    async def test_get_snapshot_review(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snap.id,
+            reviewer_id=None,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        response = await client.get(f"/api/iso/snapshots/{snap.id}/review")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(review.id)
+        assert data["snapshot_id"] == str(snap.id)
+        assert data["status"] == "draft"
+        assert data["scope"] == "All users and groups"
+        assert isinstance(data["actions"], list)
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_review_with_actions(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+        from app.modules.iso.models.access_review_action import AccessReviewActionDB
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snap.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        action = AccessReviewActionDB(
+            review_id=review.id,
+            subject_type="user",
+            subject_id="u1",
+            subject_label="John Doe",
+            change_type="new_user",
+        )
+        db_session.add(action)
+        await db_session.flush()
+
+        response = await client.get(f"/api/iso/snapshots/{snap.id}/review")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["actions"]) == 1
+        assert data["actions"][0]["subject_label"] == "John Doe"
+        assert data["actions"][0]["change_type"] == "new_user"
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_review_not_found(
+        self, client: AsyncClient
+    ) -> None:
+        fake_id = uuid4()
+        response = await client.get(f"/api/iso/snapshots/{fake_id}/review")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_review_no_review_for_snapshot(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        response = await client.get(f"/api/iso/snapshots/{snap.id}/review")
+        assert response.status_code == 404
+
+
 class TestSnapshotRouterWiring:
     @pytest.mark.asyncio
     async def test_snapshots_accessible_via_iso_prefix(

@@ -2,7 +2,50 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import ISOReviewDetail from '../ISOReviewDetail';
+import ISOSnapshotDetail from '../ISOSnapshotDetail';
+
+const mockSnapshot = {
+  id: 'snap-1',
+  provider: 'google_workspace',
+  captured_at: '2026-02-20T10:00:00Z',
+  captured_by: null,
+  data_version: '1',
+  source_metadata: { domain: 'test.com' },
+  data: {
+    users: [
+      {
+        id: 'u1',
+        name: 'Alice',
+        email: 'alice@test.com',
+        suspended: false,
+        org_unit_path: '/',
+      },
+    ],
+    groups: [
+      { id: 'g1', name: 'Engineering', email: 'eng@test.com' },
+    ],
+    group_members: {
+      'eng@test.com': [
+        { email: 'alice@test.com', role: 'MEMBER', type: 'USER' },
+      ],
+    },
+    role_assignments: [
+      {
+        role_id: 'r1',
+        user_id: 'u1',
+        role_name: 'Super Admin',
+        user_email: 'alice@test.com',
+      },
+    ],
+  },
+  summary: {
+    total_users: 1,
+    total_admins: 1,
+    total_groups: 1,
+    external_members: 0,
+  },
+  created_at: '2026-02-20T10:00:00Z',
+};
 
 const mockReviewDetail = {
   id: 'review-1',
@@ -60,7 +103,8 @@ const mockReviewDetail = {
   ],
 };
 
-const mockUseIsoReview = vi.fn();
+const mockUseIsoSnapshot = vi.fn();
+const mockUseSnapshotReview = vi.fn();
 const mockUpdateMutate = vi.fn();
 const mockUseUpdateReview = vi.fn();
 const mockUseUpdateReviewAction = vi.fn();
@@ -73,12 +117,13 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
-    useParams: () => ({ id: 'review-1' }),
+    useParams: () => ({ id: 'snap-1' }),
   };
 });
 
 vi.mock('../../hooks/useIso', () => ({
-  useIsoReview: (...args: unknown[]) => mockUseIsoReview(...args),
+  useIsoSnapshot: (...args: unknown[]) => mockUseIsoSnapshot(...args),
+  useSnapshotReview: (...args: unknown[]) => mockUseSnapshotReview(...args),
   useUpdateReview: (...args: unknown[]) => mockUseUpdateReview(...args),
   useUpdateReviewAction: (...args: unknown[]) => mockUseUpdateReviewAction(...args),
   useSignReview: (...args: unknown[]) => mockUseSignReview(...args),
@@ -104,10 +149,15 @@ function renderWithProviders(ui: React.ReactElement): ReturnType<typeof render> 
   );
 }
 
-describe('ISOReviewDetail', () => {
+describe('ISOSnapshotDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseIsoReview.mockReturnValue({
+    mockUseIsoSnapshot.mockReturnValue({
+      data: mockSnapshot,
+      isLoading: false,
+      error: null,
+    });
+    mockUseSnapshotReview.mockReturnValue({
       data: mockReviewDetail,
       isLoading: false,
       error: null,
@@ -130,47 +180,83 @@ describe('ISOReviewDetail', () => {
     });
   });
 
-  it('renders loading spinner when isLoading is true', () => {
-    mockUseIsoReview.mockReturnValue({
+  // --- Snapshot section ---
+
+  it('renders loading spinner when snapshot is loading', () => {
+    mockUseIsoSnapshot.mockReturnValue({
       data: undefined,
       isLoading: true,
       error: null,
     });
 
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(document.querySelector('.animate-spin')).toBeTruthy();
   });
 
-  it('shows error state when review fails to load', () => {
-    mockUseIsoReview.mockReturnValue({
+  it('shows error state when snapshot fails to load', () => {
+    mockUseIsoSnapshot.mockReturnValue({
       data: undefined,
       isLoading: false,
       error: new Error('Failed'),
     });
 
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
-    expect(screen.getByText('Failed to load review.')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load snapshot.')).toBeInTheDocument();
+    expect(screen.getByText('Back to Snapshots')).toBeInTheDocument();
   });
 
-  it('shows review header with status badge and dates', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  it('shows snapshot header with provider badge', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
 
-    expect(screen.getByText('Access Review')).toBeInTheDocument();
+    expect(screen.getByText('Snapshot Detail')).toBeInTheDocument();
+    expect(screen.getByText('google_workspace')).toBeInTheDocument();
+  });
+
+  it('shows summary stat cards', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    expect(screen.getByText('Total Users')).toBeInTheDocument();
+    expect(screen.getByText('Total Admins')).toBeInTheDocument();
+    expect(screen.getByText('Total Groups')).toBeInTheDocument();
+    expect(screen.getByText('External Members')).toBeInTheDocument();
+  });
+
+  it('shows data tabs (Users, Groups, Group Members, Admins)', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('Groups')).toBeInTheDocument();
+    expect(screen.getByText('Group Members')).toBeInTheDocument();
+    expect(screen.getByText('Admins')).toBeInTheDocument();
+  });
+
+  it('renders users table by default', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('alice@test.com')).toBeInTheDocument();
+  });
+
+  // --- Review section ---
+
+  it('shows review status badge in header when review exists', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
+
     expect(screen.getByText('Draft')).toBeInTheDocument();
   });
 
-  it('shows review details card with scope and notes textarea', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  it('shows review details card with scope and notes', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(screen.getByText('Review Details')).toBeInTheDocument();
     expect(screen.getByText('All users and groups')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Test notes')).toBeInTheDocument();
   });
 
-  it('shows diff summary stat cards when diff_summary exists', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  it('shows diff summary stat cards', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(screen.getByText('Diff Summary')).toBeInTheDocument();
     expect(screen.getByText('New Users')).toBeInTheDocument();
@@ -181,15 +267,15 @@ describe('ISOReviewDetail', () => {
   });
 
   it('renders actions table with subject labels', () => {
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(screen.getByText('Actions')).toBeInTheDocument();
     expect(screen.getByText(/John Doe/)).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 
-  it('shows color-coded change_type badges', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  it('shows color-coded change type badges', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
 
     const newUserBadge = screen.getByText('New User');
     expect(newUserBadge.className).toContain('green');
@@ -198,15 +284,15 @@ describe('ISOReviewDetail', () => {
     expect(removedUserBadge.className).toContain('red');
   });
 
-  it('shows unresolved count when some actions are pending', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  it('shows unresolved count when actions are pending', () => {
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(
       screen.getByText(/1 action still unresolved/i),
     ).toBeInTheDocument();
   });
 
-  it('shows "All actions resolved. Ready to sign." when all actions have action_taken', () => {
+  it('shows "Ready to sign" when all actions resolved', () => {
     const allResolved = {
       ...mockReviewDetail,
       actions: mockReviewDetail.actions.map((a) => ({
@@ -215,13 +301,13 @@ describe('ISOReviewDetail', () => {
         justification: 'OK',
       })),
     };
-    mockUseIsoReview.mockReturnValue({
+    mockUseSnapshotReview.mockReturnValue({
       data: allResolved,
       isLoading: false,
       error: null,
     });
 
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(
       screen.getByText(/all actions resolved\. ready to sign\./i),
@@ -229,7 +315,7 @@ describe('ISOReviewDetail', () => {
   });
 
   it('disables sign button when there are unresolved actions', () => {
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
     const signButton = screen.getByRole('button', { name: /sign review/i });
     expect(signButton).toBeDisabled();
@@ -246,25 +332,35 @@ describe('ISOReviewDetail', () => {
         action_taken: 'accepted' as const,
       })),
     };
-    mockUseIsoReview.mockReturnValue({
+    mockUseSnapshotReview.mockReturnValue({
       data: signedReview,
       isLoading: false,
       error: null,
     });
 
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
     expect(screen.getByRole('button', { name: /unsign review/i })).toBeInTheDocument();
   });
 
-  it('shows justification field as textarea', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  it('shows signed date in header when review is signed', () => {
+    const signedReview = {
+      ...mockReviewDetail,
+      status: 'signed' as const,
+      signed_at: '2026-02-21T10:00:00Z',
+    };
+    mockUseSnapshotReview.mockReturnValue({
+      data: signedReview,
+      isLoading: false,
+      error: null,
+    });
 
-    const textareas = document.querySelectorAll('textarea[placeholder="Justification..."]');
-    expect(textareas.length).toBeGreaterThan(0);
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    expect(screen.getByText(/Signed Feb/)).toBeInTheDocument();
   });
 
-  it('shows exception date picker when action_taken is exception', () => {
+  it('shows exception date picker when action is exception', () => {
     const exceptionReview = {
       ...mockReviewDetail,
       actions: [
@@ -275,33 +371,44 @@ describe('ISOReviewDetail', () => {
         },
       ],
     };
-    mockUseIsoReview.mockReturnValue({
+    mockUseSnapshotReview.mockReturnValue({
       data: exceptionReview,
       isLoading: false,
       error: null,
     });
 
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
     const dateInput = document.querySelector('input[type="date"]');
     expect(dateInput).toBeTruthy();
   });
 
-  it('shows Back to Reviews link', () => {
-    renderWithProviders(<ISOReviewDetail />);
+  // --- No review scenario ---
 
-    expect(screen.getByText('Back to Reviews')).toBeInTheDocument();
-  });
-
-  it('shows Back to Reviews link on error state', () => {
-    mockUseIsoReview.mockReturnValue({
+  it('does not render review section when no review exists', () => {
+    mockUseSnapshotReview.mockReturnValue({
       data: undefined,
       isLoading: false,
-      error: new Error('Not found'),
+      error: null,
     });
 
-    renderWithProviders(<ISOReviewDetail />);
+    renderWithProviders(<ISOSnapshotDetail />);
 
-    expect(screen.getByText('Back to Reviews')).toBeInTheDocument();
+    expect(screen.getByText('Snapshot Detail')).toBeInTheDocument();
+    expect(screen.queryByText('Review Details')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('review-panel')).not.toBeInTheDocument();
+  });
+
+  it('still shows snapshot data when no review exists', () => {
+    mockUseSnapshotReview.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
+    renderWithProviders(<ISOSnapshotDetail />);
+
+    expect(screen.getByText('Total Users')).toBeInTheDocument();
+    expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 });
