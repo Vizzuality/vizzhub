@@ -106,7 +106,7 @@ def _make_action(action_taken="accepted", justification="Approved"):
 
 
 class TestIsoExportService:
-    def test_generates_workbook_with_summary_and_snapshot_tabs(self):
+    def test_generates_workbook_with_snapshot_tab(self):
         service = IsoExportService()
         snapshot = _make_snapshot()
         review = _make_review()
@@ -118,24 +118,8 @@ class TestIsoExportService:
 
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
-        assert "Summary" in wb.sheetnames
-        assert len(wb.sheetnames) == 2
-
-    def test_summary_sheet_has_correct_columns(self):
-        service = IsoExportService()
-        snapshot = _make_snapshot()
-        review = _make_review()
-
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, [])]
-        )
-        wb = load_workbook(output)
-        ws = wb["Summary"]
-
-        headers = [cell.value for cell in ws[1]]
-        assert "Snapshot Date" in headers
-        assert "Review Status" in headers
-        assert "Signed Date" in headers
+        assert "Summary" not in wb.sheetnames
+        assert len(wb.sheetnames) == 1
 
     def test_snapshot_tab_has_iso_header(self):
         service = IsoExportService()
@@ -146,8 +130,7 @@ class TestIsoExportService:
             snapshots_with_reviews=[(snapshot, review, [])]
         )
         wb = load_workbook(output)
-        tab_name = [s for s in wb.sheetnames if s != "Summary"][0]
-        ws = wb[tab_name]
+        ws = wb[wb.sheetnames[0]]
 
         labels = [ws.cell(row=r, column=1).value for r in range(1, 16)]
         assert "Organization" in labels
@@ -168,8 +151,7 @@ class TestIsoExportService:
             snapshots_with_reviews=[(snapshot, review, [])]
         )
         wb = load_workbook(output)
-        tab_name = [s for s in wb.sheetnames if s != "Summary"][0]
-        ws = wb[tab_name]
+        ws = wb[wb.sheetnames[0]]
 
         all_values = [
             ws.cell(row=r, column=c).value
@@ -188,8 +170,7 @@ class TestIsoExportService:
             snapshots_with_reviews=[(snapshot, review, actions)]
         )
         wb = load_workbook(output)
-        tab_name = [s for s in wb.sheetnames if s != "Summary"][0]
-        ws = wb[tab_name]
+        ws = wb[wb.sheetnames[0]]
 
         all_values = [
             ws.cell(row=r, column=c).value
@@ -216,7 +197,7 @@ class TestIsoExportService:
             ]
         )
         wb = load_workbook(output)
-        assert len(wb.sheetnames) == 3
+        assert len(wb.sheetnames) == 2
 
     def test_snapshot_without_review(self):
         service = IsoExportService()
@@ -224,4 +205,4 @@ class TestIsoExportService:
 
         output = service.export_snapshots(snapshots_with_reviews=[(snapshot, None, [])])
         wb = load_workbook(output)
-        assert len(wb.sheetnames) == 2
+        assert len(wb.sheetnames) == 1

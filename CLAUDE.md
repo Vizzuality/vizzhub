@@ -10,7 +10,7 @@ Project Scorecard evaluates software development projects across 8 dimensions (P
 # Backend
 cd backend
 python run_server.py                          # Start server
-pytest                                        # All tests (~830)
+pytest                                        # All tests (~970)
 pytest tests/test_integration.py              # Integration tests (60)
 pytest --cov=app --cov-report=html            # Coverage
 ruff check app/ && black app/                 # Lint
@@ -18,7 +18,7 @@ ruff check app/ && black app/                 # Lint
 # Frontend
 cd frontend
 npm run dev                                   # Dev server (:5173)
-npm test                                      # All tests (~294)
+npm test                                      # All tests (~340)
 npm run build && npm run lint
 
 # Worker (requires Redis)
@@ -42,9 +42,9 @@ CI: push to `main`/`dev` runs tests. Push to `main` also deploys.
 
 ### Modular Architecture Rules (MUST FOLLOW)
 
-The Hub is a multi-module platform (scorecard, tracker). See `docs/vizztracker_integration.md`.
+The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/vizztracker_integration.md`.
 
-1. **New code in modules**: `app/modules/tracker/`, `src/modules/tracker/`. Existing scorecard code stays until migrated.
+1. **New code in modules**: `app/modules/{scorecard,iso,tracker}/`. Existing scorecard code stays until migrated.
 2. **Core entities** (`Project`, `User`) in `app/core/models/`.
 3. **Cross-module imports through `public.py` ONLY** — never import another module's internals.
 4. **Write isolation, read flexibility**: Each module writes only to its own tables. Cross-module reads via `public.py`. Analytical JOINs allowed in `app/core/services/`.

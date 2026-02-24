@@ -2,7 +2,7 @@
 
 # Project Scorecard
 
-A web application for evaluating software development projects across 8 dimensions.
+A web application for evaluating software development projects across 8 dimensions, with ISO 27001 access review compliance built in.
 
 ## Dimensions
 
@@ -116,29 +116,32 @@ For production deployment, see `docs/SECURITY_IMPLEMENTATION.md` and `docs/SECUR
 
 ```
 project-scorecard/
-├── backend/                 # FastAPI application
+├── backend/
 │   ├── app/
-│   │   ├── api/            # API endpoints
-│   │   ├── core/           # Exceptions, utilities
-│   │   ├── models/         # Pydantic + SQLAlchemy models
+│   │   ├── api/                # Legacy scorecard API endpoints
+│   │   ├── core/               # Auth, models (User, Project), shared services
+│   │   │   └── services/       # Shared helpers (export_helpers)
+│   │   ├── models/             # Pydantic + SQLAlchemy models
+│   │   ├── modules/
+│   │   │   ├── scorecard/      # Scorecard module (exports, services)
+│   │   │   └── iso/            # ISO 27001 module
+│   │   │       ├── api/        # Snapshots, reviews, exports endpoints
+│   │   │       ├── models/     # AccessSnapshot, AccessReview, etc.
+│   │   │       └── services/   # Google Workspace collector, export service
 │   │   └── services/
-│   │       ├── collectors/ # Jira/GitHub data collection
-│   │       ├── normalizers/# Metric normalization
-│   │       └── calculators/# Score computation
-│   ├── tests/              # pytest tests
-│   ├── alembic/            # Database migrations
-│   └── scoring_config.yaml # Weights and targets
-├── frontend/               # React + TypeScript
+│   │       ├── collectors/     # Jira/GitHub data collection
+│   │       ├── normalizers/    # Metric normalization
+│   │       └── calculators/    # Score computation
+│   ├── tests/
+│   └── alembic/
+├── frontend/
 │   └── src/
-│       ├── components/     # React components
-│       ├── hooks/          # Custom hooks
-│       ├── pages/          # Page components
-│       ├── services/       # API client
-│       └── types/          # TypeScript types
+│       ├── components/         # Shared React components
+│       ├── hooks/              # Custom hooks (useIso, useIsoExport, etc.)
+│       ├── pages/              # Page components (ISO*, Projects, etc.)
+│       ├── services/api/       # API clients (iso.ts, client.ts)
+│       └── types/              # TypeScript types
 ├── docs/
-│   ├── MIGRATION_PLAN.md   # Legacy → new mapping
-│   └── API.md              # API documentation
-├── legacy/                 # Original system docs
 └── docker-compose.yml
 ```
 
@@ -273,7 +276,7 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## Testing
 
-**Total: 312 tests (100% passing) | Coverage: ~85%**
+**Backend: ~970 tests | Frontend: ~340 tests (all passing)**
 
 ### Backend Tests
 
@@ -284,7 +287,7 @@ cd backend
 export TEST_DATABASE_URL="postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test"
 
 # Run all tests
-pytest                                    # All 216 tests
+pytest                                    # All tests
 pytest -v                                 # Verbose output
 pytest -x                                 # Stop on first failure
 
@@ -313,7 +316,7 @@ pytest -k "test_jwt"                            # Tests matching pattern
 cd frontend
 
 # Run all tests
-npm test                                  # Run all 96 tests in watch mode
+npm test                                  # Run all tests in watch mode
 npm test -- --run                         # Run once without watch
 npm test -- --reporter=verbose            # Verbose output
 
@@ -339,6 +342,17 @@ npm test -- -t "ScoreCard"               # Tests with "ScoreCard" in name
 6. **Inverted normalization** for "lower is better" metrics
 
 ## Features
+
+### ISO 27001 Access Reviews
+
+Periodic access review compliance for ISO 27001 Annex A.9:
+
+- **Snapshots**: Capture Google Workspace state (users, groups, memberships, admin roles) via Admin SDK
+- **Diff & Review**: Auto-detect changes between snapshots; reviewer accepts/removes/corrects each change
+- **Sign-off**: Bulk sign reviews with notes and action decisions in a single operation
+- **XLSX Export**: Export snapshots as self-contained Excel files (one tab per snapshot with header, users, groups, admins, and review actions)
+- **Stale warnings**: Alert when last snapshot is over 35 days old
+- Admin-only endpoints with rate limiting
 
 ### Slack Notifications
 
@@ -376,6 +390,7 @@ See [docs/TODO.md](docs/TODO.md) for planned features including:
 - Visualization enhancements (trend charts, comparative views)
 - Google OAuth authentication
 - Integrations (team health surveys, SonarQube)
+- ISO 27001: multi-provider support (Azure AD, Okta), scheduled auto-capture
 
 ## Contributing
 
