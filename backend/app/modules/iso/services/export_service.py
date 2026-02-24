@@ -153,10 +153,15 @@ class IsoExportService:
             else str(captured)
         )
 
+        summary = snapshot.get("summary", {})
         header_rows = [
             ("Organization", domain),
             ("Provider", snapshot.get("provider", "")),
             ("Snapshot Date", captured_str),
+            ("Total Users", summary.get("total_users", 0)),
+            ("Total Admins", summary.get("total_admins", 0)),
+            ("Total Groups", summary.get("total_groups", 0)),
+            ("External Members", summary.get("external_members", 0)),
             ("Review Scope", review["scope"] if review else "N/A"),
             ("Reviewer", review.get("reviewer_email", "") if review else ""),
             ("Status", review["status"] if review else "No review"),
