@@ -13,7 +13,7 @@ from app.config import ScoringConfig
 from app.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
 from app.models.metrics import MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
-from app.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
+from app.modules.scorecard.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
 from app.core.services.export_helpers import (
     DEFAULT_GREEN_THRESHOLD,
     DEFAULT_YELLOW_THRESHOLD,
@@ -22,11 +22,12 @@ from app.core.services.export_helpers import (
     apply_indicator_traffic_light,
     apply_row_style,
     apply_score_traffic_light,
-    create_methodology_sheet,
     format_month_header,
     freeze_panes,
+    save_to_bytes,
     set_column_widths,
 )
+from app.modules.scorecard.services.export_helpers import create_methodology_sheet
 from app.services.score_computation import ScoreComputationService
 
 
@@ -74,7 +75,7 @@ class ExportService:
         if "Sheet" in wb.sheetnames:
             del wb["Sheet"]
 
-        return self._save_to_bytes(wb)
+        return save_to_bytes(wb)
 
     async def export_global_dashboard(
         self,
@@ -111,7 +112,7 @@ class ExportService:
         if "Sheet" in wb.sheetnames:
             del wb["Sheet"]
 
-        return self._save_to_bytes(wb)
+        return save_to_bytes(wb)
 
     # --- Data fetching ---
 
@@ -407,11 +408,3 @@ class ExportService:
         if indicator_val and indicator_val.value is not None:
             return round(indicator_val.value, 1)
         return None
-
-    @staticmethod
-    def _save_to_bytes(wb: Workbook) -> BytesIO:
-        """Save workbook to an in-memory BytesIO buffer."""
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        return output

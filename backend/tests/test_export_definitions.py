@@ -1,6 +1,6 @@
 """Tests for export metric definitions."""
 
-from app.services.export_definitions import (
+from app.modules.scorecard.services.export_definitions import (
     DIMENSION_DEFINITIONS,
     INDICATOR_DEFINITIONS,
     get_metric_rows,

@@ -9,7 +9,7 @@ from fastapi.responses import Response
 
 from app.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.models.metrics import SnapshotType
-from app.services.export_service import ExportService
+from app.modules.scorecard.services.export_service import ExportService
 
 MAX_EXPORT_MONTHS = 60
 
@@ -54,7 +54,7 @@ def _sanitize_filename(name: str) -> str:
     return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
 
 
-@router.get("/exports/project/{project_id}", responses={400: {"description": "Bad request"}})
+@router.get("/project/{project_id}", responses={400: {"description": "Bad request"}})
 @limiter.limit("10/minute")
 async def export_project_detail(
     request: Request,
@@ -91,7 +91,7 @@ async def export_project_detail(
     )
 
 
-@router.get("/exports/global", responses={400: {"description": "Bad request"}})
+@router.get("/global", responses={400: {"description": "Bad request"}})
 @limiter.limit("10/minute")
 async def export_global_dashboard(
     request: Request,
