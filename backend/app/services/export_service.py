@@ -14,7 +14,7 @@ from app.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
 from app.models.metrics import MetricsCreate, MetricsDB
 from app.models.project import ProjectDB
 from app.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
-from app.services.export_helpers import (
+from app.core.services.export_helpers import (
     DEFAULT_GREEN_THRESHOLD,
     DEFAULT_YELLOW_THRESHOLD,
     THIN_BORDER,

@@ -1,6 +1,7 @@
 """Shared XLSX formatting helpers for export service."""
 
 import calendar
+from io import BytesIO
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -256,3 +257,11 @@ def _safe_get_weight(config: ScoringConfig, _dim_key: str, ind_key: str) -> str:
         return f"{val:.0%}"
     except (KeyError, ValueError):
         return "-"
+
+
+def save_to_bytes(wb: Workbook) -> BytesIO:
+    """Save workbook to an in-memory BytesIO buffer."""
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
