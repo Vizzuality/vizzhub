@@ -544,6 +544,200 @@ class TestSnapshotReview:
         assert response.status_code == 404
 
 
+class TestListSnapshotsReviewStatus:
+    @pytest.mark.asyncio
+    async def test_list_returns_review_status(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={"total_users": 5},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snap.id,
+            status="signed",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        response = await client.get("/api/iso/snapshots")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"][0]["review_status"] == "signed"
+
+    @pytest.mark.asyncio
+    async def test_list_returns_null_review_status_when_no_review(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={"total_users": 5},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        response = await client.get("/api/iso/snapshots")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"][0]["review_status"] is None
+
+
+class TestDeleteSnapshot:
+    @pytest.mark.asyncio
+    async def test_delete_snapshot_no_review(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+        snap_id = snap.id
+
+        response = await client.delete(f"/api/iso/snapshots/{snap_id}")
+        assert response.status_code == 204
+
+        from sqlalchemy import select
+        result = await db_session.execute(
+            select(AccessSnapshotDB).where(AccessSnapshotDB.id == snap_id)
+        )
+        assert result.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_delete_snapshot_cascades_review_and_actions(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+        from sqlalchemy import select
+        from app.modules.iso.models.access_review_action import AccessReviewActionDB
+
+        snap = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add(snap)
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snap.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+
+        action = AccessReviewActionDB(
+            review_id=review.id,
+            subject_type="user",
+            subject_id="u1",
+            subject_label="Test User",
+            change_type="new_user",
+        )
+        db_session.add(action)
+        await db_session.flush()
+        snap_id = snap.id
+        review_id = review.id
+        action_id = action.id
+
+        response = await client.delete(f"/api/iso/snapshots/{snap_id}")
+        assert response.status_code == 204
+
+        result = await db_session.execute(
+            select(AccessSnapshotDB).where(AccessSnapshotDB.id == snap_id)
+        )
+        assert result.scalar_one_or_none() is None
+
+        result = await db_session.execute(
+            select(AccessReviewDB).where(AccessReviewDB.id == review_id)
+        )
+        assert result.scalar_one_or_none() is None
+
+        result = await db_session.execute(
+            select(AccessReviewActionDB).where(
+                AccessReviewActionDB.id == action_id
+            )
+        )
+        assert result.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_delete_snapshot_not_found(self, client: AsyncClient) -> None:
+        fake_id = uuid4()
+        response = await client.delete(f"/api/iso/snapshots/{fake_id}")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_snapshot_nullifies_previous_snapshot_ref(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import datetime, timezone
+        from sqlalchemy import select
+
+        snap1 = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        snap2 = AccessSnapshotDB(
+            provider="google_workspace",
+            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            data_version="1",
+            source_metadata={},
+            data={"users": []},
+            summary={},
+        )
+        db_session.add_all([snap1, snap2])
+        await db_session.flush()
+
+        review = AccessReviewDB(
+            snapshot_id=snap2.id,
+            previous_snapshot_id=snap1.id,
+            status="draft",
+            scope="All users and groups",
+        )
+        db_session.add(review)
+        await db_session.flush()
+        review_id = review.id
+
+        response = await client.delete(f"/api/iso/snapshots/{snap1.id}")
+        assert response.status_code == 204
+
+        result = await db_session.execute(
+            select(AccessReviewDB).where(AccessReviewDB.id == review_id)
+        )
+        updated_review = result.scalar_one()
+        assert updated_review.previous_snapshot_id is None
+
+
 class TestSnapshotRouterWiring:
     @pytest.mark.asyncio
     async def test_snapshots_accessible_via_iso_prefix(

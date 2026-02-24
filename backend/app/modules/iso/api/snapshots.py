@@ -1,16 +1,16 @@
 """ISO snapshot API endpoints."""
 
 import logging
+import math
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, Query, Response
+from sqlalchemy import select, update
 from sqlalchemy.sql import func
 
 from app.api.deps import AdminUser, DBSession
 from app.api.schemas.common import PaginatedResponse
-from app.modules.iso.api.helpers import paginate
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
@@ -92,14 +92,48 @@ async def list_snapshots(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> dict:
-    query = select(AccessSnapshotDB).order_by(AccessSnapshotDB.captured_at.desc())
+    query = (
+        select(AccessSnapshotDB, AccessReviewDB.status)
+        .outerjoin(
+            AccessReviewDB,
+            AccessReviewDB.snapshot_id == AccessSnapshotDB.id,
+        )
+        .order_by(AccessSnapshotDB.captured_at.desc())
+    )
     count_query = select(func.count(AccessSnapshotDB.id))
 
     if provider:
         query = query.where(AccessSnapshotDB.provider == provider)
         count_query = count_query.where(AccessSnapshotDB.provider == provider)
 
-    return await paginate(db, query, count_query, page, page_size)
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    offset = (page - 1) * page_size
+    result = await db.execute(query.offset(offset).limit(page_size))
+    rows = result.all()
+
+    items = []
+    for snapshot, review_status in rows:
+        items.append(
+            {
+                "id": snapshot.id,
+                "provider": snapshot.provider,
+                "captured_at": snapshot.captured_at,
+                "captured_by": snapshot.captured_by,
+                "data_version": snapshot.data_version,
+                "summary": snapshot.summary,
+                "created_at": snapshot.created_at,
+                "review_status": review_status,
+            }
+        )
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if total > 0 else 0,
+    }
 
 
 @router.get("/{snapshot_id}", response_model=AccessSnapshotResponse)
@@ -113,6 +147,42 @@ async def get_snapshot(
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snapshot
+
+
+@router.delete("/{snapshot_id}", status_code=204)
+async def delete_snapshot(
+    snapshot_id: UUID, current_user: AdminUser, db: DBSession
+) -> Response:
+    result = await db.execute(
+        select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+
+    review_result = await db.execute(
+        select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot_id)
+    )
+    review = review_result.scalar_one_or_none()
+
+    if review:
+        await db.execute(
+            AccessReviewActionDB.__table__.delete().where(
+                AccessReviewActionDB.review_id == review.id
+            )
+        )
+        await db.delete(review)
+
+    await db.execute(
+        update(AccessReviewDB)
+        .where(AccessReviewDB.previous_snapshot_id == snapshot_id)
+        .values(previous_snapshot_id=None)
+    )
+
+    await db.delete(snapshot)
+    await db.flush()
+
+    return Response(status_code=204)
 
 
 @router.get("/{snapshot_id}/review", response_model=AccessReviewDetailResponse)
