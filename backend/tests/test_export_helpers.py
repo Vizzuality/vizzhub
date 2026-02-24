@@ -4,7 +4,7 @@ import pytest
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
 
-from app.services.export_helpers import (
+from app.core.services.export_helpers import (
     apply_header_style,
     apply_indicator_traffic_light,
     apply_score_traffic_light,
