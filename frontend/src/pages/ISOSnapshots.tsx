@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle, Download, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { ErrorBanner } from '@/components/ui/error-banner';
@@ -24,6 +31,7 @@ import {
   useCaptureSnapshot,
   useDeleteSnapshot,
 } from '@/hooks/useIso';
+import { useIsoExport } from '@/hooks/useIsoExport';
 import { isSnapshotStale } from '@/hooks/isoStaleCheck';
 import { formatDate } from '@/utils/formatters';
 
@@ -38,6 +46,9 @@ export default function ISOSnapshots(): JSX.Element {
   const { data, isLoading } = useIsoSnapshots({ page, page_size: 20 });
   const capture = useCaptureSnapshot();
   const deleteSnapshot = useDeleteSnapshot();
+  const { exportSnapshots, isExporting } = useIsoExport();
+  const currentYear = new Date().getFullYear();
+  const [exportYear, setExportYear] = useState(currentYear);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const handleCapture = (): void => {
@@ -84,12 +95,40 @@ export default function ISOSnapshots(): JSX.Element {
             ? `Last capture: ${formatDate(lastCaptureDate)}`
             : 'No snapshots yet'}
         </p>
-        <Button onClick={handleCapture} disabled={capture.isPending}>
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${capture.isPending ? 'animate-spin' : ''}`}
-          />
-          {capture.isPending ? 'Capturing...' : 'Capture Snapshot'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select
+            value={String(exportYear)}
+            onValueChange={(v) => setExportYear(Number(v))}
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() =>
+              exportSnapshots(`${exportYear}-01-01`, `${exportYear}-12-31`)
+            }
+            disabled={isExporting}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            {isExporting ? 'Exporting...' : 'Export Year'}
+          </Button>
+          <Button onClick={handleCapture} disabled={capture.isPending}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${capture.isPending ? 'animate-spin' : ''}`}
+            />
+            {capture.isPending ? 'Capturing...' : 'Capture Snapshot'}
+          </Button>
+        </div>
       </div>
 
       {capture.isError && (
