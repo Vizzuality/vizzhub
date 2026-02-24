@@ -47,8 +47,13 @@ export default function ISOSnapshots(): JSX.Element {
   const capture = useCaptureSnapshot();
   const deleteSnapshot = useDeleteSnapshot();
   const { exportSnapshots, isExporting } = useIsoExport();
-  const currentYear = new Date().getFullYear();
-  const [exportYear, setExportYear] = useState(currentYear);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const [fromMonth, setFromMonth] = useState(currentMonth);
+  const [fromYear, setFromYear] = useState(currentYear - 1);
+  const [toMonth, setToMonth] = useState(currentMonth);
+  const [toYear, setToYear] = useState(currentYear);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const handleCapture = (): void => {
@@ -96,31 +101,66 @@ export default function ISOSnapshots(): JSX.Element {
             : 'No snapshots yet'}
         </p>
         <div className="flex items-center gap-2">
-          <Select
-            value={String(exportYear)}
-            onValueChange={(v) => setExportYear(Number(v))}
-          >
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select value={String(fromMonth)} onValueChange={(v) => setFromMonth(Number(v))}>
+              <SelectTrigger className="w-20" aria-label="From month">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {String(m).padStart(2, '0')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(fromYear)} onValueChange={(v) => setFromYear(Number(v))}>
+              <SelectTrigger className="w-24" aria-label="From year">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">&ndash;</span>
+            <Select value={String(toMonth)} onValueChange={(v) => setToMonth(Number(v))}>
+              <SelectTrigger className="w-20" aria-label="To month">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {String(m).padStart(2, '0')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(toYear)} onValueChange={(v) => setToYear(Number(v))}>
+              <SelectTrigger className="w-24" aria-label="To year">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button
             variant="outline"
-            onClick={() =>
-              exportSnapshots(`${exportYear}-01-01`, `${exportYear}-12-31`)
-            }
+            onClick={() => {
+              const from = `${fromYear}-${String(fromMonth).padStart(2, '0')}-01`;
+              const lastDay = new Date(toYear, toMonth, 0).getDate();
+              const to = `${toYear}-${String(toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+              exportSnapshots(from, to);
+            }}
             disabled={isExporting}
             className="gap-2"
           >
             <Download className="h-4 w-4" />
-            {isExporting ? 'Exporting...' : 'Export Year'}
+            {isExporting ? 'Exporting...' : 'Export'}
           </Button>
           <Button onClick={handleCapture} disabled={capture.isPending}>
             <RefreshCw

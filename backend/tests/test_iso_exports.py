@@ -95,11 +95,11 @@ class TestExportSnapshotRange:
         assert response.headers["content-type"] == XLSX_CONTENT_TYPE
 
         wb = load_workbook(BytesIO(response.content))
-        assert "Summary" in wb.sheetnames
-        assert len(wb.sheetnames) == 3
+        assert "Summary" not in wb.sheetnames
+        assert len(wb.sheetnames) == 2
 
     @pytest.mark.asyncio
-    async def test_export_empty_range_returns_empty_summary(
+    async def test_export_empty_range_returns_empty_workbook(
         self, client: AsyncClient
     ) -> None:
         response = await client.get(
@@ -109,7 +109,7 @@ class TestExportSnapshotRange:
         assert response.status_code == 200
         wb = load_workbook(BytesIO(response.content))
         assert len(wb.sheetnames) == 1
-        assert wb.sheetnames[0] == "Summary"
+        assert wb.sheetnames[0] == "Sheet"
 
     @pytest.mark.asyncio
     async def test_export_invalid_date_format(self, client: AsyncClient) -> None:
@@ -149,7 +149,7 @@ class TestExportSnapshotRange:
         )
         assert response.status_code == 200
         wb = load_workbook(BytesIO(response.content))
-        assert len(wb.sheetnames) == 2
+        assert len(wb.sheetnames) == 1
 
     @pytest.mark.asyncio
     async def test_export_has_content_disposition_header(
@@ -181,7 +181,7 @@ class TestExportSingleSnapshot:
         assert response.headers["content-type"] == XLSX_CONTENT_TYPE
 
         wb = load_workbook(BytesIO(response.content))
-        assert len(wb.sheetnames) == 2
+        assert len(wb.sheetnames) == 1
 
     @pytest.mark.asyncio
     async def test_export_snapshot_not_found(self, client: AsyncClient) -> None:
@@ -232,8 +232,7 @@ class TestExportSingleSnapshot:
         assert response.status_code == 200
 
         wb = load_workbook(BytesIO(response.content))
-        tab_name = [s for s in wb.sheetnames if s != "Summary"][0]
-        ws = wb[tab_name]
+        ws = wb[wb.sheetnames[0]]
 
         all_values = [
             ws.cell(row=r, column=c).value

@@ -21,11 +21,8 @@ class IsoExportService:
         snapshots_with_reviews: list[tuple[dict, dict | None, list[dict]]],
     ) -> BytesIO:
         wb = Workbook()
-        ws = wb.active
-        ws.title = "Summary"
-        self._write_summary_sheet(ws, snapshots_with_reviews)
 
-        for snapshot, review, actions in snapshots_with_reviews:
+        for i, (snapshot, review, actions) in enumerate(snapshots_with_reviews):
             captured = snapshot["captured_at"]
             if isinstance(captured, datetime):
                 tab_name = f"Review {captured.strftime('%Y-%m-%d')}"
@@ -34,82 +31,15 @@ class IsoExportService:
             existing = [s for s in wb.sheetnames if s.startswith(tab_name)]
             if existing:
                 tab_name = f"{tab_name} ({len(existing)})"
-            tab = wb.create_sheet(tab_name)
-            self._write_snapshot_tab(tab, snapshot, review, actions)
 
-        if "Sheet" in wb.sheetnames:
-            del wb["Sheet"]
+            if i == 0:
+                ws = wb.active
+                ws.title = tab_name
+            else:
+                ws = wb.create_sheet(tab_name)
+            self._write_snapshot_tab(ws, snapshot, review, actions)
 
         return save_to_bytes(wb)
-
-    def _write_summary_sheet(
-        self,
-        ws,
-        snapshots_with_reviews: list[tuple[dict, dict | None, list[dict]]],
-    ) -> None:
-        headers = [
-            "Snapshot Date",
-            "Provider",
-            "Total Users",
-            "Total Admins",
-            "Total Groups",
-            "External Members",
-            "Review Status",
-            "Reviewer",
-            "Signed By",
-            "Signed Date",
-        ]
-        ws.append(headers)
-        apply_header_style(ws, 1)
-
-        for snapshot, review, _actions in snapshots_with_reviews:
-            captured = snapshot["captured_at"]
-            date_str = (
-                captured.strftime("%Y-%m-%d %H:%M")
-                if isinstance(captured, datetime)
-                else str(captured)
-            )
-            summary = snapshot.get("summary", {})
-            ws.append(
-                [
-                    date_str,
-                    snapshot.get("provider", ""),
-                    summary.get("total_users", 0),
-                    summary.get("total_admins", 0),
-                    summary.get("total_groups", 0),
-                    summary.get("external_members", 0),
-                    review["status"] if review else "",
-                    review.get("reviewer_email", "") if review else "",
-                    review.get("signed_by_email", "") if review else "",
-                    (
-                        review["signed_at"].strftime("%Y-%m-%d %H:%M")
-                        if review
-                        and review.get("signed_at")
-                        and isinstance(review["signed_at"], datetime)
-                        else (
-                            str(review["signed_at"])
-                            if review and review.get("signed_at")
-                            else ""
-                        )
-                    ),
-                ]
-            )
-
-        set_column_widths(
-            ws,
-            {
-                "A": 20,
-                "B": 18,
-                "C": 12,
-                "D": 12,
-                "E": 12,
-                "F": 16,
-                "G": 14,
-                "H": 25,
-                "I": 25,
-                "J": 20,
-            },
-        )
 
     def _write_snapshot_tab(
         self,

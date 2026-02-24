@@ -230,11 +230,13 @@ describe('ISOSnapshots', () => {
 
   // --- Export ---
 
-  it('renders export year button', () => {
+  it('renders export button with date range selectors', () => {
     renderWithProviders(<ISOSnapshots />);
 
     expect(
-      screen.getByRole('button', { name: /export year/i }),
+      screen.getByRole('button', { name: /^export$/i }),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('From month')).toBeInTheDocument();
+    expect(screen.getByLabelText('To month')).toBeInTheDocument();
   });
 });
