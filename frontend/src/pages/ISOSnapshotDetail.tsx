@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -40,6 +40,7 @@ import {
   useSignReview,
   useUnsignReview,
 } from '@/hooks/useIso';
+import { useIsoExport } from '@/hooks/useIsoExport';
 import { useUsers } from '@/hooks/useUsers';
 import { formatDate } from '@/utils/formatters';
 import type {
@@ -728,6 +729,7 @@ export default function ISOSnapshotDetail(): JSX.Element {
   const navigate = useNavigate();
   const { data: snapshot, isLoading, error } = useIsoSnapshot(id ?? '');
   const { data: review } = useSnapshotReview(id ?? '');
+  const { exportSnapshot, isExporting: isExportingSnapshot } = useIsoExport();
   const [activeTab, setActiveTab] = useState<TabKey>('users');
 
   if (isLoading) {
@@ -775,11 +777,23 @@ export default function ISOSnapshotDetail(): JSX.Element {
           <Badge variant="outline">{snapshot.provider}</Badge>
           {review && <ReviewStatusBadge status={review.status} />}
         </div>
-        <div className="text-sm text-muted-foreground">
-          <span>Captured {formatDate(snapshot.captured_at)}</span>
-          {review?.signed_at && (
-            <span className="ml-4">Signed {formatDate(review.signed_at)}</span>
-          )}
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            <span>Captured {formatDate(snapshot.captured_at)}</span>
+            {review?.signed_at && (
+              <span className="ml-4">Signed {formatDate(review.signed_at)}</span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportSnapshot(id!, snapshot.captured_at)}
+            disabled={isExportingSnapshot}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            {isExportingSnapshot ? 'Exporting...' : 'Export'}
+          </Button>
         </div>
       </div>
 

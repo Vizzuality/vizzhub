@@ -21,11 +21,21 @@ const mockUseCaptureSnapshot = vi.fn();
 const mockDeleteMutate = vi.fn();
 const mockUseDeleteSnapshot = vi.fn();
 const mockIsSnapshotStale = vi.fn();
+const mockExportSnapshots = vi.fn();
 
 vi.mock('../../hooks/useIso', () => ({
   useIsoSnapshots: (...args: unknown[]) => mockUseIsoSnapshots(...args),
   useCaptureSnapshot: () => mockUseCaptureSnapshot(),
   useDeleteSnapshot: () => mockUseDeleteSnapshot(),
+}));
+
+vi.mock('../../hooks/useIsoExport', () => ({
+  useIsoExport: () => ({
+    exportSnapshots: mockExportSnapshots,
+    exportSnapshot: vi.fn(),
+    isExporting: false,
+    error: null,
+  }),
 }));
 
 vi.mock('../../hooks/isoStaleCheck', () => ({
