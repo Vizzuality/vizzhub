@@ -15,6 +15,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 GEN_RANDOM_UUID = "gen_random_uuid()"
+FK_USERS_ID = "users.id"
 
 revision: str = "014_add_iso_access_tables"
 down_revision: Union[str, None] = "013_add_manifest_path"
@@ -28,7 +29,7 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
         sa.Column("provider", sa.String(50), nullable=False, index=True),
         sa.Column("captured_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("captured_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("captured_by", UUID(as_uuid=True), sa.ForeignKey(FK_USERS_ID), nullable=True),
         sa.Column("data_version", sa.String(10), nullable=False, server_default="1"),
         sa.Column("source_metadata", JSONB, nullable=False, server_default="{}"),
         sa.Column("data", JSONB, nullable=False),
@@ -41,12 +42,12 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text(GEN_RANDOM_UUID)),
         sa.Column("snapshot_id", UUID(as_uuid=True), sa.ForeignKey("access_snapshots.id"), nullable=False),
         sa.Column("previous_snapshot_id", UUID(as_uuid=True), sa.ForeignKey("access_snapshots.id"), nullable=True),
-        sa.Column("reviewer_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("reviewer_id", UUID(as_uuid=True), sa.ForeignKey(FK_USERS_ID), nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
         sa.Column("scope", sa.String(255), nullable=False),
         sa.Column("diff_summary", JSONB, nullable=True),
         sa.Column("notes", sa.Text, nullable=True),
-        sa.Column("signed_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("signed_by", UUID(as_uuid=True), sa.ForeignKey(FK_USERS_ID), nullable=True),
         sa.Column("signed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -64,7 +65,7 @@ def upgrade() -> None:
         sa.Column("current_value", JSONB, nullable=True),
         sa.Column("action_taken", sa.String(20), nullable=True),
         sa.Column("justification", sa.Text, nullable=True),
-        sa.Column("approved_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("approved_by", UUID(as_uuid=True), sa.ForeignKey(FK_USERS_ID), nullable=True),
         sa.Column("exception_until", sa.Date, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
