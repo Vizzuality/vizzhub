@@ -1,6 +1,7 @@
 """ISO export API endpoints."""
 
 from datetime import date, datetime, timezone
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -105,14 +106,17 @@ async def _build_export_data(
     return result
 
 
-@router.get("")
+@router.get(
+    "",
+    responses={400: {"description": "Invalid date format or range"}},
+)
 @limiter.limit("10/minute")
 async def export_snapshot_range(
     request: Request,
     current_user: AdminUser,
     db: DBSession,
-    from_date: str = Query(..., alias="from", description="Start date (YYYY-MM-DD)"),
-    to_date: str = Query(..., alias="to", description="End date (YYYY-MM-DD)"),
+    from_date: Annotated[str, Query(alias="from", description="Start date (YYYY-MM-DD)")],
+    to_date: Annotated[str, Query(alias="to", description="End date (YYYY-MM-DD)")],
 ) -> Response:
     start = _parse_date_param(from_date, "from")
     end = _parse_date_param(to_date, "to")
@@ -144,7 +148,10 @@ async def export_snapshot_range(
     )
 
 
-@router.get("/{snapshot_id}")
+@router.get(
+    "/{snapshot_id}",
+    responses={404: {"description": "Snapshot not found"}},
+)
 @limiter.limit("10/minute")
 async def export_single_snapshot(
     request: Request,

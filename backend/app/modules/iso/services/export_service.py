@@ -12,6 +12,8 @@ from app.core.services.export_helpers import (
     set_column_widths,
 )
 
+DATETIME_FORMAT_UTC = "%Y-%m-%d %H:%M UTC"
+
 
 class IsoExportService:
     """Generates XLSX exports for ISO access review snapshots."""
@@ -78,7 +80,7 @@ class IsoExportService:
         domain = snapshot.get("source_metadata", {}).get("domain", "")
         captured = snapshot["captured_at"]
         captured_str = (
-            captured.strftime("%Y-%m-%d %H:%M UTC")
+            captured.strftime(DATETIME_FORMAT_UTC)
             if isinstance(captured, datetime)
             else str(captured)
         )
@@ -99,7 +101,7 @@ class IsoExportService:
             (
                 "Signed Date",
                 (
-                    review["signed_at"].strftime("%Y-%m-%d %H:%M UTC")
+                    review["signed_at"].strftime(DATETIME_FORMAT_UTC)
                     if review
                     and review.get("signed_at")
                     and isinstance(review["signed_at"], datetime)
@@ -111,7 +113,7 @@ class IsoExportService:
                 ),
             ),
             ("Notes", review.get("notes", "") if review else ""),
-            ("Export Date", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
+            ("Export Date", datetime.now(timezone.utc).strftime(DATETIME_FORMAT_UTC)),
         ]
 
         for label, value in header_rows:

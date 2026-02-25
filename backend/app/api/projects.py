@@ -2,6 +2,7 @@
 
 import math
 from datetime import date
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, status
@@ -30,10 +31,10 @@ async def list_projects(
     current_user: CurrentUser,
     db: DBSession,
     lightweight: bool = False,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(45, ge=1, le=MAX_PAGE_SIZE),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 45,
     search: str | None = None,
-    filter_status: str | None = Query(None, alias="status"),
+    filter_status: Annotated[str | None, Query(alias="status")] = None,
     sort: str | None = None,
     order: str | None = None,
     start_date_from: date | None = None,
