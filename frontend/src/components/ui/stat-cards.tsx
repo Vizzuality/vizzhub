@@ -6,11 +6,11 @@ interface StatCardsProps {
 }
 
 export function StatCards({ items, columns = 4 }: StatCardsProps): JSX.Element {
-  const gridClass = columns === 6
-    ? 'grid grid-cols-2 md:grid-cols-6 gap-3'
-    : columns === 5
-    ? 'grid grid-cols-2 md:grid-cols-5 gap-3'
-    : 'grid grid-cols-2 md:grid-cols-4 gap-3';
+  const gridColsMap: Record<number, string> = {
+    6: 'grid grid-cols-2 md:grid-cols-6 gap-3',
+    5: 'grid grid-cols-2 md:grid-cols-5 gap-3',
+  };
+  const gridClass = gridColsMap[columns] ?? 'grid grid-cols-2 md:grid-cols-4 gap-3';
 
   return (
     <div className={gridClass}>

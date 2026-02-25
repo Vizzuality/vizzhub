@@ -98,20 +98,7 @@ class IsoExportService:
             ("Reviewer", review.get("reviewer_email", "") if review else ""),
             ("Status", review["status"] if review else "No review"),
             ("Signed By", review.get("signed_by_email", "") if review else ""),
-            (
-                "Signed Date",
-                (
-                    review["signed_at"].strftime(DATETIME_FORMAT_UTC)
-                    if review
-                    and review.get("signed_at")
-                    and isinstance(review["signed_at"], datetime)
-                    else (
-                        str(review["signed_at"])
-                        if review and review.get("signed_at")
-                        else ""
-                    )
-                ),
-            ),
+            ("Signed Date", self._format_signed_date(review)),
             ("Notes", review.get("notes", "") if review else ""),
             ("Export Date", datetime.now(timezone.utc).strftime(DATETIME_FORMAT_UTC)),
         ]
@@ -120,6 +107,15 @@ class IsoExportService:
             ws.append([label, value])
             row = ws.max_row
             ws.cell(row=row, column=1).font = Font(bold=True)
+
+    @staticmethod
+    def _format_signed_date(review: dict | None) -> str:
+        if not review or not review.get("signed_at"):
+            return ""
+        signed_at = review["signed_at"]
+        if isinstance(signed_at, datetime):
+            return signed_at.strftime(DATETIME_FORMAT_UTC)
+        return str(signed_at)
 
     def _write_diff_summary(self, ws, diff_summary: dict) -> None:
         ws.append(["Diff Summary"])

@@ -6,15 +6,13 @@ collector modules (Jira, GitHub) to avoid duplication.
 """
 
 from datetime import datetime
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, Awaitable, Callable
 
 from fastapi import HTTPException, status
 
 from app.core.exceptions import ConfigurationError
 
 HTTP_CLIENT_TIMEOUT = 30.0
-
-T = TypeVar("T")
 
 
 def parse_iso_datetime(dt_str: str | None) -> datetime | None:
@@ -38,7 +36,7 @@ def parse_iso_datetime(dt_str: str | None) -> datetime | None:
         return None
 
 
-async def execute_collector(
+async def execute_collector[T](
     collector: Any,
     collect_coro: Awaitable[T],
     source_name: str,
