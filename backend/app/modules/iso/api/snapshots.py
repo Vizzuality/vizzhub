@@ -2,6 +2,7 @@
 
 import logging
 import math
+from typing import Annotated
 from uuid import UUID
 
 import httpx
@@ -35,7 +36,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/capture", response_model=AccessSnapshotResponse, status_code=201)
+@router.post(
+    "/capture",
+    response_model=AccessSnapshotResponse,
+    status_code=201,
+    responses={
+        400: {"description": "Google Workspace not configured"},
+        502: {"description": "Google Workspace API error"},
+    },
+)
 @limiter.limit("5/minute")
 async def capture_snapshot(
     request: Request, current_user: AdminUser, db: DBSession
@@ -95,8 +104,8 @@ async def list_snapshots(
     current_user: AdminUser,
     db: DBSession,
     provider: str | None = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> dict:
     query = (
         select(AccessSnapshotDB, AccessReviewDB.status)
@@ -142,7 +151,11 @@ async def list_snapshots(
     }
 
 
-@router.get("/{snapshot_id}", response_model=AccessSnapshotResponse)
+@router.get(
+    "/{snapshot_id}",
+    response_model=AccessSnapshotResponse,
+    responses={404: {"description": "Snapshot not found"}},
+)
 @limiter.limit("30/minute")
 async def get_snapshot(
     request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
@@ -156,7 +169,11 @@ async def get_snapshot(
     return snapshot
 
 
-@router.delete("/{snapshot_id}", status_code=204)
+@router.delete(
+    "/{snapshot_id}",
+    status_code=204,
+    responses={404: {"description": "Snapshot not found"}},
+)
 @limiter.limit("10/minute")
 async def delete_snapshot(
     request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
@@ -193,7 +210,11 @@ async def delete_snapshot(
     return Response(status_code=204)
 
 
-@router.get("/{snapshot_id}/review", response_model=AccessReviewDetailResponse)
+@router.get(
+    "/{snapshot_id}/review",
+    response_model=AccessReviewDetailResponse,
+    responses={404: {"description": "Review not found"}},
+)
 @limiter.limit("30/minute")
 async def get_snapshot_review(
     request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession

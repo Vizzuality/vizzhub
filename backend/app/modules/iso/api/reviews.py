@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -40,8 +41,8 @@ async def list_reviews(
     current_user: AdminUser,
     db: DBSession,
     status: str | None = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> dict:
     query = select(AccessReviewDB).order_by(AccessReviewDB.created_at.desc())
     count_query = select(func.count(AccessReviewDB.id))
@@ -62,7 +63,11 @@ async def get_review(
     return await load_review_with_actions(db, review)
 
 
-@router.patch("/{review_id}", response_model=AccessReviewResponse)
+@router.patch(
+    "/{review_id}",
+    response_model=AccessReviewResponse,
+    responses={409: {"description": "Cannot modify a signed review"}},
+)
 @limiter.limit("10/minute")
 async def update_review(
     request: Request,
@@ -88,6 +93,10 @@ async def update_review(
 @router.patch(
     "/{review_id}/actions/{action_id}",
     response_model=AccessReviewActionResponse,
+    responses={
+        404: {"description": "Action not found"},
+        409: {"description": "Cannot modify actions on a signed review"},
+    },
 )
 @limiter.limit("10/minute")
 async def update_action(
@@ -128,7 +137,14 @@ async def update_action(
     return action
 
 
-@router.post("/{review_id}/sign", response_model=AccessReviewResponse)
+@router.post(
+    "/{review_id}/sign",
+    response_model=AccessReviewResponse,
+    responses={
+        404: {"description": "Action not found in this review"},
+        409: {"description": "Review already signed or unresolved actions remain"},
+    },
+)
 @limiter.limit("10/minute")
 async def sign_review(
     request: Request,
@@ -193,7 +209,11 @@ async def sign_review(
     return review
 
 
-@router.post("/{review_id}/unsign", response_model=AccessReviewResponse)
+@router.post(
+    "/{review_id}/unsign",
+    response_model=AccessReviewResponse,
+    responses={409: {"description": "Review is not signed"}},
+)
 @limiter.limit("10/minute")
 async def unsign_review(
     request: Request, review_id: UUID, current_user: AdminUser, db: DBSession

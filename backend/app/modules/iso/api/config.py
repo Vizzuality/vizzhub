@@ -1,6 +1,7 @@
 """ISO module configuration endpoints -- Google Workspace OAuth."""
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
@@ -32,9 +33,7 @@ async def authorize_google_workspace(
     request: Request,
     current_user: AdminUser,
     db: DBSession,
-    domain: str = Query(
-        ..., description="Google Workspace domain", pattern=DOMAIN_PATTERN
-    ),
+    domain: Annotated[str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)],
 ) -> RedirectResponse:
     state = OAuthStateManager.generate_state()
     request.session["oauth_state"] = state
@@ -47,14 +46,17 @@ async def authorize_google_workspace(
     return RedirectResponse(url=url, status_code=307)
 
 
-@router.get("/google-workspace/callback")
+@router.get(
+    "/google-workspace/callback",
+    responses={400: {"description": "Invalid or expired OAuth state"}},
+)
 @limiter.limit("10/minute")
 async def google_workspace_callback(
     request: Request,
     current_user: AdminUser,
     db: DBSession,
-    code: str = Query(...),
-    state: str = Query(""),
+    code: Annotated[str, Query()],
+    state: Annotated[str, Query()] = "",
 ) -> dict:
     # NOTE: This endpoint requires an authenticated session. The OAuth flow
     # is initiated by a logged-in user (authorize_google_workspace), and the
