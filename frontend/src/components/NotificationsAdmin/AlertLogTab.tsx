@@ -64,11 +64,13 @@ export default function AlertLogTab(): JSX.Element {
 
   const handleFilterChange = useCallback(
     (key: string, value: string | number | undefined): void => {
-      const urlKey = key === 'project_id' ? 'project'
-        : key === 'alert_definition_id' ? 'alert'
-          : key === 'start_date' ? 'start'
-            : key === 'end_date' ? 'end'
-              : key;
+      const keyMap: Record<string, string> = {
+        project_id: 'project',
+        alert_definition_id: 'alert',
+        start_date: 'start',
+        end_date: 'end',
+      };
+      const urlKey = keyMap[key] ?? key;
 
       if (urlKey === 'page') {
         setState({ page: value as number });
