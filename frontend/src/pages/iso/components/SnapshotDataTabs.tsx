@@ -133,7 +133,7 @@ function GroupMembersList({ groupMembers }: GroupMembersListProps): JSX.Element 
     setExpanded((prev) => ({ ...prev, [groupEmail]: !prev[groupEmail] }));
   };
 
-  const groupEmails = Object.keys(groupMembers).sort();
+  const groupEmails = Object.keys(groupMembers).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-1">
