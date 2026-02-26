@@ -30,9 +30,7 @@ class TestOAuthStateGenerate:
         assert len(state1) > 0
 
     @pytest.mark.asyncio
-    async def test_generate_stores_in_db(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_generate_stores_in_db(self, db_session: AsyncSession) -> None:
         """Token should be persisted in oauth_states table."""
         state = await OAuthStateManager.generate_state(db_session)
 
@@ -70,9 +68,7 @@ class TestOAuthStateValidate:
     ) -> None:
         """Valid unexpired token should be accepted."""
         state = await OAuthStateManager.generate_state(db_session)
-        assert await OAuthStateManager.validate_state(
-            state, db_session
-        ) is True
+        assert await OAuthStateManager.validate_state(state, db_session) is True
 
     @pytest.mark.asyncio
     async def test_validate_unknown_token_returns_false(
@@ -96,27 +92,19 @@ class TestOAuthStateValidate:
         db_session.add(expired)
         await db_session.flush()
 
-        result = await OAuthStateManager.validate_state(
-            "expired-token", db_session
-        )
+        result = await OAuthStateManager.validate_state("expired-token", db_session)
         assert result is False
 
         row = await db_session.execute(
-            select(OAuthStateDB).where(
-                OAuthStateDB.state == "expired-token"
-            )
+            select(OAuthStateDB).where(OAuthStateDB.state == "expired-token")
         )
         assert row.scalar_one_or_none() is None
 
     @pytest.mark.asyncio
-    async def test_validate_consumes_token(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_validate_consumes_token(self, db_session: AsyncSession) -> None:
         """Token should be deleted after successful validation."""
         state = await OAuthStateManager.generate_state(db_session)
-        assert await OAuthStateManager.validate_state(
-            state, db_session
-        ) is True
+        assert await OAuthStateManager.validate_state(state, db_session) is True
 
         row = await db_session.execute(
             select(OAuthStateDB).where(OAuthStateDB.state == state)
@@ -129,34 +117,26 @@ class TestOAuthStateValidate:
     ) -> None:
         """Second use of same token should fail."""
         state = await OAuthStateManager.generate_state(db_session)
-        assert await OAuthStateManager.validate_state(
-            state, db_session
-        ) is True
-        assert await OAuthStateManager.validate_state(
-            state, db_session
-        ) is False
+        assert await OAuthStateManager.validate_state(state, db_session) is True
+        assert await OAuthStateManager.validate_state(state, db_session) is False
 
 
 class TestOAuthStateCleanup:
     """Test cleanup of expired state tokens."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_removes_expired(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_cleanup_removes_expired(self, db_session: AsyncSession) -> None:
         """cleanup_expired should remove expired tokens."""
         db_session.add(
             OAuthStateDB(
                 state="expired-1",
-                expires_at=datetime.now(timezone.utc)
-                - timedelta(minutes=5),
+                expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
             )
         )
         db_session.add(
             OAuthStateDB(
                 state="expired-2",
-                expires_at=datetime.now(timezone.utc)
-                - timedelta(minutes=15),
+                expires_at=datetime.now(timezone.utc) - timedelta(minutes=15),
             )
         )
         await db_session.flush()
@@ -165,22 +145,18 @@ class TestOAuthStateCleanup:
         assert removed == 2
 
     @pytest.mark.asyncio
-    async def test_cleanup_keeps_valid(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_cleanup_keeps_valid(self, db_session: AsyncSession) -> None:
         """cleanup_expired should keep valid unexpired tokens."""
         db_session.add(
             OAuthStateDB(
                 state="expired",
-                expires_at=datetime.now(timezone.utc)
-                - timedelta(minutes=1),
+                expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
             )
         )
         db_session.add(
             OAuthStateDB(
                 state="valid",
-                expires_at=datetime.now(timezone.utc)
-                + timedelta(minutes=5),
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
             )
         )
         await db_session.flush()

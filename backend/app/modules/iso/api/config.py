@@ -33,7 +33,9 @@ async def authorize_google_workspace(
     request: Request,
     current_user: AdminUser,
     db: DBSession,
-    domain: Annotated[str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)],
+    domain: Annotated[
+        str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)
+    ],
 ) -> RedirectResponse:
     state = await OAuthStateManager.generate_state(db)
     request.session["oauth_state"] = state
