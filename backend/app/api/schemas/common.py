@@ -1,9 +1,13 @@
 """Common API schemas shared across modules."""
 
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel
 
+T = TypeVar("T")
 
-class PaginatedResponse[T](BaseModel):
+
+class PaginatedResponse(BaseModel, Generic[T]):
     """Generic paginated response envelope."""
 
     items: list[T]
