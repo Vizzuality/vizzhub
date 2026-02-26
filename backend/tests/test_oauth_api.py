@@ -239,6 +239,34 @@ class TestOAuthJiraRefresh:
         assert response.status_code in [200, 404]
 
 
+class TestJiraDisconnect:
+    """Test Jira OAuth disconnect endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_disconnect_jira(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """Should delete stored Jira token and return disconnected status."""
+        token = OAuthTokenDB(
+            provider="jira",
+            access_token=encrypt_token("test_access"),
+            refresh_token=encrypt_token("test_refresh"),
+            token_type="Bearer",
+        )
+        db_session.add(token)
+        await db_session.commit()
+
+        response = await client.delete("/api/oauth/jira/disconnect")
+        assert response.status_code == 200
+        assert response.json() == {"status": "disconnected"}
+
+    @pytest.mark.asyncio
+    async def test_disconnect_jira_not_found(self, client: AsyncClient) -> None:
+        """Should return 404 when no Jira token exists."""
+        response = await client.delete("/api/oauth/jira/disconnect")
+        assert response.status_code == 404
+
+
 class TestOAuthRateLimiting:
     """Test rate limiting on OAuth endpoints."""
 
