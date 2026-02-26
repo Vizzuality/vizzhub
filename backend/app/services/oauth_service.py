@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.token_encryption import decrypt_token, encrypt_token
 from app.models.oauth import OAuthTokenDB
 
 settings = get_settings()
@@ -90,8 +91,8 @@ class OAuthService:
         # Create new token
         oauth_token = OAuthTokenDB(
             provider="jira",
-            access_token=token_data["access_token"],
-            refresh_token=token_data.get("refresh_token"),
+            access_token=encrypt_token(token_data["access_token"]),
+            refresh_token=encrypt_token(token_data["refresh_token"]) if token_data.get("refresh_token") else None,
             token_type=token_data.get("token_type", "Bearer"),
             expires_at=expires_at,
             scope=token_data.get("scope"),
@@ -123,7 +124,7 @@ class OAuthService:
                     "grant_type": "refresh_token",
                     "client_id": settings.jira_oauth_client_id,
                     "client_secret": settings.jira_oauth_client_secret,
-                    "refresh_token": token.refresh_token,
+                    "refresh_token": decrypt_token(token.refresh_token),
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
@@ -137,9 +138,9 @@ class OAuthService:
                 seconds=expires_in
             )
 
-        token.access_token = token_data["access_token"]
+        token.access_token = encrypt_token(token_data["access_token"])
         if "refresh_token" in token_data:
-            token.refresh_token = token_data["refresh_token"]
+            token.refresh_token = encrypt_token(token_data["refresh_token"])
         token.token_type = token_data.get("token_type", "Bearer")
         token.scope = token_data.get("scope")
 
@@ -167,10 +168,10 @@ class OAuthService:
                 # Token expired or about to expire, refresh it
                 refreshed_token = await OAuthService.refresh_jira_token(db)
                 if refreshed_token:
-                    return refreshed_token.access_token
+                    return decrypt_token(refreshed_token.access_token)
                 return None
 
-        return token.access_token
+        return decrypt_token(token.access_token)
 
     @staticmethod
     async def get_jira_site_info(db: AsyncSession) -> dict[str, Any] | None:
