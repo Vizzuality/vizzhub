@@ -154,6 +154,7 @@ jobs:
           DATABASE_URL=postgresql+asyncpg://$(echo $DB | jq -r '.username'):$(echo $DB | jq -r '.password')@$(echo $DB | jq -r '.host'):5432/$(echo $DB | jq -r '.dbname')
           JWT_SECRET_KEY=$(echo $JWT | jq -r '.jwt_secret_key')
           SESSION_SECRET_KEY=$(echo $JWT | jq -r '.session_secret_key')
+          OAUTH_ENCRYPTION_KEY=$(echo $JWT | jq -r '.oauth_encryption_key')
           JWT_EXPIRE_HOURS=24
           GOOGLE_CLIENT_ID=$(echo $GOOGLE | jq -r '.client_id')
           GOOGLE_CLIENT_SECRET=$(echo $GOOGLE | jq -r '.client_secret')
