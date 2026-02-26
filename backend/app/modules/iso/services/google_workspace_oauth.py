@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.token_encryption import decrypt_token, encrypt_token
 from app.models.oauth import OAuthTokenDB
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,9 @@ class GoogleWorkspaceOAuth:
     def _get_client_credentials() -> tuple[str, str]:
         settings = get_settings()
         client_id = settings.google_workspace_client_id or settings.google_client_id
-        client_secret = settings.google_workspace_client_secret or settings.google_client_secret
+        client_secret = (
+            settings.google_workspace_client_secret or settings.google_client_secret
+        )
         return client_id, client_secret
 
     @staticmethod
@@ -92,8 +95,12 @@ class GoogleWorkspaceOAuth:
 
         oauth_token = OAuthTokenDB(
             provider=PROVIDER,
-            access_token=token_data["access_token"],
-            refresh_token=token_data.get("refresh_token"),
+            access_token=encrypt_token(token_data["access_token"]),
+            refresh_token=(
+                encrypt_token(token_data["refresh_token"])
+                if token_data.get("refresh_token")
+                else None
+            ),
             token_type=token_data.get("token_type", "Bearer"),
             expires_at=expires_at,
             scope=token_data.get("scope"),
@@ -120,7 +127,7 @@ class GoogleWorkspaceOAuth:
                     "grant_type": "refresh_token",
                     "client_id": client_id,
                     "client_secret": client_secret,
-                    "refresh_token": token.refresh_token,
+                    "refresh_token": decrypt_token(token.refresh_token),
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
@@ -132,9 +139,9 @@ class GoogleWorkspaceOAuth:
             token.expires_at = datetime.now(timezone.utc) + timedelta(
                 seconds=expires_in
             )
-        token.access_token = token_data["access_token"]
+        token.access_token = encrypt_token(token_data["access_token"])
         if "refresh_token" in token_data:
-            token.refresh_token = token_data["refresh_token"]
+            token.refresh_token = encrypt_token(token_data["refresh_token"])
 
         await db.flush()
         await db.refresh(token)
@@ -153,10 +160,10 @@ class GoogleWorkspaceOAuth:
             if token.expires_at - buffer <= datetime.now(timezone.utc):
                 refreshed = await GoogleWorkspaceOAuth.refresh_token(db)
                 if refreshed:
-                    return refreshed.access_token
+                    return decrypt_token(refreshed.access_token)
                 return None
 
-        return token.access_token
+        return decrypt_token(token.access_token)
 
     @staticmethod
     async def disconnect(db: AsyncSession) -> None:
