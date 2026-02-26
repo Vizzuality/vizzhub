@@ -17,22 +17,23 @@ from app.services.collectors.utils import HTTP_CLIENT_TIMEOUT
 class GitHubClient:
     """Authenticated HTTP client for GitHub API."""
 
-    def __init__(self) -> None:
-        self.settings = get_settings()
+    def __init__(self, token: str | None = None) -> None:
+        self._token = token
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get authenticated HTTP client."""
         if self._client is None:
-            if not self.settings.github_token:
+            token = self._token or get_settings().github_token
+            if not token:
                 raise ConfigurationError(
                     "GitHub token not configured. "
-                    "Set GITHUB_TOKEN in environment variables."
+                    "Set token via Admin > Integrations or GITHUB_TOKEN env var."
                 )
 
             headers = {
                 "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {self.settings.github_token}",
+                "Authorization": f"Bearer {token}",
                 "X-GitHub-Api-Version": "2022-11-28",
             }
 
@@ -63,15 +64,13 @@ class GitHubClient:
         """
         if not repo_slug or "/" not in repo_slug:
             raise ValueError(
-                f"Invalid repo format: {repo_slug}. "
-                "Expected 'owner/repo' format."
+                f"Invalid repo format: {repo_slug}. " "Expected 'owner/repo' format."
             )
 
         parts = repo_slug.split("/")
         if len(parts) != 2:
             raise ValueError(
-                f"Invalid repo format: {repo_slug}. "
-                "Expected 'owner/repo' format."
+                f"Invalid repo format: {repo_slug}. " "Expected 'owner/repo' format."
             )
 
         owner, repo = parts[0].strip(), parts[1].strip()
