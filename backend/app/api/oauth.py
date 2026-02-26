@@ -26,14 +26,14 @@ TOKEN_REFRESH_FAILED = "Token refresh failed"
 
 @router.get("/jira/authorize")
 @limiter.limit("10/minute")
-async def authorize_jira(request: Request, current_user: CurrentUser) -> RedirectResponse:
+async def authorize_jira(request: Request, current_user: CurrentUser, db: DBSession) -> RedirectResponse:
     """
     Initiate Jira OAuth flow with CSRF protection.
 
     Redirects user to Atlassian authorization page with state parameter.
     """
     # Generate state token for CSRF protection
-    state = OAuthStateManager.generate_state()
+    state = await OAuthStateManager.generate_state(db)
 
     # Get authorization URL with state
     authorization_url = OAuthService.get_jira_authorization_url(state=state)
@@ -75,7 +75,7 @@ async def jira_callback(
         request.session.pop("oauth_state", None)
 
         # Validate state token hasn't been used before
-        if not OAuthStateManager.validate_state(state):
+        if not await OAuthStateManager.validate_state(state, db):
             log_oauth_state_validation_failed(
                 client_ip, "State token expired or already used"
             )

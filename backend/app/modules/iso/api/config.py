@@ -35,7 +35,7 @@ async def authorize_google_workspace(
     db: DBSession,
     domain: Annotated[str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)],
 ) -> RedirectResponse:
-    state = OAuthStateManager.generate_state()
+    state = await OAuthStateManager.generate_state(db)
     request.session["oauth_state"] = state
     request.session["gw_domain"] = domain
 
@@ -68,7 +68,7 @@ async def google_workspace_callback(
         logger.warning("OAuth state mismatch in Google Workspace callback")
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
-    if not OAuthStateManager.validate_state(state):
+    if not await OAuthStateManager.validate_state(state, db):
         logger.warning("OAuth state expired or already used")
         raise HTTPException(status_code=400, detail="State expired or already used")
 
