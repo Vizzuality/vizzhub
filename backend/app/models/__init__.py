@@ -12,6 +12,7 @@ from app.models.global_metrics import (
     ScoreValue,
 )
 from app.models.indicators import IndicatorsCreate
+from app.models.integration_setting import IntegrationSettingDB
 from app.models.job import Job, JobStatus, JobType
 from app.models.metrics import (
     ArchitectureChecklist,
@@ -51,6 +52,7 @@ __all__ = [
     "GlobalScores",
     "IndicatorValue",
     "IndicatorsCreate",
+    "IntegrationSettingDB",
     "JiraDefectMetrics",
     "Job",
     "JobStatus",
