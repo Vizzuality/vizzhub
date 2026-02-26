@@ -1,66 +1,73 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SlackChannelCombobox } from '@/components/ui/SlackChannelCombobox';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
-import { slackApi } from '@/services/api';
+import { integrationsApi } from '@/services/api/integrations';
+import type { ProviderStatus, SlackTestResult } from '@/services/api/integrations';
 import { queryKeys } from '@/hooks/queryKeys';
-import { SlackChannel } from '@/types';
+import type { SlackChannel } from '@/types';
 
-interface SlackConfig {
-  id: number;
-  bot_token_configured: boolean;
-  leadership_channel_id: string | null;
-  created_at: string;
-  updated_at: string;
+interface SlackTabProps {
+  status?: ProviderStatus;
+  slackSettings?: { leadership_channel_id: string | null };
 }
 
-interface SlackTestResult {
-  ok: boolean;
-  team?: string;
-  bot_id?: string;
-  error?: string;
-}
-
-export default function SlackTab(): JSX.Element {
+export default function SlackTab({ status, slackSettings }: SlackTabProps): JSX.Element {
   const queryClient = useQueryClient();
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string>('');
   const [testResult, setTestResult] = useState<SlackTestResult | null>(null);
-
-  const { data: config, isLoading: configLoading } = useQuery<SlackConfig>({
-    queryKey: queryKeys.slack.status,
-    queryFn: async () => {
-      const response = await slackApi.getConfig();
-      return response;
-    },
-  });
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const { data: channels, isLoading: channelsLoading } = useQuery<SlackChannel[]>({
-    queryKey: queryKeys.slack.channels,
-    queryFn: slackApi.getChannels,
-    enabled: config?.bot_token_configured ?? false,
+    queryKey: queryKeys.integrations.slackChannels,
+    queryFn: integrationsApi.getSlackChannels,
+    enabled: status?.connected ?? false,
   });
 
-  const updateConfig = useMutation({
-    mutationFn: async (data: { bot_token?: string; leadership_channel_id?: string }) => {
-      return slackApi.updateConfig(data);
-    },
+  const saveToken = useMutation({
+    mutationFn: (token: string) => integrationsApi.saveSlackToken(token),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.slack.status });
-      queryClient.invalidateQueries({ queryKey: queryKeys.slack.channels });
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.slackChannels });
       setBotToken('');
       setTestResult(null);
     },
   });
 
+  const saveChannel = useMutation({
+    mutationFn: (channelId: string) =>
+      integrationsApi.updateSlackSettings({ leadership_channel_id: channelId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+    },
+  });
+
   const testConnection = useMutation({
-    mutationFn: slackApi.testConnection,
+    mutationFn: integrationsApi.testSlackConnection,
     onSuccess: (result) => {
       setTestResult(result);
     },
@@ -69,83 +76,93 @@ export default function SlackTab(): JSX.Element {
     },
   });
 
+  const deleteSlack = useMutation({
+    mutationFn: () => integrationsApi.deleteSlack(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+      setDisconnectOpen(false);
+      setTestResult(null);
+    },
+  });
+
   const handleSaveToken = (): void => {
     if (botToken.trim()) {
-      updateConfig.mutate({ bot_token: botToken.trim() });
+      saveToken.mutate(botToken.trim());
     }
   };
 
   const handleSaveChannel = (): void => {
     if (selectedChannel) {
-      updateConfig.mutate({ leadership_channel_id: selectedChannel });
+      saveChannel.mutate(selectedChannel);
     }
   };
 
-  if (configLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
-  }
+  const handleDisconnect = (e: React.MouseEvent): void => {
+    e.preventDefault();
+    deleteSlack.mutate();
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Bot Token Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Slack Bot Token</CardTitle>
-          <CardDescription>
-            Configure the bot token for sending notifications. Get this from your Slack app's OAuth
-            & Permissions page.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Label>Status:</Label>
-            {config?.bot_token_configured ? (
-              <Badge variant="default" className="bg-green-600">
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Configured
-              </Badge>
-            ) : (
-              <Badge variant="destructive">
-                <XCircle className="h-3 w-3 mr-1" />
-                Not Configured
-              </Badge>
-            )}
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Slack</CardTitle>
+            <CardDescription>
+              Configure a bot token to send notifications. Get this from your Slack
+              app's OAuth & Permissions page.
+            </CardDescription>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bot-token">
-              {config?.bot_token_configured ? 'Update Bot Token' : 'Bot Token'}
-            </Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  id="bot-token"
-                  type={showToken ? 'text' : 'password'}
-                  placeholder="xoxb-..."
-                  value={botToken}
-                  onChange={(e) => setBotToken(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowToken(!showToken)}
-                >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-              <Button onClick={handleSaveToken} disabled={!botToken.trim() || updateConfig.isPending}>
-                {updateConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+          <Badge variant={status?.connected ? 'default' : 'secondary'}>
+            {status?.connected ? 'Connected' : 'Not connected'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Bot Token Input */}
+        <div className="space-y-2">
+          <Label htmlFor="bot-token">
+            {status?.connected ? 'Update Bot Token' : 'Bot Token'}
+          </Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                id="bot-token"
+                type={showToken ? 'text' : 'password'}
+                placeholder="xoxb-..."
+                value={botToken}
+                onChange={(e) => setBotToken(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3"
+                onClick={() => setShowToken(!showToken)}
+              >
+                {showToken ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </Button>
             </div>
+            <Button
+              onClick={handleSaveToken}
+              disabled={!botToken.trim() || saveToken.isPending}
+            >
+              {saveToken.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Save'
+              )}
+            </Button>
           </div>
+        </div>
 
-          {config?.bot_token_configured && (
+        {/* Test Connection & Channel Config (only when connected) */}
+        {status?.connected && (
+          <>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -175,31 +192,22 @@ export default function SlackTab(): JSX.Element {
                 </div>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Leadership Channel Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Leadership Channel</CardTitle>
-          <CardDescription>
-            Select the channel where business alerts (budget, timeline, overdue) will be sent.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!config?.bot_token_configured ? (
-            <p className="text-sm text-muted-foreground">
-              Configure the bot token first to select a channel.
-            </p>
-          ) : (
-            <>
+            {/* Leadership Channel */}
+            <div className="space-y-2">
+              <Label>Leadership Channel</Label>
+              <p className="text-sm text-muted-foreground">
+                Select the channel where business alerts (budget, timeline, overdue)
+                will be sent.
+              </p>
               <div className="flex items-center gap-2">
-                <Label>Current:</Label>
-                {config?.leadership_channel_id ? (
+                <Label className="text-sm text-muted-foreground">Current:</Label>
+                {slackSettings?.leadership_channel_id ? (
                   <Badge variant="secondary">
-                    #{channels?.find((c) => c.id === config.leadership_channel_id)?.name ||
-                      config.leadership_channel_id}
+                    #
+                    {channels?.find(
+                      (c) => c.id === slackSettings.leadership_channel_id,
+                    )?.name || slackSettings.leadership_channel_id}
                   </Badge>
                 ) : (
                   <span className="text-sm text-muted-foreground">Not set</span>
@@ -217,21 +225,53 @@ export default function SlackTab(): JSX.Element {
                 />
                 <Button
                   onClick={handleSaveChannel}
-                  disabled={!selectedChannel || updateConfig.isPending}
+                  disabled={!selectedChannel || saveChannel.isPending}
                 >
-                  {updateConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                  {saveChannel.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
                 </Button>
               </div>
 
-              {config?.leadership_channel_id && (
+              {slackSettings?.leadership_channel_id && (
                 <p className="text-sm text-muted-foreground">
-                  For private channels, make sure to invite the bot: <code>/invite @Peek</code>
+                  For private channels, make sure to invite the bot:{' '}
+                  <code>/invite @Peek</code>
                 </p>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            </div>
+
+            {/* Disconnect */}
+            <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  Disconnect
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Disconnect Slack?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove the Slack bot token and stop all notifications
+                    until you reconnect.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDisconnect}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteSlack.isPending ? 'Disconnecting...' : 'Disconnect'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
