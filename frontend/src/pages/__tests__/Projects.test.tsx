@@ -59,9 +59,18 @@ vi.mock('../../services/api', () => ({
     getProjectScores: vi.fn(() => Promise.resolve({ scores: { score: 85 } })),
     getBatchScores: vi.fn(() => Promise.resolve({ scores: {}, errors: {} })),
   },
-  slackApi: {
-    getStatus: vi.fn(() => Promise.resolve({ configured: false })),
-    getChannels: vi.fn(() => Promise.resolve([])),
+}));
+
+vi.mock('../../services/api/integrations', () => ({
+  integrationsApi: {
+    getStatus: vi.fn(() => Promise.resolve({
+      jira: { connected: false, expires_at: null, token_type: null, site_url: null, created_at: null },
+      google_workspace: { connected: false, expires_at: null, token_type: null, site_url: null, created_at: null },
+      github: { connected: false, expires_at: null, token_type: null, site_url: null, created_at: null },
+      slack: { connected: false, expires_at: null, token_type: null, site_url: null, created_at: null },
+      slack_settings: { leadership_channel_id: null },
+    })),
+    getSlackChannels: vi.fn(() => Promise.resolve([])),
   },
 }));
 

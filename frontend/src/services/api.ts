@@ -5,8 +5,6 @@ export { configApi, scoresApi } from './api/scores';
 export { captureApi, metricsHistoryApi } from './api/metrics';
 export { jobsApi } from './api/jobs';
 export { globalMetricsApi } from './api/global';
-export { slackApi } from './api/slack';
-export type { SlackConfigResponse, SlackStatusResponse, SlackTestResult } from './api/slack';
 export {
   alertsAdminApi,
   notificationsApi,

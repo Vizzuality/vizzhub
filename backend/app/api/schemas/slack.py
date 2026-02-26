@@ -7,23 +7,6 @@ from pydantic import BaseModel, Field
 from app.api.schemas.common import PaginatedResponse
 
 
-class SlackConfigResponse(BaseModel):
-    """Slack config response (token masked)."""
-
-    id: int
-    bot_token_configured: bool
-    leadership_channel_id: str | None = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class SlackConfigUpdate(BaseModel):
-    """Update Slack config."""
-
-    bot_token: str | None = Field(None, description="Slack bot token (xoxb-...)")
-    leadership_channel_id: str | None = Field(None, max_length=50)
-
-
 class SlackChannel(BaseModel):
     """Slack channel info."""
 

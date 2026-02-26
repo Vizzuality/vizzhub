@@ -17,8 +17,6 @@ from app.api.schemas.slack import (
     MessageTemplateResponse,
     MessageTemplateUpdate,
     SlackChannel,
-    SlackConfigResponse,
-    SlackConfigUpdate,
     SlackTestResult,
 )
 
@@ -35,7 +33,5 @@ __all__ = [
     "MessageTemplateResponse",
     "MessageTemplateUpdate",
     "SlackChannel",
-    "SlackConfigResponse",
-    "SlackConfigUpdate",
     "SlackTestResult",
 ]

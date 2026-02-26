@@ -17,10 +17,6 @@ export { jobsApi } from './jobs';
 // Global Metrics API
 export { globalMetricsApi } from './global';
 
-// Slack API
-export { slackApi } from './slack';
-export type { SlackConfigResponse, SlackStatusResponse, SlackTestResult } from './slack';
-
 // Notifications API
 export {
   alertsAdminApi,
