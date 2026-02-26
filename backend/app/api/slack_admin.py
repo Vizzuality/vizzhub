@@ -1,23 +1,20 @@
-"""Slack admin API endpoints."""
+"""Slack alert and template admin API endpoints."""
 
 import logging
 
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import AdminUser, CurrentUser, DBSession, limiter
+from app.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
     AlertTestResponse,
     MessageTemplateResponse,
     MessageTemplateUpdate,
-    SlackChannel,
-    SlackConfigResponse,
-    SlackConfigUpdate,
-    SlackTestResult,
 )
-from app.models.slack import AlertDefinitionDB, MessageTemplateDB, SlackConfigDB
+from app.models.slack import AlertDefinitionDB, MessageTemplateDB
+from app.services.integration_token_service import IntegrationTokenService
 from app.services.slack_service import SlackService
 
 logger = logging.getLogger(__name__)
@@ -25,130 +22,8 @@ logger = logging.getLogger(__name__)
 ALERT_DEFINITION_NOT_FOUND = "Alert definition not found"
 FAILED_TO_SEND_TEST_ALERT = "Failed to send test alert"
 
-router = APIRouter(prefix="/admin/slack", tags=["slack-admin"])
 alerts_router = APIRouter(prefix="/admin/alerts", tags=["alerts-admin"])
 templates_router = APIRouter(prefix="/admin/templates", tags=["templates-admin"])
-
-
-async def get_slack_config_or_create(db: DBSession) -> SlackConfigDB:
-    """Get the singleton Slack config, creating it if needed."""
-    result = await db.execute(select(SlackConfigDB).limit(1))
-    config = result.scalar_one_or_none()
-    if config is None:
-        config = SlackConfigDB()
-        db.add(config)
-        await db.commit()
-        await db.refresh(config)
-    return config
-
-
-@router.get("/config")
-@limiter.limit("100/minute")
-async def get_slack_config(
-    request: Request,
-    current_user: CurrentUser,
-    db: DBSession,
-) -> SlackConfigResponse:
-    """Get Slack config (token masked). Requires authentication."""
-    config = await get_slack_config_or_create(db)
-    return SlackConfigResponse(
-        id=config.id,
-        bot_token_configured=config.bot_token_encrypted is not None,
-        leadership_channel_id=config.leadership_channel_id,
-        created_at=config.created_at,
-        updated_at=config.updated_at,
-    )
-
-
-@router.put("/config")
-@limiter.limit("10/minute")
-async def update_slack_config(
-    request: Request,
-    current_user: AdminUser,
-    db: DBSession,
-    update: SlackConfigUpdate,
-) -> SlackConfigResponse:
-    """Update Slack config. Requires authentication."""
-    config = await get_slack_config_or_create(db)
-
-    if update.bot_token is not None:
-        config.bot_token_encrypted = update.bot_token
-
-    if update.leadership_channel_id is not None:
-        config.leadership_channel_id = update.leadership_channel_id
-
-    await db.commit()
-    await db.refresh(config)
-
-    return SlackConfigResponse(
-        id=config.id,
-        bot_token_configured=config.bot_token_encrypted is not None,
-        leadership_channel_id=config.leadership_channel_id,
-        created_at=config.created_at,
-        updated_at=config.updated_at,
-    )
-
-
-@router.post("/test")
-@limiter.limit("10/minute")
-async def test_slack_connection(
-    request: Request,
-    current_user: AdminUser,
-    db: DBSession,
-) -> SlackTestResult:
-    """Test Slack connection using configured bot token. Requires authentication."""
-    config = await get_slack_config_or_create(db)
-
-    if not config.bot_token_encrypted:
-        return SlackTestResult(ok=False, error="No bot token configured")
-
-    try:
-        result = await SlackService.test_connection(config.bot_token_encrypted)
-        if result.get("ok"):
-            return SlackTestResult(
-                ok=True,
-                team=result.get("team"),
-                bot_id=result.get("bot_id"),
-            )
-        else:
-            return SlackTestResult(ok=False, error=result.get("error", "Unknown error"))
-    except Exception as e:
-        logger.exception("Failed to test Slack connection")
-        return SlackTestResult(ok=False, error=str(e))
-
-
-@router.get("/channels")
-@limiter.limit("10/minute")
-async def list_slack_channels(
-    request: Request,
-    current_user: CurrentUser,
-    db: DBSession,
-) -> list[SlackChannel]:
-    """List available Slack channels. Requires authentication."""
-    config = await get_slack_config_or_create(db)
-
-    if not config.bot_token_encrypted:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No bot token configured",
-        )
-
-    try:
-        channels = await SlackService.list_channels(config.bot_token_encrypted)
-        return [
-            SlackChannel(
-                id=ch["id"],
-                name=ch["name"],
-                is_private=ch.get("is_private", False),
-            )
-            for ch in channels
-        ]
-    except Exception as e:
-        logger.exception("Failed to list Slack channels")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list channels: {e}",
-        )
 
 
 @alerts_router.get("/", response_model=list[AlertDefinitionResponse])
@@ -215,16 +90,17 @@ async def test_alert(
             detail=ALERT_DEFINITION_NOT_FOUND,
         )
 
-    config = await get_slack_config_or_create(db)
-
-    if not config.bot_token_encrypted:
+    bot_token = await IntegrationTokenService.get_token(db, "slack")
+    if not bot_token:
         return AlertTestResponse(
             ok=False,
             message="Cannot send test alert",
             error="No Slack bot token configured",
         )
 
-    channel_id = config.leadership_channel_id
+    channel_id = await IntegrationTokenService.get_setting(
+        db, "slack", "leadership_channel_id"
+    )
     if not channel_id:
         return AlertTestResponse(
             ok=False,
@@ -241,7 +117,7 @@ async def test_alert(
 
     try:
         slack_result = await SlackService.send_message(
-            config.bot_token_encrypted,
+            bot_token,
             channel_id,
             test_message,
         )
@@ -267,7 +143,9 @@ async def test_alert(
         )
 
 
-@alerts_router.get("/{alert_id}/templates", response_model=list[MessageTemplateResponse])
+@alerts_router.get(
+    "/{alert_id}/templates", response_model=list[MessageTemplateResponse]
+)
 @limiter.limit("100/minute")
 async def get_alert_templates(
     request: Request,

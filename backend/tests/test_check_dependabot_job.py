@@ -6,19 +6,30 @@ to scan all projects for new Dependabot alerts and send Slack notifications.
 
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.token_encryption import encrypt_token
+from app.models.oauth import OAuthTokenDB
 from app.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
     DependabotAlertTrackedDB,
     MessageTemplateDB,
-    SlackConfigDB,
 )
 from app.worker.check_dependabot import check_dependabot_alerts
+
+
+def _add_slack_token(db_session: AsyncSession) -> OAuthTokenDB:
+    """Helper to create a Slack bot token in the new oauth_tokens table."""
+    token = OAuthTokenDB(
+        provider="slack",
+        access_token=encrypt_token("xoxb-test-token"),
+        token_type="bot",
+    )
+    db_session.add(token)
+    return token
 
 
 class TestCheckDependabotJobExists:
@@ -32,35 +43,10 @@ class TestCheckDependabotJobExists:
 class TestCheckDependabotJob:
     """Integration tests for the Dependabot check job."""
 
-    @pytest.fixture
-    def mock_slack_config(self) -> SlackConfigDB:
-        """Create a mock Slack config."""
-        return SlackConfigDB(
-            id=1,
-            bot_token_encrypted="xoxb-test-token",
-            leadership_channel_id="C_LEADERSHIP",
-        )
-
-    @pytest.fixture
-    def mock_alert_definition(self) -> AlertDefinitionDB:
-        """Create a mock alert definition for dependabot alerts."""
-        return AlertDefinitionDB(
-            id=1,
-            name="dependabot_high_critical",
-            description="High/Critical Dependabot alerts",
-            category="project",
-            channel_type="project",
-            schedule="daily",
-            is_enabled=True,
-        )
-
     @pytest.mark.asyncio
     async def test_job_creates_job_run_record(self, db_session: AsyncSession) -> None:
         """Job should create a ScheduledJobRunDB record at start."""
-        slack_config = SlackConfigDB(
-            bot_token_encrypted="xoxb-test-token",
-        )
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -78,9 +64,7 @@ class TestCheckDependabotJob:
             "app.worker.check_dependabot.DependabotCollector.fetch_alerts",
             new_callable=AsyncMock,
             return_value=[],
-        ), patch(
-            "app.worker.check_dependabot.get_settings"
-        ) as mock_settings:
+        ), patch("app.worker.check_dependabot.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(github_token="test-token")
 
             result = await check_dependabot_alerts(ctx)
@@ -93,8 +77,7 @@ class TestCheckDependabotJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should skip projects without github_repo configured."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -133,8 +116,7 @@ class TestCheckDependabotJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should skip projects without slack_channel_id configured."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -173,8 +155,7 @@ class TestCheckDependabotJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should process projects with both github_repo and slack_channel_id."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -214,8 +195,7 @@ class TestCheckDependabotJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should send Slack notification for new high/critical alerts."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -283,8 +263,7 @@ class TestCheckDependabotJob:
     @pytest.mark.asyncio
     async def test_job_tracks_notified_alerts(self, db_session: AsyncSession) -> None:
         """Job should create tracking records for notified alerts."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -363,8 +342,7 @@ class TestCheckDependabotJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should not send notification for already tracked alerts."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -429,8 +407,7 @@ class TestCheckDependabotJob:
     @pytest.mark.asyncio
     async def test_job_marks_resolved_alerts(self, db_session: AsyncSession) -> None:
         """Job should mark alerts as resolved when they disappear from GitHub."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -467,9 +444,7 @@ class TestCheckDependabotJob:
             "app.worker.check_dependabot.DependabotCollector.fetch_alerts",
             new_callable=AsyncMock,
             return_value=[],
-        ), patch(
-            "app.worker.check_dependabot.get_settings"
-        ) as mock_settings:
+        ), patch("app.worker.check_dependabot.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(github_token="test-token")
 
             await check_dependabot_alerts(ctx)
@@ -484,8 +459,7 @@ class TestCheckDependabotJob:
 
         from app.models.slack import AlertSilenceDB
 
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -574,8 +548,7 @@ class TestCheckDependabotJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should return error status when GitHub token is not configured."""
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",
@@ -589,9 +562,7 @@ class TestCheckDependabotJob:
 
         ctx = {"db": db_session}
 
-        with patch(
-            "app.worker.check_dependabot.get_settings"
-        ) as mock_settings:
+        with patch("app.worker.check_dependabot.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(github_token="")
 
             result = await check_dependabot_alerts(ctx)
@@ -604,8 +575,7 @@ class TestCheckDependabotJob:
         """Job should skip finished projects."""
         from datetime import date
 
-        slack_config = SlackConfigDB(bot_token_encrypted="xoxb-test-token")
-        db_session.add(slack_config)
+        _add_slack_token(db_session)
 
         alert_def = AlertDefinitionDB(
             name="dependabot_high_critical",

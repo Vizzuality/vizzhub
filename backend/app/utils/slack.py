@@ -1,12 +1,17 @@
 """Shared Slack utility functions for worker modules."""
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.slack import SlackConfigDB
+from app.services.integration_token_service import IntegrationTokenService
 
 
-async def get_slack_config(db: AsyncSession) -> SlackConfigDB | None:
-    """Get the global Slack configuration."""
-    result = await db.execute(select(SlackConfigDB).limit(1))
-    return result.scalar_one_or_none()
+async def get_slack_bot_token(db: AsyncSession) -> str | None:
+    """Get the decrypted Slack bot token."""
+    return await IntegrationTokenService.get_token(db, "slack")
+
+
+async def get_slack_leadership_channel(db: AsyncSession) -> str | None:
+    """Get the leadership channel ID."""
+    return await IntegrationTokenService.get_setting(
+        db, "slack", "leadership_channel_id"
+    )

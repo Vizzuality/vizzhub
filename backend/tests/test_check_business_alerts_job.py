@@ -18,14 +18,16 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.token_encryption import encrypt_token
+from app.models.integration_setting import IntegrationSettingDB
 from app.models.metrics import MetricsDB, SnapshotType
+from app.models.oauth import OAuthTokenDB
 from app.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
     AlertSilenceDB,
     MessageTemplateDB,
-    SlackConfigDB,
 )
 from app.worker.check_business_alerts import check_business_alerts
 
@@ -41,25 +43,24 @@ class TestCheckBusinessAlertsJobExists:
 class TestCheckBusinessAlertsJob:
     """Integration tests for the Business Alerts check job."""
 
-    @pytest.fixture
-    def mock_slack_config(self) -> SlackConfigDB:
-        """Create a mock Slack config with leadership channel."""
-        return SlackConfigDB(
-            id=1,
-            bot_token_encrypted="xoxb-test-token",
-            leadership_channel_id="C_LEADERSHIP",
-        )
-
     @pytest_asyncio.fixture
     async def setup_slack_and_alerts(
         self, db_session: AsyncSession
-    ) -> tuple[SlackConfigDB, dict[str, AlertDefinitionDB]]:
-        """Set up Slack config and all business alert definitions."""
-        slack_config = SlackConfigDB(
-            bot_token_encrypted="xoxb-test-token",
-            leadership_channel_id="C_LEADERSHIP",
+    ) -> tuple[None, dict[str, AlertDefinitionDB]]:
+        """Set up Slack token, channel setting, and all business alert definitions."""
+        token = OAuthTokenDB(
+            provider="slack",
+            access_token=encrypt_token("xoxb-test-token"),
+            token_type="bot",
         )
-        db_session.add(slack_config)
+        db_session.add(token)
+
+        setting = IntegrationSettingDB(
+            provider="slack",
+            key="leadership_channel_id",
+            value="C_LEADERSHIP",
+        )
+        db_session.add(setting)
 
         alert_defs = {}
         for name in ["budget_exceeded", "timeline_at_risk", "project_overdue"]:
@@ -84,7 +85,7 @@ class TestCheckBusinessAlertsJob:
             db_session.add(template)
 
         await db_session.commit()
-        return slack_config, alert_defs
+        return None, alert_defs
 
     @pytest.mark.asyncio
     async def test_job_creates_job_run_record(
@@ -120,11 +121,12 @@ class TestCheckBusinessAlertsJob:
         self, db_session: AsyncSession
     ) -> None:
         """Job should return error when leadership channel is not configured."""
-        slack_config = SlackConfigDB(
-            bot_token_encrypted="xoxb-test-token",
-            leadership_channel_id=None,
+        token = OAuthTokenDB(
+            provider="slack",
+            access_token=encrypt_token("xoxb-test-token"),
+            token_type="bot",
         )
-        db_session.add(slack_config)
+        db_session.add(token)
         await db_session.commit()
 
         ctx = {"db": db_session}
@@ -286,7 +288,7 @@ class TestCheckBusinessAlertsJob:
         self, db_session: AsyncSession, setup_slack_and_alerts
     ) -> None:
         """Job should not send alert if already notified this month."""
-        slack_config, alert_defs = setup_slack_and_alerts
+        _, alert_defs = setup_slack_and_alerts
 
         project = ProjectDB(
             name="Already Notified Project",
@@ -327,8 +329,7 @@ class TestCheckBusinessAlertsJob:
             await check_business_alerts(ctx)
 
         budget_calls = [
-            call for call in mock_send.call_args_list
-            if "budget" in str(call).lower()
+            call for call in mock_send.call_args_list if "budget" in str(call).lower()
         ]
         assert len(budget_calls) == 0
 
@@ -337,7 +338,7 @@ class TestCheckBusinessAlertsJob:
         self, db_session: AsyncSession, setup_slack_and_alerts
     ) -> None:
         """Job should not send alerts for silenced projects."""
-        slack_config, alert_defs = setup_slack_and_alerts
+        _, alert_defs = setup_slack_and_alerts
 
         project = ProjectDB(
             name="Silenced Project",
@@ -377,8 +378,7 @@ class TestCheckBusinessAlertsJob:
             await check_business_alerts(ctx)
 
         budget_calls = [
-            call for call in mock_send.call_args_list
-            if "budget" in str(call).lower()
+            call for call in mock_send.call_args_list if "budget" in str(call).lower()
         ]
         assert len(budget_calls) == 0
 

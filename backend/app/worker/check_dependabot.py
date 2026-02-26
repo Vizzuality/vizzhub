@@ -21,7 +21,7 @@ from app.models.slack import (
 from app.services.alert_service import AlertService
 from app.services.collectors.dependabot import DependabotCollector
 from app.services.slack_service import SlackService
-from app.utils.slack import get_slack_config
+from app.utils.slack import get_slack_bot_token
 from app.worker.utils import complete_with_error
 
 logger = logging.getLogger(__name__)
@@ -70,17 +70,15 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
     await db.refresh(job_run)
 
     try:
-        slack_config = await get_slack_config(db)
-        if not slack_config or not slack_config.bot_token_encrypted:
+        bot_token = await get_slack_bot_token(db)
+        if not bot_token:
             return await complete_with_error(
                 db, job_run, "Slack not configured - missing bot token"
             )
 
         settings = get_settings()
         if not settings.github_token:
-            return await complete_with_error(
-                db, job_run, "GitHub token not configured"
-            )
+            return await complete_with_error(db, job_run, "GitHub token not configured")
 
         alert_definition = await _get_alert_definition(db)
         if not alert_definition:
@@ -107,7 +105,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                     db,
                     project,
                     alert_definition,
-                    slack_config.bot_token_encrypted,
+                    bot_token,
                     settings.github_token,
                 )
                 projects_checked += 1
@@ -290,7 +288,9 @@ async def _notify_new_alert(
     cve_id = alert_info["cve_id"] or NO_CVE
     manifest_path = alert_info.get("manifest_path") or ""
     alert_id = alert_info["github_alert_id"]
-    alert_url = f"https://github.com/{project.github_repo}/security/dependabot/{alert_id}"
+    alert_url = (
+        f"https://github.com/{project.github_repo}/security/dependabot/{alert_id}"
+    )
 
     context = {
         "project_name": project.name,
@@ -467,5 +467,3 @@ async def _mark_alerts_resolved(
         tracked.resolved_at = now
 
     await db.commit()
-
-

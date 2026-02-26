@@ -29,7 +29,7 @@ from app.models.slack import (
 )
 from app.services.alert_service import AlertService
 from app.services.slack_service import SlackService
-from app.utils.slack import get_slack_config
+from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
 
 logger = logging.getLogger(__name__)
@@ -81,13 +81,14 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
     await db.refresh(job_run)
 
     try:
-        slack_config = await get_slack_config(db)
-        if not slack_config or not slack_config.bot_token_encrypted:
+        bot_token = await get_slack_bot_token(db)
+        if not bot_token:
             return await complete_with_error(
                 db, job_run, "Slack not configured - missing bot token"
             )
 
-        if not slack_config.leadership_channel_id:
+        leadership_channel_id = await get_slack_leadership_channel(db)
+        if not leadership_channel_id:
             return await complete_with_error(
                 db, job_run, "Leadership channel not configured"
             )
@@ -110,8 +111,8 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
                     db,
                     project,
                     alert_definitions,
-                    slack_config.bot_token_encrypted,
-                    slack_config.leadership_channel_id,
+                    bot_token,
+                    leadership_channel_id,
                 )
                 projects_checked += 1
                 alerts_sent += sent
@@ -552,5 +553,3 @@ async def _send_and_log_alert(
         f"{error_message}"
     )
     return False
-
-

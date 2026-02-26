@@ -7,8 +7,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import encrypt_token
+from app.models.integration_setting import IntegrationSettingDB
 from app.models.oauth import OAuthTokenDB
-from app.models.slack import SlackConfigDB
 from app.worker.collect_iso_snapshot import (
     collect_iso_snapshot,
     send_iso_failure_alert,
@@ -99,12 +99,19 @@ class TestCollectIsoSnapshot:
 class TestSendIsoFailureAlert:
     @pytest.mark.asyncio
     async def test_sends_slack_message(self, db_session: AsyncSession) -> None:
-        slack_config = SlackConfigDB(
-            id=1,
-            bot_token_encrypted="xoxb-test-token",
-            leadership_channel_id="C_LEADERSHIP",
+        token = OAuthTokenDB(
+            provider="slack",
+            access_token=encrypt_token("xoxb-test-token"),
+            token_type="bot",
         )
-        db_session.add(slack_config)
+        db_session.add(token)
+
+        setting = IntegrationSettingDB(
+            provider="slack",
+            key="leadership_channel_id",
+            value="C_LEADERSHIP",
+        )
+        db_session.add(setting)
         await db_session.flush()
 
         with patch(
@@ -129,12 +136,19 @@ class TestSendIsoFailureAlert:
     async def test_slack_send_failure_does_not_raise(
         self, db_session: AsyncSession
     ) -> None:
-        slack_config = SlackConfigDB(
-            id=1,
-            bot_token_encrypted="xoxb-test-token",
-            leadership_channel_id="C_LEADERSHIP",
+        token = OAuthTokenDB(
+            provider="slack",
+            access_token=encrypt_token("xoxb-test-token"),
+            token_type="bot",
         )
-        db_session.add(slack_config)
+        db_session.add(token)
+
+        setting = IntegrationSettingDB(
+            provider="slack",
+            key="leadership_channel_id",
+            value="C_LEADERSHIP",
+        )
+        db_session.add(setting)
         await db_session.flush()
 
         with patch(
