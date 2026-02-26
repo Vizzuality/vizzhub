@@ -9,7 +9,7 @@ from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
 from app.services.slack_service import SlackService
-from app.utils.slack import get_slack_config
+from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +51,12 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
 async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
     """Send Slack notification when ISO snapshot capture fails."""
     try:
-        slack_config = await get_slack_config(db)
-        if not slack_config or not slack_config.bot_token_encrypted:
+        bot_token = await get_slack_bot_token(db)
+        if not bot_token:
             logger.warning("Slack not configured, cannot send ISO failure alert")
             return
-        if not slack_config.leadership_channel_id:
+        channel_id = await get_slack_leadership_channel(db)
+        if not channel_id:
             logger.warning("No leadership channel configured for ISO failure alert")
             return
 
@@ -67,8 +68,8 @@ async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
         )
 
         await SlackService.send_message(
-            slack_config.bot_token_encrypted,
-            slack_config.leadership_channel_id,
+            bot_token,
+            channel_id,
             message,
         )
         logger.info("ISO failure alert sent to Slack")

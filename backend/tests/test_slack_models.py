@@ -14,34 +14,8 @@ from app.models.slack import (
     DependabotAlertTrackedDB,
     MessageTemplateDB,
     ScheduledJobRunDB,
-    SlackConfigDB,
     TemplateType,
 )
-
-
-class TestSlackConfigModel:
-    """Tests for SlackConfigDB model."""
-
-    def test_slack_config_model_exists(self) -> None:
-        """Test SlackConfigDB model has correct table name."""
-        assert SlackConfigDB.__tablename__ == "slack_config"
-
-    @pytest.mark.asyncio
-    async def test_slack_config_creation(self, db_session: AsyncSession) -> None:
-        """Test creating a Slack config record."""
-        config = SlackConfigDB(
-            bot_token_encrypted="encrypted_token_value",
-            leadership_channel_id="C123456789",
-        )
-        db_session.add(config)
-        await db_session.commit()
-        await db_session.refresh(config)
-
-        assert config.id is not None
-        assert config.bot_token_encrypted == "encrypted_token_value"
-        assert config.leadership_channel_id == "C123456789"
-        assert config.created_at is not None
-        assert config.updated_at is not None
 
 
 class TestAlertDefinitionModel:

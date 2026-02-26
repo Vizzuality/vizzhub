@@ -45,22 +45,6 @@ class TemplateType(str, Enum):
     ESCALATION = "escalation"
 
 
-class SlackConfigDB(Base):
-    """Global Slack configuration (single row)."""
-
-    __tablename__ = "slack_config"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    bot_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
-    leadership_channel_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), server_onupdate=func.now()
-    )
-
-
 class AlertDefinitionDB(Base):
     """Predefined alert types."""
 

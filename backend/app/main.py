@@ -28,7 +28,6 @@ from app.api.silences import router as silences_router
 from app.api.integrations_admin import router as integrations_admin_router
 from app.api.slack_admin import (
     alerts_router as slack_alerts_router,
-    router as slack_router,
     templates_router as slack_templates_router,
 )
 from app.modules.iso.router import router as iso_router
@@ -78,7 +77,9 @@ async def lifespan(app: FastAPI) -> Any:
         from app.services.score_cache import create_score_cache
 
         redis_client, score_cache = await create_score_cache(
-            settings.redis_host, settings.redis_port, settings.redis_password,
+            settings.redis_host,
+            settings.redis_port,
+            settings.redis_password,
         )
         if score_cache:
             logger.info("Redis score cache initialized")
@@ -181,15 +182,10 @@ app.include_router(metrics_router.router, prefix="/api/metrics", tags=["metrics"
 app.include_router(scores_router.router, prefix="/api/scores", tags=["scores"])
 app.include_router(config_router.router, prefix="/api/config", tags=["config"])
 app.include_router(oauth_router.router, prefix="/api/oauth", tags=["oauth"])
-app.include_router(
-    collectors_router.router, prefix="/api/collect", tags=["collectors"]
-)
-app.include_router(
-    capture_router.router, prefix="/api/scorecards", tags=["capture"]
-)
+app.include_router(collectors_router.router, prefix="/api/collect", tags=["collectors"])
+app.include_router(capture_router.router, prefix="/api/scorecards", tags=["capture"])
 app.include_router(jobs_router.router, prefix="/api")
 app.include_router(global_metrics_router.router, prefix="/api", tags=["global"])
-app.include_router(slack_router, prefix="/api")
 app.include_router(slack_alerts_router, prefix="/api")
 app.include_router(slack_templates_router, prefix="/api")
 app.include_router(integrations_admin_router, prefix="/api")
