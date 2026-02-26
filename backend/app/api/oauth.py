@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import CurrentUser, DBSession, limiter
+from app.api.deps import AdminUser, CurrentUser, DBSession, limiter
 from app.config import get_settings
 from app.core.oauth_state import OAuthStateManager
 from app.core.security_logger import (
@@ -16,6 +16,7 @@ from app.core.security_logger import (
     log_oauth_token_refresh,
     log_suspicious_activity,
 )
+from app.services.integration_token_service import IntegrationTokenService
 from app.services.oauth_service import OAuthService
 
 router = APIRouter()
@@ -189,3 +190,17 @@ async def refresh_jira_token(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=TOKEN_REFRESH_FAILED,
         )
+
+
+@router.delete("/jira/disconnect")
+@limiter.limit("10/minute")
+async def disconnect_jira(
+    request: Request, current_user: AdminUser, db: DBSession
+) -> dict[str, str]:
+    """Disconnect Jira OAuth. Deletes the stored token. Requires admin."""
+    deleted = await IntegrationTokenService.delete_token(db, "jira")
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No Jira token found"
+        )
+    return {"status": "disconnected"}
