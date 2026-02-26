@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+from app.core.token_encryption import encrypt_token
 from app.models.oauth import OAuthTokenDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
@@ -27,7 +28,7 @@ class TestCaptureValidation:
 
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="test-token",
+            access_token=encrypt_token("test-token"),
             site_url=None,
         )
         db_session.add(token)
@@ -68,7 +69,9 @@ class TestPagination:
         with patch.object(
             collector._client, "get", new_callable=AsyncMock, return_value=mock_response
         ):
-            result = await collector._paginate("/users", "users", {"customer": "my_customer"})
+            result = await collector._paginate(
+                "/users", "users", {"customer": "my_customer"}
+            )
 
         assert len(result) == 1
         assert result[0]["id"] == "1"
@@ -97,7 +100,9 @@ class TestPagination:
             new_callable=AsyncMock,
             side_effect=[page1, page2],
         ):
-            result = await collector._paginate("/users", "users", {"customer": "my_customer"})
+            result = await collector._paginate(
+                "/users", "users", {"customer": "my_customer"}
+            )
 
         assert len(result) == 2
         await collector._client.aclose()
@@ -418,7 +423,7 @@ class TestCapture:
 
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -501,7 +506,7 @@ class TestCapture:
 
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)

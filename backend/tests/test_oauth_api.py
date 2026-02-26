@@ -11,6 +11,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.token_encryption import encrypt_token
 from app.models.oauth import OAuthTokenDB
 
 
@@ -23,9 +24,7 @@ class TestOAuthJiraAuthorize:
     ) -> None:
         """Verify state token is generated during authorization flow."""
         with patch("app.api.oauth.OAuthStateManager") as mock_state:
-            mock_state.generate_state = AsyncMock(
-                return_value="test-state-token"
-            )
+            mock_state.generate_state = AsyncMock(return_value="test-state-token")
 
             response = await client.get("/api/oauth/jira/authorize")
 
@@ -37,9 +36,7 @@ class TestOAuthJiraAuthorize:
         self, client: AsyncClient
     ) -> None:
         """Verify authorization URL contains state parameter."""
-        response = await client.get(
-            "/api/oauth/jira/authorize", follow_redirects=False
-        )
+        response = await client.get("/api/oauth/jira/authorize", follow_redirects=False)
 
         assert response.status_code in [302, 307]
 
@@ -79,9 +76,7 @@ class TestOAuthJiraCallback:
     ) -> None:
         """Authorization code should be exchanged for token."""
         with patch("app.api.oauth.OAuthStateManager") as mock_state:
-            mock_state.generate_state = AsyncMock(
-                return_value="test-state"
-            )
+            mock_state.generate_state = AsyncMock(return_value="test-state")
             mock_state.validate_state = AsyncMock(return_value=True)
 
             with patch(
@@ -92,14 +87,12 @@ class TestOAuthJiraCallback:
                     access_token="test-access-token",
                     refresh_token="test-refresh-token",
                     token_type="Bearer",
-                    expires_at=datetime.now(timezone.utc)
-                    + timedelta(hours=1),
+                    expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
                 )
                 mock_exchange.return_value = mock_token
 
                 response = await client.get(
-                    "/api/oauth/jira/callback"
-                    "?code=auth-code&state=test-state"
+                    "/api/oauth/jira/callback" "?code=auth-code&state=test-state"
                 )
 
                 # Without proper session cookie the session state check
@@ -112,9 +105,7 @@ class TestOAuthJiraCallback:
     ) -> None:
         """Invalid authorization code should return error."""
         with patch("app.api.oauth.OAuthStateManager") as mock_state:
-            mock_state.generate_state = AsyncMock(
-                return_value="test-state"
-            )
+            mock_state.generate_state = AsyncMock(return_value="test-state")
             mock_state.validate_state = AsyncMock(return_value=True)
 
             with patch(
@@ -129,8 +120,7 @@ class TestOAuthJiraCallback:
                 )
 
                 response = await client.get(
-                    "/api/oauth/jira/callback"
-                    "?code=invalid-code&state=test-state"
+                    "/api/oauth/jira/callback" "?code=invalid-code&state=test-state"
                 )
 
                 assert response.status_code in [400, 500]
@@ -165,8 +155,8 @@ class TestOAuthJiraStatus:
         """Should return true when valid token exists."""
         token = OAuthTokenDB(
             provider="jira",
-            access_token="valid-token",
-            refresh_token="refresh-token",
+            access_token=encrypt_token("valid-token"),
+            refresh_token=encrypt_token("refresh-token"),
             token_type="Bearer",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
         )
@@ -223,9 +213,7 @@ class TestOAuthJiraRefresh:
         db_session.add(token)
         await db_session.commit()
 
-        with patch(
-            "app.api.oauth.OAuthService.refresh_jira_token"
-        ) as mock_refresh:
+        with patch("app.api.oauth.OAuthService.refresh_jira_token") as mock_refresh:
             refreshed_token = OAuthTokenDB(
                 provider="jira",
                 access_token="new-token",
@@ -255,9 +243,7 @@ class TestOAuthRateLimiting:
     """Test rate limiting on OAuth endpoints."""
 
     @pytest.mark.asyncio
-    async def test_oauth_rate_limiting_enforced(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_oauth_rate_limiting_enforced(self, client: AsyncClient) -> None:
         """Rate limits should be enforced on OAuth endpoints."""
         response = await client.get("/api/oauth/jira/authorize")
         assert response.status_code in [302, 307]

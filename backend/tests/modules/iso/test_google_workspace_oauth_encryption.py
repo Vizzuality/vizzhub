@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from cryptography.fernet import Fernet
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,15 +13,6 @@ from app.modules.iso.services.google_workspace_oauth import (
     PROVIDER,
     GoogleWorkspaceOAuth,
 )
-
-TEST_KEY = Fernet.generate_key().decode()
-
-
-@pytest.fixture(autouse=True)
-def _mock_encryption_key():
-    with patch("app.core.token_encryption.get_settings") as mock:
-        mock.return_value.oauth_encryption_key = TEST_KEY
-        yield
 
 
 class TestGoogleWorkspaceTokenEncryption:
