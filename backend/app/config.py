@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = ""
     jwt_expire_hours: int = 24
     session_secret_key: str = ""
+    oauth_encryption_key: str = ""
 
     # Google OAuth (for user authentication)
     google_client_id: str = ""
