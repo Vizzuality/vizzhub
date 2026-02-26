@@ -99,4 +99,8 @@ export const queryKeys = {
         ['iso', 'reviews', 'bySnapshot', snapshotId] as const,
     },
   },
+  integrations: {
+    status: ['integrations', 'status'] as const,
+    slackChannels: ['integrations', 'slack', 'channels'] as const,
+  },
 } as const;
