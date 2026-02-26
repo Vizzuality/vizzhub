@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from httpx import AsyncClient
 
+from app.core.token_encryption import encrypt_token
 from app.models.oauth import OAuthTokenDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.models.access_review import AccessReviewDB
@@ -20,7 +21,7 @@ class TestCaptureEndpoint:
         await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -65,7 +66,7 @@ class TestCaptureEndpoint:
         await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -118,7 +119,7 @@ class TestCaptureEndpoint:
         await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -305,7 +306,7 @@ class TestCaptureWithDiff:
         await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -400,7 +401,7 @@ class TestCaptureWithDiff:
         await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -444,9 +445,7 @@ class TestCaptureWithDiff:
 
 class TestSnapshotReview:
     @pytest.mark.asyncio
-    async def test_get_snapshot_review(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_get_snapshot_review(self, client: AsyncClient, db_session) -> None:
         from datetime import datetime, timezone
 
         snap = AccessSnapshotDB(
@@ -522,9 +521,7 @@ class TestSnapshotReview:
         assert data["actions"][0]["change_type"] == "new_user"
 
     @pytest.mark.asyncio
-    async def test_get_snapshot_review_not_found(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_get_snapshot_review_not_found(self, client: AsyncClient) -> None:
         fake_id = uuid4()
         response = await client.get(f"/api/iso/snapshots/{fake_id}/review")
         assert response.status_code == 404
@@ -627,6 +624,7 @@ class TestDeleteSnapshot:
         assert response.status_code == 204
 
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(AccessSnapshotDB).where(AccessSnapshotDB.id == snap_id)
         )
@@ -686,9 +684,7 @@ class TestDeleteSnapshot:
         assert result.scalar_one_or_none() is None
 
         result = await db_session.execute(
-            select(AccessReviewActionDB).where(
-                AccessReviewActionDB.id == action_id
-            )
+            select(AccessReviewActionDB).where(AccessReviewActionDB.id == action_id)
         )
         assert result.scalar_one_or_none() is None
 

@@ -4,6 +4,7 @@ import csv
 import os
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 # CRITICAL: Set test environment variables BEFORE any app imports
 # This ensures the settings object is initialized with test values
@@ -12,19 +13,31 @@ os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("SESSION_SECRET_KEY", "test-session-secret-key-for-testing")
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test"
+    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test",
 )
 
 from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import ScoringConfig, set_scoring_config
 from app.database import Base, get_db
 from app.main import app
+
+_TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
+
+
+@pytest.fixture(autouse=True)
+def _mock_encryption_key():
+    """Provide a Fernet encryption key for all tests."""
+    with patch("app.core.token_encryption.get_settings") as mock:
+        mock.return_value.oauth_encryption_key = _TEST_ENCRYPTION_KEY
+        yield
+
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",

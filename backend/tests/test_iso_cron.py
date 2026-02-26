@@ -6,6 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.token_encryption import encrypt_token
 from app.models.oauth import OAuthTokenDB
 from app.models.slack import SlackConfigDB
 from app.worker.collect_iso_snapshot import (
@@ -19,7 +20,7 @@ class TestCollectIsoSnapshot:
     async def test_successful_capture(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -71,7 +72,7 @@ class TestCollectIsoSnapshot:
     async def test_failure_api_error(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
-            access_token="ya29.test",
+            access_token=encrypt_token("ya29.test"),
             site_url="empresa.com",
         )
         db_session.add(token)
@@ -149,8 +150,7 @@ class TestWorkerRegistration:
         from app.worker.settings import WorkerSettings
 
         function_names = [
-            f.__name__ if callable(f) else str(f)
-            for f in WorkerSettings.functions
+            f.__name__ if callable(f) else str(f) for f in WorkerSettings.functions
         ]
         assert "collect_iso_snapshot" in function_names
 

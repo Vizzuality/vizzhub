@@ -4,22 +4,12 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from cryptography.fernet import Fernet
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import decrypt_token
 from app.models.oauth import OAuthTokenDB
 from app.services.oauth_service import OAuthService
-
-TEST_KEY = Fernet.generate_key().decode()
-
-
-@pytest.fixture(autouse=True)
-def _mock_encryption_key():
-    with patch("app.core.token_encryption.get_settings") as mock:
-        mock.return_value.oauth_encryption_key = TEST_KEY
-        yield
 
 
 class TestJiraTokenEncryption:
@@ -50,19 +40,11 @@ class TestJiraTokenEncryption:
         mock_http.post = AsyncMock(return_value=token_response)
         mock_http.get = AsyncMock(return_value=resources_response)
 
-        with patch(
-            "app.services.oauth_service.httpx.AsyncClient"
-        ) as mock_client:
-            mock_client.return_value.__aenter__ = AsyncMock(
-                return_value=mock_http
-            )
-            mock_client.return_value.__aexit__ = AsyncMock(
-                return_value=False
-            )
+        with patch("app.services.oauth_service.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            await OAuthService.exchange_jira_code_for_token(
-                "auth-code", db_session
-            )
+            await OAuthService.exchange_jira_code_for_token("auth-code", db_session)
 
         result = await db_session.execute(
             select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
@@ -75,9 +57,7 @@ class TestJiraTokenEncryption:
         assert decrypt_token(token.refresh_token) == "jira-refresh-plain"
 
     @pytest.mark.asyncio
-    async def test_get_valid_token_decrypts(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_get_valid_token_decrypts(self, db_session: AsyncSession) -> None:
         """get_valid_jira_token should return decrypted access token."""
         from app.core.token_encryption import encrypt_token
 
@@ -95,9 +75,7 @@ class TestJiraTokenEncryption:
         assert result == "decrypted-jira-token"
 
     @pytest.mark.asyncio
-    async def test_refresh_encrypts_new_tokens(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_refresh_encrypts_new_tokens(self, db_session: AsyncSession) -> None:
         """Refreshed tokens should be stored encrypted."""
         from app.core.token_encryption import encrypt_token
 
@@ -122,15 +100,9 @@ class TestJiraTokenEncryption:
         mock_http = MagicMock()
         mock_http.post = AsyncMock(return_value=mock_response)
 
-        with patch(
-            "app.services.oauth_service.httpx.AsyncClient"
-        ) as mock_client:
-            mock_client.return_value.__aenter__ = AsyncMock(
-                return_value=mock_http
-            )
-            mock_client.return_value.__aexit__ = AsyncMock(
-                return_value=False
-            )
+        with patch("app.services.oauth_service.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
 
             await OAuthService.refresh_jira_token(db_session)
 

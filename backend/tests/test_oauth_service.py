@@ -14,6 +14,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.token_encryption import decrypt_token, encrypt_token
 from app.models.oauth import OAuthTokenDB
 from app.services.oauth_service import OAuthService
 
@@ -74,9 +75,7 @@ class TestCodeExchange:
                 mock_settings.jira_oauth_client_secret = "test-secret"
                 mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-                await OAuthService.exchange_jira_code_for_token(
-                    "code", db_session
-                )
+                await OAuthService.exchange_jira_code_for_token("code", db_session)
 
             # Verify token is in database
             result = await db_session.execute(
@@ -85,8 +84,8 @@ class TestCodeExchange:
             db_token = result.scalar_one_or_none()
 
             assert db_token is not None
-            assert db_token.access_token == "stored-token"
-            assert db_token.refresh_token == "stored-refresh"
+            assert decrypt_token(db_token.access_token) == "stored-token"
+            assert decrypt_token(db_token.refresh_token) == "stored-refresh"
             assert db_token.provider == "jira"
 
     @pytest.mark.asyncio
@@ -94,11 +93,11 @@ class TestCodeExchange:
         self, db_session: AsyncSession
     ) -> None:
         """exchange_code should delete old Jira token before creating new one."""
-        # Create existing token
+        # Create existing token (encrypted as the service would store them)
         existing_token = OAuthTokenDB(
             provider="jira",
-            access_token="old-token",
-            refresh_token="old-refresh",
+            access_token=encrypt_token("old-token"),
+            refresh_token=encrypt_token("old-refresh"),
             cloud_id="old-cloud-id",
         )
         db_session.add(existing_token)
@@ -130,9 +129,7 @@ class TestCodeExchange:
                 mock_settings.jira_oauth_client_secret = "test-secret"
                 mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-                await OAuthService.exchange_jira_code_for_token(
-                    "code", db_session
-                )
+                await OAuthService.exchange_jira_code_for_token("code", db_session)
 
         # Verify only one token exists with new values
         result = await db_session.execute(
@@ -141,7 +138,7 @@ class TestCodeExchange:
         tokens = result.scalars().all()
 
         assert len(tokens) == 1
-        assert tokens[0].access_token == "new-token"
+        assert decrypt_token(tokens[0].access_token) == "new-token"
         assert tokens[0].cloud_id == "new-cloud-id"
 
     @pytest.mark.asyncio
@@ -251,7 +248,7 @@ class TestCodeExchange:
                 )
 
             # Should handle missing refresh_token gracefully
-            assert token.access_token == "access-only-token"
+            assert decrypt_token(token.access_token) == "access-only-token"
             assert token.refresh_token is None
 
 
@@ -263,11 +260,11 @@ class TestTokenRefresh:
         self, db_session: AsyncSession
     ) -> None:
         """refresh_token should POST with refresh_token grant."""
-        # Create existing token with refresh token
+        # Create existing token with encrypted values
         existing_token = OAuthTokenDB(
             provider="jira",
-            access_token="old-access-token",
-            refresh_token="valid-refresh-token",
+            access_token=encrypt_token("old-access-token"),
+            refresh_token=encrypt_token("valid-refresh-token"),
             expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
         )
         db_session.add(existing_token)
@@ -306,11 +303,11 @@ class TestTokenRefresh:
         self, db_session: AsyncSession
     ) -> None:
         """refresh_token should update existing token not create new one."""
-        # Create existing token
+        # Create existing token with encrypted values
         existing_token = OAuthTokenDB(
             provider="jira",
-            access_token="old-token",
-            refresh_token="refresh-token",
+            access_token=encrypt_token("old-token"),
+            refresh_token=encrypt_token("refresh-token"),
             cloud_id="cloud-id-123",
         )
         db_session.add(existing_token)
@@ -339,7 +336,7 @@ class TestTokenRefresh:
 
         # Should be same record (same ID)
         assert refreshed.id == token_id
-        assert refreshed.access_token == "refreshed-token"
+        assert decrypt_token(refreshed.access_token) == "refreshed-token"
 
         # Verify only one token exists
         result = await db_session.execute(
@@ -365,7 +362,7 @@ class TestTokenRefresh:
         # Create token without refresh_token
         token_without_refresh = OAuthTokenDB(
             provider="jira",
-            access_token="access-token-only",
+            access_token=encrypt_token("access-token-only"),
             refresh_token=None,
         )
         db_session.add(token_without_refresh)
@@ -384,11 +381,11 @@ class TestGetValidToken:
         self, db_session: AsyncSession
     ) -> None:
         """get_valid_token should return token when not expired."""
-        # Create fresh token (expires in 30 minutes)
+        # Create fresh token (expires in 30 minutes) with encrypted values
         fresh_token = OAuthTokenDB(
             provider="jira",
-            access_token="fresh-token",
-            refresh_token="refresh-token",
+            access_token=encrypt_token("fresh-token"),
+            refresh_token=encrypt_token("refresh-token"),
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
         )
         db_session.add(fresh_token)
@@ -403,11 +400,11 @@ class TestGetValidToken:
         self, db_session: AsyncSession
     ) -> None:
         """get_valid_token should auto-refresh if expired."""
-        # Create expired token
+        # Create expired token with encrypted values
         expired_token = OAuthTokenDB(
             provider="jira",
-            access_token="expired-token",
-            refresh_token="valid-refresh",
+            access_token=encrypt_token("expired-token"),
+            refresh_token=encrypt_token("valid-refresh"),
             expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
         )
         db_session.add(expired_token)
@@ -442,8 +439,8 @@ class TestGetValidToken:
         # Create token expiring in 3 minutes (within 5-minute buffer)
         soon_to_expire = OAuthTokenDB(
             provider="jira",
-            access_token="about-to-expire",
-            refresh_token="refresh-token",
+            access_token=encrypt_token("about-to-expire"),
+            refresh_token=encrypt_token("refresh-token"),
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=3),
         )
         db_session.add(soon_to_expire)
