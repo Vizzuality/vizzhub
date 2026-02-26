@@ -26,7 +26,9 @@ TOKEN_REFRESH_FAILED = "Token refresh failed"
 
 @router.get("/jira/authorize")
 @limiter.limit("10/minute")
-async def authorize_jira(request: Request, current_user: CurrentUser, db: DBSession) -> RedirectResponse:
+async def authorize_jira(
+    request: Request, current_user: CurrentUser, db: DBSession
+) -> RedirectResponse:
     """
     Initiate Jira OAuth flow with CSRF protection.
 
@@ -111,7 +113,11 @@ async def jira_callback(
 
         # In development, show actual error for debugging
         settings = get_settings()
-        detail = f"Authorization failed: {str(e)}" if settings.debug else "Authorization failed"
+        detail = (
+            f"Authorization failed: {str(e)}"
+            if settings.debug
+            else "Authorization failed"
+        )
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

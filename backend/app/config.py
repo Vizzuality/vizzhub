@@ -55,12 +55,15 @@ class Settings(BaseSettings):
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str):
             import json
+
             return json.loads(v)
         return v
 
     @field_validator("cors_origins")
     @classmethod
-    def validate_cors_origins_production(cls, v: list[str], info: ValidationInfo) -> list[str]:
+    def validate_cors_origins_production(
+        cls, v: list[str], info: ValidationInfo
+    ) -> list[str]:
         """Validate CORS origins - reject localhost in production."""
         debug = info.data.get("debug", False)
         if not debug:
@@ -251,17 +254,56 @@ class ScoringConfig:
     def validate_weights(self) -> dict[str, bool]:
         """Validate that all weight groups sum to 1."""
         groups = {
-            "Global Weights": ["time", "cost", "quality", "value", "satisfaction", "flow", "engineering", "risk"],
+            "Global Weights": [
+                "time",
+                "cost",
+                "quality",
+                "value",
+                "satisfaction",
+                "flow",
+                "engineering",
+                "risk",
+            ],
             "Time Weights": ["spi", "milestones"],
             "Cost Weights": ["cpi", "variance"],
-            "Quality Weights": ["defect_density", "escaped_rate", "mttr", "story_review", "governance", "pr_review", "change_failure_rate", "post_contract_tasks"],
+            "Quality Weights": [
+                "defect_density",
+                "escaped_rate",
+                "mttr",
+                "story_review",
+                "governance",
+                "pr_review",
+                "change_failure_rate",
+                "post_contract_tasks",
+            ],
             "Value Weights": ["okr_impact"],
             "Satisfaction Weights": ["client_survey", "pm_estimation"],
-            "Client Survey Weights": ["understanding", "proactivity", "communication", "time", "response", "quality", "expectations", "recommend"],
-            "Flow Weights": ["lead_time", "commitment_reliability", "pr_size", "review_turnaround", "deployment_frequency"],
+            "Client Survey Weights": [
+                "understanding",
+                "proactivity",
+                "communication",
+                "time",
+                "response",
+                "quality",
+                "expectations",
+                "recommend",
+            ],
+            "Flow Weights": [
+                "lead_time",
+                "commitment_reliability",
+                "pr_size",
+                "review_turnaround",
+                "deployment_frequency",
+            ],
             "Engineering Weights": ["test_maturity", "pr_review", "architecture"],
             "Risk Weights": ["pr_no_review", "high_vulns"],
-            "Test Maturity Weights": ["e2e", "unit", "accessibility", "security", "frontend"],
+            "Test Maturity Weights": [
+                "e2e",
+                "unit",
+                "accessibility",
+                "security",
+                "frontend",
+            ],
         }
 
         # Map display names to internal group names

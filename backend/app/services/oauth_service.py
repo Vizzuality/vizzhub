@@ -41,9 +41,7 @@ class OAuthService:
         return f"{OAuthService.JIRA_AUTH_URL}?{urlencode(params)}"
 
     @staticmethod
-    async def exchange_jira_code_for_token(
-        code: str, db: AsyncSession
-    ) -> OAuthTokenDB:
+    async def exchange_jira_code_for_token(code: str, db: AsyncSession) -> OAuthTokenDB:
         """Exchange authorization code for access token."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -92,7 +90,11 @@ class OAuthService:
         oauth_token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token(token_data["access_token"]),
-            refresh_token=encrypt_token(token_data["refresh_token"]) if token_data.get("refresh_token") else None,
+            refresh_token=(
+                encrypt_token(token_data["refresh_token"])
+                if token_data.get("refresh_token")
+                else None
+            ),
             token_type=token_data.get("token_type", "Bearer"),
             expires_at=expires_at,
             scope=token_data.get("scope"),
