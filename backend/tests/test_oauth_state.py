@@ -1,172 +1,194 @@
-"""Tests for OAuth state manager CSRF protection.
+"""Tests for DB-backed OAuth state manager CSRF protection.
 
-This module tests the OAuthStateManager which prevents CSRF attacks
-by generating, validating, and managing one-time-use state tokens.
+Tests that OAuth CSRF state tokens are stored in the database (not in-memory),
+support multi-worker deployments, and enforce one-time use with TTL.
 """
 
-import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.oauth_state import OAuthStateManager
+from app.models.oauth import OAuthStateDB
 
 
 class TestOAuthStateGenerate:
     """Test OAuth state token generation."""
 
-    def test_oauth_state_generate_returns_unique_tokens(self) -> None:
-        """Each call to generate_state() should return different token."""
-        # Clear any existing states
-        OAuthStateManager._states.clear()
+    @pytest.mark.asyncio
+    async def test_generate_returns_unique_tokens(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Each call should return a different token."""
+        state1 = await OAuthStateManager.generate_state(db_session)
+        state2 = await OAuthStateManager.generate_state(db_session)
 
-        # Generate two tokens
-        state1 = OAuthStateManager.generate_state()
-        state2 = OAuthStateManager.generate_state()
-
-        # Tokens should be different
         assert state1 != state2
-        # Both should be non-empty strings
         assert isinstance(state1, str)
-        assert isinstance(state2, str)
         assert len(state1) > 0
-        assert len(state2) > 0
 
-    def test_oauth_state_generate_stores_with_expiration(self) -> None:
-        """Token should be stored with 10-minute expiry."""
-        # Clear existing states
-        OAuthStateManager._states.clear()
+    @pytest.mark.asyncio
+    async def test_generate_stores_in_db(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Token should be persisted in oauth_states table."""
+        state = await OAuthStateManager.generate_state(db_session)
 
-        # Generate state and capture time
+        result = await db_session.execute(
+            select(OAuthStateDB).where(OAuthStateDB.state == state)
+        )
+        row = result.scalar_one_or_none()
+        assert row is not None
+
+    @pytest.mark.asyncio
+    async def test_generate_sets_10_minute_expiry(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Token should expire ~10 minutes from creation."""
         before = datetime.now(timezone.utc)
-        state = OAuthStateManager.generate_state()
+        state = await OAuthStateManager.generate_state(db_session)
         after = datetime.now(timezone.utc)
 
-        # Token should be in storage
-        assert state in OAuthStateManager._states
+        result = await db_session.execute(
+            select(OAuthStateDB).where(OAuthStateDB.state == state)
+        )
+        row = result.scalar_one()
 
-        # Expiry should be ~10 minutes from now
-        expiry = OAuthStateManager._states[state]
         expected_min = before + timedelta(minutes=10)
         expected_max = after + timedelta(minutes=10)
-
-        assert expected_min <= expiry <= expected_max
+        assert expected_min <= row.expires_at <= expected_max
 
 
 class TestOAuthStateValidate:
     """Test OAuth state token validation."""
 
-    def test_oauth_state_validate_valid_token_returns_true(self) -> None:
+    @pytest.mark.asyncio
+    async def test_validate_valid_token_returns_true(
+        self, db_session: AsyncSession
+    ) -> None:
         """Valid unexpired token should be accepted."""
-        # Clear and generate fresh state
-        OAuthStateManager._states.clear()
-        state = OAuthStateManager.generate_state()
+        state = await OAuthStateManager.generate_state(db_session)
+        assert await OAuthStateManager.validate_state(
+            state, db_session
+        ) is True
 
-        # Validation should succeed
-        assert OAuthStateManager.validate_state(state) is True
-
-    def test_oauth_state_validate_invalid_token_returns_false(self) -> None:
+    @pytest.mark.asyncio
+    async def test_validate_unknown_token_returns_false(
+        self, db_session: AsyncSession
+    ) -> None:
         """Unknown token should be rejected."""
-        # Clear all states
-        OAuthStateManager._states.clear()
-
-        # Try to validate token that was never generated
-        result = OAuthStateManager.validate_state("unknown-token-12345")
-
-        assert result is False
-
-    def test_oauth_state_validate_expired_token_returns_false(self) -> None:
-        """Expired token should be rejected."""
-        # Clear and manually add expired token
-        OAuthStateManager._states.clear()
-        expired_state = "expired-token"
-        OAuthStateManager._states[expired_state] = datetime.now(timezone.utc) - timedelta(
-            minutes=1
+        result = await OAuthStateManager.validate_state(
+            "unknown-token-12345", db_session
         )
-
-        # Validation should fail
-        result = OAuthStateManager.validate_state(expired_state)
-
         assert result is False
 
-    def test_oauth_state_validate_consumes_token_one_time_use(self) -> None:
-        """Token should be deleted after successful validation (prevents replay)."""
-        # Clear and generate state
-        OAuthStateManager._states.clear()
-        state = OAuthStateManager.generate_state()
+    @pytest.mark.asyncio
+    async def test_validate_expired_token_returns_false(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Expired token should be rejected and deleted."""
+        expired = OAuthStateDB(
+            state="expired-token",
+            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+        )
+        db_session.add(expired)
+        await db_session.flush()
 
-        # First validation succeeds
-        assert OAuthStateManager.validate_state(state) is True
+        result = await OAuthStateManager.validate_state(
+            "expired-token", db_session
+        )
+        assert result is False
 
-        # Token should no longer be in storage
-        assert state not in OAuthStateManager._states
+        row = await db_session.execute(
+            select(OAuthStateDB).where(
+                OAuthStateDB.state == "expired-token"
+            )
+        )
+        assert row.scalar_one_or_none() is None
 
-    def test_oauth_state_validate_same_token_twice_fails(self) -> None:
+    @pytest.mark.asyncio
+    async def test_validate_consumes_token(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Token should be deleted after successful validation."""
+        state = await OAuthStateManager.generate_state(db_session)
+        assert await OAuthStateManager.validate_state(
+            state, db_session
+        ) is True
+
+        row = await db_session.execute(
+            select(OAuthStateDB).where(OAuthStateDB.state == state)
+        )
+        assert row.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_validate_same_token_twice_fails(
+        self, db_session: AsyncSession
+    ) -> None:
         """Second use of same token should fail."""
-        # Clear and generate state
-        OAuthStateManager._states.clear()
-        state = OAuthStateManager.generate_state()
-
-        # First validation succeeds
-        first_result = OAuthStateManager.validate_state(state)
-        assert first_result is True
-
-        # Second validation fails (token consumed)
-        second_result = OAuthStateManager.validate_state(state)
-        assert second_result is False
+        state = await OAuthStateManager.generate_state(db_session)
+        assert await OAuthStateManager.validate_state(
+            state, db_session
+        ) is True
+        assert await OAuthStateManager.validate_state(
+            state, db_session
+        ) is False
 
 
 class TestOAuthStateCleanup:
-    """Test OAuth state cleanup of expired tokens."""
+    """Test cleanup of expired state tokens."""
 
-    def test_oauth_state_cleanup_expired_removes_old_tokens(self) -> None:
-        """cleanup_expired() should remove expired tokens."""
-        # Clear and add expired tokens
-        OAuthStateManager._states.clear()
-        expired1 = "expired-1"
-        expired2 = "expired-2"
-        OAuthStateManager._states[expired1] = datetime.now(timezone.utc) - timedelta(minutes=5)
-        OAuthStateManager._states[expired2] = datetime.now(timezone.utc) - timedelta(
-            minutes=15
-        )
-
-        # Run cleanup
-        removed_count = OAuthStateManager.cleanup_expired()
-
-        # Both expired tokens should be removed
-        assert removed_count == 2
-        assert expired1 not in OAuthStateManager._states
-        assert expired2 not in OAuthStateManager._states
-
-    def test_oauth_state_cleanup_expired_keeps_valid_tokens(self) -> None:
-        """cleanup_expired() should keep valid unexpired tokens."""
-        # Clear and add mix of expired and valid tokens
-        OAuthStateManager._states.clear()
-        expired = "expired-token"
-        valid = "valid-token"
-        OAuthStateManager._states[expired] = datetime.now(timezone.utc) - timedelta(minutes=1)
-        OAuthStateManager._states[valid] = datetime.now(timezone.utc) + timedelta(minutes=5)
-
-        # Run cleanup
-        removed_count = OAuthStateManager.cleanup_expired()
-
-        # Only expired token should be removed
-        assert removed_count == 1
-        assert expired not in OAuthStateManager._states
-        assert valid in OAuthStateManager._states
-
-    def test_oauth_state_cleanup_expired_returns_count(self) -> None:
-        """cleanup_expired() should return number of removed tokens."""
-        # Clear and add expired tokens
-        OAuthStateManager._states.clear()
-        for i in range(5):
-            token = f"expired-{i}"
-            OAuthStateManager._states[token] = datetime.now(timezone.utc) - timedelta(
-                minutes=i + 1
+    @pytest.mark.asyncio
+    async def test_cleanup_removes_expired(
+        self, db_session: AsyncSession
+    ) -> None:
+        """cleanup_expired should remove expired tokens."""
+        db_session.add(
+            OAuthStateDB(
+                state="expired-1",
+                expires_at=datetime.now(timezone.utc)
+                - timedelta(minutes=5),
             )
+        )
+        db_session.add(
+            OAuthStateDB(
+                state="expired-2",
+                expires_at=datetime.now(timezone.utc)
+                - timedelta(minutes=15),
+            )
+        )
+        await db_session.flush()
 
-        # Cleanup should return count of removed tokens
-        removed_count = OAuthStateManager.cleanup_expired()
+        removed = await OAuthStateManager.cleanup_expired(db_session)
+        assert removed == 2
 
-        assert removed_count == 5
-        assert len(OAuthStateManager._states) == 0
+    @pytest.mark.asyncio
+    async def test_cleanup_keeps_valid(
+        self, db_session: AsyncSession
+    ) -> None:
+        """cleanup_expired should keep valid unexpired tokens."""
+        db_session.add(
+            OAuthStateDB(
+                state="expired",
+                expires_at=datetime.now(timezone.utc)
+                - timedelta(minutes=1),
+            )
+        )
+        db_session.add(
+            OAuthStateDB(
+                state="valid",
+                expires_at=datetime.now(timezone.utc)
+                + timedelta(minutes=5),
+            )
+        )
+        await db_session.flush()
+
+        removed = await OAuthStateManager.cleanup_expired(db_session)
+        assert removed == 1
+
+        row = await db_session.execute(
+            select(OAuthStateDB).where(OAuthStateDB.state == "valid")
+        )
+        assert row.scalar_one_or_none() is not None

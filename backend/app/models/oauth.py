@@ -55,3 +55,17 @@ class OAuthToken(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class OAuthStateDB(Base):
+    """DB-backed OAuth CSRF state tokens."""
+
+    __tablename__ = "oauth_states"
+
+    state: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
