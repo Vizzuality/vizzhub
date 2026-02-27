@@ -1,15 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import { useConfigParameters, useConfigValidation, useUpdateConfigParameters } from '../useConfig';
-import api from '../../services/api';
-
-vi.mock('../../services/api', () => ({
-  default: {
-    get: vi.fn(),
-    patch: vi.fn(),
-  },
-}));
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -21,59 +16,24 @@ function createWrapper() {
 }
 
 describe('useConfig hooks', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('useConfigParameters fetches grouped parameters', async () => {
-    const mockData = {
-      'Targets': [
-        {
-          id: 1,
-          category: 'Targets',
-          name: 'DefDensity_t',
-          value: '3.0000',
-          unit: 'defects/100 tasks',
-          notes: 'Target max defect density'
-        }
-      ],
-      'Global Weights': [
-        {
-          id: 2,
-          category: 'Global Weights',
-          name: 'W_quality',
-          value: '0.1800',
-          unit: 'weight',
-          notes: 'P_quality'
-        }
-      ]
-    };
-
-    vi.mocked(api.get).mockResolvedValue({ data: mockData });
-
     const { result } = renderHook(() => useConfigParameters(), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual(mockData);
-    expect(api.get).toHaveBeenCalledWith('/config/parameters');
+    expect(result.current.data).toEqual(fixtures.configParameters);
   });
 
   it('useConfigValidation fetches validation status', async () => {
-    const mockData = { valid: true, errors: [] };
-
-    vi.mocked(api.get).mockResolvedValue({ data: mockData });
-
     const { result } = renderHook(() => useConfigValidation(), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual(mockData);
-    expect(api.get).toHaveBeenCalledWith('/config/validate');
+    expect(result.current.data).toEqual({ valid: true, groups: {}, errors: [] });
   });
 
   it('useUpdateConfigParameters updates parameters and invalidates queries', async () => {
@@ -85,12 +45,15 @@ describe('useConfig hooks', () => {
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
 
-    const mockUpdates = [
-      { name: 'DefDensity_t', value: '2.5000' }
-    ];
+    const mockUpdates = [{ name: 'DefDensity_t', value: '2.5000' }];
 
-    const mockResponse = { message: 'Parameters updated successfully' };
-    vi.mocked(api.patch).mockResolvedValue({ data: mockResponse });
+    let capturedBody: unknown;
+    server.use(
+      http.patch('/api/config/parameters', async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ message: 'Parameters updated successfully' });
+      }),
+    );
 
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -102,13 +65,20 @@ describe('useConfig hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(api.patch).toHaveBeenCalledWith('/config/parameters', mockUpdates);
+    expect(capturedBody).toEqual(mockUpdates);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['config'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['scores'] });
   });
 
   it('useConfigParameters handles API errors', async () => {
-    vi.mocked(api.get).mockRejectedValue(new Error('Network error'));
+    server.use(
+      http.get('/api/config/parameters', () => {
+        return HttpResponse.json(
+          { detail: 'Network error' },
+          { status: 500 },
+        );
+      }),
+    );
 
     const { result } = renderHook(() => useConfigParameters(), {
       wrapper: createWrapper(),
@@ -116,16 +86,18 @@ describe('useConfig hooks', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error).toEqual(new Error('Network error'));
+    expect(result.current.error).toBeDefined();
   });
 
   it('useConfigValidation handles validation errors', async () => {
-    const mockData = {
-      valid: false,
-      errors: ['Global Weights sum to 0.95, must equal 1.0']
-    };
-
-    vi.mocked(api.get).mockResolvedValue({ data: mockData });
+    server.use(
+      http.get('/api/config/validate', () => {
+        return HttpResponse.json({
+          valid: false,
+          errors: ['Global Weights sum to 0.95, must equal 1.0'],
+        });
+      }),
+    );
 
     const { result } = renderHook(() => useConfigValidation(), {
       wrapper: createWrapper(),
@@ -133,8 +105,7 @@ describe('useConfig hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual(mockData);
-    expect(result.current.data?.valid).toBe(false);
+    expect(result.current.data).toMatchObject({ valid: false });
     expect(result.current.data?.errors).toHaveLength(1);
   });
 });

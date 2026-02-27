@@ -4,17 +4,20 @@ This module tests the DependabotCollector which fetches security alerts
 from GitHub's Dependabot API, filtering for high/critical severity only.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+import respx
+from httpx import Response
 
 from app.services.collectors.dependabot import DependabotCollector
+
+ALERTS_URL = "https://api.github.com/repos/owner/repo/dependabot/alerts"
 
 
 class TestFetchAlerts:
     """Tests for DependabotCollector.fetch_alerts method."""
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_returns_high_critical_only(self) -> None:
         """Should filter and return only high/critical severity alerts."""
         mock_alerts = [
@@ -40,24 +43,18 @@ class TestFetchAlerts:
             },
         ]
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = mock_alerts
+        respx.get(ALERTS_URL).mock(return_value=Response(200, json=mock_alerts))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                return_value=mock_response
-            )
+        alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            assert len(alerts) == 2
-            assert all(
-                a["security_vulnerability"]["severity"] in ["critical", "high"]
-                for a in alerts
-            )
+        assert len(alerts) == 2
+        assert all(
+            a["security_vulnerability"]["severity"] in ["critical", "high"]
+            for a in alerts
+        )
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_handles_case_insensitive_severity(self) -> None:
         """Should match severity case-insensitively."""
         mock_alerts = [
@@ -78,66 +75,44 @@ class TestFetchAlerts:
             },
         ]
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = mock_alerts
+        respx.get(ALERTS_URL).mock(return_value=Response(200, json=mock_alerts))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                return_value=mock_response
-            )
+        alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            assert len(alerts) == 2
+        assert len(alerts) == 2
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_returns_empty_on_api_error(self) -> None:
         """Should return empty list when API returns non-200 status."""
-        mock_response = MagicMock()
-        mock_response.status_code = 403  # Access denied
+        respx.get(ALERTS_URL).mock(return_value=Response(403))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                return_value=mock_response
-            )
+        alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            assert alerts == []
+        assert alerts == []
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_returns_empty_on_404(self) -> None:
         """Should return empty list when Dependabot not enabled (404)."""
-        mock_response = MagicMock()
-        mock_response.status_code = 404
+        respx.get(ALERTS_URL).mock(return_value=Response(404))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                return_value=mock_response
-            )
+        alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            assert alerts == []
+        assert alerts == []
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_returns_empty_when_no_alerts(self) -> None:
         """Should return empty list when no alerts exist."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = []
+        respx.get(ALERTS_URL).mock(return_value=Response(200, json=[]))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                return_value=mock_response
-            )
+        alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            assert alerts == []
+        assert alerts == []
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_handles_missing_severity(self) -> None:
         """Should handle alerts without severity field gracefully."""
         mock_alerts = [
@@ -146,61 +121,40 @@ class TestFetchAlerts:
             {"number": 3},  # Missing security_vulnerability
         ]
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = mock_alerts
+        respx.get(ALERTS_URL).mock(return_value=Response(200, json=mock_alerts))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                return_value=mock_response
-            )
+        alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            assert len(alerts) == 1
-            assert alerts[0]["number"] == 1
+        assert len(alerts) == 1
+        assert alerts[0]["number"] == 1
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_sends_correct_headers(self) -> None:
         """Should send correct GitHub API headers."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = []
+        route = respx.get(ALERTS_URL).mock(return_value=Response(200, json=[]))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_get = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__.return_value.get = mock_get
+        await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            mock_get.assert_called_once()
-            call_args = mock_get.call_args
-            headers = call_args.kwargs.get("headers", {})
-
-            assert headers["Authorization"] == "Bearer test-token"
-            assert headers["Accept"] == "application/vnd.github+json"
-            assert headers["X-GitHub-Api-Version"] == "2022-11-28"
+        assert route.called
+        request = route.calls.last.request
+        assert request.headers["Authorization"] == "Bearer test-token"
+        assert request.headers["Accept"] == "application/vnd.github+json"
+        assert request.headers["X-GitHub-Api-Version"] == "2022-11-28"
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_fetch_alerts_uses_correct_endpoint(self) -> None:
         """Should call the correct Dependabot alerts endpoint."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = []
+        route = respx.get(ALERTS_URL).mock(return_value=Response(200, json=[]))
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_get = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__.return_value.get = mock_get
+        await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
-            await DependabotCollector.fetch_alerts("owner/repo", "test-token")
-
-            call_args = mock_get.call_args
-            url = call_args.args[0]
-            params = call_args.kwargs.get("params", {})
-
-            assert url == "https://api.github.com/repos/owner/repo/dependabot/alerts"
-            assert params["state"] == "open"
-            assert params["per_page"] == 100
+        assert route.called
+        request = route.calls.last.request
+        assert str(request.url).startswith(ALERTS_URL)
+        assert "state=open" in str(request.url)
+        assert "per_page=100" in str(request.url)
 
 
 class TestExtractAlertInfo:

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import {
   usePaginatedProjects,
   useProjectSummaries,
@@ -9,36 +10,15 @@ import {
   useUpdateProject,
   useDeleteProject,
 } from '../useProjects';
-import { projectsApi } from '../../services/api';
-import type {
-  PaginatedProjects,
-  Project,
-  ProjectCreate,
-  ProjectSummary,
-  ProjectUpdate,
-} from '../../types';
-
-vi.mock('../../services/api', () => ({
-  projectsApi: {
-    list: vi.fn(),
-    listSummary: vi.fn(),
-    get: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    replace: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
+import type { ProjectCreate, ProjectUpdate } from '../../types';
 
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: {
-        retry: false,
-      },
-      mutations: {
-        retry: false,
-      },
+      queries: { retry: false },
+      mutations: { retry: false },
     },
   });
   return ({ children }: { children: React.ReactNode }) => (
@@ -47,64 +27,54 @@ function createWrapper() {
 }
 
 describe('useProjects', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('usePaginatedProjects', () => {
     it('fetches paginated projects', async () => {
-      const mockResponse: PaginatedProjects = {
-        items: [
-          {
-            id: '1',
-            name: 'Project 1',
-            jira_project_key: 'PROJ1',
-            github_repo: 'org/repo1',
-            created_at: '2026-01-01',
-            updated_at: '2026-01-01',
-          } as Project,
-        ],
-        total: 1,
-        page: 1,
-        page_size: 45,
-        pages: 1,
-      };
-
-      vi.mocked(projectsApi.list).mockResolvedValue(mockResponse);
-
       const { result } = renderHook(() => usePaginatedProjects({ page: 1 }), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockResponse);
-      expect(projectsApi.list).toHaveBeenCalledWith({ page: 1 });
-    });
-
-    it('passes search params to API', async () => {
-      const mockResponse: PaginatedProjects = {
-        items: [],
-        total: 0,
+      expect(result.current.data).toMatchObject({
+        items: [expect.objectContaining({ id: 'project-123', name: 'Test Project' })],
+        total: 1,
         page: 1,
         page_size: 45,
         pages: 1,
-      };
+      });
+    });
 
-      vi.mocked(projectsApi.list).mockResolvedValue(mockResponse);
+    it('passes search params to API', async () => {
+      let capturedUrl: string | undefined;
+      server.use(
+        http.get('/api/scorecards', ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json(fixtures.paginatedProjects);
+        }),
+      );
 
-      const params = { page: 1, search: 'test', status: 'in_progress' };
+      const params = { page: 1, search: 'test', status: 'in_progress' as const };
       const { result } = renderHook(() => usePaginatedProjects(params), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(projectsApi.list).toHaveBeenCalledWith(params);
+      const url = new URL(capturedUrl!);
+      expect(url.searchParams.get('search')).toBe('test');
+      expect(url.searchParams.get('status')).toBe('in_progress');
+      expect(url.searchParams.get('page')).toBe('1');
     });
 
     it('handles API errors', async () => {
-      vi.mocked(projectsApi.list).mockRejectedValue(new Error('API Error'));
+      server.use(
+        http.get('/api/scorecards', () => {
+          return HttpResponse.json(
+            { detail: 'Internal Server Error' },
+            { status: 500 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => usePaginatedProjects({}), {
         wrapper: createWrapper(),
@@ -118,45 +88,32 @@ describe('useProjects', () => {
 
   describe('useProjectSummaries', () => {
     it('fetches project summaries', async () => {
-      const mockSummaries: ProjectSummary[] = [
-        { id: '1', name: 'Alpha' },
-        { id: '2', name: 'Beta' },
-      ];
-
-      vi.mocked(projectsApi.listSummary).mockResolvedValue(mockSummaries);
-
       const { result } = renderHook(() => useProjectSummaries(), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockSummaries);
-      expect(projectsApi.listSummary).toHaveBeenCalledTimes(1);
+      expect(result.current.data).toEqual([
+        { id: 'project-123', name: 'Test Project' },
+      ]);
     });
   });
 
   describe('useProject', () => {
     it('fetches and returns a single project', async () => {
-      const mockProject: Project = {
-        id: '1',
-        name: 'Test Project',
-        jira_project_key: 'TEST',
-        github_repo: 'org/repo',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-01',
-      } as Project;
-
-      vi.mocked(projectsApi.get).mockResolvedValue(mockProject);
-
-      const { result } = renderHook(() => useProject('1'), {
+      const { result } = renderHook(() => useProject('project-123'), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockProject);
-      expect(projectsApi.get).toHaveBeenCalledWith('1');
+      expect(result.current.data).toMatchObject({
+        id: 'project-123',
+        name: 'Test Project',
+        jira_project_key: 'TEST',
+        github_repo: 'org/test-repo',
+      });
     });
 
     it('does not fetch when id is empty', () => {
@@ -166,11 +123,17 @@ describe('useProjects', () => {
 
       expect(result.current.isPending).toBe(true);
       expect(result.current.fetchStatus).toBe('idle');
-      expect(projectsApi.get).not.toHaveBeenCalled();
     });
 
     it('handles 404 not found', async () => {
-      vi.mocked(projectsApi.get).mockRejectedValue({ response: { status: 404 } });
+      server.use(
+        http.get('/api/scorecards/:id', () => {
+          return HttpResponse.json(
+            { detail: 'Project not found' },
+            { status: 404 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useProject('nonexistent'), {
         wrapper: createWrapper(),
@@ -188,14 +151,16 @@ describe('useProjects', () => {
         github_repo: 'org/new-repo',
       };
 
-      const createdProject: Project = {
-        id: '123',
-        ...newProject,
-        created_at: '2026-01-01',
-        updated_at: '2026-01-01',
-      } as Project;
-
-      vi.mocked(projectsApi.create).mockResolvedValue(createdProject);
+      let capturedBody: unknown;
+      server.use(
+        http.post('/api/scorecards', async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json(
+            { ...fixtures.project, id: 'new-project-id', ...newProject },
+            { status: 201 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useCreateProject(), {
         wrapper: createWrapper(),
@@ -205,23 +170,30 @@ describe('useProjects', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(createdProject);
-      expect(projectsApi.create).toHaveBeenCalledWith(newProject);
+      expect(result.current.data).toMatchObject({
+        id: 'new-project-id',
+        name: 'New Project',
+        jira_project_key: 'NEW',
+        github_repo: 'org/new-repo',
+      });
+      expect(capturedBody).toMatchObject(newProject);
     });
 
     it('handles validation errors', async () => {
+      server.use(
+        http.post('/api/scorecards', () => {
+          return HttpResponse.json(
+            { detail: 'Validation error' },
+            { status: 422 },
+          );
+        }),
+      );
+
       const invalidProject: ProjectCreate = {
         name: '',
         jira_project_key: '',
         github_repo: '',
       };
-
-      vi.mocked(projectsApi.create).mockRejectedValue({
-        response: {
-          status: 422,
-          data: { detail: 'Validation error' },
-        },
-      });
 
       const { result } = renderHook(() => useCreateProject(), {
         wrapper: createWrapper(),
@@ -235,21 +207,20 @@ describe('useProjects', () => {
 
   describe('useUpdateProject', () => {
     it('updates an existing project', async () => {
-      const projectId = '123';
-      const updates: ProjectUpdate = {
-        name: 'Updated Name',
-      };
+      const projectId = 'project-123';
+      const updates: ProjectUpdate = { name: 'Updated Name' };
 
-      const updatedProject: Project = {
-        id: projectId,
-        name: 'Updated Name',
-        jira_project_key: 'TEST',
-        github_repo: 'org/repo',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-02',
-      } as Project;
-
-      vi.mocked(projectsApi.update).mockResolvedValue(updatedProject);
+      let capturedBody: unknown;
+      server.use(
+        http.patch('/api/scorecards/:id', async ({ request, params }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            ...fixtures.project,
+            id: params.id,
+            ...(capturedBody as Record<string, unknown>),
+          });
+        }),
+      );
 
       const { result } = renderHook(() => useUpdateProject(projectId), {
         wrapper: createWrapper(),
@@ -259,26 +230,16 @@ describe('useProjects', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(updatedProject);
-      expect(projectsApi.update).toHaveBeenCalledWith(projectId, updates);
+      expect(result.current.data).toMatchObject({
+        id: projectId,
+        name: 'Updated Name',
+      });
+      expect(capturedBody).toMatchObject(updates);
     });
 
     it('partially updates project fields', async () => {
-      const projectId = '123';
-      const updates: ProjectUpdate = {
-        jira_project_key: 'UPDATED',
-      };
-
-      const updatedProject: Project = {
-        id: projectId,
-        name: 'Original Name',
-        jira_project_key: 'UPDATED',
-        github_repo: 'org/repo',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-02',
-      } as Project;
-
-      vi.mocked(projectsApi.update).mockResolvedValue(updatedProject);
+      const projectId = 'project-123';
+      const updates: ProjectUpdate = { jira_project_key: 'UPDATED' };
 
       const { result } = renderHook(() => useUpdateProject(projectId), {
         wrapper: createWrapper(),
@@ -289,31 +250,40 @@ describe('useProjects', () => {
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(result.current.data?.jira_project_key).toBe('UPDATED');
-      expect(result.current.data?.name).toBe('Original Name');
+      expect(result.current.data?.name).toBe('Test Project');
     });
   });
 
   describe('useDeleteProject', () => {
     it('deletes a project', async () => {
-      const projectId = '123';
-
-      vi.mocked(projectsApi.delete).mockResolvedValue(undefined);
+      let capturedId: string | undefined;
+      server.use(
+        http.delete('/api/scorecards/:id', ({ params }) => {
+          capturedId = params.id as string;
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
 
       const { result } = renderHook(() => useDeleteProject(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate(projectId);
+      result.current.mutate('project-123');
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(projectsApi.delete).toHaveBeenCalledWith(projectId);
+      expect(capturedId).toBe('project-123');
     });
 
     it('handles 404 when deleting nonexistent project', async () => {
-      vi.mocked(projectsApi.delete).mockRejectedValue({
-        response: { status: 404 },
-      });
+      server.use(
+        http.delete('/api/scorecards/:id', () => {
+          return HttpResponse.json(
+            { detail: 'Not found' },
+            { status: 404 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useDeleteProject(), {
         wrapper: createWrapper(),

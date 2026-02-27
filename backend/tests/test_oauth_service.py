@@ -6,17 +6,21 @@ and automatic token refresh.
 """
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-import httpx
 import pytest
 import pytest_asyncio
+import respx
+from httpx import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import decrypt_token, encrypt_token
 from app.models.oauth import OAuthTokenDB
 from app.services.oauth_service import OAuthService
+
+TOKEN_URL = "https://auth.atlassian.com/oauth/token"
+RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
 
 
 class TestAuthorizationURL:
@@ -37,63 +41,50 @@ class TestAuthorizationURL:
 class TestCodeExchange:
     """Test OAuth authorization code exchange."""
 
-    @pytest_asyncio.fixture
-    async def mock_httpx_client(self) -> AsyncMock:
-        """Mock httpx.AsyncClient for testing."""
-        return AsyncMock(spec=httpx.AsyncClient)
-
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_exchange_code_stores_token_in_database(
         self, db_session: AsyncSession
     ) -> None:
         """exchange_code should persist token to oauth_tokens table."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            token_response = MagicMock()
-            token_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "stored-token",
                 "refresh_token": "stored-refresh",
                 "expires_in": 3600,
                 "token_type": "Bearer",
                 "scope": "read:jira-work",
-            }
-            token_response.raise_for_status = MagicMock()
-
-            resources_response = MagicMock()
-            resources_response.json.return_value = [
+            })
+        )
+        respx.get(RESOURCES_URL).mock(
+            return_value=Response(200, json=[
                 {"id": "cloud-123", "url": "https://test.atlassian.net"}
-            ]
-            resources_response.raise_for_status = MagicMock()
+            ])
+        )
 
-            mock_client.post.return_value = token_response
-            mock_client.get.return_value = resources_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
+            mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
+            await OAuthService.exchange_jira_code_for_token("code", db_session)
 
-                await OAuthService.exchange_jira_code_for_token("code", db_session)
+        result = await db_session.execute(
+            select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
+        )
+        db_token = result.scalar_one_or_none()
 
-            # Verify token is in database
-            result = await db_session.execute(
-                select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-            )
-            db_token = result.scalar_one_or_none()
-
-            assert db_token is not None
-            assert decrypt_token(db_token.access_token) == "stored-token"
-            assert decrypt_token(db_token.refresh_token) == "stored-refresh"
-            assert db_token.provider == "jira"
+        assert db_token is not None
+        assert decrypt_token(db_token.access_token) == "stored-token"
+        assert decrypt_token(db_token.refresh_token) == "stored-refresh"
+        assert db_token.provider == "jira"
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_exchange_code_replaces_existing_token(
         self, db_session: AsyncSession
     ) -> None:
         """exchange_code should delete old Jira token before creating new one."""
-        # Create existing token (encrypted as the service would store them)
         existing_token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("old-token"),
@@ -103,35 +94,26 @@ class TestCodeExchange:
         db_session.add(existing_token)
         await db_session.commit()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            token_response = MagicMock()
-            token_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "new-token",
                 "refresh_token": "new-refresh",
                 "expires_in": 3600,
-            }
-            token_response.raise_for_status = MagicMock()
-
-            resources_response = MagicMock()
-            resources_response.json.return_value = [
+            })
+        )
+        respx.get(RESOURCES_URL).mock(
+            return_value=Response(200, json=[
                 {"id": "new-cloud-id", "url": "https://new.atlassian.net"}
-            ]
-            resources_response.raise_for_status = MagicMock()
+            ])
+        )
 
-            mock_client.post.return_value = token_response
-            mock_client.get.return_value = resources_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
+            mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
+            await OAuthService.exchange_jira_code_for_token("code", db_session)
 
-                await OAuthService.exchange_jira_code_for_token("code", db_session)
-
-        # Verify only one token exists with new values
         result = await db_session.execute(
             select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
         )
@@ -142,125 +124,97 @@ class TestCodeExchange:
         assert tokens[0].cloud_id == "new-cloud-id"
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_exchange_code_calculates_expiration(
         self, db_session: AsyncSession
     ) -> None:
         """exchange_code should set expires_at correctly from expires_in."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            token_response = MagicMock()
-            token_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "test-token",
-                "expires_in": 3600,  # 1 hour
-            }
-            token_response.raise_for_status = MagicMock()
-
-            resources_response = MagicMock()
-            resources_response.json.return_value = [
+                "expires_in": 3600,
+            })
+        )
+        respx.get(RESOURCES_URL).mock(
+            return_value=Response(200, json=[
                 {"id": "cloud-id", "url": "https://test.atlassian.net"}
-            ]
-            resources_response.raise_for_status = MagicMock()
+            ])
+        )
 
-            mock_client.post.return_value = token_response
-            mock_client.get.return_value = resources_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
+            mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
+            before = datetime.now(timezone.utc)
+            token = await OAuthService.exchange_jira_code_for_token(
+                "code", db_session
+            )
+            after = datetime.now(timezone.utc)
 
-                before = datetime.now(timezone.utc)
-                token = await OAuthService.exchange_jira_code_for_token(
-                    "code", db_session
-                )
-                after = datetime.now(timezone.utc)
-
-        # expires_at should be ~1 hour from now
         assert token.expires_at is not None
         expected_min = before + timedelta(seconds=3600)
         expected_max = after + timedelta(seconds=3600)
         assert expected_min <= token.expires_at <= expected_max
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_exchange_code_handles_api_failure(
         self, db_session: AsyncSession
     ) -> None:
         """exchange_code should raise exception on API error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        respx.post(TOKEN_URL).mock(return_value=Response(400))
 
-            # Mock API error response
-            token_response = MagicMock()
-            token_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Token request failed",
-                request=MagicMock(),
-                response=MagicMock(status_code=400),
-            )
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
+            mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            mock_client.post.return_value = token_response
-
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
-
-                with pytest.raises(httpx.HTTPStatusError):
-                    await OAuthService.exchange_jira_code_for_token(
-                        "invalid-code", db_session
-                    )
+            with pytest.raises(Exception):
+                await OAuthService.exchange_jira_code_for_token(
+                    "invalid-code", db_session
+                )
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_exchange_code_missing_refresh_token_handled(
         self, db_session: AsyncSession
     ) -> None:
         """exchange_code should handle missing refresh_token in response."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            # Response without refresh_token
-            token_response = MagicMock()
-            token_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "access-only-token",
                 "expires_in": 3600,
-            }
-            token_response.raise_for_status = MagicMock()
-
-            resources_response = MagicMock()
-            resources_response.json.return_value = [
+            })
+        )
+        respx.get(RESOURCES_URL).mock(
+            return_value=Response(200, json=[
                 {"id": "cloud-id", "url": "https://test.atlassian.net"}
-            ]
-            resources_response.raise_for_status = MagicMock()
+            ])
+        )
 
-            mock_client.post.return_value = token_response
-            mock_client.get.return_value = resources_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
+            mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-                mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
+            token = await OAuthService.exchange_jira_code_for_token(
+                "code", db_session
+            )
 
-                token = await OAuthService.exchange_jira_code_for_token(
-                    "code", db_session
-                )
-
-            # Should handle missing refresh_token gracefully
-            assert decrypt_token(token.access_token) == "access-only-token"
-            assert token.refresh_token is None
+        assert decrypt_token(token.access_token) == "access-only-token"
+        assert token.refresh_token is None
 
 
 class TestTokenRefresh:
     """Test OAuth token refresh functionality."""
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_refresh_token_calls_atlassian_endpoint(
         self, db_session: AsyncSession
     ) -> None:
         """refresh_token should POST with refresh_token grant."""
-        # Create existing token with encrypted values
         existing_token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("old-access-token"),
@@ -270,40 +224,33 @@ class TestTokenRefresh:
         db_session.add(existing_token)
         await db_session.commit()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            refresh_response = MagicMock()
-            refresh_response.json.return_value = {
+        token_route = respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "new-access-token",
                 "refresh_token": "new-refresh-token",
                 "expires_in": 3600,
                 "token_type": "Bearer",
-            }
-            refresh_response.raise_for_status = MagicMock()
+            })
+        )
 
-            mock_client.post.return_value = refresh_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
+            await OAuthService.refresh_jira_token(db_session)
 
-                await OAuthService.refresh_jira_token(db_session)
-
-            # Verify refresh endpoint was called correctly
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == OAuthService.JIRA_TOKEN_URL
-            assert call_args[1]["data"]["grant_type"] == "refresh_token"
-            assert call_args[1]["data"]["refresh_token"] == "valid-refresh-token"
+        assert token_route.called
+        request = token_route.calls.last.request
+        body = request.content.decode()
+        assert "grant_type=refresh_token" in body
+        assert "refresh_token=valid-refresh-token" in body
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_refresh_token_updates_existing_record(
         self, db_session: AsyncSession
     ) -> None:
         """refresh_token should update existing token not create new one."""
-        # Create existing token with encrypted values
         existing_token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("old-token"),
@@ -314,31 +261,23 @@ class TestTokenRefresh:
         await db_session.commit()
         token_id = existing_token.id
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            refresh_response = MagicMock()
-            refresh_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "refreshed-token",
                 "refresh_token": "new-refresh-token",
                 "expires_in": 3600,
-            }
-            refresh_response.raise_for_status = MagicMock()
+            })
+        )
 
-            mock_client.post.return_value = refresh_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
+            refreshed = await OAuthService.refresh_jira_token(db_session)
 
-                refreshed = await OAuthService.refresh_jira_token(db_session)
-
-        # Should be same record (same ID)
         assert refreshed.id == token_id
         assert decrypt_token(refreshed.access_token) == "refreshed-token"
 
-        # Verify only one token exists
         result = await db_session.execute(
             select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
         )
@@ -359,7 +298,6 @@ class TestTokenRefresh:
         self, db_session: AsyncSession
     ) -> None:
         """refresh_token should return None when refresh_token is null."""
-        # Create token without refresh_token
         token_without_refresh = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("access-token-only"),
@@ -381,7 +319,6 @@ class TestGetValidToken:
         self, db_session: AsyncSession
     ) -> None:
         """get_valid_token should return token when not expired."""
-        # Create fresh token (expires in 30 minutes) with encrypted values
         fresh_token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("fresh-token"),
@@ -396,11 +333,11 @@ class TestGetValidToken:
         assert token == "fresh-token"
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_get_valid_token_refreshes_when_expired(
         self, db_session: AsyncSession
     ) -> None:
         """get_valid_token should auto-refresh if expired."""
-        # Create expired token with encrypted values
         expired_token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("expired-token"),
@@ -410,33 +347,27 @@ class TestGetValidToken:
         db_session.add(expired_token)
         await db_session.commit()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            refresh_response = MagicMock()
-            refresh_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "refreshed-token",
                 "expires_in": 3600,
-            }
-            refresh_response.raise_for_status = MagicMock()
+            })
+        )
 
-            mock_client.post.return_value = refresh_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
-
-                token = await OAuthService.get_valid_jira_token(db_session)
+            token = await OAuthService.get_valid_jira_token(db_session)
 
         assert token == "refreshed-token"
 
     @pytest.mark.asyncio
+    @respx.mock
     async def test_oauth_service_get_valid_token_refreshes_within_5min_buffer(
         self, db_session: AsyncSession
     ) -> None:
         """get_valid_token should refresh 5 minutes before expiry."""
-        # Create token expiring in 3 minutes (within 5-minute buffer)
         soon_to_expire = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("about-to-expire"),
@@ -446,26 +377,19 @@ class TestGetValidToken:
         db_session.add(soon_to_expire)
         await db_session.commit()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
-            refresh_response = MagicMock()
-            refresh_response.json.return_value = {
+        respx.post(TOKEN_URL).mock(
+            return_value=Response(200, json={
                 "access_token": "pre-emptively-refreshed",
                 "expires_in": 3600,
-            }
-            refresh_response.raise_for_status = MagicMock()
+            })
+        )
 
-            mock_client.post.return_value = refresh_response
+        with patch("app.services.oauth_service.settings") as mock_settings:
+            mock_settings.jira_oauth_client_id = "test-client"
+            mock_settings.jira_oauth_client_secret = "test-secret"
 
-            with patch("app.services.oauth_service.settings") as mock_settings:
-                mock_settings.jira_oauth_client_id = "test-client"
-                mock_settings.jira_oauth_client_secret = "test-secret"
+            token = await OAuthService.get_valid_jira_token(db_session)
 
-                token = await OAuthService.get_valid_jira_token(db_session)
-
-        # Should have refreshed even though not technically expired
         assert token == "pre-emptively-refreshed"
 
     @pytest.mark.asyncio

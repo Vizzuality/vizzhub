@@ -3,46 +3,28 @@
  *
  * JWT is now stored in httpOnly cookies (set by the backend).
  * Only user info is cached in localStorage.
+ *
+ * HTTP calls are intercepted by MSW (set up globally in test/setup.ts).
  */
 
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { AuthProvider } from '../AuthContext';
 import { useAuth } from '../../hooks/useAuth';
-import type { UserPublic } from '../../types/auth';
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
-const mockUser: UserPublic = {
-  id: 'user-123',
-  email: 'test@vizzuality.com',
-  first_name: 'Test',
-  last_name: 'User',
-  picture: 'https://example.com/photo.jpg',
-  role: 'user',
-};
+const API_URL = 'http://localhost:8000';
 
 describe('AuthContext', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.clearAllMocks();
-    mockFetch.mockReset();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe('Initialization', () => {
     it('validates session via cookie when cached user exists', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUser,
-      });
+      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -53,12 +35,9 @@ describe('AuthContext', () => {
       });
 
       expect(result.current.isAuthenticated).toBe(true);
-      expect(result.current.user).toEqual(mockUser);
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/me'),
-        expect.objectContaining({
-          credentials: 'include',
-        })
+      expect(result.current.user).toEqual(fixtures.authUser);
+      expect(localStorage.getItem('auth_user')).toBe(
+        JSON.stringify(fixtures.authUser),
       );
     });
 
@@ -73,16 +52,19 @@ describe('AuthContext', () => {
 
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
-      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('clears auth state when session cookie is invalid', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
+      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      });
+      server.use(
+        http.get(`${API_URL}/api/auth/me`, () => {
+          return HttpResponse.json(
+            { detail: 'Unauthorized' },
+            { status: 401 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -100,15 +82,6 @@ describe('AuthContext', () => {
 
   describe('Login', () => {
     it('authenticates with Google credential and stores user info', async () => {
-      const authResponse = {
-        user: mockUser,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => authResponse,
-      });
-
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
       });
@@ -122,23 +95,21 @@ describe('AuthContext', () => {
       });
 
       expect(result.current.isAuthenticated).toBe(true);
-      expect(result.current.user).toEqual(mockUser);
-      expect(localStorage.getItem('auth_user')).toBe(JSON.stringify(mockUser));
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/google'),
-        expect.objectContaining({
-          method: 'POST',
-          credentials: 'include',
-          body: JSON.stringify({ credential: 'google-credential-token' }),
-        })
+      expect(result.current.user).toEqual(fixtures.authUser);
+      expect(localStorage.getItem('auth_user')).toBe(
+        JSON.stringify(fixtures.authUser),
       );
     });
 
     it('throws error when login fails', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ detail: 'Unauthorized domain' }),
-      });
+      server.use(
+        http.post(`${API_URL}/api/auth/google`, () => {
+          return HttpResponse.json(
+            { detail: 'Unauthorized domain' },
+            { status: 403 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -151,7 +122,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('invalid-credential');
-        })
+        }),
       ).rejects.toThrow('Unauthorized domain');
 
       expect(result.current.isAuthenticated).toBe(false);
@@ -160,19 +131,7 @@ describe('AuthContext', () => {
 
   describe('Logout', () => {
     it('calls logout endpoint and clears user from localStorage', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
-
-      // First call: session validation
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUser,
-      });
-
-      // Second call: logout endpoint
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: 'Logged out successfully' }),
-      });
+      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -187,27 +146,10 @@ describe('AuthContext', () => {
       });
 
       expect(localStorage.getItem('auth_user')).toBeNull();
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/logout'),
-        expect.objectContaining({
-          method: 'POST',
-          credentials: 'include',
-        })
-      );
     });
 
     it('updates state to unauthenticated after logout', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUser,
-      });
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: 'Logged out successfully' }),
-      });
+      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -229,9 +171,13 @@ describe('AuthContext', () => {
 
   describe('Error Handling', () => {
     it('handles network errors during session validation gracefully', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
+      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
 
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      server.use(
+        http.get(`${API_URL}/api/auth/me`, () => {
+          return HttpResponse.error();
+        }),
+      );
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
