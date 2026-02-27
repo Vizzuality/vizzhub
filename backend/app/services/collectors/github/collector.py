@@ -8,6 +8,8 @@ Individual indicator logic is in separate modules within this package.
 from datetime import date
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.services.collectors.models import GitHubCollectedMetrics
 from app.services.collectors.github.change_failure_rate import (
     collect_change_failure_rate,
@@ -25,8 +27,8 @@ from app.services.collectors.github.vulnerabilities import collect_vulnerabiliti
 class GitHubCollector:
     """Collects metrics from GitHub API."""
 
-    def __init__(self) -> None:
-        self._client = GitHubClient()
+    def __init__(self, db: AsyncSession | None = None) -> None:
+        self._client = GitHubClient(db=db)
 
     async def test_connection(self) -> bool:
         """Test if connection to GitHub is working."""

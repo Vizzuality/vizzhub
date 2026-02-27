@@ -8,7 +8,14 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
+from app.api.deps import (
+    CurrentUser,
+    DBSession,
+    OptionalScoreCache,
+    ScoringConfigDep,
+    get_project_or_404,
+    limiter,
+)
 from app.api.scores import ScoreResponse
 from app.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.models.project import ProjectDB
@@ -31,7 +38,9 @@ class CapturePeriodRequest(BaseModel):
 
     year: int | None = Field(default=None, ge=2020, le=2100)
     month: int | None = Field(default=None, ge=1, le=12)
-    force: bool = Field(default=False, description="Overwrite existing periods if they exist")
+    force: bool = Field(
+        default=False, description="Overwrite existing periods if they exist"
+    )
 
 
 class CapturePeriodResponse(BaseModel):
@@ -77,6 +86,7 @@ async def _collect_from_jira(
 
 
 async def _collect_from_github(
+    db: DBSession,
     project: ProjectDB,
     period_start: date,
     period_end: date,
@@ -85,7 +95,7 @@ async def _collect_from_github(
     if not project.github_repo:
         return {}
 
-    collector = GitHubCollector()
+    collector = GitHubCollector(db=db)
     result = await execute_collector(
         collector,
         collector.collect(
@@ -122,7 +132,9 @@ def _build_response(
     """Build MetricsWithScores response from DB metrics."""
     score_service = ScoreComputationService(config)
     metrics = MetricsCreate.from_db(db_metrics)
-    indicators, scores = score_service.compute(metrics, sev1_incident=db_metrics.sev1_incident)
+    indicators, scores = score_service.compute(
+        metrics, sev1_incident=db_metrics.sev1_incident
+    )
 
     return MetricsWithScores(
         id=str(db_metrics.id),
@@ -224,9 +236,11 @@ async def capture_period(
     # === PUNCTUAL: Collect and store for just this month ===
     punctual_jira, punctual_github = await asyncio.gather(
         _collect_from_jira(db, project, month_start, month_end),
-        _collect_from_github(project, month_start, month_end),
+        _collect_from_github(db, project, month_start, month_end),
     )
-    punctual_data = _build_metrics_data(month_start, month_end, punctual_jira, punctual_github, preserved)
+    punctual_data = _build_metrics_data(
+        month_start, month_end, punctual_jira, punctual_github, preserved
+    )
 
     punctual_db = await MetricsService.upsert_metrics(
         db, project_id, year, month, SnapshotType.PUNCTUAL, config, punctual_data
@@ -235,9 +249,11 @@ async def capture_period(
     # === CUMULATIVE: Collect and store from project start to month end ===
     cumulative_jira, cumulative_github = await asyncio.gather(
         _collect_from_jira(db, project, project_start, month_end),
-        _collect_from_github(project, project_start, month_end),
+        _collect_from_github(db, project, project_start, month_end),
     )
-    cumulative_data = _build_metrics_data(project_start, month_end, cumulative_jira, cumulative_github, preserved)
+    cumulative_data = _build_metrics_data(
+        project_start, month_end, cumulative_jira, cumulative_github, preserved
+    )
 
     cumulative_db = await MetricsService.upsert_metrics(
         db, project_id, year, month, SnapshotType.CUMULATIVE, config, cumulative_data

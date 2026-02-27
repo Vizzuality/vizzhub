@@ -6,7 +6,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, get_project_or_404, limiter
+from app.api.deps import (
+    CurrentUser,
+    DBSession,
+    OptionalScoreCache,
+    get_project_or_404,
+    limiter,
+)
 from app.core.exceptions import ConfigurationError
 from app.models.metrics import Metrics, MetricsDB, SnapshotType
 from app.services.collectors.github import GitHubCollector
@@ -21,7 +27,11 @@ router = APIRouter()
 )
 @limiter.limit("10/minute")
 async def collect_jira_metrics(
-    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession, cache: OptionalScoreCache,
+    request: Request,
+    project_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+    cache: OptionalScoreCache,
 ) -> Metrics:
     """
     Collect metrics from Jira for a project and save to database.
@@ -112,7 +122,11 @@ async def collect_jira_metrics(
 )
 @limiter.limit("10/minute")
 async def collect_github_metrics(
-    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession, cache: OptionalScoreCache,
+    request: Request,
+    project_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+    cache: OptionalScoreCache,
 ) -> Metrics:
     """
     Collect metrics from GitHub for a project and update latest metrics record.
@@ -133,7 +147,7 @@ async def collect_github_metrics(
             detail="Project does not have a GitHub repository configured",
         )
 
-    collector = GitHubCollector()
+    collector = GitHubCollector(db=db)
     try:
         collected = await collector.collect(project.github_repo)
         raw_metrics = collected.model_dump()
@@ -168,9 +182,13 @@ async def collect_github_metrics(
         existing_metrics.prs_without_review = raw_metrics.get("prs_without_review", 0)
         existing_metrics.total_merged_prs = raw_metrics.get("total_merged_prs", 0)
         existing_metrics.high_severity_vulns = raw_metrics.get("high_severity_vulns", 0)
-        existing_metrics.high_severity_vulns_total = raw_metrics.get("high_severity_vulns_total", 0)
+        existing_metrics.high_severity_vulns_total = raw_metrics.get(
+            "high_severity_vulns_total", 0
+        )
         existing_metrics.pr_size_median = raw_metrics.get("pr_size_median")
-        existing_metrics.review_turnaround_hours = raw_metrics.get("review_turnaround_hours")
+        existing_metrics.review_turnaround_hours = raw_metrics.get(
+            "review_turnaround_hours"
+        )
         existing_metrics.deployment_frequency = raw_metrics.get("deployment_frequency")
         existing_metrics.release_count_90d = raw_metrics.get("release_count_90d", 0)
         existing_metrics.change_failure_rate = raw_metrics.get("change_failure_rate")

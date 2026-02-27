@@ -25,29 +25,40 @@ class TestGitHubClient:
     @pytest.mark.asyncio
     async def test_github_client_creates_authenticated_client(self) -> None:
         """Client should create httpx client with auth headers."""
-        with patch("app.services.collectors.github.client.get_settings") as mock_settings:
-            mock_settings.return_value.github_token = "test-token"
+        client = GitHubClient(token="test-token")
+        http_client = await client._get_client()
 
-            client = GitHubClient()
-            http_client = await client._get_client()
+        assert str(http_client.base_url) == "https://api.github.com"
+        assert http_client.headers["Authorization"] == "Bearer test-token"
+        assert http_client.headers["Accept"] == "application/vnd.github+json"
+        assert http_client.headers["X-GitHub-Api-Version"] == "2022-11-28"
 
-            assert str(http_client.base_url) == "https://api.github.com"
-            assert http_client.headers["Authorization"] == "Bearer test-token"
-            assert http_client.headers["Accept"] == "application/vnd.github+json"
-            assert http_client.headers["X-GitHub-Api-Version"] == "2022-11-28"
-
-            await client.close()
+        await client.close()
 
     @pytest.mark.asyncio
     async def test_github_client_raises_error_when_no_token(self) -> None:
         """Client should raise ConfigurationError if no token configured."""
-        with patch("app.services.collectors.github.client.get_settings") as mock_settings:
-            mock_settings.return_value.github_token = ""
+        client = GitHubClient()
 
-            client = GitHubClient()
+        with pytest.raises(ConfigurationError, match="GitHub token not configured"):
+            await client._get_client()
 
-            with pytest.raises(ConfigurationError, match="GitHub token not configured"):
-                await client._get_client()
+    @pytest.mark.asyncio
+    async def test_github_client_reads_token_from_db(self) -> None:
+        """Client should read token from DB via IntegrationTokenService."""
+        mock_db = AsyncMock()
+        with patch(
+            "app.services.integration_token_service.IntegrationTokenService.get_token",
+            new_callable=AsyncMock,
+            return_value="db-token",
+        ) as mock_get_token:
+            client = GitHubClient(db=mock_db)
+            http_client = await client._get_client()
+
+            assert http_client.headers["Authorization"] == "Bearer db-token"
+            mock_get_token.assert_awaited_once_with(mock_db, "github")
+
+            await client.close()
 
     def test_validate_repo_slug_valid(self) -> None:
         """Should parse valid owner/repo format."""
@@ -187,9 +198,9 @@ class TestGitHubCollector:
     @pytest.mark.asyncio
     async def test_collector_returns_all_metrics(self) -> None:
         """Collector should return all expected metric fields."""
-        with patch("app.services.collectors.github.client.get_settings") as mock_settings:
-            mock_settings.return_value.github_token = "test-token"
-
+        with patch.object(
+            GitHubClient, "_get_token_from_db", new_callable=AsyncMock, return_value="test-token"
+        ):
             collector = GitHubCollector()
 
             with patch(
@@ -214,56 +225,47 @@ class TestGitHubCollector:
     @pytest.mark.asyncio
     async def test_collector_validates_repo_slug(self) -> None:
         """Collector should validate repo format before collection."""
-        with patch("app.services.collectors.github.client.get_settings") as mock_settings:
-            mock_settings.return_value.github_token = "test-token"
+        collector = GitHubCollector()
 
-            collector = GitHubCollector()
+        with pytest.raises(ValueError, match="Invalid repo format"):
+            await collector.collect("invalid-format")
 
-            with pytest.raises(ValueError, match="Invalid repo format"):
-                await collector.collect("invalid-format")
-
-            await collector.close()
+        await collector.close()
 
     @pytest.mark.asyncio
     async def test_test_connection_returns_true_on_success(self) -> None:
         """test_connection should return True when API is reachable."""
-        with patch("app.services.collectors.github.client.get_settings") as mock_settings:
-            mock_settings.return_value.github_token = "test-token"
+        collector = GitHubCollector()
 
-            collector = GitHubCollector()
+        with patch.object(
+            collector._client,
+            "_get_client",
+            new_callable=AsyncMock,
+        ) as mock_get_client:
+            mock_http = AsyncMock()
+            mock_http.get.return_value = MagicMock(status_code=200)
+            mock_get_client.return_value = mock_http
 
-            with patch.object(
-                collector._client,
-                "_get_client",
-                new_callable=AsyncMock,
-            ) as mock_get_client:
-                mock_http = AsyncMock()
-                mock_http.get.return_value = MagicMock(status_code=200)
-                mock_get_client.return_value = mock_http
+            result = await collector.test_connection()
 
-                result = await collector.test_connection()
-
-            assert result is True
-            await collector.close()
+        assert result is True
+        await collector.close()
 
     @pytest.mark.asyncio
     async def test_test_connection_returns_false_on_failure(self) -> None:
         """test_connection should return False when API is unreachable."""
-        with patch("app.services.collectors.github.client.get_settings") as mock_settings:
-            mock_settings.return_value.github_token = "test-token"
+        collector = GitHubCollector()
 
-            collector = GitHubCollector()
+        with patch.object(
+            collector._client,
+            "_get_client",
+            new_callable=AsyncMock,
+        ) as mock_get_client:
+            mock_http = AsyncMock()
+            mock_http.get.return_value = MagicMock(status_code=401)
+            mock_get_client.return_value = mock_http
 
-            with patch.object(
-                collector._client,
-                "_get_client",
-                new_callable=AsyncMock,
-            ) as mock_get_client:
-                mock_http = AsyncMock()
-                mock_http.get.return_value = MagicMock(status_code=401)
-                mock_get_client.return_value = mock_http
+            result = await collector.test_connection()
 
-                result = await collector.test_connection()
-
-            assert result is False
-            await collector.close()
+        assert result is False
+        await collector.close()

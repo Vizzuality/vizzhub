@@ -11,7 +11,6 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
@@ -20,6 +19,7 @@ from app.models.slack import (
 )
 from app.services.alert_service import AlertService
 from app.services.collectors.dependabot import DependabotCollector
+from app.services.integration_token_service import IntegrationTokenService
 from app.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 from app.worker.utils import complete_with_error
@@ -76,8 +76,8 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                 db, job_run, "Slack not configured - missing bot token"
             )
 
-        settings = get_settings()
-        if not settings.github_token:
+        github_token = await IntegrationTokenService.get_token(db, "github")
+        if not github_token:
             return await complete_with_error(db, job_run, "GitHub token not configured")
 
         alert_definition = await _get_alert_definition(db)
@@ -106,7 +106,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                     project,
                     alert_definition,
                     bot_token,
-                    settings.github_token,
+                    github_token,
                 )
                 projects_checked += 1
                 alerts_sent += sent
