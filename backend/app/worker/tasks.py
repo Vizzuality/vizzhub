@@ -101,7 +101,7 @@ async def capture_history_task(
                 )
 
                 punctual_jira = await _collect_from_jira(db, project, month_start, month_end)
-                punctual_github = await _collect_from_github(project, month_start, month_end)
+                punctual_github = await _collect_from_github(db, project, month_start, month_end)
                 punctual_data = _build_metrics_data(
                     month_start, month_end, punctual_jira, punctual_github, preserved
                 )
@@ -111,7 +111,7 @@ async def capture_history_task(
                 )
 
                 cumulative_jira = await _collect_from_jira(db, project, project_start, month_end)
-                cumulative_github = await _collect_from_github(project, project_start, month_end)
+                cumulative_github = await _collect_from_github(db, project, project_start, month_end)
                 cumulative_data = _build_metrics_data(
                     project_start, month_end, cumulative_jira, cumulative_github, preserved
                 )
