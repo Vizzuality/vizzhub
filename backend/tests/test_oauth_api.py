@@ -92,7 +92,7 @@ class TestOAuthJiraCallback:
                 mock_exchange.return_value = mock_token
 
                 response = await client.get(
-                    "/api/oauth/jira/callback" "?code=auth-code&state=test-state"
+                    "/api/oauth/jira/callback?code=auth-code&state=test-state"
                 )
 
                 # Without proper session cookie the session state check
@@ -120,7 +120,7 @@ class TestOAuthJiraCallback:
                 )
 
                 response = await client.get(
-                    "/api/oauth/jira/callback" "?code=invalid-code&state=test-state"
+                    "/api/oauth/jira/callback?code=invalid-code&state=test-state"
                 )
 
                 assert response.status_code in [400, 500]

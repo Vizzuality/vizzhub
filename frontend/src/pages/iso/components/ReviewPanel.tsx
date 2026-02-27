@@ -280,7 +280,7 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
                 <div>
                   {unresolvedCount > 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      {unresolvedCount} action{unresolvedCount !== 1 ? 's' : ''}{' '}
+                      {unresolvedCount} action{unresolvedCount === 1 ? '' : 's'}{' '}
                       still unresolved. All actions must be resolved before
                       signing.
                     </p>

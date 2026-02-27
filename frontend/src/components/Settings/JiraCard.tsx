@@ -25,7 +25,7 @@ import api from '@/services/api/client';
 import type { ProviderStatus } from '@/services/api/integrations';
 
 interface JiraCardProps {
-  status?: ProviderStatus;
+  readonly status?: ProviderStatus;
 }
 
 export default function JiraCard({ status }: JiraCardProps): JSX.Element {
@@ -43,7 +43,7 @@ export default function JiraCard({ status }: JiraCardProps): JSX.Element {
   });
 
   const handleConnect = (): void => {
-    window.location.href = '/api/oauth/jira/authorize';
+    globalThis.location.href = '/api/oauth/jira/authorize';
   };
 
   const handleDisconnect = (e: React.MouseEvent): void => {

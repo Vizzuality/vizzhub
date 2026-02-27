@@ -30,8 +30,8 @@ import { queryKeys } from '@/hooks/queryKeys';
 import type { SlackChannel } from '@/types';
 
 interface SlackTabProps {
-  status?: ProviderStatus;
-  slackSettings?: { leadership_channel_id: string | null };
+  readonly status?: ProviderStatus;
+  readonly slackSettings?: { leadership_channel_id: string | null };
 }
 
 export default function SlackTab({ status, slackSettings }: SlackTabProps): JSX.Element {
