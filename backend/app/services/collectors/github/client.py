@@ -8,8 +8,8 @@ common methods for querying GitHub APIs.
 import re
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.core.exceptions import ConfigurationError
 from app.services.collectors.utils import HTTP_CLIENT_TIMEOUT
 
@@ -17,18 +17,21 @@ from app.services.collectors.utils import HTTP_CLIENT_TIMEOUT
 class GitHubClient:
     """Authenticated HTTP client for GitHub API."""
 
-    def __init__(self, token: str | None = None) -> None:
+    def __init__(
+        self, db: AsyncSession | None = None, token: str | None = None
+    ) -> None:
+        self._db = db
         self._token = token
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get authenticated HTTP client."""
         if self._client is None:
-            token = self._token or get_settings().github_token
+            token = self._token or await self._get_token_from_db()
             if not token:
                 raise ConfigurationError(
                     "GitHub token not configured. "
-                    "Set token via Admin > Integrations or GITHUB_TOKEN env var."
+                    "Set token via Admin > Integrations."
                 )
 
             headers = {
@@ -44,6 +47,14 @@ class GitHubClient:
             )
 
         return self._client
+
+    async def _get_token_from_db(self) -> str | None:
+        """Read GitHub token from DB via IntegrationTokenService."""
+        if self._db is None:
+            return None
+        from app.services.integration_token_service import IntegrationTokenService
+
+        return await IntegrationTokenService.get_token(self._db, "github")
 
     async def get_client(self) -> httpx.AsyncClient:
         """Get the authenticated HTTP client (public method)."""

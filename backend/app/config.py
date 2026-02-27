@@ -35,9 +35,7 @@ class Settings(BaseSettings):
     jira_oauth_redirect_uri: str = ""
     jira_oauth_scopes: str = ""
 
-    # GitHub
-    github_token: str = ""
-    github_org: str = ""
+    # GitHub (OAuth client credentials only; PAT stored in DB via integrations)
     github_oauth_client_id: str = ""
     github_oauth_client_secret: str = ""
 
