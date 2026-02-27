@@ -31,7 +31,7 @@ export default function ISOConfig(): JSX.Element {
   const handleConnect = (): void => {
     const domain = prompt('Enter your Google Workspace domain (e.g. example.com):');
     if (domain) {
-      window.location.href =
+      globalThis.location.href =
         `/api/iso/config/google-workspace/authorize?domain=${encodeURIComponent(domain)}`;
     }
   };

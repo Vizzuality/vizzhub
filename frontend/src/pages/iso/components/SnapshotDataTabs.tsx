@@ -155,7 +155,7 @@ function GroupMembersList({ groupMembers }: GroupMembersListProps): JSX.Element 
               )}
               <span className="font-medium">{groupEmail}</span>
               <span className="text-muted-foreground ml-auto">
-                {members.length} member{members.length !== 1 ? 's' : ''}
+                {members.length} member{members.length === 1 ? '' : 's'}
               </span>
             </button>
             {isExpanded && (
@@ -177,10 +177,10 @@ function GroupMembersList({ groupMembers }: GroupMembersListProps): JSX.Element 
                         <td className="py-2 pr-4 text-sm">{member.email}</td>
                         <td className="py-2 pr-4 text-sm">{member.role}</td>
                         <td className="py-2 pr-4">
-                          {member.type !== 'USER' ? (
-                            <Badge variant="secondary">External</Badge>
-                          ) : (
+                          {member.type === 'USER' ? (
                             <span className="text-sm">{member.type}</span>
+                          ) : (
+                            <Badge variant="secondary">External</Badge>
                           )}
                         </td>
                       </tr>

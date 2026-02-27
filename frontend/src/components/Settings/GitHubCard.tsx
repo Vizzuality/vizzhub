@@ -28,7 +28,7 @@ import { queryKeys } from '@/hooks/queryKeys';
 import type { ProviderStatus } from '@/services/api/integrations';
 
 interface GitHubCardProps {
-  status?: ProviderStatus;
+  readonly status?: ProviderStatus;
 }
 
 interface ExpiryInfo {
@@ -118,7 +118,7 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {status?.connected && expiryInfo && expiryInfo.level === 'ok' && (
+        {status?.connected && expiryInfo?.level === 'ok' && (
           <div className="text-sm text-muted-foreground">{expiryInfo.text}</div>
         )}
 
