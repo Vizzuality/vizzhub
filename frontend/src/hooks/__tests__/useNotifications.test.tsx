@@ -1,15 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import { useNotifications, useNotificationStats } from '../useNotifications';
-import { notificationsApi } from '../../services/api';
-
-vi.mock('../../services/api', () => ({
-  notificationsApi: {
-    list: vi.fn(),
-    getStats: vi.fn(),
-  },
-}));
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
 
 function createWrapper(): ({ children }: { children: React.ReactNode }) => JSX.Element {
   const queryClient = new QueryClient({
@@ -21,53 +16,31 @@ function createWrapper(): ({ children }: { children: React.ReactNode }) => JSX.E
 }
 
 describe('useNotifications hooks', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('useNotifications fetches paginated notifications', async () => {
-    const mockData = {
-      items: [
-        {
-          id: 1,
-          project_id: 'proj-123',
-          alert_definition_id: 1,
-          channel_id: 'C12345',
-          message: 'Test alert',
-          status: 'sent',
-          error_message: null,
-          metadata_json: null,
-          sent_at: '2024-01-15T10:00:00Z',
-          project_name: 'Test Project',
-          alert_name: 'Budget Alert',
-        },
-      ],
-      total: 1,
-      page: 1,
-      page_size: 20,
-      pages: 1,
-    };
-
-    vi.mocked(notificationsApi.list).mockResolvedValue(mockData);
-
     const { result } = renderHook(() => useNotifications({ page: 1, page_size: 20 }), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual(mockData);
-    expect(notificationsApi.list).toHaveBeenCalledWith({ page: 1, page_size: 20 });
+    expect(result.current.data).toEqual(fixtures.paginatedNotifications);
   });
 
   it('useNotifications passes filters correctly', async () => {
-    vi.mocked(notificationsApi.list).mockResolvedValue({
-      items: [],
-      total: 0,
-      page: 1,
-      page_size: 20,
-      pages: 0,
-    });
+    let capturedParams: Record<string, string> = {};
+    server.use(
+      http.get('/api/notifications', ({ request }) => {
+        const url = new URL(request.url);
+        capturedParams = Object.fromEntries(url.searchParams.entries());
+        return HttpResponse.json({
+          items: [],
+          total: 0,
+          page: 1,
+          page_size: 10,
+          pages: 0,
+        });
+      }),
+    );
 
     const filters = {
       project_id: 'proj-123',
@@ -84,37 +57,33 @@ describe('useNotifications hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(notificationsApi.list).toHaveBeenCalledWith(filters);
+    expect(capturedParams.project_id).toBe('proj-123');
+    expect(capturedParams.alert_definition_id).toBe('2');
+    expect(capturedParams.start_date).toBe('2024-01-01');
+    expect(capturedParams.end_date).toBe('2024-01-31');
+    expect(result.current.data?.items).toEqual([]);
+    expect(result.current.data?.total).toBe(0);
   });
 
   it('useNotificationStats fetches statistics', async () => {
-    const mockData = {
-      total_this_month: 15,
-      by_type: {
-        'Budget Alert': 5,
-        'Timeline Alert': 10,
-      },
-      by_project: [
-        { project_name: 'Project A', count: 8 },
-        { project_name: 'Project B', count: 7 },
-      ],
-      avg_vulnerability_resolution_days: 3.5,
-    };
-
-    vi.mocked(notificationsApi.getStats).mockResolvedValue(mockData);
-
     const { result } = renderHook(() => useNotificationStats(), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual(mockData);
-    expect(notificationsApi.getStats).toHaveBeenCalled();
+    expect(result.current.data).toEqual({ total: 10, unread: 3 });
   });
 
   it('useNotifications handles API errors', async () => {
-    vi.mocked(notificationsApi.list).mockRejectedValue(new Error('Network error'));
+    server.use(
+      http.get('/api/notifications', () => {
+        return HttpResponse.json(
+          { detail: 'Internal Server Error' },
+          { status: 500 },
+        );
+      }),
+    );
 
     const { result } = renderHook(() => useNotifications(), {
       wrapper: createWrapper(),
@@ -122,6 +91,6 @@ describe('useNotifications hooks', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error).toEqual(new Error('Network error'));
+    expect(result.current.error).toBeDefined();
   });
 });

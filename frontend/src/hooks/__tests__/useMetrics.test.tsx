@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import {
   useProjectMetrics,
   useCreateMetrics,
@@ -13,15 +14,9 @@ import {
   useUpdateStrategicImpact,
   useUpdateClientSurvey,
 } from '../useMetrics';
-import api from '../../services/api';
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
 import type { EVMData, Milestone, StrategicImpact } from '../../types';
-
-vi.mock('../../services/api', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
 
 function createWrapper(): ({ children }: { children: React.ReactNode }) => JSX.Element {
   const queryClient = new QueryClient({
@@ -51,12 +46,30 @@ const mockExistingMetrics = {
     percent_planned: 50,
   },
   milestones: [{ name: 'Phase 1', planned_date: '2026-02-01' }],
-  jira_defects: { bugs_total: 10, tasks_completed: 100, escaped_defects: 2, incidents_count: 1 },
+  jira_defects: {
+    bugs_total: 10,
+    tasks_completed: 100,
+    escaped_defects: 2,
+    incidents_count: 1,
+  },
   flow_metrics: { total_stories: 50, stories_with_reviewer: 45 },
-  github_metrics: { prs_without_review: 2, total_merged_prs: 30, high_severity_vulns: 0 },
+  github_metrics: {
+    prs_without_review: 2,
+    total_merged_prs: 30,
+    high_severity_vulns: 0,
+  },
   test_maturity: { e2e: 80, unit: 90 },
-  architecture: { docs_up_to_date: true, iac_implemented: true, adrs_maintained: true, diagrams_updated: true },
-  pm_satisfaction: { delivery_complaints: 'no' as const, design_complaints: 'no' as const, overall_estimation: 85 },
+  architecture: {
+    docs_up_to_date: true,
+    iac_implemented: true,
+    adrs_maintained: true,
+    diagrams_updated: true,
+  },
+  pm_satisfaction: {
+    delivery_complaints: 'no' as const,
+    design_complaints: 'no' as const,
+    overall_estimation: 85,
+  },
   client_survey: { understanding: 90, proactivity: 85 },
   strategic_impact: 'high' as StrategicImpact,
   governance_exceptions: 1,
@@ -65,26 +78,9 @@ const mockExistingMetrics = {
 };
 
 describe('useMetrics', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('useProjectMetrics', () => {
     it('fetches and returns project metrics', async () => {
       const projectId = 'project-123';
-      const mockMetrics = {
-        id: 'metrics-1',
-        project_id: projectId,
-        period_start: '2026-01-01',
-        period_end: '2026-01-31',
-        tasks_completed: 50,
-        tasks_in_progress: 10,
-        defects_found: 5,
-        defects_escaped: 1,
-        created_at: '2026-01-31T12:00:00Z',
-      };
-
-      vi.mocked(api.get).mockResolvedValue({ data: [mockMetrics] });
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -92,16 +88,20 @@ describe('useMetrics', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockMetrics);
-      expect(api.get).toHaveBeenCalledWith(`/metrics/project/${projectId}`);
+      expect(result.current.data).toEqual(fixtures.metrics);
     });
 
     it('returns null when no metrics found (404)', async () => {
       const projectId = 'project-without-metrics';
 
-      vi.mocked(api.get).mockRejectedValue({
-        response: { status: 404 },
-      });
+      server.use(
+        http.get('/api/metrics/project/:projectId', () => {
+          return HttpResponse.json(
+            { detail: 'Not found' },
+            { status: 404 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -119,13 +119,16 @@ describe('useMetrics', () => {
 
       expect(result.current.isPending).toBe(true);
       expect(result.current.fetchStatus).toBe('idle');
-      expect(api.get).not.toHaveBeenCalled();
     });
 
     it('handles API errors gracefully', async () => {
       const projectId = 'project-123';
 
-      vi.mocked(api.get).mockRejectedValue(new Error('Network error'));
+      server.use(
+        http.get('/api/metrics/project/:projectId', () => {
+          return HttpResponse.error();
+        }),
+      );
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -138,21 +141,20 @@ describe('useMetrics', () => {
 
     it('handles metrics with EVM data', async () => {
       const projectId = 'project-123';
-      const mockMetrics = {
-        id: 'metrics-1',
-        project_id: projectId,
-        period_start: '2026-01-01',
-        period_end: '2026-01-31',
-        tasks_completed: 50,
+      const metricsWithEvm = {
+        ...fixtures.metrics,
         evm_data: {
           budget_total: 100000,
           budget_spent: 80000,
           earned_value: 75000,
         },
-        created_at: '2026-01-31T12:00:00Z',
       };
 
-      vi.mocked(api.get).mockResolvedValue({ data: [mockMetrics] });
+      server.use(
+        http.get('/api/metrics/project/:projectId', () => {
+          return HttpResponse.json([metricsWithEvm]);
+        }),
+      );
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -167,8 +169,8 @@ describe('useMetrics', () => {
     it('returns the most recent metrics when multiple exist', async () => {
       const projectId = 'project-123';
       const olderMetrics = {
+        ...fixtures.metrics,
         id: 'metrics-old',
-        project_id: projectId,
         period_start: '2025-12-01',
         period_end: '2025-12-31',
         period_year: 2025,
@@ -176,16 +178,20 @@ describe('useMetrics', () => {
         created_at: '2026-01-15T12:00:00Z',
       };
       const newerMetrics = {
+        ...fixtures.metrics,
         id: 'metrics-new',
-        project_id: projectId,
         period_start: '2026-01-01',
         period_end: '2026-01-31',
         period_year: 2026,
         period_month: 1,
-        created_at: '2026-01-10T12:00:00Z', // Created earlier but more recent period
+        created_at: '2026-01-10T12:00:00Z',
       };
 
-      vi.mocked(api.get).mockResolvedValue({ data: [olderMetrics, newerMetrics] });
+      server.use(
+        http.get('/api/metrics/project/:projectId', () => {
+          return HttpResponse.json([olderMetrics, newerMetrics]);
+        }),
+      );
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -199,7 +205,11 @@ describe('useMetrics', () => {
     it('returns null when empty array is returned', async () => {
       const projectId = 'project-123';
 
-      vi.mocked(api.get).mockResolvedValue({ data: [] });
+      server.use(
+        http.get('/api/metrics/project/:projectId', () => {
+          return HttpResponse.json([]);
+        }),
+      );
 
       const { result } = renderHook(() => useProjectMetrics(projectId), {
         wrapper: createWrapper(),
@@ -219,14 +229,19 @@ describe('useMetrics', () => {
         period_end: '2026-01-31',
         sev1_incident: false,
       };
-      const createdMetrics = {
-        id: 'metrics-new',
-        project_id: projectId,
-        ...metricsToCreate,
-        created_at: '2026-01-31T12:00:00Z',
-      };
 
-      vi.mocked(api.post).mockResolvedValue({ data: createdMetrics });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({
+            id: 'metrics-new',
+            project_id: projectId,
+            ...capturedBody,
+            created_at: '2026-01-31T12:00:00Z',
+          });
+        }),
+      );
 
       const { result } = renderHook(() => useCreateMetrics(projectId), {
         wrapper: createWrapper(),
@@ -234,10 +249,11 @@ describe('useMetrics', () => {
 
       await act(async () => {
         const response = await result.current.mutateAsync(metricsToCreate);
-        expect(response).toEqual(createdMetrics);
+        expect(response.id).toBe('metrics-new');
+        expect(response.project_id).toBe(projectId);
       });
 
-      expect(api.post).toHaveBeenCalledWith(`/metrics/project/${projectId}`, metricsToCreate);
+      expect(capturedBody).toMatchObject(metricsToCreate);
     });
 
     it('handles creation error', async () => {
@@ -248,7 +264,14 @@ describe('useMetrics', () => {
         sev1_incident: false,
       };
 
-      vi.mocked(api.post).mockRejectedValue(new Error('Creation failed'));
+      server.use(
+        http.post('/api/metrics/project/:projectId', () => {
+          return HttpResponse.json(
+            { detail: 'Creation failed' },
+            { status: 500 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useCreateMetrics(projectId), {
         wrapper: createWrapper(),
@@ -276,27 +299,28 @@ describe('useMetrics', () => {
         percent_planned: 55,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, evm_data: evmData },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateEVMData(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(evmData);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          evm_data: evmData,
-          milestones: mockExistingMetrics.milestones,
-          jira_defects: mockExistingMetrics.jira_defects,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        evm_data: evmData,
+        milestones: mockExistingMetrics.milestones,
+        jira_defects: mockExistingMetrics.jira_defects,
+      });
     });
 
     it('creates EVM data when no existing metrics', async () => {
@@ -308,26 +332,27 @@ describe('useMetrics', () => {
         percent_planned: 55,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', evm_data: evmData },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateEVMData(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(evmData);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          evm_data: evmData,
-          sev1_incident: false,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        evm_data: evmData,
+        sev1_incident: false,
+      });
     });
   });
 
@@ -339,26 +364,27 @@ describe('useMetrics', () => {
         { name: 'Phase 2', planned_date: '2026-03-01' },
       ];
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, milestones },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateMilestones(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(milestones);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          milestones,
-          evm_data: mockExistingMetrics.evm_data,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        milestones,
+        evm_data: mockExistingMetrics.evm_data,
+      });
     });
 
     it('creates milestones when no existing metrics', async () => {
@@ -367,26 +393,27 @@ describe('useMetrics', () => {
         { name: 'Phase 1', planned_date: '2026-02-01' },
       ];
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', milestones },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateMilestones(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(milestones);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          milestones,
-          sev1_incident: false,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        milestones,
+        sev1_incident: false,
+      });
     });
   });
 
@@ -395,50 +422,52 @@ describe('useMetrics', () => {
       const projectId = 'project-123';
       const governanceExceptions = 2;
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, governance_exceptions: governanceExceptions },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateGovernance(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(governanceExceptions);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          governance_exceptions: governanceExceptions,
-          evm_data: mockExistingMetrics.evm_data,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        governance_exceptions: governanceExceptions,
+        evm_data: mockExistingMetrics.evm_data,
+      });
     });
 
     it('creates governance with zero exceptions', async () => {
       const projectId = 'project-123';
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', governance_exceptions: 0 },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateGovernance(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(0);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          governance_exceptions: 0,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        governance_exceptions: 0,
+      });
     });
   });
 
@@ -451,26 +480,27 @@ describe('useMetrics', () => {
         overall_estimation: 75,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, pm_satisfaction: pmSatisfaction },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdatePMSatisfaction(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(pmSatisfaction);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          pm_satisfaction: pmSatisfaction,
-          evm_data: mockExistingMetrics.evm_data,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        pm_satisfaction: pmSatisfaction,
+        evm_data: mockExistingMetrics.evm_data,
+      });
     });
 
     it('handles dash values for complaints', async () => {
@@ -480,25 +510,26 @@ describe('useMetrics', () => {
         design_complaints: '-' as const,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', pm_satisfaction: pmSatisfaction },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdatePMSatisfaction(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(pmSatisfaction);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          pm_satisfaction: pmSatisfaction,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        pm_satisfaction: pmSatisfaction,
+      });
     });
   });
 
@@ -513,26 +544,27 @@ describe('useMetrics', () => {
         frontend: 80,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, test_maturity: testMaturity },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateTestMaturity(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(testMaturity);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          test_maturity: testMaturity,
-          evm_data: mockExistingMetrics.evm_data,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        test_maturity: testMaturity,
+        evm_data: mockExistingMetrics.evm_data,
+      });
     });
 
     it('creates test maturity with partial values', async () => {
@@ -541,25 +573,26 @@ describe('useMetrics', () => {
         unit: 90,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', test_maturity: testMaturity },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateTestMaturity(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(testMaturity);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          test_maturity: testMaturity,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        test_maturity: testMaturity,
+      });
     });
   });
 
@@ -573,26 +606,27 @@ describe('useMetrics', () => {
         diagrams_updated: false,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, architecture },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateArchitecture(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(architecture);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          architecture,
-          evm_data: mockExistingMetrics.evm_data,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        architecture,
+        evm_data: mockExistingMetrics.evm_data,
+      });
     });
 
     it('creates architecture with all false values', async () => {
@@ -604,25 +638,26 @@ describe('useMetrics', () => {
         diagrams_updated: false,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', architecture },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateArchitecture(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(architecture);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          architecture,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        architecture,
+      });
     });
   });
 
@@ -631,76 +666,79 @@ describe('useMetrics', () => {
       const projectId = 'project-123';
       const strategicImpact: StrategicImpact = 'transformational';
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, strategic_impact: strategicImpact },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateStrategicImpact(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(strategicImpact);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          strategic_impact: strategicImpact,
-          client_survey: mockExistingMetrics.client_survey,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        strategic_impact: strategicImpact,
+        client_survey: mockExistingMetrics.client_survey,
+      });
     });
 
     it('creates strategic impact with low value', async () => {
       const projectId = 'project-123';
       const strategicImpact: StrategicImpact = 'low';
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', strategic_impact: strategicImpact },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateStrategicImpact(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(strategicImpact);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          strategic_impact: strategicImpact,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        strategic_impact: strategicImpact,
+      });
     });
 
     it('handles medium strategic impact', async () => {
       const projectId = 'project-123';
       const strategicImpact: StrategicImpact = 'medium';
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', strategic_impact: strategicImpact },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateStrategicImpact(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(strategicImpact);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          strategic_impact: strategicImpact,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        strategic_impact: strategicImpact,
+      });
     });
   });
 
@@ -718,26 +756,27 @@ describe('useMetrics', () => {
         recommend: 95,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { ...mockExistingMetrics, client_survey: clientSurvey },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateClientSurvey(projectId, mockExistingMetrics),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(clientSurvey);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          client_survey: clientSurvey,
-          strategic_impact: mockExistingMetrics.strategic_impact,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        client_survey: clientSurvey,
+        strategic_impact: mockExistingMetrics.strategic_impact,
+      });
     });
 
     it('creates client survey with partial values', async () => {
@@ -747,50 +786,52 @@ describe('useMetrics', () => {
         recommend: 85,
       };
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', client_survey: clientSurvey },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateClientSurvey(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(clientSurvey);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          client_survey: clientSurvey,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        client_survey: clientSurvey,
+      });
     });
 
     it('handles empty client survey', async () => {
       const projectId = 'project-123';
       const clientSurvey = {};
 
-      vi.mocked(api.post).mockResolvedValue({
-        data: { id: 'new-metrics', client_survey: clientSurvey },
-      });
+      let capturedBody: Record<string, unknown> = {};
+      server.use(
+        http.post('/api/metrics/project/:projectId', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ ...fixtures.metrics, ...capturedBody });
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateClientSurvey(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
         await result.current.mutateAsync(clientSurvey);
       });
 
-      expect(api.post).toHaveBeenCalledWith(
-        `/metrics/project/${projectId}`,
-        expect.objectContaining({
-          client_survey: clientSurvey,
-        })
-      );
+      expect(capturedBody).toMatchObject({
+        client_survey: clientSurvey,
+      });
     });
   });
 
@@ -804,11 +845,15 @@ describe('useMetrics', () => {
         percent_planned: 55,
       };
 
-      vi.mocked(api.post).mockRejectedValue(new Error('Network error'));
+      server.use(
+        http.post('/api/metrics/project/:projectId', () => {
+          return HttpResponse.error();
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateEVMData(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {
@@ -824,15 +869,22 @@ describe('useMetrics', () => {
 
     it('handles API errors in milestone update', async () => {
       const projectId = 'project-123';
-      const milestones: Milestone[] = [{ name: 'Phase 1', planned_date: '2026-02-01' }];
+      const milestones: Milestone[] = [
+        { name: 'Phase 1', planned_date: '2026-02-01' },
+      ];
 
-      vi.mocked(api.post).mockRejectedValue({
-        response: { status: 400, data: { detail: 'Invalid milestone data' } },
-      });
+      server.use(
+        http.post('/api/metrics/project/:projectId', () => {
+          return HttpResponse.json(
+            { detail: 'Invalid milestone data' },
+            { status: 400 },
+          );
+        }),
+      );
 
       const { result } = renderHook(
         () => useUpdateMilestones(projectId, null),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import {
   useGlobalMetrics,
   useGlobalMetricsHistory,
@@ -8,22 +9,8 @@ import {
   useCalculateGlobalMetrics,
   useRecalculateGlobalMetrics,
 } from '../useGlobalMetrics';
-import { globalMetricsApi } from '../../services/api';
-import type {
-  GlobalMetricsRecord,
-  AvailableMonth,
-  CalculateBatchResponse,
-} from '../../types/global';
-
-vi.mock('../../services/api', () => ({
-  globalMetricsApi: {
-    getRecord: vi.fn(),
-    getHistory: vi.fn(),
-    getAvailableMonths: vi.fn(),
-    calculate: vi.fn(),
-    recalculate: vi.fn(),
-  },
-}));
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -38,69 +25,24 @@ function createWrapper() {
   );
 }
 
-const mockGlobalMetricsRecord: GlobalMetricsRecord = {
-  id: 'record-123',
-  period_year: 2024,
-  period_month: 12,
-  project_count: 5,
-  indicators: {
-    spi: { value: 0.95, count: 5 },
-    cpi: { value: 0.88, count: 4 },
-    on_time_milestones: { value: 0.8, count: 3 },
-    defect_density: { value: 2.5, count: 5 },
-    escaped_rate: { value: 0.02, count: 5 },
-    mttr_hours: { value: 24, count: 4 },
-    governance_compliance: { value: 0.9, count: 5 },
-    lead_time_days: { value: 4.2, count: 5 },
-    deployment_frequency: { value: 1.5, count: 3 },
-    change_failure_rate: { value: 0.08, count: 3 },
-    commitment_reliability: { value: 0.85, count: 5 },
-    pr_review_ratio: { value: 0.92, count: 5 },
-    test_maturity: { value: 0.78, count: 4 },
-    arch_checklist: { value: 0.65, count: 3 },
-    high_vulns: { value: 0, count: 5 },
-    okr_impact: { value: null, count: 0 },
-    pm_satisfaction: { value: 0.8, count: 4 },
-    client_satisfaction: { value: null, count: 0 },
-    story_review_ratio: { value: 0.88, count: 5 },
-    strategic_impact: { value: null, count: 0 },
-  },
-  scores: {
-    score: { value: 78.5, count: 5 },
-    p_time: { value: 82, count: 5 },
-    p_cost: { value: 75, count: 4 },
-    p_quality: { value: 80, count: 5 },
-    p_value: { value: 70, count: 3 },
-    p_satisfaction: { value: 78, count: 4 },
-    p_flow: { value: 76, count: 5 },
-    p_engineering: { value: 72, count: 4 },
-    p_risk: { value: 85, count: 5 },
-  },
-  created_at: '2024-12-31T23:59:59Z',
-  updated_at: '2024-12-31T23:59:59Z',
-};
-
 describe('useGlobalMetrics', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('useGlobalMetrics', () => {
     it('fetches and returns global metrics for a specific month', async () => {
-      vi.mocked(globalMetricsApi.getRecord).mockResolvedValue(mockGlobalMetricsRecord);
-
-      const { result } = renderHook(() => useGlobalMetrics(2024, 12), {
+      const { result } = renderHook(() => useGlobalMetrics(2026, 1), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockGlobalMetricsRecord);
-      expect(globalMetricsApi.getRecord).toHaveBeenCalledWith(2024, 12);
+      expect(result.current.data).toEqual(fixtures.globalRecord);
     });
 
     it('returns null when no metrics exist for the month', async () => {
-      vi.mocked(globalMetricsApi.getRecord).mockResolvedValue(null);
+      server.use(
+        http.get('/api/global/:year/:month', () => {
+          return HttpResponse.json(null);
+        }),
+      );
 
       const { result } = renderHook(() => useGlobalMetrics(2020, 1), {
         wrapper: createWrapper(),
@@ -112,7 +54,14 @@ describe('useGlobalMetrics', () => {
     });
 
     it('handles API errors', async () => {
-      vi.mocked(globalMetricsApi.getRecord).mockRejectedValue(new Error('Network error'));
+      server.use(
+        http.get('/api/global/:year/:month', () => {
+          return HttpResponse.json(
+            { detail: 'Network error' },
+            { status: 500 },
+          );
+        }),
+      );
 
       const { result } = renderHook(() => useGlobalMetrics(2024, 12), {
         wrapper: createWrapper(),
@@ -124,25 +73,28 @@ describe('useGlobalMetrics', () => {
 
   describe('useGlobalMetricsHistory', () => {
     it('fetches history with default limit', async () => {
-      const mockHistory = [
-        mockGlobalMetricsRecord,
-        { ...mockGlobalMetricsRecord, id: 'record-456', period_month: 11 },
-      ];
-      vi.mocked(globalMetricsApi.getHistory).mockResolvedValue(mockHistory);
-
       const { result } = renderHook(() => useGlobalMetricsHistory(), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockHistory);
-      expect(globalMetricsApi.getHistory).toHaveBeenCalledWith(12);
+      expect(result.current.data).toHaveLength(3);
+      expect(result.current.data![0]).toMatchObject({ year: 2026 });
     });
 
     it('fetches history with custom limit', async () => {
-      const mockHistory = [mockGlobalMetricsRecord];
-      vi.mocked(globalMetricsApi.getHistory).mockResolvedValue(mockHistory);
+      server.use(
+        http.get('/api/global/history', ({ request }) => {
+          const url = new URL(request.url);
+          const limit = Number(url.searchParams.get('limit') ?? '12');
+          const records = Array.from({ length: Math.min(limit, 3) }, (_, i) => ({
+            ...fixtures.globalRecord,
+            month: 1 + i,
+          }));
+          return HttpResponse.json({ records });
+        }),
+      );
 
       const { result } = renderHook(() => useGlobalMetricsHistory(6), {
         wrapper: createWrapper(),
@@ -150,11 +102,15 @@ describe('useGlobalMetrics', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(globalMetricsApi.getHistory).toHaveBeenCalledWith(6);
+      expect(result.current.data).toHaveLength(3);
     });
 
     it('returns empty array when no history exists', async () => {
-      vi.mocked(globalMetricsApi.getHistory).mockResolvedValue([]);
+      server.use(
+        http.get('/api/global/history', () => {
+          return HttpResponse.json({ records: [] });
+        }),
+      );
 
       const { result } = renderHook(() => useGlobalMetricsHistory(), {
         wrapper: createWrapper(),
@@ -168,25 +124,24 @@ describe('useGlobalMetrics', () => {
 
   describe('useAvailableGlobalMonths', () => {
     it('fetches available months', async () => {
-      const mockMonths: AvailableMonth[] = [
-        { year: 2024, month: 12 },
-        { year: 2024, month: 11 },
-        { year: 2024, month: 10 },
-      ];
-      vi.mocked(globalMetricsApi.getAvailableMonths).mockResolvedValue(mockMonths);
-
       const { result } = renderHook(() => useAvailableGlobalMonths(), {
         wrapper: createWrapper(),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockMonths);
-      expect(globalMetricsApi.getAvailableMonths).toHaveBeenCalled();
+      expect(result.current.data).toEqual([
+        { year: 2026, month: 1 },
+        { year: 2025, month: 12 },
+      ]);
     });
 
     it('returns empty array when no months available', async () => {
-      vi.mocked(globalMetricsApi.getAvailableMonths).mockResolvedValue([]);
+      server.use(
+        http.get('/api/global/available-months', () => {
+          return HttpResponse.json([]);
+        }),
+      );
 
       const { result } = renderHook(() => useAvailableGlobalMonths(), {
         wrapper: createWrapper(),
@@ -200,11 +155,19 @@ describe('useGlobalMetrics', () => {
 
   describe('useCalculateGlobalMetrics', () => {
     it('calculates global metrics for date range', async () => {
-      const mockResponse: CalculateBatchResponse = {
-        months_processed: 3,
-        records: [mockGlobalMetricsRecord],
-      };
-      vi.mocked(globalMetricsApi.calculate).mockResolvedValue(mockResponse);
+      let capturedBody: Record<string, unknown> | undefined;
+
+      server.use(
+        http.post('/api/global/calculate', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({
+            year: 2026,
+            month: 1,
+            projects_processed: 5,
+            record: fixtures.globalRecord,
+          });
+        }),
+      );
 
       const { result } = renderHook(() => useCalculateGlobalMetrics(), {
         wrapper: createWrapper(),
@@ -221,18 +184,23 @@ describe('useGlobalMetrics', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockResponse);
-      expect(globalMetricsApi.calculate).toHaveBeenCalledWith({
+      expect(capturedBody).toEqual({
         from_year: 2024,
         from_month: 10,
         to_year: 2024,
         to_month: 12,
       });
+      expect(result.current.data).toMatchObject({ projects_processed: 5 });
     });
 
     it('handles calculation errors', async () => {
-      vi.mocked(globalMetricsApi.calculate).mockRejectedValue(
-        new Error('Invalid date range'),
+      server.use(
+        http.post('/api/global/calculate', () => {
+          return HttpResponse.json(
+            { detail: 'Invalid date range' },
+            { status: 400 },
+          );
+        }),
       );
 
       const { result } = renderHook(() => useCalculateGlobalMetrics(), {
@@ -254,11 +222,19 @@ describe('useGlobalMetrics', () => {
 
   describe('useRecalculateGlobalMetrics', () => {
     it('recalculates global metrics for date range', async () => {
-      const mockResponse: CalculateBatchResponse = {
-        months_processed: 1,
-        records: [mockGlobalMetricsRecord],
-      };
-      vi.mocked(globalMetricsApi.recalculate).mockResolvedValue(mockResponse);
+      let capturedBody: Record<string, unknown> | undefined;
+
+      server.use(
+        http.post('/api/global/recalculate', async ({ request }) => {
+          capturedBody = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({
+            year: 2026,
+            month: 1,
+            projects_processed: 5,
+            record: fixtures.globalRecord,
+          });
+        }),
+      );
 
       const { result } = renderHook(() => useRecalculateGlobalMetrics(), {
         wrapper: createWrapper(),
@@ -275,56 +251,13 @@ describe('useGlobalMetrics', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(result.current.data).toEqual(mockResponse);
-      expect(globalMetricsApi.recalculate).toHaveBeenCalledWith({
+      expect(capturedBody).toEqual({
         from_year: 2024,
         from_month: 12,
         to_year: 2024,
         to_month: 12,
       });
+      expect(result.current.data).toMatchObject({ projects_processed: 5 });
     });
-  });
-});
-
-describe('GlobalMetricsRecord structure', () => {
-  it('has correct indicator fields', () => {
-    const indicators = mockGlobalMetricsRecord.indicators;
-
-    expect(indicators).toHaveProperty('spi');
-    expect(indicators).toHaveProperty('cpi');
-    expect(indicators).toHaveProperty('lead_time_days');
-    expect(indicators).toHaveProperty('defect_density');
-    expect(indicators).toHaveProperty('pr_review_ratio');
-    expect(indicators).toHaveProperty('strategic_impact');
-
-    // Each indicator should have value and count
-    expect(indicators.spi).toHaveProperty('value');
-    expect(indicators.spi).toHaveProperty('count');
-  });
-
-  it('has correct score fields', () => {
-    const scores = mockGlobalMetricsRecord.scores;
-
-    expect(scores).toHaveProperty('score');
-    expect(scores).toHaveProperty('p_time');
-    expect(scores).toHaveProperty('p_cost');
-    expect(scores).toHaveProperty('p_quality');
-    expect(scores).toHaveProperty('p_value');
-    expect(scores).toHaveProperty('p_satisfaction');
-    expect(scores).toHaveProperty('p_flow');
-    expect(scores).toHaveProperty('p_engineering');
-    expect(scores).toHaveProperty('p_risk');
-
-    // Each score should have value and count
-    expect(scores.score).toHaveProperty('value');
-    expect(scores.score).toHaveProperty('count');
-  });
-
-  it('handles null values correctly', () => {
-    const indicators = mockGlobalMetricsRecord.indicators;
-
-    // okr_impact has null value and count 0
-    expect(indicators.okr_impact.value).toBeNull();
-    expect(indicators.okr_impact.count).toBe(0);
   });
 });

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import {
   useJobStatus,
   useCaptureHistoryJob,
@@ -9,22 +10,8 @@ import {
   useCancelJob,
   useDeleteJob,
 } from '../useJobs';
-import { jobsApi } from '../../services/api';
-import type {
-  JobDetailResponse,
-  JobResponse,
-  JobSummaryResponse,
-} from '../../types';
-
-vi.mock('../../services/api', () => ({
-  jobsApi: {
-    getJob: vi.fn(),
-    createCaptureHistory: vi.fn(),
-    listJobs: vi.fn(),
-    cancelJob: vi.fn(),
-    deleteJob: vi.fn(),
-  },
-}));
+import { server } from '../../test/setup';
+import { fixtures } from '../../test/msw-handlers';
 
 function createWrapper(): ({ children }: { children: React.ReactNode }) => JSX.Element {
   const queryClient = new QueryClient({
@@ -42,49 +29,9 @@ function createWrapper(): ({ children }: { children: React.ReactNode }) => JSX.E
   );
 }
 
-const mockJobDetail: JobDetailResponse = {
-  id: 'job-123',
-  project_id: 'proj-456',
-  type: 'capture_history',
-  status: 'running',
-  progress: 50,
-  message: 'Processing month 6 of 12',
-  parameters: {
-    start_year: 2024,
-    start_month: 1,
-    end_year: 2024,
-    end_month: 12,
-  },
-  created_at: '2024-12-01T10:00:00Z',
-  started_at: '2024-12-01T10:00:01Z',
-  completed_at: null,
-};
-
-const mockJobResponse: JobResponse = {
-  id: 'job-123',
-  status: 'pending',
-  message: 'Job created',
-};
-
-const mockJobSummary: JobSummaryResponse = {
-  id: 'job-123',
-  project_id: 'proj-456',
-  type: 'capture_history',
-  status: 'completed',
-  progress: 100,
-  message: 'Completed',
-  created_at: '2024-12-01T10:00:00Z',
-};
-
 describe('useJobs hooks', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('useJobStatus', () => {
     it('fetches job status when jobId is provided', async () => {
-      vi.mocked(jobsApi.getJob).mockResolvedValue(mockJobDetail);
-
       const { result } = renderHook(() => useJobStatus('job-123'), {
         wrapper: createWrapper(),
       });
@@ -93,8 +40,7 @@ describe('useJobs hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(jobsApi.getJob).toHaveBeenCalledWith('job-123');
-      expect(result.current.data).toEqual(mockJobDetail);
+      expect(result.current.data).toMatchObject({ id: 'job-123' });
     });
 
     it('does not fetch when jobId is null', async () => {
@@ -104,7 +50,7 @@ describe('useJobs hooks', () => {
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.data).toBeUndefined();
-      expect(jobsApi.getJob).not.toHaveBeenCalled();
+      expect(result.current.fetchStatus).toBe('idle');
     });
 
     it('does not fetch when enabled is false', async () => {
@@ -114,13 +60,23 @@ describe('useJobs hooks', () => {
       );
 
       expect(result.current.isLoading).toBe(false);
-      expect(jobsApi.getJob).not.toHaveBeenCalled();
+      expect(result.current.fetchStatus).toBe('idle');
     });
   });
 
   describe('useCaptureHistoryJob', () => {
-    it('creates a capture history job', async () => {
-      vi.mocked(jobsApi.createCaptureHistory).mockResolvedValue(mockJobResponse);
+    it('creates a capture history job with project_id', async () => {
+      let capturedBody: unknown;
+      server.use(
+        http.post('/api/jobs/capture-history', async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            ...fixtures.job,
+            id: 'new-job-id',
+            status: 'pending',
+          });
+        }),
+      );
 
       const { result } = renderHook(() => useCaptureHistoryJob('proj-456'), {
         wrapper: createWrapper(),
@@ -128,26 +84,37 @@ describe('useJobs hooks', () => {
 
       await act(async () => {
         await result.current.mutateAsync({
-          start_year: 2024,
-          start_month: 1,
-          end_year: 2024,
-          end_month: 12,
+          from_year: 2024,
+          from_month: 1,
+          to_year: 2024,
+          to_month: 12,
         });
       });
 
-      expect(jobsApi.createCaptureHistory).toHaveBeenCalledWith({
+      expect(capturedBody).toEqual({
         project_id: 'proj-456',
-        start_year: 2024,
-        start_month: 1,
-        end_year: 2024,
-        end_month: 12,
+        from_year: 2024,
+        from_month: 1,
+        to_year: 2024,
+        to_month: 12,
       });
     });
   });
 
   describe('useProjectJobs', () => {
     it('lists jobs for a project', async () => {
-      vi.mocked(jobsApi.listJobs).mockResolvedValue([mockJobSummary]);
+      server.use(
+        http.get('/api/jobs', ({ request }) => {
+          const url = new URL(request.url);
+          const projectId = url.searchParams.get('project_id');
+          if (projectId === 'proj-456') {
+            return HttpResponse.json([
+              { ...fixtures.job, project_id: 'proj-456' },
+            ]);
+          }
+          return HttpResponse.json([]);
+        }),
+      );
 
       const { result } = renderHook(() => useProjectJobs('proj-456'), {
         wrapper: createWrapper(),
@@ -157,15 +124,13 @@ describe('useJobs hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(jobsApi.listJobs).toHaveBeenCalledWith('proj-456');
-      expect(result.current.data).toEqual([mockJobSummary]);
+      expect(result.current.data).toHaveLength(1);
+      expect(result.current.data![0].project_id).toBe('proj-456');
     });
   });
 
   describe('useAllJobs', () => {
     it('lists all jobs', async () => {
-      vi.mocked(jobsApi.listJobs).mockResolvedValue([mockJobSummary]);
-
       const { result } = renderHook(() => useAllJobs(), {
         wrapper: createWrapper(),
       });
@@ -174,32 +139,25 @@ describe('useJobs hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(jobsApi.listJobs).toHaveBeenCalledWith();
-      expect(result.current.data).toEqual([mockJobSummary]);
+      expect(result.current.data).toEqual([fixtures.job]);
     });
   });
 
   describe('useCancelJob', () => {
     it('cancels a job', async () => {
-      const cancelledJob: JobResponse = { ...mockJobResponse, status: 'cancelled' };
-      vi.mocked(jobsApi.cancelJob).mockResolvedValue(cancelledJob);
-
       const { result } = renderHook(() => useCancelJob(), {
         wrapper: createWrapper(),
       });
 
       await act(async () => {
-        await result.current.mutateAsync('job-123');
+        const response = await result.current.mutateAsync('job-123');
+        expect(response).toMatchObject({ id: 'job-123', status: 'cancelled' });
       });
-
-      expect(jobsApi.cancelJob).toHaveBeenCalledWith('job-123');
     });
   });
 
   describe('useDeleteJob', () => {
     it('deletes a job', async () => {
-      vi.mocked(jobsApi.deleteJob).mockResolvedValue();
-
       const { result } = renderHook(() => useDeleteJob(), {
         wrapper: createWrapper(),
       });
@@ -208,7 +166,7 @@ describe('useJobs hooks', () => {
         await result.current.mutateAsync('job-123');
       });
 
-      expect(jobsApi.deleteJob).toHaveBeenCalledWith('job-123');
+      expect(result.current.isSuccess).toBe(true);
     });
   });
 });

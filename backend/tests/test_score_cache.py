@@ -1,15 +1,26 @@
-"""Unit tests for ScoreCacheService."""
+"""Unit tests for ScoreCacheService.
+
+Happy-path tests use fakeredis (in-memory Redis) to verify actual behavior.
+Error/resilience tests use AsyncMock to simulate Redis failures.
+"""
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
+import fakeredis.aioredis
 import pytest
 
 from app.services.score_cache import CACHE_PREFIX, CACHE_TTL, ScoreCacheService
 
 
-def _make_cache(redis_mock: AsyncMock) -> ScoreCacheService:
-    return ScoreCacheService(redis_mock)
+@pytest.fixture
+def redis():
+    """In-memory Redis for happy-path tests."""
+    return fakeredis.aioredis.FakeRedis(decode_responses=True)
+
+
+def _make_cache(redis) -> ScoreCacheService:
+    return ScoreCacheService(redis)
 
 
 SAMPLE_SCORES = {
@@ -20,31 +31,28 @@ SAMPLE_SCORES = {
 
 class TestGet:
     @pytest.mark.asyncio
-    async def test_cache_hit(self) -> None:
-        redis = AsyncMock()
-        redis.get.return_value = json.dumps(SAMPLE_SCORES)
+    async def test_cache_hit(self, redis) -> None:
+        key = f"{CACHE_PREFIX}:proj-1:cumulative"
+        await redis.set(key, json.dumps(SAMPLE_SCORES))
         cache = _make_cache(redis)
 
         result = await cache.get("proj-1", "cumulative")
 
         assert result == SAMPLE_SCORES
-        redis.get.assert_awaited_once_with(f"{CACHE_PREFIX}:proj-1:cumulative")
 
     @pytest.mark.asyncio
-    async def test_cache_miss(self) -> None:
-        redis = AsyncMock()
-        redis.get.return_value = None
+    async def test_cache_miss(self, redis) -> None:
         cache = _make_cache(redis)
 
-        result = await cache.get("proj-1")
+        result = await cache.get("nonexistent")
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_redis_error_returns_none(self) -> None:
-        redis = AsyncMock()
-        redis.get.side_effect = ConnectionError("Redis down")
-        cache = _make_cache(redis)
+        mock_redis = AsyncMock()
+        mock_redis.get.side_effect = ConnectionError("Redis down")
+        cache = _make_cache(mock_redis)
 
         result = await cache.get("proj-1")
 
@@ -53,11 +61,9 @@ class TestGet:
 
 class TestMget:
     @pytest.mark.asyncio
-    async def test_mget_all_hits(self) -> None:
-        redis = AsyncMock()
-        data_a = json.dumps({"a": 1})
-        data_b = json.dumps({"b": 2})
-        redis.mget.return_value = [data_a, data_b]
+    async def test_mget_all_hits(self, redis) -> None:
+        await redis.set(f"{CACHE_PREFIX}:p1:cumulative", json.dumps({"a": 1}))
+        await redis.set(f"{CACHE_PREFIX}:p2:cumulative", json.dumps({"b": 2}))
         cache = _make_cache(redis)
 
         result = await cache.mget(["p1", "p2"], "cumulative")
@@ -65,9 +71,8 @@ class TestMget:
         assert result == {"p1": {"a": 1}, "p2": {"b": 2}}
 
     @pytest.mark.asyncio
-    async def test_mget_partial_miss(self) -> None:
-        redis = AsyncMock()
-        redis.mget.return_value = [json.dumps({"a": 1}), None]
+    async def test_mget_partial_miss(self, redis) -> None:
+        await redis.set(f"{CACHE_PREFIX}:p1:cumulative", json.dumps({"a": 1}))
         cache = _make_cache(redis)
 
         result = await cache.mget(["p1", "p2"])
@@ -76,20 +81,18 @@ class TestMget:
         assert result["p2"] is None
 
     @pytest.mark.asyncio
-    async def test_mget_empty_list(self) -> None:
-        redis = AsyncMock()
+    async def test_mget_empty_list(self, redis) -> None:
         cache = _make_cache(redis)
 
         result = await cache.mget([])
 
         assert result == {}
-        redis.mget.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_mget_redis_error(self) -> None:
-        redis = AsyncMock()
-        redis.mget.side_effect = ConnectionError("Redis down")
-        cache = _make_cache(redis)
+        mock_redis = AsyncMock()
+        mock_redis.mget.side_effect = ConnectionError("Redis down")
+        cache = _make_cache(mock_redis)
 
         result = await cache.mget(["p1", "p2"])
 
@@ -98,81 +101,89 @@ class TestMget:
 
 class TestSet:
     @pytest.mark.asyncio
-    async def test_set_stores_json(self) -> None:
-        redis = AsyncMock()
+    async def test_set_stores_json(self, redis) -> None:
         cache = _make_cache(redis)
 
         await cache.set("proj-1", SAMPLE_SCORES, "cumulative")
 
-        redis.set.assert_awaited_once_with(
-            f"{CACHE_PREFIX}:proj-1:cumulative",
-            json.dumps(SAMPLE_SCORES),
-            ex=CACHE_TTL,
-        )
+        raw = await redis.get(f"{CACHE_PREFIX}:proj-1:cumulative")
+        assert json.loads(raw) == SAMPLE_SCORES
+
+    @pytest.mark.asyncio
+    async def test_set_applies_ttl(self, redis) -> None:
+        cache = _make_cache(redis)
+
+        await cache.set("proj-1", SAMPLE_SCORES, "cumulative")
+
+        ttl = await redis.ttl(f"{CACHE_PREFIX}:proj-1:cumulative")
+        assert 0 < ttl <= CACHE_TTL
 
     @pytest.mark.asyncio
     async def test_set_redis_error_silent(self) -> None:
-        redis = AsyncMock()
-        redis.set.side_effect = ConnectionError("Redis down")
-        cache = _make_cache(redis)
+        mock_redis = AsyncMock()
+        mock_redis.set.side_effect = ConnectionError("Redis down")
+        cache = _make_cache(mock_redis)
 
         await cache.set("proj-1", SAMPLE_SCORES)
 
 
 class TestInvalidate:
     @pytest.mark.asyncio
-    async def test_invalidate_deletes_both_types(self) -> None:
-        redis = AsyncMock()
+    async def test_invalidate_deletes_both_types(self, redis) -> None:
+        cumulative_key = f"{CACHE_PREFIX}:proj-1:cumulative"
+        punctual_key = f"{CACHE_PREFIX}:proj-1:punctual"
+        await redis.set(cumulative_key, json.dumps(SAMPLE_SCORES))
+        await redis.set(punctual_key, json.dumps(SAMPLE_SCORES))
         cache = _make_cache(redis)
 
         await cache.invalidate("proj-1")
 
-        redis.delete.assert_awaited_once_with(
-            f"{CACHE_PREFIX}:proj-1:cumulative",
-            f"{CACHE_PREFIX}:proj-1:punctual",
-        )
+        assert await redis.get(cumulative_key) is None
+        assert await redis.get(punctual_key) is None
 
     @pytest.mark.asyncio
     async def test_invalidate_redis_error_silent(self) -> None:
-        redis = AsyncMock()
-        redis.delete.side_effect = ConnectionError("Redis down")
-        cache = _make_cache(redis)
+        mock_redis = AsyncMock()
+        mock_redis.delete.side_effect = ConnectionError("Redis down")
+        cache = _make_cache(mock_redis)
 
         await cache.invalidate("proj-1")
 
 
 class TestInvalidateAll:
     @pytest.mark.asyncio
-    async def test_invalidate_all_scans_and_deletes(self) -> None:
-        redis = AsyncMock()
-        keys = [f"{CACHE_PREFIX}:p1:cumulative", f"{CACHE_PREFIX}:p2:cumulative"]
-        redis.scan.return_value = (0, keys)
+    async def test_invalidate_all_scans_and_deletes(self, redis) -> None:
+        keys = [
+            f"{CACHE_PREFIX}:p1:cumulative",
+            f"{CACHE_PREFIX}:p2:cumulative",
+            f"{CACHE_PREFIX}:p3:punctual",
+        ]
+        for key in keys:
+            await redis.set(key, json.dumps({"data": True}))
         cache = _make_cache(redis)
 
         await cache.invalidate_all()
 
-        redis.scan.assert_awaited_once()
-        redis.delete.assert_awaited_once_with(*keys)
+        for key in keys:
+            assert await redis.get(key) is None
 
     @pytest.mark.asyncio
-    async def test_invalidate_all_multiple_pages(self) -> None:
-        redis = AsyncMock()
-        keys1 = [f"{CACHE_PREFIX}:p1:cumulative"]
-        keys2 = [f"{CACHE_PREFIX}:p2:cumulative"]
-        redis.scan.side_effect = [
-            (42, keys1),
-            (0, keys2),
-        ]
+    async def test_invalidate_all_ignores_unrelated_keys(self, redis) -> None:
+        cache_key = f"{CACHE_PREFIX}:p1:cumulative"
+        unrelated_key = "other:key"
+        await redis.set(cache_key, json.dumps({"data": True}))
+        await redis.set(unrelated_key, "keep me")
         cache = _make_cache(redis)
 
         await cache.invalidate_all()
 
-        assert redis.delete.await_count == 2
+        assert await redis.get(cache_key) is None
+        assert await redis.get(unrelated_key) == "keep me"
 
     @pytest.mark.asyncio
     async def test_invalidate_all_redis_error_silent(self) -> None:
-        redis = AsyncMock()
-        redis.scan.side_effect = ConnectionError("Redis down")
-        cache = _make_cache(redis)
+        mock_redis = AsyncMock()
+        mock_redis.scan.side_effect = ConnectionError("Redis down")
+        cache = _make_cache(mock_redis)
 
         await cache.invalidate_all()
