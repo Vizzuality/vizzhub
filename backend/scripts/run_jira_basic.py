@@ -15,7 +15,7 @@ load_dotenv(env_path)
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 from app.database import get_db
-from app.services.collectors.jira import JiraCollector
+from app.modules.scorecard.services.collectors.jira import JiraCollector
 
 JIRA_SEARCH_ENDPOINT = "/rest/api/3/search/jql"
 

@@ -8,7 +8,7 @@ import pytest
 import respx
 from httpx import Response
 
-from app.services.collectors.dependabot import DependabotCollector
+from app.modules.scorecard.services.collectors.dependabot import DependabotCollector
 
 ALERTS_URL = "https://api.github.com/repos/owner/repo/dependabot/alerts"
 

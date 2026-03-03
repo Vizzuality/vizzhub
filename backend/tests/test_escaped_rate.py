@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.collectors.jira.escaped_rate import (
+from app.modules.scorecard.services.collectors.jira.escaped_rate import (
     calculate_escaped_rate,
     collect_escaped_rate,
 )

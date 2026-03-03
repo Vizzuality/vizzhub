@@ -16,7 +16,7 @@ from app.modules.scorecard.models.slack import (
     MessageTemplateDB,
 )
 from app.core.models.project import ProjectDB
-from app.services.alert_service import AlertService
+from app.modules.scorecard.services.alert_service import AlertService
 
 
 class TestRenderTemplate:

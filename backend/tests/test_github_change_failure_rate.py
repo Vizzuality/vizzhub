@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 
-from app.services.collectors.github.change_failure_rate import (
+from app.modules.scorecard.services.collectors.github.change_failure_rate import (
     collect_change_failure_rate,
     _is_failure_response,
     _parse_semver,

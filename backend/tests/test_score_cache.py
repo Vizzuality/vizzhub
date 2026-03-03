@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import fakeredis.aioredis
 import pytest
 
-from app.services.score_cache import CACHE_PREFIX, CACHE_TTL, ScoreCacheService
+from app.modules.scorecard.services.score_cache import CACHE_PREFIX, CACHE_TTL, ScoreCacheService
 
 
 @pytest.fixture

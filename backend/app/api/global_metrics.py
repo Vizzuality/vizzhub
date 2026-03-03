@@ -11,7 +11,7 @@ from app.modules.scorecard.models.global_metrics import (
     GlobalMetricsHistoryResponse,
     GlobalMetricsRecord,
 )
-from app.services.global_metrics_service import GlobalMetricsService
+from app.modules.scorecard.services.global_metrics_service import GlobalMetricsService
 
 router = APIRouter(prefix="/global", tags=["global"])
 

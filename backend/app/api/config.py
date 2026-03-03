@@ -17,7 +17,7 @@ from app.modules.scorecard.models.config import (
     TargetsConfig,
 )
 from app.config import load_scoring_config_from_db
-from app.services.config_service import ConfigService
+from app.modules.scorecard.services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
 

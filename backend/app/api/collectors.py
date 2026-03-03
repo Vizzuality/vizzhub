@@ -15,8 +15,8 @@ from app.core.api.deps import (
 )
 from app.core.exceptions import ConfigurationError
 from app.modules.scorecard.models.metrics import Metrics, MetricsDB, SnapshotType
-from app.services.collectors.github import GitHubCollector
-from app.services.collectors.jira import JiraCollector
+from app.modules.scorecard.services.collectors.github import GitHubCollector
+from app.modules.scorecard.services.collectors.jira import JiraCollector
 
 router = APIRouter()
 

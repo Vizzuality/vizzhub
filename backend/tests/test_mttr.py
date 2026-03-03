@@ -12,12 +12,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.modules.scorecard.models.metrics import JiraDefectMetrics
-from app.services.collectors.jira.mttr import collect_mttr
-from app.services.collectors.jira.utils import (
+from app.modules.scorecard.services.collectors.jira.mttr import collect_mttr
+from app.modules.scorecard.services.collectors.jira.utils import (
     business_time_diff,
     parse_jira_datetime,
 )
-from app.services.normalizers.indicators import IndicatorNormalizer
+from app.modules.scorecard.services.normalizers.indicators import IndicatorNormalizer
 
 
 class TestCollectMTTR:

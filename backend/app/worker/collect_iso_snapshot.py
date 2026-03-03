@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
-from app.services.slack_service import SlackService
+from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 
 logger = logging.getLogger(__name__)

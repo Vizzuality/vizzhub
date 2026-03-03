@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 
 from app.database import get_db
-from app.services.collectors.jira import JiraCollector
+from app.modules.scorecard.services.collectors.jira import JiraCollector
 
 
 async def test_jira_connection(project_key: str) -> None:

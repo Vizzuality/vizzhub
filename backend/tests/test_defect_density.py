@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.collectors.jira.defect_density import (
+from app.modules.scorecard.services.collectors.jira.defect_density import (
     calculate_defect_density,
     collect_defect_density,
 )

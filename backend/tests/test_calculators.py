@@ -4,7 +4,7 @@ import pytest
 
 from app.config import ScoringConfig
 from app.modules.scorecard.models.indicators import IndicatorsCreate
-from app.services.calculators.dimensions import (
+from app.modules.scorecard.services.calculators.dimensions import (
     CostCalculator,
     EngineeringCalculator,
     FlowCalculator,
@@ -14,7 +14,7 @@ from app.services.calculators.dimensions import (
     TimeCalculator,
     ValueCalculator,
 )
-from app.services.calculators.final_score import FinalScoreCalculator
+from app.modules.scorecard.services.calculators.final_score import FinalScoreCalculator
 
 
 @pytest.fixture

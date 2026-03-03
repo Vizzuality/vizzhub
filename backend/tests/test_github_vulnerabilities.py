@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 
-from app.services.collectors.github.vulnerabilities import (
+from app.modules.scorecard.services.collectors.github.vulnerabilities import (
     collect_vulnerabilities,
     _get_dependabot_alerts,
     DAYS_THRESHOLD,

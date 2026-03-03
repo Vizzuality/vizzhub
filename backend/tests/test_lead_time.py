@@ -13,11 +13,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.collectors.jira.lead_time import (
+from app.modules.scorecard.services.collectors.jira.lead_time import (
     _find_first_in_progress,
     collect_lead_time,
 )
-from app.services.collectors.jira.utils import business_days_diff
+from app.modules.scorecard.services.collectors.jira.utils import business_days_diff
 
 
 class TestCollectLeadTime:

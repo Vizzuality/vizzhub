@@ -27,7 +27,7 @@ from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
 from app.modules.scorecard.models.scores import DimensionScores, FinalScore
-from app.services.global_metrics_service import (
+from app.modules.scorecard.services.global_metrics_service import (
     GlobalMetricsService,
     STRATEGIC_IMPACT_VALUES,
 )

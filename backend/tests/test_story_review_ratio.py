@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.collectors.jira.story_review_ratio import (
+from app.modules.scorecard.services.collectors.jira.story_review_ratio import (
     calculate_story_review_ratio,
     collect_story_review_ratio,
 )
