@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import (
+from app.core.api.deps import (
     CurrentUser,
     DBSession,
     OptionalScoreCache,

@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.sql import func
 
-from app.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.common import PaginatedResponse
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB

@@ -9,7 +9,7 @@ from google.oauth2 import id_token
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
 from app.core.auth import create_access_token, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserRole

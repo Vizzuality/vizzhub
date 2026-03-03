@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.sql import func
 
-from app.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.common import PaginatedResponse
 from app.modules.iso.api.helpers import (
     get_review_or_404,

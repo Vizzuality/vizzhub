@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
+from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
 from app.models.indicators import IndicatorsCreate
 from app.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType

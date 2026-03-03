@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from app.api.deps import AdminUser, CurrentUser, DBSession, limiter
+from app.core.api.deps import AdminUser, CurrentUser, DBSession, limiter
 from app.api.schemas.integrations import (
     AllIntegrationsStatus,
     GitHubTokenInput,

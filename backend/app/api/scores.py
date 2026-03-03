@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect
 
-from app.api.deps import (
+from app.core.api.deps import (
     CurrentUser,
     DBSession,
     OptionalScoreCache,

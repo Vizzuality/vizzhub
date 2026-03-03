@@ -62,7 +62,7 @@ async def capture_history_task(
         _first_day_of_month,
         _last_day_of_month,
     )
-    from app.api.deps import get_project_or_404
+    from app.core.api.deps import get_project_or_404
     from app.config import get_scoring_config
     from app.models.metrics import SnapshotType
     from app.services.metrics_service import MetricsService

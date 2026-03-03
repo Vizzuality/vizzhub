@@ -39,7 +39,7 @@ class TestJobsAPI:
         mock_pool.enqueue_job = AsyncMock(return_value=mock_arq_job)
         mock_pool.close = AsyncMock()
 
-        with patch("app.api.jobs.get_redis_pool", return_value=mock_pool):
+        with patch("app.core.api.jobs.get_redis_pool", return_value=mock_pool):
             response = await client.post(
                 "/api/jobs/capture-history",
                 json={
@@ -109,7 +109,7 @@ class TestJobsAPI:
         mock_pool.enqueue_job = AsyncMock(return_value=mock_arq_job)
         mock_pool.close = AsyncMock()
 
-        with patch("app.api.jobs.get_redis_pool", return_value=mock_pool):
+        with patch("app.core.api.jobs.get_redis_pool", return_value=mock_pool):
             create_response = await client.post(
                 "/api/jobs/capture-history",
                 json={

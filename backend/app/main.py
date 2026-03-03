@@ -10,17 +10,17 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import admin_users as admin_users_router
-from app.api import auth as auth_router
+from app.core.api import admin_users as admin_users_router
+from app.core.api import auth as auth_router
 from app.api import capture as capture_router
 from app.api import collectors as collectors_router
 from app.api import config as config_router
 from app.modules.scorecard.router import router as scorecard_router
 from app.api import global_metrics as global_metrics_router
-from app.api import jobs as jobs_router
+from app.core.api import jobs as jobs_router
 from app.api import metrics as metrics_router
-from app.api import oauth as oauth_router
-from app.api import projects as projects_router
+from app.core.api import oauth as oauth_router
+from app.core.api import projects as projects_router
 from app.api import scores as scores_router
 from app.api.notifications import router as notifications_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
@@ -31,7 +31,7 @@ from app.api.slack_admin import (
     templates_router as slack_templates_router,
 )
 from app.modules.iso.router import router as iso_router
-from app.api.deps import limiter
+from app.core.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
 from app.core.security_middleware import SecurityHeadersMiddleware

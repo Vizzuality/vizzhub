@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request, status
 from sqlalchemy import delete, func, select
 
-from app.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
+from app.core.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
 from app.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
 from app.models.metrics.db import MetricsDB
 from app.core.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
