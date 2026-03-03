@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from './components/theme-provider';
+import { ThemeProvider } from './shared/components/theme-provider';
 import App from './App';
 import { TIMING } from './constants/timing';
 import './index.css';
