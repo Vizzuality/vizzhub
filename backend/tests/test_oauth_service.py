@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.oauth import OAuthTokenDB
-from app.services.oauth_service import OAuthService
+from app.core.services.oauth_service import OAuthService
 
 TOKEN_URL = "https://auth.atlassian.com/oauth/token"
 RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
@@ -28,7 +28,7 @@ class TestAuthorizationURL:
 
     def test_oauth_service_get_jira_authorization_url_includes_state(self) -> None:
         """State parameter should be included when provided."""
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client-id"
             mock_settings.jira_oauth_scopes = "read:jira-work"
             mock_settings.jira_oauth_redirect_uri = "http://localhost:8000/callback"
@@ -62,7 +62,7 @@ class TestCodeExchange:
             ])
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
@@ -107,7 +107,7 @@ class TestCodeExchange:
             ])
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
@@ -141,7 +141,7 @@ class TestCodeExchange:
             ])
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
@@ -165,7 +165,7 @@ class TestCodeExchange:
         """exchange_code should raise exception on API error."""
         respx.post(TOKEN_URL).mock(return_value=Response(400))
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
@@ -193,7 +193,7 @@ class TestCodeExchange:
             ])
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
@@ -233,7 +233,7 @@ class TestTokenRefresh:
             })
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
 
@@ -269,7 +269,7 @@ class TestTokenRefresh:
             })
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
 
@@ -354,7 +354,7 @@ class TestGetValidToken:
             })
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
 
@@ -384,7 +384,7 @@ class TestGetValidToken:
             })
         )
 
-        with patch("app.services.oauth_service.settings") as mock_settings:
+        with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client"
             mock_settings.jira_oauth_client_secret = "test-secret"
 

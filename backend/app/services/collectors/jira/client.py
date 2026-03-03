@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.exceptions import ConfigurationError
 from app.services.collectors.utils import HTTP_CLIENT_TIMEOUT
-from app.services.oauth_service import OAuthService
+from app.core.services.oauth_service import OAuthService
 
 
 class JiraClient:

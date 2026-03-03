@@ -13,7 +13,7 @@ from app.api.schemas.integrations import (
     SlackTokenInput,
 )
 from app.api.schemas.slack import SlackChannel, SlackTestResult
-from app.services.integration_token_service import IntegrationTokenService
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.services.slack_service import SlackService
 
 logger = logging.getLogger(__name__)
