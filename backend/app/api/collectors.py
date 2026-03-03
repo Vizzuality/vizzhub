@@ -14,7 +14,7 @@ from app.core.api.deps import (
     limiter,
 )
 from app.core.exceptions import ConfigurationError
-from app.models.metrics import Metrics, MetricsDB, SnapshotType
+from app.modules.scorecard.models.metrics import Metrics, MetricsDB, SnapshotType
 from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector
 

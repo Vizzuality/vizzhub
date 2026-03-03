@@ -2,7 +2,7 @@ import pytest
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.config import ConfigParameter
+from app.modules.scorecard.models.config import ConfigParameter
 
 
 @pytest.mark.asyncio

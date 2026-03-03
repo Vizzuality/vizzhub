@@ -15,7 +15,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.models.global_metrics import (
+from app.modules.scorecard.models.global_metrics import (
     GlobalIndicators,
     GlobalMetricsDB,
     GlobalMetricsRecord,
@@ -23,10 +23,10 @@ from app.models.global_metrics import (
     IndicatorValue,
     ScoreValue,
 )
-from app.models.indicators import IndicatorsCreate
-from app.models.metrics import MetricsDB
+from app.modules.scorecard.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
-from app.models.scores import DimensionScores, FinalScore
+from app.modules.scorecard.models.scores import DimensionScores, FinalScore
 from app.services.global_metrics_service import (
     GlobalMetricsService,
     STRATEGIC_IMPACT_VALUES,

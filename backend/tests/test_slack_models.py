@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.slack import (
+from app.modules.scorecard.models.slack import (
     AlertCategory,
     AlertDefinitionDB,
     AlertNotificationDB,

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.models.metrics import MetricsDB, SnapshotType
+from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 
 
 class MetricsService:

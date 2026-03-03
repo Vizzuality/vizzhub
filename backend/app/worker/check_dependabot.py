@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
-from app.models.slack import (
+from app.modules.scorecard.models.slack import (
     AlertDefinitionDB,
     DependabotAlertTrackedDB,
     ScheduledJobRunDB,

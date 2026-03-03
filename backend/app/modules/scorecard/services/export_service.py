@@ -10,8 +10,8 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
-from app.models.metrics import MetricsCreate, MetricsDB
+from app.modules.scorecard.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
+from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB
 from app.core.models.project import ProjectDB
 from app.modules.scorecard.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
 from app.core.services.export_helpers import (

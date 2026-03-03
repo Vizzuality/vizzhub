@@ -1,6 +1,6 @@
 """Cost dimension calculator (P_cost)."""
 
-from app.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.services.calculators.base import BaseCalculator, WeightedComponent
 
 

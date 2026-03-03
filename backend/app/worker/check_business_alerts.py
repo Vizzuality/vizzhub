@@ -21,9 +21,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.metrics import MetricsDB, SnapshotType
+from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.core.models.project import ProjectDB
-from app.models.slack import (
+from app.modules.scorecard.models.slack import (
     AlertDefinitionDB,
     ScheduledJobRunDB,
 )

@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.core.api.deps import AdminUser, CurrentUser, DBSession, ScoringConfigDep, limiter
-from app.models.global_metrics import (
+from app.modules.scorecard.models.global_metrics import (
     CalculateBatchRequest,
     CalculateBatchResponse,
     GlobalMetricsHistoryResponse,

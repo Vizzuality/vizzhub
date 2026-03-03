@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.models.metrics import JiraDefectMetrics
+from app.modules.scorecard.models.metrics import JiraDefectMetrics
 from app.services.collectors.jira.mttr import collect_mttr
 from app.services.collectors.jira.utils import (
     business_time_diff,

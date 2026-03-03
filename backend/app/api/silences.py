@@ -14,7 +14,7 @@ from app.api.schemas.slack import (
     AlertSilenceUpdate,
 )
 from app.core.models.project import ProjectDB
-from app.models.slack import AlertDefinitionDB, AlertSilenceDB
+from app.modules.scorecard.models.slack import AlertDefinitionDB, AlertSilenceDB
 
 logger = logging.getLogger(__name__)
 

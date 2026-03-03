@@ -11,7 +11,7 @@ from app.api.schemas.slack import (
     ScheduledJobInfo,
     ScheduledJobLastRun,
 )
-from app.models.slack import ScheduledJobRunDB
+from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.utils.redis import get_redis_pool
 
 logger = logging.getLogger(__name__)

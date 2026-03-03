@@ -1,9 +1,9 @@
 """Score computation service - centralizes indicator normalization and score calculation."""
 
 from app.config import ScoringConfig, get_scoring_config
-from app.models.indicators import IndicatorsCreate
-from app.models.metrics import MetricsCreate
-from app.models.scores import FinalScore
+from app.modules.scorecard.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.metrics import MetricsCreate
+from app.modules.scorecard.models.scores import FinalScore
 from app.services.calculators.final_score import FinalScoreCalculator
 from app.services.normalizers.indicators import IndicatorNormalizer
 

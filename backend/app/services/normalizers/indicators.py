@@ -7,8 +7,8 @@ Transforms raw metrics into normalized indicators (0-1 scale).
 from datetime import date
 
 from app.config import ScoringConfig, get_scoring_config
-from app.models.indicators import IndicatorsCreate
-from app.models.metrics import (
+from app.modules.scorecard.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.metrics import (
     ArchitectureChecklist,
     ClientSurvey,
     ComplaintStatus,

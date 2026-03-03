@@ -5,7 +5,7 @@ import pytest_asyncio
 from decimal import Decimal
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.config import ConfigParameter
+from app.modules.scorecard.models.config import ConfigParameter
 
 
 @pytest_asyncio.fixture

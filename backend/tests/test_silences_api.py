@@ -7,7 +7,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.models.project import ProjectDB
-from app.models.slack import AlertDefinitionDB, AlertSilenceDB
+from app.modules.scorecard.models.slack import AlertDefinitionDB, AlertSilenceDB
 
 
 class TestListSilences:

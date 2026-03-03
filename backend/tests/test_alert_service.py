@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.slack import (
+from app.modules.scorecard.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
     AlertSilenceDB,

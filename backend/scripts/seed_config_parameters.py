@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import async_session_maker
-from app.models.config import ConfigParameter
+from app.modules.scorecard.models.config import ConfigParameter
 
 
 def _read_csv_parameters() -> list[dict]:

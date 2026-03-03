@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select, update
 from app.database import async_session_maker
-from app.models.config import ConfigParameter
+from app.modules.scorecard.models.config import ConfigParameter
 
 
 UPDATES = [

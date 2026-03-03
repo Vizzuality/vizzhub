@@ -17,7 +17,7 @@ from app.core.api.deps import (
     limiter,
 )
 from app.api.scores import ScoreResponse
-from app.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
+from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.core.models.project import ProjectDB
 from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.config import ConfigParameter
+from app.modules.scorecard.models.config import ConfigParameter
 from scripts.seed_config_parameters import seed_config_parameters
 
 

@@ -13,7 +13,7 @@ from app.api.schemas.slack import (
     MessageTemplateResponse,
     MessageTemplateUpdate,
 )
-from app.models.slack import AlertDefinitionDB, MessageTemplateDB
+from app.modules.scorecard.models.slack import AlertDefinitionDB, MessageTemplateDB
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.services.slack_service import SlackService
 
