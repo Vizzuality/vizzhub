@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 
 /**
  * Invalidate all project-related data caches.

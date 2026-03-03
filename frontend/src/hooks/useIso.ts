@@ -11,7 +11,7 @@ import type {
   AccessReviewUpdate,
   SignReviewPayload,
 } from '../types';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 
 // --- Config ---
 

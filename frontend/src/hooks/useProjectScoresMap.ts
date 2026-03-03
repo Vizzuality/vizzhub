@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { scoresApi } from '../services/api';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { TIMING } from '../constants/timing';
 import type { Project } from '../types';
 

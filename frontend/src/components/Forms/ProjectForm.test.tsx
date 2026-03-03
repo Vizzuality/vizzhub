@@ -4,11 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProjectForm from './ProjectForm';
 import type { Project, SlackChannel } from '../../types';
 
-vi.mock('../../hooks/useSlackChannels', () => ({
+vi.mock('@/core/hooks/useSlackChannels', () => ({
   useSlackChannels: vi.fn(),
 }));
 
-import { useSlackChannels } from '../../hooks/useSlackChannels';
+import { useSlackChannels } from '@/core/hooks/useSlackChannels';
 
 const mockUseSlackChannels = vi.mocked(useSlackChannels);
 

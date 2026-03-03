@@ -5,7 +5,7 @@ import type {
   GlobalMetricsHistoryResponse,
   GlobalMetricsRecord,
 } from '../../types';
-import api from './client';
+import api from '@/core/services/client';
 
 export const globalMetricsApi = {
   getRecord: async (

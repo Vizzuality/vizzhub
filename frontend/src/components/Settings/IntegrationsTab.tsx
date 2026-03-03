@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { integrationsApi } from '@/services/api/integrations';
-import { queryKeys } from '@/hooks/queryKeys';
+import { integrationsApi } from '@/core/services/integrations';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import JiraCard from './JiraCard';
 import ISOConfig from '@/pages/ISOConfig';
 import GitHubCard from './GitHubCard';

@@ -1,6 +1,6 @@
 import { exportsApi } from '../services/api/exports';
 import type { ExportParams } from '../services/api/exports';
-import { useDownload } from './useDownload';
+import { useDownload } from '@/core/hooks/useDownload';
 
 function formatApiPeriod(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;

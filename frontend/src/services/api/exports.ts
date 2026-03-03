@@ -1,4 +1,4 @@
-import api from './client';
+import api from '@/core/services/client';
 
 export interface ExportParams {
   start: string;

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import type { ConfigParameter, ConfigParameterUpdate, ValidationResponse } from '../types/config';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 
 export function useConfigParameters() {
   return useQuery<Record<string, ConfigParameter[]>>({

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { metricsHistoryApi } from '../services/api';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import type { SnapshotType } from '../types';
 
 export function useProjectMetricsHistory(

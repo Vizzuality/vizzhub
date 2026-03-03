@@ -3,7 +3,7 @@
  */
 
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/core/hooks/useAuth';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 
 export function ProtectedRoute(): JSX.Element {

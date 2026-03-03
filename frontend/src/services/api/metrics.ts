@@ -7,7 +7,7 @@ import type {
   SnapshotType,
 } from '../../types';
 import { TIMING } from '../../constants/timing';
-import api from './client';
+import api from '@/core/services/client';
 
 export const metricsHistoryApi = {
   getProjectHistory: async (

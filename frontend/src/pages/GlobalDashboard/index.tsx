@@ -22,7 +22,7 @@ import { NativeSelect } from '@/shared/components/ui/native-select';
 import { Calculator, RefreshCw, Globe, FileDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExport } from '../../hooks/useExport';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/core/hooks/useAuth';
 import type { Dimension } from '../../types';
 import { ALL_DIMENSIONS } from '../../types';
 import type { GlobalMetricsRecord } from '../../types/global';

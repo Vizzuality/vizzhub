@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { metricsHistoryApi } from '../services/api';
 import type { Metrics, MetricsCreate, EVMData, Milestone, StrategicImpact } from '../types';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { invalidateProjectData, invalidateProjectPeriodData } from './cacheUtils';
 import type { Period } from '../utils/dateUtils';
 

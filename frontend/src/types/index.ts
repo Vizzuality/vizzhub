@@ -8,7 +8,7 @@ export type {
   ProjectSummary,
   ProjectUpdate,
   SlackChannel,
-} from './project';
+} from '@/core/types/project';
 
 // Score types
 export type {
@@ -54,7 +54,7 @@ export type {
   JobStatus,
   JobSummaryResponse,
   JobType,
-} from './jobs';
+} from '@/core/types/jobs';
 
 // Alert and notification types
 export type {
@@ -78,7 +78,7 @@ export type {
   ScheduledJobInfo,
   ScheduledJobLastRun,
   TemplateType,
-} from './alerts';
+} from '@/core/types/alerts';
 
 // Config types
 export type {
@@ -88,7 +88,7 @@ export type {
 } from './config';
 
 // Common types
-export type { ApiErrorResponse, PaginatedResponse } from './common';
+export type { ApiErrorResponse, PaginatedResponse } from '@/core/types/common';
 
 // Global metrics types
 export type {

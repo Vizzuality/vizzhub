@@ -6,7 +6,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { SlackChannelCombobox } from '@/shared/components/ui/SlackChannelCombobox';
 import { Trash2, CheckCircle, RotateCcw, Lock, Loader2 } from 'lucide-react';
-import { useSlackChannels } from '../../hooks/useSlackChannels';
+import { useSlackChannels } from '@/core/hooks/useSlackChannels';
 
 function getSubmitButtonText(isLoading: boolean, isEditMode: boolean): string {
   if (isLoading) {

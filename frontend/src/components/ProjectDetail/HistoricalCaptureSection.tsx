@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useCaptureHistoryJob, useJobStatus } from '../../hooks/useJobs';
+import { useCaptureHistoryJob, useJobStatus } from '@/core/hooks/useJobs';
 import {
   Card,
   CardContent,
