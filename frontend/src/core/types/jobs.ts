@@ -1,4 +1,4 @@
-import type { CaptureReport } from '@/types/metrics';
+import type { CaptureReport } from '@/modules/scorecard/types/metrics';
 
 export type JobType = 'capture_history';
 

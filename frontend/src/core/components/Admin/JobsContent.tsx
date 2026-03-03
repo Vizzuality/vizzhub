@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAllJobs, useCancelJob, useDeleteJob } from '../../hooks/useJobs';
 import { useScheduledJobs, useTriggerScheduledJob } from '../../hooks/useAlertDefinitions';
-import { useProjectSummaries } from '@/hooks/useProjects';
+import { useProjectSummaries } from '@/core/hooks/useProjects';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
