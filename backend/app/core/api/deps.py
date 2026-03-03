@@ -14,7 +14,7 @@ from app.core.auth import TokenData, get_current_user, require_role
 from app.core.exceptions import ProjectNotFoundError
 from app.database import get_db
 from app.core.models.project import ProjectDB
-from app.services.score_cache import ScoreCacheService
+from app.modules.scorecard.services.score_cache import ScoreCacheService
 
 # Shared rate limiter instance
 limiter = Limiter(key_func=get_remote_address)

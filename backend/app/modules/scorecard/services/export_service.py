@@ -28,7 +28,7 @@ from app.core.services.export_helpers import (
     set_column_widths,
 )
 from app.modules.scorecard.services.export_helpers import create_methodology_sheet
-from app.services.score_computation import ScoreComputationService
+from app.modules.scorecard.services.score_computation import ScoreComputationService
 
 
 class ExportService:

@@ -3,11 +3,11 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from app.services.collectors.github.pr_size import (
+from app.modules.scorecard.services.collectors.github.pr_size import (
     collect_pr_size,
     _get_pr_size,
 )
-from app.services.collectors.github.utils import TARGET_BRANCHES
+from app.modules.scorecard.services.collectors.github.utils import TARGET_BRANCHES
 
 
 class TestCollectPRSize:

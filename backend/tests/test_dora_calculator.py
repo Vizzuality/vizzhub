@@ -4,7 +4,7 @@ import pytest
 
 from app.config import ScoringConfig
 from app.modules.scorecard.models.indicators import IndicatorsCreate
-from app.services.calculators.dora import DoraScoreCalculator
+from app.modules.scorecard.services.calculators.dora import DoraScoreCalculator
 
 
 @pytest.fixture

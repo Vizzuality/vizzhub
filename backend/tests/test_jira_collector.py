@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConfigurationError
 from app.core.models.oauth import OAuthTokenDB
-from app.services.collectors.jira import JiraCollector
-from app.services.collectors.jira.client import JiraClient
+from app.modules.scorecard.services.collectors.jira import JiraCollector
+from app.modules.scorecard.services.collectors.jira.client import JiraClient
 
 
 class TestOAuthIntegration:
@@ -38,13 +38,13 @@ class TestOAuthIntegration:
         collector = JiraCollector(db=db_session)
 
         with patch(
-            "app.services.collectors.jira.client.OAuthService.get_valid_jira_token",
+            "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_valid_jira_token",
             new_callable=AsyncMock,
         ) as mock_get_token:
             mock_get_token.return_value = "oauth-access-token"
 
             with patch(
-                "app.services.collectors.jira.client.OAuthService.get_jira_site_info",
+                "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_jira_site_info",
                 new_callable=AsyncMock,
             ) as mock_site_info:
                 mock_site_info.return_value = {
@@ -62,7 +62,7 @@ class TestOAuthIntegration:
         self, db_session: AsyncSession
     ) -> None:
         """Collector should use API token if OAuth unavailable."""
-        with patch("app.services.collectors.jira.client.get_settings") as mock_settings:
+        with patch("app.modules.scorecard.services.collectors.jira.client.get_settings") as mock_settings:
             mock_settings.return_value.jira_base_url = "https://company.atlassian.net"
             mock_settings.return_value.jira_email = "user@example.com"
             mock_settings.return_value.jira_api_token = "legacy-api-token"
@@ -70,7 +70,7 @@ class TestOAuthIntegration:
             collector = JiraCollector(db=db_session)
 
             with patch(
-                "app.services.collectors.jira.client.OAuthService.get_valid_jira_token",
+                "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_valid_jira_token",
                 new_callable=AsyncMock,
             ) as mock_get_token:
                 mock_get_token.return_value = None
@@ -86,12 +86,12 @@ class TestOAuthIntegration:
     ) -> None:
         """Collector should raise ConfigurationError if neither OAuth nor legacy configured."""
         with patch(
-            "app.services.collectors.jira.client.OAuthService.get_valid_jira_token"
+            "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_valid_jira_token"
         ) as mock_get_token:
             mock_get_token.return_value = None
 
             with patch(
-                "app.services.collectors.jira.client.get_settings"
+                "app.modules.scorecard.services.collectors.jira.client.get_settings"
             ) as mock_settings:
                 mock_settings.return_value.jira_base_url = ""
                 mock_settings.return_value.jira_email = ""
@@ -316,12 +316,12 @@ class TestErrorHandling:
         collector = JiraCollector(db=db_session)
 
         with patch(
-            "app.services.collectors.jira.client.OAuthService.get_valid_jira_token"
+            "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_valid_jira_token"
         ) as mock_token:
             mock_token.return_value = "refreshed-token"
 
             with patch(
-                "app.services.collectors.jira.client.OAuthService.get_jira_site_info"
+                "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_jira_site_info"
             ) as mock_site:
                 mock_site.return_value = {
                     "cloud_id": "cloud-123",
@@ -340,12 +340,12 @@ class TestErrorHandling:
         collector = JiraCollector(db=db_session)
 
         with patch(
-            "app.services.collectors.jira.client.OAuthService.get_valid_jira_token"
+            "app.modules.scorecard.services.collectors.jira.client.OAuthService.get_valid_jira_token"
         ) as mock_token:
             mock_token.return_value = None
 
             with patch(
-                "app.services.collectors.jira.client.get_settings"
+                "app.modules.scorecard.services.collectors.jira.client.get_settings"
             ) as mock_settings:
                 mock_settings.return_value.jira_base_url = ""
                 mock_settings.return_value.jira_email = ""

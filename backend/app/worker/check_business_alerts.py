@@ -27,8 +27,8 @@ from app.modules.scorecard.models.slack import (
     AlertDefinitionDB,
     ScheduledJobRunDB,
 )
-from app.services.alert_service import AlertService
-from app.services.slack_service import SlackService
+from app.modules.scorecard.services.alert_service import AlertService
+from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
 

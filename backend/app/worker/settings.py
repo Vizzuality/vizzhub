@@ -17,7 +17,7 @@ async def startup(ctx: dict) -> None:
     ctx["score_cache"] = None
     ctx["redis_client"] = None
     if settings.redis_host:
-        from app.services.score_cache import create_score_cache
+        from app.modules.scorecard.services.score_cache import create_score_cache
 
         redis_client, score_cache = await create_score_cache(
             settings.redis_host,

@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.scorecard.models.config import ConfigParameter
-from app.services.config_service import ConfigService
+from app.modules.scorecard.services.config_service import ConfigService
 
 
 @pytest_asyncio.fixture

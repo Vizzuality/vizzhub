@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.collectors.jira.commitment_reliability import (
+from app.modules.scorecard.services.collectors.jira.commitment_reliability import (
     collect_commitment_reliability,
 )
 

@@ -19,11 +19,11 @@ from app.core.api.deps import (
 from app.api.scores import ScoreResponse
 from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.core.models.project import ProjectDB
-from app.services.collectors.github import GitHubCollector
-from app.services.collectors.jira import JiraCollector
-from app.services.collectors.utils import execute_collector
-from app.services.metrics_service import MetricsService
-from app.services.score_computation import ScoreComputationService
+from app.modules.scorecard.services.collectors.github import GitHubCollector
+from app.modules.scorecard.services.collectors.jira import JiraCollector
+from app.modules.scorecard.services.collectors.utils import execute_collector
+from app.modules.scorecard.services.metrics_service import MetricsService
+from app.modules.scorecard.services.score_computation import ScoreComputationService
 
 router = APIRouter()
 

@@ -4,11 +4,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 
-from app.services.collectors.github.deployment_frequency import (
+from app.modules.scorecard.services.collectors.github.deployment_frequency import (
     collect_deployment_frequency,
     LOOKBACK_DAYS,
 )
-from app.services.collectors.github.utils import get_releases
+from app.modules.scorecard.services.collectors.github.utils import get_releases
 
 
 def make_release(days_ago: int, draft: bool = False, prerelease: bool = False) -> dict:

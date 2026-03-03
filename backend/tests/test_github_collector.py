@@ -10,13 +10,13 @@ import httpx
 import pytest
 
 from app.core.exceptions import ConfigurationError
-from app.services.collectors.github import GitHubCollector
-from app.services.collectors.github.client import GitHubClient
-from app.services.collectors.github.pr_review import (
+from app.modules.scorecard.services.collectors.github import GitHubCollector
+from app.modules.scorecard.services.collectors.github.client import GitHubClient
+from app.modules.scorecard.services.collectors.github.pr_review import (
     _pr_has_review,
     collect_pr_review,
 )
-from app.services.collectors.github.utils import TARGET_BRANCHES
+from app.modules.scorecard.services.collectors.github.utils import TARGET_BRANCHES
 
 
 class TestGitHubClient:
@@ -204,7 +204,7 @@ class TestGitHubCollector:
             collector = GitHubCollector()
 
             with patch(
-                "app.services.collectors.github.collector.collect_pr_review",
+                "app.modules.scorecard.services.collectors.github.collector.collect_pr_review",
                 new_callable=AsyncMock,
             ) as mock_collect:
                 mock_collect.return_value = {

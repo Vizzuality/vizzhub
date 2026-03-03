@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.normalizers.base import (
+from app.modules.scorecard.services.normalizers.base import (
     NEUTRAL_VALUE,
     normalize_budget_variance,
     normalize_count_to_ratio,

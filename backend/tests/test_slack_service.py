@@ -13,7 +13,7 @@ import pytest
 import respx
 from httpx import Response
 
-from app.services.slack_service import SlackService
+from app.modules.scorecard.services.slack_service import SlackService
 
 CHAT_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 CONVERSATIONS_LIST_URL = "https://slack.com/api/conversations.list"

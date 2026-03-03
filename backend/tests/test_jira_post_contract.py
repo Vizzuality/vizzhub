@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.collectors.jira.post_contract_tasks import (
+from app.modules.scorecard.services.collectors.jira.post_contract_tasks import (
     GRACE_PERIOD_DAYS,
     collect_post_contract_tasks,
 )
