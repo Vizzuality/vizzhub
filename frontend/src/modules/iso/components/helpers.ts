@@ -1,4 +1,4 @@
-import type { DiffSummary, SnapshotSummary } from '@/types';
+import type { DiffSummary, SnapshotSummary } from '@/modules/iso/types/iso';
 
 export function formatChangeDetails(
   previousValue: Record<string, unknown> | null,

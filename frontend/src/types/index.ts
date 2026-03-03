@@ -117,4 +117,4 @@ export type {
   IsoConfigStatus,
   SignReviewPayload,
   SnapshotSummary,
-} from './iso';
+} from '@/modules/iso/types/iso';

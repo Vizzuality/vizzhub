@@ -3,16 +3,16 @@ import { ArrowLeft, Download } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
-import { ReviewStatusBadge } from '@/shared/components/ui/review-status-badge';
+import { ReviewStatusBadge } from '@/modules/iso/components/review-status-badge';
 import { ErrorBanner } from '@/shared/components/ui/error-banner';
-import { StatCards } from '@/shared/components/ui/stat-cards';
-import { useIsoSnapshot, useSnapshotReview } from '@/hooks/useIso';
-import { useIsoExport } from '@/hooks/useIsoExport';
+import { StatCards } from '@/modules/iso/components/stat-cards';
+import { useIsoSnapshot, useSnapshotReview } from '@/modules/iso/hooks/useIso';
+import { useIsoExport } from '@/modules/iso/hooks/useIsoExport';
 import { formatDate } from '@/utils/formatters';
-import ReviewPanel from './components/ReviewPanel';
-import SnapshotDataTabs from './components/SnapshotDataTabs';
-import type { SnapshotData } from './components/SnapshotDataTabs';
-import { buildSummaryStatItems } from './components/helpers';
+import ReviewPanel from '../components/ReviewPanel';
+import SnapshotDataTabs from '../components/SnapshotDataTabs';
+import type { SnapshotData } from '../components/SnapshotDataTabs';
+import { buildSummaryStatItems } from '../components/helpers';
 
 export default function ISOSnapshotDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();

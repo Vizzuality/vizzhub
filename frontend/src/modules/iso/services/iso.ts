@@ -8,7 +8,7 @@ import type {
   IsoConfigStatus,
   PaginatedResponse,
   SignReviewPayload,
-} from '../../types';
+} from '../types/iso';
 import api from '@/core/services/client';
 
 export interface SnapshotListParams {

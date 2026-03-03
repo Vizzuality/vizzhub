@@ -12,5 +12,5 @@ export {
   silencesApi,
 } from '@/core/services/notifications';
 export { exportsApi } from '@/modules/scorecard/services/exports';
-export { isoApi } from './api/iso';
-export type { ReviewListParams, SnapshotListParams } from './api/iso';
+export { isoApi } from '@/modules/iso/services/iso';
+export type { ReviewListParams, SnapshotListParams } from '@/modules/iso/services/iso';

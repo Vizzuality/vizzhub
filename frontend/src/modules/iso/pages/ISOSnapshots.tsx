@@ -24,15 +24,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
-import { ReviewStatusBadge } from '@/shared/components/ui/review-status-badge';
+import { ReviewStatusBadge } from '@/modules/iso/components/review-status-badge';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   useIsoSnapshots,
   useCaptureSnapshot,
   useDeleteSnapshot,
-} from '@/hooks/useIso';
-import { useIsoExport } from '@/hooks/useIsoExport';
-import { isSnapshotStale } from '@/hooks/isoStaleCheck';
+} from '@/modules/iso/hooks/useIso';
+import { useIsoExport } from '@/modules/iso/hooks/useIsoExport';
+import { isSnapshotStale } from '@/modules/iso/hooks/isoStaleCheck';
 import { formatDate } from '@/utils/formatters';
 
 const snapshotsUrlSchema = {

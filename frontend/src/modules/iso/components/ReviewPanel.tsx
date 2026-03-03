@@ -26,18 +26,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
-import { StatCards } from '@/shared/components/ui/stat-cards';
+import { StatCards } from '@/modules/iso/components/stat-cards';
 import {
   useUpdateReview,
   useSignReview,
   useUnsignReview,
-} from '@/hooks/useIso';
+} from '@/modules/iso/hooks/useIso';
 import { useUsers } from '@/core/hooks/useUsers';
 import type {
   AccessReviewAction,
   AccessReviewDetail,
   ActionDecision,
-} from '@/types';
+} from '@/modules/iso/types/iso';
 import ActionRow from './ActionRow';
 import type { ActionState } from './ActionRow';
 import { buildDiffStatItems } from './helpers';

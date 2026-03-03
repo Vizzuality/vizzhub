@@ -1,5 +1,5 @@
 import { Badge } from '@/shared/components/ui/badge';
-import type { AccessReview } from '@/types';
+import type { AccessReview } from '@/modules/iso/types/iso';
 
 type ReviewStatus = AccessReview['status'];
 
