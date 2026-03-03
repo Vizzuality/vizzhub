@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useNotifications } from '../../hooks/useNotifications';
-import { useProjectSummaries } from '@/hooks/useProjects';
+import { useProjectSummaries } from '@/core/hooks/useProjects';
 import { useAlertDefinitions } from '../../hooks/useAlertDefinitions';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';

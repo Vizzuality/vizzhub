@@ -22,8 +22,8 @@ export type {
   Indicators,
   ScoreResponse,
   ScoringConfig,
-} from './scores';
-export { ALL_DIMENSIONS } from './scores';
+} from '@/modules/scorecard/types/scores';
+export { ALL_DIMENSIONS } from '@/modules/scorecard/types/scores';
 
 // Metrics types
 export type {
@@ -44,7 +44,7 @@ export type {
   SnapshotWithScores,
   StrategicImpact,
   TestMaturity,
-} from './metrics';
+} from '@/modules/scorecard/types/metrics';
 
 // Job types
 export type {
@@ -85,7 +85,7 @@ export type {
   ConfigParameter,
   ConfigParameterUpdate,
   ValidationResponse,
-} from './config';
+} from '@/modules/scorecard/types/config';
 
 // Common types
 export type { ApiErrorResponse, PaginatedResponse } from '@/core/types/common';
@@ -101,7 +101,7 @@ export type {
   GlobalScores,
   IndicatorValue,
   ScoreValue,
-} from './global';
+} from '@/modules/scorecard/types/global';
 
 // ISO types
 export type {

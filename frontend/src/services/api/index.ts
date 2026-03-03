@@ -6,16 +6,16 @@ export { default as api } from '@/core/services/client';
 export { projectsApi } from '@/core/services/projects';
 
 // Scores and Config API
-export { configApi, scoresApi } from './scores';
+export { configApi, scoresApi } from '@/modules/scorecard/services/scores';
 
 // Metrics API
-export { captureApi, metricsHistoryApi } from './metrics';
+export { captureApi, metricsHistoryApi } from '@/modules/scorecard/services/metrics';
 
 // Jobs API
 export { jobsApi } from '@/core/services/jobs';
 
 // Global Metrics API
-export { globalMetricsApi } from './global';
+export { globalMetricsApi } from '@/modules/scorecard/services/global';
 
 // Notifications API
 export {
@@ -26,7 +26,7 @@ export {
 } from '@/core/services/notifications';
 
 // Exports API
-export { exportsApi } from './exports';
+export { exportsApi } from '@/modules/scorecard/services/exports';
 
 // ISO API
 export { isoApi } from './iso';
