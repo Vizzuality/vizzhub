@@ -11,7 +11,7 @@ from app.api.schemas.job import (
     JobSummaryResponse,
 )
 from app.core.models.job import Job, JobStatus, JobType
-from app.services.job_service import JobService
+from app.core.services.job_service import JobService
 from app.utils.constants import MONTH_NAMES
 from app.utils.redis import get_redis_pool
 

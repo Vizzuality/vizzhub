@@ -3,7 +3,7 @@
 import asyncio
 
 from app.database import get_db
-from app.services.oauth_service import OAuthService
+from app.core.services.oauth_service import OAuthService
 
 
 async def debug_oauth():

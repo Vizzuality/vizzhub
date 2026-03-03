@@ -52,7 +52,7 @@ class GitHubClient:
         """Read GitHub token from DB via IntegrationTokenService."""
         if self._db is None:
             return None
-        from app.services.integration_token_service import IntegrationTokenService
+        from app.core.services.integration_token_service import IntegrationTokenService
 
         return await IntegrationTokenService.get_token(self._db, "github")
 

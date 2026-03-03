@@ -19,7 +19,7 @@ from app.models.slack import (
 )
 from app.services.alert_service import AlertService
 from app.services.collectors.dependabot import DependabotCollector
-from app.services.integration_token_service import IntegrationTokenService
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 from app.worker.utils import complete_with_error

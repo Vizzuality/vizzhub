@@ -2,7 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.integration_token_service import IntegrationTokenService
+from app.core.services.integration_token_service import IntegrationTokenService
 
 
 async def get_slack_bot_token(db: AsyncSession) -> str | None:

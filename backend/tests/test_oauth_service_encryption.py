@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import decrypt_token
 from app.core.models.oauth import OAuthTokenDB
-from app.services.oauth_service import OAuthService
+from app.core.services.oauth_service import OAuthService
 
 
 class TestJiraTokenEncryption:
@@ -40,7 +40,7 @@ class TestJiraTokenEncryption:
         mock_http.post = AsyncMock(return_value=token_response)
         mock_http.get = AsyncMock(return_value=resources_response)
 
-        with patch("app.services.oauth_service.httpx.AsyncClient") as mock_client:
+        with patch("app.core.services.oauth_service.httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_http)
             mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -100,7 +100,7 @@ class TestJiraTokenEncryption:
         mock_http = MagicMock()
         mock_http.post = AsyncMock(return_value=mock_response)
 
-        with patch("app.services.oauth_service.httpx.AsyncClient") as mock_client:
+        with patch("app.core.services.oauth_service.httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_http)
             mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
 

@@ -16,8 +16,8 @@ from app.core.security_logger import (
     log_oauth_token_refresh,
     log_suspicious_activity,
 )
-from app.services.integration_token_service import IntegrationTokenService
-from app.services.oauth_service import OAuthService
+from app.core.services.integration_token_service import IntegrationTokenService
+from app.core.services.oauth_service import OAuthService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

@@ -48,7 +48,7 @@ class TestGitHubClient:
         """Client should read token from DB via IntegrationTokenService."""
         mock_db = AsyncMock()
         with patch(
-            "app.services.integration_token_service.IntegrationTokenService.get_token",
+            "app.core.services.integration_token_service.IntegrationTokenService.get_token",
             new_callable=AsyncMock,
             return_value="db-token",
         ) as mock_get_token:
