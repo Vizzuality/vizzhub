@@ -24,9 +24,9 @@ import {
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
-import { integrationsApi } from '@/services/api/integrations';
-import type { ProviderStatus, SlackTestResult } from '@/services/api/integrations';
-import { queryKeys } from '@/hooks/queryKeys';
+import { integrationsApi } from '@/core/services/integrations';
+import type { ProviderStatus, SlackTestResult } from '@/core/services/integrations';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import type { SlackChannel } from '@/types';
 
 interface SlackTabProps {

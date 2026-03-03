@@ -23,9 +23,9 @@ import {
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
 import { Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react';
-import { integrationsApi } from '@/services/api/integrations';
-import { queryKeys } from '@/hooks/queryKeys';
-import type { ProviderStatus } from '@/services/api/integrations';
+import { integrationsApi } from '@/core/services/integrations';
+import { queryKeys } from '@/core/hooks/queryKeys';
+import type { ProviderStatus } from '@/core/services/integrations';
 
 interface GitHubCardProps {
   readonly status?: ProviderStatus;

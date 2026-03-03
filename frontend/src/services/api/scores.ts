@@ -1,5 +1,5 @@
 import type { MetricsCreate, ScoreResponse, ScoringConfig } from '../../types';
-import api from './client';
+import api from '@/core/services/client';
 
 interface BatchScoresResponse {
   scores: Record<string, ScoreResponse>;

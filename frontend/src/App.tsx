@@ -1,25 +1,25 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './core/contexts/AuthContext';
 import { ErrorBoundary } from './core/components/ErrorBoundary';
 import { ProtectedRoute, AdminRoute } from './core/components/ProtectedRoute';
-import { AppLayout } from './components/layout/AppLayout';
+import { AppLayout } from './core/components/layout/AppLayout';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import GlobalDashboard from './pages/GlobalDashboard';
-import Admin from './pages/Admin';
+import Admin from './core/pages/Admin';
 import ISO from './pages/ISO';
 import ISOSnapshots from './pages/ISOSnapshots';
 import ISOSnapshotDetail from './pages/iso/ISOSnapshotDetail';
-import { LoginPage } from './pages/LoginPage';
+import { LoginPage } from './core/pages/LoginPage';
 import ConfigurationTab from './components/Settings/ConfigurationTab';
 import IntegrationsTab from './components/Settings/IntegrationsTab';
-import AdminNotificationsLayout from './components/NotificationsAdmin/AdminNotificationsLayout';
-import AlertLogTab from './components/NotificationsAdmin/AlertLogTab';
-import SilencesTab from './components/NotificationsAdmin/SilencesTab';
-import AlertConfigTab from './components/NotificationsAdmin/AlertConfigTab';
-import StatisticsTab from './components/NotificationsAdmin/StatisticsTab';
-import JobsContent from './components/Admin/JobsContent';
-import { UsersContent } from './components/Admin/UsersContent';
+import AdminNotificationsLayout from './core/components/NotificationsAdmin/AdminNotificationsLayout';
+import AlertLogTab from './core/components/NotificationsAdmin/AlertLogTab';
+import SilencesTab from './core/components/NotificationsAdmin/SilencesTab';
+import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab';
+import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
+import JobsContent from './core/components/Admin/JobsContent';
+import { UsersContent } from './core/components/Admin/UsersContent';
 
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
 

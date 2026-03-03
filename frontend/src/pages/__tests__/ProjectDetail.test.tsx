@@ -194,7 +194,7 @@ vi.mock('../../hooks/useSnapshots', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useAuth', () => ({
+vi.mock('@/core/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'user-1', email: 'admin@test.com', role: 'admin' },
     isAuthenticated: true,

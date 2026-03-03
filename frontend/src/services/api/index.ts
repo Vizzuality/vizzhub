@@ -1,9 +1,9 @@
 // Re-export the axios client as default
-export { default } from './client';
-export { default as api } from './client';
+export { default } from '@/core/services/client';
+export { default as api } from '@/core/services/client';
 
 // Project API
-export { projectsApi } from './projects';
+export { projectsApi } from '@/core/services/projects';
 
 // Scores and Config API
 export { configApi, scoresApi } from './scores';
@@ -12,7 +12,7 @@ export { configApi, scoresApi } from './scores';
 export { captureApi, metricsHistoryApi } from './metrics';
 
 // Jobs API
-export { jobsApi } from './jobs';
+export { jobsApi } from '@/core/services/jobs';
 
 // Global Metrics API
 export { globalMetricsApi } from './global';
@@ -23,7 +23,7 @@ export {
   notificationsApi,
   scheduledJobsApi,
   silencesApi,
-} from './notifications';
+} from '@/core/services/notifications';
 
 // Exports API
 export { exportsApi } from './exports';

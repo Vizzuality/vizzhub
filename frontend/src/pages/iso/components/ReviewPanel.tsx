@@ -32,7 +32,7 @@ import {
   useSignReview,
   useUnsignReview,
 } from '@/hooks/useIso';
-import { useUsers } from '@/hooks/useUsers';
+import { useUsers } from '@/core/hooks/useUsers';
 import type {
   AccessReviewAction,
   AccessReviewDetail,

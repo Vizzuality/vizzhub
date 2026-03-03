@@ -9,7 +9,7 @@ import type {
   PaginatedResponse,
   SignReviewPayload,
 } from '../../types';
-import api from './client';
+import api from '@/core/services/client';
 
 export interface SnapshotListParams {
   provider?: string;

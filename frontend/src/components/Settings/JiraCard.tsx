@@ -20,9 +20,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
-import { queryKeys } from '@/hooks/queryKeys';
-import api from '@/services/api/client';
-import type { ProviderStatus } from '@/services/api/integrations';
+import { queryKeys } from '@/core/hooks/queryKeys';
+import api from '@/core/services/client';
+import type { ProviderStatus } from '@/core/services/integrations';
 
 interface JiraCardProps {
   readonly status?: ProviderStatus;

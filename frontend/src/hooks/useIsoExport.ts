@@ -1,5 +1,5 @@
 import { isoApi } from '../services/api';
-import { useDownload } from './useDownload';
+import { useDownload } from '@/core/hooks/useDownload';
 
 interface UseIsoExportReturn {
   exportSnapshots: (from: string, to: string) => Promise<void>;

@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { projectsApi } from '../services/api';
 import type { ProjectCreate, ProjectListParams, ProjectUpdate, ProjectStatus } from '../types';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 
 export function usePaginatedProjects(params: ProjectListParams) {
   return useQuery({

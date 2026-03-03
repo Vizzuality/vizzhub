@@ -12,7 +12,7 @@ import { NativeSelect } from '@/shared/components/ui/native-select';
 import { FileDown, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import HistoricalCaptureSection from './HistoricalCaptureSection';
 import { useExport } from '../../hooks/useExport';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/core/hooks/useAuth';
 
 interface SnapshotManagerProps {
   readonly projectId: string;

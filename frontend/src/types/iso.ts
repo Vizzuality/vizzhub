@@ -1,4 +1,4 @@
-export type { PaginatedResponse } from './common';
+export type { PaginatedResponse } from '@/core/types/common';
 
 export interface DiffSummary {
   total_changes: number;

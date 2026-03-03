@@ -139,7 +139,7 @@ vi.mock('../../hooks/useIsoExport', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useUsers', () => ({
+vi.mock('@/core/hooks/useUsers', () => ({
   useUsers: () => ({ data: [] }),
 }));
 

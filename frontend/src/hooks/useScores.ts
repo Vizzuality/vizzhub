@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { scoresApi, configApi } from '../services/api';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/core/hooks/queryKeys';
 
 export function useProjectScores(
   projectId: string,
