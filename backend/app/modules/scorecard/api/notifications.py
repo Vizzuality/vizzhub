@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
 from app.core.api.deps import AdminUser, DBSession, limiter
-from app.api.schemas.slack import (
+from app.modules.scorecard.api.schemas.slack import (
     AlertNotificationResponse,
     NotificationStatsResponse,
     PaginatedNotificationsResponse,

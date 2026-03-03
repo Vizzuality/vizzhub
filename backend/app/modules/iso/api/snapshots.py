@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.sql import func
 
 from app.core.api.deps import AdminUser, DBSession, limiter
-from app.api.schemas.common import PaginatedResponse
+from app.modules.scorecard.api.schemas.common import PaginatedResponse
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
