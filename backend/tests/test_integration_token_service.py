@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import decrypt_token, encrypt_token
-from app.models.integration_setting import IntegrationSettingDB
-from app.models.oauth import OAuthTokenDB
+from app.core.models.integration_setting import IntegrationSettingDB
+from app.core.models.oauth import OAuthTokenDB
 from app.services.integration_token_service import IntegrationTokenService
 
 

@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConfigurationError
-from app.models.oauth import OAuthTokenDB
+from app.core.models.oauth import OAuthTokenDB
 from app.services.collectors.jira import JiraCollector
 from app.services.collectors.jira.client import JiraClient
 

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.job import Job, JobStatus, JobType
+from app.core.models.job import Job, JobStatus, JobType
 
 
 class JobService:

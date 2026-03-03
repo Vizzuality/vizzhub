@@ -14,7 +14,7 @@ from app.api.schemas.slack import (
     NotificationStatsResponse,
     PaginatedNotificationsResponse,
 )
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.models.slack import AlertDefinitionDB, AlertNotificationDB, DependabotAlertTrackedDB
 
 logger = logging.getLogger(__name__)

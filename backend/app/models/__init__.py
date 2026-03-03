@@ -1,5 +1,5 @@
 from app.models.config import ConfigParameter, ScoringConfigModel
-from app.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
+from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
 from app.models.global_metrics import (
     CalculateBatchRequest,
     CalculateBatchResponse,
@@ -12,8 +12,8 @@ from app.models.global_metrics import (
     ScoreValue,
 )
 from app.models.indicators import IndicatorsCreate
-from app.models.integration_setting import IntegrationSettingDB
-from app.models.job import Job, JobStatus, JobType
+from app.core.models.integration_setting import IntegrationSettingDB
+from app.core.models.job import Job, JobStatus, JobType
 from app.models.metrics import (
     ArchitectureChecklist,
     ClientSurvey,
@@ -30,8 +30,8 @@ from app.models.metrics import (
     SnapshotType,
     TestMaturity,
 )
-from app.models.oauth import OAuthToken, OAuthTokenDB
-from app.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
+from app.core.models.oauth import OAuthToken, OAuthTokenDB
+from app.core.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
 from app.models.scores import DimensionScores, FinalScore
 
 __all__ = [

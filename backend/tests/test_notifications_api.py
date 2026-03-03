@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,

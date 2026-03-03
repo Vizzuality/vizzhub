@@ -13,7 +13,7 @@ from app.config import ScoringConfig, get_scoring_config
 from app.core.auth import TokenData, get_current_user, require_role
 from app.core.exceptions import ProjectNotFoundError
 from app.database import get_db
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.services.score_cache import ScoreCacheService
 
 # Shared rate limiter instance

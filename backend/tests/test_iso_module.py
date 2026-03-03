@@ -57,7 +57,7 @@ class TestAccessSnapshotModel:
 
     @pytest.mark.asyncio
     async def test_snapshot_with_captured_by(self, db_session) -> None:
-        from app.models.user import UserDB
+        from app.core.models.user import UserDB
 
         user = UserDB(email="admin@test.com", role="admin")
         db_session.add(user)
@@ -85,7 +85,7 @@ class TestAccessSnapshotModel:
 class TestAccessReviewModel:
     @pytest.mark.asyncio
     async def test_create_review(self, db_session) -> None:
-        from app.models.user import UserDB
+        from app.core.models.user import UserDB
 
         user = UserDB(email="reviewer@test.com", role="admin")
         db_session.add(user)
@@ -126,7 +126,7 @@ class TestAccessReviewModel:
 
     @pytest.mark.asyncio
     async def test_review_signed(self, db_session) -> None:
-        from app.models.user import UserDB
+        from app.core.models.user import UserDB
 
         user = UserDB(email="signer@test.com", role="admin")
         db_session.add(user)
@@ -161,7 +161,7 @@ class TestAccessReviewModel:
 class TestAccessReviewActionModel:
     @pytest.mark.asyncio
     async def test_create_action(self, db_session) -> None:
-        from app.models.user import UserDB
+        from app.core.models.user import UserDB
 
         user = UserDB(email="reviewer@test.com", role="admin")
         db_session.add(user)
@@ -209,7 +209,7 @@ class TestAccessReviewActionModel:
 
     @pytest.mark.asyncio
     async def test_action_with_decision(self, db_session) -> None:
-        from app.models.user import UserDB
+        from app.core.models.user import UserDB
 
         user = UserDB(email="approver@test.com", role="admin")
         db_session.add(user)

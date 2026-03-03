@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.oauth import OAuthStateDB
+from app.core.models.oauth import OAuthStateDB
 
 
 class OAuthStateManager:

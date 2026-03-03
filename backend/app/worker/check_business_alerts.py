@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.metrics import MetricsDB, SnapshotType
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.models.slack import (
     AlertDefinitionDB,
     ScheduledJobRunDB,

@@ -2,7 +2,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.job import JobStatus, JobType
+from app.core.models.job import JobStatus, JobType
 from app.services.job_service import JobService
 
 

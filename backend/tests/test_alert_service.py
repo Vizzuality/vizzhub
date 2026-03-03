@@ -15,7 +15,7 @@ from app.models.slack import (
     AlertSilenceDB,
     MessageTemplateDB,
 )
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.services.alert_service import AlertService
 
 

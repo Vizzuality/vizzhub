@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.oauth_state import OAuthStateManager
-from app.models.oauth import OAuthStateDB
+from app.core.models.oauth import OAuthStateDB
 
 
 class TestOAuthStateGenerate:

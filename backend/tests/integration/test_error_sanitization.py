@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from httpx import AsyncClient
 
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 
 
 class TestErrorSanitizationIntegration:

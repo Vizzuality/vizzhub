@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, DBSession
 from app.config import get_settings
 from app.core.auth import create_access_token, get_cookie_settings
-from app.models.user import User, UserDB, UserPublic, UserRole
+from app.core.models.user import User, UserDB, UserPublic, UserRole
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

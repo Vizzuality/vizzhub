@@ -8,7 +8,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.metrics import MetricsDB
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.config import ScoringConfig
 
 

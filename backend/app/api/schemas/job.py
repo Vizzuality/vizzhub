@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.job import JobStatus, JobType
+from app.core.models.job import JobStatus, JobType
 
 
 class CaptureHistoryRequest(BaseModel):

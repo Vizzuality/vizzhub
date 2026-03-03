@@ -4,7 +4,7 @@ Tests cover:
 - slack_channel_id field existence and behavior
 """
 
-from app.models.project import ProjectDB, ProjectBase, ProjectUpdate
+from app.core.models.project import ProjectDB, ProjectBase, ProjectUpdate
 
 
 class TestSlackChannelIdField:

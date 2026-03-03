@@ -7,8 +7,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import encrypt_token
-from app.models.integration_setting import IntegrationSettingDB
-from app.models.oauth import OAuthTokenDB
+from app.core.models.integration_setting import IntegrationSettingDB
+from app.core.models.oauth import OAuthTokenDB
 from app.worker.collect_iso_snapshot import (
     collect_iso_snapshot,
     send_iso_failure_alert,
