@@ -21,7 +21,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { ErrorBanner } from '@/shared/components/ui/error-banner';
-import { useIsoConfig, useDisconnectGoogleWorkspace } from '@/hooks/useIso';
+import { useIsoConfig, useDisconnectGoogleWorkspace } from '@/modules/iso/hooks/useIso';
 
 export default function ISOConfig(): JSX.Element {
   const { data: config, isLoading, error } = useIsoConfig();

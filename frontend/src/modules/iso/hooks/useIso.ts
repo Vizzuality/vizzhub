@@ -4,13 +4,13 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { isoApi } from '../services/api';
-import type { SnapshotListParams, ReviewListParams } from '../services/api';
+import { isoApi } from '../services/iso';
+import type { SnapshotListParams, ReviewListParams } from '../services/iso';
 import type {
   AccessReviewActionUpdate,
   AccessReviewUpdate,
   SignReviewPayload,
-} from '../types';
+} from '../types/iso';
 import { queryKeys } from '@/core/hooks/queryKeys';
 
 // --- Config ---

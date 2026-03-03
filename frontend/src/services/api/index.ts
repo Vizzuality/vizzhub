@@ -29,5 +29,5 @@ export {
 export { exportsApi } from '@/modules/scorecard/services/exports';
 
 // ISO API
-export { isoApi } from './iso';
-export type { ReviewListParams, SnapshotListParams } from './iso';
+export { isoApi } from '@/modules/iso/services/iso';
+export type { ReviewListParams, SnapshotListParams } from '@/modules/iso/services/iso';

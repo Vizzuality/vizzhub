@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import ISOConfig from '../ISOConfig';
+import ISOConfig from '../pages/ISOConfig';
 
 const mockUseIsoConfig = vi.fn();
 const mockDisconnectMutate = vi.fn();
 const mockUseDisconnectGoogleWorkspace = vi.fn();
 
-vi.mock('../../hooks/useIso', () => ({
+vi.mock('../hooks/useIso', () => ({
   useIsoConfig: (...args: unknown[]) => mockUseIsoConfig(...args),
   useDisconnectGoogleWorkspace: () => mockUseDisconnectGoogleWorkspace(),
 }));

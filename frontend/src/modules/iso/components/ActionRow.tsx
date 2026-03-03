@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import type { AccessReviewAction } from '@/types';
+import type { AccessReviewAction } from '@/modules/iso/types/iso';
 import {
   formatChangeDetails,
   getChangeTypeBadgeClasses,

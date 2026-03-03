@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import ISOSnapshots from '../ISOSnapshots';
+import ISOSnapshots from '../pages/ISOSnapshots';
 
 const mockSnapshot = {
   id: 'snap-1',
@@ -23,13 +23,13 @@ const mockUseDeleteSnapshot = vi.fn();
 const mockIsSnapshotStale = vi.fn();
 const mockExportSnapshots = vi.fn();
 
-vi.mock('../../hooks/useIso', () => ({
+vi.mock('../hooks/useIso', () => ({
   useIsoSnapshots: (...args: unknown[]) => mockUseIsoSnapshots(...args),
   useCaptureSnapshot: () => mockUseCaptureSnapshot(),
   useDeleteSnapshot: () => mockUseDeleteSnapshot(),
 }));
 
-vi.mock('../../hooks/useIsoExport', () => ({
+vi.mock('../hooks/useIsoExport', () => ({
   useIsoExport: () => ({
     exportSnapshots: mockExportSnapshots,
     exportSnapshot: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock('../../hooks/useIsoExport', () => ({
   }),
 }));
 
-vi.mock('../../hooks/isoStaleCheck', () => ({
+vi.mock('../hooks/isoStaleCheck', () => ({
   isSnapshotStale: (...args: unknown[]) => mockIsSnapshotStale(...args),
 }));
 

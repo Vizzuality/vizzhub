@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import ISOSnapshotDetail from '../iso/ISOSnapshotDetail';
+import ISOSnapshotDetail from '../pages/ISOSnapshotDetail';
 
 const mockSnapshot = {
   id: 'snap-1',
@@ -120,7 +120,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../../hooks/useIso', () => ({
+vi.mock('../hooks/useIso', () => ({
   useIsoSnapshot: (...args: unknown[]) => mockUseIsoSnapshot(...args),
   useSnapshotReview: (...args: unknown[]) => mockUseSnapshotReview(...args),
   useUpdateReview: (...args: unknown[]) => mockUseUpdateReview(...args),
@@ -130,7 +130,7 @@ vi.mock('../../hooks/useIso', () => ({
 
 const mockExportSnapshot = vi.fn();
 
-vi.mock('../../hooks/useIsoExport', () => ({
+vi.mock('../hooks/useIsoExport', () => ({
   useIsoExport: () => ({
     exportSnapshots: vi.fn(),
     exportSnapshot: mockExportSnapshot,
