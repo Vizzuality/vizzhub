@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios';
 import { X } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent } from '@/shared/components/ui/card';
+import { Separator } from '@/shared/components/ui/separator';
 
 function getErrorDetail(error: Error): string {
   const axiosError = error as AxiosError<{ detail?: string }>;

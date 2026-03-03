@@ -3,8 +3,8 @@ import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '../../types';
 import { formatDate } from '../../utils/formatters';
 import { getScoreColor } from '../../utils/scoreColors';
-import { Card, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardTitle } from '@/shared/components/ui/card';
+import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useScoreThresholds } from '@/hooks/useConfig';
 

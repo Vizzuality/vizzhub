@@ -1,4 +1,4 @@
-import { TIMELINE_CHART_COLORS } from '@/components/ui/timeline-chart';
+import { TIMELINE_CHART_COLORS } from '@/shared/components/ui/timeline-chart';
 import type { Dimension } from '../../types';
 
 export const TIMELINE_MONTHS = 36;

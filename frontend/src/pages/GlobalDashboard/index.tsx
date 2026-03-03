@@ -13,12 +13,12 @@ import {
   useCalculateGlobalMetrics,
   useRecalculateGlobalMetrics,
 } from '../../hooks/useGlobalMetrics';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { MonthYearPicker } from '@/components/ui/month-year-picker';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Card, CardContent } from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Separator } from '@/shared/components/ui/separator';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { MonthYearPicker } from '@/shared/components/ui/month-year-picker';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { Calculator, RefreshCw, Globe, FileDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExport } from '../../hooks/useExport';

@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/shared/components/ui/card';
 
 interface StatCardsProps {
   readonly items: readonly { label: string; value: number }[];

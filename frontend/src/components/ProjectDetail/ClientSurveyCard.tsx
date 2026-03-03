@@ -1,7 +1,7 @@
 import { Clock } from 'lucide-react';
 import { type Dispatch, type SetStateAction } from 'react';
 import { cn } from '@/lib/utils';
-import { RatingButtons } from '@/components/ui/RatingButtons';
+import { RatingButtons } from '@/shared/components/ui/RatingButtons';
 import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
 import type { ClientSurvey, ProjectStatus } from '../../types';

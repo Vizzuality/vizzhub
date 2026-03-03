@@ -1,4 +1,4 @@
-import { getScoreColor } from '@/components/ui/timeline-chart';
+import { getScoreColor } from '@/shared/components/ui/timeline-chart';
 import { formatPeriod, formatShortPeriod, periodKey } from '@/utils/dateUtils';
 import { TIMELINE_MONTHS } from './constants';
 import type { Period } from './types';

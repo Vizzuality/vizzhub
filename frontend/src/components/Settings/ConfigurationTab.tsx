@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useConfigParameters, useUpdateConfigParameters } from '../../hooks/useConfig';
 import { useConfigEditor } from '../../hooks/useConfigEditor';
 import { Pencil, Save, X, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Button } from '@/shared/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { ParameterSection } from '../ParameterSection';
 
 const CONFIG_SECTIONS = [

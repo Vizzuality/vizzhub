@@ -6,10 +6,10 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { MonthYearPicker } from '@/components/ui/month-year-picker';
+} from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Progress } from '@/shared/components/ui/progress';
+import { MonthYearPicker } from '@/shared/components/ui/month-year-picker';
 import { History, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 
 const STORAGE_KEY_PREFIX = 'capture_job_';

@@ -5,10 +5,10 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { MonthYearPicker } from '@/components/ui/month-year-picker';
-import { NativeSelect } from '@/components/ui/native-select';
+} from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { MonthYearPicker } from '@/shared/components/ui/month-year-picker';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { FileDown, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import HistoricalCaptureSection from './HistoricalCaptureSection';
 import { useExport } from '../../hooks/useExport';

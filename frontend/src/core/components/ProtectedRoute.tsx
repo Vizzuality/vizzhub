@@ -3,8 +3,8 @@
  */
 
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 
 export function ProtectedRoute(): JSX.Element {
   const { isAuthenticated, isLoading } = useAuth();

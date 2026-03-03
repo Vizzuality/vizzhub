@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/shared/components/ui/badge';
 import type { AccessReview } from '@/types';
 
 type ReviewStatus = AccessReview['status'];

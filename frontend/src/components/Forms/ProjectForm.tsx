@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { Project, ProjectCreate, ProjectStatus } from '../../types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { SlackChannelCombobox } from '@/components/ui/SlackChannelCombobox';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { SlackChannelCombobox } from '@/shared/components/ui/SlackChannelCombobox';
 import { Trash2, CheckCircle, RotateCcw, Lock, Loader2 } from 'lucide-react';
 import { useSlackChannels } from '../../hooks/useSlackChannels';
 

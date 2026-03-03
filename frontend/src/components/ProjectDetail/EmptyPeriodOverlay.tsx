@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/components/ui/button';
 import { Loader2, Calendar } from 'lucide-react';
 import type { Period } from '../../utils/dateUtils';
 import { MONTHS } from '../../constants/dates';

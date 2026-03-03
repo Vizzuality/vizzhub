@@ -5,7 +5,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@/shared/components/ui/tooltip';
 import type { MetricsWithScores } from '../../types';
 import { formatPeriod, generateMonthRange, type Period } from '../../utils/dateUtils';
 

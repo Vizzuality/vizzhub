@@ -1,12 +1,12 @@
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/shared/components/ui/badge';
+import { Textarea } from '@/shared/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/shared/components/ui/select';
 import type { AccessReviewAction } from '@/types';
 import {
   formatChangeDetails,

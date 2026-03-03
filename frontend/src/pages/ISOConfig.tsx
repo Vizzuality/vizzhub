@@ -5,9 +5,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+} from '@/shared/components/ui/card';
+import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,9 +18,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ErrorBanner } from '@/components/ui/error-banner';
+} from '@/shared/components/ui/alert-dialog';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { ErrorBanner } from '@/shared/components/ui/error-banner';
 import { useIsoConfig, useDisconnectGoogleWorkspace } from '@/hooks/useIso';
 
 export default function ISOConfig(): JSX.Element {

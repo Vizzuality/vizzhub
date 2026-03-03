@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { Pencil } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/shared/components/ui/button';
+import { Card, CardContent } from '@/shared/components/ui/card';
+import { Separator } from '@/shared/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -10,7 +10,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/shared/components/ui/alert-dialog';
 import EVMForm from '../Forms/EVMForm';
 import SubIndicatorCard from '../SubIndicatorCard';
 import { EVMDataGrid, MilestonesList } from './EVM';

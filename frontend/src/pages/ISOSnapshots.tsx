@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Download, RefreshCw, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Badge } from '@/shared/components/ui/badge';
+import { Card, CardContent } from '@/shared/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { PaginationControls } from '@/components/ui/pagination-controls';
-import { ErrorBanner } from '@/components/ui/error-banner';
+} from '@/shared/components/ui/select';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
+import { ErrorBanner } from '@/shared/components/ui/error-banner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +23,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { ReviewStatusBadge } from '@/components/ui/review-status-badge';
+} from '@/shared/components/ui/alert-dialog';
+import { ReviewStatusBadge } from '@/shared/components/ui/review-status-badge';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   useIsoSnapshots,

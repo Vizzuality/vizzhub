@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export interface RatingOption<T extends string | number> {
