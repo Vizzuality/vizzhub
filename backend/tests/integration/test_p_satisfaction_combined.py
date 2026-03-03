@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 
 
 class TestPSatisfactionCombinedCalculation:

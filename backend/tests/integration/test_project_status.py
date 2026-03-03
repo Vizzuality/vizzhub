@@ -7,7 +7,7 @@ from uuid import uuid4
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 
 
 class TestProjectStatusIntegration:

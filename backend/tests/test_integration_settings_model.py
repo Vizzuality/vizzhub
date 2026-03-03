@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.integration_setting import IntegrationSettingDB
+from app.core.models.integration_setting import IntegrationSettingDB
 
 
 class TestIntegrationSettingModel:

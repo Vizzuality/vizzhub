@@ -10,9 +10,9 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.database import Base
-from app.models.job import Job
+from app.core.models.job import Job
 from app.models.metrics import MetricsDB
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.modules.iso.models import AccessSnapshotDB, AccessReviewDB, AccessReviewActionDB  # noqa: F401
 
 config = context.config

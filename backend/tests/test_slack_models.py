@@ -188,7 +188,7 @@ class TestAlertSilenceModel:
         """Test creating an alert silence record."""
         from datetime import datetime, timezone, timedelta
         from uuid import uuid4
-        from app.models.project import ProjectDB
+        from app.core.models.project import ProjectDB
 
         project = ProjectDB(
             id=uuid4(),
@@ -234,7 +234,7 @@ class TestAlertSilenceModel:
     ) -> None:
         """Test creating silence without specific alert definition (silences all)."""
         from uuid import uuid4
-        from app.models.project import ProjectDB
+        from app.core.models.project import ProjectDB
 
         project = ProjectDB(
             id=uuid4(),
@@ -269,7 +269,7 @@ class TestAlertNotificationModel:
     async def test_alert_notification_creation(self, db_session: AsyncSession) -> None:
         """Test creating an alert notification log."""
         from uuid import uuid4
-        from app.models.project import ProjectDB
+        from app.core.models.project import ProjectDB
 
         project = ProjectDB(
             id=uuid4(),
@@ -317,7 +317,7 @@ class TestAlertNotificationModel:
     ) -> None:
         """Test creating a failed notification log."""
         from uuid import uuid4
-        from app.models.project import ProjectDB
+        from app.core.models.project import ProjectDB
 
         project = ProjectDB(
             id=uuid4(),
@@ -367,7 +367,7 @@ class TestDependabotAlertTrackedModel:
     ) -> None:
         """Test creating a tracked Dependabot alert."""
         from uuid import uuid4
-        from app.models.project import ProjectDB
+        from app.core.models.project import ProjectDB
 
         project = ProjectDB(
             id=uuid4(),
@@ -406,7 +406,7 @@ class TestDependabotAlertTrackedModel:
         """Test marking a Dependabot alert as resolved."""
         from datetime import datetime, timezone
         from uuid import uuid4
-        from app.models.project import ProjectDB
+        from app.core.models.project import ProjectDB
 
         project = ProjectDB(
             id=uuid4(),

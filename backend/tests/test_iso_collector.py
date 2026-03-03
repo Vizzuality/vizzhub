@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 from app.core.token_encryption import encrypt_token
-from app.models.oauth import OAuthTokenDB
+from app.core.models.oauth import OAuthTokenDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 

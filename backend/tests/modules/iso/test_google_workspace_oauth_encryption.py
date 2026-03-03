@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import decrypt_token
-from app.models.oauth import OAuthTokenDB
+from app.core.models.oauth import OAuthTokenDB
 from app.modules.iso.services.google_workspace_oauth import (
     PROVIDER,
     GoogleWorkspaceOAuth,

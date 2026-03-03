@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import AdminUser, DBSession
-from app.models.user import User, UserDB, UserUpdate
+from app.core.models.user import User, UserDB, UserUpdate
 
 logger = logging.getLogger(__name__)
 

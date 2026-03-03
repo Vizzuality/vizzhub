@@ -6,8 +6,8 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.token_encryption import encrypt_token
-from app.models.integration_setting import IntegrationSettingDB
-from app.models.oauth import OAuthTokenDB
+from app.core.models.integration_setting import IntegrationSettingDB
+from app.core.models.oauth import OAuthTokenDB
 from app.models.slack import AlertDefinitionDB, MessageTemplateDB
 
 

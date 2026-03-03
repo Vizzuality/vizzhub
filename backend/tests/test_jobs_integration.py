@@ -8,8 +8,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.models.job import JobStatus, JobType
-from app.models.project import ProjectDB
+from app.core.models.job import JobStatus, JobType
+from app.core.models.project import ProjectDB
 
 
 @pytest_asyncio.fixture

@@ -13,7 +13,7 @@ from app.api.schemas.slack import (
     AlertSilenceResponse,
     AlertSilenceUpdate,
 )
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.models.slack import AlertDefinitionDB, AlertSilenceDB
 
 logger = logging.getLogger(__name__)

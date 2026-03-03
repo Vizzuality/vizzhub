@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import ScoringConfig
 from app.models.global_metrics import GlobalMetricsDB
 from app.models.metrics import MetricsDB
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.modules.scorecard.services.export_service import ExportService
 
 

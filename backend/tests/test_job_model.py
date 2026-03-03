@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models.job import Job, JobStatus, JobType
+from app.core.models.job import Job, JobStatus, JobType
 
 
 def test_job_type_enum_has_capture_history():

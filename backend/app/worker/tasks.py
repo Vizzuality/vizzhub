@@ -4,7 +4,7 @@ import asyncio
 import traceback
 from uuid import UUID
 
-from app.models.job import JobStatus
+from app.core.models.job import JobStatus
 from app.services.job_service import JobService
 from app.utils.constants import MONTH_NAMES
 

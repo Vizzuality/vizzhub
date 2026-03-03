@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import encrypt_token
-from app.models.oauth import OAuthTokenDB
+from app.core.models.oauth import OAuthTokenDB
 
 
 class TestIntegrationsStatus:

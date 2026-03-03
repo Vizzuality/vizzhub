@@ -7,7 +7,7 @@ from uuid import uuid4
 from httpx import AsyncClient
 
 from app.core.token_encryption import encrypt_token
-from app.models.oauth import OAuthTokenDB
+from app.core.models.oauth import OAuthTokenDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.models.access_review import AccessReviewDB
 from tests.iso_fixtures import ensure_dev_user

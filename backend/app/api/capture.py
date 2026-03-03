@@ -18,7 +18,7 @@ from app.api.deps import (
 )
 from app.api.scores import ScoreResponse
 from app.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 from app.services.collectors.github import GitHubCollector
 from app.services.collectors.jira import JiraCollector
 from app.services.collectors.utils import execute_collector

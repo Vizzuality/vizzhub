@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.auth import create_access_token
-from app.models.project import ProjectDB
+from app.core.models.project import ProjectDB
 
 
 class TestAuthMiddlewareIntegration:
