@@ -3,7 +3,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404
+from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404
 from app.api.schemas.job import (
     CaptureHistoryRequest,
     JobDetailResponse,

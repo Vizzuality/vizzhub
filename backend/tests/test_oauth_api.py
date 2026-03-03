@@ -23,7 +23,7 @@ class TestOAuthJiraAuthorize:
         self, client: AsyncClient
     ) -> None:
         """Verify state token is generated during authorization flow."""
-        with patch("app.api.oauth.OAuthStateManager") as mock_state:
+        with patch("app.core.api.oauth.OAuthStateManager") as mock_state:
             mock_state.generate_state = AsyncMock(return_value="test-state-token")
 
             response = await client.get("/api/oauth/jira/authorize")
@@ -75,12 +75,12 @@ class TestOAuthJiraCallback:
         self, client: AsyncClient, db_session: AsyncSession
     ) -> None:
         """Authorization code should be exchanged for token."""
-        with patch("app.api.oauth.OAuthStateManager") as mock_state:
+        with patch("app.core.api.oauth.OAuthStateManager") as mock_state:
             mock_state.generate_state = AsyncMock(return_value="test-state")
             mock_state.validate_state = AsyncMock(return_value=True)
 
             with patch(
-                "app.api.oauth.OAuthService.exchange_jira_code_for_token"
+                "app.core.api.oauth.OAuthService.exchange_jira_code_for_token"
             ) as mock_exchange:
                 mock_token = OAuthTokenDB(
                     provider="jira",
@@ -104,12 +104,12 @@ class TestOAuthJiraCallback:
         self, client: AsyncClient
     ) -> None:
         """Invalid authorization code should return error."""
-        with patch("app.api.oauth.OAuthStateManager") as mock_state:
+        with patch("app.core.api.oauth.OAuthStateManager") as mock_state:
             mock_state.generate_state = AsyncMock(return_value="test-state")
             mock_state.validate_state = AsyncMock(return_value=True)
 
             with patch(
-                "app.api.oauth.OAuthService.exchange_jira_code_for_token"
+                "app.core.api.oauth.OAuthService.exchange_jira_code_for_token"
             ) as mock_exchange:
                 import httpx
 
@@ -131,7 +131,7 @@ class TestOAuthJiraCallback:
     ) -> None:
         """Token should be stored in oauth_tokens table."""
         with patch(
-            "app.api.oauth.OAuthService.exchange_jira_code_for_token"
+            "app.core.api.oauth.OAuthService.exchange_jira_code_for_token"
         ) as mock_exchange:
             mock_token = OAuthTokenDB(
                 provider="jira",
@@ -213,7 +213,7 @@ class TestOAuthJiraRefresh:
         db_session.add(token)
         await db_session.commit()
 
-        with patch("app.api.oauth.OAuthService.refresh_jira_token") as mock_refresh:
+        with patch("app.core.api.oauth.OAuthService.refresh_jira_token") as mock_refresh:
             refreshed_token = OAuthTokenDB(
                 provider="jira",
                 access_token="new-token",

@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Request
 from pydantic import ValidationError
 
-from app.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, limiter
+from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, limiter
 from app.core.error_handler import ValidationErrorHandler
 from app.models.config import (
     ConfigParameterResponse,

@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
-from app.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import AdminUser, DBSession, limiter
 from app.core.oauth_state import OAuthStateManager
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,

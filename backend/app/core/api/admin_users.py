@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import AdminUser, DBSession
+from app.core.api.deps import AdminUser, DBSession
 from app.core.models.user import User, UserDB, UserUpdate
 
 logger = logging.getLogger(__name__)

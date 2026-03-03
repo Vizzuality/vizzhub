@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,

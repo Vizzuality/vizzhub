@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from app.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import AdminUser, DBSession, limiter
 from app.api.schemas.slack import (
     AlertNotificationResponse,
     NotificationStatsResponse,

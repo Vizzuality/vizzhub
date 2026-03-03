@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import AdminUser, CurrentUser, DBSession, limiter
+from app.core.api.deps import AdminUser, CurrentUser, DBSession, limiter
 from app.config import get_settings
 from app.core.oauth_state import OAuthStateManager
 from app.core.security_logger import (
