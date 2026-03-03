@@ -9,7 +9,7 @@ from fastapi.responses import Response
 
 from app.core.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
 from app.core.services.export_helpers import XLSX_MEDIA_TYPE
-from app.models.metrics import SnapshotType
+from app.modules.scorecard.models.metrics import SnapshotType
 from app.modules.scorecard.services.export_service import ExportService
 
 MAX_EXPORT_MONTHS = 60

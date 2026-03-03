@@ -7,8 +7,8 @@ Weighted aggregate of all dimension scores.
 from typing import Callable
 
 from app.config import ScoringConfig, get_scoring_config
-from app.models.indicators import IndicatorsCreate
-from app.models.scores import DimensionScores, DoraScore, FinalScore
+from app.modules.scorecard.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.scores import DimensionScores, DoraScore, FinalScore
 from app.services.calculators.dimensions import (
     CostCalculator,
     EngineeringCalculator,

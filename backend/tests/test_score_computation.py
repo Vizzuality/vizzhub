@@ -3,7 +3,7 @@
 import pytest
 
 from app.config import ScoringConfig
-from app.models.metrics import MetricsCreate, EVMData, GitHubMetrics, FlowMetrics, JiraDefectMetrics
+from app.modules.scorecard.models.metrics import MetricsCreate, EVMData, GitHubMetrics, FlowMetrics, JiraDefectMetrics
 from app.services.score_computation import ScoreComputationService
 
 

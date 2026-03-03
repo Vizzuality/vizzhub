@@ -8,7 +8,7 @@ from httpx import AsyncClient
 from app.core.token_encryption import encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
-from app.models.slack import AlertDefinitionDB, MessageTemplateDB
+from app.modules.scorecard.models.slack import AlertDefinitionDB, MessageTemplateDB
 
 
 class TestAlertDefinitionsAPI:

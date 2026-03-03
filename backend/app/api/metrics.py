@@ -7,9 +7,9 @@ from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
 from app.core.exceptions import MetricsNotFoundError
-from app.models.indicators import IndicatorsCreate
-from app.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
-from app.models.scores import FinalScore
+from app.modules.scorecard.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
+from app.modules.scorecard.models.scores import FinalScore
 from app.services.metrics_service import MetricsService
 from app.services.score_computation import ScoreComputationService
 

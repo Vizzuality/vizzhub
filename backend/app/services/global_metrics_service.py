@@ -6,16 +6,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig, get_scoring_config
-from app.models.global_metrics import (
+from app.modules.scorecard.models.global_metrics import (
     GlobalIndicators,
     GlobalMetricsDB,
     GlobalScores,
     IndicatorValue,
     ScoreValue,
 )
-from app.models.indicators import IndicatorsCreate
-from app.models.metrics import MetricsCreate, MetricsDB, SnapshotType
-from app.models.scores import FinalScore
+from app.modules.scorecard.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, SnapshotType
+from app.modules.scorecard.models.scores import FinalScore
 from app.services.score_computation import ScoreComputationService
 
 

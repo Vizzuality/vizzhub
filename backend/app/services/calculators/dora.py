@@ -18,7 +18,7 @@ The individual metrics already contribute to P_flow and P_quality dimensions.
 """
 
 from app.config import ScoringConfig
-from app.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.indicators import IndicatorsCreate
 
 
 # Classification levels with numeric values for scoring

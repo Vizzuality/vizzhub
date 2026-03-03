@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, limiter
 from app.core.error_handler import ValidationErrorHandler
-from app.models.config import (
+from app.modules.scorecard.models.config import (
     ConfigParameterResponse,
     ConfigParameterUpdate,
     ConstantsConfig,

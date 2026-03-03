@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from app.config import ScoringConfig, get_scoring_config
-from app.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.indicators import IndicatorsCreate
 
 
 @dataclass

@@ -3,7 +3,7 @@
 import pytest
 
 from app.config import ScoringConfig
-from app.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.services.calculators.dimensions import (
     CostCalculator,
     EngineeringCalculator,

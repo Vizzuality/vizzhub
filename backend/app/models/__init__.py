@@ -1,6 +1,6 @@
-from app.models.config import ConfigParameter, ScoringConfigModel
+from app.modules.scorecard.models.config import ConfigParameter, ScoringConfigModel
 from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
-from app.models.global_metrics import (
+from app.modules.scorecard.models.global_metrics import (
     CalculateBatchRequest,
     CalculateBatchResponse,
     GlobalIndicators,
@@ -11,10 +11,10 @@ from app.models.global_metrics import (
     IndicatorValue,
     ScoreValue,
 )
-from app.models.indicators import IndicatorsCreate
+from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.job import Job, JobStatus, JobType
-from app.models.metrics import (
+from app.modules.scorecard.models.metrics import (
     ArchitectureChecklist,
     ClientSurvey,
     EVMData,
@@ -32,7 +32,7 @@ from app.models.metrics import (
 )
 from app.core.models.oauth import OAuthToken, OAuthTokenDB
 from app.core.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
-from app.models.scores import DimensionScores, FinalScore
+from app.modules.scorecard.models.scores import DimensionScores, FinalScore
 
 __all__ = [
     "ArchitectureChecklist",

@@ -340,7 +340,7 @@ async def load_scoring_config_from_db() -> ScoringConfig:
     """
     from sqlalchemy import select
     from app.database import async_session_maker
-    from app.models.config import ConfigParameter
+    from app.modules.scorecard.models.config import ConfigParameter
 
     async with async_session_maker() as db:
         result = await db.execute(select(ConfigParameter))

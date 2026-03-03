@@ -64,7 +64,7 @@ async def capture_history_task(
     )
     from app.core.api.deps import get_project_or_404
     from app.config import get_scoring_config
-    from app.models.metrics import SnapshotType
+    from app.modules.scorecard.models.metrics import SnapshotType
     from app.services.metrics_service import MetricsService
 
     db = ctx["db"]

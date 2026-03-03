@@ -8,7 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.models.metrics import MetricsDB
+from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
 
 

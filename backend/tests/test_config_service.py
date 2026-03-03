@@ -3,7 +3,7 @@ import pytest_asyncio
 from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.config import ConfigParameter
+from app.modules.scorecard.models.config import ConfigParameter
 from app.services.config_service import ConfigService
 
 
@@ -117,7 +117,7 @@ async def test_validate_weight_groups_detects_invalid(seeded_db: AsyncSession):
 @pytest.mark.asyncio
 async def test_update_parameters(seeded_db: AsyncSession):
     """Test updating multiple parameters."""
-    from app.models.config import ConfigParameterUpdate
+    from app.modules.scorecard.models.config import ConfigParameterUpdate
 
     db = seeded_db
     updates = [ConfigParameterUpdate(name="DefDensity_t", value=Decimal("2.50"))]
@@ -136,7 +136,7 @@ async def test_update_parameters(seeded_db: AsyncSession):
 @pytest.mark.asyncio
 async def test_update_parameters_rejects_invalid_weights(seeded_db: AsyncSession):
     """Test update rejects changes that break weight validation."""
-    from app.models.config import ConfigParameterUpdate
+    from app.modules.scorecard.models.config import ConfigParameterUpdate
 
     db = seeded_db
     # Try to set W_time_spi to 1.0 (breaks Time Weights sum)

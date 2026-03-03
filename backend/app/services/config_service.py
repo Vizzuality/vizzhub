@@ -2,7 +2,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.config import ConfigParameter, ConfigParameterUpdate
+from app.modules.scorecard.models.config import ConfigParameter, ConfigParameterUpdate
 
 
 def _format_weight_error(category: str, total: Decimal) -> str:
