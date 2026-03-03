@@ -55,7 +55,7 @@ async def capture_history_task(
     Returns:
         Report dict with summary of captured months
     """
-    from app.api.capture import (
+    from app.modules.scorecard.api.capture import (
         _build_metrics_data,
         _collect_from_github,
         _collect_from_jira,

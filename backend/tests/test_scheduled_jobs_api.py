@@ -151,7 +151,7 @@ class TestTriggerScheduledJob:
         mock_pool.close = AsyncMock()
 
         with patch(
-            "app.api.scheduled_jobs.get_redis_pool",
+            "app.modules.scorecard.api.scheduled_jobs.get_redis_pool",
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
@@ -176,7 +176,7 @@ class TestTriggerScheduledJob:
         mock_pool.close = AsyncMock()
 
         with patch(
-            "app.api.scheduled_jobs.get_redis_pool",
+            "app.modules.scorecard.api.scheduled_jobs.get_redis_pool",
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
@@ -194,7 +194,7 @@ class TestTriggerScheduledJob:
     async def test_trigger_job_redis_error(self, client: AsyncClient) -> None:
         """Trigger job returns 500 when Redis is unavailable."""
         with patch(
-            "app.api.scheduled_jobs.get_redis_pool",
+            "app.modules.scorecard.api.scheduled_jobs.get_redis_pool",
             new_callable=AsyncMock,
             side_effect=ConnectionError("Redis connection refused"),
         ):
@@ -217,7 +217,7 @@ class TestTriggerScheduledJob:
         mock_pool.close = AsyncMock()
 
         with patch(
-            "app.api.scheduled_jobs.get_redis_pool",
+            "app.modules.scorecard.api.scheduled_jobs.get_redis_pool",
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):

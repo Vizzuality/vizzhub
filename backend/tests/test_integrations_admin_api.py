@@ -132,7 +132,7 @@ class TestSlackIntegration:
             {"id": "C002", "name": "secret", "is_private": True},
         ]
         with patch(
-            "app.api.integrations_admin.SlackService.list_channels",
+            "app.modules.scorecard.api.integrations_admin.SlackService.list_channels",
             new_callable=AsyncMock,
             return_value=mock_channels,
         ):
@@ -162,7 +162,7 @@ class TestSlackIntegration:
 
         mock_response = {"ok": True, "team": "Test Team", "bot_id": "B12345"}
         with patch(
-            "app.api.integrations_admin.SlackService.test_connection",
+            "app.modules.scorecard.api.integrations_admin.SlackService.test_connection",
             new_callable=AsyncMock,
             return_value=mock_response,
         ):

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.api.schemas.common import PaginatedResponse
+from app.modules.scorecard.api.schemas.common import PaginatedResponse
 
 
 class SlackChannel(BaseModel):

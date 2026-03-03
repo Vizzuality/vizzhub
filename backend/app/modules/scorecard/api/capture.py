@@ -16,7 +16,7 @@ from app.core.api.deps import (
     get_project_or_404,
     limiter,
 )
-from app.api.scores import ScoreResponse
+from app.modules.scorecard.api.scores import ScoreResponse
 from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.core.models.project import ProjectDB
 from app.modules.scorecard.services.collectors.github import GitHubCollector

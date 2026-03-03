@@ -5,14 +5,14 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, status
 
 from app.core.api.deps import AdminUser, CurrentUser, DBSession, limiter
-from app.api.schemas.integrations import (
+from app.modules.scorecard.api.schemas.integrations import (
     AllIntegrationsStatus,
     GitHubTokenInput,
     ProviderStatus,
     SlackSettingsUpdate,
     SlackTokenInput,
 )
-from app.api.schemas.slack import SlackChannel, SlackTestResult
+from app.modules.scorecard.api.schemas.slack import SlackChannel, SlackTestResult
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.scorecard.services.slack_service import SlackService
 

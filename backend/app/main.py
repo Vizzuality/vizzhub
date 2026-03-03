@@ -12,25 +12,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.api import admin_users as admin_users_router
 from app.core.api import auth as auth_router
-from app.api import capture as capture_router
-from app.api import collectors as collectors_router
-from app.api import config as config_router
-from app.modules.scorecard.router import router as scorecard_router
-from app.api import global_metrics as global_metrics_router
 from app.core.api import jobs as jobs_router
-from app.api import metrics as metrics_router
 from app.core.api import oauth as oauth_router
 from app.core.api import projects as projects_router
-from app.api import scores as scores_router
-from app.api.notifications import router as notifications_router
-from app.api.scheduled_jobs import router as scheduled_jobs_router
-from app.api.silences import router as silences_router
-from app.api.integrations_admin import router as integrations_admin_router
-from app.api.slack_admin import (
-    alerts_router as slack_alerts_router,
-    templates_router as slack_templates_router,
-)
 from app.modules.iso.router import router as iso_router
+from app.modules.scorecard.router import router as scorecard_router
 from app.core.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
@@ -178,20 +164,8 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 app.include_router(auth_router.router, prefix="/api")
 app.include_router(admin_users_router.router, prefix="/api")
 app.include_router(projects_router.router, prefix="/api/scorecards", tags=["projects"])
-app.include_router(metrics_router.router, prefix="/api/metrics", tags=["metrics"])
-app.include_router(scores_router.router, prefix="/api/scores", tags=["scores"])
-app.include_router(config_router.router, prefix="/api/config", tags=["config"])
 app.include_router(oauth_router.router, prefix="/api/oauth", tags=["oauth"])
-app.include_router(collectors_router.router, prefix="/api/collect", tags=["collectors"])
-app.include_router(capture_router.router, prefix="/api/scorecards", tags=["capture"])
 app.include_router(jobs_router.router, prefix="/api")
-app.include_router(global_metrics_router.router, prefix="/api", tags=["global"])
-app.include_router(slack_alerts_router, prefix="/api")
-app.include_router(slack_templates_router, prefix="/api")
-app.include_router(integrations_admin_router, prefix="/api")
-app.include_router(silences_router, prefix="/api")
-app.include_router(notifications_router, prefix="/api")
-app.include_router(scheduled_jobs_router, prefix="/api")
 app.include_router(scorecard_router, prefix="/api", tags=["scorecard"])
 app.include_router(iso_router, prefix="/api/iso", tags=["iso"])
 

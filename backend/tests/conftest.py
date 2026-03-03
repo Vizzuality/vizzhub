@@ -100,7 +100,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Each API router has its own limiter instance that needs to be reset
     from app.main import limiter as main_limiter
     from app.core.api import projects, oauth
-    from app.api import metrics, collectors, scores, config, capture
+    from app.modules.scorecard.api import metrics, collectors, scores, config, capture
     from app.core.api.deps import limiter as deps_limiter
 
     main_limiter.reset()

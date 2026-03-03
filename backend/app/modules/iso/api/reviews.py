@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.sql import func
 
 from app.core.api.deps import AdminUser, DBSession, limiter
-from app.api.schemas.common import PaginatedResponse
+from app.modules.scorecard.api.schemas.common import PaginatedResponse
 from app.modules.iso.api.helpers import (
     get_review_or_404,
     load_review_with_actions,

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.core.api.deps import AdminUser, DBSession, limiter
-from app.api.schemas.slack import (
+from app.modules.scorecard.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
     AlertTestResponse,
