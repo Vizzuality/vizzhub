@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './shared/components/theme-provider';
 import App from './App';
-import { TIMING } from './constants/timing';
+import { TIMING } from './shared/constants/timing';
 import './index.css';
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { jobsApi } from '@/services/api';
+import { jobsApi } from '@/core/services/jobs';
 import { queryKeys } from './queryKeys';
-import { TIMING } from '@/constants/timing';
+import { TIMING } from '@/shared/constants/timing';
 import type {
   CreateCaptureHistoryJobRequest,
   JobDetailResponse,

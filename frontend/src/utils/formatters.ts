@@ -2,7 +2,7 @@
  * Shared utility functions for formatting values.
  */
 
-import { MONTHS_SHORT } from '../constants/dates';
+import { MONTHS_SHORT } from '@/shared/constants/dates';
 
 export function formatDate(dateString: string | null): string {
   if (!dateString) return '';

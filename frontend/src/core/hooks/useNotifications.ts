@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { notificationsApi } from '@/services/api';
+import { notificationsApi } from '@/core/services/notifications';
 import { queryKeys } from './queryKeys';
 import type { NotificationFilters, NotificationStats, PaginatedNotifications } from '@/types';
 

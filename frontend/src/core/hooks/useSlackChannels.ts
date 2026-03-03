@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { integrationsApi } from '@/core/services/integrations';
 import { queryKeys } from './queryKeys';
-import { TIMING } from '@/constants/timing';
+import { TIMING } from '@/shared/constants/timing';
 import type { SlackChannel } from '@/types';
 
 export interface UseSlackChannelsResult {

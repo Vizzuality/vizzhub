@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { silencesApi } from '@/services/api';
+import { silencesApi } from '@/core/services/notifications';
 import { queryKeys } from './queryKeys';
 import type { AlertSilence, AlertSilenceCreate, AlertSilenceUpdate } from '@/types';
 
