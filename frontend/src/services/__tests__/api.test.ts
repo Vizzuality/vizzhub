@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import MockAdapter from 'axios-mock-adapter';
-import api, { projectsApi, scoresApi, configApi } from '../api';
-import type { Project, ProjectCreate, MetricsCreate, ScoreResponse, ScoringConfig } from '../../types';
+import api from '@/core/services/client';
+import { projectsApi } from '@/core/services/projects';
+import { scoresApi, configApi } from '@/modules/scorecard/services/scores';
+import type { Project, ProjectCreate, MetricsCreate, ScoreResponse, ScoringConfig } from '@/types';
 
 describe('API Service', () => {
   let mock: MockAdapter;

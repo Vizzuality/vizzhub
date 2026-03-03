@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { scoresApi } from '../services';
 import { queryKeys } from '@/core/hooks/queryKeys';
-import { TIMING } from '@/constants/timing';
+import { TIMING } from '@/shared/constants/timing';
 import type { Project } from '@/core/types/project';
 
 export interface UseProjectScoresMapReturn {

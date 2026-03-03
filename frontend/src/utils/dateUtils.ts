@@ -1,4 +1,4 @@
-import { MONTHS_SHORT } from '../constants/dates';
+import { MONTHS_SHORT } from '@/shared/constants/dates';
 
 /**
  * Represents a year-month period.

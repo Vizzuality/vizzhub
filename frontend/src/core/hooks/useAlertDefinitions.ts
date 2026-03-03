@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { alertsAdminApi, scheduledJobsApi } from '@/services/api';
+import { alertsAdminApi, scheduledJobsApi } from '@/core/services/notifications';
 import { queryKeys } from './queryKeys';
-import { TIMING } from '@/constants/timing';
+import { TIMING } from '@/shared/constants/timing';
 import type {
   AlertDefinition,
   AlertDefinitionUpdate,

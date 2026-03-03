@@ -2,7 +2,7 @@ import { AxiosError } from 'axios';
 import { Button } from '@/shared/components/ui/button';
 import { Loader2, Calendar } from 'lucide-react';
 import type { Period } from '@/utils/dateUtils';
-import { MONTHS } from '@/constants/dates';
+import { MONTHS } from '@/shared/constants/dates';
 
 interface EmptyPeriodOverlayProps {
   readonly period: Period;

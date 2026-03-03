@@ -1,4 +1,4 @@
-import { MONTHS } from '@/constants/dates';
+import { MONTHS } from '@/shared/constants/dates';
 import { getYearOptions } from '@/utils/dateUtils';
 import { NativeSelect } from './native-select';
 

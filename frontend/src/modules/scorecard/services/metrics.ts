@@ -6,7 +6,7 @@ import type {
   MetricsWithScores,
   SnapshotType,
 } from '../types';
-import { TIMING } from '@/constants/timing';
+import { TIMING } from '@/shared/constants/timing';
 import api from '@/core/services/client';
 
 export const metricsHistoryApi = {
