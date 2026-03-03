@@ -23,16 +23,16 @@ import { useProjectScoresMap } from '../hooks/useProjectScoresMap';
 import ProjectCard from '../components/Dashboard/ProjectCard';
 import ProjectForm from '../components/Forms/ProjectForm';
 import type { ProjectCreate } from '../types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@/shared/components/ui/card';
 import { cn } from '@/lib/utils';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 
 type ViewMode = 'list' | 'grid';
 

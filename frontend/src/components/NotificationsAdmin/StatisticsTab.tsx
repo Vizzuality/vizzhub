@@ -1,10 +1,10 @@
 import { useNotificationStats } from '../../hooks/useNotifications';
 import { useScheduledJobs, useTriggerScheduledJob } from '../../hooks/useAlertDefinitions';
 import { formatRelativeTime } from '../../utils/dateUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { Bell, BarChart3, Clock, Play, Shield } from 'lucide-react';
 
 function getJobStatusBadge(status: string): JSX.Element {

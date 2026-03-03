@@ -5,7 +5,7 @@ import JiraCard from './JiraCard';
 import ISOConfig from '@/pages/ISOConfig';
 import GitHubCard from './GitHubCard';
 import SlackTab from './SlackTab';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 
 export default function IntegrationsTab(): JSX.Element {
   const { data: status, isLoading } = useQuery({

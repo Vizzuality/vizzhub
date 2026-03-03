@@ -3,11 +3,11 @@ import { useAllJobs, useCancelJob, useDeleteJob } from '../../hooks/useJobs';
 import { useScheduledJobs, useTriggerScheduledJob } from '../../hooks/useAlertDefinitions';
 import { useProjectSummaries } from '../../hooks/useProjects';
 import { formatRelativeTime } from '../../utils/dateUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
+import { Progress } from '@/shared/components/ui/progress';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import {
   XCircle,
   Trash2,

@@ -1,7 +1,7 @@
 import { Info } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { Separator } from '@/shared/components/ui/separator';
 import { cn } from '@/lib/utils';
 import SubIndicatorCard from '../SubIndicatorCard';
 import { getHistoricalData } from '../../utils/chartUtils';

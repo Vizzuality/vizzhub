@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ReviewStatusBadge } from '@/components/ui/review-status-badge';
-import { ErrorBanner } from '@/components/ui/error-banner';
-import { StatCards } from '@/components/ui/stat-cards';
+import { Button } from '@/shared/components/ui/button';
+import { Badge } from '@/shared/components/ui/badge';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { ReviewStatusBadge } from '@/shared/components/ui/review-status-badge';
+import { ErrorBanner } from '@/shared/components/ui/error-banner';
+import { StatCards } from '@/shared/components/ui/stat-cards';
 import { useIsoSnapshot, useSnapshotReview } from '@/hooks/useIso';
 import { useIsoExport } from '@/hooks/useIsoExport';
 import { formatDate } from '@/utils/formatters';

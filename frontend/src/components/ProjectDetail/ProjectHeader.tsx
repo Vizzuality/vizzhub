@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Github, BarChart3, Calendar } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/shared/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { formatDate } from '../../utils/formatters';
 import StatusControls from './StatusControls';
 import ProjectForm from '../Forms/ProjectForm';

@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,12 +20,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/shared/components/ui/alert-dialog';
 import {
   TIMELINE_CHART_COLORS,
   getScoreColor,
   getTickInterval,
-} from '@/components/ui/timeline-chart';
+} from '@/shared/components/ui/timeline-chart';
 import type { MetricsWithScores } from '../../types';
 import {
   formatPeriod,

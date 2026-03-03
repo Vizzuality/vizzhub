@@ -24,9 +24,9 @@ import {
   EmptyPeriodOverlay,
 } from '../components/ProjectDetail';
 import type { ProjectCreate, EVMData, Milestone } from '../types';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Card, CardContent } from '@/shared/components/ui/card';
+import { Separator } from '@/shared/components/ui/separator';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/shared/components/ui/alert-dialog';
 
 export default function ProjectDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();

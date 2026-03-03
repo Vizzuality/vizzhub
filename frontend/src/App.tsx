@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
+import { ErrorBoundary } from './core/components/ErrorBoundary';
+import { ProtectedRoute, AdminRoute } from './core/components/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
