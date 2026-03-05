@@ -8,8 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
+from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
+from app.worker.utils import complete_with_error
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +24,20 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
     """
     db: AsyncSession = ctx["db"]
 
+    job_run = ScheduledJobRunDB(
+        job_name="collect_iso_snapshot",
+        status="running",
+        projects_checked=0,
+        alerts_sent=0,
+    )
+    db.add(job_run)
+    await db.commit()
+    await db.refresh(job_run)
+
     try:
         collector = GoogleWorkspaceCollector(db)
         snapshot = await collector.capture(run_mode="cron")
+        await db.commit()
     except Exception as e:
         error_msg = str(e)
         logger.error(
@@ -33,15 +46,16 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
             exc_info=True,
         )
         await send_iso_failure_alert(db, error_msg)
-        return {
-            "status": "error",
-            "error": error_msg,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        return await complete_with_error(db, job_run, error_msg)
+
+    job_run.status = "completed"
+    job_run.completed_at = datetime.now(timezone.utc)
+    await db.commit()
 
     logger.info("ISO snapshot captured: %s", snapshot.id)
     return {
         "status": "completed",
+        "job_run_id": job_run.id,
         "snapshot_id": str(snapshot.id),
         "provider": snapshot.provider,
         "timestamp": datetime.now(timezone.utc).isoformat(),
