@@ -4,11 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.token_encryption import encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
+from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.worker.collect_iso_snapshot import (
     collect_iso_snapshot,
     send_iso_failure_alert,
@@ -53,7 +55,44 @@ class TestCollectIsoSnapshot:
         assert result["status"] == "completed"
         assert "snapshot_id" in result
         assert result["provider"] == "google_workspace"
-        assert "timestamp" in result
+        assert "job_run_id" in result
+
+    @pytest.mark.asyncio
+    async def test_successful_capture_creates_job_run(
+        self, db_session: AsyncSession
+    ) -> None:
+        token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token=encrypt_token("ya29.test"),
+            site_url="empresa.com",
+        )
+        db_session.add(token)
+        await db_session.flush()
+
+        mock_api_response = MagicMock()
+        mock_api_response.json.return_value = {
+            "users": [],
+            "groups": [],
+            "members": [],
+            "items": [],
+        }
+        mock_api_response.raise_for_status = MagicMock()
+
+        with patch(
+            "httpx.AsyncClient.get",
+            new_callable=AsyncMock,
+            return_value=mock_api_response,
+        ):
+            result = await collect_iso_snapshot({"db": db_session})
+
+        db_result = await db_session.execute(
+            select(ScheduledJobRunDB).where(
+                ScheduledJobRunDB.job_name == "collect_iso_snapshot"
+            )
+        )
+        job_run = db_result.scalar_one()
+        assert job_run.status == "completed"
+        assert job_run.completed_at is not None
 
     @pytest.mark.asyncio
     async def test_failure_no_oauth_token(self, db_session: AsyncSession) -> None:
@@ -65,8 +104,28 @@ class TestCollectIsoSnapshot:
 
         assert result["status"] == "error"
         assert "error" in result
-        assert "timestamp" in result
         mock_alert.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_failure_creates_error_job_run(
+        self, db_session: AsyncSession
+    ) -> None:
+        with patch(
+            "app.worker.collect_iso_snapshot.send_iso_failure_alert",
+            new_callable=AsyncMock,
+        ):
+            result = await collect_iso_snapshot({"db": db_session})
+
+        assert result["status"] == "error"
+        db_result = await db_session.execute(
+            select(ScheduledJobRunDB).where(
+                ScheduledJobRunDB.job_name == "collect_iso_snapshot"
+            )
+        )
+        job_run = db_result.scalar_one()
+        assert job_run.status == "error"
+        assert job_run.error_message is not None
+        assert job_run.completed_at is not None
 
     @pytest.mark.asyncio
     async def test_failure_api_error(self, db_session: AsyncSession) -> None:
