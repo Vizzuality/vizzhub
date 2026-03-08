@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.services.diff_github import compute_github_diff
+from app.modules.iso.services.diff_jira import compute_jira_diff
 
 
 def compute_diff(
@@ -18,6 +19,9 @@ def compute_diff(
 ) -> list[dict[str, Any]]:
     if provider == "github":
         return compute_github_diff(current_data, previous_data)
+
+    if provider == "jira":
+        return compute_jira_diff(current_data, previous_data)
 
     changes: list[dict[str, Any]] = []
 
