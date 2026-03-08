@@ -67,6 +67,8 @@ class IsoExportService:
 
         if provider == "github":
             self._write_github_data_tables(ws, data)
+        elif provider == "jira":
+            self._write_jira_data_tables(ws, data)
         else:
             self._write_gw_data_tables(ws, data)
 
@@ -101,7 +103,12 @@ class IsoExportService:
     def _write_iso_header(self, ws, snapshot: dict, review: dict | None) -> None:
         provider = snapshot.get("provider", "google_workspace")
         metadata = snapshot.get("source_metadata", {})
-        org_label = metadata.get("org", "") if provider == "github" else metadata.get("domain", "")
+        if provider == "github":
+            org_label = metadata.get("org", "")
+        elif provider == "jira":
+            org_label = metadata.get("site_url", "")
+        else:
+            org_label = metadata.get("domain", "")
 
         captured = snapshot["captured_at"]
         captured_str = (
@@ -118,6 +125,13 @@ class IsoExportService:
                 ("Total Admins", summary.get("total_admins", 0)),
                 ("Total Teams", summary.get("total_teams", 0)),
                 ("Outside Collaborators", summary.get("outside_collaborators", 0)),
+            ]
+        elif provider == "jira":
+            summary_rows = [
+                ("Total Users", summary.get("total_users", 0)),
+                ("Total Admins", summary.get("total_admins", 0)),
+                ("Total Groups", summary.get("total_groups", 0)),
+                ("External Users", summary.get("external_users", 0)),
             ]
         else:
             summary_rows = [
@@ -354,3 +368,58 @@ class IsoExportService:
                 c.get("name", "") or "",
                 c.get("email", "") or "",
             ])
+
+    # --- Jira-specific tables ---
+
+    def _write_jira_data_tables(self, ws, data: dict) -> None:
+        self._write_jira_users_table(ws, data.get("users", []))
+        ws.append([])
+        self._write_jira_groups_table(
+            ws, data.get("groups", []), data.get("group_members", {})
+        )
+        ws.append([])
+        self._write_jira_group_members_table(ws, data.get("group_members", {}))
+
+    def _write_jira_users_table(self, ws, users: list[dict]) -> None:
+        ws.append(["Users"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Display Name", "Email", "Account Type", "External"])
+        apply_header_style(ws, ws.max_row)
+
+        for u in users:
+            ws.append([
+                u.get("display_name", ""),
+                u.get("email", ""),
+                u.get("account_type", ""),
+                "Yes" if u.get("is_external") else "No",
+            ])
+
+    def _write_jira_groups_table(
+        self, ws, groups: list[dict], group_members: dict[str, list]
+    ) -> None:
+        ws.append(["Groups"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Name", "Members"])
+        apply_header_style(ws, ws.max_row)
+
+        for g in groups:
+            name = g.get("name", "")
+            members = group_members.get(name, [])
+            ws.append([name, len(members)])
+
+    def _write_jira_group_members_table(self, ws, group_members: dict[str, list]) -> None:
+        ws.append(["Group Members"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Group", "Account ID", "Display Name"])
+        apply_header_style(ws, ws.max_row)
+
+        for group_name in sorted(group_members.keys()):
+            for m in group_members[group_name]:
+                ws.append([
+                    group_name,
+                    m.get("account_id", ""),
+                    m.get("display_name", ""),
+                ])
