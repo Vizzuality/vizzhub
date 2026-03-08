@@ -21,8 +21,9 @@ from app.modules.iso.schemas import (
     AccessSnapshotSummary,
     ReviewStatus,
 )
-from app.modules.iso.services.collectors.google_workspace import (
+from app.modules.iso.services.collectors import (
     GoogleWorkspaceCollector,
+    GitHubCollector,
 )
 from app.modules.iso.services.diff_engine import (
     build_diff_summary,
@@ -35,21 +36,47 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+VALID_PROVIDERS = {"google_workspace", "github"}
+
+
+def _get_collector(provider: str, db):
+    if provider == "google_workspace":
+        return GoogleWorkspaceCollector(db)
+    if provider == "github":
+        return GitHubCollector(db)
+    raise ValueError(f"Unknown provider: {provider}")
+
+
+def _get_diff_context(snapshot: AccessSnapshotDB) -> str:
+    metadata = snapshot.source_metadata or {}
+    if snapshot.provider == "github":
+        return metadata.get("org", "")
+    return metadata.get("domain", "")
+
 
 @router.post(
     "/capture",
     response_model=AccessSnapshotResponse,
     status_code=201,
     responses={
-        400: {"description": "Google Workspace not configured"},
-        502: {"description": "Google Workspace API error"},
+        400: {"description": "Provider not configured"},
+        502: {"description": "Provider API error"},
     },
 )
 @limiter.limit("5/minute")
 async def capture_snapshot(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request,
+    current_user: AdminUser,
+    db: DBSession,
+    provider: Annotated[str, Query()] = "google_workspace",
 ) -> AccessSnapshotDB:
-    collector = GoogleWorkspaceCollector(db)
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid provider. Must be one of: {', '.join(sorted(VALID_PROVIDERS))}",
+        )
+
+    collector = _get_collector(provider, db)
     try:
         snapshot = await collector.capture(
             captured_by=UUID(current_user.user_id), run_mode="manual"
@@ -57,19 +84,19 @@ async def capture_snapshot(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except httpx.HTTPStatusError as e:
-        logger.warning("Google Workspace API error: %s", e.response.status_code)
+        logger.warning("%s API error: %s", provider, e.response.status_code)
         raise HTTPException(
-            status_code=502, detail="Google Workspace API error"
+            status_code=502, detail=f"{provider} API error"
         ) from e
     except httpx.RequestError:
-        logger.exception("Google Workspace connection error")
+        logger.exception("%s connection error", provider)
         raise HTTPException(
-            status_code=502, detail="Failed to connect to Google Workspace"
+            status_code=502, detail=f"Failed to connect to {provider}"
         )
 
     result = await db.execute(
         select(AccessSnapshotDB)
-        .where(AccessSnapshotDB.provider == "google_workspace")
+        .where(AccessSnapshotDB.provider == provider)
         .where(AccessSnapshotDB.id != snapshot.id)
         .order_by(AccessSnapshotDB.captured_at.desc())
         .limit(1)
@@ -87,8 +114,8 @@ async def capture_snapshot(
     await db.flush()
 
     if previous:
-        domain = snapshot.source_metadata.get("domain", "")
-        changes = compute_diff(snapshot.data, previous.data, domain)
+        context = _get_diff_context(snapshot)
+        changes = compute_diff(snapshot.data, previous.data, context, provider)
         review.diff_summary = build_diff_summary(changes)
         await create_review_actions(db, review.id, changes)
         await db.flush()

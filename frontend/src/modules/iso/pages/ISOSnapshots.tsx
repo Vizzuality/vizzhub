@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle, Download, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -13,7 +13,6 @@ import {
 } from '@/shared/components/ui/select';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
-import { ErrorBanner } from '@/shared/components/ui/error-banner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,12 +27,12 @@ import { ReviewStatusBadge } from '@/modules/iso/components/review-status-badge'
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   useIsoSnapshots,
-  useCaptureSnapshot,
   useDeleteSnapshot,
 } from '@/modules/iso/hooks/useIso';
 import { useIsoExport } from '@/modules/iso/hooks/useIsoExport';
 import { isSnapshotStale } from '@/modules/iso/hooks/isoStaleCheck';
 import { formatDate } from '@/utils/formatters';
+import ProviderCaptureButtons from '@/modules/iso/components/ProviderCaptureButtons';
 
 const snapshotsUrlSchema = {
   page: { defaultValue: 1 },
@@ -44,7 +43,6 @@ export default function ISOSnapshots(): JSX.Element {
   const page = state.page;
 
   const { data, isLoading } = useIsoSnapshots({ page, page_size: 20 });
-  const capture = useCaptureSnapshot();
   const deleteSnapshot = useDeleteSnapshot();
   const { exportSnapshots, isExporting } = useIsoExport();
   const now = new Date();
@@ -55,10 +53,6 @@ export default function ISOSnapshots(): JSX.Element {
   const [toMonth, setToMonth] = useState(currentMonth);
   const [toYear, setToYear] = useState(currentYear);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  const handleCapture = (): void => {
-    capture.mutate();
-  };
 
   const handlePageChange = (newPage: number): void => {
     setState({ page: newPage });
@@ -162,18 +156,9 @@ export default function ISOSnapshots(): JSX.Element {
             <Download className="h-4 w-4" />
             {isExporting ? 'Exporting...' : 'Export'}
           </Button>
-          <Button onClick={handleCapture} disabled={capture.isPending}>
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${capture.isPending ? 'animate-spin' : ''}`}
-            />
-            {capture.isPending ? 'Capturing...' : 'Capture Snapshot'}
-          </Button>
+          <ProviderCaptureButtons />
         </div>
       </div>
-
-      {capture.isError && (
-        <ErrorBanner message="Failed to capture snapshot. Please try again." />
-      )}
 
       {!data || data.items.length === 0 ? (
         <Card>
@@ -208,16 +193,16 @@ export default function ISOSnapshots(): JSX.Element {
                       <Badge variant="outline">{snap.provider}</Badge>
                     </td>
                     <td className="py-3 pr-4 text-sm">
-                      {snap.summary.total_users ?? 0}
+                      {snap.summary.total_users ?? snap.summary.total_members ?? 0}
                     </td>
                     <td className="py-3 pr-4 text-sm">
                       {snap.summary.total_admins ?? 0}
                     </td>
                     <td className="py-3 pr-4 text-sm">
-                      {snap.summary.total_groups ?? 0}
+                      {snap.summary.total_groups ?? snap.summary.total_teams ?? 0}
                     </td>
                     <td className="py-3 pr-4 text-sm">
-                      {snap.summary.external_members ?? 0}
+                      {snap.summary.external_members ?? snap.summary.outside_collaborators ?? 0}
                     </td>
                     <td className="py-3 pr-4">
                       {snap.review_status ? (

@@ -50,6 +50,8 @@ class IsoExportService:
         review: dict | None,
         actions: list[dict],
     ) -> None:
+        provider = snapshot.get("provider", "google_workspace")
+
         self._write_iso_header(ws, snapshot, review)
         ws.append([])
 
@@ -62,6 +64,17 @@ class IsoExportService:
             ws.append([])
 
         data = snapshot.get("data", {})
+
+        if provider == "github":
+            self._write_github_data_tables(ws, data)
+        else:
+            self._write_gw_data_tables(ws, data)
+
+        set_column_widths(
+            ws, {"A": 25, "B": 30, "C": 20, "D": 20, "E": 18, "F": 18, "G": 16}
+        )
+
+    def _write_gw_data_tables(self, ws, data: dict) -> None:
         self._write_users_table(ws, data.get("users", []))
         ws.append([])
         self._write_groups_table(
@@ -72,12 +85,24 @@ class IsoExportService:
         ws.append([])
         self._write_admins_table(ws, data.get("role_assignments", []))
 
-        set_column_widths(
-            ws, {"A": 25, "B": 30, "C": 20, "D": 20, "E": 18, "F": 18, "G": 16}
+    def _write_github_data_tables(self, ws, data: dict) -> None:
+        self._write_github_members_table(ws, data.get("members", []))
+        ws.append([])
+        self._write_github_teams_table(
+            ws, data.get("teams", []), data.get("team_members", {})
+        )
+        ws.append([])
+        self._write_github_team_members_table(ws, data.get("team_members", {}))
+        ws.append([])
+        self._write_github_outside_collaborators_table(
+            ws, data.get("outside_collaborators", [])
         )
 
     def _write_iso_header(self, ws, snapshot: dict, review: dict | None) -> None:
-        domain = snapshot.get("source_metadata", {}).get("domain", "")
+        provider = snapshot.get("provider", "google_workspace")
+        metadata = snapshot.get("source_metadata", {})
+        org_label = metadata.get("org", "") if provider == "github" else metadata.get("domain", "")
+
         captured = snapshot["captured_at"]
         captured_str = (
             captured.strftime(DATETIME_FORMAT_UTC)
@@ -86,14 +111,27 @@ class IsoExportService:
         )
 
         summary = snapshot.get("summary", {})
+
+        if provider == "github":
+            summary_rows = [
+                ("Total Members", summary.get("total_members", 0)),
+                ("Total Admins", summary.get("total_admins", 0)),
+                ("Total Teams", summary.get("total_teams", 0)),
+                ("Outside Collaborators", summary.get("outside_collaborators", 0)),
+            ]
+        else:
+            summary_rows = [
+                ("Total Users", summary.get("total_users", 0)),
+                ("Total Admins", summary.get("total_admins", 0)),
+                ("Total Groups", summary.get("total_groups", 0)),
+                ("External Members", summary.get("external_members", 0)),
+            ]
+
         header_rows = [
-            ("Organization", domain),
-            ("Provider", snapshot.get("provider", "")),
+            ("Organization", org_label),
+            ("Provider", provider),
             ("Snapshot Date", captured_str),
-            ("Total Users", summary.get("total_users", 0)),
-            ("Total Admins", summary.get("total_admins", 0)),
-            ("Total Groups", summary.get("total_groups", 0)),
-            ("External Members", summary.get("external_members", 0)),
+            *summary_rows,
             ("Review Scope", review["scope"] if review else "N/A"),
             ("Reviewer", review.get("reviewer_email", "") if review else ""),
             ("Status", review["status"] if review else "No review"),
@@ -129,6 +167,7 @@ class IsoExportService:
             ("Removed Users", "removed_user"),
             ("Role Changes", "role_change"),
             ("New External", "new_external"),
+            ("Removed External", "removed_external"),
             ("Group Changes", "group_membership_change"),
         ]
         for label, key in mapping:
@@ -249,3 +288,69 @@ class IsoExportService:
                     ra.get("role_name", ""),
                 ]
             )
+
+    # --- GitHub-specific tables ---
+
+    def _write_github_members_table(self, ws, members: list[dict]) -> None:
+        ws.append(["Members"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Login", "Name", "Email", "Role"])
+        apply_header_style(ws, ws.max_row)
+
+        for m in members:
+            ws.append([
+                m.get("login", ""),
+                m.get("name", "") or "",
+                m.get("email", "") or "",
+                m.get("role", ""),
+            ])
+
+    def _write_github_teams_table(
+        self, ws, teams: list[dict], team_members: dict[str, list]
+    ) -> None:
+        ws.append(["Teams"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Name", "Slug", "Parent", "Privacy", "Members"])
+        apply_header_style(ws, ws.max_row)
+
+        for t in teams:
+            slug = t.get("slug", "")
+            members = team_members.get(slug, [])
+            ws.append([
+                t.get("name", ""),
+                slug,
+                t.get("parent_slug", "") or "",
+                t.get("privacy", ""),
+                len(members),
+            ])
+
+    def _write_github_team_members_table(
+        self, ws, team_members: dict[str, list]
+    ) -> None:
+        ws.append(["Team Members"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Team", "Login", "Role"])
+        apply_header_style(ws, ws.max_row)
+
+        for slug in sorted(team_members.keys()):
+            for m in team_members[slug]:
+                ws.append([slug, m.get("login", ""), m.get("role", "")])
+
+    def _write_github_outside_collaborators_table(
+        self, ws, outside_collaborators: list[dict]
+    ) -> None:
+        ws.append(["Outside Collaborators"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+
+        ws.append(["Login", "Name", "Email"])
+        apply_header_style(ws, ws.max_row)
+
+        for c in outside_collaborators:
+            ws.append([
+                c.get("login", ""),
+                c.get("name", "") or "",
+                c.get("email", "") or "",
+            ])

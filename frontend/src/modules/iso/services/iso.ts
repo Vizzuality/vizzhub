@@ -5,6 +5,7 @@ import type {
   AccessReviewUpdate,
   AccessSnapshot,
   AccessSnapshotSummary,
+  GitHubIsoConfigStatus,
   IsoConfigStatus,
   PaginatedResponse,
   SignReviewPayload,
@@ -35,8 +36,30 @@ export const isoApi = {
     await api.delete('/iso/config/google-workspace/disconnect');
   },
 
-  captureSnapshot: async (): Promise<AccessSnapshot> => {
-    const response = await api.post<AccessSnapshot>('/iso/snapshots/capture');
+  // GitHub config
+  getGitHubConfigStatus: async (): Promise<GitHubIsoConfigStatus> => {
+    const response = await api.get<GitHubIsoConfigStatus>(
+      '/iso/config/github',
+    );
+    return response.data;
+  },
+
+  saveGitHubOrg: async (orgName: string): Promise<void> => {
+    await api.put('/iso/config/github', { org_name: orgName });
+  },
+
+  clearGitHubOrg: async (): Promise<void> => {
+    await api.delete('/iso/config/github');
+  },
+
+  captureSnapshot: async (
+    provider: string = 'google_workspace',
+  ): Promise<AccessSnapshot> => {
+    const response = await api.post<AccessSnapshot>(
+      '/iso/snapshots/capture',
+      null,
+      { params: { provider } },
+    );
     return response.data;
   },
 

@@ -17,8 +17,15 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 
 export function useIsoConfig() {
   return useQuery({
-    queryKey: queryKeys.iso.config,
+    queryKey: queryKeys.iso.config.googleWorkspace,
     queryFn: isoApi.getConfigStatus,
+  });
+}
+
+export function useGitHubIsoConfig() {
+  return useQuery({
+    queryKey: queryKeys.iso.config.github,
+    queryFn: isoApi.getGitHubConfigStatus,
   });
 }
 
@@ -28,7 +35,29 @@ export function useDisconnectGoogleWorkspace() {
   return useMutation({
     mutationFn: () => isoApi.disconnect(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.iso.config });
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.config.all });
+    },
+  });
+}
+
+export function useSaveGitHubOrg() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (orgName: string) => isoApi.saveGitHubOrg(orgName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.config.github });
+    },
+  });
+}
+
+export function useClearGitHubOrg() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => isoApi.clearGitHubOrg(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.config.github });
     },
   });
 }
@@ -76,7 +105,7 @@ export function useCaptureSnapshot() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => isoApi.captureSnapshot(),
+    mutationFn: (provider: string) => isoApi.captureSnapshot(provider),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.iso.snapshots.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.iso.reviews.all });

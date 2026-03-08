@@ -5,9 +5,14 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.iso.services.collectors.google_workspace import (
     GoogleWorkspaceCollector,
 )
+from app.modules.iso.services.collectors.github import (
+    GitHubCollector,
+)
+from app.modules.iso.services.google_workspace_oauth import GoogleWorkspaceOAuth
 from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
@@ -17,10 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 async def collect_iso_snapshot(ctx: dict) -> dict:
-    """Capture a Google Workspace access snapshot.
+    """Capture access snapshots for all connected providers.
 
     Called by ARQ cron (monthly) or triggered manually.
-    On failure, sends Slack alert to leadership channel.
+    Each provider runs independently -- one failure doesn't block the other.
     """
     db: AsyncSession = ctx["db"]
 
@@ -34,32 +39,68 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
     await db.commit()
     await db.refresh(job_run)
 
-    try:
-        collector = GoogleWorkspaceCollector(db)
-        snapshot = await collector.capture(run_mode="cron")
-        await db.commit()
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(
-            "ISO snapshot capture failed: %s",
-            error_msg,
-            exc_info=True,
-        )
-        await send_iso_failure_alert(db, error_msg)
-        return await complete_with_error(db, job_run, error_msg)
+    results: dict[str, dict] = {}
+    errors: list[str] = []
+
+    # Google Workspace
+    if await _is_gw_connected(db):
+        try:
+            collector = GoogleWorkspaceCollector(db)
+            snapshot = await collector.capture(run_mode="cron")
+            await db.commit()
+            results["google_workspace"] = {"snapshot_id": str(snapshot.id)}
+            logger.info("ISO GW snapshot captured: %s", snapshot.id)
+        except Exception as e:
+            error_msg = f"google_workspace: {e}"
+            logger.error("ISO GW snapshot failed: %s", e, exc_info=True)
+            errors.append(error_msg)
+
+    # GitHub
+    if await _is_github_connected(db):
+        try:
+            collector = GitHubCollector(db)
+            snapshot = await collector.capture(run_mode="cron")
+            await db.commit()
+            results["github"] = {"snapshot_id": str(snapshot.id)}
+            logger.info("ISO GitHub snapshot captured: %s", snapshot.id)
+        except Exception as e:
+            error_msg = f"github: {e}"
+            logger.error("ISO GitHub snapshot failed: %s", e, exc_info=True)
+            errors.append(error_msg)
+
+    if errors:
+        combined_error = "; ".join(errors)
+        await send_iso_failure_alert(db, combined_error)
+
+    if errors and not results:
+        return await complete_with_error(db, job_run, "; ".join(errors))
 
     job_run.status = "completed"
     job_run.completed_at = datetime.now(timezone.utc)
     await db.commit()
 
-    logger.info("ISO snapshot captured: %s", snapshot.id)
     return {
         "status": "completed",
         "job_run_id": job_run.id,
-        "snapshot_id": str(snapshot.id),
-        "provider": snapshot.provider,
+        "providers": results,
+        "errors": errors,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+async def _is_gw_connected(db: AsyncSession) -> bool:
+    status = await GoogleWorkspaceOAuth.get_status(db)
+    return status.get("connected", False)
+
+
+async def _is_github_connected(db: AsyncSession) -> bool:
+    token = await IntegrationTokenService.get_token(db, "github")
+    if not token:
+        return False
+    org_name = await IntegrationTokenService.get_setting(
+        db, "github", "iso_org_name"
+    )
+    return bool(org_name)
 
 
 async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
@@ -78,7 +119,7 @@ async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
             ":rotating_light: *ISO Access Review \u2014 Snapshot capture failed*\n"
             f"Error: {error_message}\n"
             f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
-            "Action required: Check Google Workspace OAuth connection in ISO settings."
+            "Action required: Check provider connections in ISO settings."
         )
 
         await SlackService.send_message(

@@ -7,10 +7,16 @@ import ISOConfig from '../pages/ISOConfig';
 const mockUseIsoConfig = vi.fn();
 const mockDisconnectMutate = vi.fn();
 const mockUseDisconnectGoogleWorkspace = vi.fn();
+const mockUseGitHubIsoConfig = vi.fn();
+const mockUseSaveGitHubOrg = vi.fn();
+const mockUseClearGitHubOrg = vi.fn();
 
 vi.mock('../hooks/useIso', () => ({
   useIsoConfig: (...args: unknown[]) => mockUseIsoConfig(...args),
   useDisconnectGoogleWorkspace: () => mockUseDisconnectGoogleWorkspace(),
+  useGitHubIsoConfig: () => mockUseGitHubIsoConfig(),
+  useSaveGitHubOrg: () => mockUseSaveGitHubOrg(),
+  useClearGitHubOrg: () => mockUseClearGitHubOrg(),
 }));
 
 function createQueryClient(): QueryClient {
@@ -39,6 +45,20 @@ describe('ISOConfig', () => {
       data: { connected: false, domain: null },
       isLoading: false,
       error: null,
+    });
+    mockUseGitHubIsoConfig.mockReturnValue({
+      data: { connected: false, org_name: null },
+      isLoading: false,
+      error: null,
+    });
+    mockUseSaveGitHubOrg.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+    });
+    mockUseClearGitHubOrg.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
     });
   });
 
@@ -71,7 +91,8 @@ describe('ISOConfig', () => {
   it('shows "Not connected" badge when not connected', () => {
     renderWithProviders(<ISOConfig />);
 
-    expect(screen.getByText('Not connected')).toBeInTheDocument();
+    const badges = screen.getAllByText('Not connected');
+    expect(badges.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows "Connected" badge and domain when connected', () => {
