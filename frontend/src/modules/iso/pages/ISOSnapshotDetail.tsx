@@ -12,6 +12,8 @@ import { formatDate } from '@/utils/formatters';
 import ReviewPanel from '../components/ReviewPanel';
 import SnapshotDataTabs from '../components/SnapshotDataTabs';
 import type { SnapshotData } from '../components/SnapshotDataTabs';
+import GitHubDataTabs from '../components/GitHubDataTabs';
+import type { GitHubSnapshotData } from '../components/GitHubDataTabs';
 import { buildSummaryStatItems } from '../components/helpers';
 
 export default function ISOSnapshotDetail(): JSX.Element {
@@ -41,7 +43,7 @@ export default function ISOSnapshotDetail(): JSX.Element {
     );
   }
 
-  const snapshotData = snapshot.data as unknown as SnapshotData;
+  const isGitHub = snapshot.provider === 'github';
   const summary = snapshot.summary;
 
   return (
@@ -82,13 +84,20 @@ export default function ISOSnapshotDetail(): JSX.Element {
       </div>
 
       {/* Summary cards */}
-      <StatCards items={buildSummaryStatItems(summary)} columns={4} />
+      <StatCards
+        items={buildSummaryStatItems(summary, snapshot.provider)}
+        columns={4}
+      />
 
       {/* Review section */}
       {review && <ReviewPanel review={review} />}
 
       {/* Data tabs */}
-      <SnapshotDataTabs data={snapshotData} />
+      {isGitHub ? (
+        <GitHubDataTabs data={snapshot.data as unknown as GitHubSnapshotData} />
+      ) : (
+        <SnapshotDataTabs data={snapshot.data as unknown as SnapshotData} />
+      )}
     </div>
   );
 }

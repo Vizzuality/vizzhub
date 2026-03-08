@@ -79,7 +79,11 @@ export const queryKeys = {
     detail: (id: string) => ['users', id] as const,
   },
   iso: {
-    config: ['iso', 'config'] as const,
+    config: {
+      all: ['iso', 'config'] as const,
+      googleWorkspace: ['iso', 'config', 'googleWorkspace'] as const,
+      github: ['iso', 'config', 'github'] as const,
+    },
     snapshots: {
       all: ['iso', 'snapshots'] as const,
       list: (params: { provider?: string; page?: number; page_size?: number }) =>

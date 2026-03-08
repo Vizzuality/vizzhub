@@ -1,13 +1,16 @@
-"""ISO module configuration endpoints -- Google Workspace OAuth."""
+"""ISO module configuration endpoints -- Google Workspace OAuth + GitHub."""
 
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
 from app.core.api.deps import AdminUser, DBSession, limiter
 from app.core.oauth_state import OAuthStateManager
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
 )
@@ -93,3 +96,66 @@ async def disconnect_google_workspace(
 ) -> dict:
     await GoogleWorkspaceOAuth.disconnect(db)
     return {"status": "success", "message": "Google Workspace disconnected"}
+
+
+# --- GitHub Config ---
+
+GITHUB_ORG_PATTERN = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$")
+GITHUB_PROVIDER = "github"
+GITHUB_ORG_KEY = "iso_org_name"
+
+
+class GitHubOrgRequest(BaseModel):
+    org_name: str = Field(..., min_length=1, max_length=100)
+
+
+@router.get("/github")
+@limiter.limit("30/minute")
+async def get_github_status(
+    request: Request, current_user: AdminUser, db: DBSession
+) -> dict:
+    token = await IntegrationTokenService.get_token(db, GITHUB_PROVIDER)
+    org_name = await IntegrationTokenService.get_setting(
+        db, GITHUB_PROVIDER, GITHUB_ORG_KEY
+    )
+    return {
+        "connected": token is not None,
+        "org_name": org_name,
+    }
+
+
+@router.put("/github")
+@limiter.limit("10/minute")
+async def save_github_org(
+    request: Request,
+    current_user: AdminUser,
+    db: DBSession,
+    body: GitHubOrgRequest,
+) -> dict:
+    if not GITHUB_ORG_PATTERN.match(body.org_name):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid GitHub organization name. Use alphanumeric characters and hyphens.",
+        )
+    await IntegrationTokenService.set_setting(
+        db, GITHUB_PROVIDER, GITHUB_ORG_KEY, body.org_name
+    )
+    return {"status": "success", "org_name": body.org_name}
+
+
+@router.delete("/github")
+@limiter.limit("10/minute")
+async def clear_github_org(
+    request: Request, current_user: AdminUser, db: DBSession
+) -> dict:
+    from sqlalchemy import delete
+    from app.core.models.integration_setting import IntegrationSettingDB
+
+    await db.execute(
+        delete(IntegrationSettingDB).where(
+            IntegrationSettingDB.provider == GITHUB_PROVIDER,
+            IntegrationSettingDB.key == GITHUB_ORG_KEY,
+        )
+    )
+    await db.flush()
+    return {"status": "success", "message": "GitHub organization cleared"}

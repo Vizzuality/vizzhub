@@ -56,6 +56,61 @@ async def make_review(
     return review
 
 
+async def make_github_snapshot(
+    db_session, captured_at=None, **kwargs
+) -> AccessSnapshotDB:
+    """Create a GitHub provider snapshot with realistic sample data."""
+    defaults = {
+        "provider": "github",
+        "captured_at": captured_at or datetime(2026, 2, 1, tzinfo=timezone.utc),
+        "data_version": "2",
+        "source_metadata": {"org": "acme-corp", "collector": "github"},
+        "data": {
+            "members": [
+                {"login": "alice", "name": "Alice A", "email": "alice@co.com", "role": "admin"},
+                {"login": "bob", "name": "Bob B", "email": None, "role": "member"},
+            ],
+            "teams": [
+                {
+                    "name": "Backend",
+                    "slug": "backend",
+                    "parent_slug": None,
+                    "privacy": "closed",
+                },
+                {
+                    "name": "Frontend",
+                    "slug": "frontend",
+                    "parent_slug": None,
+                    "privacy": "closed",
+                },
+            ],
+            "team_members": {
+                "backend": [
+                    {"login": "alice", "role": "maintainer"},
+                    {"login": "bob", "role": "member"},
+                ],
+                "frontend": [
+                    {"login": "bob", "role": "maintainer"},
+                ],
+            },
+            "outside_collaborators": [
+                {"login": "contractor1", "name": "Contractor", "email": "c@ext.com"},
+            ],
+        },
+        "summary": {
+            "total_members": 2,
+            "total_admins": 1,
+            "total_teams": 2,
+            "outside_collaborators": 1,
+        },
+    }
+    defaults.update(kwargs)
+    snapshot = AccessSnapshotDB(**defaults)
+    db_session.add(snapshot)
+    await db_session.flush()
+    return snapshot
+
+
 async def make_action(
     db_session, review_id, **kwargs
 ) -> AccessReviewActionDB:

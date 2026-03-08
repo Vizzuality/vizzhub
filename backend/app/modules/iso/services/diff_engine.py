@@ -7,13 +7,18 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
+from app.modules.iso.services.diff_github import compute_github_diff
 
 
 def compute_diff(
     current_data: dict[str, Any],
     previous_data: dict[str, Any],
     domain: str,
+    provider: str = "google_workspace",
 ) -> list[dict[str, Any]]:
+    if provider == "github":
+        return compute_github_diff(current_data, previous_data)
+
     changes: list[dict[str, Any]] = []
 
     changes.extend(_diff_users(current_data, previous_data))
@@ -175,7 +180,7 @@ def _diff_externals(
 
 def build_diff_summary(changes: list[dict[str, Any]]) -> dict[str, Any]:
     counts = Counter(c["change_type"] for c in changes)
-    return {
+    summary: dict[str, Any] = {
         "total_changes": len(changes),
         "new_user": counts.get("new_user", 0),
         "removed_user": counts.get("removed_user", 0),
@@ -183,6 +188,9 @@ def build_diff_summary(changes: list[dict[str, Any]]) -> dict[str, Any]:
         "new_external": counts.get("new_external", 0),
         "group_membership_change": counts.get("group_membership_change", 0),
     }
+    if counts.get("removed_external", 0):
+        summary["removed_external"] = counts["removed_external"]
+    return summary
 
 
 async def create_review_actions(

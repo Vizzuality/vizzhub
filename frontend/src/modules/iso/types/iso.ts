@@ -6,14 +6,18 @@ export interface DiffSummary {
   removed_user: number;
   role_change: number;
   new_external: number;
+  removed_external?: number;
   group_membership_change: number;
 }
 
 export interface SnapshotSummary {
-  total_users: number;
-  total_admins: number;
-  total_groups: number;
-  external_members: number;
+  total_users?: number;
+  total_admins?: number;
+  total_groups?: number;
+  external_members?: number;
+  total_members?: number;
+  total_teams?: number;
+  outside_collaborators?: number;
 }
 
 export interface AccessSnapshot {
@@ -57,7 +61,7 @@ export interface AccessReview {
 export interface AccessReviewAction {
   id: string;
   review_id: string;
-  subject_type: 'user' | 'group';
+  subject_type: 'user' | 'group' | 'team';
   subject_id: string;
   subject_label: string | null;
   change_type: string;
@@ -102,4 +106,9 @@ export interface SignReviewPayload {
 export interface IsoConfigStatus {
   connected: boolean;
   domain: string | null;
+}
+
+export interface GitHubIsoConfigStatus {
+  connected: boolean;
+  org_name: string | null;
 }

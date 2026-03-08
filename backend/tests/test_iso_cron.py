@@ -19,7 +19,7 @@ from app.worker.collect_iso_snapshot import (
 
 class TestCollectIsoSnapshot:
     @pytest.mark.asyncio
-    async def test_successful_capture(self, db_session: AsyncSession) -> None:
+    async def test_successful_gw_capture(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("ya29.test"),
@@ -53,8 +53,8 @@ class TestCollectIsoSnapshot:
             result = await collect_iso_snapshot({"db": db_session})
 
         assert result["status"] == "completed"
-        assert "snapshot_id" in result
-        assert result["provider"] == "google_workspace"
+        assert "google_workspace" in result["providers"]
+        assert "snapshot_id" in result["providers"]["google_workspace"]
         assert "job_run_id" in result
 
     @pytest.mark.asyncio
@@ -95,40 +95,19 @@ class TestCollectIsoSnapshot:
         assert job_run.completed_at is not None
 
     @pytest.mark.asyncio
-    async def test_failure_no_oauth_token(self, db_session: AsyncSession) -> None:
-        with patch(
-            "app.worker.collect_iso_snapshot.send_iso_failure_alert",
-            new_callable=AsyncMock,
-        ) as mock_alert:
-            result = await collect_iso_snapshot({"db": db_session})
-
-        assert result["status"] == "error"
-        assert "error" in result
-        mock_alert.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_failure_creates_error_job_run(
+    async def test_no_providers_connected_completes_with_no_captures(
         self, db_session: AsyncSession
     ) -> None:
-        with patch(
-            "app.worker.collect_iso_snapshot.send_iso_failure_alert",
-            new_callable=AsyncMock,
-        ):
-            result = await collect_iso_snapshot({"db": db_session})
+        result = await collect_iso_snapshot({"db": db_session})
 
-        assert result["status"] == "error"
-        db_result = await db_session.execute(
-            select(ScheduledJobRunDB).where(
-                ScheduledJobRunDB.job_name == "collect_iso_snapshot"
-            )
-        )
-        job_run = db_result.scalar_one()
-        assert job_run.status == "error"
-        assert job_run.error_message is not None
-        assert job_run.completed_at is not None
+        assert result["status"] == "completed"
+        assert result["providers"] == {}
+        assert result["errors"] == []
 
     @pytest.mark.asyncio
-    async def test_failure_api_error(self, db_session: AsyncSession) -> None:
+    async def test_gw_failure_creates_error_and_sends_alert(
+        self, db_session: AsyncSession
+    ) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("ya29.test"),
@@ -151,8 +130,56 @@ class TestCollectIsoSnapshot:
             result = await collect_iso_snapshot({"db": db_session})
 
         assert result["status"] == "error"
-        assert "API rate limit exceeded" in result["error"]
-        mock_alert.assert_called_once_with(db_session, "API rate limit exceeded")
+        assert any("API rate limit exceeded" in e for e in result["error"].split(";"))
+        mock_alert.assert_called_once()
+        alert_msg = mock_alert.call_args[0][1]
+        assert "google_workspace" in alert_msg
+        assert "API rate limit exceeded" in alert_msg
+
+    @pytest.mark.asyncio
+    async def test_gw_failure_does_not_block_github(
+        self, db_session: AsyncSession
+    ) -> None:
+        gw_token = OAuthTokenDB(
+            provider="google_workspace",
+            access_token=encrypt_token("ya29.test"),
+            site_url="empresa.com",
+        )
+        gh_token = OAuthTokenDB(
+            provider="github",
+            access_token=encrypt_token("ghp_test"),
+            token_type="pat",
+        )
+        gh_setting = IntegrationSettingDB(
+            provider="github",
+            key="iso_org_name",
+            value="acme-corp",
+        )
+        db_session.add_all([gw_token, gh_token, gh_setting])
+        await db_session.flush()
+
+        with (
+            patch(
+                "app.worker.collect_iso_snapshot.GoogleWorkspaceCollector.capture",
+                new_callable=AsyncMock,
+                side_effect=Exception("GW OAuth expired"),
+            ),
+            patch(
+                "app.worker.collect_iso_snapshot.GitHubCollector.capture",
+                new_callable=AsyncMock,
+            ) as mock_gh_capture,
+            patch(
+                "app.worker.collect_iso_snapshot.send_iso_failure_alert",
+                new_callable=AsyncMock,
+            ),
+        ):
+            mock_gh_capture.return_value = MagicMock(id="gh-snap-1")
+            result = await collect_iso_snapshot({"db": db_session})
+
+        assert result["status"] == "completed"
+        assert "github" in result["providers"]
+        assert len(result["errors"]) == 1
+        assert "google_workspace" in result["errors"][0]
 
 
 class TestSendIsoFailureAlert:

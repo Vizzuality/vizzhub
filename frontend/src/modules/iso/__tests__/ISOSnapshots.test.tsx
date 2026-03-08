@@ -23,10 +23,15 @@ const mockUseDeleteSnapshot = vi.fn();
 const mockIsSnapshotStale = vi.fn();
 const mockExportSnapshots = vi.fn();
 
+const mockUseIsoConfig = vi.fn();
+const mockUseGitHubIsoConfig = vi.fn();
+
 vi.mock('../hooks/useIso', () => ({
   useIsoSnapshots: (...args: unknown[]) => mockUseIsoSnapshots(...args),
   useCaptureSnapshot: () => mockUseCaptureSnapshot(),
   useDeleteSnapshot: () => mockUseDeleteSnapshot(),
+  useIsoConfig: () => mockUseIsoConfig(),
+  useGitHubIsoConfig: () => mockUseGitHubIsoConfig(),
 }));
 
 vi.mock('../hooks/useIsoExport', () => ({
@@ -68,6 +73,12 @@ describe('ISOSnapshots', () => {
     mockUseDeleteSnapshot.mockReturnValue({
       mutate: mockDeleteMutate,
       isPending: false,
+    });
+    mockUseIsoConfig.mockReturnValue({
+      data: { connected: true, domain: 'example.com' },
+    });
+    mockUseGitHubIsoConfig.mockReturnValue({
+      data: { connected: false, org_name: null },
     });
     mockIsSnapshotStale.mockReturnValue(false);
     mockUseIsoSnapshots.mockReturnValue({
@@ -151,10 +162,10 @@ describe('ISOSnapshots', () => {
   it('calls capture.mutate() when capture button is clicked', () => {
     renderWithProviders(<ISOSnapshots />);
 
-    const captureButton = screen.getByRole('button', { name: /capture snapshot/i });
+    const captureButton = screen.getByRole('button', { name: /capture google workspace/i });
     fireEvent.click(captureButton);
 
-    expect(mockCaptureMutate).toHaveBeenCalledOnce();
+    expect(mockCaptureMutate).toHaveBeenCalledWith('google_workspace');
   });
 
   it('shows "Capturing..." text when capture is pending', () => {
@@ -169,18 +180,18 @@ describe('ISOSnapshots', () => {
     expect(screen.getByText('Capturing...')).toBeInTheDocument();
   });
 
-  it('shows error banner when capture fails', () => {
-    mockUseCaptureSnapshot.mockReturnValue({
-      mutate: mockCaptureMutate,
-      isPending: false,
-      isError: true,
+  it('shows provider capture buttons based on connection status', () => {
+    mockUseIsoConfig.mockReturnValue({
+      data: { connected: true, domain: 'example.com' },
+    });
+    mockUseGitHubIsoConfig.mockReturnValue({
+      data: { connected: true, org_name: 'my-org' },
     });
 
     renderWithProviders(<ISOSnapshots />);
 
-    expect(
-      screen.getByText(/failed to capture snapshot/i),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /capture google workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /capture github/i })).toBeInTheDocument();
   });
 
   it('hides pagination controls when only 1 page', () => {

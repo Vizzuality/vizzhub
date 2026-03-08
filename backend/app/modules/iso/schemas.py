@@ -14,6 +14,7 @@ class ReviewStatus(str, Enum):
 class SubjectType(str, Enum):
     USER = "user"
     GROUP = "group"
+    TEAM = "team"
 
 
 class ChangeType(str, Enum):
@@ -21,6 +22,7 @@ class ChangeType(str, Enum):
     REMOVED_USER = "removed_user"
     ROLE_CHANGE = "role_change"
     NEW_EXTERNAL = "new_external"
+    REMOVED_EXTERNAL = "removed_external"
     GROUP_MEMBERSHIP_CHANGE = "group_membership_change"
 
 
