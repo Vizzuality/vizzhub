@@ -138,7 +138,7 @@ class TestCollectUsers:
         await collector._client.aclose()
 
     @pytest.mark.asyncio
-    async def test_filters_app_accounts(self, db_session) -> None:
+    async def test_filters_app_and_customer_accounts(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
         resp = _make_response([
@@ -154,6 +154,13 @@ class TestCollectUsers:
                 "emailAddress": None,
                 "displayName": "Automation Bot",
                 "accountType": "app",
+                "active": True,
+            },
+            {
+                "accountId": "jsm-portal",
+                "emailAddress": "alice@gmail.com",
+                "displayName": "Alice Portal",
+                "accountType": "customer",
                 "active": True,
             },
         ])
@@ -172,8 +179,10 @@ class TestCollectUsers:
         await collector._client.aclose()
 
     @pytest.mark.asyncio
-    async def test_detects_external_users(self, db_session) -> None:
+    async def test_detects_external_by_site_domain(self, db_session) -> None:
+        """External = email domain != org domain derived from site_url."""
         collector = _setup_collector_with_client(db_session)
+        # site_url is https://company.atlassian.net → org domain = company.com
 
         resp = _make_response([
             {
@@ -187,7 +196,7 @@ class TestCollectUsers:
                 "accountId": "ext-1",
                 "emailAddress": "external@vendor.com",
                 "displayName": "External User",
-                "accountType": "customer",
+                "accountType": "atlassian",
                 "active": True,
             },
         ])
@@ -204,8 +213,50 @@ class TestCollectUsers:
         assert len(users) == 2
         assert users[0]["is_external"] is False
         assert users[1]["is_external"] is True
-        assert users[1]["account_type"] == "customer"
         await collector._client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_no_email_is_external(self, db_session) -> None:
+        collector = _setup_collector_with_client(db_session)
+
+        resp = _make_response([
+            {
+                "accountId": "user-1",
+                "emailAddress": None,
+                "displayName": "No Email",
+                "accountType": "atlassian",
+                "active": True,
+            },
+        ])
+        empty = _make_response([])
+
+        with patch.object(
+            collector._client,
+            "get",
+            new_callable=AsyncMock,
+            side_effect=[resp, empty],
+        ):
+            users = await collector.collect_users()
+
+        assert len(users) == 1
+        assert users[0]["is_external"] is True
+        await collector._client.aclose()
+
+
+class TestGetOrgDomain:
+    def test_derives_domain_from_site_url(self) -> None:
+        from app.modules.iso.services.collectors.jira import JiraCollector
+
+        collector = JiraCollector.__new__(JiraCollector)
+        collector._site_url = "https://vizzuality.atlassian.net"
+        assert collector._get_org_domain() == "vizzuality.com"
+
+    def test_returns_none_when_no_site_url(self) -> None:
+        from app.modules.iso.services.collectors.jira import JiraCollector
+
+        collector = JiraCollector.__new__(JiraCollector)
+        collector._site_url = None
+        assert collector._get_org_domain() is None
 
 
 class TestCollectGroups:
@@ -264,35 +315,33 @@ class TestCollectGroups:
 
 class TestCollectGroupMembers:
     @pytest.mark.asyncio
-    async def test_returns_per_group_members(self, db_session) -> None:
+    async def test_builds_members_from_user_groups(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
+        users = [
+            {"account_id": "user-1", "display_name": "Alice"},
+            {"account_id": "user-2", "display_name": "Bob"},
+        ]
         groups = [
             {"group_id": "grp-1", "name": "jira-administrators"},
             {"group_id": "grp-2", "name": "developers"},
         ]
 
-        admin_members = _make_response({
-            "values": [
-                {"accountId": "user-1", "displayName": "Alice"},
-            ],
-            "isLast": True,
-        })
-        dev_members = _make_response({
-            "values": [
-                {"accountId": "user-1", "displayName": "Alice"},
-                {"accountId": "user-2", "displayName": "Bob"},
-            ],
-            "isLast": True,
-        })
+        alice_groups = _make_response([
+            {"name": "jira-administrators", "groupId": "grp-1"},
+            {"name": "developers", "groupId": "grp-2"},
+        ])
+        bob_groups = _make_response([
+            {"name": "developers", "groupId": "grp-2"},
+        ])
 
         with patch.object(
             collector._client,
             "get",
             new_callable=AsyncMock,
-            side_effect=[admin_members, dev_members],
+            side_effect=[alice_groups, bob_groups],
         ):
-            result = await collector.collect_group_members(groups)
+            result = await collector.collect_group_members(users, groups)
 
         assert "jira-administrators" in result
         assert "developers" in result
@@ -305,29 +354,51 @@ class TestCollectGroupMembers:
         await collector._client.aclose()
 
     @pytest.mark.asyncio
-    async def test_paginated_group_members(self, db_session) -> None:
+    async def test_skips_user_on_error(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        groups = [{"group_id": "grp-1", "name": "big-team"}]
+        users = [
+            {"account_id": "user-1", "display_name": "Alice"},
+            {"account_id": "user-2", "display_name": "Bob"},
+        ]
+        groups = [{"group_id": "grp-1", "name": "developers"}]
 
-        page1 = _make_response({
-            "values": [{"accountId": "user-1", "displayName": "Alice"}],
-            "isLast": False,
-        })
-        page2 = _make_response({
-            "values": [{"accountId": "user-2", "displayName": "Bob"}],
-            "isLast": True,
-        })
+        alice_groups = _make_response([{"name": "developers", "groupId": "grp-1"}])
+        bob_error = _make_response([], status_code=403)
 
         with patch.object(
             collector._client,
             "get",
             new_callable=AsyncMock,
-            side_effect=[page1, page2],
+            side_effect=[alice_groups, bob_error],
         ):
-            result = await collector.collect_group_members(groups)
+            result = await collector.collect_group_members(users, groups)
 
-        assert len(result["big-team"]) == 2
+        assert len(result["developers"]) == 1
+        await collector._client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_ignores_groups_not_in_list(self, db_session) -> None:
+        collector = _setup_collector_with_client(db_session)
+
+        users = [{"account_id": "user-1", "display_name": "Alice"}]
+        groups = [{"group_id": "grp-1", "name": "developers"}]
+
+        alice_groups = _make_response([
+            {"name": "developers", "groupId": "grp-1"},
+            {"name": "unknown-group", "groupId": "grp-99"},
+        ])
+
+        with patch.object(
+            collector._client,
+            "get",
+            new_callable=AsyncMock,
+            side_effect=[alice_groups],
+        ):
+            result = await collector.collect_group_members(users, groups)
+
+        assert len(result) == 1
+        assert "unknown-group" not in result
         await collector._client.aclose()
 
 
@@ -425,7 +496,7 @@ class TestBuildSourceMetadata:
 
         assert meta["site_url"] == "https://company.atlassian.net"
         assert meta["collector"] == "jira"
-        assert meta["collector_version"] == "1"
+        assert meta["collector_version"] == "2"
         assert meta["run_mode"] == "manual"
         assert "read:jira-user" in meta["scopes"]
 
@@ -461,14 +532,11 @@ class TestCapture:
             ],
             "isLast": True,
         })
-        admin_members = _make_response({
-            "values": [{"accountId": "user-1", "displayName": "Alice"}],
-            "isLast": True,
-        })
-        dev_members = _make_response({
-            "values": [{"accountId": "user-1", "displayName": "Alice"}],
-            "isLast": True,
-        })
+        # /user/groups response for Alice (she's in both groups)
+        alice_user_groups = _make_response([
+            {"name": "jira-administrators", "groupId": "grp-1"},
+            {"name": "developers", "groupId": "grp-2"},
+        ])
 
         collector = JiraCollector(db_session)
 
@@ -479,15 +547,14 @@ class TestCapture:
                 users_page,
                 users_empty,
                 groups_resp,
-                admin_members,
-                dev_members,
+                alice_user_groups,
             ],
         ):
             snapshot = await collector.capture(run_mode="manual")
 
         assert isinstance(snapshot, AccessSnapshotDB)
         assert snapshot.provider == "jira"
-        assert snapshot.data_version == "1"
+        assert snapshot.data_version == "2"
         assert len(snapshot.data["users"]) == 1
         assert snapshot.data["users"][0]["display_name"] == "Alice"
         assert len(snapshot.data["groups"]) == 2

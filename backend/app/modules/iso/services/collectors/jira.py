@@ -13,7 +13,7 @@ from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 logger = logging.getLogger(__name__)
 
-COLLECTOR_VERSION = "1"
+COLLECTOR_VERSION = "2"
 PROVIDER = "jira"
 REQUIRED_SCOPES = ["read:jira-user"]
 ADMIN_GROUPS = {"jira-administrators", "site-admins"}
@@ -58,7 +58,6 @@ class JiraCollector:
         self,
         path: str,
         params: dict[str, Any] | None = None,
-        optional: bool = False,
     ) -> list[dict[str, Any]]:
         """Paginate endpoints that return {values, isLast} objects."""
         params = dict(params) if params else {}
@@ -69,11 +68,6 @@ class JiraCollector:
         while True:
             params["startAt"] = start_at
             response = await self._client.get(path, params=params)
-
-            if optional and response.status_code in (401, 403):
-                logger.warning("Jira %s on %s — skipping (insufficient permissions)", response.status_code, path)
-                return []
-
             response.raise_for_status()
 
             data = response.json()
@@ -87,20 +81,35 @@ class JiraCollector:
 
         return items
 
+    def _get_org_domain(self) -> str | None:
+        """Derive org email domain from site_url (e.g. 'https://vizzuality.atlassian.net' → 'vizzuality.com')."""
+        if not self._site_url:
+            return None
+        from urllib.parse import urlparse
+        host = urlparse(self._site_url).hostname or ""
+        subdomain = host.split(".")[0] if "." in host else ""
+        return f"{subdomain}.com" if subdomain else None
+
     async def collect_users(self) -> list[dict[str, Any]]:
         raw = await self._paginate_array("/rest/api/3/users/search")
+        org_domain = self._get_org_domain()
+
         users = []
         for u in raw:
             if not u.get("active", True):
                 continue
-            if u.get("accountType") == "app":
+            if u.get("accountType") in ("app", "customer"):
                 continue
+            email = u.get("emailAddress")
+            is_external = True
+            if org_domain and email and "@" in email:
+                is_external = email.rsplit("@", 1)[-1].lower() != org_domain
             users.append({
                 "account_id": u["accountId"],
-                "email": u.get("emailAddress"),
+                "email": email,
                 "display_name": u.get("displayName", ""),
                 "account_type": u.get("accountType", "atlassian"),
-                "is_external": u.get("accountType") == "customer",
+                "is_external": is_external,
             })
         return users
 
@@ -115,23 +124,37 @@ class JiraCollector:
         ]
 
     async def collect_group_members(
-        self, groups: list[dict[str, Any]]
+        self,
+        users: list[dict[str, Any]],
+        groups: list[dict[str, Any]],
     ) -> dict[str, list[dict[str, Any]]]:
-        members: dict[str, list[dict[str, Any]]] = {}
-        for group in groups:
-            name = group["name"]
-            raw = await self._paginate_values(
-                "/rest/api/3/group/member",
-                {"groupname": name},
-                optional=True,
+        """Build group→members map by querying each user's groups via /user/groups."""
+        group_names = {g["name"] for g in groups}
+        members: dict[str, list[dict[str, Any]]] = {name: [] for name in group_names}
+
+        for user in users:
+            response = await self._client.get(
+                "/rest/api/3/user/groups",
+                params={"accountId": user["account_id"]},
             )
-            members[name] = [
-                {
-                    "account_id": m["accountId"],
-                    "display_name": m.get("displayName", ""),
-                }
-                for m in raw
-            ]
+            if response.status_code != 200:
+                logger.warning(
+                    "Jira %s on /user/groups for %s — skipping",
+                    response.status_code,
+                    user["account_id"],
+                )
+                continue
+
+            user_groups = response.json()
+            member_entry = {
+                "account_id": user["account_id"],
+                "display_name": user.get("display_name", ""),
+            }
+            for g in user_groups:
+                name = g.get("name", "")
+                if name in group_names:
+                    members[name].append(member_entry)
+
         return members
 
     def _build_summary(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -191,7 +214,7 @@ class JiraCollector:
 
             users = await self.collect_users()
             groups = await self.collect_groups()
-            group_members = await self.collect_group_members(groups)
+            group_members = await self.collect_group_members(users, groups)
 
         data = {
             "users": users,
