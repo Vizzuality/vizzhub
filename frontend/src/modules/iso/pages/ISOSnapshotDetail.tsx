@@ -14,6 +14,8 @@ import SnapshotDataTabs from '../components/SnapshotDataTabs';
 import type { SnapshotData } from '../components/SnapshotDataTabs';
 import GitHubDataTabs from '../components/GitHubDataTabs';
 import type { GitHubSnapshotData } from '../components/GitHubDataTabs';
+import JiraDataTabs from '../components/JiraDataTabs';
+import type { JiraSnapshotData } from '../components/JiraDataTabs';
 import { buildSummaryStatItems } from '../components/helpers';
 
 export default function ISOSnapshotDetail(): JSX.Element {
@@ -93,7 +95,9 @@ export default function ISOSnapshotDetail(): JSX.Element {
       {review && <ReviewPanel review={review} />}
 
       {/* Data tabs */}
-      {isGitHub ? (
+      {snapshot.provider === 'jira' ? (
+        <JiraDataTabs data={snapshot.data as unknown as JiraSnapshotData} />
+      ) : isGitHub ? (
         <GitHubDataTabs data={snapshot.data as unknown as GitHubSnapshotData} />
       ) : (
         <SnapshotDataTabs data={snapshot.data as unknown as SnapshotData} />

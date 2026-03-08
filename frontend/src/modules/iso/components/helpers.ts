@@ -65,6 +65,14 @@ export function buildSummaryStatItems(
       { label: 'Outside Collaborators', value: summary.outside_collaborators ?? 0 },
     ];
   }
+  if (provider === 'jira') {
+    return [
+      { label: 'Total Users', value: summary.total_users ?? 0 },
+      { label: 'Admins', value: summary.total_admins ?? 0 },
+      { label: 'Groups', value: summary.total_groups ?? 0 },
+      { label: 'External Users', value: summary.external_users ?? 0 },
+    ];
+  }
   return [
     { label: 'Total Users', value: summary.total_users ?? 0 },
     { label: 'Total Admins', value: summary.total_admins ?? 0 },
