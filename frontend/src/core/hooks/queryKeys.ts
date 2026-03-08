@@ -83,6 +83,7 @@ export const queryKeys = {
       all: ['iso', 'config'] as const,
       googleWorkspace: ['iso', 'config', 'googleWorkspace'] as const,
       github: ['iso', 'config', 'github'] as const,
+      jira: ['iso', 'config', 'jira'] as const,
     },
     snapshots: {
       all: ['iso', 'snapshots'] as const,

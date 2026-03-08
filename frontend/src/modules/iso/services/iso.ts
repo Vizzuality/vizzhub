@@ -7,6 +7,7 @@ import type {
   AccessSnapshotSummary,
   GitHubIsoConfigStatus,
   IsoConfigStatus,
+  JiraIsoConfigStatus,
   PaginatedResponse,
   SignReviewPayload,
 } from '../types/iso';
@@ -50,6 +51,12 @@ export const isoApi = {
 
   clearGitHubOrg: async (): Promise<void> => {
     await api.delete('/iso/config/github');
+  },
+
+  // Jira config
+  getJiraConfigStatus: async (): Promise<JiraIsoConfigStatus> => {
+    const response = await api.get<JiraIsoConfigStatus>('/iso/config/jira');
+    return response.data;
   },
 
   captureSnapshot: async (

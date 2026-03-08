@@ -18,6 +18,7 @@ export interface SnapshotSummary {
   total_members?: number;
   total_teams?: number;
   outside_collaborators?: number;
+  external_users?: number;
 }
 
 export interface AccessSnapshot {
@@ -111,4 +112,9 @@ export interface IsoConfigStatus {
 export interface GitHubIsoConfigStatus {
   connected: boolean;
   org_name: string | null;
+}
+
+export interface JiraIsoConfigStatus {
+  connected: boolean;
+  site_url: string | null;
 }
