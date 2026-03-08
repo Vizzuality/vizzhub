@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import { ReviewStatusBadge } from '@/modules/iso/components/review-status-badge';
+import type { AccessSnapshotSummary } from '@/modules/iso/types/iso';
 import {
   useIsoSnapshots,
   useDeleteSnapshot,
@@ -42,7 +43,7 @@ interface ProviderSnapshotTabProps {
 
 interface ColumnDef {
   readonly header: string;
-  readonly accessor: (snap: { summary: Record<string, number | undefined> }) => number;
+  readonly accessor: (snap: AccessSnapshotSummary) => number;
 }
 
 const PROVIDER_COLUMNS: Record<string, ColumnDef[]> = {
