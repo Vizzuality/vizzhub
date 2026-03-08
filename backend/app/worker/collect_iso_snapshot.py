@@ -12,6 +12,8 @@ from app.modules.iso.services.collectors.google_workspace import (
 from app.modules.iso.services.collectors.github import (
     GitHubCollector,
 )
+from app.modules.iso.services.collectors.jira import JiraCollector
+from app.core.services.oauth_service import OAuthService
 from app.modules.iso.services.google_workspace_oauth import GoogleWorkspaceOAuth
 from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.slack_service import SlackService
@@ -68,6 +70,19 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
             logger.error("ISO GitHub snapshot failed: %s", e, exc_info=True)
             errors.append(error_msg)
 
+    # Jira
+    if await _is_jira_connected(db):
+        try:
+            collector = JiraCollector(db)
+            snapshot = await collector.capture(run_mode="cron")
+            await db.commit()
+            results["jira"] = {"snapshot_id": str(snapshot.id)}
+            logger.info("ISO Jira snapshot captured: %s", snapshot.id)
+        except Exception as e:
+            error_msg = f"jira: {e}"
+            logger.error("ISO Jira snapshot failed: %s", e, exc_info=True)
+            errors.append(error_msg)
+
     if errors:
         combined_error = "; ".join(errors)
         await send_iso_failure_alert(db, combined_error)
@@ -91,6 +106,11 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
 async def _is_gw_connected(db: AsyncSession) -> bool:
     status = await GoogleWorkspaceOAuth.get_status(db)
     return status.get("connected", False)
+
+
+async def _is_jira_connected(db: AsyncSession) -> bool:
+    token = await OAuthService.get_valid_jira_token(db)
+    return token is not None
 
 
 async def _is_github_connected(db: AsyncSession) -> bool:
