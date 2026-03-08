@@ -29,6 +29,13 @@ export function useGitHubIsoConfig() {
   });
 }
 
+export function useJiraIsoConfig() {
+  return useQuery({
+    queryKey: queryKeys.iso.config.jira,
+    queryFn: isoApi.getJiraConfigStatus,
+  });
+}
+
 export function useDisconnectGoogleWorkspace() {
   const queryClient = useQueryClient();
 
