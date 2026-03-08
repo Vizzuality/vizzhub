@@ -157,6 +157,7 @@ export default function GlobalTimelineChart({
   const renderDot = useCallback(
     (props: { cx?: number; cy?: number; payload?: TimelineDataPoint; index?: number }): JSX.Element => (
       <TimelineDot
+        key={props.payload?.key ?? `dot-${props.index}`}
         cx={props.cx}
         cy={props.cy}
         payload={props.payload}
