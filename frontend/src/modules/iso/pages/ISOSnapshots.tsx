@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { useUrlState } from '@/shared/hooks/useUrlState';
-import { useIsoConfig, useGitHubIsoConfig } from '@/modules/iso/hooks/useIso';
+import { useIsoConfig, useGitHubIsoConfig, useJiraIsoConfig } from '@/modules/iso/hooks/useIso';
 import ProviderSnapshotTab from '@/modules/iso/components/ProviderSnapshotTab';
 
 const snapshotsUrlSchema = {
@@ -12,9 +12,11 @@ export default function ISOSnapshots(): JSX.Element {
   const { state, setState } = useUrlState(snapshotsUrlSchema);
   const { data: gwConfig } = useIsoConfig();
   const { data: ghConfig } = useGitHubIsoConfig();
+  const { data: jiraConfig } = useJiraIsoConfig();
 
   const gwConnected = gwConfig?.connected ?? false;
   const ghConnected = (ghConfig?.connected ?? false) && !!ghConfig?.org_name;
+  const jiraConnected = jiraConfig?.connected ?? false;
 
   return (
     <Tabs
@@ -24,6 +26,7 @@ export default function ISOSnapshots(): JSX.Element {
       <TabsList>
         <TabsTrigger value="google_workspace">Google Workspace</TabsTrigger>
         <TabsTrigger value="github">GitHub</TabsTrigger>
+        <TabsTrigger value="jira">Jira</TabsTrigger>
       </TabsList>
 
       <TabsContent value="google_workspace" className="mt-4">
@@ -42,6 +45,16 @@ export default function ISOSnapshots(): JSX.Element {
           providerLabel="GitHub"
           isConnected={ghConnected}
           page={state.provider === 'github' ? state.page : 1}
+          onPageChange={(page) => setState({ page })}
+        />
+      </TabsContent>
+
+      <TabsContent value="jira" className="mt-4">
+        <ProviderSnapshotTab
+          provider="jira"
+          providerLabel="Jira"
+          isConnected={jiraConnected}
+          page={state.provider === 'jira' ? state.page : 1}
           onPageChange={(page) => setState({ page })}
         />
       </TabsContent>

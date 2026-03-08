@@ -59,6 +59,12 @@ const PROVIDER_COLUMNS: Record<string, ColumnDef[]> = {
     { header: 'Teams', accessor: (s) => s.summary.total_teams ?? 0 },
     { header: 'Outside Collab.', accessor: (s) => s.summary.outside_collaborators ?? 0 },
   ],
+  jira: [
+    { header: 'Users', accessor: (s) => s.summary.total_users ?? 0 },
+    { header: 'Admins', accessor: (s) => s.summary.total_admins ?? 0 },
+    { header: 'Groups', accessor: (s) => s.summary.total_groups ?? 0 },
+    { header: 'External', accessor: (s) => s.summary.external_users ?? 0 },
+  ],
 };
 
 export default function ProviderSnapshotTab({

@@ -25,6 +25,7 @@ const mockExportSnapshots = vi.fn();
 
 const mockUseIsoConfig = vi.fn();
 const mockUseGitHubIsoConfig = vi.fn();
+const mockUseJiraIsoConfig = vi.fn();
 
 vi.mock('../hooks/useIso', () => ({
   useIsoSnapshots: (...args: unknown[]) => mockUseIsoSnapshots(...args),
@@ -32,6 +33,7 @@ vi.mock('../hooks/useIso', () => ({
   useDeleteSnapshot: () => mockUseDeleteSnapshot(),
   useIsoConfig: () => mockUseIsoConfig(),
   useGitHubIsoConfig: () => mockUseGitHubIsoConfig(),
+  useJiraIsoConfig: () => mockUseJiraIsoConfig(),
 }));
 
 vi.mock('../hooks/useIsoExport', () => ({
@@ -79,6 +81,9 @@ describe('ISOSnapshots', () => {
     });
     mockUseGitHubIsoConfig.mockReturnValue({
       data: { connected: false, org_name: null },
+    });
+    mockUseJiraIsoConfig.mockReturnValue({
+      data: { connected: false, site_url: null },
     });
     mockIsSnapshotStale.mockReturnValue(false);
     mockUseIsoSnapshots.mockReturnValue({
