@@ -141,9 +141,11 @@ export const isoApi = {
     return response.data;
   },
 
-  exportSnapshots: async (from: string, to: string): Promise<Blob> => {
+  exportSnapshots: async (from: string, to: string, provider?: string): Promise<Blob> => {
+    const params: Record<string, string> = { from, to };
+    if (provider) params.provider = provider;
     const response = await api.get('/iso/exports/snapshots', {
-      params: { from, to },
+      params,
       responseType: 'blob',
     });
     return response.data;

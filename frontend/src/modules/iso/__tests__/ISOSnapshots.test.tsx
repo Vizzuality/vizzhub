@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import ISOSnapshots from '../pages/ISOSnapshots';
 
-const mockSnapshot = {
+const mockGwSnapshot = {
   id: 'snap-1',
   provider: 'google_workspace',
   captured_at: '2026-02-20T10:00:00Z',
@@ -83,7 +83,7 @@ describe('ISOSnapshots', () => {
     mockIsSnapshotStale.mockReturnValue(false);
     mockUseIsoSnapshots.mockReturnValue({
       data: {
-        items: [mockSnapshot],
+        items: [mockGwSnapshot],
         total: 1,
         page: 1,
         page_size: 20,
@@ -91,6 +91,13 @@ describe('ISOSnapshots', () => {
       },
       isLoading: false,
     });
+  });
+
+  it('renders provider tabs', () => {
+    renderWithProviders(<ISOSnapshots />);
+
+    expect(screen.getByRole('tab', { name: /google workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /github/i })).toBeInTheDocument();
   });
 
   it('renders loading spinner when isLoading is true', () => {
@@ -112,13 +119,14 @@ describe('ISOSnapshots', () => {
 
     renderWithProviders(<ISOSnapshots />);
 
-    expect(screen.getByText(/no snapshots have been captured yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no google workspace snapshots yet/i)).toBeInTheDocument();
   });
 
-  it('shows snapshot table with correct data', () => {
+  it('shows snapshot table with correct GW columns', () => {
     renderWithProviders(<ISOSnapshots />);
 
-    expect(screen.getByText('google_workspace')).toBeInTheDocument();
+    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('Groups')).toBeInTheDocument();
     expect(screen.getByText('25')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
@@ -131,7 +139,7 @@ describe('ISOSnapshots', () => {
     renderWithProviders(<ISOSnapshots />);
 
     expect(
-      screen.getByText(/last access snapshot is over 35 days old/i),
+      screen.getByText(/last google workspace snapshot is over 35 days old/i),
     ).toBeInTheDocument();
   });
 
@@ -141,11 +149,11 @@ describe('ISOSnapshots', () => {
     renderWithProviders(<ISOSnapshots />);
 
     expect(
-      screen.queryByText(/last access snapshot is over 35 days old/i),
+      screen.queryByText(/over 35 days old/i),
     ).not.toBeInTheDocument();
   });
 
-  it('shows different stale message when no snapshots exist', () => {
+  it('shows stale banner and empty card when no snapshots exist', () => {
     mockIsSnapshotStale.mockReturnValue(true);
     mockUseIsoSnapshots.mockReturnValue({
       data: { items: [], total: 0, page: 1, page_size: 20, pages: 0 },
@@ -155,7 +163,7 @@ describe('ISOSnapshots', () => {
     renderWithProviders(<ISOSnapshots />);
 
     expect(
-      screen.getByText(/no access snapshots have been captured yet/i),
+      screen.getByText(/capture your first snapshot to begin access reviews/i),
     ).toBeInTheDocument();
   });
 
@@ -180,18 +188,14 @@ describe('ISOSnapshots', () => {
     expect(screen.getByText('Capturing...')).toBeInTheDocument();
   });
 
-  it('shows provider capture buttons based on connection status', () => {
+  it('hides capture button when provider is not connected', () => {
     mockUseIsoConfig.mockReturnValue({
-      data: { connected: true, domain: 'example.com' },
-    });
-    mockUseGitHubIsoConfig.mockReturnValue({
-      data: { connected: true, org_name: 'my-org' },
+      data: { connected: false, domain: null },
     });
 
     renderWithProviders(<ISOSnapshots />);
 
-    expect(screen.getByRole('button', { name: /capture google workspace/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /capture github/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /capture google workspace/i })).not.toBeInTheDocument();
   });
 
   it('hides pagination controls when only 1 page', () => {
@@ -203,7 +207,7 @@ describe('ISOSnapshots', () => {
   it('renders review status badge when review_status is present', () => {
     mockUseIsoSnapshots.mockReturnValue({
       data: {
-        items: [{ ...mockSnapshot, review_status: 'signed' }],
+        items: [{ ...mockGwSnapshot, review_status: 'signed' }],
         total: 1,
         page: 1,
         page_size: 20,
@@ -239,8 +243,6 @@ describe('ISOSnapshots', () => {
     expect(screen.getByText('Delete this snapshot?')).toBeInTheDocument();
   });
 
-  // --- Export ---
-
   it('renders export button with date range selectors', () => {
     renderWithProviders(<ISOSnapshots />);
 
@@ -249,5 +251,13 @@ describe('ISOSnapshots', () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText('From month')).toBeInTheDocument();
     expect(screen.getByLabelText('To month')).toBeInTheDocument();
+  });
+
+  it('passes provider filter to useIsoSnapshots', () => {
+    renderWithProviders(<ISOSnapshots />);
+
+    expect(mockUseIsoSnapshots).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'google_workspace' }),
+    );
   });
 });

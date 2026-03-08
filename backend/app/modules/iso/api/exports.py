@@ -117,6 +117,7 @@ async def export_snapshot_range(
     db: DBSession,
     from_date: Annotated[str, Query(alias="from", description="Start date (YYYY-MM-DD)")],
     to_date: Annotated[str, Query(alias="to", description="End date (YYYY-MM-DD)")],
+    provider: str | None = None,
 ) -> Response:
     start = _parse_date_param(from_date, "from")
     end = _parse_date_param(to_date, "to")
@@ -127,12 +128,16 @@ async def export_snapshot_range(
     start_dt = datetime(start.year, start.month, start.day, tzinfo=timezone.utc)
     end_dt = datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=timezone.utc)
 
-    result = await db.execute(
+    query = (
         select(AccessSnapshotDB)
         .where(AccessSnapshotDB.captured_at >= start_dt)
         .where(AccessSnapshotDB.captured_at <= end_dt)
         .order_by(AccessSnapshotDB.captured_at)
     )
+    if provider:
+        query = query.where(AccessSnapshotDB.provider == provider)
+
+    result = await db.execute(query)
     snapshots = list(result.scalars().all())
 
     export_data = await _build_export_data(db, snapshots)
