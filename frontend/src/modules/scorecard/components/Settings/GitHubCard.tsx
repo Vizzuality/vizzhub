@@ -25,6 +25,11 @@ import {
 import { Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
 import { queryKeys } from '@/core/hooks/queryKeys';
+import {
+  useGitHubIsoConfig,
+  useSaveGitHubOrg,
+  useClearGitHubOrg,
+} from '@/modules/iso/hooks/useIso';
 import type { ProviderStatus } from '@/core/services/integrations';
 
 interface GitHubCardProps {
@@ -58,6 +63,12 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
   const [showToken, setShowToken] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
+  const { data: ghIsoConfig } = useGitHubIsoConfig();
+  const saveGitHubOrg = useSaveGitHubOrg();
+  const clearGitHubOrg = useClearGitHubOrg();
+  const [orgNameInput, setOrgNameInput] = useState('');
+  const [clearOrgOpen, setClearOrgOpen] = useState(false);
+
   const saveToken = useMutation({
     mutationFn: (pat: string) => integrationsApi.saveGitHubToken(pat),
     onSuccess: () => {
@@ -83,6 +94,21 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
   const handleDisconnect = (e: React.MouseEvent): void => {
     e.preventDefault();
     deleteToken.mutate();
+  };
+
+  const handleSaveOrg = (): void => {
+    const trimmed = orgNameInput.trim();
+    if (!trimmed) return;
+    saveGitHubOrg.mutate(trimmed, {
+      onSuccess: () => setOrgNameInput(''),
+    });
+  };
+
+  const handleClearOrg = (e: React.MouseEvent): void => {
+    e.preventDefault();
+    clearGitHubOrg.mutate(undefined, {
+      onSettled: () => setClearOrgOpen(false),
+    });
   };
 
   const expiryInfo = status?.connected ? getExpiryInfo(status.expires_at) : null;
@@ -163,31 +189,93 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
         </div>
 
         {status?.connected && (
-          <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                Disconnect
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Disconnect GitHub?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove the GitHub token. Metric collection from GitHub
-                  will stop until you add a new token.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDisconnect}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          <div className="flex items-center justify-between">
+            <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  Disconnect
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Disconnect GitHub?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove the GitHub token. Metric collection from GitHub
+                    will stop until you add a new token.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDisconnect}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteToken.isPending ? 'Disconnecting...' : 'Disconnect'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
+        {/* ISO: GitHub Organization */}
+        {status?.connected && (
+          <div className="space-y-2 border-t pt-4">
+            <Label>ISO Organization</Label>
+            <p className="text-xs text-muted-foreground">
+              Set the GitHub organization for ISO 27001 access reviews.
+            </p>
+            {ghIsoConfig?.org_name ? (
+              <div className="flex items-center gap-4">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Organization: </span>
+                  <span className="font-medium">{ghIsoConfig.org_name}</span>
+                </div>
+                <AlertDialog open={clearOrgOpen} onOpenChange={setClearOrgOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">Clear</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear GitHub organization?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will remove the GitHub org configuration. You will not be
+                        able to capture GitHub access snapshots until you set it again.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearOrg}>
+                        {clearGitHubOrg.isPending ? 'Clearing...' : 'Clear'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Organization name (e.g. my-org)"
+                  value={orgNameInput}
+                  onChange={(e) => setOrgNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveOrg();
+                  }}
+                  className="max-w-xs"
+                />
+                <Button
+                  onClick={handleSaveOrg}
+                  disabled={!orgNameInput.trim() || saveGitHubOrg.isPending}
+                  size="sm"
                 >
-                  {deleteToken.isPending ? 'Disconnecting...' : 'Disconnect'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  {saveGitHubOrg.isPending ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            )}
+            {saveGitHubOrg.isError && (
+              <p className="text-sm text-destructive">Failed to save organization name.</p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

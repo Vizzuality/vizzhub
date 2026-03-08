@@ -2,21 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import ISOConfig from '../pages/ISOConfig';
+import GoogleWorkspaceCard from '@/modules/scorecard/components/Settings/GoogleWorkspaceCard';
 
 const mockUseIsoConfig = vi.fn();
 const mockDisconnectMutate = vi.fn();
-const mockUseDisconnectGoogleWorkspace = vi.fn();
-const mockUseGitHubIsoConfig = vi.fn();
-const mockUseSaveGitHubOrg = vi.fn();
-const mockUseClearGitHubOrg = vi.fn();
 
-vi.mock('../hooks/useIso', () => ({
-  useIsoConfig: (...args: unknown[]) => mockUseIsoConfig(...args),
-  useDisconnectGoogleWorkspace: () => mockUseDisconnectGoogleWorkspace(),
-  useGitHubIsoConfig: () => mockUseGitHubIsoConfig(),
-  useSaveGitHubOrg: () => mockUseSaveGitHubOrg(),
-  useClearGitHubOrg: () => mockUseClearGitHubOrg(),
+vi.mock('@/modules/iso/hooks/useIso', () => ({
+  useIsoConfig: () => mockUseIsoConfig(),
+  useDisconnectGoogleWorkspace: () => ({
+    mutate: mockDisconnectMutate,
+    isPending: false,
+  }),
 }));
 
 function createQueryClient(): QueryClient {
@@ -34,65 +30,20 @@ function renderWithProviders(ui: React.ReactElement): ReturnType<typeof render> 
   );
 }
 
-describe('ISOConfig', () => {
+describe('GoogleWorkspaceCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseDisconnectGoogleWorkspace.mockReturnValue({
-      mutate: mockDisconnectMutate,
-      isPending: false,
-    });
     mockUseIsoConfig.mockReturnValue({
       data: { connected: false, domain: null },
       isLoading: false,
       error: null,
     });
-    mockUseGitHubIsoConfig.mockReturnValue({
-      data: { connected: false, org_name: null },
-      isLoading: false,
-      error: null,
-    });
-    mockUseSaveGitHubOrg.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-      isError: false,
-    });
-    mockUseClearGitHubOrg.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-    });
-  });
-
-  it('renders loading spinner when isLoading is true', () => {
-    mockUseIsoConfig.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      error: null,
-    });
-
-    renderWithProviders(<ISOConfig />);
-
-    expect(document.querySelector('.animate-spin')).toBeTruthy();
-  });
-
-  it('shows error banner when config fails to load', () => {
-    mockUseIsoConfig.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      error: new Error('Server error'),
-    });
-
-    renderWithProviders(<ISOConfig />);
-
-    expect(
-      screen.getByText('Failed to load configuration status.'),
-    ).toBeInTheDocument();
   });
 
   it('shows "Not connected" badge when not connected', () => {
-    renderWithProviders(<ISOConfig />);
+    renderWithProviders(<GoogleWorkspaceCard />);
 
-    const badges = screen.getAllByText('Not connected');
-    expect(badges.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Not connected')).toBeInTheDocument();
   });
 
   it('shows "Connected" badge and domain when connected', () => {
@@ -102,14 +53,14 @@ describe('ISOConfig', () => {
       error: null,
     });
 
-    renderWithProviders(<ISOConfig />);
+    renderWithProviders(<GoogleWorkspaceCard />);
 
     expect(screen.getByText('Connected')).toBeInTheDocument();
     expect(screen.getByText('example.com')).toBeInTheDocument();
   });
 
   it('shows "Connect Google Workspace" button when not connected', () => {
-    renderWithProviders(<ISOConfig />);
+    renderWithProviders(<GoogleWorkspaceCard />);
 
     expect(
       screen.getByRole('button', { name: /connect google workspace/i }),
@@ -123,7 +74,7 @@ describe('ISOConfig', () => {
       error: null,
     });
 
-    renderWithProviders(<ISOConfig />);
+    renderWithProviders(<GoogleWorkspaceCard />);
 
     expect(
       screen.getByRole('button', { name: /disconnect/i }),
@@ -137,13 +88,10 @@ describe('ISOConfig', () => {
       error: null,
     });
 
-    renderWithProviders(<ISOConfig />);
+    renderWithProviders(<GoogleWorkspaceCard />);
 
-    const disconnectButton = screen.getByRole('button', { name: /disconnect/i });
-    fireEvent.click(disconnectButton);
+    fireEvent.click(screen.getByRole('button', { name: /disconnect/i }));
 
-    expect(
-      screen.getByText('Disconnect Google Workspace?'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Disconnect Google Workspace?')).toBeInTheDocument();
   });
 });
