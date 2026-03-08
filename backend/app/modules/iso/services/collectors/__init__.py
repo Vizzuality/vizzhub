@@ -4,5 +4,8 @@ from app.modules.iso.services.collectors.google_workspace import (
 from app.modules.iso.services.collectors.github import (
     GitHubCollector,
 )
+from app.modules.iso.services.collectors.jira import (
+    JiraCollector,
+)
 
-__all__ = ["GoogleWorkspaceCollector", "GitHubCollector"]
+__all__ = ["GoogleWorkspaceCollector", "GitHubCollector", "JiraCollector"]
