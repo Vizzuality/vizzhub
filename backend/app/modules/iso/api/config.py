@@ -1,4 +1,4 @@
-"""ISO module configuration endpoints -- Google Workspace OAuth + GitHub."""
+"""ISO module configuration endpoints -- Google Workspace OAuth + GitHub + Jira."""
 
 import logging
 import re
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from app.core.api.deps import AdminUser, DBSession, limiter
 from app.core.oauth_state import OAuthStateManager
 from app.core.services.integration_token_service import IntegrationTokenService
+from app.core.services.oauth_service import OAuthService
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
 )
@@ -159,3 +160,18 @@ async def clear_github_org(
     )
     await db.flush()
     return {"status": "success", "message": "GitHub organization cleared"}
+
+
+# --- Jira Config ---
+
+@router.get("/jira")
+@limiter.limit("30/minute")
+async def get_jira_status(
+    request: Request, current_user: AdminUser, db: DBSession
+) -> dict:
+    site_info = await OAuthService.get_jira_site_info(db)
+    token = await OAuthService.get_valid_jira_token(db)
+    return {
+        "connected": token is not None,
+        "site_url": site_info["site_url"] if site_info else None,
+    }

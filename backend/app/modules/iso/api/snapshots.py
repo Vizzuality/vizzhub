@@ -24,6 +24,7 @@ from app.modules.iso.schemas import (
 from app.modules.iso.services.collectors import (
     GoogleWorkspaceCollector,
     GitHubCollector,
+    JiraCollector,
 )
 from app.modules.iso.services.diff_engine import (
     build_diff_summary,
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-VALID_PROVIDERS = {"google_workspace", "github"}
+VALID_PROVIDERS = {"google_workspace", "github", "jira"}
 
 
 def _get_collector(provider: str, db):
@@ -44,6 +45,8 @@ def _get_collector(provider: str, db):
         return GoogleWorkspaceCollector(db)
     if provider == "github":
         return GitHubCollector(db)
+    if provider == "jira":
+        return JiraCollector(db)
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -51,6 +54,8 @@ def _get_diff_context(snapshot: AccessSnapshotDB) -> str:
     metadata = snapshot.source_metadata or {}
     if snapshot.provider == "github":
         return metadata.get("org", "")
+    if snapshot.provider == "jira":
+        return metadata.get("site_url", "")
     return metadata.get("domain", "")
 
 
