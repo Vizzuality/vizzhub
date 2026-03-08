@@ -58,6 +58,7 @@ class JiraCollector:
         self,
         path: str,
         params: dict[str, Any] | None = None,
+        optional: bool = False,
     ) -> list[dict[str, Any]]:
         """Paginate endpoints that return {values, isLast} objects."""
         params = dict(params) if params else {}
@@ -68,6 +69,11 @@ class JiraCollector:
         while True:
             params["startAt"] = start_at
             response = await self._client.get(path, params=params)
+
+            if optional and response.status_code in (401, 403):
+                logger.warning("Jira %s on %s — skipping (insufficient permissions)", response.status_code, path)
+                return []
+
             response.raise_for_status()
 
             data = response.json()
@@ -117,6 +123,7 @@ class JiraCollector:
             raw = await self._paginate_values(
                 "/rest/api/3/group/member",
                 {"groupname": name},
+                optional=True,
             )
             members[name] = [
                 {
