@@ -32,9 +32,9 @@ export default function IndicatorDisplay({
 
   return (
     <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span className={cn('text-3xl font-bold', getIndicatorColor(value, target, lowerIsBetter))}>
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-sm font-medium text-muted-foreground truncate">{label}</span>
+        <span className={cn('text-3xl font-bold shrink-0', getIndicatorColor(value, target, lowerIsBetter))}>
           {formattedValue}
           {value !== null && suffix}
         </span>
