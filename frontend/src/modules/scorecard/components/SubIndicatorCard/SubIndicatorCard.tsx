@@ -162,10 +162,10 @@ export default function SubIndicatorCard({
           {metrics.map((metric) => (
             <div
               key={metric.label}
-              className="flex justify-between items-center p-3 bg-muted rounded-lg"
+              className="flex justify-between items-center gap-2 p-3 bg-muted rounded-lg min-w-0"
             >
-              <span className="text-sm text-muted-foreground">{metric.label}</span>
-              <span className="text-base font-medium">
+              <span className="text-sm text-muted-foreground truncate">{metric.label}</span>
+              <span className="text-base font-medium shrink-0">
                 {metric.value ?? '—'}
                 {metric.value !== null && metric.suffix}
               </span>
