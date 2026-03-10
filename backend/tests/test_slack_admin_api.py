@@ -17,7 +17,7 @@ class TestAlertDefinitionsAPI:
     @pytest.mark.asyncio
     async def test_list_alert_definitions_empty(self, client: AsyncClient) -> None:
         """List alert definitions returns empty list when none exist."""
-        response = await client.get("/api/admin/alerts/")
+        response = await client.get("/api/admin/alerts")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -46,7 +46,7 @@ class TestAlertDefinitionsAPI:
         db_session.add_all([alert1, alert2])
         await db_session.commit()
 
-        response = await client.get("/api/admin/alerts/")
+        response = await client.get("/api/admin/alerts")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2

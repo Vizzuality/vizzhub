@@ -26,7 +26,7 @@ alerts_router = APIRouter(prefix="/admin/alerts", tags=["alerts-admin"])
 templates_router = APIRouter(prefix="/admin/templates", tags=["templates-admin"])
 
 
-@alerts_router.get("/", response_model=list[AlertDefinitionResponse])
+@alerts_router.get("", response_model=list[AlertDefinitionResponse])
 @limiter.limit("100/minute")
 async def list_alert_definitions(
     request: Request,
