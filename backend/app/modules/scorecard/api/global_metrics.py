@@ -84,7 +84,7 @@ async def get_global_metrics(
     return GlobalMetricsRecord.from_db(record)
 
 
-@router.post("/calculate", responses={400: {"description": "Bad request"}})
+@router.post("/calculate", responses={400: {"description": "Invalid date range or year before 2023"}})
 @limiter.limit("10/minute")
 async def calculate_global_metrics(
     request: Request,

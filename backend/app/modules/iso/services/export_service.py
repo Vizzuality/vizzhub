@@ -118,25 +118,26 @@ class IsoExportService:
         )
 
         summary = snapshot.get("summary", {})
+        admins_row = ("Total Admins", summary.get("total_admins", 0))
 
         if provider == "github":
             summary_rows = [
                 ("Total Members", summary.get("total_members", 0)),
-                ("Total Admins", summary.get("total_admins", 0)),
+                admins_row,
                 ("Total Teams", summary.get("total_teams", 0)),
                 ("Outside Collaborators", summary.get("outside_collaborators", 0)),
             ]
         elif provider == "jira":
             summary_rows = [
                 ("Total Users", summary.get("total_users", 0)),
-                ("Total Admins", summary.get("total_admins", 0)),
+                admins_row,
                 ("Total Groups", summary.get("total_groups", 0)),
                 ("External Users", summary.get("external_users", 0)),
             ]
         else:
             summary_rows = [
                 ("Total Users", summary.get("total_users", 0)),
-                ("Total Admins", summary.get("total_admins", 0)),
+                admins_row,
                 ("Total Groups", summary.get("total_groups", 0)),
                 ("External Members", summary.get("external_members", 0)),
             ]
