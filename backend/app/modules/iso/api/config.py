@@ -125,7 +125,7 @@ async def get_github_status(
     }
 
 
-@router.put("/github")
+@router.put("/github", responses={422: {"description": "Invalid organization name"}})
 @limiter.limit("10/minute")
 async def save_github_org(
     request: Request,
