@@ -12,16 +12,8 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { TrendingUp, Users, Maximize2, Minimize2 } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-} from 'recharts';
 import { cn } from '@/lib/utils';
-import { CHART_TOOLTIP_STYLE } from '@/utils/chartUtils';
+import IndicatorChart from '../../../components/SubIndicatorCard/IndicatorChart';
 import { useTrendExpand } from '../../../hooks/useTrendExpand';
 import type { IndicatorValue } from '../../../types/global';
 import type { MetricKPI, HistoricalDataPoint } from '../types';
@@ -35,7 +27,7 @@ function MetricBadge({ dimension }: MetricBadgeProps): JSX.Element {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-primary shrink-0 cursor-help">
             {dimension.charAt(0).toUpperCase()}
           </span>
         </TooltipTrigger>
@@ -55,6 +47,7 @@ interface GlobalMetricCardProps {
   readonly invert?: boolean;
   readonly kpis?: MetricKPI[];
   readonly historicalData?: HistoricalDataPoint[];
+  readonly target?: number | null;
 }
 
 export default function GlobalMetricCard({
@@ -65,6 +58,7 @@ export default function GlobalMetricCard({
   invert = false,
   kpis = [],
   historicalData,
+  target,
 }: GlobalMetricCardProps): JSX.Element {
   const { showTrend, expanded, toggleTrend, toggleExpand, setExpanded } = useTrendExpand();
 
@@ -93,27 +87,19 @@ export default function GlobalMetricCard({
     return isGood ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400';
   };
 
+  const getSuffix = (): string => {
+    switch (format) {
+      case 'ratio': return '%';
+      case 'percent': return '%';
+      case 'hours': return 'h';
+      case 'days': return 'd';
+      default: return '';
+    }
+  };
+
   const hasData = indicator.value !== null && indicator.count > 0;
   const hasHistoricalData = historicalData && historicalData.length > 1;
   const displayData = historicalData?.slice(-6);
-
-  const renderChart = (data: HistoricalDataPoint[], height: number): JSX.Element => (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-        <XAxis dataKey="period" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-        <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
-        <RechartsTooltip contentStyle={{ ...CHART_TOOLTIP_STYLE, fontSize: '11px' }} />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke="oklch(0.6726 0.2 250)"
-          strokeWidth={2}
-          dot={{ r: 3 }}
-          connectNulls
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
 
   return (
     <>
@@ -175,7 +161,15 @@ export default function GlobalMetricCard({
         <CardContent>
           {showTrend && hasHistoricalData && displayData ? (
             <div className="h-24 w-full mb-2">
-              {renderChart(displayData, 96)}
+              <IndicatorChart
+                data={displayData}
+                height={96}
+                chartMode="line"
+                chartColor="var(--chart-1)"
+                target={target}
+                lowerIsBetter={invert}
+                indicatorSuffix={getSuffix()}
+              />
             </div>
           ) : (
             <div className="flex items-start justify-between">
@@ -209,7 +203,17 @@ export default function GlobalMetricCard({
             <DialogTitle>{label} - Historical Trend</DialogTitle>
           </DialogHeader>
           <div className="w-full h-80">
-            {historicalData && renderChart(historicalData, 320)}
+            {historicalData && (
+              <IndicatorChart
+                data={historicalData}
+                height={320}
+                chartMode="line"
+                chartColor="var(--chart-1)"
+                target={target}
+                lowerIsBetter={invert}
+                indicatorSuffix={getSuffix()}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

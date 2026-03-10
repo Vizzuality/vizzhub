@@ -22,7 +22,7 @@ import type { HistoricalDataPoint } from '../../types';
 
 export type { HistoricalDataPoint } from '../../types';
 
-const DEFAULT_CHART_COLOR = 'oklch(0.7 0.15 250)';
+const DEFAULT_CHART_COLOR = 'var(--chart-1)';
 
 type ChartMode = 'line' | 'bar';
 
@@ -101,7 +101,7 @@ function DimensionBadge({ dimension }: DimensionBadgeProps): JSX.Element {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-primary shrink-0 cursor-help">
             {dimension.charAt(0).toUpperCase()}
           </span>
         </TooltipTrigger>

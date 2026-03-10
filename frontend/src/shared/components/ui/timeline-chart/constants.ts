@@ -3,11 +3,11 @@
  */
 
 export const TIMELINE_CHART_COLORS = {
-  primary: '#6366f1',
-  green: '#22c55e',
-  yellow: '#eab308',
-  red: '#ef4444',
-  muted: '#71717a',
+  primary: 'var(--primary)',
+  green: 'var(--score-green)',
+  yellow: 'var(--score-yellow)',
+  red: 'var(--score-red)',
+  muted: 'var(--muted-foreground)',
 } as const;
 
 export type TimelineChartColor = typeof TIMELINE_CHART_COLORS;

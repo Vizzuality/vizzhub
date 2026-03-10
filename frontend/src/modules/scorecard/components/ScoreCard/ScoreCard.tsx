@@ -78,9 +78,9 @@ export default function ScoreCard({
         <Line
           type="monotone"
           dataKey="score"
-          stroke="#3b82f6"
+          stroke="var(--primary)"
           strokeWidth={2}
-          dot={{ fill: '#3b82f6', r: 4 }}
+          dot={{ fill: 'var(--primary)', r: 4 }}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -173,7 +173,7 @@ export default function ScoreCard({
         {hasFilters && onResetFilters && (
           <button
             onClick={onResetFilters}
-            className="mt-3 flex items-center gap-1.5 text-xs text-chart-3 hover:text-chart-3/80 transition-colors mx-auto"
+            className="mt-3 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors mx-auto"
           >
             <RotateCcw className="h-3 w-3" />
             Reset filters
@@ -214,13 +214,13 @@ function DimensionBadge({ label, dimension, score, thresholds, isVisible, onTogg
           className={cn(
             'w-2.5 h-2.5 rounded-full border-2 transition-colors',
             isVisible
-              ? 'bg-chart-3 border-chart-3'
+              ? 'bg-primary border-primary'
               : 'bg-transparent border-muted-foreground/50'
           )}
         />
         <span className={cn(
           'text-base transition-colors',
-          isVisible ? 'text-chart-3' : 'text-muted-foreground'
+          isVisible ? 'text-foreground' : 'text-muted-foreground'
         )}>
           {label}
         </span>

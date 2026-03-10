@@ -52,7 +52,7 @@ export default function SubIndicatorCard({
   lowerIsBetter = true,
   formula,
   historicalData,
-  chartColor = 'oklch(0.7 0.15 250)',
+  chartColor = 'var(--chart-1)',
   badge,
   dimension,
 }: SubIndicatorCardProps): JSX.Element {
@@ -97,7 +97,7 @@ export default function SubIndicatorCard({
                 <TooltipProvider>
                   <UITooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-primary shrink-0 cursor-help">
                         {dimension.charAt(0).toUpperCase()}
                       </span>
                     </TooltipTrigger>
@@ -114,7 +114,7 @@ export default function SubIndicatorCard({
               <p className="text-sm text-muted-foreground">
                 {description.includes('DORA') ? (
                   <>
-                    <span className="text-chart-3">DORA</span>
+                    <span className="text-primary">DORA</span>
                     {description.replace('DORA', '')}
                   </>
                 ) : (
