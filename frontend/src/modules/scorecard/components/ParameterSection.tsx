@@ -83,7 +83,7 @@ export function ParameterSection({
 
             return (
               <div key={param.name} className="grid grid-cols-3 gap-4 items-start">
-                <div className="font-medium">{formatParamName(param.name)}</div>
+                <div className="text-sm">{formatParamName(param.name)}</div>
                 <div>
                   {isEditing ? (
                     <Input

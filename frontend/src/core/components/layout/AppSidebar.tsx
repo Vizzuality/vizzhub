@@ -41,9 +41,15 @@ const ADMIN_ITEMS = [
   { to: '/admin/global-scores', label: 'Global Scores', icon: Globe },
   { to: '/admin/scorecard-parameters', label: 'Parameters', icon: SlidersHorizontal },
   { to: '/admin/integrations', label: 'Integrations', icon: Plug },
-  { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   { to: '/admin/jobs', label: 'Jobs', icon: Cog },
   { to: '/admin/users', label: 'Users', icon: Users },
+] as const;
+
+const NOTIFICATION_TABS = [
+  { to: '/admin/notifications/log', label: 'Alert Log' },
+  { to: '/admin/notifications/silences', label: 'Active Silences' },
+  { to: '/admin/notifications/config', label: 'Configuration' },
+  { to: '/admin/notifications/stats', label: 'Statistics' },
 ] as const;
 
 const ISO_PROVIDERS = [
@@ -97,6 +103,7 @@ export function AppSidebar(): JSX.Element {
 
               {isAdmin && (
                 <Collapsible
+                  key={isActive('/iso') ? 'iso-open' : 'iso-closed'}
                   defaultOpen={isActive('/iso')}
                   className="group/collapsible"
                 >
@@ -147,25 +154,53 @@ export function AppSidebar(): JSX.Element {
               <SidebarGroupLabel>Administration</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {ADMIN_ITEMS.map(({ to, label, icon: Icon }) => {
-                    const isItemActive = to === '/admin/notifications'
-                      ? location.pathname.startsWith('/admin/notifications')
-                      : location.pathname === to;
-                    return (
-                      <SidebarMenuItem key={to}>
+                  {ADMIN_ITEMS.map(({ to, label, icon: Icon }) => (
+                    <SidebarMenuItem key={to}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={location.pathname === to}
+                        tooltip={label}
+                      >
+                        <Link to={to}>
+                          <Icon />
+                          <span>{label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+
+                  <Collapsible
+                    key={location.pathname.startsWith('/admin/notifications') ? 'notif-open' : 'notif-closed'}
+                    defaultOpen={location.pathname.startsWith('/admin/notifications')}
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
                         <SidebarMenuButton
-                          asChild
-                          isActive={isItemActive}
-                          tooltip={label}
+                          isActive={location.pathname.startsWith('/admin/notifications')}
+                          tooltip="Notifications"
                         >
-                          <Link to={to === '/admin/notifications' ? '/admin/notifications/log' : to}>
-                            <Icon />
-                            <span>{label}</span>
-                          </Link>
+                          <Bell />
+                          <span>Notifications</span>
+                          <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {NOTIFICATION_TABS.map(({ to, label }) => (
+                            <SidebarMenuSubItem key={to}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={location.pathname === to}
+                              >
+                                <Link to={to}>{label}</Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
