@@ -104,6 +104,9 @@ dmypy.json
 .claude/
 CLAUDE.md
 
+# Playwright MCP
+.playwright-mcp/
+
 # OpenTofu/Terraform
 *.tfstate
 *.tfstate.*
