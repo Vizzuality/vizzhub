@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import InfoTooltip from './InfoTooltip';
 import type { EVMData, HistoricalDataPoint } from '@/modules/scorecard/types';
 
-const DEFAULT_CHART_COLOR = 'oklch(0.7 0.15 250)';
+const DEFAULT_CHART_COLOR = 'var(--chart-1)';
 
 function getPerformanceColorClass(value: number, target: number): string {
   if (value >= target) return 'text-score-green';
@@ -90,8 +90,8 @@ function PerformanceHistoricalChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-        <ReferenceArea y1={targetPct} y2={domainMax} fill="#22c55e" fillOpacity={0.1} />
-        <ReferenceArea y1={domainMin} y2={targetPct} fill="#ef4444" fillOpacity={0.1} />
+        <ReferenceArea y1={targetPct} y2={domainMax} fill="var(--score-green)" fillOpacity={0.1} />
+        <ReferenceArea y1={domainMin} y2={targetPct} fill="var(--score-red)" fillOpacity={0.1} />
         <XAxis dataKey="period" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
         <YAxis
           domain={[domainMin, domainMax]}
@@ -103,10 +103,10 @@ function PerformanceHistoricalChart({
         />
         <ReferenceLine
           y={targetPct}
-          stroke="#22c55e"
+          stroke="var(--score-green)"
           strokeWidth={2}
           strokeDasharray="4 2"
-          label={{ value: 'KPI', position: 'right', fontSize: 8, fill: '#22c55e' }}
+          label={{ value: 'KPI', position: 'right', fontSize: 8, fill: 'var(--score-green)' }}
         />
         <RechartsTooltip content={renderTooltipContent} />
         <Line

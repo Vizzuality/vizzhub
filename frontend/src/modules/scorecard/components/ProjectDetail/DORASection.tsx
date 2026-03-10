@@ -39,7 +39,7 @@ function DORANoDataCard({ title, description, message, badge }: DORANoDataCardPr
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-chart-3 shrink-0 cursor-help">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-semibold text-primary shrink-0 cursor-help">
                     F
                   </span>
                 </TooltipTrigger>

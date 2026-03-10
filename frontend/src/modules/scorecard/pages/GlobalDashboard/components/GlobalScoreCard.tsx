@@ -74,9 +74,9 @@ export default function GlobalScoreCard({
         <Line
           type="monotone"
           dataKey="score"
-          stroke="#3b82f6"
+          stroke="var(--primary)"
           strokeWidth={2}
-          dot={{ fill: '#3b82f6', r: 4 }}
+          dot={{ fill: 'var(--primary)', r: 4 }}
         />
       </LineChart>
     </ResponsiveContainer>

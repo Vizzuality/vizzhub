@@ -31,14 +31,14 @@ export default function GlobalDimensionBadge({
           className={cn(
             'w-2.5 h-2.5 rounded-full border-2 transition-colors',
             isVisible
-              ? 'bg-chart-3 border-chart-3'
+              ? 'bg-primary border-primary'
               : 'bg-transparent border-muted-foreground/50',
           )}
         />
         <span
           className={cn(
             'text-base transition-colors',
-            isVisible ? 'text-chart-3' : 'text-muted-foreground',
+            isVisible ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
           {label}

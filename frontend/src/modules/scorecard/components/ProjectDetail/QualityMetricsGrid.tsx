@@ -28,14 +28,14 @@ function renderConditionalCard({ hasData, hasParentData, card, mutedProps }: Con
 }
 
 const DIMENSION_COLORS: Record<Dimension, string> = {
-  Time: 'text-chart-1',
-  Cost: 'text-chart-2',
-  Quality: 'text-chart-4',
-  Value: 'text-chart-5',
-  Satisfaction: 'text-chart-6',
-  Flow: 'text-chart-3',
-  Engineering: 'text-chart-7',
-  Risk: 'text-chart-8',
+  Time: 'text-primary',
+  Cost: 'text-primary',
+  Quality: 'text-primary',
+  Value: 'text-primary',
+  Satisfaction: 'text-primary',
+  Flow: 'text-primary',
+  Engineering: 'text-primary',
+  Risk: 'text-primary',
 };
 
 const DIMENSION_ABBREV: Record<Dimension, string> = {

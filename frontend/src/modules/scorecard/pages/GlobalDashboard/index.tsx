@@ -293,6 +293,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Time"
                 indicator={globalMetrics!.indicators.spi}
                 kpis={[{ label: 'KPI', value: '1.0' }]}
+                target={1.0}
                 historicalData={getIndicatorHistory('spi')}
               />
               <GlobalMetricCard
@@ -300,6 +301,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Time"
                 indicator={globalMetrics!.indicators.on_time_milestones}
                 kpis={[{ label: 'KPI', value: '100%' }]}
+                target={1.0}
                 historicalData={getIndicatorHistory('on_time_milestones')}
               />
 
@@ -309,6 +311,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Cost"
                 indicator={globalMetrics!.indicators.cpi}
                 kpis={[{ label: 'KPI', value: '1.0' }]}
+                target={1.0}
                 historicalData={getIndicatorHistory('cpi')}
               />
 
@@ -320,6 +323,7 @@ export default function GlobalDashboard(): JSX.Element {
                 format="number"
                 invert
                 kpis={[{ label: 'KPI', value: '< 3%' }]}
+                target={3}
                 historicalData={getIndicatorHistory('defect_density')}
               />
               <GlobalMetricCard
@@ -329,6 +333,7 @@ export default function GlobalDashboard(): JSX.Element {
                 format="number"
                 invert
                 kpis={[{ label: 'KPI', value: '< 1%' }]}
+                target={1}
                 historicalData={getIndicatorHistory('escaped_rate')}
               />
               <GlobalMetricCard
@@ -338,6 +343,7 @@ export default function GlobalDashboard(): JSX.Element {
                 format="hours"
                 invert
                 kpis={[{ label: 'KPI', value: '< 48h' }]}
+                target={48}
                 historicalData={getIndicatorHistory('mttr_hours')}
               />
               <GlobalMetricCard
@@ -345,6 +351,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Quality"
                 indicator={globalMetrics!.indicators.story_review_ratio}
                 kpis={[{ label: 'KPI', value: '> 90%' }]}
+                target={0.9}
                 historicalData={getIndicatorHistory('story_review_ratio')}
               />
               <GlobalMetricCard
@@ -352,6 +359,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Quality"
                 indicator={globalMetrics!.indicators.test_maturity}
                 kpis={[{ label: 'KPI', value: '> 80%' }]}
+                target={0.8}
                 historicalData={getIndicatorHistory('test_maturity')}
               />
               <GlobalMetricCard
@@ -361,6 +369,7 @@ export default function GlobalDashboard(): JSX.Element {
                 format="number"
                 invert
                 kpis={[{ label: 'KPI', value: '0' }]}
+                target={0}
                 historicalData={getIndicatorHistory('high_vulns')}
               />
 
@@ -378,6 +387,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Satisfaction"
                 indicator={globalMetrics!.indicators.pm_satisfaction}
                 kpis={[{ label: 'KPI', value: '> 80%' }]}
+                target={0.8}
                 historicalData={getIndicatorHistory('pm_satisfaction')}
               />
               <GlobalMetricCard
@@ -385,6 +395,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Satisfaction"
                 indicator={globalMetrics!.indicators.client_satisfaction}
                 kpis={[{ label: 'KPI', value: '> 80%' }]}
+                target={0.8}
                 historicalData={getIndicatorHistory('client_satisfaction')}
               />
 
@@ -396,6 +407,7 @@ export default function GlobalDashboard(): JSX.Element {
                 format="days"
                 invert
                 kpis={[{ label: 'KPI', value: '< 5d' }]}
+                target={5}
                 historicalData={getIndicatorHistory('lead_time_days')}
               />
               <GlobalMetricCard
@@ -403,6 +415,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Flow"
                 indicator={globalMetrics!.indicators.commitment_reliability}
                 kpis={[{ label: 'KPI', value: '> 85%' }]}
+                target={0.85}
                 historicalData={getIndicatorHistory('commitment_reliability')}
               />
               <GlobalMetricCard
@@ -411,6 +424,7 @@ export default function GlobalDashboard(): JSX.Element {
                 indicator={globalMetrics!.indicators.deployment_frequency}
                 format="number"
                 kpis={[{ label: 'KPI', value: '≥ 1/day' }]}
+                target={1}
                 historicalData={getIndicatorHistory('deployment_frequency')}
               />
               <GlobalMetricCard
@@ -420,6 +434,7 @@ export default function GlobalDashboard(): JSX.Element {
                 format="percent"
                 invert
                 kpis={[{ label: 'KPI', value: '< 15%' }]}
+                target={15}
                 historicalData={getIndicatorHistory('change_failure_rate')}
               />
 
@@ -429,6 +444,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Engineering"
                 indicator={globalMetrics!.indicators.arch_checklist}
                 kpis={[{ label: 'KPI', value: '100%' }]}
+                target={1.0}
                 historicalData={getIndicatorHistory('arch_checklist')}
               />
               <GlobalMetricCard
@@ -436,6 +452,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Engineering"
                 indicator={globalMetrics!.indicators.pr_review_ratio}
                 kpis={[{ label: 'KPI', value: '> 95%' }]}
+                target={0.95}
                 historicalData={getIndicatorHistory('pr_review_ratio')}
               />
 
@@ -445,6 +462,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Risk"
                 indicator={globalMetrics!.indicators.governance_compliance}
                 kpis={[{ label: 'KPI', value: '100%' }]}
+                target={1.0}
                 historicalData={getIndicatorHistory('governance_compliance')}
               />
             </div>
