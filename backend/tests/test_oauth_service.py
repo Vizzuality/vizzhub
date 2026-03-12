@@ -30,12 +30,12 @@ class TestAuthorizationURL:
         """State parameter should be included when provided."""
         with patch("app.core.services.oauth_service.settings") as mock_settings:
             mock_settings.jira_oauth_client_id = "test-client-id"
-            mock_settings.jira_oauth_scopes = "read:jira-work"
             mock_settings.jira_oauth_redirect_uri = "http://localhost:8000/callback"
 
             url = OAuthService.get_jira_authorization_url(state="csrf-token-12345")
 
             assert "state=csrf-token-12345" in url
+            assert "read%3Aboard-scope%3Ajira-software" in url
 
 
 class TestCodeExchange:
