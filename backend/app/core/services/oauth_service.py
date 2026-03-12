@@ -23,6 +23,12 @@ class OAuthService:
     JIRA_ACCESSIBLE_RESOURCES_URL = (
         "https://api.atlassian.com/oauth/token/accessible-resources"
     )
+    JIRA_REQUIRED_SCOPES = (
+        "read:jira-work read:jira-user "
+        "read:issue-details:jira read:user:jira read:project:jira "
+        "read:board-scope:jira-software read:sprint:jira-software "
+        "offline_access"
+    )
 
     @staticmethod
     def get_jira_authorization_url(state: str | None = None) -> str:
@@ -30,7 +36,7 @@ class OAuthService:
         params = {
             "audience": "api.atlassian.com",
             "client_id": settings.jira_oauth_client_id,
-            "scope": settings.jira_oauth_scopes,
+            "scope": OAuthService.JIRA_REQUIRED_SCOPES,
             "redirect_uri": settings.jira_oauth_redirect_uri,
             "response_type": "code",
             "prompt": "consent",

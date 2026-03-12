@@ -45,8 +45,7 @@ Add to `backend/.env`:
 JIRA_OAUTH_CLIENT_ID=your-client-id-here
 JIRA_OAUTH_CLIENT_SECRET=your-client-secret-here
 JIRA_OAUTH_REDIRECT_URI=http://localhost:8000/api/oauth/jira/callback
-# Classic scopes (REQUIRED - must include offline_access):
-JIRA_OAUTH_SCOPES=read:jira-work read:jira-user offline_access
+# Note: OAuth scopes are hardcoded in OAuthService.JIRA_REQUIRED_SCOPES (no env var needed)
 ```
 
 ### Step 4: Run Database Migration
