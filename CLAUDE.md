@@ -99,4 +99,3 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/vizztrac
 - `docs/vizztracker_integration.md` — Multi-module architecture spec
 - `docs/OAUTH_SETUP.md` — Jira OAuth setup
 - `docs/API.md` — Full API documentation
-- `docs/plans/2026-03-03-modular-monolith-refactor-design.md` — Refactor design decisions
