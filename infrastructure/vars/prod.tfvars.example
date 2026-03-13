@@ -45,7 +45,7 @@ domain_name = "hub.vizzuality.com"
 # GitHub (for OIDC and API access)
 # =============================================================================
 github_org   = "Vizzuality"
-github_repo  = "project-score-card"
+github_repo  = "vizzhub"
 github_token = ""  # Personal access token with repo scope
 
 # =============================================================================
