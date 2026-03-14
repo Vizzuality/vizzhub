@@ -11,6 +11,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
+import {
+  formatCurrency,
+  getPerformanceColor,
+  getPerformanceLabel,
+} from '@/shared/utils/evmCalculations';
 import type { EVMData } from '../../types';
 
 interface EVMFormData {
@@ -71,33 +76,6 @@ const FIELDS: FieldConfig[] = [
     max: 100,
   },
 ];
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function getPerformanceColor(value: number): string {
-  if (value >= 1) return 'text-score-green';
-  if (value >= 0.9) return 'text-score-yellow';
-  return 'text-score-red';
-}
-
-function getPerformanceLabel(value: number, metric: 'spi' | 'cpi'): string {
-  if (metric === 'spi') {
-    if (value > 1) return 'Ahead of schedule';
-    if (value === 1) return 'On schedule';
-    return 'Behind schedule';
-  } else {
-    if (value > 1) return 'Under budget';
-    if (value === 1) return 'On budget';
-    return 'Over budget';
-  }
-}
 
 export default function EVMForm({
   initialData,
