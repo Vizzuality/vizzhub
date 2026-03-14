@@ -131,6 +131,7 @@ export default function EVMSection({
                 onSubmit={async () => {}}
                 onDelete={async () => {}}
                 getMilestoneStatus={getMilestoneStatus}
+                readOnly
               />
             </CardContent>
           </Card>
