@@ -333,8 +333,10 @@ def import_projects(legacy, target, maps):
             cur_t.execute(
                 "INSERT INTO projects (id, name, program_id, code, is_billable, "
                 "currency, notes, summary, start_date, end_date, status, "
-                "finished_at, created_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "finished_at, created_at, has_scorecard, has_dependabot_alerts, "
+                "has_budget_alerts) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+                "false, false, false)",
                 (target_id, name, program_id, code, is_billable, currency,
                  notes, summary, start_date, end_date, status, finished_at,
                  created_at),
