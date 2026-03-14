@@ -24,6 +24,7 @@ interface MilestonesListProps {
   getMilestoneStatus: (milestone: Milestone) => MilestoneStatus;
   onDirtyChange?: (isDirty: boolean) => void;
   onValuesChange?: (data: Milestone[]) => void;
+  readOnly?: boolean;
 }
 
 export default function MilestonesList({
@@ -37,6 +38,7 @@ export default function MilestonesList({
   getMilestoneStatus,
   onDirtyChange,
   onValuesChange,
+  readOnly = false,
 }: MilestonesListProps): JSX.Element {
   if (isEditing) {
     return (
@@ -90,15 +92,17 @@ export default function MilestonesList({
                       ? new Date(milestone.actual_date).toLocaleDateString()
                       : '--/--/----'}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                    onClick={() => onDelete(index)}
-                    disabled={isLoading}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={() => onDelete(index)}
+                      disabled={isLoading}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -107,15 +111,17 @@ export default function MilestonesList({
       ) : (
         <p className="text-muted-foreground">No milestones defined yet.</p>
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onEdit}
-        className="mt-4 border border-input"
-      >
-        <Pencil className="w-4 h-4 mr-2" />
-        {milestones?.length ? 'Edit Milestones' : 'Add Milestones'}
-      </Button>
+      {!readOnly && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+          className="mt-4 border border-input"
+        >
+          <Pencil className="w-4 h-4 mr-2" />
+          {milestones?.length ? 'Edit Milestones' : 'Add Milestones'}
+        </Button>
+      )}
     </>
   );
 }
