@@ -286,7 +286,7 @@ const defaultAuthUser = {
 
 export const handlers = [
   // Projects
-  http.get(`${BASE}/scorecards`, ({ request }) => {
+  http.get(`${BASE}/projects`, ({ request }) => {
     const url = new URL(request.url);
     if (url.searchParams.get('lightweight') === 'true') {
       return HttpResponse.json([{ id: 'project-123', name: 'Test Project' }]);
@@ -295,11 +295,11 @@ export const handlers = [
     return HttpResponse.json({ ...defaultPaginatedProjects, page });
   }),
 
-  http.get(`${BASE}/scorecards/:id`, ({ params }) => {
+  http.get(`${BASE}/projects/:id`, ({ params }) => {
     return HttpResponse.json({ ...defaultProject, id: params.id });
   }),
 
-  http.post(`${BASE}/scorecards`, async ({ request }) => {
+  http.post(`${BASE}/projects`, async ({ request }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json(
       { ...defaultProject, id: 'new-project-id', ...body },
@@ -307,17 +307,17 @@ export const handlers = [
     );
   }),
 
-  http.patch(`${BASE}/scorecards/:id`, async ({ request, params }) => {
+  http.patch(`${BASE}/projects/:id`, async ({ request, params }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({ ...defaultProject, id: params.id, ...body });
   }),
 
-  http.put(`${BASE}/scorecards/:id`, async ({ request, params }) => {
+  http.put(`${BASE}/projects/:id`, async ({ request, params }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({ ...defaultProject, id: params.id, ...body });
   }),
 
-  http.delete(`${BASE}/scorecards/:id`, () => {
+  http.delete(`${BASE}/projects/:id`, () => {
     return new HttpResponse(null, { status: 204 });
   }),
 

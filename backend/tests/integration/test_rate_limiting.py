@@ -13,7 +13,7 @@ class TestRateLimitingIntegration:
         client: AsyncClient,
     ) -> None:
         """Verify rate limit headers are present in response."""
-        response = await client.get("/api/scorecards")
+        response = await client.get("/api/projects")
 
         # Check for rate limit headers
         # Note: Header names may vary based on slowapi configuration
@@ -35,5 +35,5 @@ class TestRateLimitingIntegration:
         """Verify normal usage doesn't trigger rate limit."""
         # Make a few requests - should all succeed
         for _ in range(3):
-            response = await client.get("/api/scorecards")
+            response = await client.get("/api/projects")
             assert response.status_code != 429, "Rate limit triggered too early"
