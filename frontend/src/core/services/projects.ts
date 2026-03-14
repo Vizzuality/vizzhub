@@ -51,4 +51,35 @@ export const projectsApi = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/projects/${id}`);
   },
+
+  updateBudget: async (projectId: string, data: {
+    evm_data?: {
+      budget_total?: number;
+      cost_to_date?: number;
+      percent_completed?: number;
+      percent_planned?: number;
+    };
+    milestones?: Array<{
+      name: string;
+      planned_date: string;
+      actual_date?: string;
+    }>;
+  }): Promise<{
+    period_year: number;
+    period_month: number;
+    evm_data: {
+      budget_total: number | null;
+      cost_to_date: number | null;
+      percent_completed: number | null;
+      percent_planned: number | null;
+    };
+    milestones: Array<{
+      name: string;
+      planned_date: string;
+      actual_date?: string;
+    }>;
+  }> => {
+    const response = await api.put(`/projects/${projectId}/budget`, data);
+    return response.data;
+  },
 };
