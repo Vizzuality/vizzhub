@@ -7,6 +7,16 @@ import StatusControls from './StatusControls';
 import ProjectForm from '../Forms/ProjectForm';
 import type { Project, ProjectCreate } from '@/core/types/project';
 
+const STATUS_LABELS: Record<string, string> = {
+  finished: 'Finished',
+  proposal: 'Proposal',
+  live: 'Live',
+};
+
+function getStatusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
 interface ProjectHeaderProps {
   project: Project;
   isEditing: boolean;
@@ -58,7 +68,7 @@ export default function ProjectHeader({
                       : ''
                   }
                 >
-                  {project.status === 'finished' ? 'Finished' : project.status === 'proposal' ? 'Proposal' : 'Live'}
+                  {getStatusLabel(project.status)}
                 </Badge>
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">

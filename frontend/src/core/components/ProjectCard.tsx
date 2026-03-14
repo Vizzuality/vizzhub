@@ -13,10 +13,10 @@ import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
-  project: Project;
-  viewMode?: 'list' | 'grid';
-  isAdmin?: boolean;
-  score?: number | null;
+  readonly project: Project;
+  readonly viewMode?: 'list' | 'grid';
+  readonly isAdmin?: boolean;
+  readonly score?: number | null;
 }
 
 function getStatusLabel(status: string): string {
