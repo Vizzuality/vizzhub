@@ -17,9 +17,10 @@ class TestCreateProject:
     async def test_create_project_with_all_fields(self, client: AsyncClient) -> None:
         """Create project with all fields populated."""
         response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Test Project",
+                "code": "TST.001",
                 "jira_project_key": "TEST",
                 "github_repo": "org/repo",
             },
@@ -37,9 +38,10 @@ class TestCreateProject:
     async def test_create_project_with_dates(self, client: AsyncClient) -> None:
         """Create project with start_date and end_date."""
         response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Dated Project",
+                "code": "TST",
                 "start_date": "2026-01-01",
                 "end_date": "2026-12-31",
             },
@@ -56,8 +58,8 @@ class TestCreateProject:
     ) -> None:
         """Create project with only required name field."""
         response = await client.post(
-            "/api/scorecards",
-            json={"name": "Minimal Project"},
+            "/api/projects",
+            json={"name": "Minimal Project", "code": "Minimal Project"},
         )
         assert response.status_code == 201
         data = response.json()
@@ -71,8 +73,8 @@ class TestCreateProject:
     ) -> None:
         """Creating project with empty name should return 422."""
         response = await client.post(
-            "/api/scorecards",
-            json={"name": ""},
+            "/api/projects",
+            json={"name": "", "code": "TST"},
         )
         assert response.status_code == 400
         data = response.json()
@@ -84,7 +86,7 @@ class TestCreateProject:
     ) -> None:
         """Creating project without name should return 422."""
         response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={"jira_project_key": "TEST"},
         )
         assert response.status_code == 400
@@ -95,9 +97,10 @@ class TestCreateProject:
     ) -> None:
         """Invalid github_repo format should return 422."""
         response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Test Project",
+                "code": "TST",
                 "github_repo": "invalid-format",
             },
         )
@@ -109,9 +112,10 @@ class TestCreateProject:
     ) -> None:
         """GitHub repo with multiple slashes should return 422."""
         response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Test Project",
+                "code": "TST",
                 "github_repo": "org/repo/extra",
             },
         )
@@ -121,8 +125,8 @@ class TestCreateProject:
     async def test_create_project_name_too_long(self, client: AsyncClient) -> None:
         """Name exceeding 255 characters should return 422."""
         response = await client.post(
-            "/api/scorecards",
-            json={"name": "x" * 256},
+            "/api/projects",
+            json={"name": "x" * 256, "code": "TST"},
         )
         assert response.status_code == 400
 
@@ -131,10 +135,10 @@ class TestListProjects:
     @pytest.mark.asyncio
     async def test_list_projects_returns_all(self, client: AsyncClient) -> None:
         """List all projects returns correct count."""
-        await client.post("/api/scorecards", json={"name": "Project 1"})
-        await client.post("/api/scorecards", json={"name": "Project 2"})
+        await client.post("/api/projects", json={"name": "Project 1", "code": "Project 1"})
+        await client.post("/api/projects", json={"name": "Project 2", "code": "Project 2"})
 
-        response = await client.get("/api/scorecards")
+        response = await client.get("/api/projects")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
@@ -143,7 +147,7 @@ class TestListProjects:
     @pytest.mark.asyncio
     async def test_list_projects_empty(self, client: AsyncClient) -> None:
         """List projects returns empty list when no projects."""
-        response = await client.get("/api/scorecards")
+        response = await client.get("/api/projects")
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
@@ -155,12 +159,12 @@ class TestGetProject:
     async def test_get_project_success(self, client: AsyncClient) -> None:
         """Get single project by ID."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test Project", "jira_project_key": "TEST"},
+            "/api/projects",
+            json={"name": "Test Project", "code": "Test Project", "jira_project_key": "TEST"},
         )
         project_id = create_response.json()["id"]
 
-        response = await client.get(f"/api/scorecards/{project_id}")
+        response = await client.get(f"/api/projects/{project_id}")
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == project_id
@@ -171,16 +175,16 @@ class TestGetProject:
     async def test_get_project_not_found(self, client: AsyncClient) -> None:
         """Get non-existent project returns 404."""
         fake_uuid = "00000000-0000-0000-0000-000000000000"
-        response = await client.get(f"/api/scorecards/{fake_uuid}")
+        response = await client.get(f"/api/projects/{fake_uuid}")
         assert response.status_code == 404
         data = response.json()
         assert "detail" in data
-        assert fake_uuid in data["detail"]
+        assert "not found" in data["detail"].lower()
 
     @pytest.mark.asyncio
     async def test_get_project_invalid_uuid(self, client: AsyncClient) -> None:
         """Get project with invalid UUID format returns 422."""
-        response = await client.get("/api/scorecards/not-a-uuid")
+        response = await client.get("/api/projects/not-a-uuid")
         assert response.status_code == 400
 
 
@@ -189,9 +193,10 @@ class TestUpdateProject:
     async def test_patch_project_partial_update(self, client: AsyncClient) -> None:
         """PATCH updates only provided fields."""
         create_response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Original Name",
+                "code": "TST",
                 "jira_project_key": "ORIG",
                 "github_repo": "org/original",
             },
@@ -199,8 +204,8 @@ class TestUpdateProject:
         project_id = create_response.json()["id"]
 
         response = await client.patch(
-            f"/api/scorecards/{project_id}",
-            json={"name": "Updated Name"},
+            f"/api/projects/{project_id}",
+            json={"name": "Updated Name", "code": "Updated Name"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -212,15 +217,16 @@ class TestUpdateProject:
     async def test_patch_project_update_all_fields(self, client: AsyncClient) -> None:
         """PATCH can update all fields at once."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Original Name"},
+            "/api/projects",
+            json={"name": "Original Name", "code": "Original Name"},
         )
         project_id = create_response.json()["id"]
 
         response = await client.patch(
-            f"/api/scorecards/{project_id}",
+            f"/api/projects/{project_id}",
             json={
                 "name": "New Name",
+                "code": "TST",
                 "jira_project_key": "NEW",
                 "github_repo": "new-org/new-repo",
             },
@@ -236,8 +242,8 @@ class TestUpdateProject:
         """PATCH non-existent project returns 404."""
         fake_uuid = "00000000-0000-0000-0000-000000000000"
         response = await client.patch(
-            f"/api/scorecards/{fake_uuid}",
-            json={"name": "Updated Name"},
+            f"/api/projects/{fake_uuid}",
+            json={"name": "Updated Name", "code": "Updated Name"},
         )
         assert response.status_code == 404
 
@@ -247,13 +253,13 @@ class TestUpdateProject:
     ) -> None:
         """PATCH with invalid github_repo returns 422."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test Project"},
+            "/api/projects",
+            json={"name": "Test Project", "code": "Test Project"},
         )
         project_id = create_response.json()["id"]
 
         response = await client.patch(
-            f"/api/scorecards/{project_id}",
+            f"/api/projects/{project_id}",
             json={"github_repo": "invalid"},
         )
         assert response.status_code == 400
@@ -262,13 +268,13 @@ class TestUpdateProject:
     async def test_patch_project_empty_name(self, client: AsyncClient) -> None:
         """PATCH with empty name returns 422."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test Project"},
+            "/api/projects",
+            json={"name": "Test Project", "code": "Test Project"},
         )
         project_id = create_response.json()["id"]
 
         response = await client.patch(
-            f"/api/scorecards/{project_id}",
+            f"/api/projects/{project_id}",
             json={"name": ""},
         )
         assert response.status_code == 400
@@ -277,13 +283,13 @@ class TestUpdateProject:
     async def test_patch_project_empty_body(self, client: AsyncClient) -> None:
         """PATCH with empty body returns project unchanged."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test Project"},
+            "/api/projects",
+            json={"name": "Test Project", "code": "Test Project"},
         )
         project_id = create_response.json()["id"]
 
         response = await client.patch(
-            f"/api/scorecards/{project_id}",
+            f"/api/projects/{project_id}",
             json={},
         )
         assert response.status_code == 200
@@ -296,9 +302,10 @@ class TestReplaceProject:
     async def test_put_replaces_all_fields(self, client: AsyncClient) -> None:
         """PUT replaces all fields including setting unspecified optional fields to null."""
         create_response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Original Project",
+                "code": "TST",
                 "jira_project_key": "ORIG",
                 "start_date": "2026-01-01",
             },
@@ -306,9 +313,10 @@ class TestReplaceProject:
         project_id = create_response.json()["id"]
 
         response = await client.put(
-            f"/api/scorecards/{project_id}",
+            f"/api/projects/{project_id}",
             json={
                 "name": "Replaced Project",
+                "code": "TST",
                 "jira_project_key": "REPL",
                 "github_repo": "org/new-repo",
                 "start_date": "2026-06-01",
@@ -329,9 +337,10 @@ class TestReplaceProject:
     ) -> None:
         """PUT with minimal fields clears optional fields."""
         create_response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Original",
+                "code": "TST",
                 "jira_project_key": "ORIG",
                 "github_repo": "org/repo",
                 "start_date": "2026-01-01",
@@ -341,8 +350,8 @@ class TestReplaceProject:
         project_id = create_response.json()["id"]
 
         response = await client.put(
-            f"/api/scorecards/{project_id}",
-            json={"name": "Only Name"},
+            f"/api/projects/{project_id}",
+            json={"name": "Only Name", "code": "Only Name"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -357,8 +366,8 @@ class TestReplaceProject:
         """PUT non-existent project returns 404."""
         fake_uuid = "00000000-0000-0000-0000-000000000000"
         response = await client.put(
-            f"/api/scorecards/{fake_uuid}",
-            json={"name": "New Name"},
+            f"/api/projects/{fake_uuid}",
+            json={"name": "New Name", "code": "New Name"},
         )
         assert response.status_code == 404
 
@@ -366,13 +375,13 @@ class TestReplaceProject:
     async def test_put_project_requires_name(self, client: AsyncClient) -> None:
         """PUT without name returns 422."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test"},
+            "/api/projects",
+            json={"name": "Test", "code": "Test"},
         )
         project_id = create_response.json()["id"]
 
         response = await client.put(
-            f"/api/scorecards/{project_id}",
+            f"/api/projects/{project_id}",
             json={"jira_project_key": "TEST"},
         )
         assert response.status_code == 400
@@ -383,22 +392,22 @@ class TestDeleteProject:
     async def test_delete_project_success(self, client: AsyncClient) -> None:
         """Delete existing project returns 204."""
         create_response = await client.post(
-            "/api/scorecards",
-            json={"name": "To Delete"},
+            "/api/projects",
+            json={"name": "To Delete", "code": "To Delete"},
         )
         project_id = create_response.json()["id"]
 
-        response = await client.delete(f"/api/scorecards/{project_id}")
+        response = await client.delete(f"/api/projects/{project_id}")
         assert response.status_code == 204
 
-        get_response = await client.get(f"/api/scorecards/{project_id}")
+        get_response = await client.get(f"/api/projects/{project_id}")
         assert get_response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_delete_project_not_found(self, client: AsyncClient) -> None:
         """Delete non-existent project returns 404."""
         fake_uuid = "00000000-0000-0000-0000-000000000000"
-        response = await client.delete(f"/api/scorecards/{fake_uuid}")
+        response = await client.delete(f"/api/projects/{fake_uuid}")
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -406,18 +415,18 @@ class TestDeleteProject:
         self, client: AsyncClient
     ) -> None:
         """Deleted project no longer appears in list."""
-        await client.post("/api/scorecards", json={"name": "Project 1"})
+        await client.post("/api/projects", json={"name": "Project 1", "code": "Project 1"})
         create_response = await client.post(
-            "/api/scorecards", json={"name": "Project 2"}
+            "/api/projects", json={"name": "Project 2", "code": "Project 2"}
         )
         project_id = create_response.json()["id"]
 
-        list_before = await client.get("/api/scorecards")
+        list_before = await client.get("/api/projects")
         assert list_before.json()["total"] == 2
 
-        await client.delete(f"/api/scorecards/{project_id}")
+        await client.delete(f"/api/projects/{project_id}")
 
-        list_after = await client.get("/api/scorecards")
+        list_after = await client.get("/api/projects")
         assert list_after.json()["total"] == 1
         assert all(p["id"] != project_id for p in list_after.json()["items"])
 

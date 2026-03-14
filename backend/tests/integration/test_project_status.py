@@ -85,7 +85,7 @@ class TestProjectStatusIntegration:
         """Verify changing project status from live to finished blocks collectors."""
         # Update project to finished
         response = await client.patch(
-            f"/api/scorecards/{test_project.id}",
+            f"/api/projects/{test_project.id}",
             json={"status": "finished"},
         )
         assert response.status_code == 200

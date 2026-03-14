@@ -83,7 +83,7 @@ async def test_development_mode_bypass_allows_access_without_token(
     client: AsyncClient,
 ) -> None:
     """Test that development mode allows API access without authentication token."""
-    response = await client.get("/api/scorecards")
+    response = await client.get("/api/projects")
 
     assert response.status_code != 401
 

@@ -47,7 +47,7 @@ describe('useProjects', () => {
     it('passes search params to API', async () => {
       let capturedUrl: string | undefined;
       server.use(
-        http.get('/api/scorecards', ({ request }) => {
+        http.get('/api/projects', ({ request }) => {
           capturedUrl = request.url;
           return HttpResponse.json(fixtures.paginatedProjects);
         }),
@@ -68,7 +68,7 @@ describe('useProjects', () => {
 
     it('handles API errors', async () => {
       server.use(
-        http.get('/api/scorecards', () => {
+        http.get('/api/projects', () => {
           return HttpResponse.json(
             { detail: 'Internal Server Error' },
             { status: 500 },
@@ -127,7 +127,7 @@ describe('useProjects', () => {
 
     it('handles 404 not found', async () => {
       server.use(
-        http.get('/api/scorecards/:id', () => {
+        http.get('/api/projects/:id', () => {
           return HttpResponse.json(
             { detail: 'Project not found' },
             { status: 404 },
@@ -153,7 +153,7 @@ describe('useProjects', () => {
 
       let capturedBody: unknown;
       server.use(
-        http.post('/api/scorecards', async ({ request }) => {
+        http.post('/api/projects', async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json(
             { ...fixtures.project, id: 'new-project-id', ...newProject },
@@ -181,7 +181,7 @@ describe('useProjects', () => {
 
     it('handles validation errors', async () => {
       server.use(
-        http.post('/api/scorecards', () => {
+        http.post('/api/projects', () => {
           return HttpResponse.json(
             { detail: 'Validation error' },
             { status: 422 },
@@ -212,7 +212,7 @@ describe('useProjects', () => {
 
       let capturedBody: unknown;
       server.use(
-        http.patch('/api/scorecards/:id', async ({ request, params }) => {
+        http.patch('/api/projects/:id', async ({ request, params }) => {
           capturedBody = await request.json();
           return HttpResponse.json({
             ...fixtures.project,
@@ -258,7 +258,7 @@ describe('useProjects', () => {
     it('deletes a project', async () => {
       let capturedId: string | undefined;
       server.use(
-        http.delete('/api/scorecards/:id', ({ params }) => {
+        http.delete('/api/projects/:id', ({ params }) => {
           capturedId = params.id as string;
           return new HttpResponse(null, { status: 204 });
         }),
@@ -277,7 +277,7 @@ describe('useProjects', () => {
 
     it('handles 404 when deleting nonexistent project', async () => {
       server.use(
-        http.delete('/api/scorecards/:id', () => {
+        http.delete('/api/projects/:id', () => {
           return HttpResponse.json(
             { detail: 'Not found' },
             { status: 404 },
