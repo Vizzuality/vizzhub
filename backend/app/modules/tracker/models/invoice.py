@@ -35,7 +35,7 @@ class InvoiceDB(Base):
             name="ck_invoices_currency_valid",
         ),
         CheckConstraint(
-            "extended_date IS NULL OR due_date IS NULL OR extended_date > due_date",
+            "extended_date IS NULL OR due_date IS NULL OR extended_date >= due_date",
             name="ck_invoices_extended_after_due",
         ),
         CheckConstraint(
