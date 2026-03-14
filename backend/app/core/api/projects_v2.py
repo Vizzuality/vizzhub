@@ -144,7 +144,7 @@ async def create_project(
     return _project_to_response(db_project)
 
 
-@router.get("/{project_id}")
+@router.get("/{project_id}", responses={404: {"description": "Project not found"}})
 @limiter.limit("100/minute")
 async def get_project(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
@@ -209,7 +209,11 @@ async def update_project(
     return _project_to_response(project)
 
 
-@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={409: {"description": "Cannot delete: project has dependent records"}},
+)
 @limiter.limit("10/minute")
 async def delete_project(
     request: Request, project_id: UUID, admin: AdminUser, db: DBSession

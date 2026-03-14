@@ -30,7 +30,7 @@ export default function DimensionBreakdownChart({
       const value = scoreValue?.value;
       return {
         dimension: DIMENSION_LABELS[key],
-        score: value !== null ? Math.round(value) : NEUTRAL_SCORE,
+        score: value === null ? NEUTRAL_SCORE : Math.round(value),
         isNeutral: value === null || scoreValue.count === 0,
         fullMark: 100,
       };
@@ -48,7 +48,7 @@ export default function DimensionBreakdownChart({
         ...Object.fromEntries(
           DIMENSION_KEYS.map((key) => [
             key,
-            r.scores[key].value !== null ? Math.round(r.scores[key].value) : 0,
+            r.scores[key].value === null ? 0 : Math.round(r.scores[key].value),
           ]),
         ),
       }));

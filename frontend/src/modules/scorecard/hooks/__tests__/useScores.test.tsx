@@ -73,9 +73,10 @@ describe('useScores', () => {
 
       const dimensions = result.current.data?.scores?.dimensions;
       expect(dimensions).toBeDefined();
-      expect(Object.keys(dimensions!)).toHaveLength(8);
-      expect(dimensions!.p_time).toBe(85);
-      expect(dimensions!.p_quality).toBe(78);
+      if (!dimensions) return;
+      expect(Object.keys(dimensions)).toHaveLength(8);
+      expect(dimensions.p_time).toBe(85);
+      expect(dimensions.p_quality).toBe(78);
     });
   });
 
