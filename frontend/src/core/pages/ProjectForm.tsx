@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
 import {
-  useCoreProject,
-  useCreateCoreProject,
-  useReplaceCoreProject,
-  useDeleteCoreProject,
+  useProject,
+  useCreateProject,
+  useReplaceProject,
+  useDeleteProject,
   useUpdateProjectStatus,
 } from '@/core/hooks/useProjects';
 import { usePrograms } from '@/core/hooks/usePrograms';
@@ -85,13 +85,13 @@ export default function ProjectForm(): JSX.Element {
   const isEditMode = !!id;
 
   const { data: project, isLoading: isLoadingProject, isError: isProjectError } =
-    useCoreProject(id ?? '');
+    useProject(id ?? '');
   const { data: programsData } = usePrograms();
   const programs: ProgramSummary[] = programsData ?? [];
 
-  const createMutation = useCreateCoreProject();
-  const replaceMutation = useReplaceCoreProject(id ?? '');
-  const deleteMutation = useDeleteCoreProject();
+  const createMutation = useCreateProject();
+  const replaceMutation = useReplaceProject(id ?? '');
+  const deleteMutation = useDeleteProject();
   const statusMutation = useUpdateProjectStatus(id ?? '');
 
   const {

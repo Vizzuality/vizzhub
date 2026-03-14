@@ -99,7 +99,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Reset rate limiter state before each test
     # Each API router has its own limiter instance that needs to be reset
     from app.main import limiter as main_limiter
-    from app.core.api import projects, oauth
+    from app.core.api import projects_v2 as projects, oauth
     from app.modules.scorecard.api import metrics, collectors, scores, config, capture
     from app.core.api.deps import limiter as deps_limiter
 

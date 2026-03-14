@@ -120,6 +120,23 @@ describe('API Service', () => {
 
         await projectsApi.list({ search: 'test', page: 2 });
 
+        expect(mock.history.get[0].params).toEqual({ search: 'test', page: 2 });
+      });
+    });
+
+    describe('listScorecard', () => {
+      it('adds has_scorecard param', async () => {
+        const paginatedResponse = {
+          items: [],
+          total: 0,
+          page: 1,
+          page_size: 45,
+          pages: 1,
+        };
+        mock.onGet('/projects').reply(200, paginatedResponse);
+
+        await projectsApi.listScorecard({ search: 'test', page: 2 });
+
         expect(mock.history.get[0].params).toEqual({ search: 'test', page: 2, has_scorecard: true });
       });
     });
