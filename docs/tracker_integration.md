@@ -1,4 +1,4 @@
-# VizzTracker Integration Plan
+# Tracker Integration Plan
 
 ## Hub Vision
 
@@ -8,7 +8,7 @@ The Hub (repo `vizzhub`) is a unified platform for project management tools.
 
 1. **Scorecard** — project health and quality metrics (implemented)
 2. **ISO** — compliance access reviews for Google Workspace, GitHub, Jira (implemented)
-3. **Tracker** — budget tracking, contracts, time reports (planned)
+3. **Tracker** — budget tracking, contracts, time reports (planned — replaces the legacy VizzTracker app)
 
 ### Future
 
@@ -77,7 +77,7 @@ Optional — restrict which modules a user can access per project.
 - Slack notifications — implemented (in scorecard module, extractable when tracker needs it)
 - ARQ worker + Redis — single worker, single Redis. Each module defines tasks in `modules/<name>/worker/tasks.py`
 
-## Current VizzTracker Data Model
+## Legacy VizzTracker Data Model
 
 14 business tables:
 
@@ -171,7 +171,7 @@ project_links ---> projects
 - [ ] Alembic migration creates all tables
 - [ ] Migration is reversible (`alembic downgrade` works)
 
-**T1.2 — Data migration script (Rails → Hub)**
+**T1.2 — Data migration script (legacy VizzTracker Rails → Hub)**
 - [ ] Mapping tables: `legacy_id (bigint) → new_id (UUID)` per entity
 - [ ] Inserts in dependency order (teams/roles first, then projects, contracts, etc.)
 - [ ] FKs resolved via mapping tables

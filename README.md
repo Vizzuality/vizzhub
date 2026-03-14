@@ -176,7 +176,7 @@ npm run test:coverage     # With coverage
 - [Security Implementation](docs/SECURITY_IMPLEMENTATION.md)
 - [Development Auth](docs/DEVELOPMENT_AUTH.md)
 - [Testing Guide](docs/TESTING.md)
-- [Multi-module Architecture](docs/vizztracker_integration.md)
+- [Multi-module Architecture](docs/tracker_integration.md)
 
 ## Tech Stack
 

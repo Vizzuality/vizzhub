@@ -70,7 +70,7 @@ src/
 
 ## Modular Architecture Rules (MUST FOLLOW)
 
-The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/vizztracker_integration.md`.
+The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_integration.md`.
 
 1. **ALL code lives in `core/`, `modules/`, or `shared/`** — no files in legacy flat directories (`app/api/`, `app/models/`, `app/services/`, `src/components/`, `src/hooks/`, etc.).
 2. **Core entities** (`Project`, `User`, `Job`) in `app/core/models/`. Frontend core types in `src/core/types/`.
@@ -96,6 +96,6 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/vizztrac
 ## Reference Docs
 
 - `docs/CLAUDE_REFERENCE.md` — Auth, Slack, jobs, Redis cache, AWS, API endpoints
-- `docs/vizztracker_integration.md` — Multi-module architecture spec
+- `docs/tracker_integration.md` — Multi-module architecture spec
 - `docs/OAUTH_SETUP.md` — Jira OAuth setup
 - `docs/API.md` — Full API documentation
