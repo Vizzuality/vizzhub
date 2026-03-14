@@ -292,8 +292,8 @@ export default function GlobalDashboard(): JSX.Element {
                 label="Schedule Performance (SPI)"
                 dimension="Time"
                 indicator={globalMetrics!.indicators.spi}
-                kpis={[{ label: 'KPI', value: '1.0' }]}
-                target={1.0}
+                kpis={[{ label: 'KPI', value: '1' }]}
+                target={1}
                 historicalData={getIndicatorHistory('spi')}
               />
               <GlobalMetricCard
@@ -301,7 +301,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Time"
                 indicator={globalMetrics!.indicators.on_time_milestones}
                 kpis={[{ label: 'KPI', value: '100%' }]}
-                target={1.0}
+                target={1}
                 historicalData={getIndicatorHistory('on_time_milestones')}
               />
 
@@ -310,8 +310,8 @@ export default function GlobalDashboard(): JSX.Element {
                 label="Cost Performance (CPI)"
                 dimension="Cost"
                 indicator={globalMetrics!.indicators.cpi}
-                kpis={[{ label: 'KPI', value: '1.0' }]}
-                target={1.0}
+                kpis={[{ label: 'KPI', value: '1' }]}
+                target={1}
                 historicalData={getIndicatorHistory('cpi')}
               />
 
@@ -444,7 +444,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Engineering"
                 indicator={globalMetrics!.indicators.arch_checklist}
                 kpis={[{ label: 'KPI', value: '100%' }]}
-                target={1.0}
+                target={1}
                 historicalData={getIndicatorHistory('arch_checklist')}
               />
               <GlobalMetricCard
@@ -462,7 +462,7 @@ export default function GlobalDashboard(): JSX.Element {
                 dimension="Risk"
                 indicator={globalMetrics!.indicators.governance_compliance}
                 kpis={[{ label: 'KPI', value: '100%' }]}
-                target={1.0}
+                target={1}
                 historicalData={getIndicatorHistory('governance_compliance')}
               />
             </div>

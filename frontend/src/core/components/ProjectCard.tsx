@@ -20,11 +20,15 @@ interface ProjectCardProps {
   readonly score?: number | null;
 }
 
-function ScoreDisplay({ score }: { score?: number | null }): JSX.Element | null {
+function getScoreColor(score: number): string {
+  if (score >= 70) return 'text-green-600 dark:text-green-400';
+  if (score >= 40) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-red-600 dark:text-red-400';
+}
+
+function ScoreDisplay({ score }: Readonly<{ score?: number | null }>): JSX.Element | null {
   if (score === null || score === undefined) return null;
-  const color = score >= 70 ? 'text-green-600 dark:text-green-400'
-    : score >= 40 ? 'text-yellow-600 dark:text-yellow-400'
-    : 'text-red-600 dark:text-red-400';
+  const color = getScoreColor(score);
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-xs text-muted-foreground">Score</span>

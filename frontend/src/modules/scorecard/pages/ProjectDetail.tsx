@@ -10,7 +10,7 @@ import { useProjectSnapshots } from '../hooks/useSnapshots';
 import { getMonthsSinceStart, MONTH_NAMES } from '@/utils/dateUtils';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
-import type { SnapshotType, Dimension } from '../types';
+import type { SnapshotType, Dimension, EVMData, Milestone } from '../types';
 import { ALL_DIMENSIONS } from '../types';
 import {
   ProjectHeader,
@@ -24,7 +24,6 @@ import {
   EmptyPeriodOverlay,
 } from '../components/ProjectDetail';
 import type { ProjectCreate } from '@/core/types/project';
-import type { EVMData, Milestone } from '../types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';

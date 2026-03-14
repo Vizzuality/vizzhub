@@ -245,22 +245,77 @@ def import_users(legacy, target, maps):
     return mapping
 
 
+PRODUCTION_OVERRIDES = {
+    'AGORA Paraguay': 'Agora Paraguay WB',
+    'Amazonia360 - Beta version 2': 'AmazoniaForever360+',
+    'FHWPC Implementation phase': 'FHWPC',
+    'Forest Innovation Platform - Phase I': 'Forest Innovation Platform (FIP)',
+    'GMW Phase 8': 'Global Mangrove Watch Phase 8',
+    'HE MIRACA': 'Miraca',
+    'ICIMOD Web Overhaul (Phase 2)': 'ICIMOD',
+}
+
+
+def _sanitize_date(d):
+    """Return None for dates before year 2000."""
+    if d and d.year < 2000:
+        return None
+    return d
+
+
+def _find_existing_project(cur_t, name):
+    """Find an existing project by name (with production override)."""
+    prod_name = PRODUCTION_OVERRIDES.get(name)
+    lookup_name = prod_name if prod_name else name
+    cur_t.execute("SELECT id FROM projects WHERE TRIM(name) = %s", (lookup_name,))
+    existing = cur_t.fetchone()
+    return existing, prod_name
+
+
+def _update_existing_project(cur_t, target_id, prod_name, program_id, code,
+                             is_billable, currency, notes, summary,
+                             start_date, end_date, status, finished_at):
+    """Update an existing project (production override or regular match)."""
+    if prod_name:
+        cur_t.execute(
+            "UPDATE projects SET program_id = %s, code = %s, "
+            "is_billable = %s, currency = %s, notes = %s, summary = %s "
+            "WHERE id = %s",
+            (program_id, code, is_billable, currency, notes, summary,
+             target_id),
+        )
+    else:
+        cur_t.execute(
+            "UPDATE projects SET program_id = %s, code = %s, is_billable = %s, "
+            "currency = %s, notes = %s, summary = %s, start_date = %s, "
+            "end_date = %s, status = %s, finished_at = %s "
+            "WHERE id = %s",
+            (program_id, code, is_billable, currency, notes, summary,
+             start_date, end_date, status, finished_at, target_id),
+        )
+
+
+def _insert_new_project(cur_t, name, program_id, code, is_billable, currency,
+                        notes, summary, start_date, end_date, status,
+                        finished_at, created_at):
+    """Insert a new project and return its UUID."""
+    target_id = uuid.uuid4()
+    cur_t.execute(
+        "INSERT INTO projects (id, name, program_id, code, is_billable, "
+        "currency, notes, summary, start_date, end_date, status, "
+        "finished_at, created_at, has_scorecard, has_dependabot_alerts, "
+        "has_budget_alerts) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+        "false, false, false)",
+        (target_id, name, program_id, code, is_billable, currency,
+         notes, summary, start_date, end_date, status, finished_at,
+         created_at),
+    )
+    return target_id
+
+
 def import_projects(legacy, target, maps):
     """Import legacy contracts as projects."""
-    # Production projects: legacy contract name → production project name
-    # When matched, only tracker fields are updated (code, program_id, is_billable,
-    # currency, notes, summary). Production fields (name, dates, status, jira,
-    # github, slack) are NOT overwritten.
-    PRODUCTION_OVERRIDES = {
-        'AGORA Paraguay': 'Agora Paraguay WB',
-        'Amazonia360 - Beta version 2': 'AmazoniaForever360+',
-        'FHWPC Implementation phase': 'FHWPC',
-        'Forest Innovation Platform - Phase I': 'Forest Innovation Platform (FIP)',
-        'GMW Phase 8': 'Global Mangrove Watch Phase 8',
-        'HE MIRACA': 'Miraca',
-        'ICIMOD Web Overhaul (Phase 2)': 'ICIMOD',
-    }
-
     mapping = {}
     cur_l = legacy.cursor()
     cur_t = target.cursor()
@@ -278,14 +333,9 @@ def import_projects(legacy, target, maps):
          notes, summary, created_at, legacy_proj_id, is_billable) = row
 
         name = name.strip() if name else name
-
-        if end_date and end_date.year < 2000:
-            end_date = None
-        if start_date and start_date.year < 2000:
-            start_date = None
-
+        end_date = _sanitize_date(end_date)
+        start_date = _sanitize_date(start_date)
         program_id = maps['programs'].get(legacy_proj_id)
-
         status = "finished" if aasm_state == "finished" else "live"
         finished_at = end_date if status == "finished" else None
 
@@ -297,51 +347,20 @@ def import_projects(legacy, target, maps):
         currency_row = cur_l.fetchone()
         currency = currency_row[0] if currency_row else None
 
-        # Check for production override first
-        prod_name = PRODUCTION_OVERRIDES.get(name)
-        if prod_name:
-            cur_t.execute(
-                "SELECT id FROM projects WHERE TRIM(name) = %s", (prod_name,)
-            )
-        else:
-            cur_t.execute(
-                "SELECT id FROM projects WHERE TRIM(name) = %s", (name,)
-            )
-        existing = cur_t.fetchone()
+        existing, prod_name = _find_existing_project(cur_t, name)
 
         if existing:
             target_id = existing[0]
-            if prod_name:
-                # Production project: only add tracker fields, preserve prod values
-                cur_t.execute(
-                    "UPDATE projects SET program_id = %s, code = %s, "
-                    "is_billable = %s, currency = %s, notes = %s, summary = %s "
-                    "WHERE id = %s",
-                    (program_id, code, is_billable, currency, notes, summary,
-                     target_id),
-                )
-            else:
-                # Regular match: update all fields
-                cur_t.execute(
-                    "UPDATE projects SET program_id = %s, code = %s, is_billable = %s, "
-                    "currency = %s, notes = %s, summary = %s, start_date = %s, "
-                    "end_date = %s, status = %s, finished_at = %s "
-                    "WHERE id = %s",
-                    (program_id, code, is_billable, currency, notes, summary,
-                     start_date, end_date, status, finished_at, target_id),
-                )
+            _update_existing_project(
+                cur_t, target_id, prod_name, program_id, code,
+                is_billable, currency, notes, summary,
+                start_date, end_date, status, finished_at,
+            )
         else:
-            target_id = uuid.uuid4()
-            cur_t.execute(
-                "INSERT INTO projects (id, name, program_id, code, is_billable, "
-                "currency, notes, summary, start_date, end_date, status, "
-                "finished_at, created_at, has_scorecard, has_dependabot_alerts, "
-                "has_budget_alerts) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
-                "false, false, false)",
-                (target_id, name, program_id, code, is_billable, currency,
-                 notes, summary, start_date, end_date, status, finished_at,
-                 created_at),
+            target_id = _insert_new_project(
+                cur_t, name, program_id, code, is_billable, currency,
+                notes, summary, start_date, end_date, status,
+                finished_at, created_at,
             )
 
         mapping[legacy_id] = target_id
@@ -712,36 +731,25 @@ def import_links(legacy, target, maps):
     return count
 
 
-def validate(legacy, target):
-    """Post-import validation checks."""
-    cur_l = legacy.cursor()
-    cur_t = target.cursor()
-    errors = []
-
+def _validate_count_checks(cur_l, cur_t, errors):
+    """Validate row counts match between legacy and target tables."""
     checks = [
-        ("functional_areas", "roles", "SELECT COUNT(*) FROM roles",
+        ("functional_areas", "SELECT COUNT(*) FROM roles",
          "SELECT COUNT(*) FROM functional_areas"),
-        ("rates", "rates", "SELECT COUNT(*) FROM rates",
+        ("rates", "SELECT COUNT(*) FROM rates",
          "SELECT COUNT(*) FROM rates"),
-        ("reporting_periods", "reporting_periods",
-         "SELECT COUNT(*) FROM reporting_periods",
+        ("reporting_periods", "SELECT COUNT(*) FROM reporting_periods",
          "SELECT COUNT(*) FROM reporting_periods"),
-        ("budget_lines", "budget_lines",
-         "SELECT COUNT(*) FROM budget_lines",
+        ("budget_lines", "SELECT COUNT(*) FROM budget_lines",
          "SELECT COUNT(*) FROM budget_lines"),
-        ("invoices", "invoices",
-         "SELECT COUNT(*) FROM invoices",
+        ("invoices", "SELECT COUNT(*) FROM invoices",
          "SELECT COUNT(*) FROM invoices"),
-        ("non_staff_costs", "non_staff_costs",
-         "SELECT COUNT(*) FROM non_staff_costs",
+        ("non_staff_costs", "SELECT COUNT(*) FROM non_staff_costs",
          "SELECT COUNT(*) FROM non_staff_costs"),
-        ("progress_reports", "progress_reports",
-         "SELECT COUNT(*) FROM progress_reports",
+        ("progress_reports", "SELECT COUNT(*) FROM progress_reports",
          "SELECT COUNT(*) FROM progress_reports"),
     ]
-
-    print("\n--- Validation ---")
-    for name, _, q_legacy, q_target in checks:
+    for name, q_legacy, q_target in checks:
         cur_l.execute(q_legacy)
         l_count = cur_l.fetchone()[0]
         cur_t.execute(q_target)
@@ -751,7 +759,9 @@ def validate(legacy, target):
             errors.append(f"{name}: legacy={l_count}, target={t_count}")
         print(f"  {name}: legacy={l_count}, target={t_count} [{status}]")
 
-    # Projects (contracts -> projects, but target may have pre-existing)
+
+def _validate_projects_and_reports(cur_l, cur_t, errors):
+    """Validate project and report counts."""
     cur_l.execute("SELECT COUNT(*) FROM contracts")
     l_contracts = cur_l.fetchone()[0]
     cur_t.execute("SELECT COUNT(*) FROM projects")
@@ -759,7 +769,6 @@ def validate(legacy, target):
     print(f"  projects: legacy_contracts={l_contracts}, target_projects={t_projects} "
           f"[{'OK' if t_projects >= l_contracts else 'MISMATCH'}]")
 
-    # Reports (may differ by 1 due to duplicate discard)
     cur_l.execute("SELECT COUNT(*) FROM reports")
     l_reports = cur_l.fetchone()[0]
     cur_t.execute("SELECT COUNT(*) FROM reports")
@@ -770,7 +779,9 @@ def validate(legacy, target):
         errors.append(f"reports: legacy={l_reports}, target={t_reports}")
     print(f"  reports: legacy={l_reports}, target={t_reports} (diff={diff}) [{status}]")
 
-    # Financial totals
+
+def _validate_financial_totals(cur_l, cur_t, errors):
+    """Validate budget and invoice totals."""
     cur_l.execute("SELECT ROUND(SUM(budget)::numeric, 2) FROM contracts WHERE budget IS NOT NULL")
     l_budget = cur_l.fetchone()[0]
     cur_t.execute("SELECT ROUND(SUM(budget), 2) FROM tracker_project_settings WHERE budget IS NOT NULL")
@@ -790,28 +801,23 @@ def validate(legacy, target):
         errors.append(f"invoice total: legacy={l_amount}, target={t_amount} (diff={diff_amount})")
     print(f"  invoice total: legacy={l_amount}, target={t_amount} (diff={diff_amount}) [{status}]")
 
-    # Percentage range check
-    cur_t.execute(
-        "SELECT COUNT(*) FROM report_parts "
-        "WHERE percentage IS NOT NULL AND (percentage < 0 OR percentage > 1)"
-    )
-    bad_pct = cur_t.fetchone()[0]
-    if bad_pct > 0:
-        errors.append(f"report_parts: {bad_pct} percentages out of 0-1 range")
-    print(f"  percentage range (report_parts): {bad_pct} out of range "
-          f"[{'OK' if bad_pct == 0 else 'FAIL'}]")
 
-    cur_t.execute(
-        "SELECT COUNT(*) FROM progress_reports "
-        "WHERE percentage < 0 OR percentage > 1"
-    )
-    bad_pct = cur_t.fetchone()[0]
-    if bad_pct > 0:
-        errors.append(f"progress_reports: {bad_pct} percentages out of 0-1 range")
-    print(f"  percentage range (progress_reports): {bad_pct} out of range "
-          f"[{'OK' if bad_pct == 0 else 'FAIL'}]")
+def _validate_percentage_ranges(cur_t, errors):
+    """Validate percentage values are within 0-1 range."""
+    for table in ("report_parts", "progress_reports"):
+        where = ("percentage IS NOT NULL AND (percentage < 0 OR percentage > 1)"
+                 if table == "report_parts"
+                 else "percentage < 0 OR percentage > 1")
+        cur_t.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}")
+        bad_pct = cur_t.fetchone()[0]
+        if bad_pct > 0:
+            errors.append(f"{table}: {bad_pct} percentages out of 0-1 range")
+        print(f"  percentage range ({table}): {bad_pct} out of range "
+              f"[{'OK' if bad_pct == 0 else 'FAIL'}]")
 
-    # Programs child count
+
+def _validate_program_children(cur_t, errors):
+    """Validate programs have at least 2 child projects."""
     cur_t.execute("""
         SELECT p.name, COUNT(pr.id) AS child_count
         FROM programs p
@@ -826,6 +832,20 @@ def validate(legacy, target):
         print(f"  program child counts: {len(bad_programs)} programs with <2 children [FAIL]")
     else:
         print("  program child counts: all have 2+ children [OK]")
+
+
+def validate(legacy, target):
+    """Post-import validation checks."""
+    cur_l = legacy.cursor()
+    cur_t = target.cursor()
+    errors = []
+
+    print("\n--- Validation ---")
+    _validate_count_checks(cur_l, cur_t, errors)
+    _validate_projects_and_reports(cur_l, cur_t, errors)
+    _validate_financial_totals(cur_l, cur_t, errors)
+    _validate_percentage_ranges(cur_t, errors)
+    _validate_program_children(cur_t, errors)
 
     cur_l.close()
     cur_t.close()
@@ -865,7 +885,7 @@ def main():
         print()
 
         print("Importing...")
-        maps = build_mappings(legacy, target)
+        build_mappings(legacy, target)
 
         valid = validate(legacy, target)
 
