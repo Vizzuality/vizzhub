@@ -2,21 +2,12 @@ import { Link } from 'react-router-dom';
 import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '@/core/types/project';
 import { formatDate } from '@/utils/formatters';
+import { getStatusLabel } from '@/utils/projectStatus';
 import { getScoreColor } from '@/utils/scoreColors';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useScoreThresholds } from '@/modules/scorecard/hooks/useConfig';
-
-const STATUS_LABELS: Record<string, string> = {
-  finished: 'Finished',
-  proposal: 'Proposal',
-  live: 'Live',
-};
-
-function getStatusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status;
-}
 
 interface ProjectCardProps {
   project: Project;

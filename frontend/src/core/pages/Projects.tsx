@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useCoreProjects } from '@/core/hooks/useProjects';
+import { usePaginatedAllProjects } from '@/core/hooks/useProjects';
 import {
   useProjectListParams,
   type SortField,
@@ -75,7 +75,7 @@ export default function Projects(): JSX.Element {
     clearFilters,
   } = useProjectListParams();
 
-  const { data, isLoading, error } = useCoreProjects(params);
+  const { data, isLoading, error } = usePaginatedAllProjects(params);
   const projects = data?.items ?? [];
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;

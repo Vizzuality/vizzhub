@@ -33,6 +33,28 @@ def _project_to_response(
     return ProjectResponse.model_validate(data)
 
 
+def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
+    """Set all fields from the schema onto the model instance."""
+    project.name = data.name
+    project.code = data.code
+    project.program_id = data.program_id
+    project.is_billable = data.is_billable
+    project.has_scorecard = data.has_scorecard
+    project.has_dependabot_alerts = data.has_dependabot_alerts
+    project.has_budget_alerts = data.has_budget_alerts
+    project.currency = data.currency
+    project.notes = data.notes
+    project.summary = data.summary
+    project.jira_project_key = (
+        data.jira_project_key.upper() if data.jira_project_key else None
+    )
+    project.github_repo = data.github_repo
+    project.start_date = data.start_date
+    project.end_date = data.end_date
+    project.status = data.status.value if data.status else "proposal"
+    project.slack_channel_id = data.slack_channel_id
+
+
 @router.get("")
 @limiter.limit("100/minute")
 async def list_projects(
@@ -114,26 +136,8 @@ async def list_projects(
 async def create_project(
     request: Request, project: ProjectCreateV2, admin: AdminUser, db: DBSession
 ) -> ProjectResponse:
-    db_project = ProjectDB(
-        name=project.name,
-        code=project.code,
-        program_id=project.program_id,
-        is_billable=project.is_billable,
-        has_scorecard=project.has_scorecard,
-        has_dependabot_alerts=project.has_dependabot_alerts,
-        has_budget_alerts=project.has_budget_alerts,
-        currency=project.currency,
-        notes=project.notes,
-        summary=project.summary,
-        jira_project_key=(
-            project.jira_project_key.upper() if project.jira_project_key else None
-        ),
-        github_repo=project.github_repo,
-        start_date=project.start_date,
-        end_date=project.end_date,
-        status=project.status.value if project.status else "proposal",
-        slack_channel_id=project.slack_channel_id,
-    )
+    db_project = ProjectDB()
+    _apply_project_data(db_project, project)
     db.add(db_project)
     await db.flush()
     await db.refresh(db_project)
@@ -167,24 +171,7 @@ async def replace_project(
     db: DBSession,
 ) -> ProjectResponse:
     project = await get_project_or_404(db, project_id)
-    project.name = data.name
-    project.code = data.code
-    project.program_id = data.program_id
-    project.is_billable = data.is_billable
-    project.has_scorecard = data.has_scorecard
-    project.has_dependabot_alerts = data.has_dependabot_alerts
-    project.has_budget_alerts = data.has_budget_alerts
-    project.currency = data.currency
-    project.notes = data.notes
-    project.summary = data.summary
-    project.jira_project_key = (
-        data.jira_project_key.upper() if data.jira_project_key else None
-    )
-    project.github_repo = data.github_repo
-    project.start_date = data.start_date
-    project.end_date = data.end_date
-    project.status = data.status.value if data.status else project.status
-    project.slack_channel_id = data.slack_channel_id
+    _apply_project_data(project, data)
     await db.flush()
     await db.refresh(project)
     return _project_to_response(project)
