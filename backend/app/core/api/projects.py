@@ -43,12 +43,14 @@ async def list_projects(
     """List projects with pagination, filtering, and sorting."""
     if lightweight:
         result = await db.execute(
-            select(ProjectDB).order_by(ProjectDB.name)
+            select(ProjectDB)
+            .where(ProjectDB.has_scorecard.is_(True))
+            .order_by(ProjectDB.name)
         )
         projects = result.scalars().all()
         return [ProjectSummary.model_validate(p) for p in projects]
 
-    filters = []
+    filters = [ProjectDB.has_scorecard.is_(True)]
 
     if search:
         safe = _escape_like(search)
