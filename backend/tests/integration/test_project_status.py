@@ -61,12 +61,12 @@ class TestProjectStatusIntegration:
         assert "finished" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_in_progress_project_allows_collectors(
+    async def test_live_project_allows_collectors(
         self,
         client: AsyncClient,
         test_project: ProjectDB,
     ) -> None:
-        """Verify collectors work for in_progress projects (may fail for other reasons)."""
+        """Verify collectors work for live projects (may fail for other reasons)."""
         # This will likely fail due to missing Jira/GitHub credentials,
         # but should NOT fail with "finished project" error
         response = await client.post(f"/api/collect/project/{test_project.id}/jira")
@@ -82,7 +82,7 @@ class TestProjectStatusIntegration:
         db_session: AsyncSession,
         test_project: ProjectDB,
     ) -> None:
-        """Verify changing project status from in_progress to finished blocks collectors."""
+        """Verify changing project status from live to finished blocks collectors."""
         # Update project to finished
         response = await client.patch(
             f"/api/scorecards/{test_project.id}",

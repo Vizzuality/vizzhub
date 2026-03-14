@@ -21,7 +21,7 @@ async def export_project(db_session: AsyncSession) -> ProjectDB:
         name="API Export Test",
         start_date=date(2025, 1, 1),
         end_date=date(2025, 12, 31),
-        status="in_progress",
+        status="live",
     )
     db_session.add(project)
     await db_session.flush()

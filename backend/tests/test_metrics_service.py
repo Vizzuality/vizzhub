@@ -33,7 +33,7 @@ async def test_project(db_session: AsyncSession) -> ProjectDB:
         github_repo="test/metrics-test",
         start_date=date(2024, 1, 1),
         end_date=date(2024, 12, 31),
-        status="in_progress",
+        status="live",
     )
     db_session.add(project)
     await db_session.commit()

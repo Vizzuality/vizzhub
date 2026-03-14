@@ -104,6 +104,7 @@ class TestCheckDependabotJob:
             name="Project Without GitHub",
             github_repo=None,
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -178,6 +179,7 @@ class TestCheckDependabotJob:
             name="Full Project",
             github_repo="owner/repo",
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -226,6 +228,7 @@ class TestCheckDependabotJob:
             name="Test Project",
             github_repo="owner/repo",
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -292,6 +295,7 @@ class TestCheckDependabotJob:
             name="Test Project",
             github_repo="owner/repo",
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -358,6 +362,7 @@ class TestCheckDependabotJob:
             name="Test Project",
             github_repo="owner/repo",
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -421,6 +426,7 @@ class TestCheckDependabotJob:
             name="Test Project",
             github_repo="owner/repo",
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -475,6 +481,7 @@ class TestCheckDependabotJob:
             name="Silenced Project",
             github_repo="owner/repo",
             slack_channel_id="C123ABC",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()

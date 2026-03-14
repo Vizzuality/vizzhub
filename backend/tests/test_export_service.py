@@ -29,7 +29,7 @@ async def project_with_3_months(
         github_repo="test/export",
         start_date=date(2025, 1, 1),
         end_date=date(2025, 12, 31),
-        status="in_progress",
+        status="live",
     )
     db_session.add(project)
     await db_session.flush()

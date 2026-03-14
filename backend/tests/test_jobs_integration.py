@@ -22,7 +22,7 @@ async def test_project(db_session: AsyncSession, scoring_config: ScoringConfig) 
         github_repo="test/jobs-test",
         start_date=date.today() - timedelta(days=90),
         end_date=date.today() + timedelta(days=90),
-        status="in_progress",
+        status="live",
     )
     db_session.add(project)
     await db_session.commit()

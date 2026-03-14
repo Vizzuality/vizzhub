@@ -27,7 +27,7 @@ class TestCaptureEndpointIntegration:
             jira_project_key=None,
             github_repo=None,
             start_date=date.today() - timedelta(days=90),
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()
@@ -111,7 +111,7 @@ class TestCaptureEndpointIntegration:
             jira_project_key=None,
             github_repo=None,
             start_date=date.today() - timedelta(days=90),
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.commit()

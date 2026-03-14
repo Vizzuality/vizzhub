@@ -54,7 +54,7 @@ async def list_projects(
         safe = _escape_like(search)
         filters.append(ProjectDB.name.ilike(f"%{safe}%"))
 
-    if filter_status and filter_status in ("in_progress", "finished"):
+    if filter_status and filter_status in ("proposal", "live", "finished"):
         filters.append(ProjectDB.status == filter_status)
 
     if start_date_from:

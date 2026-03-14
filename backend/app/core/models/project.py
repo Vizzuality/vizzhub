@@ -14,7 +14,8 @@ from app.database import Base
 class ProjectStatus(str, Enum):
     """Project lifecycle status."""
 
-    IN_PROGRESS = "in_progress"
+    PROPOSAL = "proposal"
+    LIVE = "live"
     FINISHED = "finished"
 
 
@@ -76,7 +77,7 @@ class ProjectDB(Base):
     github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     start_date: Mapped[date | None] = mapped_column(nullable=True)
     end_date: Mapped[date | None] = mapped_column(nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="in_progress", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="proposal", nullable=False)
     finished_at: Mapped[date | None] = mapped_column(nullable=True)
     slack_channel_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -101,7 +102,7 @@ class ProjectBase(BaseModel):
     github_repo: str | None = Field(None, max_length=255)
     start_date: date | None = None
     end_date: date | None = None
-    status: ProjectStatus = ProjectStatus.IN_PROGRESS
+    status: ProjectStatus = ProjectStatus.PROPOSAL
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
 
