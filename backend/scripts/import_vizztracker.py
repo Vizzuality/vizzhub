@@ -7,9 +7,7 @@ Usage:
     cd backend
     python scripts/import_vizztracker.py [--legacy-db URL] [--target-db URL] [--dry-run]
 
-Defaults:
-    --legacy-db postgresql://localhost:5432/vizz_trackr_development
-    --target-db postgresql://scorecard:scorecard@localhost:5432/scorecard
+Both --legacy-db and --target-db are required.
 """
 
 import argparse
@@ -553,9 +551,8 @@ def import_reports(legacy, target, maps):
 
         # Skip duplicates (keep the one with more parts)
         key = (user_uuid, period_uuid)
-        if key in seen:
-            if parts_count == 0:
-                continue
+        if key in seen and parts_count == 0:
+            continue
         seen.add(key)
 
         new_id = uuid.uuid4()
@@ -628,7 +625,7 @@ def import_progress_reports(legacy, target, maps):
         "FROM progress_reports ORDER BY id"
     )
     for row in cur_l.fetchall():
-        legacy_id, rp_id, contract_id, percentage, delta, created_at = row
+        _, rp_id, contract_id, percentage, delta, created_at = row
 
         period_uuid = maps['reporting_periods'].get(rp_id)
         project_uuid = maps['projects'].get(contract_id)
@@ -670,7 +667,7 @@ def import_links(legacy, target, maps):
         "FROM project_links ORDER BY id"
     )
     for row in cur_l.fetchall():
-        legacy_id, legacy_proj_id, title, url, link_type, created_at = row
+        _, legacy_proj_id, title, url, link_type, created_at = row
 
         cc = contract_counts.get(legacy_proj_id, 0)
         if cc == 0:
@@ -711,7 +708,7 @@ def import_links(legacy, target, maps):
     return count
 
 
-def validate(legacy, target, maps):
+def validate(legacy, target):
     """Post-import validation checks."""
     cur_l = legacy.cursor()
     cur_t = target.cursor()
@@ -824,7 +821,7 @@ def validate(legacy, target, maps):
             errors.append(f"program '{name}' has only {cc} child projects")
         print(f"  program child counts: {len(bad_programs)} programs with <2 children [FAIL]")
     else:
-        print(f"  program child counts: all have 2+ children [OK]")
+        print("  program child counts: all have 2+ children [OK]")
 
     cur_l.close()
     cur_t.close()
@@ -842,11 +839,11 @@ def main():
     parser = argparse.ArgumentParser(description="Import VizzTracker data into vizzhub")
     parser.add_argument(
         "--legacy-db",
-        default="postgresql://localhost:5432/vizz_trackr_development",
+        required=True,
     )
     parser.add_argument(
         "--target-db",
-        default="postgresql://scorecard:scorecard@localhost:5432/scorecard",
+        required=True,
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -866,7 +863,7 @@ def main():
         print("Importing...")
         maps = build_mappings(legacy, target)
 
-        valid = validate(legacy, target, maps)
+        valid = validate(legacy, target)
 
         if args.dry_run:
             print("\n--- DRY RUN: rolling back ---")

@@ -8,6 +8,16 @@ import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useScoreThresholds } from '@/modules/scorecard/hooks/useConfig';
 
+const STATUS_LABELS: Record<string, string> = {
+  finished: 'Finished',
+  proposal: 'Proposal',
+  live: 'Live',
+};
+
+function getStatusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
 interface ProjectCardProps {
   project: Project;
   viewMode?: 'list' | 'grid';
@@ -47,7 +57,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
                 variant={project.status === 'finished' ? 'default' : 'secondary'}
                 className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black shrink-0' : 'shrink-0'}
               >
-                {project.status === 'finished' ? 'Finished' : project.status === 'proposal' ? 'Proposal' : 'Live'}
+                {getStatusLabel(project.status)}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
@@ -91,7 +101,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
               variant={project.status === 'finished' ? 'default' : 'secondary'}
               className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black' : ''}
             >
-              {project.status === 'finished' ? 'Finished' : project.status === 'proposal' ? 'Proposal' : 'Live'}
+              {getStatusLabel(project.status)}
             </Badge>
           </div>
           <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">
