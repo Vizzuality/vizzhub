@@ -133,6 +133,12 @@ class ProjectCreate(ProjectBase):
     pass
 
 
+class ProjectCreateV2(ProjectBase):
+    """Schema for creating a project via /api/projects (code required)."""
+
+    code: str = Field(..., min_length=1, max_length=100)
+
+
 class ProjectUpdate(BaseModel):
     """Schema for partial updates (PATCH)."""
 
@@ -171,3 +177,9 @@ class Project(ProjectBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ProjectResponse(Project):
+    """Project response with resolved program name."""
+
+    program_name: str | None = None
