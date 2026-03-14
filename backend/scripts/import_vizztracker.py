@@ -277,6 +277,8 @@ def import_projects(legacy, target, maps):
         (legacy_id, name, code, start_date, end_date, aasm_state,
          notes, summary, created_at, legacy_proj_id, is_billable) = row
 
+        name = name.strip() if name else name
+
         if end_date and end_date.year < 2000:
             end_date = None
         if start_date and start_date.year < 2000:
