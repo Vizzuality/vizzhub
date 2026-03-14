@@ -114,6 +114,8 @@ async def create_project(
         program_id=project.program_id,
         is_billable=project.is_billable,
         has_scorecard=project.has_scorecard,
+        has_dependabot_alerts=project.has_dependabot_alerts,
+        has_budget_alerts=project.has_budget_alerts,
         currency=project.currency,
         notes=project.notes,
         summary=project.summary,
@@ -164,6 +166,8 @@ async def replace_project(
     project.program_id = data.program_id
     project.is_billable = data.is_billable
     project.has_scorecard = data.has_scorecard
+    project.has_dependabot_alerts = data.has_dependabot_alerts
+    project.has_budget_alerts = data.has_budget_alerts
     project.currency = data.currency
     project.notes = data.notes
     project.summary = data.summary

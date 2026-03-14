@@ -17,6 +17,8 @@ const defaultProject = {
   program_name: null,
   is_billable: true,
   has_scorecard: true,
+  has_dependabot_alerts: true,
+  has_budget_alerts: true,
   currency: null,
   notes: null,
   summary: null,

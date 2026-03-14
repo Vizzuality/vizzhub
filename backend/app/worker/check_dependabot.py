@@ -150,12 +150,13 @@ async def _get_alert_definition(db: AsyncSession) -> AlertDefinitionDB | None:
 
 
 async def _get_eligible_projects(db: AsyncSession) -> list[ProjectDB]:
-    """Get all active projects with GitHub repos and Slack channels."""
+    """Get all live projects with GitHub repos, Slack channels, and dependabot alerts enabled."""
     result = await db.execute(
         select(ProjectDB).where(
             ProjectDB.github_repo.isnot(None),
             ProjectDB.slack_channel_id.isnot(None),
             ProjectDB.status == "live",
+            ProjectDB.has_dependabot_alerts.is_(True),
         )
     )
     return list(result.scalars().all())

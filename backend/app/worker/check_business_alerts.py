@@ -158,9 +158,12 @@ async def _get_alert_definitions(db: AsyncSession) -> dict[str, AlertDefinitionD
 
 
 async def _get_active_projects(db: AsyncSession) -> list[ProjectDB]:
-    """Get all active (live) projects."""
+    """Get all live projects with budget alerts enabled."""
     result = await db.execute(
-        select(ProjectDB).where(ProjectDB.status == "live")
+        select(ProjectDB).where(
+            ProjectDB.status == "live",
+            ProjectDB.has_budget_alerts.is_(True),
+        )
     )
     return list(result.scalars().all())
 

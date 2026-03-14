@@ -103,6 +103,9 @@ export default function ProjectForm(): JSX.Element {
 
   const [slackChannelId, setSlackChannelId] = useState<string>('');
   const [isBillable, setIsBillable] = useState<boolean>(true);
+  const [hasScorecard, setHasScorecard] = useState<boolean>(true);
+  const [hasDependabotAlerts, setHasDependabotAlerts] = useState<boolean>(true);
+  const [hasBudgetAlerts, setHasBudgetAlerts] = useState<boolean>(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [formInitialized, setFormInitialized] = useState(false);
@@ -145,6 +148,9 @@ export default function ProjectForm(): JSX.Element {
     });
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
+    setHasScorecard(project.has_scorecard);
+    setHasDependabotAlerts(project.has_dependabot_alerts);
+    setHasBudgetAlerts(project.has_budget_alerts);
     setFormInitialized(true);
   }
 
@@ -165,6 +171,9 @@ export default function ProjectForm(): JSX.Element {
       code: data.code,
       status: data.status,
       is_billable: isBillable,
+      has_scorecard: hasScorecard,
+      has_dependabot_alerts: hasDependabotAlerts,
+      has_budget_alerts: hasBudgetAlerts,
       currency: data.currency || null,
       program_id: data.program_id || null,
       jira_project_key: data.jira_project_key || undefined,
@@ -355,15 +364,47 @@ export default function ProjectForm(): JSX.Element {
                 </NativeSelect>
               </div>
 
-              <div className="flex items-center gap-3 pt-6">
-                <Switch
-                  id="is_billable"
-                  checked={isBillable}
-                  onCheckedChange={setIsBillable}
-                />
-                <Label htmlFor="is_billable" className="cursor-pointer">
-                  Billable
-                </Label>
+              <div className="space-y-3 pt-6">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="is_billable"
+                    checked={isBillable}
+                    onCheckedChange={setIsBillable}
+                  />
+                  <Label htmlFor="is_billable" className="cursor-pointer">
+                    Billable
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="has_scorecard"
+                    checked={hasScorecard}
+                    onCheckedChange={setHasScorecard}
+                  />
+                  <Label htmlFor="has_scorecard" className="cursor-pointer">
+                    Scorecard
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="has_dependabot_alerts"
+                    checked={hasDependabotAlerts}
+                    onCheckedChange={setHasDependabotAlerts}
+                  />
+                  <Label htmlFor="has_dependabot_alerts" className="cursor-pointer">
+                    Dependabot Alerts
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="has_budget_alerts"
+                    checked={hasBudgetAlerts}
+                    onCheckedChange={setHasBudgetAlerts}
+                  />
+                  <Label htmlFor="has_budget_alerts" className="cursor-pointer">
+                    Budget Alerts
+                  </Label>
+                </div>
               </div>
             </div>
 
