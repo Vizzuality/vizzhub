@@ -95,11 +95,13 @@ export default function ISOSnapshotDetail(): JSX.Element {
       {review && <ReviewPanel review={review} />}
 
       {/* Data tabs */}
-      {snapshot.provider === 'jira' ? (
+      {snapshot.provider === 'jira' && (
         <JiraDataTabs data={snapshot.data as unknown as JiraSnapshotData} />
-      ) : isGitHub ? (
+      )}
+      {isGitHub && (
         <GitHubDataTabs data={snapshot.data as unknown as GitHubSnapshotData} />
-      ) : (
+      )}
+      {snapshot.provider !== 'jira' && !isGitHub && (
         <SnapshotDataTabs data={snapshot.data as unknown as SnapshotData} />
       )}
     </div>

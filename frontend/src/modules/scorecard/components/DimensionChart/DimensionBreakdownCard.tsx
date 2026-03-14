@@ -106,7 +106,7 @@ interface RadarTooltipProps {
   payload?: Array<{ payload?: RadarTooltipPayload }>;
 }
 
-function RadarTooltipContent({ active, payload }: RadarTooltipProps): JSX.Element | null {
+function RadarTooltipContent({ active, payload }: Readonly<RadarTooltipProps>): JSX.Element | null {
   const item = payload?.[0]?.payload;
   if (!active || !item) return null;
   return (
@@ -122,7 +122,7 @@ function RadarTooltipContent({ active, payload }: RadarTooltipProps): JSX.Elemen
 }
 
 function getCssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
+  if (typeof globalThis.window === 'undefined') return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 

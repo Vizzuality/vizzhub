@@ -74,7 +74,7 @@ export function PageBreadcrumb(): JSX.Element {
       {breadcrumbs.map((segment, i) => {
         const isLast = i === breadcrumbs.length - 1;
         return (
-          <span key={i} className="flex items-center gap-1.5">
+          <span key={segment.to ?? segment.label} className="flex items-center gap-1.5">
             {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
             {segment.to && !isLast ? (
               <Link
