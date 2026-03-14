@@ -10,7 +10,7 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 
 export function usePaginatedProjects(params: ProjectListParams) {
   return useQuery({
-    queryKey: queryKeys.projects.list(params),
+    queryKey: queryKeys.projects.scorecardList(params),
     queryFn: () => projectsApi.list(params),
     placeholderData: keepPreviousData,
   });
@@ -18,7 +18,7 @@ export function usePaginatedProjects(params: ProjectListParams) {
 
 export function useProjectSummaries() {
   return useQuery({
-    queryKey: queryKeys.projects.summary,
+    queryKey: queryKeys.projects.scorecardSummary,
     queryFn: projectsApi.listSummary,
   });
 }
