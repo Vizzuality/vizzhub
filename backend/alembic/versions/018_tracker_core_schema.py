@@ -150,7 +150,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_projects_end_after_start",
         "projects",
-        "end_date IS NULL OR start_date IS NULL OR end_date > start_date",
+        "end_date IS NULL OR start_date IS NULL OR end_date >= start_date",
     )
 
     # 6. links (depends on programs and projects)

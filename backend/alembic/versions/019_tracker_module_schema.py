@@ -129,7 +129,7 @@ def upgrade() -> None:
             name="ck_invoices_currency_valid",
         ),
         sa.CheckConstraint(
-            "extended_date IS NULL OR due_date IS NULL OR extended_date > due_date",
+            "extended_date IS NULL OR due_date IS NULL OR extended_date >= due_date",
             name="ck_invoices_extended_after_due",
         ),
         sa.CheckConstraint(
@@ -153,7 +153,7 @@ def upgrade() -> None:
                   nullable=False),
         sa.Column("cost", sa.Numeric(12, 2), nullable=False),
         sa.Column("cost_type", sa.String(50), nullable=False),
-        sa.Column("details", sa.String(255), nullable=True),
+        sa.Column("details", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True),
                   server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True),

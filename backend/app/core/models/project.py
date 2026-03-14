@@ -53,7 +53,7 @@ class ProjectDB(Base):
     __tablename__ = "projects"
     __table_args__ = (
         CheckConstraint(
-            "end_date IS NULL OR start_date IS NULL OR end_date > start_date",
+            "end_date IS NULL OR start_date IS NULL OR end_date >= start_date",
             name="ck_projects_end_after_start",
         ),
     )
