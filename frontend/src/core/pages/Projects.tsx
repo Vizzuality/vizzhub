@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   Plus,
   LayoutGrid,
@@ -20,6 +19,7 @@ import {
   type StatusFilter,
   type SortOrder,
 } from '@/core/hooks/useProjectListParams';
+import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
 import ProjectCard from '@/core/components/ProjectCard';
 import { useAuth } from '@/core/hooks/useAuth';
 import { Button } from '@/shared/components/ui/button';
@@ -49,13 +49,12 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 export default function Projects(): JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+  const isAdmin = bypassAuth || user?.role === 'admin';
 
-  const [viewModeSchema] = useState(() => ({
-    view: { defaultValue: (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'list' },
-  }));
-  const { state: viewState, setState: setViewState } = useUrlState(viewModeSchema);
-  const viewMode = viewState.view as ViewMode;
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'list'
+  );
 
   const {
     params,
@@ -81,6 +80,8 @@ export default function Projects(): JSX.Element {
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;
 
+  const { scoresMap } = useProjectScoresMap(projects);
+
   const [localSearch, setLocalSearch] = useState(searchName);
 
   useEffect(() => {
@@ -97,9 +98,9 @@ export default function Projects(): JSX.Element {
   }, [localSearch, searchName, setSearchName]);
 
   const handleViewModeChange = useCallback((mode: ViewMode): void => {
-    setViewState({ view: mode });
+    setViewMode(mode);
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
-  }, [setViewState]);
+  }, []);
 
   const renderSortButton = (field: SortField, label: string): JSX.Element => {
     const isActive = sortField === field;
@@ -123,7 +124,7 @@ export default function Projects(): JSX.Element {
     if (total === 0) return null;
 
     return (
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4">
         <p className="text-sm text-muted-foreground">
           Showing {projects.length} of {total} projects
         </p>
@@ -158,8 +159,10 @@ export default function Projects(): JSX.Element {
     if (projects.length > 0) {
       return (
         <div className={cn(
-          'grid gap-4',
-          viewMode === 'grid' && 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+          'grid gap-3',
+          viewMode === 'grid'
+            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+            : 'grid-cols-1',
         )}>
           {projects.map((project) => (
             <ProjectCard
@@ -167,6 +170,7 @@ export default function Projects(): JSX.Element {
               project={project}
               viewMode={viewMode}
               isAdmin={isAdmin}
+              score={scoresMap[project.id]}
             />
           ))}
         </div>
@@ -215,26 +219,23 @@ export default function Projects(): JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search, Filters & Actions */}
-      <div className="space-y-3">
-        <div className="flex flex-col md:flex-row gap-3">
-          {/* Name Search */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search by name..."
+              placeholder="Search by name or code..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               className="pl-9"
             />
           </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
-            <div className="flex items-center border rounded-lg p-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center border rounded-lg p-0.5">
               {([
                 { value: 'all', label: 'All' },
                 { value: 'proposal', label: 'Proposal' },
@@ -245,7 +246,7 @@ export default function Projects(): JSX.Element {
                   key={option.value}
                   onClick={() => setStatusFilter(option.value as StatusFilter)}
                   className={cn(
-                    'px-3 py-1 text-sm rounded transition-colors',
+                    'px-2.5 py-1 text-sm rounded transition-colors',
                     statusFilter === option.value
                       ? 'bg-muted font-medium'
                       : 'hover:bg-muted/50',
@@ -255,38 +256,17 @@ export default function Projects(): JSX.Element {
                 </button>
               ))}
             </div>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 h-8">
+                <X className="w-3.5 h-3.5" />
+                Clear
+              </Button>
+            )}
           </div>
 
-          {/* Date Range */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Start date:</span>
-            <Input
-              type="date"
-              value={startDateFrom}
-              onChange={(e) => setStartDateFrom(e.target.value)}
-              className="w-36"
-              placeholder="From"
-            />
-            <span className="text-muted-foreground">-</span>
-            <Input
-              type="date"
-              value={startDateTo}
-              onChange={(e) => setStartDateTo(e.target.value)}
-              className="w-36"
-              placeholder="To"
-            />
-          </div>
-
-          {/* Clear Filters */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-              <X className="w-4 h-4" />
-              Clear
-            </Button>
-          )}
-
-          <div className="flex items-center gap-2 md:ml-auto">
-            <div className="flex items-center border rounded-lg p-1">
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <div className="flex items-center border rounded-lg p-0.5">
               <button
                 onClick={() => handleViewModeChange('list')}
                 className={cn(
@@ -309,27 +289,42 @@ export default function Projects(): JSX.Element {
               </button>
             </div>
             {isAdmin && (
-              <Button onClick={() => navigate('/projects/new')}>
-                <Plus className="w-5 h-5 mr-2" />
+              <Button size="sm" onClick={() => navigate('/projects/new')}>
+                <Plus className="w-4 h-4 mr-1.5" />
                 Create Project
               </Button>
             )}
           </div>
         </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Start:</span>
+            <Input
+              type="date"
+              value={startDateFrom}
+              onChange={(e) => setStartDateFrom(e.target.value)}
+              className="w-36 h-8 text-sm"
+            />
+            <span className="text-muted-foreground">-</span>
+            <Input
+              type="date"
+              value={startDateTo}
+              onChange={(e) => setStartDateTo(e.target.value)}
+              className="w-36 h-8 text-sm"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 ml-auto">
+            <span className="text-sm text-muted-foreground">Sort:</span>
+            {renderSortButton('name', 'Name')}
+            {renderSortButton('created_at', 'Created')}
+            {renderSortButton('status', 'Status')}
+          </div>
+        </div>
       </div>
 
-      {/* Sort Controls */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Sort by:</span>
-        {renderSortButton('name', 'Name')}
-        {renderSortButton('created_at', 'Created')}
-        {renderSortButton('status', 'Status')}
-      </div>
-
-      {/* Projects List */}
       {renderProjectsContent()}
-
-      {/* Pagination */}
       {renderPagination()}
     </div>
   );
