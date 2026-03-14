@@ -29,7 +29,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--db',
-        default='postgresql://scorecard:scorecard@localhost:5432/scorecard',
+        required=True,
     )
     args = parser.parse_args()
 

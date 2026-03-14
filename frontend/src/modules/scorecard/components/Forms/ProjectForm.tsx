@@ -79,7 +79,7 @@ export default function ProjectForm({
   const handleFormSubmit = (data: ProjectFormData): void => {
     const payload: ProjectCreate = {
       name: data.name,
-      code: data.name.substring(0, 10).toUpperCase().replace(/\s+/g, '.'),
+      code: data.name.substring(0, 10).toUpperCase().replaceAll(/\s+/g, '.'),
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
       slack_channel_id: slackChannelId || undefined,
