@@ -34,6 +34,11 @@ SCHEDULED_JOBS = {
         "schedule": "Monthly on 1st at 6:00 AM UTC",
         "description": "Captures Google Workspace access snapshot for ISO compliance review",
     },
+    "monthly_scorecard_capture": {
+        "name": "monthly_scorecard_capture",
+        "schedule": "Monthly on 5th at 2:00 AM UTC",
+        "description": "Captures Jira/GitHub metrics for all scorecard-enabled projects",
+    },
 }
 
 
