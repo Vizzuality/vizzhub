@@ -38,7 +38,6 @@ import {
 } from '@/shared/components/ui/collapsible';
 
 const ADMIN_ITEMS = [
-  { to: '/admin/global-scores', label: 'Global Scores', icon: Globe },
   { to: '/admin/scorecard-parameters', label: 'Parameters', icon: SlidersHorizontal },
   { to: '/admin/integrations', label: 'Integrations', icon: Plug },
   { to: '/admin/jobs', label: 'Jobs', icon: Cog },
@@ -52,11 +51,6 @@ const NOTIFICATION_TABS = [
   { to: '/admin/notifications/stats', label: 'Statistics' },
 ] as const;
 
-const ISO_PROVIDERS = [
-  { provider: 'google_workspace', label: 'Google Workspace' },
-  { provider: 'github', label: 'GitHub' },
-  { provider: 'jira', label: 'Jira' },
-] as const;
 
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
@@ -102,6 +96,21 @@ export function AppSidebar(): JSX.Element {
               </SidebarMenuItem>
 
               {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive('/admin/global-scores')}
+                    tooltip="Global Scores"
+                  >
+                    <Link to="/admin/global-scores">
+                      <Globe />
+                      <span>Global Scores</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {isAdmin && (
                 <Collapsible
                   key={isActive('/iso') ? 'iso-open' : 'iso-closed'}
                   defaultOpen={isActive('/iso')}
@@ -120,24 +129,16 @@ export function AppSidebar(): JSX.Element {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {ISO_PROVIDERS.map(({ provider, label }) => {
-                          const isProviderActive =
-                            location.pathname === '/iso/snapshots' &&
-                            (location.search.includes(`provider=${provider}`) ||
-                              (provider === 'google_workspace' && !location.search.includes('provider=')));
-                          return (
-                            <SidebarMenuSubItem key={provider}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={isProviderActive}
-                              >
-                                <Link to={`/iso/snapshots?provider=${provider}`}>
-                                  <span>{label}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          );
-                        })}
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={isActive('/iso/snapshots')}
+                          >
+                            <Link to="/iso/snapshots">
+                              <span>Access Control</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>

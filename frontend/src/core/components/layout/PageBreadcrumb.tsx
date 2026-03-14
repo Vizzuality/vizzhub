@@ -28,13 +28,13 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
 
   if (pathname.startsWith('/iso/snapshots/')) {
     return [
-      { label: 'ISO', to: '/iso/snapshots' },
+      { label: 'Access Control', to: '/iso/snapshots' },
       { label: 'Snapshot Detail' },
     ];
   }
 
   if (pathname.startsWith('/iso')) {
-    return [{ label: 'ISO Snapshots' }];
+    return [{ label: 'Access Control' }];
   }
 
   if (pathname.startsWith('/admin/notifications')) {
