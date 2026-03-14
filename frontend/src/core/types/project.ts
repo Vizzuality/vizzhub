@@ -10,6 +10,8 @@ export interface Project {
   program_name: string | null;
   is_billable: boolean;
   has_scorecard: boolean;
+  has_dependabot_alerts: boolean;
+  has_budget_alerts: boolean;
   currency: string | null;
   notes: string | null;
   summary: string | null;
@@ -30,6 +32,8 @@ export interface ProjectCreate {
   program_id?: string | null;
   is_billable?: boolean;
   has_scorecard?: boolean;
+  has_dependabot_alerts?: boolean;
+  has_budget_alerts?: boolean;
   currency?: string | null;
   notes?: string | null;
   summary?: string | null;
@@ -47,6 +51,8 @@ export interface ProjectUpdate {
   program_id?: string | null;
   is_billable?: boolean;
   has_scorecard?: boolean;
+  has_dependabot_alerts?: boolean;
+  has_budget_alerts?: boolean;
   currency?: string | null;
   notes?: string | null;
   summary?: string | null;

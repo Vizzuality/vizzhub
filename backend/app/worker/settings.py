@@ -72,12 +72,14 @@ from app.worker.tasks import capture_history_task  # noqa: E402
 from app.worker.check_dependabot import check_dependabot_alerts  # noqa: E402
 from app.worker.check_business_alerts import check_business_alerts  # noqa: E402
 from app.worker.collect_iso_snapshot import collect_iso_snapshot  # noqa: E402
+from app.worker.monthly_scorecard_capture import monthly_scorecard_capture  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
     check_dependabot_alerts,
     check_business_alerts,
     collect_iso_snapshot,
+    monthly_scorecard_capture,
 ]
 
 # Register cron jobs for scheduled execution
@@ -85,4 +87,5 @@ WorkerSettings.cron_jobs = [
     cron(check_dependabot_alerts, hour=8, minute=0),
     cron(check_business_alerts, hour=9, minute=0),
     cron(collect_iso_snapshot, day=1, hour=6, minute=0),  # Monthly 1st at 6 AM UTC
+    cron(monthly_scorecard_capture, day=5, hour=2, minute=0),  # Monthly 5th at 2 AM UTC
 ]

@@ -81,6 +81,17 @@ async def capture_history_task(
 
     try:
         project = await get_project_or_404(db, project_uuid)
+
+        if not project.has_scorecard:
+            report = {
+                "project_id": project_id,
+                "error": "Project does not have scorecard enabled",
+            }
+            await JobService.update_status(
+                db, job_uuid, JobStatus.FAILED, error_message="Scorecard not enabled"
+            )
+            return report
+
         config = get_scoring_config()
 
         for i, (year, month) in enumerate(months):
