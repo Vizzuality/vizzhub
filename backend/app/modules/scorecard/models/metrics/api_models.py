@@ -16,6 +16,23 @@ class EVMData(BaseModel):
     )
 
 
+class EVMDataPartial(BaseModel):
+    """EVM data with all fields optional for project budget endpoint."""
+
+    budget_total: float | None = Field(default=None, ge=0, description="Planned Value total (PV)")
+    cost_to_date: float | None = Field(default=None, ge=0, description="Actual Cost (AC)")
+    percent_completed: float | None = Field(
+        default=None, ge=0, le=1, description="Completion ratio 0-1"
+    )
+    percent_planned: float | None = Field(
+        default=None, ge=0, le=1, description="Planned progress ratio 0-1"
+    )
+
+    def to_evm_dict(self) -> dict:
+        """Return only non-None fields as a flat dict for DB update."""
+        return {k: v for k, v in self.model_dump().items() if v is not None}
+
+
 class JiraDefectMetrics(BaseModel):
     """Defect and incident metrics from Jira."""
 
