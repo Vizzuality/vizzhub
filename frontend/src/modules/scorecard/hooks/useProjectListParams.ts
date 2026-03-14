@@ -9,7 +9,7 @@ export type SortOrder = 'asc' | 'desc';
 const listParamsSchema = {
   page: { defaultValue: 1 },
   search: { defaultValue: '' },
-  status: { defaultValue: 'all' },
+  status: { defaultValue: 'live' },
   from: { defaultValue: '' },
   to: { defaultValue: '' },
   sort: { defaultValue: 'created_at' },
@@ -93,7 +93,7 @@ export function useProjectListParams(): UseProjectListParamsReturn {
   }, [sortField, sortOrder, setState]);
 
   const hasActiveFilters = useMemo(
-    () => Boolean(searchName || statusFilter !== 'all' || startDateFrom || startDateTo),
+    () => Boolean(searchName || statusFilter !== 'live' || startDateFrom || startDateTo),
     [searchName, statusFilter, startDateFrom, startDateTo],
   );
 

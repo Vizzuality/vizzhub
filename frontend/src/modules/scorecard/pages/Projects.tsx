@@ -311,14 +311,6 @@ export default function Projects(): JSX.Element {
             />
           </div>
 
-          {/* Clear Filters */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-              <X className="w-4 h-4" />
-              Clear
-            </Button>
-          )}
-
           <div className="flex items-center gap-2 md:ml-auto">
             <div className="flex items-center border rounded-lg p-1">
               <button
@@ -358,6 +350,17 @@ export default function Projects(): JSX.Element {
         {renderSortButton('status', 'Status')}
         {renderSortButton('score', 'Score')}
       </div>
+
+      {/* Clear Filters */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 text-sm">
+          <span className="text-muted-foreground">Filters active</span>
+          <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 h-7 ml-2">
+            <X className="w-4 h-4" />
+            Clear all filters
+          </Button>
+        </div>
+      )}
 
       {/* Projects List */}
       {renderProjectsContent()}
