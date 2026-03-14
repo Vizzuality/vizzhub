@@ -16,6 +16,7 @@ const defaultProject = {
   program_id: null,
   program_name: null,
   is_billable: true,
+  has_scorecard: true,
   currency: null,
   notes: null,
   summary: null,

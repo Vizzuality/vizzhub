@@ -125,12 +125,14 @@ export default function ProjectCard({
           </div>
 
           <div className="flex items-center gap-3 pt-2 border-t text-sm">
-            <Link
-              to={`/scorecard/${project.id}`}
-              className="font-medium text-primary hover:underline"
-            >
-              Scorecard
-            </Link>
+            {project.has_scorecard && (
+              <Link
+                to={`/scorecard/${project.id}`}
+                className="font-medium text-primary hover:underline"
+              >
+                Scorecard
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 to={`/projects/${project.id}/edit`}
@@ -188,12 +190,14 @@ export default function ProjectCard({
 
         <div className="flex items-center gap-4 shrink-0">
           <ScoreDisplay score={score} />
-          <Link
-            to={`/scorecard/${project.id}`}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Scorecard
-          </Link>
+          {project.has_scorecard && (
+            <Link
+              to={`/scorecard/${project.id}`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Scorecard
+            </Link>
+          )}
           {isAdmin && (
             <Link
               to={`/projects/${project.id}/edit`}
