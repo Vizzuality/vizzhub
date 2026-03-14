@@ -249,11 +249,24 @@ def import_users(legacy, target, maps):
 
 def import_projects(legacy, target, maps):
     """Import legacy contracts as projects."""
+    # Production projects: legacy contract name → production project name
+    # When matched, only tracker fields are updated (code, program_id, is_billable,
+    # currency, notes, summary). Production fields (name, dates, status, jira,
+    # github, slack) are NOT overwritten.
+    PRODUCTION_OVERRIDES = {
+        'AGORA Paraguay': 'Agora Paraguay WB',
+        'Amazonia360 - Beta version 2': 'AmazoniaForever360+',
+        'FHWPC Implementation phase': 'FHWPC',
+        'Forest Innovation Platform - Phase I': 'Forest Innovation Platform (FIP)',
+        'GMW Phase 8': 'Global Mangrove Watch Phase 8',
+        'HE MIRACA': 'Miraca',
+        'ICIMOD Web Overhaul (Phase 2)': 'ICIMOD',
+    }
+
     mapping = {}
     cur_l = legacy.cursor()
     cur_t = target.cursor()
 
-    # Get contract count per legacy project for program assignment
     cur_l.execute("""
         SELECT c.id, c.name, c.code, c.start_date, c.end_date, c.aasm_state,
                c.notes, c.summary, c.created_at,
@@ -266,20 +279,16 @@ def import_projects(legacy, target, maps):
         (legacy_id, name, code, start_date, end_date, aasm_state,
          notes, summary, created_at, legacy_proj_id, is_billable) = row
 
-        # Sanitize corrupted dates (e.g. year 0014)
         if end_date and end_date.year < 2000:
             end_date = None
         if start_date and start_date.year < 2000:
             start_date = None
 
-        # Determine program_id
         program_id = maps['programs'].get(legacy_proj_id)
 
-        # Map aasm_state to vizzhub status
-        status = "finished" if aasm_state == "finished" else "in_progress"
+        status = "finished" if aasm_state == "finished" else "live"
         finished_at = end_date if status == "finished" else None
 
-        # Determine currency from invoices
         cur_l.execute(
             "SELECT currency FROM invoices WHERE contract_id = %s "
             "AND currency IS NOT NULL LIMIT 1",
@@ -288,20 +297,39 @@ def import_projects(legacy, target, maps):
         currency_row = cur_l.fetchone()
         currency = currency_row[0] if currency_row else None
 
-        # Check if project exists by name
-        cur_t.execute("SELECT id FROM projects WHERE name = %s", (name,))
+        # Check for production override first
+        prod_name = PRODUCTION_OVERRIDES.get(name)
+        if prod_name:
+            cur_t.execute(
+                "SELECT id FROM projects WHERE TRIM(name) = %s", (prod_name,)
+            )
+        else:
+            cur_t.execute(
+                "SELECT id FROM projects WHERE TRIM(name) = %s", (name,)
+            )
         existing = cur_t.fetchone()
 
         if existing:
             target_id = existing[0]
-            cur_t.execute(
-                "UPDATE projects SET program_id = %s, code = %s, is_billable = %s, "
-                "currency = %s, notes = %s, summary = %s, start_date = %s, "
-                "end_date = %s, status = %s, finished_at = %s "
-                "WHERE id = %s",
-                (program_id, code, is_billable, currency, notes, summary,
-                 start_date, end_date, status, finished_at, target_id),
-            )
+            if prod_name:
+                # Production project: only add tracker fields, preserve prod values
+                cur_t.execute(
+                    "UPDATE projects SET program_id = %s, code = %s, "
+                    "is_billable = %s, currency = %s, notes = %s, summary = %s "
+                    "WHERE id = %s",
+                    (program_id, code, is_billable, currency, notes, summary,
+                     target_id),
+                )
+            else:
+                # Regular match: update all fields
+                cur_t.execute(
+                    "UPDATE projects SET program_id = %s, code = %s, is_billable = %s, "
+                    "currency = %s, notes = %s, summary = %s, start_date = %s, "
+                    "end_date = %s, status = %s, finished_at = %s "
+                    "WHERE id = %s",
+                    (program_id, code, is_billable, currency, notes, summary,
+                     start_date, end_date, status, finished_at, target_id),
+                )
         else:
             target_id = uuid.uuid4()
             cur_t.execute(

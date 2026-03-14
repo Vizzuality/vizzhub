@@ -12,15 +12,15 @@ import psycopg2
 
 PRODUCTION_PROJECTS = [
     'Open Earth Monitor',
-    'FIP',
-    'GMW Phase 8',
-    'FHWPC Implementation phase',
-    'ICIMOD Web Overhaul (Phase 2)',
+    'Forest Innovation Platform (FIP)',
+    'Global Mangrove Watch Phase 8',
+    'FHWPC',
+    'ICIMOD',
     'CATALYSE',
-    'HE MIRACA',
-    'Amazonia360 - Beta version 2',
+    'Miraca',
+    'AmazoniaForever360+',
     'ECCC HJBL',
-    'AGORA Paraguay',
+    'Agora Paraguay WB',
     '4Growth',
 ]
 
