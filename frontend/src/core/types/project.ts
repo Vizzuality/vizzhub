@@ -9,6 +9,7 @@ export interface Project {
   program_id: string | null;
   program_name: string | null;
   is_billable: boolean;
+  has_scorecard: boolean;
   currency: string | null;
   notes: string | null;
   summary: string | null;
@@ -28,6 +29,7 @@ export interface ProjectCreate {
   code: string;
   program_id?: string | null;
   is_billable?: boolean;
+  has_scorecard?: boolean;
   currency?: string | null;
   notes?: string | null;
   summary?: string | null;
@@ -44,6 +46,7 @@ export interface ProjectUpdate {
   code?: string;
   program_id?: string | null;
   is_billable?: boolean;
+  has_scorecard?: boolean;
   currency?: string | null;
   notes?: string | null;
   summary?: string | null;

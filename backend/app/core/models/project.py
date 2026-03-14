@@ -70,6 +70,7 @@ class ProjectDB(Base):
     )
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    has_scorecard: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     currency: Mapped[str | None] = mapped_column(String(20), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -95,6 +96,7 @@ class ProjectBase(BaseModel):
     program_id: UUID | None = None
     code: str | None = Field(None, max_length=100)
     is_billable: bool = True
+    has_scorecard: bool = True
     currency: str | None = Field(None, max_length=20)
     notes: str | None = None
     summary: str | None = None
@@ -146,6 +148,7 @@ class ProjectUpdate(BaseModel):
     program_id: UUID | None = None
     code: str | None = Field(None, max_length=100)
     is_billable: bool | None = None
+    has_scorecard: bool | None = None
     currency: str | None = Field(None, max_length=20)
     notes: str | None = None
     summary: str | None = None
