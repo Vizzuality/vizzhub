@@ -265,7 +265,7 @@ export default function Projects(): JSX.Element {
           {/* Status Filter */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
-            <div className="flex items-center border rounded-lg p-1">
+            <div className="flex items-center gap-1">
               {([
                 { value: 'all', label: 'All' },
                 { value: 'live', label: 'Live' },
@@ -275,8 +275,10 @@ export default function Projects(): JSX.Element {
                   key={option.value}
                   onClick={() => setStatusFilter(option.value as StatusFilter)}
                   className={cn(
-                    "px-3 py-1 text-sm rounded transition-colors",
-                    statusFilter === option.value ? "bg-muted font-medium" : "hover:bg-muted/50"
+                    "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                    statusFilter === option.value
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   {option.label}
@@ -294,6 +296,8 @@ export default function Projects(): JSX.Element {
               onChange={(e) => setStartDateFrom(e.target.value)}
               className="w-36"
               placeholder="From"
+              min="2018-01-01"
+              max="2030-12-31"
             />
             <span className="text-muted-foreground">-</span>
             <Input
@@ -302,6 +306,8 @@ export default function Projects(): JSX.Element {
               onChange={(e) => setStartDateTo(e.target.value)}
               className="w-36"
               placeholder="To"
+              min="2018-01-01"
+              max="2030-12-31"
             />
           </div>
 

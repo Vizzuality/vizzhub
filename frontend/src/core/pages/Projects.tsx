@@ -235,7 +235,7 @@ export default function Projects(): JSX.Element {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center border rounded-lg p-0.5">
+            <div className="flex items-center gap-1">
               {([
                 { value: 'all', label: 'All' },
                 { value: 'proposal', label: 'Proposal' },
@@ -246,10 +246,10 @@ export default function Projects(): JSX.Element {
                   key={option.value}
                   onClick={() => setStatusFilter(option.value as StatusFilter)}
                   className={cn(
-                    'px-2.5 py-1 text-sm rounded transition-colors',
+                    'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
                     statusFilter === option.value
-                      ? 'bg-muted font-medium'
-                      : 'hover:bg-muted/50',
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                   )}
                 >
                   {option.label}
@@ -305,6 +305,8 @@ export default function Projects(): JSX.Element {
               value={startDateFrom}
               onChange={(e) => setStartDateFrom(e.target.value)}
               className="w-36 h-8 text-sm"
+              min="2018-01-01"
+              max="2030-12-31"
             />
             <span className="text-muted-foreground">-</span>
             <Input
@@ -312,6 +314,8 @@ export default function Projects(): JSX.Element {
               value={startDateTo}
               onChange={(e) => setStartDateTo(e.target.value)}
               className="w-36 h-8 text-sm"
+              min="2018-01-01"
+              max="2030-12-31"
             />
           </div>
 
