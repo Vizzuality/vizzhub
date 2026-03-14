@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   Plus,
@@ -12,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { usePaginatedProjects, useCreateProject } from '@/core/hooks/useProjects';
+import { usePaginatedProjects } from '@/core/hooks/useProjects';
 import {
   useProjectListParams,
   type SortField,
@@ -21,15 +22,11 @@ import {
 } from '../hooks/useProjectListParams';
 import { useProjectScoresMap } from '../hooks/useProjectScoresMap';
 import ProjectCard from '../components/Dashboard/ProjectCard';
-import ProjectForm from '../components/Forms/ProjectForm';
-import type { ProjectCreate } from '@/core/types/project';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/shared/components/ui/card';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -49,7 +46,7 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 }
 
 export default function Projects(): JSX.Element {
-  const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
   const [viewModeSchema] = useState(() => ({
     view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'list' },
   }));
@@ -81,7 +78,6 @@ export default function Projects(): JSX.Element {
   const pages = data?.pages ?? 1;
 
   const { scoresMap } = useProjectScoresMap(projects);
-  const createProject = useCreateProject();
 
   const [localSearch, setLocalSearch] = useState(searchName);
 
@@ -129,11 +125,6 @@ export default function Projects(): JSX.Element {
         {getSortIcon(isActive, sortOrder)}
       </button>
     );
-  };
-
-  const handleCreate = async (data: ProjectCreate): Promise<void> => {
-    await createProject.mutateAsync(data);
-    setShowForm(false);
   };
 
   const renderPagination = (): JSX.Element | null => {
@@ -207,7 +198,7 @@ export default function Projects(): JSX.Element {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground mb-4">No projects yet</p>
-          <Button onClick={() => setShowForm(true)}>
+          <Button onClick={() => navigate('/projects/new')}>
             Create your first project
           </Button>
         </CardContent>
@@ -231,22 +222,6 @@ export default function Projects(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Create Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create New Project</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProjectForm
-              onSubmit={handleCreate}
-              onCancel={() => setShowForm(false)}
-              isLoading={createProject.isPending}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Search, Filters & Actions */}
       <div className="space-y-3">
         <div className="flex flex-col md:flex-row gap-3">
@@ -334,7 +309,7 @@ export default function Projects(): JSX.Element {
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            <Button onClick={() => setShowForm(true)}>
+            <Button onClick={() => navigate('/projects/new')}>
               <Plus className="w-5 h-5 mr-2" />
               Create Project
             </Button>
