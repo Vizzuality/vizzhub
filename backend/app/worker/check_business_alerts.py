@@ -158,9 +158,9 @@ async def _get_alert_definitions(db: AsyncSession) -> dict[str, AlertDefinitionD
 
 
 async def _get_active_projects(db: AsyncSession) -> list[ProjectDB]:
-    """Get all active (in_progress) projects."""
+    """Get all active (live) projects."""
     result = await db.execute(
-        select(ProjectDB).where(ProjectDB.status == "in_progress")
+        select(ProjectDB).where(ProjectDB.status == "live")
     )
     return list(result.scalars().all())
 

@@ -155,7 +155,7 @@ async def _get_eligible_projects(db: AsyncSession) -> list[ProjectDB]:
         select(ProjectDB).where(
             ProjectDB.github_repo.isnot(None),
             ProjectDB.slack_channel_id.isnot(None),
-            ProjectDB.status == "in_progress",
+            ProjectDB.status == "live",
         )
     )
     return list(result.scalars().all())

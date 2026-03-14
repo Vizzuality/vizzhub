@@ -55,7 +55,7 @@ async def create_test_project(
         github_repo=github_repo,
         start_date=today - timedelta(days=start_offset),
         end_date=today + timedelta(days=end_offset),
-        status="in_progress",
+        status="live",
     )
     db_session.add(project)
     await db_session.commit()

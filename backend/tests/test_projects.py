@@ -100,12 +100,12 @@ class TestProjectPagination:
         resp = await client.post("/api/scorecards", json={"name": "Active"})
         pid = resp.json()["id"]
         await client.post("/api/scorecards", json={"name": "Done"})
-        await client.patch(f"/api/scorecards/{pid}", json={"status": "in_progress"})
+        await client.patch(f"/api/scorecards/{pid}", json={"status": "live"})
 
-        response = await client.get("/api/scorecards", params={"status": "in_progress"})
+        response = await client.get("/api/scorecards", params={"status": "live"})
         data = response.json()
         for item in data["items"]:
-            assert item["status"] == "in_progress"
+            assert item["status"] == "live"
 
     @pytest.mark.asyncio
     async def test_date_range_filter(self, client: AsyncClient) -> None:

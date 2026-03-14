@@ -162,7 +162,7 @@ class TestCheckBusinessAlertsJob:
         """Job should send alert when budget is exceeded (>=100%)."""
         project = ProjectDB(
             name="Over Budget Project",
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.flush()
@@ -199,7 +199,7 @@ class TestCheckBusinessAlertsJob:
         """Job should not alert when budget is under 100%."""
         project = ProjectDB(
             name="Under Budget Project",
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.flush()
@@ -238,7 +238,7 @@ class TestCheckBusinessAlertsJob:
         past_date = date.today() - timedelta(days=45)
         project = ProjectDB(
             name="Overdue Project",
-            status="in_progress",
+            status="live",
             end_date=past_date,
         )
         db_session.add(project)
@@ -264,7 +264,7 @@ class TestCheckBusinessAlertsJob:
         past_date = date.today() - timedelta(days=15)
         project = ProjectDB(
             name="Near End Project",
-            status="in_progress",
+            status="live",
             end_date=past_date,
         )
         db_session.add(project)
@@ -292,7 +292,7 @@ class TestCheckBusinessAlertsJob:
 
         project = ProjectDB(
             name="Already Notified Project",
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.flush()
@@ -342,7 +342,7 @@ class TestCheckBusinessAlertsJob:
 
         project = ProjectDB(
             name="Silenced Project",
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.flush()
@@ -389,7 +389,7 @@ class TestCheckBusinessAlertsJob:
         """Job should create AlertNotificationDB record when sending alert."""
         project = ProjectDB(
             name="Test Logging Project",
-            status="in_progress",
+            status="live",
         )
         db_session.add(project)
         await db_session.flush()
@@ -436,7 +436,7 @@ class TestCheckBusinessAlertsJob:
         future_date = date.today() + timedelta(days=30)
         project = ProjectDB(
             name="Timeline Risk Project",
-            status="in_progress",
+            status="live",
             end_date=future_date,
         )
         db_session.add(project)
@@ -473,7 +473,7 @@ class TestCheckBusinessAlertsJob:
         """Job should send alerts to leadership channel, not project channel."""
         project = ProjectDB(
             name="Leadership Alert Project",
-            status="in_progress",
+            status="live",
             slack_channel_id="C_PROJECT",
         )
         db_session.add(project)
@@ -512,11 +512,11 @@ class TestCheckBusinessAlertsJob:
         """Job should continue processing other projects if one fails."""
         project1 = ProjectDB(
             name="Problem Project",
-            status="in_progress",
+            status="live",
         )
         project2 = ProjectDB(
             name="Good Project",
-            status="in_progress",
+            status="live",
         )
         db_session.add(project1)
         db_session.add(project2)

@@ -213,7 +213,7 @@ class TestFinishedProjectMetricsRestrictions:
         """Verify reopening a project allows regular metrics again."""
         response = await client.patch(
             f"/api/scorecards/{finished_project.id}",
-            json={"status": "in_progress"},
+            json={"status": "live"},
         )
         assert response.status_code == 200
 
