@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.database import Base
 from app.core.models.job import Job
+from app.core.models.functional_area import FunctionalAreaDB  # noqa: F401
+from app.core.models.link import LinkDB  # noqa: F401
+from app.core.models.program import ProgramDB  # noqa: F401
+from app.core.models.rate import RateDB  # noqa: F401
 from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
 from app.modules.iso.models import AccessSnapshotDB, AccessReviewDB, AccessReviewActionDB  # noqa: F401

@@ -3,7 +3,7 @@ from enum import Enum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import DateTime, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -51,11 +51,27 @@ class ProjectDB(Base):
     """SQLAlchemy model for projects."""
 
     __tablename__ = "projects"
+    __table_args__ = (
+        CheckConstraint(
+            "end_date IS NULL OR start_date IS NULL OR end_date > start_date",
+            name="ck_projects_end_after_start",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid4
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    program_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("programs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    is_billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    currency: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     jira_project_key: Mapped[str | None] = mapped_column(String(50), nullable=True)
     github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     start_date: Mapped[date | None] = mapped_column(nullable=True)
@@ -75,6 +91,12 @@ class ProjectBase(BaseModel):
     """Base project schema."""
 
     name: str = Field(..., min_length=1, max_length=255)
+    program_id: UUID | None = None
+    code: str | None = Field(None, max_length=100)
+    is_billable: bool = True
+    currency: str | None = Field(None, max_length=20)
+    notes: str | None = None
+    summary: str | None = None
     jira_project_key: str | None = Field(None, max_length=50)
     github_repo: str | None = Field(None, max_length=255)
     start_date: date | None = None
@@ -114,6 +136,12 @@ class ProjectUpdate(BaseModel):
     """Schema for partial updates (PATCH)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
+    program_id: UUID | None = None
+    code: str | None = Field(None, max_length=100)
+    is_billable: bool | None = None
+    currency: str | None = Field(None, max_length=20)
+    notes: str | None = None
+    summary: str | None = None
     jira_project_key: str | None = Field(None, max_length=50)
     github_repo: str | None = Field(None, max_length=255)
     start_date: date | None = None
@@ -121,7 +149,7 @@ class ProjectUpdate(BaseModel):
     status: ProjectStatus | None = None
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
-    clear_finished_at: bool = False  # Set to true to explicitly clear finished_at
+    clear_finished_at: bool = False
 
     @field_validator("jira_project_key")
     @classmethod
