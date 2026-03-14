@@ -146,7 +146,13 @@ class ProjectCreateV2(ProjectBase):
 
 
 class ProjectUpdate(BaseModel):
-    """Schema for partial updates (PATCH)."""
+    """Schema for partial updates (PATCH).
+
+    Validators duplicate ProjectBase because Pydantic v2 field_validator
+    requires the decorated method to live on the model class itself.
+    A mixin base would need all-optional fields here but required in
+    ProjectBase, so the duplication is the cleaner trade-off.
+    """
 
     name: str | None = Field(None, min_length=1, max_length=255)
     program_id: UUID | None = None
