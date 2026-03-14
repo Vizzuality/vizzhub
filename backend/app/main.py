@@ -15,7 +15,6 @@ from app.core.api import auth as auth_router
 from app.core.api import jobs as jobs_router
 from app.core.api import oauth as oauth_router
 from app.core.api import programs as programs_router
-from app.core.api import projects as projects_router
 from app.core.api import projects_v2 as projects_v2_router
 from app.modules.iso.router import router as iso_router
 from app.modules.scorecard.router import router as scorecard_router
@@ -165,7 +164,6 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 app.include_router(auth_router.router, prefix="/api")
 app.include_router(admin_users_router.router, prefix="/api")
-app.include_router(projects_router.router, prefix="/api/scorecards", tags=["projects"])
 app.include_router(projects_v2_router.router, prefix="/api/projects", tags=["projects"])
 app.include_router(programs_router.router, prefix="/api/programs", tags=["programs"])
 app.include_router(oauth_router.router, prefix="/api/oauth", tags=["oauth"])

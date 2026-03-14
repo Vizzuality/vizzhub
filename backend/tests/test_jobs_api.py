@@ -22,9 +22,10 @@ class TestJobsAPI:
     ) -> None:
         """Create capture history job successfully enqueues to ARQ."""
         project_response = await client.post(
-            "/api/scorecards",
+            "/api/projects",
             json={
                 "name": "Test Project",
+                "code": "TST",
                 "jira_project_key": "TEST",
                 "github_repo": "org/repo",
             },
@@ -65,8 +66,8 @@ class TestJobsAPI:
     ) -> None:
         """Create capture history job fails with invalid date range."""
         project_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test Project"},
+            "/api/projects",
+            json={"name": "Test Project", "code": "Test Project"},
         )
         project_id = project_response.json()["id"]
 
@@ -97,8 +98,8 @@ class TestJobsAPI:
     async def test_get_job_success(self, client: AsyncClient) -> None:
         """Get job returns job details."""
         project_response = await client.post(
-            "/api/scorecards",
-            json={"name": "Test Project"},
+            "/api/projects",
+            json={"name": "Test Project", "code": "Test Project"},
         )
         project_id = project_response.json()["id"]
 

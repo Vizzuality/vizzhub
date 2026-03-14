@@ -21,7 +21,7 @@ class TestErrorSanitizationIntegration:
         client: AsyncClient,
     ) -> None:
         """Verify 404 errors don't expose internal file paths."""
-        response = await client.get(f"/api/scorecards/{uuid4()}")
+        response = await client.get(f"/api/projects/{uuid4()}")
 
         assert response.status_code == 404
         error_text = response.text.lower()
@@ -62,7 +62,7 @@ class TestErrorSanitizationIntegration:
         client: AsyncClient,
     ) -> None:
         """Verify invalid UUID doesn't cause internal error leak."""
-        response = await client.get("/api/scorecards/not-a-valid-uuid")
+        response = await client.get("/api/projects/not-a-valid-uuid")
 
         # Should be 422 (validation error) or 400 (bad request), not 500
         assert response.status_code in [400, 404, 422]
