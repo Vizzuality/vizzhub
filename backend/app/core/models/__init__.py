@@ -11,7 +11,9 @@ from app.core.models.program import Program, ProgramCreate, ProgramDB
 from app.core.models.project import (
     Project,
     ProjectCreate,
+    ProjectCreateV2,
     ProjectDB,
+    ProjectResponse,
     ProjectStatus,
     ProjectUpdate,
 )
@@ -38,7 +40,9 @@ __all__ = [
     "ProgramDB",
     "Project",
     "ProjectCreate",
+    "ProjectCreateV2",
     "ProjectDB",
+    "ProjectResponse",
     "ProjectStatus",
     "ProjectUpdate",
     "Rate",
