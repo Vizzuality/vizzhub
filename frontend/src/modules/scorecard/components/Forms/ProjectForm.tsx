@@ -209,7 +209,7 @@ export default function ProjectForm({
             id="start_date"
             type="date"
             min="2020-01-01"
-            max="2099-12-31"
+            max="2030-12-31"
             {...register('start_date', {
               pattern: {
                 value: /^\d{4}-\d{2}-\d{2}$/,
@@ -230,7 +230,7 @@ export default function ProjectForm({
             id="end_date"
             type="date"
             min="2020-01-01"
-            max="2099-12-31"
+            max="2030-12-31"
             {...register('end_date', {
               pattern: {
                 value: /^\d{4}-\d{2}-\d{2}$/,
