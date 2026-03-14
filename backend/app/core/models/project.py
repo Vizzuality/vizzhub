@@ -173,6 +173,7 @@ class Project(ProjectBase):
     """Schema for project responses."""
 
     id: UUID
+    name: str = Field(..., min_length=0)
     created_at: datetime
     updated_at: datetime
 
