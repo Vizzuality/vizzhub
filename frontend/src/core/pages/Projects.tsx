@@ -257,12 +257,6 @@ export default function Projects(): JSX.Element {
               ))}
             </div>
 
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 h-8">
-                <X className="w-3.5 h-3.5" />
-                Clear
-              </Button>
-            )}
           </div>
 
           <div className="flex items-center gap-2 sm:ml-auto">
@@ -327,6 +321,16 @@ export default function Projects(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 text-sm">
+          <span className="text-muted-foreground">Filters active</span>
+          <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 h-7 ml-2">
+            <X className="w-3.5 h-3.5" />
+            Clear all filters
+          </Button>
+        </div>
+      )}
 
       {renderProjectsContent()}
       {renderPagination()}
