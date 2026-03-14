@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request, status
 from sqlalchemy import delete, func, select
 
-from app.core.api.deps import CurrentUser, DBSession, get_project_or_404, limiter
+from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404, limiter
 from app.modules.scorecard.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
 from app.modules.scorecard.models.metrics.db import MetricsDB
 from app.core.models.project import Project, ProjectCreate, ProjectDB, ProjectUpdate
@@ -96,9 +96,9 @@ async def list_projects(
 @router.post("", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
 async def create_project(
-    request: Request, project: ProjectCreate, current_user: CurrentUser, db: DBSession
+    request: Request, project: ProjectCreate, admin: AdminUser, db: DBSession
 ) -> Project:
-    """Create a new project. Requires authentication."""
+    """Create a new project. Requires admin role."""
     db_project = ProjectDB(
         name=project.name,
         jira_project_key=project.jira_project_key.upper() if project.jira_project_key else None,
@@ -129,19 +129,28 @@ async def update_project(
     request: Request,
     project_id: UUID,
     update: ProjectUpdate,
-    current_user: CurrentUser,
+    admin: AdminUser,
     db: DBSession,
 ) -> Project:
-    """Partially update a project. Requires authentication."""
+    """Partially update a project. Requires admin role."""
     project = await get_project_or_404(db, project_id)
+
+    PATCHABLE_FIELDS = {
+        "name", "code", "program_id", "is_billable", "currency",
+        "notes", "summary", "jira_project_key", "github_repo",
+        "start_date", "end_date", "status", "finished_at",
+        "slack_channel_id", "has_scorecard", "has_dependabot_alerts",
+        "has_budget_alerts",
+    }
 
     update_data = update.model_dump(exclude_unset=True)
 
-    # Handle clear_finished_at flag
     if update_data.pop("clear_finished_at", False):
         project.finished_at = None
 
     for field, value in update_data.items():
+        if field not in PATCHABLE_FIELDS:
+            continue
         if field == "jira_project_key" and value:
             value = value.upper()
         setattr(project, field, value)
@@ -157,10 +166,10 @@ async def replace_project(
     request: Request,
     project_id: UUID,
     project_data: ProjectCreate,
-    current_user: CurrentUser,
+    admin: AdminUser,
     db: DBSession,
 ) -> Project:
-    """Fully replace a project. Requires authentication."""
+    """Fully replace a project. Requires admin role."""
     project = await get_project_or_404(db, project_id)
 
     project.name = project_data.name
@@ -178,9 +187,9 @@ async def replace_project(
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("10/minute")
 async def delete_project(
-    request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
+    request: Request, project_id: UUID, admin: AdminUser, db: DBSession
 ) -> None:
-    """Delete a project and all associated metrics. Requires authentication."""
+    """Delete a project and all associated metrics. Requires admin role."""
     project = await get_project_or_404(db, project_id)
 
     await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))

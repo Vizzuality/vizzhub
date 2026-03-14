@@ -193,11 +193,21 @@ async def update_project(
     admin: AdminUser,
     db: DBSession,
 ) -> ProjectResponse:
+    PATCHABLE_FIELDS = {
+        "name", "code", "program_id", "is_billable", "currency",
+        "notes", "summary", "jira_project_key", "github_repo",
+        "start_date", "end_date", "status", "finished_at",
+        "slack_channel_id", "has_scorecard", "has_dependabot_alerts",
+        "has_budget_alerts",
+    }
+
     project = await get_project_or_404(db, project_id)
     update_data = update.model_dump(exclude_unset=True)
     if update_data.pop("clear_finished_at", False):
         project.finished_at = None
     for field, value in update_data.items():
+        if field not in PATCHABLE_FIELDS:
+            continue
         if field == "jira_project_key" and value:
             value = value.upper()
         setattr(project, field, value)
