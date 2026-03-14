@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
 import {
   useProject,
@@ -11,6 +11,18 @@ import {
 } from '@/core/hooks/useProjects';
 import { usePrograms } from '@/core/hooks/usePrograms';
 import { useSlackChannels } from '@/core/hooks/useSlackChannels';
+import {
+  useCurrentPeriodMetrics,
+  useUpdateProjectBudget,
+  buildBudgetPayload,
+} from '@/core/hooks/useProjectBudget';
+import { projectsApi } from '@/core/services/projects';
+import {
+  calculateEVMValues,
+  formatCurrency,
+  getPerformanceColor,
+  getPerformanceLabel,
+} from '@/shared/utils/evmCalculations';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -29,6 +41,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/shared/components/ui/tooltip';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { ErrorBanner } from '@/shared/components/ui/error-banner';
 import {
@@ -37,6 +55,14 @@ import {
   RotateCcw,
   Lock,
   Loader2,
+  Plus,
+  Info,
+  Calculator,
+  DollarSign,
+  TrendingUp,
+  Clock,
+  Flag,
+  Calendar,
 } from 'lucide-react';
 
 interface ProjectFormData {
@@ -51,6 +77,11 @@ interface ProjectFormData {
   end_date: string;
   notes: string;
   summary: string;
+  budget_total: string;
+  cost_to_date: string;
+  percent_completed: string;
+  percent_planned: string;
+  milestones: { name: string; planned_date: string; actual_date: string }[];
 }
 
 const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
@@ -63,6 +94,51 @@ const CURRENCY_OPTIONS = [
   { value: '', label: 'None' },
   { value: 'USD', label: 'Dollar (USD)' },
   { value: 'EUR', label: 'Euro (EUR)' },
+];
+
+interface BudgetFieldConfig {
+  name: 'budget_total' | 'cost_to_date' | 'percent_completed' | 'percent_planned';
+  label: string;
+  icon: typeof DollarSign;
+  tooltip: string;
+  placeholder: string;
+  suffix?: string;
+  max?: number;
+}
+
+const BUDGET_FIELDS: BudgetFieldConfig[] = [
+  {
+    name: 'budget_total',
+    label: 'Total Budget',
+    icon: DollarSign,
+    tooltip: 'The total planned budget for the entire project (Planned Value)',
+    placeholder: 'e.g., 100000',
+  },
+  {
+    name: 'cost_to_date',
+    label: 'Actual Cost',
+    icon: TrendingUp,
+    tooltip: 'The actual expenses incurred to date (Actual Cost)',
+    placeholder: 'e.g., 45000',
+  },
+  {
+    name: 'percent_completed',
+    label: 'Work Completed',
+    icon: Calculator,
+    tooltip: 'Estimated percentage of the total work completed (0-100%)',
+    placeholder: 'e.g., 50',
+    suffix: '%',
+    max: 100,
+  },
+  {
+    name: 'percent_planned',
+    label: 'Expected Progress',
+    icon: Clock,
+    tooltip: 'Percentage of work that should be done by now according to schedule (0-100%)',
+    placeholder: 'e.g., 45',
+    suffix: '%',
+    max: 100,
+  },
 ];
 
 function getSubmitButtonText(isPending: boolean, isEditMode: boolean): string {
@@ -88,11 +164,13 @@ export default function ProjectForm(): JSX.Element {
     useProject(id ?? '');
   const { data: programsData } = usePrograms();
   const programs: ProgramSummary[] = programsData ?? [];
+  const { data: currentMetrics } = useCurrentPeriodMetrics(id ?? '');
 
   const createMutation = useCreateProject();
   const replaceMutation = useReplaceProject(id ?? '');
   const deleteMutation = useDeleteProject();
   const statusMutation = useUpdateProjectStatus(id ?? '');
+  const budgetMutation = useUpdateProjectBudget(id ?? '');
 
   const {
     channels,
@@ -115,6 +193,7 @@ export default function ProjectForm(): JSX.Element {
     handleSubmit,
     watch,
     reset,
+    control,
     formState: { errors },
   } = useForm<ProjectFormData>({
     defaultValues: {
@@ -129,10 +208,27 @@ export default function ProjectForm(): JSX.Element {
       end_date: '',
       notes: '',
       summary: '',
+      budget_total: '',
+      cost_to_date: '',
+      percent_completed: '',
+      percent_planned: '',
+      milestones: [{ name: '', planned_date: '', actual_date: '' }],
     },
   });
 
-  if (isEditMode && project && !formInitialized) {
+  const {
+    fields: milestoneFields,
+    append: appendMilestone,
+    remove: removeMilestone,
+  } = useFieldArray({
+    control,
+    name: 'milestones',
+  });
+
+  if (isEditMode && project && !formInitialized && currentMetrics !== undefined) {
+    const metricsEvm = currentMetrics?.evm_data;
+    const metricsMilestones = currentMetrics?.milestones;
+
     reset({
       name: project.name,
       code: project.code ?? '',
@@ -145,6 +241,21 @@ export default function ProjectForm(): JSX.Element {
       end_date: project.end_date ?? '',
       notes: project.notes ?? '',
       summary: project.summary ?? '',
+      budget_total: metricsEvm?.budget_total?.toString() ?? '',
+      cost_to_date: metricsEvm?.cost_to_date?.toString() ?? '',
+      percent_completed: metricsEvm?.percent_completed
+        ? (metricsEvm.percent_completed * 100).toString()
+        : '',
+      percent_planned: metricsEvm?.percent_planned
+        ? (metricsEvm.percent_planned * 100).toString()
+        : '',
+      milestones: metricsMilestones?.length
+        ? metricsMilestones.map((m: { name: string; planned_date: string; actual_date?: string }) => ({
+            name: m.name,
+            planned_date: m.planned_date,
+            actual_date: m.actual_date ?? '',
+          }))
+        : [{ name: '', planned_date: '', actual_date: '' }],
     });
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
@@ -156,17 +267,29 @@ export default function ProjectForm(): JSX.Element {
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
+  const watchedBudgetTotal = watch('budget_total');
+  const watchedCostToDate = watch('cost_to_date');
+  const watchedPercentCompleted = watch('percent_completed');
+  const watchedPercentPlanned = watch('percent_planned');
 
-  const isMutating = createMutation.isPending || replaceMutation.isPending;
+  const evmPreview = useMemo(() => {
+    const budget = Number.parseFloat(watchedBudgetTotal) || 0;
+    const cost = Number.parseFloat(watchedCostToDate) || 0;
+    const completed = (Number.parseFloat(watchedPercentCompleted) || 0) / 100;
+    const planned = (Number.parseFloat(watchedPercentPlanned) || 0) / 100;
+    return calculateEVMValues(budget, cost, completed, planned);
+  }, [watchedBudgetTotal, watchedCostToDate, watchedPercentCompleted, watchedPercentPlanned]);
+
+  const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending;
 
   const navigateToProjects = (): void => {
     navigate('/projects');
   };
 
-  const handleFormSubmit = (data: ProjectFormData): void => {
+  const handleFormSubmit = async (data: ProjectFormData): Promise<void> => {
     setApiError(null);
 
-    const payload: ProjectCreate = {
+    const projectPayload: ProjectCreate = {
       name: data.name,
       code: data.code,
       status: data.status,
@@ -185,16 +308,32 @@ export default function ProjectForm(): JSX.Element {
       summary: data.summary?.trim() || null,
     };
 
-    if (isEditMode) {
-      replaceMutation.mutate(payload, {
-        onSuccess: navigateToProjects,
-        onError: (error) => setApiError(getApiErrorMessage(error)),
-      });
-    } else {
-      createMutation.mutate(payload, {
-        onSuccess: navigateToProjects,
-        onError: (error) => setApiError(getApiErrorMessage(error)),
-      });
+    const budgetPayload = buildBudgetPayload(
+      {
+        budget_total: data.budget_total,
+        cost_to_date: data.cost_to_date,
+        percent_completed: data.percent_completed,
+        percent_planned: data.percent_planned,
+      },
+      data.milestones,
+    );
+
+    try {
+      if (isEditMode) {
+        const promises: Promise<unknown>[] = [replaceMutation.mutateAsync(projectPayload)];
+        if (budgetPayload) {
+          promises.push(budgetMutation.mutateAsync(budgetPayload));
+        }
+        await Promise.all(promises);
+      } else {
+        const newProject = await createMutation.mutateAsync(projectPayload);
+        if (budgetPayload && newProject?.id) {
+          await projectsApi.updateBudget(newProject.id, budgetPayload);
+        }
+      }
+      navigateToProjects();
+    } catch (error) {
+      setApiError(getApiErrorMessage(error));
     }
   };
 
@@ -535,6 +674,236 @@ export default function ProjectForm(): JSX.Element {
                 {...register('summary')}
               />
             </div>
+
+            {/* Budget & Schedule */}
+            <TooltipProvider>
+              <div className="space-y-4 pt-2 border-t">
+                <h3 className="text-base font-semibold">Budget & Schedule</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {BUDGET_FIELDS.map((field) => {
+                    const Icon = field.icon;
+                    return (
+                      <div key={field.name} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4 text-muted-foreground" />
+                          <Label htmlFor={field.name}>{field.label}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">{field.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="relative">
+                          <Input
+                            id={field.name}
+                            type="number"
+                            step="any"
+                            min="0"
+                            max={field.max}
+                            placeholder={field.placeholder}
+                            {...register(field.name, {
+                              min: { value: 0, message: 'Must be positive' },
+                              max: field.max
+                                ? { value: field.max, message: `Max ${field.max}%` }
+                                : undefined,
+                            })}
+                            className={field.suffix ? 'pr-8' : ''}
+                          />
+                          {field.suffix && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                              {field.suffix}
+                            </span>
+                          )}
+                        </div>
+                        {errors[field.name] && (
+                          <p className="text-sm text-destructive">{errors[field.name]?.message}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {evmPreview.hasData && (
+                  <Card className="bg-muted/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Calculator className="w-4 h-4" />
+                        Calculated Values
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-3 bg-background rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs text-muted-foreground">Earned Value (EV)</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" className="text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Budget x Work Completed</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <p className="text-lg font-semibold">{formatCurrency(evmPreview.ev)}</p>
+                        </div>
+
+                        <div className="p-3 bg-background rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs text-muted-foreground">Schedule Performance (SPI)</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" className="text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Work Completed / Expected Progress</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  &gt;1 = ahead, 1 = on track, &lt;1 = behind
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          {evmPreview.spi !== null ? (
+                            <>
+                              <p className={`text-lg font-semibold ${getPerformanceColor(evmPreview.spi)}`}>
+                                {evmPreview.spi.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {getPerformanceLabel(evmPreview.spi, 'spi')}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-lg font-semibold text-muted-foreground">—</p>
+                          )}
+                        </div>
+
+                        <div className="p-3 bg-background rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs text-muted-foreground">Cost Performance (CPI)</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" className="text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Earned Value / Actual Cost</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  &gt;1 = under budget, 1 = on budget, &lt;1 = over budget
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          {evmPreview.cpi !== null ? (
+                            <>
+                              <p className={`text-lg font-semibold ${getPerformanceColor(evmPreview.cpi)}`}>
+                                {evmPreview.cpi.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {getPerformanceLabel(evmPreview.cpi, 'cpi')}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-lg font-semibold text-muted-foreground">—</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Milestones */}
+              <div className="space-y-4 pt-2 border-t">
+                <h3 className="text-base font-semibold">Milestones</h3>
+
+                <div className="space-y-3">
+                  {milestoneFields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-[1fr_140px_140px_40px] gap-3 items-end p-3 bg-muted/50 rounded-lg"
+                    >
+                      <div className="space-y-1">
+                        {index === 0 && (
+                          <Label className="text-xs flex items-center gap-1">
+                            <Flag className="w-3 h-3" />
+                            Milestone Name
+                          </Label>
+                        )}
+                        <Input
+                          {...register(`milestones.${index}.name`)}
+                          placeholder="e.g., MVP Release"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        {index === 0 && (
+                          <Label className="text-xs flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Planned
+                          </Label>
+                        )}
+                        <Input
+                          type="date"
+                          {...register(`milestones.${index}.planned_date`)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        {index === 0 && (
+                          <Label className="text-xs flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Actual
+                          </Label>
+                        )}
+                        <Input
+                          type="date"
+                          {...register(`milestones.${index}.actual_date`)}
+                        />
+                      </div>
+
+                      <div className={index === 0 ? 'pt-5' : ''}>
+                        {milestoneFields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeMilestone(index)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendMilestone({ name: '', planned_date: '', actual_date: '' })}
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Milestone
+                </Button>
+              </div>
+            </TooltipProvider>
 
             <div className="flex flex-col gap-4 pt-4 border-t">
               <div className="flex justify-end gap-2">
