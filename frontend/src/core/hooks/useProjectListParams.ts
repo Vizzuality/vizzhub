@@ -38,11 +38,11 @@ export interface UseProjectListParamsReturn {
 export function useProjectListParams(): UseProjectListParamsReturn {
   const { state, setState, resetState } = useUrlState(listParamsSchema);
 
-  const page = state.page as number;
-  const searchName = state.search as string;
+  const page = state.page;
+  const searchName = state.search;
   const statusFilter = state.status as StatusFilter;
-  const startDateFrom = state.from as string;
-  const startDateTo = state.to as string;
+  const startDateFrom = state.from;
+  const startDateTo = state.to;
   const sortField = state.sort as SortField;
   const sortOrder = state.order as SortOrder;
 

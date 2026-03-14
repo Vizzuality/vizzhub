@@ -83,7 +83,7 @@ class TestCollectIsoSnapshot:
             new_callable=AsyncMock,
             return_value=mock_api_response,
         ):
-            result = await collect_iso_snapshot({"db": db_session})
+            await collect_iso_snapshot({"db": db_session})
 
         db_result = await db_session.execute(
             select(ScheduledJobRunDB).where(
