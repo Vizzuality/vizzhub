@@ -11,7 +11,9 @@ export const queryKeys = {
   projects: {
     all: ['projects'] as const,
     list: (params: ProjectListParams) => ['projects', 'list', params] as const,
+    scorecardList: (params: ProjectListParams) => ['projects', 'scorecard-list', params] as const,
     summary: ['projects', 'summary'] as const,
+    scorecardSummary: ['projects', 'scorecard-summary'] as const,
     detail: (id: string) => ['projects', id] as const,
   },
   metrics: {
