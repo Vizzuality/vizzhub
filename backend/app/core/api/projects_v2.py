@@ -48,9 +48,13 @@ async def list_projects(
     order: str | None = None,
     start_date_from: date | None = None,
     start_date_to: date | None = None,
+    has_scorecard: bool | None = None,
 ):
     if lightweight:
-        result = await db.execute(select(ProjectDB).order_by(ProjectDB.name))
+        q = select(ProjectDB).order_by(ProjectDB.name)
+        if has_scorecard is not None:
+            q = q.where(ProjectDB.has_scorecard.is_(has_scorecard))
+        result = await db.execute(q)
         projects = result.scalars().all()
         return [ProjectSummary.model_validate(p) for p in projects]
 
@@ -62,6 +66,8 @@ async def list_projects(
     count_query = select(func.count()).select_from(ProjectDB)
 
     filters = []
+    if has_scorecard is not None:
+        filters.append(ProjectDB.has_scorecard.is_(has_scorecard))
     if search:
         safe = _escape_like(search)
         filters.append(
@@ -223,34 +229,44 @@ async def delete_project(
 ) -> None:
     project = await get_project_or_404(db, project_id)
 
-    from app.modules.tracker.models.progress_report import ProgressReportDB
-    from app.modules.tracker.models.report_part import ReportPartDB
+    from sqlalchemy import text
 
-    rp_count = (
-        await db.execute(
-            select(func.count())
-            .select_from(ReportPartDB)
-            .where(ReportPartDB.project_id == project_id)
-        )
-    ).scalar() or 0
-    if rp_count > 0:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Cannot delete: project has {rp_count} time report entries.",
-        )
+    table_check = await db.execute(
+        text("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('report_parts', 'progress_reports')")
+    )
+    existing_tables = {row[0] for row in table_check.fetchall()}
 
-    pr_count = (
-        await db.execute(
-            select(func.count())
-            .select_from(ProgressReportDB)
-            .where(ProgressReportDB.project_id == project_id)
-        )
-    ).scalar() or 0
-    if pr_count > 0:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Cannot delete: project has {pr_count} progress reports.",
-        )
+    if "report_parts" in existing_tables:
+        from app.modules.tracker.models.report_part import ReportPartDB
+
+        rp_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(ReportPartDB)
+                .where(ReportPartDB.project_id == project_id)
+            )
+        ).scalar() or 0
+        if rp_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete: project has {rp_count} time report entries.",
+            )
+
+    if "progress_reports" in existing_tables:
+        from app.modules.tracker.models.progress_report import ProgressReportDB
+
+        pr_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(ProgressReportDB)
+                .where(ProgressReportDB.project_id == project_id)
+            )
+        ).scalar() or 0
+        if pr_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete: project has {pr_count} progress reports.",
+            )
 
     await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))
     await db.delete(project)
