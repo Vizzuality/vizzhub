@@ -65,7 +65,7 @@ export default function ClientSurveyCard({
   getWeight,
   historicalData,
 }: ClientSurveyCardProps): JSX.Element {
-  const isDisabled = projectStatus === 'in_progress';
+  const isDisabled = projectStatus === 'live';
 
   const getQuestionWeight = (configKey: string, defaultWeight: number): string => {
     const weight = getWeight(configKey);

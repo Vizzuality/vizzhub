@@ -13,7 +13,7 @@ const mockProject: Project = {
   github_repo: 'org/test-repo',
   start_date: '2026-01-01',
   end_date: null,
-  status: 'in_progress',
+  status: 'live',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-15T00:00:00Z',
 };

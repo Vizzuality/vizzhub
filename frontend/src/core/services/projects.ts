@@ -8,6 +8,37 @@ import type {
 } from '@/types';
 import api from './client';
 
+export const projectsCoreApi = {
+  list: async (params: ProjectListParams = {}): Promise<PaginatedProjects> => {
+    const response = await api.get<PaginatedProjects>('/projects', { params });
+    return response.data;
+  },
+
+  get: async (id: string): Promise<Project> => {
+    const response = await api.get<Project>(`/projects/${id}`);
+    return response.data;
+  },
+
+  create: async (data: ProjectCreate): Promise<Project> => {
+    const response = await api.post<Project>('/projects', data);
+    return response.data;
+  },
+
+  replace: async (id: string, data: ProjectCreate): Promise<Project> => {
+    const response = await api.put<Project>(`/projects/${id}`, data);
+    return response.data;
+  },
+
+  update: async (id: string, data: ProjectUpdate): Promise<Project> => {
+    const response = await api.patch<Project>(`/projects/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/projects/${id}`);
+  },
+};
+
 export const projectsApi = {
   list: async (params: ProjectListParams = {}): Promise<PaginatedProjects> => {
     const response = await api.get<PaginatedProjects>('/scorecards', { params });

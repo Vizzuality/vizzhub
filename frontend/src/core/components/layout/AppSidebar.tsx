@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   BarChart3,
+  FolderKanban,
   Shield,
   Globe,
   SlidersHorizontal,
@@ -64,13 +65,16 @@ export function AppSidebar(): JSX.Element {
     if (path === '/scorecard') {
       return location.pathname === '/scorecard' || location.pathname.startsWith('/scorecard/');
     }
+    if (path === '/projects') {
+      return location.pathname === '/projects' || location.pathname.startsWith('/projects/');
+    }
     return location.pathname.startsWith(path);
   };
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <Link to="/scorecard" className="flex items-center gap-2">
+        <Link to="/projects" className="flex items-center gap-2">
           <VizzualityLogo className="h-6 w-auto shrink-0 group-data-[collapsible=icon]:hidden" />
         </Link>
       </SidebarHeader>
@@ -82,6 +86,19 @@ export function AppSidebar(): JSX.Element {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive('/projects')}
+                  tooltip="Projects"
+                >
+                  <Link to="/projects">
+                    <FolderKanban />
+                    <span>Projects</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild

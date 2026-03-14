@@ -53,7 +53,7 @@ describe('useProjects', () => {
         }),
       );
 
-      const params = { page: 1, search: 'test', status: 'in_progress' as const };
+      const params = { page: 1, search: 'test', status: 'live' as const };
       const { result } = renderHook(() => usePaginatedProjects(params), {
         wrapper: createWrapper(),
       });
@@ -62,7 +62,7 @@ describe('useProjects', () => {
 
       const url = new URL(capturedUrl!);
       expect(url.searchParams.get('search')).toBe('test');
-      expect(url.searchParams.get('status')).toBe('in_progress');
+      expect(url.searchParams.get('status')).toBe('live');
       expect(url.searchParams.get('page')).toBe('1');
     });
 

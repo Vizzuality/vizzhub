@@ -100,6 +100,10 @@ export const queryKeys = {
         ['iso', 'reviews', 'bySnapshot', snapshotId] as const,
     },
   },
+  programs: {
+    all: ['programs'] as const,
+    list: ['programs', 'list'] as const,
+  },
   integrations: {
     status: ['integrations', 'status'] as const,
     slackChannels: ['integrations', 'slack', 'channels'] as const,

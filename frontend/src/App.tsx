@@ -3,7 +3,9 @@ import { AuthProvider } from './core/contexts/AuthContext';
 import { ErrorBoundary } from './core/components/ErrorBoundary';
 import { ProtectedRoute, AdminRoute } from './core/components/ProtectedRoute';
 import { AppLayout } from './core/components/layout/AppLayout';
-import Projects from './modules/scorecard/pages/Projects';
+import CoreProjects from './core/pages/Projects';
+import ProjectFormPage from './core/pages/ProjectForm';
+import ScorecardProjects from './modules/scorecard/pages/Projects';
 import ProjectDetail from './modules/scorecard/pages/ProjectDetail';
 import GlobalDashboard from './modules/scorecard/pages/GlobalDashboard';
 import Admin from './core/pages/Admin';
@@ -46,8 +48,11 @@ function AppRoutes(): JSX.Element {
     return (
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/scorecard" replace />} />
-          <Route path="/scorecard" element={<Projects />} />
+          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/projects" element={<CoreProjects />} />
+          <Route path="/projects/new" element={<ProjectFormPage />} />
+          <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route path="/scorecard" element={<ScorecardProjects />} />
           <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route path="/admin" element={<Admin />}>
             {AdminRoutes()}
@@ -57,7 +62,7 @@ function AppRoutes(): JSX.Element {
             <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
           </Route>
         </Route>
-        <Route path="/login" element={<Navigate to="/scorecard" replace />} />
+        <Route path="/login" element={<Navigate to="/projects" replace />} />
       </Routes>
     );
   }
@@ -67,8 +72,11 @@ function AppRoutes(): JSX.Element {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/scorecard" replace />} />
-          <Route path="/scorecard" element={<Projects />} />
+          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/projects" element={<CoreProjects />} />
+          <Route path="/projects/new" element={<ProjectFormPage />} />
+          <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route path="/scorecard" element={<ScorecardProjects />} />
           <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />}>

@@ -1,10 +1,17 @@
 import type { PaginatedResponse } from './common';
 
-export type ProjectStatus = 'in_progress' | 'finished';
+export type ProjectStatus = 'proposal' | 'live' | 'finished';
 
 export interface Project {
   id: string;
   name: string;
+  code: string | null;
+  program_id: string | null;
+  program_name: string | null;
+  is_billable: boolean;
+  currency: string | null;
+  notes: string | null;
+  summary: string | null;
   jira_project_key: string | null;
   github_repo: string | null;
   slack_channel_id: string | null;
@@ -18,6 +25,12 @@ export interface Project {
 
 export interface ProjectCreate {
   name: string;
+  code: string;
+  program_id?: string | null;
+  is_billable?: boolean;
+  currency?: string | null;
+  notes?: string | null;
+  summary?: string | null;
   jira_project_key?: string;
   github_repo?: string;
   slack_channel_id?: string;
@@ -28,6 +41,12 @@ export interface ProjectCreate {
 
 export interface ProjectUpdate {
   name?: string;
+  code?: string;
+  program_id?: string | null;
+  is_billable?: boolean;
+  currency?: string | null;
+  notes?: string | null;
+  summary?: string | null;
   jira_project_key?: string;
   github_repo?: string;
   slack_channel_id?: string | null;
@@ -60,4 +79,11 @@ export interface ProjectListParams {
   order?: string;
   start_date_from?: string;
   start_date_to?: string;
+}
+
+export interface ProgramSummary {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
 }

@@ -234,7 +234,7 @@ export default function ProjectDetail(): JSX.Element {
         onSubmitEdit={handleEdit}
         isSubmitting={replaceProject.isPending}
         onMarkFinished={() => setShowFinishDialog(true)}
-        onReopen={() => updateProjectStatus.mutateAsync({ status: 'in_progress' })}
+        onReopen={() => updateProjectStatus.mutateAsync({ status: 'live' })}
         onDelete={() => setShowDeleteConfirm(true)}
         isUpdatingStatus={updateProjectStatus.isPending}
       />
