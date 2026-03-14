@@ -27,7 +27,7 @@ describe('ProjectCard', () => {
     name: 'Test Project',
     jira_project_key: 'TEST',
     github_repo: 'org/test-repo',
-    status: 'in_progress',
+    status: 'live',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-15T00:00:00Z',
   };
@@ -127,7 +127,7 @@ describe('ProjectCard', () => {
         github_repo: null,
         start_date: null,
         end_date: null,
-        status: 'in_progress',
+        status: 'live',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',
       };
@@ -143,10 +143,10 @@ describe('ProjectCard', () => {
       expect(screen.getByText('View Details →')).toBeDefined();
     });
 
-    it('renders In Progress badge for in_progress status', () => {
+    it('renders Live badge for live status', () => {
       renderWithRouter(<ProjectCard project={mockProject} />);
 
-      expect(screen.getByText('In Progress')).toBeDefined();
+      expect(screen.getByText('Live')).toBeDefined();
     });
 
     it('renders Finished badge for finished status', () => {
@@ -205,10 +205,10 @@ describe('ProjectCard', () => {
       expect(screen.getByText(/Jan 1, 2026 - Jun 30, 2026/)).toBeDefined();
     });
 
-    it('renders In Progress badge in grid view', () => {
+    it('renders Live badge in grid view', () => {
       renderWithRouter(<ProjectCard project={mockProject} viewMode="grid" />);
 
-      expect(screen.getByText('In Progress')).toBeDefined();
+      expect(screen.getByText('Live')).toBeDefined();
     });
 
     it('renders Finished badge in grid view', () => {

@@ -58,7 +58,7 @@ export default function ProjectHeader({
                       : ''
                   }
                 >
-                  {project.status === 'finished' ? 'Finished' : 'In Progress'}
+                  {project.status === 'finished' ? 'Finished' : project.status === 'proposal' ? 'Proposal' : 'Live'}
                 </Badge>
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">

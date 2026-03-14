@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   Plus,
@@ -12,24 +13,20 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { usePaginatedProjects, useCreateProject } from '@/core/hooks/useProjects';
+import { useCoreProjects } from '@/core/hooks/useProjects';
 import {
   useProjectListParams,
   type SortField,
   type StatusFilter,
   type SortOrder,
-} from '../hooks/useProjectListParams';
-import { useProjectScoresMap } from '../hooks/useProjectScoresMap';
-import ProjectCard from '../components/Dashboard/ProjectCard';
-import ProjectForm from '../components/Forms/ProjectForm';
-import type { ProjectCreate } from '@/core/types/project';
+} from '@/core/hooks/useProjectListParams';
+import ProjectCard from '@/core/components/ProjectCard';
+import { useAuth } from '@/core/hooks/useAuth';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/shared/components/ui/card';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -37,6 +34,7 @@ import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 type ViewMode = 'list' | 'grid';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const VIEW_MODE_STORAGE_KEY = 'coreProjectsViewMode';
 
 function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
   if (!isActive) {
@@ -49,9 +47,12 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 }
 
 export default function Projects(): JSX.Element {
-  const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [viewModeSchema] = useState(() => ({
-    view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'list' },
+    view: { defaultValue: (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'list' },
   }));
   const { state: viewState, setState: setViewState } = useUrlState(viewModeSchema);
   const viewMode = viewState.view as ViewMode;
@@ -75,13 +76,10 @@ export default function Projects(): JSX.Element {
     clearFilters,
   } = useProjectListParams();
 
-  const { data, isLoading, error } = usePaginatedProjects(params);
-  const projects = data?.items;
+  const { data, isLoading, error } = useCoreProjects(params);
+  const projects = data?.items ?? [];
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;
-
-  const { scoresMap } = useProjectScoresMap(projects);
-  const createProject = useCreateProject();
 
   const [localSearch, setLocalSearch] = useState(searchName);
 
@@ -100,20 +98,8 @@ export default function Projects(): JSX.Element {
 
   const handleViewModeChange = useCallback((mode: ViewMode): void => {
     setViewState({ view: mode });
-    localStorage.setItem('projectsViewMode', mode);
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
   }, [setViewState]);
-
-  const displayedProjects = useMemo(() => {
-    if (!projects) return [];
-    if (sortField !== 'score') return projects;
-
-    return [...projects].sort((a, b) => {
-      const scoreA = scoresMap[a.id] ?? -1;
-      const scoreB = scoresMap[b.id] ?? -1;
-      const comparison = scoreA - scoreB;
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-  }, [projects, sortField, sortOrder, scoresMap]);
 
   const renderSortButton = (field: SortField, label: string): JSX.Element => {
     const isActive = sortField === field;
@@ -121,8 +107,10 @@ export default function Projects(): JSX.Element {
       <button
         onClick={() => handleSort(field)}
         className={cn(
-          "flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-          isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          'flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+          isActive
+            ? 'bg-muted text-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
         )}
       >
         {label}
@@ -131,18 +119,13 @@ export default function Projects(): JSX.Element {
     );
   };
 
-  const handleCreate = async (data: ProjectCreate): Promise<void> => {
-    await createProject.mutateAsync(data);
-    setShowForm(false);
-  };
-
   const renderPagination = (): JSX.Element | null => {
     if (total === 0) return null;
 
     return (
       <div className="flex items-center justify-between pt-4">
         <p className="text-sm text-muted-foreground">
-          Showing {displayedProjects.length} of {total} projects
+          Showing {projects.length} of {total} projects
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -172,18 +155,18 @@ export default function Projects(): JSX.Element {
   };
 
   const renderProjectsContent = (): JSX.Element => {
-    if (displayedProjects.length > 0) {
+    if (projects.length > 0) {
       return (
         <div className={cn(
-          "grid gap-4",
-          viewMode === 'grid' && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          'grid gap-4',
+          viewMode === 'grid' && 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
         )}>
-          {displayedProjects.map((project) => (
+          {projects.map((project) => (
             <ProjectCard
               key={project.id}
               project={project}
               viewMode={viewMode}
-              score={scoresMap[project.id]}
+              isAdmin={isAdmin}
             />
           ))}
         </div>
@@ -207,9 +190,11 @@ export default function Projects(): JSX.Element {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground mb-4">No projects yet</p>
-          <Button onClick={() => setShowForm(true)}>
-            Create your first project
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => navigate('/projects/new')}>
+              Create your first project
+            </Button>
+          )}
         </CardContent>
       </Card>
     );
@@ -231,22 +216,6 @@ export default function Projects(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Create Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create New Project</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProjectForm
-              onSubmit={handleCreate}
-              onCancel={() => setShowForm(false)}
-              isLoading={createProject.isPending}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Search, Filters & Actions */}
       <div className="space-y-3">
         <div className="flex flex-col md:flex-row gap-3">
@@ -268,6 +237,7 @@ export default function Projects(): JSX.Element {
             <div className="flex items-center border rounded-lg p-1">
               {([
                 { value: 'all', label: 'All' },
+                { value: 'proposal', label: 'Proposal' },
                 { value: 'live', label: 'Live' },
                 { value: 'finished', label: 'Finished' },
               ] as const).map((option) => (
@@ -275,8 +245,10 @@ export default function Projects(): JSX.Element {
                   key={option.value}
                   onClick={() => setStatusFilter(option.value as StatusFilter)}
                   className={cn(
-                    "px-3 py-1 text-sm rounded transition-colors",
-                    statusFilter === option.value ? "bg-muted font-medium" : "hover:bg-muted/50"
+                    'px-3 py-1 text-sm rounded transition-colors',
+                    statusFilter === option.value
+                      ? 'bg-muted font-medium'
+                      : 'hover:bg-muted/50',
                   )}
                 >
                   {option.label}
@@ -318,8 +290,8 @@ export default function Projects(): JSX.Element {
               <button
                 onClick={() => handleViewModeChange('list')}
                 className={cn(
-                  "p-1.5 rounded transition-colors",
-                  viewMode === 'list' ? "bg-muted" : "hover:bg-muted/50"
+                  'p-1.5 rounded transition-colors',
+                  viewMode === 'list' ? 'bg-muted' : 'hover:bg-muted/50',
                 )}
                 title="List view"
               >
@@ -328,18 +300,20 @@ export default function Projects(): JSX.Element {
               <button
                 onClick={() => handleViewModeChange('grid')}
                 className={cn(
-                  "p-1.5 rounded transition-colors",
-                  viewMode === 'grid' ? "bg-muted" : "hover:bg-muted/50"
+                  'p-1.5 rounded transition-colors',
+                  viewMode === 'grid' ? 'bg-muted' : 'hover:bg-muted/50',
                 )}
                 title="Grid view"
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="w-5 h-5 mr-2" />
-              Create Project
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => navigate('/projects/new')}>
+                <Plus className="w-5 h-5 mr-2" />
+                Create Project
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -350,7 +324,6 @@ export default function Projects(): JSX.Element {
         {renderSortButton('name', 'Name')}
         {renderSortButton('created_at', 'Created')}
         {renderSortButton('status', 'Status')}
-        {renderSortButton('score', 'Score')}
       </div>
 
       {/* Projects List */}

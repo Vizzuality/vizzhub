@@ -86,7 +86,7 @@ describe('API Service', () => {
       github_repo: 'org/repo',
       start_date: '2026-01-01',
       end_date: '2026-06-30',
-      status: 'in_progress',
+      status: 'live',
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     };

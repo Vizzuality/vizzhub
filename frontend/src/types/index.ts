@@ -1,6 +1,7 @@
 // Project types
 export type {
   PaginatedProjects,
+  ProgramSummary,
   Project,
   ProjectCreate,
   ProjectListParams,

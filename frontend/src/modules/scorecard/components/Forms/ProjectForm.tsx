@@ -46,7 +46,7 @@ export default function ProjectForm({
   isUpdatingStatus = false,
 }: ProjectFormProps): JSX.Element {
   const isEditMode = !!project;
-  const projectStatus: ProjectStatus = project?.status ?? 'in_progress';
+  const projectStatus: ProjectStatus = project?.status ?? 'live';
 
   const [slackChannelId, setSlackChannelId] = useState<string>(
     project?.slack_channel_id ?? '',
@@ -79,6 +79,7 @@ export default function ProjectForm({
   const handleFormSubmit = (data: ProjectFormData): void => {
     const payload: ProjectCreate = {
       name: data.name,
+      code: data.name.substring(0, 10).toUpperCase().replace(/\s+/g, '.'),
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
       slack_channel_id: slackChannelId || undefined,
@@ -93,7 +94,7 @@ export default function ProjectForm({
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       {isEditMode && (onMarkFinished || onReopen) && (
         <div className="flex justify-end">
-          {projectStatus === 'in_progress' && onMarkFinished && (
+          {projectStatus === 'live' && onMarkFinished && (
             <Button
               type="button"
               variant="ghost"
