@@ -485,16 +485,16 @@ export default function ProjectForm(): JSX.Element {
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left column — main fields */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-10">
 
             {/* General */}
             <section>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">General</h2>
               <Card>
-                <CardContent className="pt-6 space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <CardContent className="pt-6 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Name *</Label>
+                      <Label htmlFor="name" className="h-5 flex items-center">Name *</Label>
                       <Input
                         id="name"
                         type="text"
@@ -505,7 +505,7 @@ export default function ProjectForm(): JSX.Element {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="code">Code *</Label>
+                      <Label htmlFor="code" className="h-5 flex items-center">Code *</Label>
                       <Input
                         id="code"
                         type="text"
@@ -518,9 +518,9 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
+                      <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
                       <NativeSelect id="status" className="w-full" {...register('status')}>
                         {STATUS_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -529,7 +529,7 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                     <div className="space-y-2">
                       <TooltipProvider>
-                        <div className="flex items-center gap-2">
+                        <div className="h-5 flex items-center gap-2">
                           <Label htmlFor="currency">Currency for Invoices</Label>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -553,7 +553,7 @@ export default function ProjectForm(): JSX.Element {
 
                   <div className="space-y-2">
                     <TooltipProvider>
-                      <div className="flex items-center gap-2">
+                      <div className="h-5 flex items-center gap-2">
                         <Label htmlFor="program_id">Program</Label>
                         <span className="text-xs text-muted-foreground">(optional)</span>
                         <Tooltip>
@@ -632,9 +632,9 @@ export default function ProjectForm(): JSX.Element {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date">Start Date</Label>
+                      <Label htmlFor="start_date" className="h-5 flex items-center">Start Date</Label>
                       <Input
                         id="start_date"
                         type="date"
@@ -649,7 +649,7 @@ export default function ProjectForm(): JSX.Element {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="end_date">End Date</Label>
+                      <Label htmlFor="end_date" className="h-5 flex items-center">End Date</Label>
                       <Input
                         id="end_date"
                         type="date"
@@ -676,10 +676,10 @@ export default function ProjectForm(): JSX.Element {
             <section>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Integrations</h2>
               <Card>
-                <CardContent className="pt-6 space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <CardContent className="pt-6 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="jira_project_key">Jira Project Key</Label>
+                      <Label htmlFor="jira_project_key" className="h-5 flex items-center">Jira Project Key</Label>
                       <Input
                         id="jira_project_key"
                         type="text"
@@ -688,7 +688,7 @@ export default function ProjectForm(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="github_repo">GitHub Repository</Label>
+                      <Label htmlFor="github_repo" className="h-5 flex items-center">GitHub Repository</Label>
                       <Input
                         id="github_repo"
                         type="text"
@@ -704,7 +704,7 @@ export default function ProjectForm(): JSX.Element {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="slack_channel">Slack Channel</Label>
+                    <Label htmlFor="slack_channel" className="h-5 flex items-center">Slack Channel</Label>
                     {isCheckingStatus && (
                       <div className="flex items-center gap-2 h-9 px-3 text-sm text-muted-foreground">
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -741,10 +741,10 @@ export default function ProjectForm(): JSX.Element {
             <section>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Notes</h2>
               <Card>
-                <CardContent className="pt-6 space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <CardContent className="pt-6 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="notes">Internal Notes</Label>
+                      <Label htmlFor="notes" className="h-5 flex items-center">Internal Notes</Label>
                       <Textarea
                         id="notes"
                         rows={4}
@@ -753,7 +753,7 @@ export default function ProjectForm(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="summary">Summary</Label>
+                      <Label htmlFor="summary" className="h-5 flex items-center">Summary</Label>
                       <Textarea
                         id="summary"
                         rows={4}
@@ -770,14 +770,14 @@ export default function ProjectForm(): JSX.Element {
             <section>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Budget & Schedule</h2>
               <Card>
-                <CardContent className="pt-6 space-y-5">
+                <CardContent className="pt-6 space-y-6">
                   <TooltipProvider>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       {BUDGET_FIELDS.map((field) => {
                         const Icon = field.icon;
                         return (
                           <div key={field.name} className="space-y-2">
-                            <div className="flex items-center gap-2">
+                            <div className="h-5 flex items-center gap-2">
                               <Icon className="w-4 h-4 text-muted-foreground" />
                               <Label htmlFor={field.name}>{field.label}</Label>
                               <Tooltip>
