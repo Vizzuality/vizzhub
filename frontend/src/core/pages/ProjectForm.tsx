@@ -9,7 +9,7 @@ import {
   useDeleteProject,
   useUpdateProjectStatus,
 } from '@/core/hooks/useProjects';
-import { usePrograms } from '@/core/hooks/usePrograms';
+import { usePrograms, useCreateProgram } from '@/core/hooks/usePrograms';
 import { useSlackChannels } from '@/core/hooks/useSlackChannels';
 import {
   useCurrentPeriodMetrics,
@@ -172,6 +172,7 @@ export default function ProjectForm(): JSX.Element {
     useProject(id ?? '');
   const { data: programsData } = usePrograms();
   const programs: ProgramSummary[] = programsData ?? [];
+  const createProgramMutation = useCreateProgram();
   const { data: currentMetrics } = useCurrentPeriodMetrics(id ?? '');
 
   const createMutation = useCreateProject();
@@ -192,6 +193,8 @@ export default function ProjectForm(): JSX.Element {
   const [hasScorecard, setHasScorecard] = useState<boolean>(true);
   const [hasDependabotAlerts, setHasDependabotAlerts] = useState<boolean>(true);
   const [hasBudgetAlerts, setHasBudgetAlerts] = useState<boolean>(true);
+  const [showNewProgram, setShowNewProgram] = useState(false);
+  const [newProgramName, setNewProgramName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<ProjectFormData | null>(null);
@@ -204,6 +207,7 @@ export default function ProjectForm(): JSX.Element {
     watch,
     reset,
     control,
+    setValue,
     formState: { errors },
   } = useForm<ProjectFormData>({
     defaultValues: {
@@ -514,7 +518,7 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <Label htmlFor="status">Status</Label>
                       <NativeSelect id="status" className="w-full" {...register('status')}>
@@ -545,15 +549,87 @@ export default function ProjectForm(): JSX.Element {
                         ))}
                       </NativeSelect>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="program_id">Program</Label>
-                      <NativeSelect id="program_id" className="w-full" {...register('program_id')}>
+                  </div>
+
+                  <div className="space-y-2">
+                    <TooltipProvider>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="program_id">Program</Label>
+                        <span className="text-xs text-muted-foreground">(optional)</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-sm">Select if this project belongs to a program that includes several phases or contracts.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
+                    <div className="flex gap-3 items-start">
+                      <NativeSelect id="program_id" className="flex-1" {...register('program_id')}>
                         <option value="">None</option>
                         {programs.map((program) => (
                           <option key={program.id} value={program.id}>{program.name}</option>
                         ))}
                       </NativeSelect>
+                      {!showNewProgram && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowNewProgram(true)}
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          New
+                        </Button>
+                      )}
                     </div>
+                    {showNewProgram && (
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={newProgramName}
+                          onChange={(e) => setNewProgramName(e.target.value)}
+                          placeholder="Program name"
+                          className="flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setShowNewProgram(false);
+                              setNewProgramName('');
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={!newProgramName.trim() || createProgramMutation.isPending}
+                          onClick={async () => {
+                            const created = await createProgramMutation.mutateAsync(newProgramName.trim());
+                            setValue('program_id', created.id);
+                            setNewProgramName('');
+                            setShowNewProgram(false);
+                          }}
+                        >
+                          {createProgramMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Create'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setShowNewProgram(false); setNewProgramName(''); }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
