@@ -46,6 +46,7 @@ export default {
   				'yellow-bg': 'var(--score-yellow-bg)',
   				'red-bg': 'var(--score-red-bg)'
   			},
+  			'switch-track': 'var(--switch-track)',
   			border: 'var(--border)',
   			input: 'var(--input)',
   			ring: 'var(--ring)',

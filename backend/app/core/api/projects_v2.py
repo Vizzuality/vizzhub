@@ -1,19 +1,31 @@
 """Project CRUD endpoints (/api/projects)."""
 
+import calendar
 import math
 from datetime import date
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import aliased
 
-from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404, limiter
+from app.config import get_scoring_config
+from app.core.api.deps import (
+    AdminUser,
+    CurrentUser,
+    DBSession,
+    OptionalScoreCache,
+    get_project_or_404,
+    limiter,
+)
+from app.core.models.link import Link, LinkCreate, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.modules.scorecard.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
 from app.modules.scorecard.models.metrics.db import MetricsDB
+from app.modules.scorecard.public import EVMDataPartial, MetricsService, Milestone, SnapshotType
 
 router = APIRouter()
 
@@ -261,3 +273,149 @@ async def delete_project(
 
     await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))
     await db.delete(project)
+
+
+# ---------------------------------------------------------------------------
+# Budget (EVM + milestones) endpoint
+# ---------------------------------------------------------------------------
+
+
+class ProjectBudgetUpdate(BaseModel):
+    evm_data: EVMDataPartial | None = None
+    milestones: list[Milestone] | None = None
+
+
+def _to_float(value) -> float | None:
+    """Convert Decimal or numeric to float, preserving None."""
+    return float(value) if value is not None else None
+
+
+def _metrics_to_budget_response(metrics: MetricsDB, year: int, month: int) -> dict:
+    """Build budget response from metrics DB record."""
+    evm_data = {
+        "budget_total": _to_float(metrics.budget_total),
+        "cost_to_date": _to_float(metrics.cost_to_date),
+        "percent_completed": _to_float(metrics.percent_completed),
+        "percent_planned": _to_float(metrics.percent_planned),
+    }
+    milestones = metrics.milestones if metrics.milestones else []
+    return {
+        "period_year": year,
+        "period_month": month,
+        "evm_data": evm_data,
+        "milestones": milestones,
+    }
+
+
+@router.put("/{project_id}/budget")
+@limiter.limit("60/minute")
+async def update_project_budget(
+    request: Request,
+    current_user: AdminUser,
+    db: DBSession,
+    project_id: UUID,
+    payload: ProjectBudgetUpdate,
+    cache: OptionalScoreCache,
+) -> dict:
+    """Update EVM budget data and milestones for current period.
+
+    Auto-creates metrics record if none exists for the current period.
+    """
+    project = await get_project_or_404(db, project_id)
+
+    today = date.today()
+    year, month = today.year, today.month
+    config = get_scoring_config()
+
+    data: dict = {
+        "period_start": date(year, month, 1),
+        "period_end": date(year, month, calendar.monthrange(year, month)[1]),
+    }
+    if payload.evm_data:
+        data.update(payload.evm_data.to_evm_dict())
+    if payload.milestones is not None:
+        data["milestones"] = [m.model_dump(mode="json") for m in payload.milestones]
+
+    has_budget_data = any(
+        k not in ("period_start", "period_end") for k in data
+    )
+    if not has_budget_data:
+        existing = await MetricsService.get_metrics(db, str(project_id), year, month)
+        if existing:
+            return _metrics_to_budget_response(existing, year, month)
+        return {"period_year": year, "period_month": month, "evm_data": {}, "milestones": []}
+
+    metrics = await MetricsService.upsert_metrics(
+        db, project_id, year, month, SnapshotType.CUMULATIVE, config, data
+    )
+
+    if cache:
+        await cache.invalidate(str(project_id))
+
+    return _metrics_to_budget_response(metrics, year, month)
+
+
+# --- Links ---
+
+
+@router.get("/{project_id}/links")
+@limiter.limit("100/minute")
+async def get_project_links(
+    request: Request,
+    current_user: CurrentUser,
+    db: DBSession,
+    project_id: UUID,
+) -> list[Link]:
+    """Get all links for a project."""
+    await get_project_or_404(db, project_id)
+
+    link_type_order = func.array_position(
+        ["code", "project-management", "app-environments", "design"],
+        LinkDB.link_type,
+    )
+    result = await db.execute(
+        select(LinkDB)
+        .where(LinkDB.project_id == project_id)
+        .order_by(link_type_order, LinkDB.title)
+    )
+    return [Link.model_validate(row) for row in result.scalars().all()]
+
+
+class ProjectLinkInput(BaseModel):
+    title: str | None = None
+    url: str | None = None
+    link_type: str | None = None
+
+
+@router.put("/{project_id}/links")
+@limiter.limit("30/minute")
+async def replace_project_links(
+    request: Request,
+    current_user: AdminUser,
+    db: DBSession,
+    project_id: UUID,
+    payload: list[ProjectLinkInput],
+) -> list[Link]:
+    """Replace all links for a project. Deletes existing and creates new ones."""
+    await get_project_or_404(db, project_id)
+
+    await db.execute(delete(LinkDB).where(LinkDB.project_id == project_id))
+
+    new_links = []
+    for link_data in payload:
+        if not link_data.title and not link_data.url:
+            continue
+        link = LinkDB(
+            project_id=project_id,
+            title=link_data.title,
+            url=link_data.url,
+            link_type=link_data.link_type,
+        )
+        db.add(link)
+        new_links.append(link)
+
+    await db.flush()
+    for link in new_links:
+        await db.refresh(link)
+
+    return [Link.model_validate(link) for link in new_links]

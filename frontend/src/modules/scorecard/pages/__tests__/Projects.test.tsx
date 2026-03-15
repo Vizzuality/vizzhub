@@ -44,14 +44,8 @@ const mockUsePaginatedProjects = vi.fn(() => ({
   error: null,
 }));
 
-const mockCreateProject = vi.fn(() => ({
-  mutateAsync: vi.fn(),
-  isPending: false,
-}));
-
 vi.mock('@/core/hooks/useProjects', () => ({
   usePaginatedProjects: (...args: unknown[]) => mockUsePaginatedProjects(...args),
-  useCreateProject: () => mockCreateProject(),
 }));
 
 vi.mock('@/modules/scorecard/services', () => ({
@@ -101,10 +95,6 @@ describe('Projects', () => {
       data: mockPaginatedResponse,
       isLoading: false,
       error: null,
-    });
-    mockCreateProject.mockReturnValue({
-      mutateAsync: vi.fn(),
-      isPending: false,
     });
   });
 
@@ -210,14 +200,12 @@ describe('Projects', () => {
     });
   });
 
-  describe('Create Form', () => {
-    it('shows create form when clicking Create Project button', () => {
+  describe('Create Button', () => {
+    it('renders Create Project button that links to /projects/new', () => {
       renderWithProviders(<Projects />);
 
       const createButton = screen.getByRole('button', { name: /create project/i });
-      fireEvent.click(createButton);
-
-      expect(screen.getByText(/create new project/i)).toBeInTheDocument();
+      expect(createButton).toBeInTheDocument();
     });
   });
 

@@ -11,6 +11,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
+import {
+  calculateEVMValues,
+  formatCurrency,
+  getPerformanceColor,
+  getPerformanceLabel,
+} from '@/shared/utils/evmCalculations';
 import type { EVMData } from '../../types';
 
 interface EVMFormData {
@@ -72,33 +78,6 @@ const FIELDS: FieldConfig[] = [
   },
 ];
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function getPerformanceColor(value: number): string {
-  if (value >= 1) return 'text-score-green';
-  if (value >= 0.9) return 'text-score-yellow';
-  return 'text-score-red';
-}
-
-function getPerformanceLabel(value: number, metric: 'spi' | 'cpi'): string {
-  if (metric === 'spi') {
-    if (value > 1) return 'Ahead of schedule';
-    if (value === 1) return 'On schedule';
-    return 'Behind schedule';
-  } else {
-    if (value > 1) return 'Under budget';
-    if (value === 1) return 'On budget';
-    return 'Over budget';
-  }
-}
-
 export default function EVMForm({
   initialData,
   onSubmit,
@@ -131,11 +110,7 @@ export default function EVMForm({
     const completed = (Number.parseFloat(watchedValues.percent_completed) || 0) / 100;
     const planned = (Number.parseFloat(watchedValues.percent_planned) || 0) / 100;
 
-    const ev = budget * completed;
-    const spi = planned > 0 ? completed / planned : null;
-    const cpi = cost > 0 ? ev / cost : null;
-
-    return { ev, spi, cpi, hasData: budget > 0 };
+    return calculateEVMValues(budget, cost, completed, planned);
   }, [watchedValues]);
 
   const handleFormSubmit = (data: EVMFormData): void => {
