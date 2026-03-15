@@ -23,6 +23,7 @@ import {
   getPerformanceColor,
   getPerformanceLabel,
 } from '@/shared/utils/evmCalculations';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '@/shared/constants/dates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -109,6 +110,9 @@ const LINK_TYPE_OPTIONS = [
   { value: 'app-environments', label: 'App Environments' },
   { value: 'design', label: 'Design' },
 ];
+
+const EMPTY_MILESTONE = { name: '', planned_date: '', actual_date: '' };
+const EMPTY_LINK = { title: '', url: '', link_type: '' };
 
 interface BudgetFieldConfig {
   name: 'budget_total' | 'cost_to_date' | 'percent_completed' | 'percent_planned';
@@ -232,8 +236,8 @@ export default function ProjectForm(): JSX.Element {
       cost_to_date: '',
       percent_completed: '',
       percent_planned: '',
-      milestones: [{ name: '', planned_date: '', actual_date: '' }],
-      links: [{ title: '', url: '', link_type: '' }],
+      milestones: [{ ...EMPTY_MILESTONE }],
+      links: [{ ...EMPTY_LINK }],
     },
   });
 
@@ -265,10 +269,10 @@ export default function ProjectForm(): JSX.Element {
       setInitialLinks(
         links.length > 0
           ? links.map((l) => ({ title: l.title ?? '', url: l.url ?? '', link_type: l.link_type ?? '' }))
-          : [{ title: '', url: '', link_type: '' }],
+          : [{ ...EMPTY_LINK }],
       );
     }).catch(() => {
-      setInitialLinks([{ title: '', url: '', link_type: '' }]);
+      setInitialLinks([{ ...EMPTY_LINK }]);
     });
   }, [isEditMode, id, linksRequested]);
 
@@ -304,8 +308,8 @@ export default function ProjectForm(): JSX.Element {
             planned_date: m.planned_date,
             actual_date: m.actual_date ?? '',
           }))
-        : [{ name: '', planned_date: '', actual_date: '' }],
-      links: initialLinks ?? [{ title: '', url: '', link_type: '' }],
+        : [{ ...EMPTY_MILESTONE }],
+      links: initialLinks ?? [{ ...EMPTY_LINK }],
     });
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
@@ -686,8 +690,8 @@ export default function ProjectForm(): JSX.Element {
                       <Input
                         id="start_date"
                         type="date"
-                        min="2020-01-01"
-                        max="2099-12-31"
+                        min={DATE_INPUT_MIN}
+                        max={DATE_INPUT_MAX}
                         {...register('start_date', {
                           pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
                         })}
@@ -701,8 +705,8 @@ export default function ProjectForm(): JSX.Element {
                       <Input
                         id="end_date"
                         type="date"
-                        min="2020-01-01"
-                        max="2099-12-31"
+                        min={DATE_INPUT_MIN}
+                        max={DATE_INPUT_MAX}
                         {...register('end_date', {
                           pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
                           validate: (value) => {
@@ -929,7 +933,7 @@ export default function ProjectForm(): JSX.Element {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => appendMilestone({ name: '', planned_date: '', actual_date: '' })}
+                    onClick={() => appendMilestone({ ...EMPTY_MILESTONE })}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -1000,7 +1004,7 @@ export default function ProjectForm(): JSX.Element {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => appendLink({ title: '', url: '', link_type: '' })}
+                    onClick={() => appendLink({ ...EMPTY_LINK })}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Plus className="w-4 h-4 mr-2" />

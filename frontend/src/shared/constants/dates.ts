@@ -1,3 +1,6 @@
+export const DATE_INPUT_MIN = '2015-01-01';
+export const DATE_INPUT_MAX = '2099-12-31';
+
 export const MONTHS = [
   'January',
   'February',
