@@ -321,6 +321,40 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  http.put(`${BASE}/projects/:id/budget`, async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      period_year: 2026,
+      period_month: 3,
+      evm_data: (body.evm_data as Record<string, unknown>) ?? {},
+      milestones: (body.milestones as unknown[]) ?? [],
+    });
+  }),
+
+  http.get(`${BASE}/projects/:id/links`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.put(`${BASE}/projects/:id/links`, async ({ request }) => {
+    const body = await request.json() as unknown[];
+    return HttpResponse.json(body);
+  }),
+
+  // Programs
+  http.get(`${BASE}/programs`, () => {
+    return HttpResponse.json([
+      { id: 'prog-1', name: 'Program Alpha', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    ]);
+  }),
+
+  http.post(`${BASE}/programs`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: 'prog-new', name: body.name, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      { status: 201 },
+    );
+  }),
+
   // Scores
   http.get(`${BASE}/scores/project/:projectId`, ({ params }) => {
     return HttpResponse.json({ ...defaultScores, project_id: params.projectId });
@@ -364,6 +398,10 @@ export const handlers = [
   }),
 
   // Metrics
+  http.get(`${BASE}/metrics/project/:projectId/:year/:month`, () => {
+    return HttpResponse.json(defaultMetrics);
+  }),
+
   http.get(`${BASE}/metrics/project/:projectId`, () => {
     return HttpResponse.json([defaultMetrics]);
   }),

@@ -69,8 +69,8 @@ class TestProjectBudgetEndpoint:
         data = resp.json()
         assert data["evm_data"]["budget_total"] == 200000
         assert data["evm_data"]["cost_to_date"] == 80000
-        assert data["evm_data"]["percent_completed"] == 0.4
-        assert data["evm_data"]["percent_planned"] == 0.5
+        assert data["evm_data"]["percent_completed"] == pytest.approx(0.4)
+        assert data["evm_data"]["percent_planned"] == pytest.approx(0.5)
 
     @pytest.mark.asyncio
     async def test_milestones_array(self, client: AsyncClient) -> None:
