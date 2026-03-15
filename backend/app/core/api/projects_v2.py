@@ -311,9 +311,7 @@ async def update_project_budget(
 
     Auto-creates metrics record if none exists for the current period.
     """
-    project = await db.get(ProjectDB, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = await get_project_or_404(db, project_id)
 
     today = date.today()
     year, month = today.year, today.month
@@ -359,9 +357,7 @@ async def get_project_links(
     project_id: UUID,
 ) -> list[Link]:
     """Get all links for a project."""
-    project = await db.get(ProjectDB, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await get_project_or_404(db, project_id)
 
     link_type_order = func.array_position(
         ["code", "project-management", "app-environments", "design"],
@@ -391,9 +387,7 @@ async def replace_project_links(
     payload: list[ProjectLinkInput],
 ) -> list[Link]:
     """Replace all links for a project. Deletes existing and creates new ones."""
-    project = await db.get(ProjectDB, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await get_project_or_404(db, project_id)
 
     await db.execute(delete(LinkDB).where(LinkDB.project_id == project_id))
 
@@ -410,7 +404,7 @@ async def replace_project_links(
         db.add(link)
         new_links.append(link)
 
-    await db.commit()
+    await db.flush()
     for link in new_links:
         await db.refresh(link)
 
