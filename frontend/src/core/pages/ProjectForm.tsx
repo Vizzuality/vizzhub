@@ -24,7 +24,7 @@ import {
   getPerformanceLabel,
 } from '@/shared/utils/evmCalculations';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '@/shared/constants/dates';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
