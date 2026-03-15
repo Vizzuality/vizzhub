@@ -92,8 +92,16 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
 
 const CURRENCY_OPTIONS = [
   { value: '', label: 'None' },
-  { value: 'USD', label: 'Dollar (USD)' },
   { value: 'EUR', label: 'Euro (EUR)' },
+  { value: 'USD', label: 'US Dollar (USD)' },
+  { value: 'GBP', label: 'British Pound (GBP)' },
+  { value: 'JPY', label: 'Japanese Yen (JPY)' },
+  { value: 'CHF', label: 'Swiss Franc (CHF)' },
+  { value: 'CAD', label: 'Canadian Dollar (CAD)' },
+  { value: 'AUD', label: 'Australian Dollar (AUD)' },
+  { value: 'CNY', label: 'Chinese Yuan (CNY)' },
+  { value: 'SEK', label: 'Swedish Krona (SEK)' },
+  { value: 'NOK', label: 'Norwegian Krone (NOK)' },
 ];
 
 interface BudgetFieldConfig {
@@ -516,7 +524,21 @@ export default function ProjectForm(): JSX.Element {
                       </NativeSelect>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="currency">Currency</Label>
+                      <TooltipProvider>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="currency">Currency for Invoices</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Info className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">Used only for invoicing. The tracker operates in EUR by default.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
                       <NativeSelect id="currency" className="w-full" {...register('currency')}>
                         {CURRENCY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
