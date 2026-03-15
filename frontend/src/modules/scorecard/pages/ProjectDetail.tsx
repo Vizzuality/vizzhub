@@ -1,16 +1,16 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUrlState } from '@/shared/hooks/useUrlState';
-import { useProject, useReplaceProject, useDeleteProject, useUpdateProjectStatus } from '@/core/hooks/useProjects';
+import { useProject, useDeleteProject, useUpdateProjectStatus } from '@/core/hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
-import { useProjectMetrics, useUpdateEVMData, useUpdateMilestones, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
+import { useProjectMetrics, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
 import { useCapturePeriod } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
 import { getMonthsSinceStart, MONTH_NAMES } from '@/utils/dateUtils';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
-import type { SnapshotType, Dimension, EVMData, Milestone } from '../types';
+import type { SnapshotType, Dimension } from '../types';
 import { ALL_DIMENSIONS } from '../types';
 import {
   ProjectHeader,
@@ -23,7 +23,6 @@ import {
   InteractiveTimelineChart,
   EmptyPeriodOverlay,
 } from '../components/ProjectDetail';
-import type { ProjectCreate } from '@/core/types/project';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -41,7 +40,6 @@ import {
 export default function ProjectDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
@@ -100,10 +98,7 @@ export default function ProjectDetail(): JSX.Element {
     [project?.start_date],
   );
   const { data: snapshots } = useProjectSnapshots(id!, snapshotLimit, snapshotType);
-  const replaceProject = useReplaceProject(id!);
   const deleteProject = useDeleteProject();
-  const updateEVM = useUpdateEVMData(id!, metrics ?? null, selectedPeriod);
-  const updateMilestones = useUpdateMilestones(id!, metrics ?? null, selectedPeriod);
   const updateGovernance = useUpdateGovernance(id!, metrics ?? null, selectedPeriod);
   const updatePMSatisfaction = useUpdatePMSatisfaction(id!, metrics ?? null, selectedPeriod);
   const updateTestMaturity = useUpdateTestMaturity(id!, metrics ?? null, selectedPeriod);
@@ -140,22 +135,9 @@ export default function ProjectDetail(): JSX.Element {
     return param ? Number.parseFloat(param.value) : null;
   };
 
-  const handleEdit = async (data: ProjectCreate): Promise<void> => {
-    await replaceProject.mutateAsync(data);
-    setIsEditing(false);
-  };
-
   const handleDelete = async (): Promise<void> => {
     await deleteProject.mutateAsync(id!);
     navigate('/scorecard');
-  };
-
-  const handleUpdateEVM = async (data: EVMData): Promise<void> => {
-    await withHistoricalWarning(() => updateEVM.mutateAsync(data))();
-  };
-
-  const handleUpdateMilestones = async (data: Milestone[]): Promise<void> => {
-    await withHistoricalWarning(() => updateMilestones.mutateAsync(data))();
   };
 
   const handleCapturePeriod = async (): Promise<void> => {
@@ -225,18 +207,7 @@ export default function ProjectDetail(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <ProjectHeader
-        project={project}
-        isEditing={isEditing}
-        onEdit={() => setIsEditing(true)}
-        onCancelEdit={() => setIsEditing(false)}
-        onSubmitEdit={handleEdit}
-        isSubmitting={replaceProject.isPending}
-        onMarkFinished={() => setShowFinishDialog(true)}
-        onReopen={() => updateProjectStatus.mutateAsync({ status: 'live' })}
-        onDelete={() => setShowDeleteConfirm(true)}
-        isUpdatingStatus={updateProjectStatus.isPending}
-      />
+      <ProjectHeader project={project} />
 
       <ProjectDialogs
         projectName={project.name}
@@ -354,15 +325,11 @@ export default function ProjectDetail(): JSX.Element {
           </div>
 
           <EVMSection
+            projectId={id!}
             evmData={metrics?.evm_data}
             milestones={metrics?.milestones}
             indicators={scores.indicators}
-            onUpdateEVM={handleUpdateEVM}
-            onUpdateMilestones={handleUpdateMilestones}
-            isUpdatingEVM={updateEVM.isPending}
-            isUpdatingMilestones={updateMilestones.isPending}
             getTarget={getTarget}
-            getConstant={getConstant}
             snapshots={snapshots}
             visibleDimensions={visibleDimensions}
           />

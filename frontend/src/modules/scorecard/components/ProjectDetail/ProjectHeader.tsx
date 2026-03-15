@@ -1,37 +1,18 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Github, BarChart3, Calendar } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
 import StatusControls from './StatusControls';
-import ProjectForm from '../Forms/ProjectForm';
-import type { Project, ProjectCreate } from '@/core/types/project';
+import type { Project } from '@/core/types/project';
 
 interface ProjectHeaderProps {
   project: Project;
-  isEditing: boolean;
-  onEdit: () => void;
-  onCancelEdit: () => void;
-  onSubmitEdit: (data: ProjectCreate) => Promise<void>;
-  isSubmitting: boolean;
-  onMarkFinished: () => void;
-  onReopen: () => Promise<unknown>;
-  onDelete: () => void;
-  isUpdatingStatus: boolean;
 }
 
 export default function ProjectHeader({
   project,
-  isEditing,
-  onEdit,
-  onCancelEdit,
-  onSubmitEdit,
-  isSubmitting,
-  onMarkFinished,
-  onReopen,
-  onDelete,
-  isUpdatingStatus,
 }: ProjectHeaderProps): JSX.Element {
   const hasDateRange = project.start_date || project.end_date;
 
@@ -86,26 +67,9 @@ export default function ProjectHeader({
               </div>
             </div>
 
-            {!isEditing && (
-              <StatusControls onEdit={onEdit} />
-            )}
+            <StatusControls projectId={project.id} />
           </div>
         </CardHeader>
-
-        {isEditing && (
-          <CardContent>
-            <ProjectForm
-              project={project}
-              onSubmit={onSubmitEdit}
-              onCancel={onCancelEdit}
-              isLoading={isSubmitting}
-              onMarkFinished={onMarkFinished}
-              onReopen={onReopen}
-              onDelete={onDelete}
-              isUpdatingStatus={isUpdatingStatus}
-            />
-          </CardContent>
-        )}
       </Card>
     </>
   );

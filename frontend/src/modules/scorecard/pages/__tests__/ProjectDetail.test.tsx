@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProjectDetail from '../ProjectDetail';
@@ -108,10 +108,6 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/core/hooks/useProjects', () => ({
   useProject: () => mockUseProject(),
-  useReplaceProject: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
   useDeleteProject: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
@@ -128,14 +124,6 @@ vi.mock('@/modules/scorecard/hooks/useScores', () => ({
 
 vi.mock('@/modules/scorecard/hooks/useMetrics', () => ({
   useProjectMetrics: () => mockUseProjectMetrics(),
-  useUpdateEVMData: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
-  useUpdateMilestones: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
   useUpdateGovernance: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
@@ -327,35 +315,12 @@ describe('ProjectDetail', () => {
   });
 
   describe('Project Actions', () => {
-    it('renders Edit button', () => {
+    it('renders Edit links navigating to project edit page', () => {
       renderWithProviders(<ProjectDetail />);
 
-      const editButtons = screen.getAllByRole('button', { name: /edit/i });
-      expect(editButtons.length).toBeGreaterThan(0);
-    });
-
-    it('shows Delete button in edit mode', () => {
-      renderWithProviders(<ProjectDetail />);
-
-      // Click first Edit button (project header) to enter edit mode
-      const editButtons = screen.getAllByRole('button', { name: /edit/i });
-      fireEvent.click(editButtons[0]);
-
-      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-      expect(deleteButtons.length).toBeGreaterThan(0);
-    });
-
-    it('shows delete confirmation dialog when delete clicked', () => {
-      renderWithProviders(<ProjectDetail />);
-
-      // Click first Edit button (project header) to enter edit mode
-      const editButtons = screen.getAllByRole('button', { name: /edit/i });
-      fireEvent.click(editButtons[0]);
-
-      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-      fireEvent.click(deleteButtons[0]);
-
-      expect(screen.getByText(/delete project\?/i)).toBeInTheDocument();
+      const editLinks = screen.getAllByRole('link', { name: /edit/i });
+      expect(editLinks.length).toBeGreaterThan(0);
+      expect(editLinks[0]).toHaveAttribute('href', '/projects/project-123/edit');
     });
   });
 
@@ -368,17 +333,13 @@ describe('ProjectDetail', () => {
   });
 
   describe('Project Status', () => {
-    it('shows Mark as Finished button in edit mode for in_progress projects', () => {
+    it('shows project status badge for live projects', () => {
       renderWithProviders(<ProjectDetail />);
 
-      // Click first Edit button (project header) to enter edit mode
-      const editButtons = screen.getAllByRole('button', { name: /edit/i });
-      fireEvent.click(editButtons[0]);
-
-      expect(screen.getByRole('button', { name: /mark as finished/i })).toBeInTheDocument();
+      expect(screen.getByText('Live')).toBeInTheDocument();
     });
 
-    it('shows Reopen Project button in edit mode for finished projects', () => {
+    it('shows Finished badge for finished projects', () => {
       mockUseProject.mockReturnValue({
         data: { ...mockProject, status: 'finished' },
         isLoading: false,
@@ -387,11 +348,7 @@ describe('ProjectDetail', () => {
 
       renderWithProviders(<ProjectDetail />);
 
-      // Click first Edit button (project header) to enter edit mode
-      const editButtons = screen.getAllByRole('button', { name: /edit/i });
-      fireEvent.click(editButtons[0]);
-
-      expect(screen.getByRole('button', { name: /reopen project/i })).toBeInTheDocument();
+      expect(screen.getByText('Finished')).toBeInTheDocument();
     });
   });
 });
