@@ -207,13 +207,7 @@ export default function ProjectDetail(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <ProjectHeader
-        project={project}
-        onMarkFinished={() => setShowFinishDialog(true)}
-        onReopen={() => updateProjectStatus.mutateAsync({ status: 'live' })}
-        onDelete={() => setShowDeleteConfirm(true)}
-        isUpdatingStatus={updateProjectStatus.isPending}
-      />
+      <ProjectHeader project={project} />
 
       <ProjectDialogs
         projectName={project.name}
