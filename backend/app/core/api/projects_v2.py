@@ -363,10 +363,14 @@ async def get_project_links(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    link_type_order = func.array_position(
+        ["code", "project-management", "app-environments", "design"],
+        LinkDB.link_type,
+    )
     result = await db.execute(
         select(LinkDB)
         .where(LinkDB.project_id == project_id)
-        .order_by(LinkDB.link_type, LinkDB.title)
+        .order_by(link_type_order, LinkDB.title)
     )
     return [Link.model_validate(row) for row in result.scalars().all()]
 
