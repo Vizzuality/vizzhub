@@ -61,9 +61,6 @@ import {
   DollarSign,
   TrendingUp,
   Clock,
-  Flag,
-  Calendar,
-  ExternalLink,
 } from 'lucide-react';
 
 interface ProjectFormData {

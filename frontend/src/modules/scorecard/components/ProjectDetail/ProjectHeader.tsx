@@ -9,10 +9,6 @@ import type { Project } from '@/core/types/project';
 
 interface ProjectHeaderProps {
   project: Project;
-  onMarkFinished: () => void;
-  onReopen: () => Promise<unknown>;
-  onDelete: () => void;
-  isUpdatingStatus: boolean;
 }
 
 export default function ProjectHeader({

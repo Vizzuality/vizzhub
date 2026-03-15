@@ -6,6 +6,7 @@ import { Separator } from '@/shared/components/ui/separator';
 import SubIndicatorCard from '../SubIndicatorCard';
 import { EVMDataGrid } from './EVM';
 import { getHistoricalData } from '@/utils/chartUtils';
+import { calculateEVMValues, getPerformanceLabel } from '@/shared/utils/evmCalculations';
 import type { EVMData, Milestone, Indicators, MetricsWithScores, Dimension } from '../../types';
 
 interface EVMSectionProps {
@@ -21,35 +22,6 @@ interface EVMSectionProps {
 function isDimensionVisible(visibleDimensions: Set<Dimension> | undefined, dimension: Dimension): boolean {
   if (!visibleDimensions) return true;
   return visibleDimensions.has(dimension);
-}
-
-function calculateSPI(evmData: EVMData | null | undefined): number | null {
-  if (!evmData) return null;
-  if (evmData.percent_planned <= 0) return null;
-  return evmData.percent_completed / evmData.percent_planned;
-}
-
-function calculateCPI(evmData: EVMData | null | undefined): number | null {
-  if (!evmData) return null;
-  if (evmData.cost_to_date <= 0) return null;
-  return (evmData.budget_total * evmData.percent_completed) / evmData.cost_to_date;
-}
-
-function calculateEarnedValue(evmData: EVMData | null | undefined): number | null {
-  if (!evmData) return null;
-  return evmData.budget_total * evmData.percent_completed;
-}
-
-function getSPIStatus(value: number): string {
-  if (value > 1) return 'Ahead of schedule';
-  if (value === 1) return 'On schedule';
-  return 'Behind schedule';
-}
-
-function getCPIStatus(value: number): string {
-  if (value > 1) return 'Under budget';
-  if (value === 1) return 'On budget';
-  return 'Over budget';
 }
 
 export default function EVMSection({
@@ -68,9 +40,12 @@ export default function EVMSection({
   const spiTarget = getTarget('target_spi') ?? 0.8;
   const cpiTarget = getTarget('target_cpi') ?? 0.8;
 
-  const spiValue = calculateSPI(evmData);
-  const cpiValue = calculateCPI(evmData);
-  const earnedValue = calculateEarnedValue(evmData);
+  const evmValues = evmData
+    ? calculateEVMValues(evmData.budget_total, evmData.cost_to_date, evmData.percent_completed, evmData.percent_planned)
+    : null;
+  const spiValue = evmValues?.spi ?? null;
+  const cpiValue = evmValues?.cpi ?? null;
+  const earnedValue = evmValues?.ev ?? null;
 
   return (
     <>
@@ -113,7 +88,7 @@ export default function EVMSection({
                 indicatorValue={cpiValue === null ? null : cpiValue * 100}
                 indicatorLabel="Earned Value / Actual Cost"
                 indicatorSuffix="%"
-                description={cpiValue === null ? undefined : getCPIStatus(cpiValue)}
+                description={cpiValue === null ? undefined : getPerformanceLabel(cpiValue, 'cpi')}
                 target={cpiTarget * 100}
                 lowerIsBetter={false}
                 formula="EV / Cost to Date"
@@ -132,7 +107,7 @@ export default function EVMSection({
                 indicatorValue={spiValue === null ? null : spiValue * 100}
                 indicatorLabel="Work Completed / Expected"
                 indicatorSuffix="%"
-                description={spiValue === null ? undefined : getSPIStatus(spiValue)}
+                description={spiValue === null ? undefined : getPerformanceLabel(spiValue, 'spi')}
                 target={spiTarget * 100}
                 lowerIsBetter={false}
                 formula="% Completed / % Planned"

@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
 import {
+  calculateEVMValues,
   formatCurrency,
   getPerformanceColor,
   getPerformanceLabel,
@@ -109,11 +110,7 @@ export default function EVMForm({
     const completed = (Number.parseFloat(watchedValues.percent_completed) || 0) / 100;
     const planned = (Number.parseFloat(watchedValues.percent_planned) || 0) / 100;
 
-    const ev = budget * completed;
-    const spi = planned > 0 ? completed / planned : null;
-    const cpi = cost > 0 ? ev / cost : null;
-
-    return { ev, spi, cpi, hasData: budget > 0 };
+    return calculateEVMValues(budget, cost, completed, planned);
   }, [watchedValues]);
 
   const handleFormSubmit = (data: EVMFormData): void => {
