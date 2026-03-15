@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
@@ -63,6 +63,7 @@ import {
   Clock,
   Flag,
   Calendar,
+  ExternalLink,
 } from 'lucide-react';
 
 interface ProjectFormData {
@@ -82,6 +83,7 @@ interface ProjectFormData {
   percent_completed: string;
   percent_planned: string;
   milestones: { name: string; planned_date: string; actual_date: string }[];
+  links: { title: string; url: string; link_type: string }[];
 }
 
 const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
@@ -102,6 +104,13 @@ const CURRENCY_OPTIONS = [
   { value: 'CNY', label: 'Chinese Yuan (CNY)' },
   { value: 'SEK', label: 'Swedish Krona (SEK)' },
   { value: 'NOK', label: 'Norwegian Krone (NOK)' },
+];
+
+const LINK_TYPE_OPTIONS = [
+  { value: 'code', label: 'Code' },
+  { value: 'project-management', label: 'Project Management' },
+  { value: 'app-environments', label: 'App Environments' },
+  { value: 'design', label: 'Design' },
 ];
 
 interface BudgetFieldConfig {
@@ -227,6 +236,7 @@ export default function ProjectForm(): JSX.Element {
       percent_completed: '',
       percent_planned: '',
       milestones: [{ name: '', planned_date: '', actual_date: '' }],
+      links: [{ title: '', url: '', link_type: '' }],
     },
   });
 
@@ -237,6 +247,15 @@ export default function ProjectForm(): JSX.Element {
   } = useFieldArray({
     control,
     name: 'milestones',
+  });
+
+  const {
+    fields: linkFields,
+    append: appendLink,
+    remove: removeLink,
+  } = useFieldArray({
+    control,
+    name: 'links',
   });
 
   if (isEditMode && project && !formInitialized && currentMetrics !== undefined) {
@@ -278,6 +297,21 @@ export default function ProjectForm(): JSX.Element {
     setHasBudgetAlerts(project.has_budget_alerts);
     setFormInitialized(true);
   }
+
+  const [linksLoaded, setLinksLoaded] = useState(false);
+  useEffect(() => {
+    if (!isEditMode || !id || !formInitialized || linksLoaded) return;
+    setLinksLoaded(true);
+    projectsApi.getLinks(id).then((links) => {
+      if (links.length > 0) {
+        setValue('links', links.map((l) => ({
+          title: l.title ?? '',
+          url: l.url ?? '',
+          link_type: l.link_type ?? '',
+        })));
+      }
+    }).catch(() => {});
+  }, [isEditMode, id, formInitialized, linksLoaded, setValue]);
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
@@ -349,17 +383,29 @@ export default function ProjectForm(): JSX.Element {
       data.milestones,
     );
 
+    const validLinks = data.links.filter((l) => l.title || l.url);
+
     try {
       if (isEditMode) {
         const promises: Promise<unknown>[] = [replaceMutation.mutateAsync(projectPayload)];
         if (budgetPayload) {
           promises.push(budgetMutation.mutateAsync(budgetPayload));
         }
+        promises.push(projectsApi.replaceLinks(id!, validLinks));
         await Promise.all(promises);
       } else {
         const newProject = await createMutation.mutateAsync(projectPayload);
-        if (budgetPayload && newProject?.id) {
-          await projectsApi.updateBudget(newProject.id, budgetPayload);
+        if (newProject?.id) {
+          const extraPromises: Promise<unknown>[] = [];
+          if (budgetPayload) {
+            extraPromises.push(projectsApi.updateBudget(newProject.id, budgetPayload));
+          }
+          if (validLinks.length > 0) {
+            extraPromises.push(projectsApi.replaceLinks(newProject.id, validLinks));
+          }
+          if (extraPromises.length > 0) {
+            await Promise.all(extraPromises);
+          }
         }
       }
       navigateToProjects();
@@ -942,6 +988,64 @@ export default function ProjectForm(): JSX.Element {
                       {...register('summary')}
                     />
                   </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Links */}
+            <section>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Links</h2>
+              <Card>
+                <CardContent className="pt-6 space-y-3">
+                  {linkFields.map((field, index) => (
+                    <div key={field.id} className="space-y-2 pb-3 border-b border-dashed last:border-0 last:pb-0">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          {...register(`links.${index}.title`)}
+                          placeholder="Title"
+                          className="flex-1 text-sm"
+                        />
+                        {linkFields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeLink(index)}
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <Input
+                          {...register(`links.${index}.url`)}
+                          placeholder="https://..."
+                          className="flex-1 text-sm"
+                        />
+                      </div>
+                      <NativeSelect
+                        {...register(`links.${index}.link_type`)}
+                        className="w-full text-sm"
+                      >
+                        <option value="">Type</option>
+                        {LINK_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => appendLink({ title: '', url: '', link_type: '' })}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Link
+                  </Button>
                 </CardContent>
               </Card>
             </section>
