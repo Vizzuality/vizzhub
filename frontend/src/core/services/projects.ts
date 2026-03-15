@@ -82,4 +82,28 @@ export const projectsApi = {
     const response = await api.put(`/projects/${projectId}/budget`, data);
     return response.data;
   },
+
+  getLinks: async (projectId: string): Promise<Array<{
+    id: string;
+    title: string | null;
+    url: string | null;
+    link_type: string | null;
+  }>> => {
+    const response = await api.get(`/projects/${projectId}/links`);
+    return response.data;
+  },
+
+  replaceLinks: async (projectId: string, links: Array<{
+    title?: string;
+    url?: string;
+    link_type?: string;
+  }>): Promise<Array<{
+    id: string;
+    title: string | null;
+    url: string | null;
+    link_type: string | null;
+  }>> => {
+    const response = await api.put(`/projects/${projectId}/links`, links);
+    return response.data;
+  },
 };

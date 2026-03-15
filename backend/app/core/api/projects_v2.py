@@ -20,6 +20,7 @@ from app.core.api.deps import (
     get_project_or_404,
     limiter,
 )
+from app.core.models.link import Link, LinkCreate, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.modules.scorecard.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
@@ -344,3 +345,69 @@ async def update_project_budget(
         await cache.invalidate(str(project_id))
 
     return _metrics_to_budget_response(metrics, year, month)
+
+
+# --- Links ---
+
+
+@router.get("/{project_id}/links")
+@limiter.limit("100/minute")
+async def get_project_links(
+    request: Request,
+    current_user: CurrentUser,
+    db: DBSession,
+    project_id: UUID,
+) -> list[Link]:
+    """Get all links for a project."""
+    project = await db.get(ProjectDB, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    result = await db.execute(
+        select(LinkDB)
+        .where(LinkDB.project_id == project_id)
+        .order_by(LinkDB.link_type, LinkDB.title)
+    )
+    return [Link.model_validate(row) for row in result.scalars().all()]
+
+
+class ProjectLinkInput(BaseModel):
+    title: str | None = None
+    url: str | None = None
+    link_type: str | None = None
+
+
+@router.put("/{project_id}/links")
+@limiter.limit("30/minute")
+async def replace_project_links(
+    request: Request,
+    current_user: AdminUser,
+    db: DBSession,
+    project_id: UUID,
+    payload: list[ProjectLinkInput],
+) -> list[Link]:
+    """Replace all links for a project. Deletes existing and creates new ones."""
+    project = await db.get(ProjectDB, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    await db.execute(delete(LinkDB).where(LinkDB.project_id == project_id))
+
+    new_links = []
+    for link_data in payload:
+        if not link_data.title and not link_data.url:
+            continue
+        link = LinkDB(
+            project_id=project_id,
+            title=link_data.title,
+            url=link_data.url,
+            link_type=link_data.link_type,
+        )
+        db.add(link)
+        new_links.append(link)
+
+    await db.commit()
+    for link in new_links:
+        await db.refresh(link)
+
+    return [Link.model_validate(link) for link in new_links]
