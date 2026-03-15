@@ -185,6 +185,8 @@ export default function ProjectForm(): JSX.Element {
   const [hasDependabotAlerts, setHasDependabotAlerts] = useState<boolean>(true);
   const [hasBudgetAlerts, setHasBudgetAlerts] = useState<boolean>(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = useState<ProjectFormData | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [formInitialized, setFormInitialized] = useState(false);
 
@@ -286,7 +288,24 @@ export default function ProjectForm(): JSX.Element {
     navigate('/projects');
   };
 
-  const handleFormSubmit = async (data: ProjectFormData): Promise<void> => {
+  const handleFormSubmit = (data: ProjectFormData): void => {
+    setApiError(null);
+
+    if (hasDependabotAlerts && !slackChannelId) {
+      setApiError('A Slack channel is required when Dependabot Alerts are enabled.');
+      return;
+    }
+
+    if (data.status === 'proposal') {
+      setPendingSubmitData(data);
+      setProposalDialogOpen(true);
+      return;
+    }
+
+    submitForm(data);
+  };
+
+  const submitForm = async (data: ProjectFormData): Promise<void> => {
     setApiError(null);
 
     const projectPayload: ProjectCreate = {
@@ -334,6 +353,14 @@ export default function ProjectForm(): JSX.Element {
       navigateToProjects();
     } catch (error) {
       setApiError(getApiErrorMessage(error));
+    }
+  };
+
+  const handleConfirmProposal = (): void => {
+    setProposalDialogOpen(false);
+    if (pendingSubmitData) {
+      submitForm(pendingSubmitData);
+      setPendingSubmitData(null);
     }
   };
 
@@ -886,6 +913,27 @@ export default function ProjectForm(): JSX.Element {
             >
               {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={proposalDialogOpen} onOpenChange={(open) => {
+        setProposalDialogOpen(open);
+        if (!open) setPendingSubmitData(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save as Proposal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This project will be saved with <strong>Proposal</strong> status.
+              It won&apos;t appear in active project lists until its status is changed to Live.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back to Edit</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmProposal}>
+              Save as Proposal
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
