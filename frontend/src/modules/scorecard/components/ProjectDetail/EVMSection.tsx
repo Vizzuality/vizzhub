@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
 import SubIndicatorCard from '../SubIndicatorCard';
-import { EVMDataGrid, MilestonesList } from './EVM';
+import { EVMDataGrid } from './EVM';
 import { getHistoricalData } from '@/utils/chartUtils';
 import type { EVMData, Milestone, Indicators, MetricsWithScores, Dimension } from '../../types';
 
@@ -14,12 +14,9 @@ interface EVMSectionProps {
   readonly milestones?: Milestone[] | null;
   readonly indicators: Indicators;
   readonly getTarget: (name: string) => number | null;
-  readonly getConstant: (name: string) => number | null;
   readonly snapshots?: MetricsWithScores[];
   readonly visibleDimensions?: Set<Dimension>;
 }
-
-type MilestoneStatus = 'on-time' | 'late' | 'pending';
 
 function isDimensionVisible(visibleDimensions: Set<Dimension> | undefined, dimension: Dimension): boolean {
   if (!visibleDimensions) return true;
@@ -61,26 +58,11 @@ export default function EVMSection({
   milestones,
   indicators,
   getTarget,
-  getConstant,
   snapshots,
   visibleDimensions,
 }: EVMSectionProps): JSX.Element {
   const showTime = isDimensionVisible(visibleDimensions, 'Time');
   const showCost = isDimensionVisible(visibleDimensions, 'Cost');
-
-  const getMilestoneStatus = (milestone: Milestone): MilestoneStatus => {
-    const today = new Date();
-    const planned = new Date(milestone.planned_date);
-    const graceDays = getConstant('const_grace_days') ?? 3;
-    const graceDate = new Date(planned);
-    graceDate.setDate(graceDate.getDate() + graceDays);
-
-    if (!milestone.actual_date) {
-      return today > graceDate ? 'late' : 'pending';
-    }
-    const actual = new Date(milestone.actual_date);
-    return actual <= graceDate ? 'on-time' : 'late';
-  };
 
   const milestonesTarget = (getTarget('target_milestones_on_time') ?? 85) / 100;
   const spiTarget = getTarget('target_spi') ?? 0.8;
@@ -96,12 +78,14 @@ export default function EVMSection({
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold">Budget & Schedule</h2>
-          <Button variant="ghost" size="sm" className="border border-input" asChild>
-            <Link to={`/projects/${projectId}/edit`}>
-              <Pencil className="w-4 h-4 mr-2" />
-              {evmData ? 'Edit' : 'Add Budget Data'}
-            </Link>
-          </Button>
+          {!evmData && (
+            <Button variant="ghost" size="sm" className="border border-input" asChild>
+              <Link to={`/projects/${projectId}/edit`}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Add Budget Data
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* EVM Data Card */}
@@ -118,24 +102,6 @@ export default function EVMSection({
           </CardContent>
         </Card>
 
-        {/* Read-only Milestones */}
-        {milestones && milestones.length > 0 && (
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <MilestonesList
-                milestones={milestones}
-                isEditing={false}
-                isLoading={false}
-                onEdit={() => {}}
-                onCancelEdit={() => {}}
-                onSubmit={async () => {}}
-                onDelete={async () => {}}
-                getMilestoneStatus={getMilestoneStatus}
-                readOnly
-              />
-            </CardContent>
-          </Card>
-        )}
 
         {/* Performance Indicators Grid */}
         {evmData && (showTime || showCost) && (
