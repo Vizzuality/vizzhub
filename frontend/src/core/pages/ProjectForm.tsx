@@ -974,7 +974,10 @@ export default function ProjectForm(): JSX.Element {
                         {index === 0 && (
                           <Label className="text-xs text-muted-foreground">Type</Label>
                         )}
-                        <NativeSelect {...register(`links.${index}.link_type`)}>
+                        <NativeSelect
+                          {...register(`links.${index}.link_type`)}
+                          defaultValue={field.link_type}
+                        >
                           <option value="">--</option>
                           {LINK_TYPE_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
