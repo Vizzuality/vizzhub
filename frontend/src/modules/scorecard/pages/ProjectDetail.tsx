@@ -336,7 +336,6 @@ export default function ProjectDetail(): JSX.Element {
             milestones={metrics?.milestones}
             indicators={scores.indicators}
             getTarget={getTarget}
-            getConstant={getConstant}
             snapshots={snapshots}
             visibleDimensions={visibleDimensions}
           />
