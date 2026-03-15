@@ -258,7 +258,26 @@ export default function ProjectForm(): JSX.Element {
     name: 'links',
   });
 
-  if (isEditMode && project && !formInitialized && currentMetrics !== undefined) {
+  const [initialLinks, setInitialLinks] = useState<{ title: string; url: string; link_type: string }[] | null>(null);
+  const [linksRequested, setLinksRequested] = useState(false);
+
+  useEffect(() => {
+    if (!isEditMode || !id || linksRequested) return;
+    setLinksRequested(true);
+    projectsApi.getLinks(id).then((links) => {
+      setInitialLinks(
+        links.length > 0
+          ? links.map((l) => ({ title: l.title ?? '', url: l.url ?? '', link_type: l.link_type ?? '' }))
+          : [{ title: '', url: '', link_type: '' }],
+      );
+    }).catch(() => {
+      setInitialLinks([{ title: '', url: '', link_type: '' }]);
+    });
+  }, [isEditMode, id, linksRequested]);
+
+  const linksReady = !isEditMode || initialLinks !== null;
+
+  if (isEditMode && project && !formInitialized && currentMetrics !== undefined && linksReady) {
     const metricsEvm = currentMetrics?.evm_data;
     const metricsMilestones = currentMetrics?.milestones;
 
@@ -289,6 +308,7 @@ export default function ProjectForm(): JSX.Element {
             actual_date: m.actual_date ?? '',
           }))
         : [{ name: '', planned_date: '', actual_date: '' }],
+      links: initialLinks ?? [{ title: '', url: '', link_type: '' }],
     });
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
@@ -297,21 +317,6 @@ export default function ProjectForm(): JSX.Element {
     setHasBudgetAlerts(project.has_budget_alerts);
     setFormInitialized(true);
   }
-
-  const [linksLoaded, setLinksLoaded] = useState(false);
-  useEffect(() => {
-    if (!isEditMode || !id || !formInitialized || linksLoaded) return;
-    setLinksLoaded(true);
-    projectsApi.getLinks(id).then((links) => {
-      if (links.length > 0) {
-        setValue('links', links.map((l) => ({
-          title: l.title ?? '',
-          url: l.url ?? '',
-          link_type: l.link_type ?? '',
-        })));
-      }
-    }).catch(() => {});
-  }, [isEditMode, id, formInitialized, linksLoaded, setValue]);
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
@@ -936,6 +941,74 @@ export default function ProjectForm(): JSX.Element {
                 </CardContent>
               </Card>
             </section>
+
+            {/* Links */}
+            <section>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Links</h2>
+              <Card>
+                <CardContent className="pt-6 space-y-3">
+                  {linkFields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-[1fr_1fr_160px_36px] gap-3 items-end"
+                    >
+                      <div className="space-y-1">
+                        {index === 0 && (
+                          <Label className="text-xs text-muted-foreground">Title</Label>
+                        )}
+                        <Input
+                          {...register(`links.${index}.title`)}
+                          placeholder="e.g., GitHub Repo"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {index === 0 && (
+                          <Label className="text-xs text-muted-foreground">URL</Label>
+                        )}
+                        <Input
+                          {...register(`links.${index}.url`)}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {index === 0 && (
+                          <Label className="text-xs text-muted-foreground">Type</Label>
+                        )}
+                        <NativeSelect {...register(`links.${index}.link_type`)}>
+                          <option value="">--</option>
+                          {LINK_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </NativeSelect>
+                      </div>
+                      <div className={index === 0 ? 'pt-5' : ''}>
+                        {linkFields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeLink(index)}
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => appendLink({ title: '', url: '', link_type: '' })}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Link
+                  </Button>
+                </CardContent>
+              </Card>
+            </section>
           </div>
 
           {/* Right column — sidebar */}
@@ -988,64 +1061,6 @@ export default function ProjectForm(): JSX.Element {
                       {...register('summary')}
                     />
                   </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            {/* Links */}
-            <section>
-              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Links</h2>
-              <Card>
-                <CardContent className="pt-6 space-y-3">
-                  {linkFields.map((field, index) => (
-                    <div key={field.id} className="space-y-2 pb-3 border-b border-dashed last:border-0 last:pb-0">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          {...register(`links.${index}.title`)}
-                          placeholder="Title"
-                          className="flex-1 text-sm"
-                        />
-                        {linkFields.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeLink(index)}
-                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <Input
-                          {...register(`links.${index}.url`)}
-                          placeholder="https://..."
-                          className="flex-1 text-sm"
-                        />
-                      </div>
-                      <NativeSelect
-                        {...register(`links.${index}.link_type`)}
-                        className="w-full text-sm"
-                      >
-                        <option value="">Type</option>
-                        {LINK_TYPE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </NativeSelect>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => appendLink({ title: '', url: '', link_type: '' })}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Link
-                  </Button>
                 </CardContent>
               </Card>
             </section>
