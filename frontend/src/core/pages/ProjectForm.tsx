@@ -737,35 +737,6 @@ export default function ProjectForm(): JSX.Element {
               </Card>
             </section>
 
-            {/* Notes */}
-            <section>
-              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Notes</h2>
-              <Card>
-                <CardContent className="pt-6 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="notes" className="h-5 flex items-center">Internal Notes</Label>
-                      <Textarea
-                        id="notes"
-                        rows={4}
-                        placeholder="Internal notes about this project..."
-                        {...register('notes')}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="summary" className="h-5 flex items-center">Summary</Label>
-                      <Textarea
-                        id="summary"
-                        rows={4}
-                        placeholder="Brief project summary..."
-                        {...register('summary')}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
             {/* Budget & Schedule */}
             <section>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Budget & Schedule</h2>
@@ -943,6 +914,33 @@ export default function ProjectForm(): JSX.Element {
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_budget_alerts" className="cursor-pointer text-sm">Budget Alerts</Label>
                     <Switch id="has_budget_alerts" checked={hasBudgetAlerts} onCheckedChange={setHasBudgetAlerts} />
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Notes */}
+            <section>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Notes</h2>
+              <Card>
+                <CardContent className="pt-6 space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="notes" className="h-5 flex items-center">Internal Notes</Label>
+                    <Textarea
+                      id="notes"
+                      rows={3}
+                      placeholder="Internal notes about this project..."
+                      {...register('notes')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="summary" className="h-5 flex items-center">Summary</Label>
+                    <Textarea
+                      id="summary"
+                      rows={3}
+                      placeholder="Brief project summary..."
+                      {...register('summary')}
+                    />
                   </div>
                 </CardContent>
               </Card>
