@@ -121,13 +121,6 @@ export default function ProjectDetail(): JSX.Element {
     return param ? Number.parseFloat(param.value) : null;
   };
 
-  const getConstant = (name: string): number | null => {
-    const constants = config?.['Gates & Constants'];
-    if (!constants) return null;
-    const param = constants.find((p) => p.name === name);
-    return param ? Number.parseFloat(param.value) : null;
-  };
-
   const getWeight = (category: string, name: string): number | null => {
     const weights = config?.[category];
     if (!weights) return null;
