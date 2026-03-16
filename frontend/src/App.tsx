@@ -13,6 +13,12 @@ import ISO from './modules/iso/pages/ISO';
 import ISOSnapshots from './modules/iso/pages/ISOSnapshots';
 import ISOSnapshotDetail from './modules/iso/pages/ISOSnapshotDetail';
 import { LoginPage } from './core/pages/LoginPage';
+import TrackerLayout from './modules/tracker/components/TrackerLayout';
+import ReportingPeriods from './modules/tracker/pages/ReportingPeriods';
+import PeriodDetail from './modules/tracker/pages/PeriodDetail';
+import MyReport from './modules/tracker/pages/MyReport';
+import MyReportHistory from './modules/tracker/pages/MyReportHistory';
+import HowToReport from './modules/tracker/pages/HowToReport';
 import ConfigurationTab from './modules/scorecard/components/Settings/ConfigurationTab';
 import IntegrationsTab from './modules/scorecard/components/Settings/IntegrationsTab';
 import AdminNotificationsLayout from './core/components/NotificationsAdmin/AdminNotificationsLayout';
@@ -36,6 +42,10 @@ function AdminRoutes(): JSX.Element {
         <Route path="silences" element={<SilencesTab />} />
         <Route path="config" element={<AlertConfigTab />} />
         <Route path="stats" element={<StatisticsTab />} />
+      </Route>
+      <Route path="tracker" element={<TrackerLayout />}>
+        <Route path="periods" element={<ReportingPeriods />} />
+        <Route path="periods/:periodId" element={<PeriodDetail />} />
       </Route>
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />
@@ -61,6 +71,10 @@ function AppRoutes(): JSX.Element {
             <Route path="snapshots" element={<ISOSnapshots />} />
             <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
           </Route>
+          <Route path="/tracker/my-report" element={<MyReport />} />
+          <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
+          <Route path="/tracker/my-reports" element={<MyReportHistory />} />
+          <Route path="/tracker/how-to-report" element={<HowToReport />} />
         </Route>
         <Route path="/login" element={<Navigate to="/projects" replace />} />
       </Routes>
@@ -78,6 +92,10 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/scorecard" element={<ScorecardProjects />} />
           <Route path="/scorecard/:id" element={<ProjectDetail />} />
+          <Route path="/tracker/my-report" element={<MyReport />} />
+          <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
+          <Route path="/tracker/my-reports" element={<MyReportHistory />} />
+          <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
