@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from enum import Enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, Text
@@ -13,15 +12,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.database import Base
-
-
-class InvoiceStatus(str, Enum):
-    """Invoice payment lifecycle."""
-
-    SCHEDULED = "scheduled"
-    PENDING_TO_ISSUE = "pending_to_issue"
-    WAITING_FOR_PAYMENT = "waiting_for_payment"
-    PAID = "paid"
 
 
 class InvoiceDB(Base):

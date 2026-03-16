@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, FileText } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { useAuth } from '@/core/hooks/useAuth';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/shared/components/ui/dropdown-menu';
 import { Button } from '@/shared/components/ui/button';
 import { PageBreadcrumb } from './PageBreadcrumb';
+import { useReportingPeriods } from '@/modules/tracker/public';
 
 export function AppLayout(): JSX.Element {
   const auth = useAuth();
@@ -28,6 +29,9 @@ export function AppLayout(): JSX.Element {
     await auth.logout();
     navigate('/login');
   };
+
+  const { data: periods } = useReportingPeriods();
+  const activePeriod = periods?.find((p) => p.status === 'active');
 
   const userInitials = [auth.user?.first_name, auth.user?.last_name]
     .filter(Boolean)
@@ -72,6 +76,15 @@ export function AppLayout(): JSX.Element {
                     )}
                   </div>
                 </DropdownMenuLabel>
+                {activePeriod && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/tracker/my-report')}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      My Report
+                    </DropdownMenuItem>
+                  </>
+                )}
                 {auth.isAuthenticated && (
                   <>
                     <DropdownMenuSeparator />
