@@ -62,3 +62,46 @@ export interface ReportPartUpdate {
   functional_area_id?: string | null;
   percentage?: number;
 }
+
+export interface PeriodCostBreakdown {
+  period_id: string;
+  date: string;
+  staff_cost: number;
+  non_staff_cost: number;
+  total: number;
+  parts_count: number;
+}
+
+export interface ProjectCostSummary {
+  project_id: string;
+  budget: number | null;
+  contract_rate: number;
+  staff_cost: number;
+  non_staff_cost: number;
+  total_cost: number;
+  burn_percentage: number | null;
+  periods: PeriodCostBreakdown[];
+}
+
+export interface ProjectReportPart {
+  id: string;
+  period_date: string;
+  user_name: string | null;
+  user_email: string | null;
+  functional_area: string | null;
+  percentage: number | null;
+  days: number | null;
+  cost: number | null;
+  estimated: boolean;
+}
+
+export interface NonStaffCost {
+  id: string;
+  project_id: string;
+  reporting_period_id: string;
+  cost: number;
+  cost_type: string;
+  details: string | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -124,5 +124,11 @@ export const queryKeys = {
         ['tracker', 'reports', 'period', periodId] as const,
       detail: (id: string) => ['tracker', 'reports', id] as const,
     },
+    projectCosts: {
+      summary: (projectId: string) =>
+        ['tracker', 'project-costs', projectId, 'summary'] as const,
+      parts: (projectId: string, periodId?: string) =>
+        ['tracker', 'project-costs', projectId, 'parts', periodId] as const,
+    },
   },
 } as const;
