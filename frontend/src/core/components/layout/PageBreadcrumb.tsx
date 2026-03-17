@@ -74,6 +74,13 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
     return [{ label: adminLabels[subPath] ?? 'Admin' }];
   }
 
+  if (pathname.match(/^\/tracker\/projects\/[^/]+$/)) {
+    return [
+      { label: 'Projects', to: '/projects' },
+      { label: 'Tracker Detail' },
+    ];
+  }
+
   if (pathname === '/tracker/how-to-report') {
     return [
       { label: 'My Report', to: '/tracker/my-report' },

@@ -19,6 +19,7 @@ import PeriodDetail from './modules/tracker/pages/PeriodDetail';
 import MyReport from './modules/tracker/pages/MyReport';
 import MyReportHistory from './modules/tracker/pages/MyReportHistory';
 import HowToReport from './modules/tracker/pages/HowToReport';
+import ProjectTrackerDetail from './modules/tracker/pages/ProjectTrackerDetail';
 import ConfigurationTab from './modules/scorecard/components/Settings/ConfigurationTab';
 import IntegrationsTab from './modules/scorecard/components/Settings/IntegrationsTab';
 import AdminNotificationsLayout from './core/components/NotificationsAdmin/AdminNotificationsLayout';
@@ -75,6 +76,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
+          <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
         </Route>
         <Route path="/login" element={<Navigate to="/projects" replace />} />
       </Routes>
@@ -96,6 +98,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
+          <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
