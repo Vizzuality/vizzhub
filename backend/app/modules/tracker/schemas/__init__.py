@@ -16,6 +16,11 @@ from app.modules.tracker.schemas.reporting_period import (
     ReportingPeriodResponse,
     ReportingPeriodUpdate,
 )
+from app.modules.tracker.schemas.non_staff_cost import (
+    NonStaffCostCreate,
+    NonStaffCostResponse,
+    NonStaffCostUpdate,
+)
 
 __all__ = [
     "ReportCreate",
@@ -28,4 +33,7 @@ __all__ = [
     "ReportingPeriodCreate",
     "ReportingPeriodResponse",
     "ReportingPeriodUpdate",
+    "NonStaffCostCreate",
+    "NonStaffCostResponse",
+    "NonStaffCostUpdate",
 ]
