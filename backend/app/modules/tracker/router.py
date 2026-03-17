@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.modules.tracker.api import non_staff_costs as non_staff_costs_router
+from app.modules.tracker.api import project_costs as project_costs_router
 from app.modules.tracker.api import report_parts as report_parts_router
 from app.modules.tracker.api import reports as reports_router
 from app.modules.tracker.api import reporting_periods as reporting_periods_router
@@ -28,4 +29,9 @@ router.include_router(
     non_staff_costs_router.router,
     prefix="/non-staff-costs",
     tags=["tracker:non-staff-costs"],
+)
+router.include_router(
+    project_costs_router.router,
+    prefix="/projects",
+    tags=["tracker:project-costs"],
 )
