@@ -98,6 +98,12 @@ export default function ProjectCard({
                 Scorecard
               </Link>
             )}
+            <Link
+              to={`/tracker/projects/${project.id}`}
+              className="font-medium text-primary hover:underline"
+            >
+              Tracker
+            </Link>
             {isAdmin && (
               <Link
                 to={`/projects/${project.id}/edit`}
@@ -163,6 +169,12 @@ export default function ProjectCard({
               Scorecard
             </Link>
           )}
+          <Link
+            to={`/tracker/projects/${project.id}`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Tracker
+          </Link>
           {isAdmin && (
             <Link
               to={`/projects/${project.id}/edit`}
