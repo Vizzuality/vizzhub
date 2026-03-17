@@ -8,6 +8,8 @@ import type {
   ReportPart,
   ReportPartCreate,
   ReportPartUpdate,
+  ProjectCostSummary,
+  ProjectReportPart,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -83,5 +85,24 @@ export const trackerApi = {
 
   deletePart: async (id: string): Promise<void> => {
     await api.delete(`/tracker/report-parts/${id}`);
+  },
+
+  // Project Costs
+  getProjectCostSummary: async (projectId: string): Promise<ProjectCostSummary> => {
+    const response = await api.get<ProjectCostSummary>(
+      `/tracker/projects/${projectId}/cost-summary`,
+    );
+    return response.data;
+  },
+
+  getProjectReportParts: async (
+    projectId: string,
+    periodId?: string,
+  ): Promise<ProjectReportPart[]> => {
+    const response = await api.get<ProjectReportPart[]>(
+      `/tracker/projects/${projectId}/report-parts`,
+      { params: periodId ? { period_id: periodId } : undefined },
+    );
+    return response.data;
   },
 };
