@@ -2,9 +2,8 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
@@ -13,21 +12,9 @@ from app.modules.tracker.schemas.non_staff_cost import (
     NonStaffCostResponse,
     NonStaffCostUpdate,
 )
+from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
-
-
-async def _get_cost_or_404(cost_id: UUID, db: AsyncSession) -> NonStaffCostDB:
-    result = await db.execute(
-        select(NonStaffCostDB).where(NonStaffCostDB.id == cost_id)
-    )
-    cost = result.scalar_one_or_none()
-    if not cost:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Non-staff cost {cost_id} not found",
-        )
-    return cost
 
 
 @router.get("", response_model=list[NonStaffCostResponse])
@@ -59,7 +46,7 @@ async def create_non_staff_cost(
         project_id=data.project_id,
         reporting_period_id=data.reporting_period_id,
         cost=data.cost,
-        cost_type=data.cost_type.value,
+        cost_type=data.cost_type,
         details=data.details,
     )
     db.add(cost)
@@ -74,7 +61,7 @@ async def get_non_staff_cost(
     db: DBSession,
     user: CurrentUser,
 ) -> NonStaffCostResponse:
-    cost = await _get_cost_or_404(cost_id, db)
+    cost = await get_or_404(NonStaffCostDB, cost_id, db, "Non-staff cost")
     return NonStaffCostResponse.model_validate(cost)
 
 
@@ -85,11 +72,9 @@ async def update_non_staff_cost(
     db: DBSession,
     user: CurrentUser,
 ) -> NonStaffCostResponse:
-    cost = await _get_cost_or_404(cost_id, db)
+    cost = await get_or_404(NonStaffCostDB, cost_id, db, "Non-staff cost")
 
     update_data = data.model_dump(exclude_unset=True)
-    if "cost_type" in update_data and update_data["cost_type"] is not None:
-        update_data["cost_type"] = update_data["cost_type"].value
     for field, value in update_data.items():
         setattr(cost, field, value)
 
@@ -104,6 +89,6 @@ async def delete_non_staff_cost(
     db: DBSession,
     user: CurrentUser,
 ) -> None:
-    cost = await _get_cost_or_404(cost_id, db)
+    cost = await get_or_404(NonStaffCostDB, cost_id, db, "Non-staff cost")
     await db.delete(cost)
     await db.commit()
