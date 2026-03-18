@@ -161,7 +161,7 @@ export default function Projects(): JSX.Element {
     if (projects.length > 0) {
       return (
         <div className={cn(
-          'grid gap-3',
+          'grid gap-4',
           viewMode === 'grid'
             ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
             : 'grid-cols-1',
