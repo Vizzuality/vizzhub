@@ -13,11 +13,6 @@ export interface ReportingPeriodCreate {
   base_rate?: number;
 }
 
-export interface ReportingPeriodUpdate {
-  date?: string;
-  base_rate?: number;
-}
-
 export interface Report {
   id: string;
   user_id: string;
@@ -95,13 +90,3 @@ export interface ProjectReportPart {
   estimated: boolean;
 }
 
-export interface NonStaffCost {
-  id: string;
-  project_id: string;
-  reporting_period_id: string;
-  cost: number;
-  cost_type: string;
-  details: string | null;
-  created_at: string;
-  updated_at: string;
-}
