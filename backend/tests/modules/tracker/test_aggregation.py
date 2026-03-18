@@ -241,6 +241,57 @@ class TestCostSummary:
         assert data["periods"] == []
 
 
+class TestBatchCosts:
+    @pytest.mark.asyncio
+    async def test_batch_returns_costs_for_multiple_projects(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        project_id = str(cost_data["project"].id)
+        resp = await client.post(
+            "/api/tracker/projects/batch-costs",
+            json={"project_ids": [project_id]},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert project_id in data["costs"]
+        costs = data["costs"][project_id]
+        assert costs["staff_cost"] == pytest.approx(3411.03, rel=1e-4)
+        assert costs["non_staff_cost"] == pytest.approx(500.0, rel=1e-4)
+        assert costs["total_cost"] == pytest.approx(3911.03, rel=1e-4)
+        assert costs["budget"] == 50000.0
+        assert costs["burn_percentage"] == pytest.approx(7.82, abs=0.01)
+
+    @pytest.mark.asyncio
+    async def test_batch_empty_project(
+        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+    ):
+        empty = ProjectDB(name="Empty", status="live")
+        db_session.add(empty)
+        await db_session.commit()
+        await db_session.refresh(empty)
+
+        resp = await client.post(
+            "/api/tracker/projects/batch-costs",
+            json={"project_ids": [str(empty.id)]},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        costs = data["costs"][str(empty.id)]
+        assert costs["total_cost"] == 0.0
+        assert costs["budget"] is None
+        assert costs["burn_percentage"] is None
+
+    @pytest.mark.asyncio
+    async def test_batch_empty_request_rejected(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        resp = await client.post(
+            "/api/tracker/projects/batch-costs",
+            json={"project_ids": []},
+        )
+        assert resp.status_code == 400
+
+
 class TestProjectReportParts:
     @pytest.mark.asyncio
     async def test_list_all_parts(

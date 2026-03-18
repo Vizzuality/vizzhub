@@ -17,6 +17,7 @@ from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
 from app.modules.tracker.schemas.project_cost import (
     PeriodCostBreakdown,
     ProjectCostSummary,
+    ProjectCostSummaryLite,
     ProjectReportPartResponse,
 )
 
@@ -48,6 +49,8 @@ async def get_project_cost_summary(
         .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
         .where(ReportPartDB.project_id == project_id)
         .where(ReportDB.estimated.is_(False))
+        .where(ReportPartDB.percentage.isnot(None))
+        .where(ReportPartDB.percentage > 0)
         .group_by(ReportingPeriodDB.id, ReportingPeriodDB.date)
     )
     staff_result = await db.execute(staff_query)
@@ -122,6 +125,66 @@ async def get_project_cost_summary(
     )
 
 
+async def get_batch_cost_summaries(
+    db: AsyncSession,
+    project_ids: list[UUID],
+) -> dict[UUID, ProjectCostSummaryLite]:
+    """Batch cost summaries for multiple projects using 2 aggregate queries."""
+    settings_result = await db.execute(
+        select(TrackerProjectSettingsDB).where(
+            TrackerProjectSettingsDB.project_id.in_(project_ids)
+        )
+    )
+    settings_map = {s.project_id: s for s in settings_result.scalars().all()}
+
+    staff_query = (
+        select(
+            ReportPartDB.project_id,
+            func.coalesce(func.sum(ReportPartDB.cost), 0).label("staff_cost"),
+        )
+        .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
+        .where(ReportPartDB.project_id.in_(project_ids))
+        .where(ReportDB.estimated.is_(False))
+        .where(ReportPartDB.percentage.isnot(None))
+        .where(ReportPartDB.percentage > 0)
+        .group_by(ReportPartDB.project_id)
+    )
+    staff_result = await db.execute(staff_query)
+    staff_map = {row.project_id: float(row.staff_cost) for row in staff_result.all()}
+
+    non_staff_query = (
+        select(
+            NonStaffCostDB.project_id,
+            func.coalesce(func.sum(NonStaffCostDB.cost), 0).label("non_staff_cost"),
+        )
+        .where(NonStaffCostDB.project_id.in_(project_ids))
+        .group_by(NonStaffCostDB.project_id)
+    )
+    non_staff_result = await db.execute(non_staff_query)
+    non_staff_map = {
+        row.project_id: float(row.non_staff_cost) for row in non_staff_result.all()
+    }
+
+    results: dict[UUID, ProjectCostSummaryLite] = {}
+    for pid in project_ids:
+        settings = settings_map.get(pid)
+        budget = float(settings.budget) if settings and settings.budget else None
+        staff = staff_map.get(pid, 0.0)
+        non_staff = non_staff_map.get(pid, 0.0)
+        total = round(staff + non_staff, 2)
+        burn = round(total / budget * 100, 2) if budget else None
+
+        results[pid] = ProjectCostSummaryLite(
+            budget=budget,
+            total_cost=total,
+            staff_cost=round(staff, 2),
+            non_staff_cost=round(non_staff, 2),
+            burn_percentage=burn,
+        )
+
+    return results
+
+
 async def get_project_report_parts(
     db: AsyncSession,
     project_id: UUID,
@@ -149,6 +212,8 @@ async def get_project_report_parts(
             ReportPartDB.functional_area_id == FunctionalAreaDB.id,
         )
         .where(ReportPartDB.project_id == project_id)
+        .where(ReportPartDB.percentage.isnot(None))
+        .where(ReportPartDB.percentage > 0)
         .order_by(ReportingPeriodDB.date.desc(), UserDB.name.asc())
     )
 

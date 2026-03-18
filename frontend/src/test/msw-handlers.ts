@@ -787,6 +787,22 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  // Tracker — Batch Costs
+  http.post(`${BASE}/tracker/projects/batch-costs`, async ({ request }) => {
+    const body = await request.json() as { project_ids: string[] };
+    const costs: Record<string, unknown> = {};
+    for (const id of body.project_ids) {
+      costs[id] = {
+        budget: 50000.0,
+        total_cost: 3911.03,
+        staff_cost: 3411.03,
+        non_staff_cost: 500.0,
+        burn_percentage: 7.82,
+      };
+    }
+    return HttpResponse.json({ costs, errors: {} });
+  }),
+
   // Tracker — Project Costs
   http.get(`${BASE}/tracker/projects/:projectId/cost-summary`, () => {
     return HttpResponse.json(defaultProjectCostSummary);
