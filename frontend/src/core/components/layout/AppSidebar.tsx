@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   BarChart3,
+  ClipboardList,
   FolderKanban,
   Shield,
   Globe,
   SlidersHorizontal,
   Plug,
   Bell,
+  Clock,
   Cog,
   Users,
   Moon,
@@ -50,6 +52,10 @@ const NOTIFICATION_TABS = [
   { to: '/admin/notifications/silences', label: 'Active Silences' },
   { to: '/admin/notifications/config', label: 'Configuration' },
   { to: '/admin/notifications/stats', label: 'Statistics' },
+] as const;
+
+const TRACKER_TABS = [
+  { to: '/admin/tracker/periods', label: 'Reporting Periods' },
 ] as const;
 
 
@@ -108,6 +114,19 @@ export function AppSidebar(): JSX.Element {
                   <Link to="/scorecard">
                     <BarChart3 />
                     <span>Scorecard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive('/tracker/my-report')}
+                  tooltip="My Report"
+                >
+                  <Link to="/tracker/my-report">
+                    <ClipboardList />
+                    <span>My Report</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -210,6 +229,39 @@ export function AppSidebar(): JSX.Element {
                               <SidebarMenuSubButton
                                 asChild
                                 isActive={location.pathname === to}
+                              >
+                                <Link to={to}>{label}</Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+
+                  <Collapsible
+                    key={location.pathname.startsWith('/admin/tracker') ? 'tracker-open' : 'tracker-closed'}
+                    defaultOpen={location.pathname.startsWith('/admin/tracker')}
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          isActive={location.pathname.startsWith('/admin/tracker')}
+                          tooltip="Tracker"
+                        >
+                          <Clock />
+                          <span>Tracker</span>
+                          <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {TRACKER_TABS.map(({ to, label }) => (
+                            <SidebarMenuSubItem key={to}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={location.pathname.startsWith(to)}
                               >
                                 <Link to={to}>{label}</Link>
                               </SidebarMenuSubButton>

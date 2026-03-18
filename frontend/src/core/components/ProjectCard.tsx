@@ -37,14 +37,76 @@ function ScoreDisplay({ score }: Readonly<{ score?: number | null }>): JSX.Eleme
   );
 }
 
+function ProjectMetadata({ project }: { project: Project }): JSX.Element {
+  const hasDateRange = project.start_date || project.end_date;
+  return (
+    <>
+      {project.program_name && (
+        <span className="flex items-center gap-1.5">
+          <Folder className="w-3.5 h-3.5 shrink-0" />
+          {project.program_name}
+        </span>
+      )}
+      {project.jira_project_key && (
+        <span className="flex items-center gap-1.5">
+          <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+          {project.jira_project_key}
+        </span>
+      )}
+      {project.github_repo && (
+        <span className="flex items-center gap-1.5">
+          <Github className="w-3.5 h-3.5 shrink-0" />
+          {project.github_repo}
+        </span>
+      )}
+      {hasDateRange && (
+        <span className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 shrink-0" />
+          {project.start_date && formatDate(project.start_date)}
+          {project.start_date && project.end_date && ' - '}
+          {project.end_date && formatDate(project.end_date)}
+        </span>
+      )}
+    </>
+  );
+}
+
+function ProjectLinks({ project, isAdmin }: { project: Project; isAdmin: boolean }): JSX.Element {
+  return (
+    <>
+      {project.has_scorecard && (
+        <Link
+          to={`/scorecard/${project.id}`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Scorecard
+        </Link>
+      )}
+      <Link
+        to={`/tracker/projects/${project.id}`}
+        className="text-sm font-medium text-primary hover:underline"
+      >
+        Tracker
+      </Link>
+      {isAdmin && (
+        <Link
+          to={`/projects/${project.id}/edit`}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Edit
+        </Link>
+      )}
+    </>
+  );
+}
+
 export default function ProjectCard({
   project,
   viewMode = 'list',
   isAdmin = false,
   score,
 }: ProjectCardProps): JSX.Element {
-  const hasDateRange = project.start_date || project.end_date;
-
   if (viewMode === 'grid') {
     return (
       <Card className="hover:shadow-lg transition-shadow h-full">
@@ -61,52 +123,11 @@ export default function ProjectCard({
           </div>
 
           <div className="space-y-1 text-sm text-muted-foreground">
-            {project.program_name && (
-              <span className="flex items-center gap-1.5">
-                <Folder className="w-3.5 h-3.5" />
-                {project.program_name}
-              </span>
-            )}
-            {project.jira_project_key && (
-              <span className="flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5" />
-                {project.jira_project_key}
-              </span>
-            )}
-            {project.github_repo && (
-              <span className="flex items-center gap-1.5">
-                <Github className="w-3.5 h-3.5" />
-                {project.github_repo}
-              </span>
-            )}
-            {hasDateRange && (
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />
-                {project.start_date && formatDate(project.start_date)}
-                {project.start_date && project.end_date && ' - '}
-                {project.end_date && formatDate(project.end_date)}
-              </span>
-            )}
+            <ProjectMetadata project={project} />
           </div>
 
           <div className="flex items-center gap-3 pt-2 border-t text-sm">
-            {project.has_scorecard && (
-              <Link
-                to={`/scorecard/${project.id}`}
-                className="font-medium text-primary hover:underline"
-              >
-                Scorecard
-              </Link>
-            )}
-            {isAdmin && (
-              <Link
-                to={`/projects/${project.id}/edit`}
-                className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground"
-              >
-                <Pencil className="w-3 h-3" />
-                Edit
-              </Link>
-            )}
+            <ProjectLinks project={project} isAdmin={isAdmin} />
           </div>
         </div>
       </Card>
@@ -124,54 +145,13 @@ export default function ProjectCard({
             <StatusBadge status={project.status} />
           </div>
           <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
-            {project.program_name && (
-              <span className="flex items-center gap-1.5">
-                <Folder className="w-3.5 h-3.5 shrink-0" />
-                {project.program_name}
-              </span>
-            )}
-            {project.jira_project_key && (
-              <span className="flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-                {project.jira_project_key}
-              </span>
-            )}
-            {project.github_repo && (
-              <span className="flex items-center gap-1.5">
-                <Github className="w-3.5 h-3.5 shrink-0" />
-                {project.github_repo}
-              </span>
-            )}
-            {hasDateRange && (
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 shrink-0" />
-                {project.start_date && formatDate(project.start_date)}
-                {project.start_date && project.end_date && ' - '}
-                {project.end_date && formatDate(project.end_date)}
-              </span>
-            )}
+            <ProjectMetadata project={project} />
           </div>
         </div>
 
         <div className="flex items-center gap-4 shrink-0">
           <ScoreDisplay score={score} />
-          {project.has_scorecard && (
-            <Link
-              to={`/scorecard/${project.id}`}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Scorecard
-            </Link>
-          )}
-          {isAdmin && (
-            <Link
-              to={`/projects/${project.id}/edit`}
-              className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit
-            </Link>
-          )}
+          <ProjectLinks project={project} isAdmin={isAdmin} />
         </div>
       </div>
     </Card>

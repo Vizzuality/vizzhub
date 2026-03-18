@@ -13,6 +13,8 @@ export const queryKeys = {
     list: (params: ProjectListParams) => ['projects', 'list', params] as const,
     scorecardList: (params: ProjectListParams) => ['projects', 'scorecard-list', params] as const,
     summary: ['projects', 'summary'] as const,
+    allSummary: ['projects', 'all-summary'] as const,
+    activeSummary: ['projects', 'active-summary'] as const,
     scorecardSummary: ['projects', 'scorecard-summary'] as const,
     detail: (id: string) => ['projects', id] as const,
   },
@@ -109,5 +111,24 @@ export const queryKeys = {
   integrations: {
     status: ['integrations', 'status'] as const,
     slackChannels: ['integrations', 'slack', 'channels'] as const,
+  },
+  tracker: {
+    periods: {
+      all: ['tracker', 'periods'] as const,
+      list: () => ['tracker', 'periods', 'list'] as const,
+      detail: (id: string) => ['tracker', 'periods', id] as const,
+    },
+    reports: {
+      all: ['tracker', 'reports'] as const,
+      byPeriod: (periodId: string) =>
+        ['tracker', 'reports', 'period', periodId] as const,
+      detail: (id: string) => ['tracker', 'reports', id] as const,
+    },
+    projectCosts: {
+      summary: (projectId: string) =>
+        ['tracker', 'project-costs', projectId, 'summary'] as const,
+      parts: (projectId: string, periodId?: string) =>
+        ['tracker', 'project-costs', projectId, 'parts', periodId] as const,
+    },
   },
 } as const;

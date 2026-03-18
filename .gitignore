@@ -104,6 +104,7 @@ data/
 # Claude Code
 .claude/
 CLAUDE.md
+.paul/
 
 # Playwright MCP
 .playwright-mcp/

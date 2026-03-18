@@ -30,7 +30,7 @@ class TrackerProjectSettingsDB(Base):
     )
     budget: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     contract_rate: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, server_default="175.00"
+        Numeric(12, 2), nullable=False, server_default="175.00"  # mirrors DEFAULT_RATE in constants.py
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

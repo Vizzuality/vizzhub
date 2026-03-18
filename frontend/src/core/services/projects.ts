@@ -28,6 +28,20 @@ export const projectsApi = {
     return response.data;
   },
 
+  listAllSummary: async (): Promise<ProjectSummary[]> => {
+    const response = await api.get<ProjectSummary[]>('/projects', {
+      params: { lightweight: true },
+    });
+    return response.data;
+  },
+
+  listActiveSummary: async (): Promise<ProjectSummary[]> => {
+    const response = await api.get<ProjectSummary[]>('/projects', {
+      params: { lightweight: true, status: 'live' },
+    });
+    return response.data;
+  },
+
   get: async (id: string): Promise<Project> => {
     const response = await api.get<Project>(`/projects/${id}`);
     return response.data;

@@ -7,6 +7,119 @@ import { http, HttpResponse } from 'msw';
 
 const BASE = '/api';
 
+// -- Tracker ----------------------------------------------------------------
+
+const defaultTrackerPeriods = [
+  {
+    id: 'period-1',
+    date: '2026-03-01',
+    base_rate: 175.0,
+    status: 'active',
+    report_count: 3,
+    created_at: '2026-03-01T00:00:00Z',
+    updated_at: '2026-03-01T00:00:00Z',
+  },
+  {
+    id: 'period-2',
+    date: '2026-02-01',
+    base_rate: 175.0,
+    status: 'finished',
+    report_count: 5,
+    created_at: '2026-02-01T00:00:00Z',
+    updated_at: '2026-02-01T00:00:00Z',
+  },
+  {
+    id: 'period-3',
+    date: '2026-04-01',
+    base_rate: 175.0,
+    status: 'unstarted',
+    report_count: 0,
+    created_at: '2026-03-15T00:00:00Z',
+    updated_at: '2026-03-15T00:00:00Z',
+  },
+];
+
+const defaultTrackerReports = [
+  {
+    id: 'report-1',
+    user_id: 'user-1',
+    reporting_period_id: 'period-1',
+    estimated: false,
+    user_name: 'Test User',
+    user_email: 'test@example.com',
+    created_at: '2026-03-01T00:00:00Z',
+    updated_at: '2026-03-01T00:00:00Z',
+  },
+];
+
+const defaultTrackerReportParts = [
+  {
+    id: 'part-1',
+    report_id: 'report-1',
+    project_id: 'project-123',
+    project_name: 'Test Project',
+    functional_area_id: null,
+    percentage: 0.2,
+    cost: 2274.02,
+    days: 2.96,
+    created_at: '2026-03-01T00:00:00Z',
+    updated_at: '2026-03-01T00:00:00Z',
+  },
+];
+
+const defaultProjectCostSummary = {
+  project_id: 'project-1',
+  budget: 50000.0,
+  contract_rate: 175.0,
+  staff_cost: 3411.03,
+  non_staff_cost: 500.0,
+  total_cost: 3911.03,
+  burn_percentage: 7.82,
+  periods: [
+    {
+      period_id: 'period-1',
+      date: '2026-03-01',
+      staff_cost: 2274.02,
+      non_staff_cost: 0.0,
+      total: 2274.02,
+      parts_count: 1,
+    },
+    {
+      period_id: 'period-2',
+      date: '2026-02-01',
+      staff_cost: 1137.01,
+      non_staff_cost: 500.0,
+      total: 1637.01,
+      parts_count: 1,
+    },
+  ],
+};
+
+const defaultProjectReportParts = [
+  {
+    id: 'part-1',
+    period_date: '2026-03-01',
+    user_name: 'Test User',
+    user_email: 'test@example.com',
+    functional_area: 'Backend Developer',
+    percentage: 0.2,
+    days: 2.96,
+    cost: 2274.02,
+    estimated: false,
+  },
+  {
+    id: 'part-2',
+    period_date: '2026-02-01',
+    user_name: 'Test User',
+    user_email: 'test@example.com',
+    functional_area: 'Backend Developer',
+    percentage: 0.1,
+    days: 1.48,
+    cost: 1137.01,
+    estimated: false,
+  },
+];
+
 // -- Projects ---------------------------------------------------------------
 
 const defaultProject = {
@@ -321,7 +434,7 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
-  http.put(`${BASE}/projects/:id/budget`, async ({ request, params }) => {
+  http.put(`${BASE}/projects/:id/budget`, async ({ request }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({
       period_year: 2026,
@@ -551,6 +664,137 @@ export const handlers = [
     return HttpResponse.json({ ok: true, team: 'TestTeam', bot_id: 'B123' });
   }),
 
+  // Tracker — Reporting Periods
+  http.get(`${BASE}/tracker/reporting-periods`, () => {
+    return HttpResponse.json(defaultTrackerPeriods);
+  }),
+
+  http.post(`${BASE}/tracker/reporting-periods`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        ...defaultTrackerPeriods[0],
+        id: 'period-new',
+        date: body.date,
+        base_rate: body.base_rate ?? 175.0,
+        status: 'unstarted',
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get(`${BASE}/tracker/reporting-periods/:id`, ({ params }) => {
+    const period = defaultTrackerPeriods.find((p) => p.id === params.id);
+    return HttpResponse.json(period ?? { ...defaultTrackerPeriods[0], id: params.id });
+  }),
+
+  http.put(`${BASE}/tracker/reporting-periods/:id`, async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({ ...defaultTrackerPeriods[0], id: params.id, ...body });
+  }),
+
+  http.delete(`${BASE}/tracker/reporting-periods/:id`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post(`${BASE}/tracker/reporting-periods/:id/activate`, ({ params }) => {
+    return HttpResponse.json({ ...defaultTrackerPeriods[0], id: params.id, status: 'active' });
+  }),
+
+  http.post(`${BASE}/tracker/reporting-periods/:id/finish`, ({ params }) => {
+    return HttpResponse.json({ ...defaultTrackerPeriods[0], id: params.id, status: 'finished' });
+  }),
+
+  http.post(`${BASE}/tracker/reporting-periods/:id/reactivate`, ({ params }) => {
+    return HttpResponse.json({ ...defaultTrackerPeriods[0], id: params.id, status: 'active' });
+  }),
+
+  // Tracker — Reports
+  http.get(`${BASE}/tracker/reports`, () => {
+    return HttpResponse.json(defaultTrackerReports);
+  }),
+
+  http.post(`${BASE}/tracker/reports`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        ...defaultTrackerReports[0],
+        id: 'report-new',
+        reporting_period_id: body.reporting_period_id,
+        estimated: body.estimated ?? false,
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get(`${BASE}/tracker/reports/:id`, ({ params }) => {
+    return HttpResponse.json({
+      ...defaultTrackerReports[0],
+      id: params.id,
+      parts: defaultTrackerReportParts,
+      user_name: 'Test User',
+      user_email: 'test@example.com',
+    });
+  }),
+
+  http.delete(`${BASE}/tracker/reports/:id`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Tracker — Report Parts
+  http.get(`${BASE}/tracker/report-parts`, () => {
+    return HttpResponse.json(defaultTrackerReportParts);
+  }),
+
+  http.post(`${BASE}/tracker/report-parts`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    const pct = body.percentage as number;
+    return HttpResponse.json(
+      {
+        id: 'part-new',
+        report_id: body.report_id,
+        project_id: body.project_id,
+        project_name: 'Test Project',
+        functional_area_id: null,
+        percentage: pct,
+        cost: pct * 15365 * 0.74,
+        days: pct * 20 * 0.74,
+        created_at: '2026-03-15T00:00:00Z',
+        updated_at: '2026-03-15T00:00:00Z',
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.put(`${BASE}/tracker/report-parts/:id`, async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    const pct = (body.percentage as number) ?? 0.2;
+    return HttpResponse.json({
+      id: params.id,
+      report_id: 'report-1',
+      project_id: 'project-123',
+      project_name: 'Test Project',
+      functional_area_id: null,
+      percentage: pct,
+      cost: pct * 15365 * 0.74,
+      days: pct * 20 * 0.74,
+      created_at: '2026-03-15T00:00:00Z',
+      updated_at: '2026-03-15T00:00:00Z',
+    });
+  }),
+
+  http.delete(`${BASE}/tracker/report-parts/:id`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Tracker — Project Costs
+  http.get(`${BASE}/tracker/projects/:projectId/cost-summary`, () => {
+    return HttpResponse.json(defaultProjectCostSummary);
+  }),
+  http.get(`${BASE}/tracker/projects/:projectId/report-parts`, () => {
+    return HttpResponse.json(defaultProjectReportParts);
+  }),
+
   // Auth — AuthContext uses raw fetch with full URLs, not axios with relative paths.
   // Handlers must use the full origin to match.
   http.get('http://localhost:8000/api/auth/me', () => {
@@ -584,4 +828,9 @@ export const fixtures = {
   integrationsStatus: defaultIntegrationsStatus,
   slackChannels: defaultSlackChannels,
   authUser: defaultAuthUser,
+  trackerPeriods: defaultTrackerPeriods,
+  trackerReports: defaultTrackerReports,
+  trackerReportParts: defaultTrackerReportParts,
+  projectCostSummary: defaultProjectCostSummary,
+  projectReportParts: defaultProjectReportParts,
 };
