@@ -5,7 +5,6 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
@@ -19,21 +18,9 @@ from app.modules.tracker.schemas.report import (
     ReportWithPartsResponse,
 )
 from app.modules.tracker.api.enrichment import enrich_part, enrich_report
+from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
-
-
-async def _get_report_or_404(report_id: UUID, db: AsyncSession) -> ReportDB:
-    result = await db.execute(
-        select(ReportDB).where(ReportDB.id == report_id)
-    )
-    report = result.scalar_one_or_none()
-    if not report:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Report {report_id} not found",
-        )
-    return report
 
 
 async def _prepopulate_parts(report: ReportDB, db: AsyncSession) -> None:
@@ -132,7 +119,7 @@ async def get_report(
     db: DBSession,
     user: CurrentUser,
 ) -> ReportWithPartsResponse:
-    report = await _get_report_or_404(report_id, db)
+    report = await get_or_404(ReportDB, report_id, db, "Report")
 
     enriched = await enrich_report(report, db)
 
@@ -156,7 +143,7 @@ async def update_report(
     db: DBSession,
     user: CurrentUser,
 ) -> ReportResponse:
-    report = await _get_report_or_404(report_id, db)
+    report = await get_or_404(ReportDB, report_id, db, "Report")
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(report, field, value)
@@ -171,6 +158,6 @@ async def delete_report(
     db: DBSession,
     user: CurrentUser,
 ) -> None:
-    report = await _get_report_or_404(report_id, db)
+    report = await get_or_404(ReportDB, report_id, db, "Report")
     await db.delete(report)
     await db.commit()

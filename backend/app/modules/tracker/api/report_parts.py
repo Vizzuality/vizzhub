@@ -2,9 +2,8 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.tracker.models.report_part import ReportPartDB
@@ -15,21 +14,9 @@ from app.modules.tracker.schemas.report_part import (
 )
 from app.modules.tracker.services.cost_service import apply_cost_and_days
 from app.modules.tracker.api.enrichment import enrich_part
+from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
-
-
-async def _get_part_or_404(part_id: UUID, db: AsyncSession) -> ReportPartDB:
-    result = await db.execute(
-        select(ReportPartDB).where(ReportPartDB.id == part_id)
-    )
-    part = result.scalar_one_or_none()
-    if not part:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Report part {part_id} not found",
-        )
-    return part
 
 
 @router.get("", response_model=list[ReportPartResponse])
@@ -73,7 +60,7 @@ async def get_report_part(
     db: DBSession,
     user: CurrentUser,
 ) -> ReportPartResponse:
-    part = await _get_part_or_404(part_id, db)
+    part = await get_or_404(ReportPartDB, part_id, db, "Report part")
     return await enrich_part(part, db)
 
 
@@ -84,7 +71,7 @@ async def update_report_part(
     db: DBSession,
     user: CurrentUser,
 ) -> ReportPartResponse:
-    part = await _get_part_or_404(part_id, db)
+    part = await get_or_404(ReportPartDB, part_id, db, "Report part")
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -102,6 +89,6 @@ async def delete_report_part(
     db: DBSession,
     user: CurrentUser,
 ) -> None:
-    part = await _get_part_or_404(part_id, db)
+    part = await get_or_404(ReportPartDB, part_id, db, "Report part")
     await db.delete(part)
     await db.commit()
