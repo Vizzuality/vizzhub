@@ -41,12 +41,12 @@ function Metric({
 }): JSX.Element {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
         {label}
       </div>
       <div
         className={cn(
-          'text-xs font-medium leading-tight truncate',
+          'text-sm font-medium leading-tight truncate',
           muted ? 'text-muted-foreground/40' : 'text-foreground',
         )}
       >
@@ -66,15 +66,15 @@ function ProjectMetrics({
   if (score == null && !costs) return null;
 
   return (
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-1.5">
+    <div className="flex flex-wrap items-end gap-x-5 gap-y-2">
       {score != null && (
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
             Score
           </div>
           <div
             className={cn(
-              'text-xs font-bold leading-tight',
+              'text-sm font-bold leading-tight',
               score >= 70
                 ? 'text-green-600 dark:text-green-400'
                 : score >= 40
@@ -98,17 +98,17 @@ function ProjectMetrics({
             value={formatCurrency(costs.total_cost)}
           />
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
               Burn
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <span
                 className={cn(
-                  'inline-block w-1.5 h-1.5 rounded-full shrink-0',
+                  'inline-block w-2 h-2 rounded-full shrink-0',
                   getBurnColor(costs.burn_percentage),
                 )}
               />
-              <span className="text-xs font-medium leading-tight">
+              <span className="text-sm font-medium leading-tight">
                 {costs.burn_percentage != null
                   ? `${costs.burn_percentage.toFixed(1)}%`
                   : '—'}
@@ -128,16 +128,16 @@ function ProjectMeta({ project }: { project: Project }): JSX.Element | null {
   if (!project.program_name && !hasDateRange) return null;
 
   return (
-    <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+    <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
       {project.program_name && (
-        <span className="flex items-center gap-1">
-          <Folder className="w-3 h-3 shrink-0" />
+        <span className="flex items-center gap-1.5">
+          <Folder className="w-4 h-4 shrink-0" />
           {project.program_name}
         </span>
       )}
       {hasDateRange && (
-        <span className="flex items-center gap-1">
-          <Calendar className="w-3 h-3 shrink-0" />
+        <span className="flex items-center gap-1.5">
+          <Calendar className="w-4 h-4 shrink-0" />
           {project.start_date && formatDate(project.start_date)}
           {project.start_date && project.end_date && ' – '}
           {project.end_date && formatDate(project.end_date)}
@@ -155,16 +155,16 @@ function ProjectActions({
   isAdmin: boolean;
 }): JSX.Element {
   const linkClass =
-    'flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors';
+    'flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-md transition-colors';
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
       {project.has_scorecard && (
         <Link
           to={`/scorecard/${project.id}`}
           className={cn(linkClass, 'text-primary hover:bg-primary/10')}
         >
-          <TrendingUp className="w-3 h-3" />
+          <TrendingUp className="w-3.5 h-3.5" />
           Scorecard
         </Link>
       )}
@@ -172,7 +172,7 @@ function ProjectActions({
         to={`/tracker/projects/${project.id}`}
         className={cn(linkClass, 'text-primary hover:bg-primary/10')}
       >
-        <Wallet className="w-3 h-3" />
+        <Wallet className="w-3.5 h-3.5" />
         Tracker
       </Link>
       {isAdmin && (
@@ -180,7 +180,7 @@ function ProjectActions({
           to={`/projects/${project.id}/edit`}
           className={cn(linkClass, 'text-foreground/70 hover:bg-muted')}
         >
-          <Pencil className="w-3 h-3" />
+          <Pencil className="w-3.5 h-3.5" />
           Edit
         </Link>
       )}
@@ -198,9 +198,9 @@ export default function ProjectCard({
   if (viewMode === 'grid') {
     return (
       <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
-        <div className="p-4 flex flex-col gap-2 flex-1">
+        <div className="p-5 flex flex-col gap-3 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-sm font-semibold line-clamp-2 leading-snug">
+            <CardTitle className="text-lg font-semibold line-clamp-2 leading-snug">
               {project.name}
             </CardTitle>
             <StatusBadge status={project.status} />
@@ -212,7 +212,7 @@ export default function ProjectCard({
 
           <ProjectMetrics score={score} costs={costs} />
 
-          <div className="flex items-center justify-end pt-2 border-t border-border/50">
+          <div className="flex items-center justify-end pt-2.5 border-t border-border/50">
             <ProjectActions project={project} isAdmin={isAdmin} />
           </div>
         </div>
@@ -222,21 +222,24 @@ export default function ProjectCard({
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
-      <div className="flex items-center gap-4 p-4">
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className="text-sm font-semibold truncate">
-              {project.name}
-            </CardTitle>
-            <StatusBadge status={project.status} />
+      <div className="p-5 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <CardTitle className="text-lg font-semibold truncate">
+                {project.name}
+              </CardTitle>
+              <StatusBadge status={project.status} />
+            </div>
             <ProjectMeta project={project} />
           </div>
-          <ProjectMetrics score={score} costs={costs} />
+
+          <div className="shrink-0">
+            <ProjectActions project={project} isAdmin={isAdmin} />
+          </div>
         </div>
 
-        <div className="shrink-0">
-          <ProjectActions project={project} isAdmin={isAdmin} />
-        </div>
+        <ProjectMetrics score={score} costs={costs} />
       </div>
     </Card>
   );
