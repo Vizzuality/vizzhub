@@ -6,8 +6,8 @@ import type { ReportPart } from '../types/tracker';
 import { useUpdateReportPart, useDeleteReportPart } from '../hooks/useReports';
 
 interface ReportPartRowProps {
-  part: ReportPart;
-  reportId: string;
+  readonly part: ReportPart;
+  readonly reportId: string;
 }
 
 export default function ReportPartRow({
@@ -21,8 +21,8 @@ export default function ReportPartRow({
   const deletePart = useDeleteReportPart(reportId);
 
   const handleBlur = (): void => {
-    const newPct = parseFloat(percentage) / 100;
-    if (isNaN(newPct) || newPct === part.percentage) return;
+    const newPct = Number.parseFloat(percentage) / 100;
+    if (Number.isNaN(newPct) || newPct === part.percentage) return;
     updatePart.mutate({ id: part.id, data: { percentage: newPct } });
   };
 

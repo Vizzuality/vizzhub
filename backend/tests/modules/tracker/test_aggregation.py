@@ -234,9 +234,9 @@ class TestCostSummary:
             f"/api/tracker/projects/{empty_project.id}/cost-summary",
         )
         data = resp.json()
-        assert data["staff_cost"] == 0.0
-        assert data["non_staff_cost"] == 0.0
-        assert data["total_cost"] == 0.0
+        assert data["staff_cost"] == pytest.approx(0)
+        assert data["non_staff_cost"] == pytest.approx(0)
+        assert data["total_cost"] == pytest.approx(0)
         assert data["burn_percentage"] is None
         assert data["periods"] == []
 
@@ -258,7 +258,7 @@ class TestBatchCosts:
         assert costs["staff_cost"] == pytest.approx(3411.03, rel=1e-4)
         assert costs["non_staff_cost"] == pytest.approx(500.0, rel=1e-4)
         assert costs["total_cost"] == pytest.approx(3911.03, rel=1e-4)
-        assert costs["budget"] == 50000.0
+        assert costs["budget"] == pytest.approx(50000)
         assert costs["burn_percentage"] == pytest.approx(7.82, abs=0.01)
 
     @pytest.mark.asyncio
@@ -277,7 +277,7 @@ class TestBatchCosts:
         assert resp.status_code == 200
         data = resp.json()
         costs = data["costs"][str(empty.id)]
-        assert costs["total_cost"] == 0.0
+        assert costs["total_cost"] == pytest.approx(0)
         assert costs["budget"] is None
         assert costs["burn_percentage"] is None
 

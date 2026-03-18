@@ -71,7 +71,7 @@ async def _prepopulate_parts(report: ReportDB, db: AsyncSession) -> None:
 
 
 
-@router.get("", response_model=list[ReportResponse])
+@router.get("")
 async def list_reports(
     reporting_period_id: UUID,
     db: DBSession,
@@ -86,7 +86,7 @@ async def list_reports(
     return [await enrich_report(r, db) for r in reports]
 
 
-@router.post("", response_model=ReportResponse, status_code=201)
+@router.post("", status_code=201)
 async def create_report(
     data: ReportCreate,
     db: DBSession,
@@ -113,7 +113,7 @@ async def create_report(
     return await enrich_report(report, db)
 
 
-@router.get("/{report_id}", response_model=ReportWithPartsResponse)
+@router.get("/{report_id}")
 async def get_report(
     report_id: UUID,
     db: DBSession,
@@ -136,7 +136,7 @@ async def get_report(
     )
 
 
-@router.put("/{report_id}", response_model=ReportResponse)
+@router.put("/{report_id}")
 async def update_report(
     report_id: UUID,
     data: ReportUpdate,

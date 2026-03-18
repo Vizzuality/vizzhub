@@ -23,6 +23,12 @@ interface ProjectCardProps {
   readonly costs?: ProjectCostSummaryLite | null;
 }
 
+function getScoreColor(score: number): string {
+  if (score >= 70) return 'text-green-600 dark:text-green-400';
+  if (score >= 40) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-red-600 dark:text-red-400';
+}
+
 function getBurnColor(pct: number | null): string {
   if (pct == null) return 'bg-muted-foreground/40';
   if (pct > 100) return 'bg-red-500';
@@ -35,9 +41,9 @@ function Metric({
   value,
   muted = false,
 }: {
-  label: string;
-  value: string;
-  muted?: boolean;
+  readonly label: string;
+  readonly value: string;
+  readonly muted?: boolean;
 }): JSX.Element {
   return (
     <div className="min-w-0">
@@ -60,8 +66,8 @@ function ProjectMetrics({
   score,
   costs,
 }: {
-  score?: number | null;
-  costs?: ProjectCostSummaryLite | null;
+  readonly score?: number | null;
+  readonly costs?: ProjectCostSummaryLite | null;
 }): JSX.Element | null {
   if (score == null && !costs) return null;
 
@@ -75,11 +81,7 @@ function ProjectMetrics({
           <div
             className={cn(
               'text-sm font-bold leading-tight',
-              score >= 70
-                ? 'text-green-600 dark:text-green-400'
-                : score >= 40
-                  ? 'text-yellow-600 dark:text-yellow-400'
-                  : 'text-red-600 dark:text-red-400',
+              getScoreColor(score),
             )}
           >
             {Math.round(score)}
@@ -90,7 +92,7 @@ function ProjectMetrics({
         <>
           <Metric
             label="Budget"
-            value={costs.budget != null ? formatCurrency(costs.budget) : '—'}
+            value={costs.budget == null ? '—' : formatCurrency(costs.budget)}
             muted={costs.budget == null}
           />
           <Metric
@@ -109,9 +111,9 @@ function ProjectMetrics({
                 )}
               />
               <span className="text-sm font-medium leading-tight">
-                {costs.burn_percentage != null
-                  ? `${costs.burn_percentage.toFixed(1)}%`
-                  : '—'}
+                {costs.burn_percentage == null
+                  ? '—'
+                  : `${costs.burn_percentage.toFixed(1)}%`}
               </span>
             </div>
           </div>
@@ -123,7 +125,7 @@ function ProjectMetrics({
   );
 }
 
-function ProjectMeta({ project }: { project: Project }): JSX.Element | null {
+function ProjectMeta({ project }: { readonly project: Project }): JSX.Element | null {
   const hasDateRange = project.start_date || project.end_date;
   if (!project.program_name && !hasDateRange) return null;
 
@@ -151,8 +153,8 @@ function ProjectActions({
   project,
   isAdmin,
 }: {
-  project: Project;
-  isAdmin: boolean;
+  readonly project: Project;
+  readonly isAdmin: boolean;
 }): JSX.Element {
   const linkClass =
     'flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-md transition-colors';
