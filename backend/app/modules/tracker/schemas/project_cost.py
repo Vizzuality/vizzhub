@@ -3,7 +3,7 @@
 import datetime as dt
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PeriodCostBreakdown(BaseModel):
@@ -24,6 +24,25 @@ class ProjectCostSummary(BaseModel):
     total_cost: float
     burn_percentage: float | None
     periods: list[PeriodCostBreakdown]
+
+
+class BatchCostsRequest(BaseModel):
+    project_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class ProjectCostSummaryLite(BaseModel):
+    """Lightweight cost summary for batch/list views (no period breakdown)."""
+
+    budget: float | None
+    total_cost: float
+    staff_cost: float
+    non_staff_cost: float
+    burn_percentage: float | None
+
+
+class BatchCostsResponse(BaseModel):
+    costs: dict[str, ProjectCostSummaryLite]
+    errors: dict[str, str]
 
 
 class ProjectReportPartResponse(BaseModel):
