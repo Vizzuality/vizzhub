@@ -7,7 +7,9 @@ import {
   Pencil,
 } from 'lucide-react';
 import type { Project } from '@/core/types/project';
+import type { ProjectCostSummaryLite } from '@/modules/tracker/types/tracker';
 import { formatDate } from '@/utils/formatters';
+import { formatCurrency } from '@/modules/tracker/utils/constants';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { cn } from '@/lib/utils';
@@ -18,6 +20,7 @@ interface ProjectCardProps {
   readonly viewMode?: 'list' | 'grid';
   readonly isAdmin?: boolean;
   readonly score?: number | null;
+  readonly costs?: ProjectCostSummaryLite | null;
 }
 
 function getScoreColor(score: number): string {
@@ -101,11 +104,62 @@ function ProjectLinks({ project, isAdmin }: { project: Project; isAdmin: boolean
   );
 }
 
+function TrackerMetrics({ costs }: { costs?: ProjectCostSummaryLite | null }): JSX.Element | null {
+  if (!costs) return null;
+
+  const burnColor = costs.burn_percentage == null
+    ? 'bg-muted-foreground'
+    : costs.burn_percentage > 100
+      ? 'bg-red-500'
+      : costs.burn_percentage >= 80
+        ? 'bg-yellow-500'
+        : 'bg-green-500';
+
+  return (
+    <div className="flex items-center gap-3 text-xs">
+      <div className="flex items-center gap-4 px-2.5 py-1 rounded-md bg-muted/50">
+        <span className="text-muted-foreground">
+          Budget{' '}
+          <span className="font-medium text-foreground">
+            {costs.budget != null ? formatCurrency(costs.budget) : '—'}
+          </span>
+        </span>
+        <span className="text-muted-foreground/30">|</span>
+        <span className="text-muted-foreground">
+          Costs{' '}
+          <span className="font-medium text-foreground">
+            {formatCurrency(costs.total_cost)}
+          </span>
+        </span>
+        <span className="text-muted-foreground/30">|</span>
+        <span className="text-muted-foreground flex items-center gap-1">
+          Burn
+          <span className={cn('inline-block w-1.5 h-1.5 rounded-full', burnColor)} />
+          <span className="font-medium text-foreground">
+            {costs.burn_percentage != null ? `${costs.burn_percentage.toFixed(1)}%` : '—'}
+          </span>
+        </span>
+        <span className="text-muted-foreground/30">|</span>
+        <span className="text-muted-foreground">
+          Progress{' '}
+          <span className="font-medium text-muted-foreground/50">—</span>
+        </span>
+        <span className="text-muted-foreground/30">|</span>
+        <span className="text-muted-foreground">
+          Income{' '}
+          <span className="font-medium text-muted-foreground/50">—</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectCard({
   project,
   viewMode = 'list',
   isAdmin = false,
   score,
+  costs,
 }: ProjectCardProps): JSX.Element {
   if (viewMode === 'grid') {
     return (
@@ -121,6 +175,8 @@ export default function ProjectCard({
           <div className="flex items-center gap-3">
             <ScoreDisplay score={score} />
           </div>
+
+          <TrackerMetrics costs={costs} />
 
           <div className="space-y-1 text-sm text-muted-foreground">
             <ProjectMetadata project={project} />
@@ -147,6 +203,7 @@ export default function ProjectCard({
           <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
             <ProjectMetadata project={project} />
           </div>
+          <TrackerMetrics costs={costs} />
         </div>
 
         <div className="flex items-center gap-4 shrink-0">

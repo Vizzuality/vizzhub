@@ -20,6 +20,7 @@ import {
   type SortOrder,
 } from '@/core/hooks/useProjectListParams';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
+import { useProjectCostsMap } from '@/modules/tracker/hooks/useProjectCostsMap';
 import ProjectCard from '@/core/components/ProjectCard';
 import { useAuth } from '@/core/hooks/useAuth';
 import { Button } from '@/shared/components/ui/button';
@@ -81,6 +82,7 @@ export default function Projects(): JSX.Element {
   const pages = data?.pages ?? 1;
 
   const { scoresMap } = useProjectScoresMap(projects);
+  const { costsMap } = useProjectCostsMap(projects);
 
   const [localSearch, setLocalSearch] = useState(searchName);
 
@@ -171,6 +173,7 @@ export default function Projects(): JSX.Element {
               viewMode={viewMode}
               isAdmin={isAdmin}
               score={scoresMap[project.id]}
+              costs={costsMap[project.id]}
             />
           ))}
         </div>
