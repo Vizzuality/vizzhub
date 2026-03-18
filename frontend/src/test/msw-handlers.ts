@@ -13,7 +13,7 @@ const defaultTrackerPeriods = [
   {
     id: 'period-1',
     date: '2026-03-01',
-    base_rate: 175.0,
+    base_rate: 175,
     status: 'active',
     report_count: 3,
     created_at: '2026-03-01T00:00:00Z',
@@ -22,7 +22,7 @@ const defaultTrackerPeriods = [
   {
     id: 'period-2',
     date: '2026-02-01',
-    base_rate: 175.0,
+    base_rate: 175,
     status: 'finished',
     report_count: 5,
     created_at: '2026-02-01T00:00:00Z',
@@ -31,7 +31,7 @@ const defaultTrackerPeriods = [
   {
     id: 'period-3',
     date: '2026-04-01',
-    base_rate: 175.0,
+    base_rate: 175,
     status: 'unstarted',
     report_count: 0,
     created_at: '2026-03-15T00:00:00Z',
@@ -69,10 +69,10 @@ const defaultTrackerReportParts = [
 
 const defaultProjectCostSummary = {
   project_id: 'project-1',
-  budget: 50000.0,
-  contract_rate: 175.0,
+  budget: 50000,
+  contract_rate: 175,
   staff_cost: 3411.03,
-  non_staff_cost: 500.0,
+  non_staff_cost: 500,
   total_cost: 3911.03,
   burn_percentage: 7.82,
   periods: [
@@ -80,7 +80,7 @@ const defaultProjectCostSummary = {
       period_id: 'period-1',
       date: '2026-03-01',
       staff_cost: 2274.02,
-      non_staff_cost: 0.0,
+      non_staff_cost: 0,
       total: 2274.02,
       parts_count: 1,
     },
@@ -88,7 +88,7 @@ const defaultProjectCostSummary = {
       period_id: 'period-2',
       date: '2026-02-01',
       staff_cost: 1137.01,
-      non_staff_cost: 500.0,
+      non_staff_cost: 500,
       total: 1637.01,
       parts_count: 1,
     },
@@ -676,7 +676,7 @@ export const handlers = [
         ...defaultTrackerPeriods[0],
         id: 'period-new',
         date: body.date,
-        base_rate: body.base_rate ?? 175.0,
+        base_rate: body.base_rate ?? 175,
         status: 'unstarted',
       },
       { status: 201 },
@@ -793,10 +793,10 @@ export const handlers = [
     const costs: Record<string, unknown> = {};
     for (const id of body.project_ids) {
       costs[id] = {
-        budget: 50000.0,
+        budget: 50000,
         total_cost: 3911.03,
         staff_cost: 3411.03,
-        non_staff_cost: 500.0,
+        non_staff_cost: 500,
         burn_percentage: 7.82,
       };
     }

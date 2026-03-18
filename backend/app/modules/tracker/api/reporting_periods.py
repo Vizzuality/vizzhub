@@ -17,7 +17,7 @@ from app.modules.tracker.services import period_service
 router = APIRouter()
 
 
-@router.get("", response_model=list[ReportingPeriodResponse])
+@router.get("")
 async def list_periods(
     db: DBSession,
     user: CurrentUser,
@@ -43,7 +43,7 @@ async def list_periods(
     return responses
 
 
-@router.post("", response_model=ReportingPeriodResponse, status_code=201)
+@router.post("", status_code=201)
 async def create_period(
     data: ReportingPeriodCreate,
     db: DBSession,
@@ -55,7 +55,7 @@ async def create_period(
     return ReportingPeriodResponse.model_validate(period)
 
 
-@router.get("/{period_id}", response_model=ReportingPeriodResponse)
+@router.get("/{period_id}")
 async def get_period(
     period_id: UUID,
     db: DBSession,
@@ -65,7 +65,7 @@ async def get_period(
     return ReportingPeriodResponse.model_validate(period)
 
 
-@router.put("/{period_id}", response_model=ReportingPeriodResponse)
+@router.put("/{period_id}")
 async def update_period(
     period_id: UUID,
     data: ReportingPeriodUpdate,
@@ -88,7 +88,7 @@ async def delete_period(
     await db.commit()
 
 
-@router.post("/{period_id}/activate", response_model=ReportingPeriodResponse)
+@router.post("/{period_id}/activate")
 async def activate_period(
     period_id: UUID,
     db: DBSession,
@@ -100,7 +100,7 @@ async def activate_period(
     return ReportingPeriodResponse.model_validate(period)
 
 
-@router.post("/{period_id}/finish", response_model=ReportingPeriodResponse)
+@router.post("/{period_id}/finish")
 async def finish_period(
     period_id: UUID,
     db: DBSession,
@@ -112,7 +112,7 @@ async def finish_period(
     return ReportingPeriodResponse.model_validate(period)
 
 
-@router.post("/{period_id}/reactivate", response_model=ReportingPeriodResponse)
+@router.post("/{period_id}/reactivate")
 async def reactivate_period(
     period_id: UUID,
     db: DBSession,

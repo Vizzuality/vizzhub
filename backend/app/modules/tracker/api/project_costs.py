@@ -1,5 +1,6 @@
 """Project cost aggregation endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -21,7 +22,10 @@ from app.modules.tracker.services.aggregation_service import (
 router = APIRouter()
 
 
-@router.post("/batch-costs", response_model=BatchCostsResponse)
+@router.post(
+    "/batch-costs",
+    responses={422: {"description": "Invalid UUID in project_ids"}},
+)
 async def batch_project_costs(
     body: BatchCostsRequest,
     db: DBSession,
@@ -41,7 +45,7 @@ async def batch_project_costs(
     return BatchCostsResponse(costs=results, errors={})
 
 
-@router.get("/{project_id}/cost-summary", response_model=ProjectCostSummary)
+@router.get("/{project_id}/cost-summary")
 async def project_cost_summary(
     project_id: UUID,
     db: DBSession,
@@ -50,14 +54,11 @@ async def project_cost_summary(
     return await get_project_cost_summary(db, project_id)
 
 
-@router.get(
-    "/{project_id}/report-parts",
-    response_model=list[ProjectReportPartResponse],
-)
+@router.get("/{project_id}/report-parts")
 async def project_report_parts(
     project_id: UUID,
     db: DBSession,
     user: CurrentUser,
-    period_id: UUID | None = Query(default=None),
+    period_id: Annotated[UUID | None, Query()] = None,
 ) -> list[ProjectReportPartResponse]:
     return await get_project_report_parts(db, project_id, period_id)

@@ -15,7 +15,7 @@ async def period(db_session: AsyncSession) -> ReportingPeriodDB:
     """Create a test reporting period."""
     p = ReportingPeriodDB(
         date=dt.date(2026, 3, 1),
-        base_rate=175.00,
+        base_rate=175,
         status="unstarted",
     )
     db_session.add(p)
@@ -34,7 +34,7 @@ class TestReportingPeriodsCRUD:
         assert resp.status_code == 201
         data = resp.json()
         assert data["date"] == "2026-03-01"
-        assert data["base_rate"] == 175.0
+        assert data["base_rate"] == pytest.approx(175)
         assert data["status"] == "unstarted"
 
     @pytest.mark.asyncio
@@ -44,7 +44,7 @@ class TestReportingPeriodsCRUD:
             json={"date": "2026-03-01", "base_rate": 190.0},
         )
         assert resp.status_code == 201
-        assert resp.json()["base_rate"] == 190.0
+        assert resp.json()["base_rate"] == pytest.approx(190)
 
     @pytest.mark.asyncio
     async def test_list_periods(self, client: AsyncClient, period: ReportingPeriodDB):
@@ -73,7 +73,7 @@ class TestReportingPeriodsCRUD:
             json={"base_rate": 190.0},
         )
         assert resp.status_code == 200
-        assert resp.json()["base_rate"] == 190.0
+        assert resp.json()["base_rate"] == pytest.approx(190)
 
     @pytest.mark.asyncio
     async def test_delete_unstarted_period(

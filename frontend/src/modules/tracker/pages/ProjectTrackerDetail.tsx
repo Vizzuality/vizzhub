@@ -9,7 +9,7 @@ import { useProjectCostSummary, useProjectReportParts } from '../hooks/useProjec
 import { formatPeriodDate, formatCurrency, burnColor, SELECT_CLASS } from '../utils/constants';
 import type { ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
-function SummaryCards({ summary }: { summary: ProjectCostSummary }): JSX.Element {
+function SummaryCards({ summary }: { readonly summary: ProjectCostSummary }): JSX.Element {
   const burn = summary.burn_percentage ?? 0;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -19,7 +19,7 @@ function SummaryCards({ summary }: { summary: ProjectCostSummary }): JSX.Element
         </CardHeader>
         <CardContent>
           <p className="text-2xl font-bold">
-            {summary.budget !== null ? formatCurrency(summary.budget) : '—'}
+            {summary.budget === null ? '—' : formatCurrency(summary.budget)}
           </p>
         </CardContent>
       </Card>
@@ -42,7 +42,7 @@ function SummaryCards({ summary }: { summary: ProjectCostSummary }): JSX.Element
         </CardHeader>
         <CardContent>
           <p className="text-2xl font-bold">
-            {summary.budget !== null ? `${burn.toFixed(2)}%` : '—'}
+            {summary.budget === null ? '—' : `${burn.toFixed(2)}%`}
           </p>
           {summary.budget !== null && (
             <div className="mt-2 h-2 w-full rounded-full bg-muted">
@@ -62,8 +62,8 @@ function PartsTable({
   parts,
   summary,
 }: {
-  parts: ProjectReportPart[];
-  summary: ProjectCostSummary;
+  readonly parts: ProjectReportPart[];
+  readonly summary: ProjectCostSummary;
 }): JSX.Element {
   const staffTotal = parts.reduce((sum, p) => sum + (p.cost ?? 0), 0);
   const nonStaffTotal = summary.non_staff_cost;
@@ -94,15 +94,15 @@ function PartsTable({
                     <td className="py-2">{part.user_name ?? part.user_email ?? '—'}</td>
                     <td className="py-2">{part.functional_area ?? '—'}</td>
                     <td className="py-2 text-right">
-                      {part.percentage !== null
-                        ? `${(part.percentage * 100).toFixed(1)}%`
-                        : '—'}
+                      {part.percentage === null
+                        ? '—'
+                        : `${(part.percentage * 100).toFixed(1)}%`}
                     </td>
                     <td className="py-2 text-right">
-                      {part.days !== null ? part.days.toFixed(2) : '—'}
+                      {part.days === null ? '—' : part.days.toFixed(2)}
                     </td>
                     <td className="py-2 text-right">
-                      {part.cost !== null ? formatCurrency(part.cost) : '—'}
+                      {part.cost === null ? '—' : formatCurrency(part.cost)}
                     </td>
                   </tr>
                 ))}

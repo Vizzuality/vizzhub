@@ -1,5 +1,6 @@
 """Non-staff cost CRUD endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
@@ -16,13 +17,15 @@ from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
 
+NON_STAFF_COST_LABEL = "Non-staff cost"
 
-@router.get("", response_model=list[NonStaffCostResponse])
+
+@router.get("")
 async def list_non_staff_costs(
-    project_id: UUID = Query(...),
-    reporting_period_id: UUID | None = Query(default=None),
-    db: DBSession = None,
-    user: CurrentUser = None,
+    project_id: Annotated[UUID, Query()],
+    db: DBSession,
+    user: CurrentUser,
+    reporting_period_id: Annotated[UUID | None, Query()] = None,
 ) -> list[NonStaffCostResponse]:
     stmt = select(NonStaffCostDB).where(
         NonStaffCostDB.project_id == project_id
@@ -36,7 +39,7 @@ async def list_non_staff_costs(
     return [NonStaffCostResponse.model_validate(c) for c in result.scalars().all()]
 
 
-@router.post("", response_model=NonStaffCostResponse, status_code=201)
+@router.post("", status_code=201)
 async def create_non_staff_cost(
     data: NonStaffCostCreate,
     db: DBSession,
@@ -55,24 +58,24 @@ async def create_non_staff_cost(
     return NonStaffCostResponse.model_validate(cost)
 
 
-@router.get("/{cost_id}", response_model=NonStaffCostResponse)
+@router.get("/{cost_id}")
 async def get_non_staff_cost(
     cost_id: UUID,
     db: DBSession,
     user: CurrentUser,
 ) -> NonStaffCostResponse:
-    cost = await get_or_404(NonStaffCostDB, cost_id, db, "Non-staff cost")
+    cost = await get_or_404(NonStaffCostDB, cost_id, db, NON_STAFF_COST_LABEL)
     return NonStaffCostResponse.model_validate(cost)
 
 
-@router.put("/{cost_id}", response_model=NonStaffCostResponse)
+@router.put("/{cost_id}")
 async def update_non_staff_cost(
     cost_id: UUID,
     data: NonStaffCostUpdate,
     db: DBSession,
     user: CurrentUser,
 ) -> NonStaffCostResponse:
-    cost = await get_or_404(NonStaffCostDB, cost_id, db, "Non-staff cost")
+    cost = await get_or_404(NonStaffCostDB, cost_id, db, NON_STAFF_COST_LABEL)
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -89,6 +92,6 @@ async def delete_non_staff_cost(
     db: DBSession,
     user: CurrentUser,
 ) -> None:
-    cost = await get_or_404(NonStaffCostDB, cost_id, db, "Non-staff cost")
+    cost = await get_or_404(NonStaffCostDB, cost_id, db, NON_STAFF_COST_LABEL)
     await db.delete(cost)
     await db.commit()
