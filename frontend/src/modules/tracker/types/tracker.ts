@@ -90,3 +90,16 @@ export interface ProjectReportPart {
   estimated: boolean;
 }
 
+export interface ProjectCostSummaryLite {
+  budget: number | null;
+  total_cost: number;
+  staff_cost: number;
+  non_staff_cost: number;
+  burn_percentage: number | null;
+}
+
+export interface BatchCostsResponse {
+  costs: Record<string, ProjectCostSummaryLite>;
+  errors: Record<string, string>;
+}
+

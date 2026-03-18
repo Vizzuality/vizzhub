@@ -124,6 +124,10 @@ export const queryKeys = {
         ['tracker', 'reports', 'period', periodId] as const,
       detail: (id: string) => ['tracker', 'reports', id] as const,
     },
+    costs: {
+      batch: (ids: string[]) =>
+        ['tracker', 'costs', 'batch', ...[...ids].sort((a, b) => a.localeCompare(b))] as const,
+    },
     projectCosts: {
       summary: (projectId: string) =>
         ['tracker', 'project-costs', projectId, 'summary'] as const,
