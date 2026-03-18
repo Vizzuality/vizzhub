@@ -37,6 +37,31 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _build_project_filters(
+    search: str | None,
+    filter_status: str | None,
+    start_date_from: date | None,
+    start_date_to: date | None,
+    has_scorecard: bool | None,
+) -> list:
+    """Build SQLAlchemy filter clauses for project listing."""
+    filters = []
+    if has_scorecard is not None:
+        filters.append(ProjectDB.has_scorecard.is_(has_scorecard))
+    if search:
+        safe = _escape_like(search)
+        filters.append(
+            (ProjectDB.name.ilike(f"%{safe}%")) | (ProjectDB.code.ilike(f"%{safe}%"))
+        )
+    if filter_status and filter_status in ("proposal", "live", "finished"):
+        filters.append(ProjectDB.status == filter_status)
+    if start_date_from:
+        filters.append(ProjectDB.start_date >= start_date_from)
+    if start_date_to:
+        filters.append(ProjectDB.start_date <= start_date_to)
+    return filters
+
+
 def _project_to_response(
     project: ProjectDB, program_name: str | None = None
 ) -> ProjectResponse:
@@ -101,21 +126,9 @@ async def list_projects(
     )
     count_query = select(func.count()).select_from(ProjectDB)
 
-    filters = []
-    if has_scorecard is not None:
-        filters.append(ProjectDB.has_scorecard.is_(has_scorecard))
-    if search:
-        safe = _escape_like(search)
-        filters.append(
-            (ProjectDB.name.ilike(f"%{safe}%")) | (ProjectDB.code.ilike(f"%{safe}%"))
-        )
-    if filter_status and filter_status in ("proposal", "live", "finished"):
-        filters.append(ProjectDB.status == filter_status)
-    if start_date_from:
-        filters.append(ProjectDB.start_date >= start_date_from)
-    if start_date_to:
-        filters.append(ProjectDB.start_date <= start_date_to)
-
+    filters = _build_project_filters(
+        search, filter_status, start_date_from, start_date_to, has_scorecard,
+    )
     if filters:
         query = query.where(*filters)
         count_query = count_query.where(*filters)

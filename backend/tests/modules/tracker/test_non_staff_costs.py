@@ -65,7 +65,7 @@ class TestNonStaffCostsCRUD:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["cost"] == 1500.00
+        assert data["cost"] == pytest.approx(1500)
         assert data["cost_type"] == "outsource"
         assert data["details"] == "External contractor"
         assert data["project_id"] == str(setup_costs["project"].id)
@@ -135,7 +135,7 @@ class TestNonStaffCostsCRUD:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
-        assert data[0]["cost"] == 100.00
+        assert data[0]["cost"] == pytest.approx(100)
 
     @pytest.mark.asyncio
     async def test_list_requires_project_id(
@@ -165,7 +165,7 @@ class TestNonStaffCostsCRUD:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["cost"] == 2000.00
+        assert data["cost"] == pytest.approx(2000)
         assert data["cost_type"] == "travel"
 
     @pytest.mark.asyncio
