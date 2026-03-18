@@ -10,6 +10,7 @@ import type {
   ReportPartUpdate,
   ProjectCostSummary,
   ProjectReportPart,
+  BatchCostsResponse,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -102,6 +103,14 @@ export const trackerApi = {
     const response = await api.get<ProjectReportPart[]>(
       `/tracker/projects/${projectId}/report-parts`,
       { params: periodId ? { period_id: periodId } : undefined },
+    );
+    return response.data;
+  },
+
+  getBatchCosts: async (projectIds: string[]): Promise<BatchCostsResponse> => {
+    const response = await api.post<BatchCostsResponse>(
+      '/tracker/projects/batch-costs',
+      { project_ids: projectIds },
     );
     return response.data;
   },
