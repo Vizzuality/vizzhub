@@ -23,10 +23,10 @@ interface ProjectCardProps {
   readonly costs?: ProjectCostSummaryLite | null;
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 70) return 'text-green-600 dark:text-green-400';
-  if (score >= 40) return 'text-yellow-600 dark:text-yellow-400';
-  return 'text-red-600 dark:text-red-400';
+function getScoreDotColor(score: number): string {
+  if (score >= 70) return 'bg-green-500';
+  if (score >= 40) return 'bg-yellow-500';
+  return 'bg-red-500';
 }
 
 function getBurnColor(pct: number | null): string {
@@ -78,13 +78,16 @@ function ProjectMetrics({
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
             Score
           </div>
-          <div
-            className={cn(
-              'text-sm font-bold leading-tight',
-              getScoreColor(score),
-            )}
-          >
-            {Math.round(score)}
+          <div className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                'inline-block w-2 h-2 rounded-full shrink-0',
+                getScoreDotColor(score),
+              )}
+            />
+            <span className="text-sm font-medium leading-tight">
+              {Math.round(score)}
+            </span>
           </div>
         </div>
       )}
