@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom';
 import {
-  BarChart3,
-  Github,
   Calendar,
   Folder,
   Pencil,
@@ -43,7 +41,7 @@ function Metric({
 }): JSX.Element {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 leading-none mb-0.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
         {label}
       </div>
       <div
@@ -68,10 +66,10 @@ function ProjectMetrics({
   if (score == null && !costs) return null;
 
   return (
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-1.5 py-1.5 px-2 rounded bg-muted/40 dark:bg-muted/20">
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-1.5">
       {score != null && (
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 leading-none mb-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
             Score
           </div>
           <div
@@ -100,7 +98,7 @@ function ProjectMetrics({
             value={formatCurrency(costs.total_cost)}
           />
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 leading-none mb-0.5">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
               Burn
             </div>
             <div className="flex items-center gap-1">
@@ -125,26 +123,16 @@ function ProjectMetrics({
   );
 }
 
-function ProjectMeta({ project }: { project: Project }): JSX.Element {
+function ProjectMeta({ project }: { project: Project }): JSX.Element | null {
   const hasDateRange = project.start_date || project.end_date;
+  if (!project.program_name && !hasDateRange) return null;
+
   return (
     <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
       {project.program_name && (
         <span className="flex items-center gap-1">
           <Folder className="w-3 h-3 shrink-0" />
           {project.program_name}
-        </span>
-      )}
-      {project.jira_project_key && (
-        <span className="flex items-center gap-1">
-          <BarChart3 className="w-3 h-3 shrink-0" />
-          {project.jira_project_key}
-        </span>
-      )}
-      {project.github_repo && (
-        <span className="flex items-center gap-1">
-          <Github className="w-3 h-3 shrink-0" />
-          {project.github_repo}
         </span>
       )}
       {hasDateRange && (
@@ -167,14 +155,14 @@ function ProjectActions({
   isAdmin: boolean;
 }): JSX.Element {
   const linkClass =
-    'flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors hover:bg-muted';
+    'flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors';
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       {project.has_scorecard && (
         <Link
           to={`/scorecard/${project.id}`}
-          className={cn(linkClass, 'text-primary')}
+          className={cn(linkClass, 'text-primary hover:bg-primary/10')}
         >
           <TrendingUp className="w-3 h-3" />
           Scorecard
@@ -182,7 +170,7 @@ function ProjectActions({
       )}
       <Link
         to={`/tracker/projects/${project.id}`}
-        className={cn(linkClass, 'text-primary')}
+        className={cn(linkClass, 'text-primary hover:bg-primary/10')}
       >
         <Wallet className="w-3 h-3" />
         Tracker
@@ -190,7 +178,7 @@ function ProjectActions({
       {isAdmin && (
         <Link
           to={`/projects/${project.id}/edit`}
-          className={cn(linkClass, 'text-muted-foreground')}
+          className={cn(linkClass, 'text-foreground/70 hover:bg-muted')}
         >
           <Pencil className="w-3 h-3" />
           Edit
@@ -210,7 +198,7 @@ export default function ProjectCard({
   if (viewMode === 'grid') {
     return (
       <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
-        <div className="p-4 flex flex-col gap-2.5 flex-1">
+        <div className="p-4 flex flex-col gap-2 flex-1">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-sm font-semibold line-clamp-2 leading-snug">
               {project.name}
@@ -224,7 +212,7 @@ export default function ProjectCard({
 
           <ProjectMetrics score={score} costs={costs} />
 
-          <div className="pt-1.5 border-t">
+          <div className="flex items-center justify-end pt-2 border-t border-border/50">
             <ProjectActions project={project} isAdmin={isAdmin} />
           </div>
         </div>
@@ -234,22 +222,21 @@ export default function ProjectCard({
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
-      <div className="p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CardTitle className="text-sm font-semibold truncate">
-                {project.name}
-              </CardTitle>
-              <StatusBadge status={project.status} />
-            </div>
+      <div className="flex items-center gap-4 p-4">
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CardTitle className="text-sm font-semibold truncate">
+              {project.name}
+            </CardTitle>
+            <StatusBadge status={project.status} />
             <ProjectMeta project={project} />
           </div>
-
-          <ProjectActions project={project} isAdmin={isAdmin} />
+          <ProjectMetrics score={score} costs={costs} />
         </div>
 
-        <ProjectMetrics score={score} costs={costs} />
+        <div className="shrink-0">
+          <ProjectActions project={project} isAdmin={isAdmin} />
+        </div>
       </div>
     </Card>
   );
