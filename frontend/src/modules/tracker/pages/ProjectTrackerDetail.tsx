@@ -6,20 +6,8 @@ import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useProject } from '@/core/hooks/useProjects';
 import { useProjectCostSummary, useProjectReportParts } from '../hooks/useProjectCosts';
-import { formatPeriodDate, SELECT_CLASS } from '../utils/constants';
+import { formatPeriodDate, formatCurrency, burnColor, SELECT_CLASS } from '../utils/constants';
 import type { ProjectCostSummary, ProjectReportPart } from '../types/tracker';
-
-const EUR = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-});
-
-function burnColor(pct: number): string {
-  if (pct > 100) return 'bg-red-500';
-  if (pct >= 80) return 'bg-yellow-500';
-  return 'bg-green-500';
-}
 
 function SummaryCards({ summary }: { summary: ProjectCostSummary }): JSX.Element {
   const burn = summary.burn_percentage ?? 0;
@@ -31,7 +19,7 @@ function SummaryCards({ summary }: { summary: ProjectCostSummary }): JSX.Element
         </CardHeader>
         <CardContent>
           <p className="text-2xl font-bold">
-            {summary.budget !== null ? EUR.format(summary.budget) : '—'}
+            {summary.budget !== null ? formatCurrency(summary.budget) : '—'}
           </p>
         </CardContent>
       </Card>
@@ -41,9 +29,9 @@ function SummaryCards({ summary }: { summary: ProjectCostSummary }): JSX.Element
           <CardTitle className="text-sm font-medium text-muted-foreground">Cost to Date</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{EUR.format(summary.total_cost)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(summary.total_cost)}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Staff {EUR.format(summary.staff_cost)} · Non-staff {EUR.format(summary.non_staff_cost)}
+            Staff {formatCurrency(summary.staff_cost)} · Non-staff {formatCurrency(summary.non_staff_cost)}
           </p>
         </CardContent>
       </Card>
@@ -114,7 +102,7 @@ function PartsTable({
                       {part.days !== null ? part.days.toFixed(2) : '—'}
                     </td>
                     <td className="py-2 text-right">
-                      {part.cost !== null ? EUR.format(part.cost) : '—'}
+                      {part.cost !== null ? formatCurrency(part.cost) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -122,15 +110,15 @@ function PartsTable({
               <tfoot>
                 <tr className="border-t font-medium">
                   <td className="pt-2" colSpan={5}>Staff</td>
-                  <td className="pt-2 text-right">{EUR.format(staffTotal)}</td>
+                  <td className="pt-2 text-right">{formatCurrency(staffTotal)}</td>
                 </tr>
                 <tr className="font-medium">
                   <td className="pt-1" colSpan={5}>Non-staff</td>
-                  <td className="pt-1 text-right">{EUR.format(nonStaffTotal)}</td>
+                  <td className="pt-1 text-right">{formatCurrency(nonStaffTotal)}</td>
                 </tr>
                 <tr className="font-bold">
                   <td className="pt-1" colSpan={5}>Total</td>
-                  <td className="pt-1 text-right">{EUR.format(grandTotal)}</td>
+                  <td className="pt-1 text-right">{formatCurrency(grandTotal)}</td>
                 </tr>
               </tfoot>
             </table>
