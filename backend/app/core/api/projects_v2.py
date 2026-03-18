@@ -280,7 +280,7 @@ def _metrics_to_budget_response(metrics: MetricsDB, year: int, month: int) -> di
 @limiter.limit("60/minute")
 async def update_project_budget(
     request: Request,
-    current_user: AdminUser,
+    current_user: CurrentUser,
     db: DBSession,
     project_id: UUID,
     payload: ProjectBudgetUpdate,
