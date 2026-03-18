@@ -59,7 +59,7 @@ describe('ProjectTrackerDetail', () => {
         return HttpResponse.json({
           project_id: 'project-empty',
           budget: null,
-          contract_rate: 175.0,
+          contract_rate: 175,
           staff_cost: 0,
           non_staff_cost: 0,
           total_cost: 0,

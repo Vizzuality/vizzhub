@@ -18,8 +18,10 @@ from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
 
+REPORT_PART_LABEL = "Report part"
 
-@router.get("", response_model=list[ReportPartResponse])
+
+@router.get("")
 async def list_report_parts(
     report_id: UUID,
     db: DBSession,
@@ -33,7 +35,7 @@ async def list_report_parts(
     return [await enrich_part(p, db) for p in result.scalars().all()]
 
 
-@router.post("", response_model=ReportPartResponse, status_code=201)
+@router.post("", status_code=201)
 async def create_report_part(
     data: ReportPartCreate,
     db: DBSession,
@@ -54,24 +56,24 @@ async def create_report_part(
     return await enrich_part(part, db)
 
 
-@router.get("/{part_id}", response_model=ReportPartResponse)
+@router.get("/{part_id}")
 async def get_report_part(
     part_id: UUID,
     db: DBSession,
     user: CurrentUser,
 ) -> ReportPartResponse:
-    part = await get_or_404(ReportPartDB, part_id, db, "Report part")
+    part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
     return await enrich_part(part, db)
 
 
-@router.put("/{part_id}", response_model=ReportPartResponse)
+@router.put("/{part_id}")
 async def update_report_part(
     part_id: UUID,
     data: ReportPartUpdate,
     db: DBSession,
     user: CurrentUser,
 ) -> ReportPartResponse:
-    part = await get_or_404(ReportPartDB, part_id, db, "Report part")
+    part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -89,6 +91,6 @@ async def delete_report_part(
     db: DBSession,
     user: CurrentUser,
 ) -> None:
-    part = await get_or_404(ReportPartDB, part_id, db, "Report part")
+    part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
     await db.delete(part)
     await db.commit()

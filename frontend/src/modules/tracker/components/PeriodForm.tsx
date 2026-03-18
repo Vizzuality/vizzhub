@@ -25,9 +25,9 @@ export default function PeriodForm(): JSX.Element {
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     const date = `${now.getFullYear()}-${month.padStart(2, '0')}-01`;
-    const parsed = parseFloat(baseRate);
+    const parsed = Number.parseFloat(baseRate);
     createPeriod.mutate(
-      { date, base_rate: isNaN(parsed) ? undefined : parsed },
+      { date, base_rate: Number.isNaN(parsed) ? undefined : parsed },
       {
         onSuccess: () => {
           setOpen(false);
