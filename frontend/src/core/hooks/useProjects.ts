@@ -31,6 +31,20 @@ export function useProjectSummaries() {
   });
 }
 
+export function useAllProjectSummaries() {
+  return useQuery({
+    queryKey: queryKeys.projects.allSummary,
+    queryFn: projectsApi.listAllSummary,
+  });
+}
+
+export function useActiveProjectSummaries() {
+  return useQuery({
+    queryKey: queryKeys.projects.activeSummary,
+    queryFn: projectsApi.listActiveSummary,
+  });
+}
+
 export function useProject(id: string) {
   return useQuery({
     queryKey: queryKeys.projects.detail(id),

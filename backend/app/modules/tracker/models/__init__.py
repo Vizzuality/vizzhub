@@ -1,5 +1,5 @@
 from app.modules.tracker.models.budget_line import BudgetLineDB
-from app.modules.tracker.models.invoice import InvoiceDB, InvoiceStatus
+from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.non_staff_cost import CostType, NonStaffCostDB
 from app.modules.tracker.models.progress_report import ProgressReportDB
 from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
@@ -14,7 +14,6 @@ __all__ = [
     "BudgetLineDB",
     "CostType",
     "InvoiceDB",
-    "InvoiceStatus",
     "NonStaffCostDB",
     "ProgressReportDB",
     "ReportDB",

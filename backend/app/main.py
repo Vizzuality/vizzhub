@@ -18,6 +18,7 @@ from app.core.api import programs as programs_router
 from app.core.api import projects_v2 as projects_v2_router
 from app.modules.iso.router import router as iso_router
 from app.modules.scorecard.router import router as scorecard_router
+from app.modules.tracker.router import router as tracker_router
 from app.core.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
@@ -170,6 +171,7 @@ app.include_router(oauth_router.router, prefix="/api/oauth", tags=["oauth"])
 app.include_router(jobs_router.router, prefix="/api")
 app.include_router(scorecard_router, prefix="/api", tags=["scorecard"])
 app.include_router(iso_router, prefix="/api/iso", tags=["iso"])
+app.include_router(tracker_router, prefix="/api/tracker", tags=["tracker"])
 
 
 @app.get("/health")

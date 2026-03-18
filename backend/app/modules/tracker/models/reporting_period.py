@@ -33,7 +33,7 @@ class ReportingPeriodDB(Base):
     )
     date: Mapped[date] = mapped_column(Date(), nullable=False, unique=True)
     base_rate: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, server_default="175.00"
+        Numeric(12, 2), nullable=False, server_default="175.00"  # mirrors DEFAULT_RATE in constants.py
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="unstarted"

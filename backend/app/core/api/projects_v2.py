@@ -88,6 +88,8 @@ async def list_projects(
         q = select(ProjectDB).order_by(ProjectDB.name)
         if has_scorecard is not None:
             q = q.where(ProjectDB.has_scorecard.is_(has_scorecard))
+        if filter_status and filter_status in ("proposal", "live", "finished"):
+            q = q.where(ProjectDB.status == filter_status)
         result = await db.execute(q)
         projects = result.scalars().all()
         return [ProjectSummary.model_validate(p) for p in projects]
@@ -232,44 +234,11 @@ async def delete_project(
 ) -> None:
     project = await get_project_or_404(db, project_id)
 
-    from sqlalchemy import text
+    from app.modules.tracker.public import has_tracker_references
 
-    table_check = await db.execute(
-        text("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('report_parts', 'progress_reports')")
-    )
-    existing_tables = {row[0] for row in table_check.fetchall()}
-
-    if "report_parts" in existing_tables:
-        from app.modules.tracker.models.report_part import ReportPartDB
-
-        rp_count = (
-            await db.execute(
-                select(func.count())
-                .select_from(ReportPartDB)
-                .where(ReportPartDB.project_id == project_id)
-            )
-        ).scalar() or 0
-        if rp_count > 0:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete: project has {rp_count} time report entries.",
-            )
-
-    if "progress_reports" in existing_tables:
-        from app.modules.tracker.models.progress_report import ProgressReportDB
-
-        pr_count = (
-            await db.execute(
-                select(func.count())
-                .select_from(ProgressReportDB)
-                .where(ProgressReportDB.project_id == project_id)
-            )
-        ).scalar() or 0
-        if pr_count > 0:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete: project has {pr_count} progress reports.",
-            )
+    tracker_refs = await has_tracker_references(project_id, db)
+    if tracker_refs:
+        raise HTTPException(status_code=409, detail=tracker_refs[0])
 
     await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))
     await db.delete(project)
@@ -311,7 +280,7 @@ def _metrics_to_budget_response(metrics: MetricsDB, year: int, month: int) -> di
 @limiter.limit("60/minute")
 async def update_project_budget(
     request: Request,
-    current_user: AdminUser,
+    current_user: CurrentUser,
     db: DBSession,
     project_id: UUID,
     payload: ProjectBudgetUpdate,

@@ -51,6 +51,17 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
     ];
   }
 
+  if (pathname.startsWith('/admin/tracker/periods/')) {
+    return [
+      { label: 'Reporting Periods', to: '/admin/tracker/periods' },
+      { label: 'Period Detail' },
+    ];
+  }
+
+  if (pathname.startsWith('/admin/tracker')) {
+    return [{ label: 'Reporting Periods' }];
+  }
+
   if (pathname.startsWith('/admin')) {
     const adminLabels: Record<string, string> = {
       'global-scores': 'Global Scores',
@@ -61,6 +72,35 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
     };
     const subPath = pathname.split('/admin/')[1];
     return [{ label: adminLabels[subPath] ?? 'Admin' }];
+  }
+
+  if (pathname.match(/^\/tracker\/projects\/[^/]+$/)) {
+    return [
+      { label: 'Projects', to: '/projects' },
+      { label: 'Tracker Detail' },
+    ];
+  }
+
+  if (pathname === '/tracker/how-to-report') {
+    return [
+      { label: 'My Report', to: '/tracker/my-report' },
+      { label: 'How to Report' },
+    ];
+  }
+
+  if (pathname.startsWith('/tracker/my-reports')) {
+    return [
+      { label: 'My Report', to: '/tracker/my-report' },
+      { label: 'Report History' },
+    ];
+  }
+
+  if (pathname.startsWith('/tracker/my-report')) {
+    return [{ label: 'My Report' }];
+  }
+
+  if (pathname === '/projects') {
+    return [{ label: 'Projects' }];
   }
 
   return [{ label: 'Dashboard' }];
