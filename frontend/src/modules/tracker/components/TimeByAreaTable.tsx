@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { PALETTE_HEX } from '@/shared/constants/palette';
 import type { AggregationRow, BudgetLine } from '../types/tracker';
 
 interface TimeByAreaTableProps {
@@ -13,6 +14,7 @@ interface MergedRow {
   contract: number | null;
   spent: number;
   remaining: number | null;
+  burnPct: number | null;
 }
 
 function mergeData(rows: AggregationRow[], budgetLines?: BudgetLine[]): MergedRow[] {
@@ -36,11 +38,19 @@ function mergeData(rows: AggregationRow[], budgetLines?: BudgetLine[]): MergedRo
     const contract = budgetMap.get(name) ?? null;
     const spent = spentMap.get(name) ?? 0;
     const remaining = contract !== null ? contract - spent : null;
-    merged.push({ name, contract, spent, remaining });
+    const burnPct = contract !== null && contract > 0 ? spent / contract : null;
+    merged.push({ name, contract, spent, remaining, burnPct });
   }
 
   merged.sort((a, b) => b.spent - a.spent);
   return merged;
+}
+
+function burnGradient(pct: number): string {
+  const clamped = Math.min(pct, 1);
+  const fillPct = (clamped * 100).toFixed(1);
+  const color = pct > 1 ? `${PALETTE_HEX.red}1F` : `${PALETTE_HEX.coolSteel}25`;
+  return `linear-gradient(to right, ${color} ${fillPct}%, transparent ${fillPct}%)`;
 }
 
 export default function TimeByAreaTable({ rows, budgetLines }: TimeByAreaTableProps): JSX.Element {
@@ -61,25 +71,29 @@ export default function TimeByAreaTable({ rows, budgetLines }: TimeByAreaTablePr
           <p className="text-muted-foreground text-sm">No data</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-separate border-spacing-y-1">
               <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">Functional Area</th>
-                  <th className="pb-2 font-medium text-right">Days in Contract</th>
-                  <th className="pb-2 font-medium text-right">Spent</th>
-                  <th className="pb-2 font-medium text-right">Remaining</th>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-1 font-medium">Functional Area</th>
+                  <th className="pb-1 font-medium text-right">Days in Contract</th>
+                  <th className="pb-1 font-medium text-right">Spent</th>
+                  <th className="pb-1 font-medium text-right">Remaining</th>
                 </tr>
               </thead>
               <tbody>
                 {merged.map((row) => (
-                  <tr key={row.name} className="border-b last:border-0">
-                    <td className="py-2">{row.name}</td>
-                    <td className="py-2 text-right tabular-nums">
+                  <tr
+                    key={row.name}
+                    className="rounded"
+                    style={row.burnPct !== null ? { background: burnGradient(row.burnPct) } : undefined}
+                  >
+                    <td className="py-2 px-2 rounded-l">{row.name}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">
                       {row.contract !== null ? row.contract : <span className="text-muted-foreground/50">—</span>}
                     </td>
-                    <td className="py-2 text-right tabular-nums">{row.spent.toFixed(1)}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">{row.spent.toFixed(1)}</td>
                     <td className={cn(
-                      'py-2 text-right tabular-nums',
+                      'py-2 px-2 text-right tabular-nums rounded-r',
                       row.remaining !== null && row.remaining < 0 && 'text-aux-red',
                     )}>
                       {row.remaining !== null ? row.remaining.toFixed(1) : <span className="text-muted-foreground/50">—</span>}
@@ -88,14 +102,14 @@ export default function TimeByAreaTable({ rows, budgetLines }: TimeByAreaTablePr
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t font-medium">
-                  <td className="pt-2">Total</td>
-                  <td className="pt-2 text-right tabular-nums">
+                <tr className="font-medium border-t">
+                  <td className="pt-3 px-2 rounded-l">Total</td>
+                  <td className="pt-3 px-2 text-right tabular-nums">
                     {hasContract ? totalContract : <span className="text-muted-foreground/50">—</span>}
                   </td>
-                  <td className="pt-2 text-right tabular-nums">{totalSpent.toFixed(1)}</td>
+                  <td className="pt-3 px-2 text-right tabular-nums">{totalSpent.toFixed(1)}</td>
                   <td className={cn(
-                    'pt-2 text-right tabular-nums',
+                    'pt-3 px-2 text-right tabular-nums rounded-r',
                     totalRemaining !== null && totalRemaining < 0 && 'text-aux-red',
                   )}>
                     {totalRemaining !== null ? totalRemaining.toFixed(1) : <span className="text-muted-foreground/50">—</span>}
