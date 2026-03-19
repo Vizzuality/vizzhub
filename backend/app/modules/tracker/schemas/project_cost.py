@@ -38,6 +38,7 @@ class ProjectCostSummaryLite(BaseModel):
     staff_cost: float
     non_staff_cost: float
     burn_percentage: float | None
+    income: float
 
 
 class BatchCostsResponse(BaseModel):
