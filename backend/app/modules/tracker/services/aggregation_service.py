@@ -14,6 +14,16 @@ from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
+def _valid_parts_filter(query):
+    """Apply standard filters: exclude estimated reports, null/zero percentage."""
+    return (
+        query
+        .where(ReportDB.estimated.is_(False))
+        .where(ReportPartDB.percentage.isnot(None))
+        .where(ReportPartDB.percentage > 0)
+    )
+
+
 from app.modules.tracker.schemas.aggregation import (
     AggregationPeriod,
     AggregationResponse,
@@ -42,7 +52,7 @@ async def get_project_cost_summary(
     contract_rate = float(settings.contract_rate) if settings else float(DEFAULT_RATE)
 
     # Staff costs grouped by period
-    staff_query = (
+    staff_query = _valid_parts_filter(
         select(
             ReportingPeriodDB.id.label("period_id"),
             ReportingPeriodDB.date.label("period_date"),
@@ -53,11 +63,7 @@ async def get_project_cost_summary(
         .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
         .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
         .where(ReportPartDB.project_id == project_id)
-        .where(ReportDB.estimated.is_(False))
-        .where(ReportPartDB.percentage.isnot(None))
-        .where(ReportPartDB.percentage > 0)
-        .group_by(ReportingPeriodDB.id, ReportingPeriodDB.date)
-    )
+    ).group_by(ReportingPeriodDB.id, ReportingPeriodDB.date)
     staff_result = await db.execute(staff_query)
     staff_rows = staff_result.all()
 
@@ -142,18 +148,14 @@ async def get_batch_cost_summaries(
     )
     settings_map = {s.project_id: s for s in settings_result.scalars().all()}
 
-    staff_query = (
+    staff_query = _valid_parts_filter(
         select(
             ReportPartDB.project_id,
             func.coalesce(func.sum(ReportPartDB.cost), 0).label("staff_cost"),
         )
         .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
         .where(ReportPartDB.project_id.in_(project_ids))
-        .where(ReportDB.estimated.is_(False))
-        .where(ReportPartDB.percentage.isnot(None))
-        .where(ReportPartDB.percentage > 0)
-        .group_by(ReportPartDB.project_id)
-    )
+    ).group_by(ReportPartDB.project_id)
     staff_result = await db.execute(staff_query)
     staff_map = {row.project_id: float(row.staff_cost) for row in staff_result.all()}
 
@@ -264,7 +266,7 @@ async def get_project_aggregations(
         join_clause = ReportDB.user_id == UserDB.id
         join_target = UserDB
 
-    query = (
+    query = _valid_parts_filter(
         select(
             name_col,
             email_col,
@@ -277,12 +279,7 @@ async def get_project_aggregations(
         .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
         .join(join_target, join_clause)
         .where(ReportPartDB.project_id == project_id)
-        .where(ReportDB.estimated.is_(False))
-        .where(ReportPartDB.percentage.isnot(None))
-        .where(ReportPartDB.percentage > 0)
-        .group_by("name", "email", ReportingPeriodDB.date)
-        .order_by("name", ReportingPeriodDB.date)
-    )
+    ).group_by("name", "email", ReportingPeriodDB.date).order_by("name", ReportingPeriodDB.date)
 
     result = await db.execute(query)
     raw_rows = result.all()

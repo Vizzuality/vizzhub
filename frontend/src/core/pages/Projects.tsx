@@ -20,7 +20,7 @@ import {
   type SortOrder,
 } from '@/core/hooks/useProjectListParams';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
-import { useProjectCostsMap } from '@/modules/tracker/hooks/useProjectCostsMap';
+import { useProjectCostsMap } from '@/modules/tracker/public';
 import ProjectCard from '@/core/components/ProjectCard';
 import { useAuth } from '@/core/hooks/useAuth';
 import { Button } from '@/shared/components/ui/button';
