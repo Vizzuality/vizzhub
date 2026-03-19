@@ -467,14 +467,14 @@ def import_budget_lines(legacy, target, maps):
             continue
 
         fa_id = maps['functional_areas'].get(role_id)
+        migrated_days = float_to_decimal(adjusted_days) if adjusted_days is not None else days
 
         cur_t.execute(
             "INSERT INTO budget_lines (id, project_id, functional_area_id, days, "
-            "adjusted_days, percentage, details, created_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (uuid.uuid4(), project_id, fa_id, days,
-             float_to_decimal(adjusted_days), pct_to_decimal(percentage),
-             details, created_at),
+            "percentage, details, created_at) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (uuid.uuid4(), project_id, fa_id, migrated_days,
+             pct_to_decimal(percentage), details, created_at),
         )
         count += 1
 
