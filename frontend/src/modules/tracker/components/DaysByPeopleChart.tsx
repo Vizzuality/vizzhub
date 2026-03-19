@@ -68,13 +68,13 @@ export default function DaysByPeopleChart({ rows }: DaysByPeopleChartProps): JSX
   if (people.length === 0 || months.length === 0) return null;
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardContent className="pt-5 pb-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
           Days by People
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto max-w-full">
+          <table className="text-xs">
             <thead>
               <tr className="text-muted-foreground">
                 <th className="pb-2 text-left font-medium sticky left-0 bg-card z-10 min-w-[120px]">
