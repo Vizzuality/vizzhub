@@ -3,7 +3,7 @@ import { BarChart3, Github, Calendar } from 'lucide-react';
 import type { Project } from '@/core/types/project';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
-import { getScoreColor } from '@/utils/scoreColors';
+import { getScoreDotClass } from '@/utils/scoreColors';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,10 @@ function ScoreBadge({ score, thresholds }: { score: number | null | undefined; t
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-muted-foreground">Score:</span>
-      <span className={cn("text-2xl font-bold", getScoreColor(score, thresholds))}>{Math.round(score)}</span>
+      <span className={cn("text-2xl font-bold text-foreground flex items-center gap-1.5")}>
+        <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', getScoreDotClass(score, thresholds))} />
+        {Math.round(score)}
+      </span>
     </div>
   );
 }

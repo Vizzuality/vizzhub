@@ -83,7 +83,7 @@ describe('ScoreCard', () => {
     expect(screen.getByText('82')).toBeDefined();
   });
 
-  it('applies green color to high scores (>=80)', () => {
+  it('applies green dot to high scores (>=80)', () => {
     const highScore: FinalScore = {
       score: 87,
       dimensions: mockScore.dimensions,
@@ -93,7 +93,10 @@ describe('ScoreCard', () => {
     const { container } = renderWithProviders(<ScoreCard score={highScore} />);
 
     const scoreElement = screen.getByText('87');
-    expect(scoreElement.className).toContain('text-score-green');
+    expect(scoreElement.className).toContain('text-foreground');
+
+    const dotElements = container.querySelectorAll('.bg-aux-neon-grass');
+    expect(dotElements.length).toBeGreaterThan(0);
 
     const bgElements = container.querySelectorAll('[class*="bg-score-green"]');
     expect(bgElements.length).toBeGreaterThan(0);
@@ -145,7 +148,7 @@ describe('ScoreCard', () => {
     expect(zeroElements.length).toBe(9);
   });
 
-  it('dimension badges show color based on score value', () => {
+  it('dimension badges show dot color based on score value', () => {
     const mixedScore: FinalScore = {
       score: 51,
       dimensions: {
@@ -164,13 +167,17 @@ describe('ScoreCard', () => {
     renderWithProviders(<ScoreCard score={mixedScore} />);
 
     const timeScore = screen.getByText('90');
-    expect(timeScore.className).toContain('text-score-green');  // >=80 = green
+    expect(timeScore.className).toContain('text-foreground');
+    const timeDot = timeScore.querySelector('.bg-aux-neon-grass');
+    expect(timeDot).not.toBeNull(); // >=80 = green dot
 
     const costScore = screen.getByText('70');
-    expect(costScore.className).toContain('text-score-yellow');  // >=60 = yellow
+    const costDot = costScore.querySelector('.bg-aux-yellow');
+    expect(costDot).not.toBeNull(); // >=60 = yellow dot
 
     const qualityScore = screen.getByText('50');
-    expect(qualityScore.className).toContain('text-score-red');  // <60 = red
+    const qualityDot = qualityScore.querySelector('.bg-aux-red');
+    expect(qualityDot).not.toBeNull(); // <60 = red dot
   });
 
   it('shows dash for null dimension scores', () => {

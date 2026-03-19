@@ -46,6 +46,17 @@ export default {
   				'yellow-bg': 'var(--score-yellow-bg)',
   				'red-bg': 'var(--score-red-bg)'
   			},
+  			aux: {
+  				onix: 'var(--aux-onix)',
+  				'deep-teal': 'var(--aux-deep-teal)',
+  				'cool-steel': 'var(--aux-cool-steel)',
+  				'ash-grey': 'var(--aux-ash-grey)',
+  				'dust-grey': 'var(--aux-dust-grey)',
+  				'soft-linen': 'var(--aux-soft-linen)',
+  				'neon-grass': 'var(--aux-neon-grass)',
+  				yellow: 'var(--aux-yellow)',
+  				red: 'var(--aux-red)',
+  			},
   			'switch-track': 'var(--switch-track)',
   			border: 'var(--border)',
   			input: 'var(--input)',

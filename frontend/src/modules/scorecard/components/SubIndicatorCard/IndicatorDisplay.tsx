@@ -8,17 +8,15 @@ interface IndicatorDisplayProps {
   readonly lowerIsBetter: boolean;
 }
 
-function getIndicatorColor(
+function getIndicatorDotClass(
   value: number | null,
   target: number | null | undefined,
   lowerIsBetter: boolean,
 ): string {
-  if (value === null) return 'text-muted-foreground';
-  if (target === null || target === undefined) {
-    return 'text-foreground';
-  }
+  if (value === null) return 'bg-aux-dust-grey';
+  if (target === null || target === undefined) return 'bg-aux-dust-grey';
   const isGood = lowerIsBetter ? value <= target : value >= target;
-  return isGood ? 'text-score-green' : 'text-score-red';
+  return isGood ? 'bg-aux-neon-grass' : 'bg-aux-red';
 }
 
 export default function IndicatorDisplay({
@@ -34,7 +32,8 @@ export default function IndicatorDisplay({
     <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
       <div className="flex items-center justify-between gap-2 min-w-0">
         <span className="text-sm font-medium text-muted-foreground truncate">{label}</span>
-        <span className={cn('text-3xl font-bold shrink-0', getIndicatorColor(value, target, lowerIsBetter))}>
+        <span className="text-3xl font-bold shrink-0 text-foreground flex items-center gap-2">
+          <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', getIndicatorDotClass(value, target, lowerIsBetter))} />
           {formattedValue}
           {value !== null && suffix}
         </span>

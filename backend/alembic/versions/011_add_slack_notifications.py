@@ -16,16 +16,16 @@ This migration adds all tables required for Slack notifications:
 Also adds slack_channel_id to projects table.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "011_add_slack_notifications"
-down_revision: Union[str, None] = "010_add_global_metrics_table"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "010_add_global_metrics_table"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 FK_ALERT_DEFINITIONS_ID = "alert_definitions.id"
 FK_PROJECTS_ID = "projects.id"

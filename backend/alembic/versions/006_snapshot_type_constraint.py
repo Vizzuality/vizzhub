@@ -13,14 +13,14 @@ Changes:
 This allows ONE punctual and ONE cumulative snapshot per project per month.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
 revision: str = "006_snapshot_type_constraint"
-down_revision: Union[str, None] = "005_recreate_metric_snapshots"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "005_recreate_metric_snapshots"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

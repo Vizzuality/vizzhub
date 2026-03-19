@@ -263,25 +263,25 @@ describe('ProjectCard', () => {
       expect(screen.getByText('86')).toBeDefined();
     });
 
-    it('displays green color for high scores (>=80)', () => {
+    it('displays green dot for high scores (>=80)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={85} />);
 
-      const scoreElement = container.querySelector('.text-score-green');
-      expect(scoreElement).toBeDefined();
+      const dotElement = container.querySelector('.bg-aux-neon-grass');
+      expect(dotElement).toBeDefined();
     });
 
-    it('displays yellow color for medium scores (60-79)', () => {
+    it('displays yellow dot for medium scores (60-79)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={70} />);
 
-      const scoreElement = container.querySelector('.text-score-yellow');
-      expect(scoreElement).toBeDefined();
+      const dotElement = container.querySelector('.bg-aux-yellow');
+      expect(dotElement).toBeDefined();
     });
 
-    it('displays red color for low scores (<60)', () => {
+    it('displays red dot for low scores (<60)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={45} />);
 
-      const scoreElement = container.querySelector('.text-score-red');
-      expect(scoreElement).toBeDefined();
+      const dotElement = container.querySelector('.bg-aux-red');
+      expect(dotElement).toBeDefined();
     });
 
     it('renders score badge in grid view', () => {
@@ -300,32 +300,32 @@ describe('ProjectCard', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={80} />);
 
       expect(screen.getByText('80')).toBeDefined();
-      const greenElement = container.querySelector('.text-score-green');
-      expect(greenElement).toBeDefined();
+      const greenDot = container.querySelector('.bg-aux-neon-grass');
+      expect(greenDot).toBeDefined();
     });
 
     it('handles edge case score of exactly 60', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={60} />);
 
       expect(screen.getByText('60')).toBeDefined();
-      const yellowElement = container.querySelector('.text-score-yellow');
-      expect(yellowElement).toBeDefined();
+      const yellowDot = container.querySelector('.bg-aux-yellow');
+      expect(yellowDot).toBeDefined();
     });
 
     it('handles score of 0', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={0} />);
 
       expect(screen.getByText('0')).toBeDefined();
-      const redElement = container.querySelector('.text-score-red');
-      expect(redElement).toBeDefined();
+      const redDot = container.querySelector('.bg-aux-red');
+      expect(redDot).toBeDefined();
     });
 
     it('handles score of 100', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={100} />);
 
       expect(screen.getByText('100')).toBeDefined();
-      const greenElement = container.querySelector('.text-score-green');
-      expect(greenElement).toBeDefined();
+      const greenDot = container.querySelector('.bg-aux-neon-grass');
+      expect(greenDot).toBeDefined();
     });
   });
 
