@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { getScoreColor } from '@/utils/scoreColors';
+import { getScoreDotClass } from '@/utils/scoreColors';
 import type { Dimension } from '../../../types';
 import type { ScoreValue } from '../../../types/global';
 
@@ -47,12 +47,13 @@ export default function GlobalDimensionBadge({
       <div className="flex items-center gap-2">
         <span
           className={cn(
-            'text-lg font-medium transition-opacity',
-            isVisible
-              ? getScoreColor(displayValue, thresholds)
-              : 'text-muted-foreground',
+            'text-lg font-medium transition-opacity flex items-center gap-1.5',
+            isVisible ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
+          {displayValue !== null && (
+            <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', isVisible ? getScoreDotClass(displayValue, thresholds) : 'bg-muted-foreground/50')} />
+          )}
           {displayValue ?? '—'}
         </span>
         <span className="text-xs text-muted-foreground">({score.count})</span>

@@ -6,9 +6,9 @@ import type { PMSatisfaction } from '../../types';
 
 type ComplaintValue = 'yes' | 'no' | '-';
 
-function getComplaintColorClass(value: ComplaintValue): string {
-  if (value === 'no') return 'text-score-green';
-  if (value === 'yes') return 'text-score-red';
+function getComplaintDotClass(value: ComplaintValue): string {
+  if (value === 'no') return 'bg-aux-neon-grass';
+  if (value === 'yes') return 'bg-aux-red';
   return '';
 }
 
@@ -115,17 +115,19 @@ export default function PMSatisfactionCard({
             <div className="space-y-1 pt-2 border-t border-border/50">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Delivery complaints</span>
-                <span
-                  className={cn(getComplaintColorClass(displayData.delivery_complaints))}
-                >
+                <span className="flex items-center gap-1">
+                  {displayData.delivery_complaints !== '-' && (
+                    <span className={cn('inline-block w-1.5 h-1.5 rounded-full shrink-0', getComplaintDotClass(displayData.delivery_complaints))} />
+                  )}
                   {displayData.delivery_complaints === '-' ? 'N/A' : displayData.delivery_complaints}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Design complaints</span>
-                <span
-                  className={cn(getComplaintColorClass(displayData.design_complaints))}
-                >
+                <span className="flex items-center gap-1">
+                  {displayData.design_complaints !== '-' && (
+                    <span className={cn('inline-block w-1.5 h-1.5 rounded-full shrink-0', getComplaintDotClass(displayData.design_complaints))} />
+                  )}
                   {displayData.design_complaints === '-' ? 'N/A' : displayData.design_complaints}
                 </span>
               </div>

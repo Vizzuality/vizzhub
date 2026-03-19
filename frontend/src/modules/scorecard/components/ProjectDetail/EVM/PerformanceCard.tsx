@@ -18,10 +18,10 @@ import type { EVMData, HistoricalDataPoint } from '@/modules/scorecard/types';
 
 const DEFAULT_CHART_COLOR = 'var(--chart-1)';
 
-function getPerformanceColorClass(value: number, target: number): string {
-  if (value >= target) return 'text-score-green';
-  if (value >= target * 0.9) return 'text-score-yellow';
-  return 'text-score-red';
+function getPerformanceDotClass(value: number, target: number): string {
+  if (value >= target) return 'bg-aux-neon-grass';
+  if (value >= target * 0.9) return 'bg-aux-cool-steel';
+  return 'bg-aux-red';
 }
 
 function getPerformanceStatusText(
@@ -190,7 +190,8 @@ function ValueDisplay({ value, target, statusText }: ValueDisplayProps): JSX.Ele
 
   return (
     <>
-      <p className={cn('text-xl font-semibold', getPerformanceColorClass(value, target))}>
+      <p className="text-xl font-semibold text-foreground flex items-center gap-1.5">
+        <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', getPerformanceDotClass(value, target))} />
         {(value * 100).toFixed(0)}%
       </p>
       <p className="text-xs text-muted-foreground">

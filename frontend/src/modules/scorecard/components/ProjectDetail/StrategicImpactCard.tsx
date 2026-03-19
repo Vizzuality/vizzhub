@@ -20,12 +20,12 @@ function getScoreForValue(val: StrategicImpact): number {
   return option?.score ?? 0;
 }
 
-function getImpactColorClass(data: StrategicImpact | null | undefined): string {
-  if (!data) return 'text-muted-foreground';
-  if (data === 'transformational') return 'text-score-green';
-  if (data === 'high') return 'text-blue-600 dark:text-blue-400';
-  if (data === 'medium') return 'text-score-yellow';
-  return 'text-orange-600 dark:text-orange-400';
+function getImpactDotClass(data: StrategicImpact | null | undefined): string {
+  if (!data) return 'bg-aux-dust-grey';
+  if (data === 'transformational') return 'bg-aux-neon-grass';
+  if (data === 'high') return 'bg-blue-600';
+  if (data === 'medium') return 'bg-aux-cool-steel';
+  return 'bg-orange-600';
 }
 
 export default function StrategicImpactCard({
@@ -78,10 +78,10 @@ export default function StrategicImpactCard({
             <span className="text-sm font-medium text-muted-foreground">Impact Level</span>
             <span
               className={cn(
-                'text-2xl font-bold capitalize',
-                getImpactColorClass(data)
+                'text-2xl font-bold capitalize text-foreground flex items-center gap-1.5',
               )}
             >
+              <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', getImpactDotClass(data))} />
               {data ?? '—'}
             </span>
           </div>

@@ -116,7 +116,8 @@ export default function ArchitectureCard({
               {CHECKLIST_ITEMS.map(({ key, shortLabel }) => (
                 <div key={key} className="flex justify-between text-xs">
                   <span className="text-muted-foreground">{shortLabel}</span>
-                  <span className={displayData[key] ? 'text-score-green' : 'text-score-red'}>
+                  <span className="flex items-center gap-1">
+                    <span className={cn('inline-block w-1.5 h-1.5 rounded-full shrink-0', displayData[key] ? 'bg-aux-neon-grass' : 'bg-aux-red')} />
                     {displayData[key] ? 'Yes' : 'No'}
                   </span>
                 </div>

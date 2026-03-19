@@ -32,16 +32,16 @@ function createSurveyFieldHandler(
   };
 }
 
-const RATING_COLORS: Record<number, string> = {
-  5: 'text-score-green',
-  4: 'text-blue-600',
-  3: 'text-score-yellow',
-  2: 'text-orange-600',
-  1: 'text-score-red',
+const RATING_DOT_COLORS: Record<number, string> = {
+  5: 'bg-aux-neon-grass',
+  4: 'bg-blue-600',
+  3: 'bg-aux-cool-steel',
+  2: 'bg-orange-600',
+  1: 'bg-aux-red',
 };
 
-function getRatingColor(value: number | null | undefined): string {
-  return value ? RATING_COLORS[value] ?? '' : '';
+function getRatingDotClass(value: number | null | undefined): string {
+  return value ? RATING_DOT_COLORS[value] ?? '' : '';
 }
 
 interface ClientSurveyCardProps {
@@ -140,7 +140,10 @@ export default function ClientSurveyCard({
                 return (
                   <div key={key} className="flex justify-between text-xs">
                     <span className="text-muted-foreground">{shortLabel}</span>
-                    <span className={cn(getRatingColor(value))}>
+                    <span className="flex items-center gap-1">
+                      {value !== undefined && value !== null && (
+                        <span className={cn('inline-block w-1.5 h-1.5 rounded-full shrink-0', getRatingDotClass(value))} />
+                      )}
                       {value ?? '—'}
                     </span>
                   </div>

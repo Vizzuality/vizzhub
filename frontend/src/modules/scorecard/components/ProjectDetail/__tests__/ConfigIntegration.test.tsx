@@ -146,7 +146,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       expect(screen.getByText('≤3 exceptions')).toBeInTheDocument();
     });
 
-    it('shows green when exceptions below target', () => {
+    it('shows green dot when exceptions below target', () => {
       render(
         <GovernanceCard
           value={1}
@@ -157,10 +157,10 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('1');
-      expect(valueElement).toHaveClass('text-score-green');
+      expect(valueElement.querySelector('.bg-aux-neon-grass')).not.toBeNull();
     });
 
-    it('shows yellow when exceptions equal target', () => {
+    it('shows yellow dot when exceptions equal target', () => {
       render(
         <GovernanceCard
           value={3}
@@ -171,10 +171,10 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('3');
-      expect(valueElement).toHaveClass('text-score-yellow');
+      expect(valueElement.querySelector('.bg-aux-cool-steel')).not.toBeNull();
     });
 
-    it('shows red when exceptions exceed target', () => {
+    it('shows red dot when exceptions exceed target', () => {
       render(
         <GovernanceCard
           value={5}
@@ -185,10 +185,10 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('5');
-      expect(valueElement).toHaveClass('text-score-red');
+      expect(valueElement.querySelector('.bg-aux-red')).not.toBeNull();
     });
 
-    it('respects different target values - color changes with target', () => {
+    it('respects different target values - dot color changes with target', () => {
       const { rerender } = render(
         <GovernanceCard
           value={4}
@@ -198,7 +198,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('4')).toHaveClass('text-score-red');
+      expect(screen.getByText('4').querySelector('.bg-aux-red')).not.toBeNull();
       expect(screen.getByText('≤3 exceptions')).toBeInTheDocument();
 
       rerender(
@@ -210,7 +210,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('4')).toHaveClass('text-score-green');
+      expect(screen.getByText('4').querySelector('.bg-aux-neon-grass')).not.toBeNull();
       expect(screen.getByText('≤5 exceptions')).toBeInTheDocument();
     });
   });
@@ -277,7 +277,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       expect(screen.getByText('Client Satisfaction Survey')).toBeInTheDocument();
     });
 
-    it('shows correct color based on dynamic target', () => {
+    it('shows correct dot color based on dynamic target', () => {
       render(
         <ClientSurveyCard
           data={{ understanding: 5, quality: 5 } as ClientSurvey}
@@ -290,10 +290,10 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('90%')).toHaveClass('text-score-green');
+      expect(screen.getByText('90%').querySelector('.bg-aux-neon-grass')).not.toBeNull();
     });
 
-    it('color changes when target changes', () => {
+    it('dot color changes when target changes', () => {
       const { rerender } = render(
         <ClientSurveyCard
           data={{ understanding: 5, quality: 5 } as ClientSurvey}
@@ -306,7 +306,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('80%')).toHaveClass('text-score-green');
+      expect(screen.getByText('80%').querySelector('.bg-aux-neon-grass')).not.toBeNull();
 
       rerender(
         <ClientSurveyCard
@@ -320,7 +320,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('80%')).toHaveClass('text-score-red');
+      expect(screen.getByText('80%').querySelector('.bg-aux-red')).not.toBeNull();
     });
 
     it('respects different target values for KPI display', () => {

@@ -15,6 +15,12 @@ const TEXT_SIZE_MAP: Record<ScoreTextSize, string> = {
   lg: 'text-3xl',
 };
 
+const DOT_SIZE_MAP: Record<ScoreTextSize, string> = {
+  sm: 'w-2 h-2',
+  md: 'w-2.5 h-2.5',
+  lg: 'w-2.5 h-2.5',
+};
+
 function getScoreColor(
   indicatorValue: number | null,
   targetNormalized: number | null
@@ -31,6 +37,22 @@ function getScoreColor(
   return 'text-score-red';
 }
 
+function getScoreDotBgClass(
+  indicatorValue: number | null,
+  targetNormalized: number | null
+): string {
+  if (indicatorValue === null || targetNormalized === null) {
+    return 'bg-aux-dust-grey';
+  }
+  if (indicatorValue >= targetNormalized) {
+    return 'bg-aux-neon-grass';
+  }
+  if (indicatorValue >= targetNormalized * 0.9) {
+    return 'bg-aux-cool-steel';
+  }
+  return 'bg-aux-red';
+}
+
 export function IndicatorScoreDisplay({
   label,
   indicatorValue,
@@ -44,11 +66,11 @@ export function IndicatorScoreDisplay({
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <span
         className={cn(
-          'font-bold',
+          'font-bold text-foreground flex items-center gap-1.5',
           TEXT_SIZE_MAP[textSize],
-          getScoreColor(indicatorValue, targetNormalized)
         )}
       >
+        <span className={cn('inline-block rounded-full shrink-0', DOT_SIZE_MAP[textSize], getScoreDotBgClass(indicatorValue, targetNormalized))} />
         {indicatorValue === null
           ? '—'
           : `${Math.round(indicatorValue * 100)}%`}

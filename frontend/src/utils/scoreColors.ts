@@ -1,5 +1,6 @@
 /**
  * Utility functions for score color determination.
+ * Uses auxiliary palette CSS vars (bg-aux-*, text-aux-*).
  */
 
 export interface ScoreThresholds {
@@ -8,16 +9,31 @@ export interface ScoreThresholds {
 }
 
 /**
+ * Get the dot background class for a score value.
+ * Use with a neutral-colored number beside the dot.
+ */
+export function getScoreDotClass(
+  value: number | null,
+  thresholds: ScoreThresholds
+): string {
+  if (value === null) return 'bg-aux-dust-grey';
+  if (value >= thresholds.green) return 'bg-aux-neon-grass';
+  if (value >= thresholds.yellow) return 'bg-aux-cool-steel';
+  return 'bg-aux-red';
+}
+
+/**
  * Get the text color class for a score value based on thresholds.
+ * @deprecated Use getScoreDotClass + neutral text instead.
  */
 export function getScoreColor(
   value: number | null,
   thresholds: ScoreThresholds
 ): string {
   if (value === null) return 'text-muted-foreground';
-  if (value >= thresholds.green) return 'text-score-green';
-  if (value >= thresholds.yellow) return 'text-score-yellow';
-  return 'text-score-red';
+  if (value >= thresholds.green) return 'text-aux-neon-grass';
+  if (value >= thresholds.yellow) return 'text-aux-cool-steel';
+  return 'text-aux-red';
 }
 
 /**
