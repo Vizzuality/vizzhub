@@ -26,3 +26,19 @@ export const AUXILIARY_PALETTE = {
   yellow: 'var(--aux-yellow)',
   red: 'var(--aux-red)',
 } as const;
+
+/**
+ * Raw hex values for contexts that cannot use CSS variables
+ * (Recharts fills/strokes, inline styles, canvas rendering).
+ */
+export const PALETTE_HEX = {
+  onix: '#0C0C0C',
+  deepTeal: '#5f7470',
+  coolSteel: '#889696',
+  ashGrey: '#b8bdb5',
+  dustGrey: '#d2d4c8',
+  softLinen: '#e0e2db',
+  neonGrass: '#5AFF15',
+  yellow: '#FFD23F',
+  red: '#DE1A1A',
+} as const;

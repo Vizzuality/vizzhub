@@ -14,8 +14,9 @@ import {
 } from 'recharts';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { cn } from '@/lib/utils';
+import { PALETTE_HEX } from '@/shared/constants/palette';
 import type { PeriodCostBreakdown } from '../types/tracker';
-import { formatCurrency } from '../utils/constants';
+import { formatCurrency, shortMonth } from '../utils/constants';
 
 interface BurnDashboardProps {
   readonly periods: PeriodCostBreakdown[];
@@ -38,11 +39,6 @@ interface MonthlyPoint {
   total: number;
 }
 
-function shortMonth(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
-}
-
 function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
 }
@@ -55,7 +51,6 @@ function formatCompact(value: number): string {
 
 export function useChartData(
   periods: PeriodCostBreakdown[],
-  budget: number | null,
   projectEndDate: string | null,
 ): {
   cumulative: CumulativePoint[];
@@ -134,7 +129,7 @@ export function useChartData(
       forecastFinal,
       avgMonthlyBurn,
     };
-  }, [periods, budget, projectEndDate]);
+  }, [periods, projectEndDate]);
 }
 
 const ACCENT_CLASSES: Record<string, string> = {
@@ -226,12 +221,12 @@ function MonthlyTooltip({ active, payload, label }: ChartTooltipProps): JSX.Elem
     <div className="bg-popover border rounded px-3 py-2 shadow-lg text-xs space-y-1">
       <div className="font-medium">{label}</div>
       <div className="flex items-center gap-2">
-        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#5f7470' }} />
+        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: PALETTE_HEX.deepTeal }} />
         <span className="text-muted-foreground">Staff:</span>
         <span className="font-medium">{formatCurrency(staff)}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#b8bdb5' }} />
+        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: PALETTE_HEX.ashGrey }} />
         <span className="text-muted-foreground">Non-staff:</span>
         <span className="font-medium">{formatCurrency(nonStaff)}</span>
       </div>
@@ -262,12 +257,12 @@ function CumulativeBurnChart({
         <AreaChart data={data} margin={{ top: 10, right: 15, bottom: 5, left: 10 }}>
           <defs>
             <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#5AFF15" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#5AFF15" stopOpacity={0} />
+              <stop offset="5%" stopColor={PALETTE_HEX.neonGrass} stopOpacity={0.15} />
+              <stop offset="95%" stopColor={PALETTE_HEX.neonGrass} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#889696" stopOpacity={0.08} />
-              <stop offset="95%" stopColor="#889696" stopOpacity={0} />
+              <stop offset="5%" stopColor={PALETTE_HEX.coolSteel} stopOpacity={0.08} />
+              <stop offset="95%" stopColor={PALETTE_HEX.coolSteel} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
@@ -290,14 +285,14 @@ function CumulativeBurnChart({
           {budget != null && (
             <ReferenceLine
               y={budget}
-              stroke="#b8bdb5"
+              stroke={PALETTE_HEX.ashGrey}
               strokeDasharray="8 4"
               strokeWidth={1.5}
               label={{
                 value: `Budget ${formatCompact(budget)}`,
                 position: 'insideTopRight',
                 fontSize: 11,
-                fill: '#889696',
+                fill: PALETTE_HEX.coolSteel,
                 fontWeight: 500,
               }}
             />
@@ -305,11 +300,11 @@ function CumulativeBurnChart({
           <Area
             type="monotone"
             dataKey="cumulative"
-            stroke="#5AFF15"
+            stroke={PALETTE_HEX.neonGrass}
             strokeWidth={2}
             fill="url(#actualGrad)"
-            dot={{ r: 2.5, fill: '#5AFF15', strokeWidth: 0 }}
-            activeDot={{ r: 4, fill: '#5AFF15', strokeWidth: 2, stroke: 'white' }}
+            dot={{ r: 2.5, fill: PALETTE_HEX.neonGrass, strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: PALETTE_HEX.neonGrass, strokeWidth: 2, stroke: 'white' }}
             connectNulls={false}
             name="Actual"
           />
@@ -317,12 +312,12 @@ function CumulativeBurnChart({
             <Area
               type="monotone"
               dataKey="forecast"
-              stroke="#889696"
+              stroke={PALETTE_HEX.coolSteel}
               strokeWidth={2}
               strokeDasharray="6 3"
               fill="url(#forecastGrad)"
-              dot={{ r: 2, fill: '#889696', strokeWidth: 0 }}
-              activeDot={{ r: 4, fill: '#889696', strokeWidth: 2, stroke: 'white' }}
+              dot={{ r: 2, fill: PALETTE_HEX.coolSteel, strokeWidth: 0 }}
+              activeDot={{ r: 4, fill: PALETTE_HEX.coolSteel, strokeWidth: 2, stroke: 'white' }}
               connectNulls={false}
               name="Forecast"
             />
@@ -331,18 +326,18 @@ function CumulativeBurnChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#5AFF15' }} />
+          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.neonGrass }} />
           Actual
         </span>
         {hasForecast && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#889696' }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
             Forecast
           </span>
         )}
         {budget != null && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#b8bdb5' }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.ashGrey }} />
             Budget
           </span>
         )}
@@ -385,35 +380,35 @@ export function MonthlyCostsChart({
           {avgMonthlyBurn > 0 && (
             <ReferenceLine
               y={avgMonthlyBurn}
-              stroke="#d2d4c8"
+              stroke={PALETTE_HEX.dustGrey}
               strokeDasharray="4 3"
               strokeWidth={1}
               label={{
                 value: `Avg ${formatCompact(avgMonthlyBurn)}`,
                 position: 'insideTopRight',
                 fontSize: 10,
-                fill: '#889696',
+                fill: PALETTE_HEX.coolSteel,
               }}
             />
           )}
           <Bar
             dataKey="staff"
             stackId="costs"
-            fill="#5f7470"
+            fill={PALETTE_HEX.deepTeal}
             radius={[0, 0, 0, 0]}
             name="Staff"
           />
           <Bar
             dataKey="nonStaff"
             stackId="costs"
-            fill="#b8bdb5"
+            fill={PALETTE_HEX.ashGrey}
             radius={[2, 2, 0, 0]}
             name="Non-staff"
           />
           <Line
             type="monotone"
             dataKey="total"
-            stroke="#889696"
+            stroke={PALETTE_HEX.coolSteel}
             strokeWidth={1.5}
             dot={false}
             name="Trend"
@@ -422,15 +417,15 @@ export function MonthlyCostsChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#5f7470' }} />
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: PALETTE_HEX.deepTeal }} />
           Staff
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#b8bdb5' }} />
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: PALETTE_HEX.ashGrey }} />
           Non-staff
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#889696' }} />
+          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
           Trend
         </span>
       </div>
@@ -445,7 +440,7 @@ export default function BurnDashboard({
   projectEndDate,
 }: BurnDashboardProps): JSX.Element | null {
   const { cumulative, totalBurn, forecastFinal } =
-    useChartData(periods, budget, projectEndDate);
+    useChartData(periods, projectEndDate);
 
   if (periods.length === 0) return null;
 
