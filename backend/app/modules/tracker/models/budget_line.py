@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -42,10 +42,7 @@ class BudgetLineDB(Base):
         ForeignKey("functional_areas.id", ondelete="SET NULL"),
         nullable=True,
     )
-    days: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    adjusted_days: Mapped[Decimal | None] = mapped_column(
-        Numeric(8, 2), nullable=True
-    )
+    days: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
     percentage: Mapped[Decimal | None] = mapped_column(
         Numeric(5, 4), nullable=True
     )

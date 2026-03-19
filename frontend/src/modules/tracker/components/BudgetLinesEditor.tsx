@@ -138,7 +138,7 @@ export default function BudgetLinesEditor({
                     <Input
                       type="number"
                       min="0"
-                      step="1"
+                      step="0.1"
                       value={row.days}
                       onChange={(e) => updateRow(index, 'days', e.target.value)}
                       placeholder="0"
