@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.functional_area import FunctionalAreaDB
 from app.core.models.user import UserDB
 from app.modules.tracker.constants import DEFAULT_RATE
+from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
@@ -172,6 +173,20 @@ async def get_batch_cost_summaries(
         row.project_id: float(row.non_staff_cost) for row in non_staff_result.all()
     }
 
+    income_query = (
+        select(
+            InvoiceDB.project_id,
+            func.coalesce(func.sum(InvoiceDB.amount), 0).label("income"),
+        )
+        .where(
+            InvoiceDB.project_id.in_(project_ids),
+            InvoiceDB.status == "paid",
+        )
+        .group_by(InvoiceDB.project_id)
+    )
+    income_result = await db.execute(income_query)
+    income_map = {row.project_id: float(row.income) for row in income_result.all()}
+
     results: dict[UUID, ProjectCostSummaryLite] = {}
     for pid in project_ids:
         settings = settings_map.get(pid)
@@ -187,6 +202,7 @@ async def get_batch_cost_summaries(
             staff_cost=round(staff, 2),
             non_staff_cost=round(non_staff, 2),
             burn_percentage=burn,
+            income=round(income_map.get(pid, 0.0), 2),
         )
 
     return results

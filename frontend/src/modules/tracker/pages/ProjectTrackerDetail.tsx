@@ -16,6 +16,7 @@ import { formatPeriodDate, formatCurrency, SELECT_CLASS } from '../utils/constan
 import BurnDashboard, { useChartData, MonthlyCostsChart } from '../components/BurnDashboard';
 import TimeByAreaTable from '../components/TimeByAreaTable';
 import DaysByPeopleChart from '../components/DaysByPeopleChart';
+import ProgressCard from '../components/ProgressCard';
 import type { AggregationRow, BudgetLine, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 function getRowBorderClass(
@@ -243,6 +244,11 @@ export default function ProjectTrackerDetail(): JSX.Element {
         periods={summary.periods}
         budget={summary.budget}
         projectEndDate={project?.end_date ?? null}
+      />
+
+      <ProgressCard
+        projectId={projectId || ''}
+        periods={summary.periods}
       />
 
       <DetailSection
