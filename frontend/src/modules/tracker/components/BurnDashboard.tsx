@@ -260,8 +260,8 @@ function CumulativeBurnChart({
         <AreaChart data={data} margin={{ top: 10, right: 15, bottom: 5, left: 10 }}>
           <defs>
             <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#89FC00" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#89FC00" stopOpacity={0} />
+              <stop offset="5%" stopColor="#5AFF15" stopOpacity={0.15} />
+              <stop offset="95%" stopColor="#5AFF15" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#889696" stopOpacity={0.08} />
@@ -303,11 +303,11 @@ function CumulativeBurnChart({
           <Area
             type="monotone"
             dataKey="cumulative"
-            stroke="#89FC00"
+            stroke="#5AFF15"
             strokeWidth={2}
             fill="url(#actualGrad)"
-            dot={{ r: 2.5, fill: '#89FC00', strokeWidth: 0 }}
-            activeDot={{ r: 4, fill: '#89FC00', strokeWidth: 2, stroke: 'white' }}
+            dot={{ r: 2.5, fill: '#5AFF15', strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: '#5AFF15', strokeWidth: 2, stroke: 'white' }}
             connectNulls={false}
             name="Actual"
           />
@@ -329,7 +329,7 @@ function CumulativeBurnChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#89FC00' }} />
+          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#5AFF15' }} />
           Actual
         </span>
         {hasForecast && (
