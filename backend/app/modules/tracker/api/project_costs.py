@@ -48,7 +48,10 @@ async def batch_project_costs(
     return BatchCostsResponse(costs=results, errors={})
 
 
-@router.get("/{project_id}/aggregations")
+@router.get(
+    "/{project_id}/aggregations",
+    responses={400: {"description": "Invalid group_by parameter"}},
+)
 async def project_aggregations(
     project_id: UUID,
     db: DBSession,

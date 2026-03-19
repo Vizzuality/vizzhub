@@ -6,16 +6,16 @@ Create Date: 2026-01-28
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "003_add_metric_snapshots"
-down_revision: Union[str, None] = "002_add_project_status"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "002_add_project_status"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

@@ -14,16 +14,16 @@ This migration:
 This simplifies the data model from 2 tables to 1, with clear uniqueness rules.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "007_merge_snapshots_into_metrics"
-down_revision: Union[str, None] = "006_snapshot_type_constraint"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "006_snapshot_type_constraint"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

@@ -327,18 +327,18 @@ function CumulativeBurnChart({
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.neonGrass }} />
-          Actual
+          {'Actual'}
         </span>
         {hasForecast && (
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
-            Forecast
+            {'Forecast'}
           </span>
         )}
         {budget != null && (
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.ashGrey }} />
-            Budget
+            {'Budget'}
           </span>
         )}
       </div>
@@ -418,20 +418,52 @@ export function MonthlyCostsChart({
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: PALETTE_HEX.deepTeal }} />
-          Staff
+          {'Staff'}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: PALETTE_HEX.ashGrey }} />
-          Non-staff
+          {'Non-staff'}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
-          Trend
+          {'Trend'}
         </span>
       </div>
       </CardContent>
     </Card>
   );
+}
+
+type KpiAccent = 'green' | 'red' | 'muted';
+
+function getVarianceAccent(variance: number | null): KpiAccent {
+  if (variance == null) return 'muted';
+  return variance >= 0 ? 'green' : 'red';
+}
+
+function getForecastSub(
+  forecastFinal: number | null,
+  budget: number | null,
+): string | undefined {
+  if (forecastFinal != null && budget != null) {
+    return `${((forecastFinal / budget) * 100).toFixed(1)}% of budget`;
+  }
+  if (forecastFinal == null) return 'Needs end date';
+  return undefined;
+}
+
+function getForecastAccent(
+  forecastFinal: number | null,
+  budget: number | null,
+): KpiAccent | undefined {
+  if (forecastFinal == null) return 'muted';
+  if (budget != null && forecastFinal > budget) return 'red';
+  return undefined;
+}
+
+function getVarianceSub(variance: number | null): string | undefined {
+  if (variance == null) return undefined;
+  return variance >= 0 ? 'Under budget' : 'Over budget';
 }
 
 export default function BurnDashboard({
@@ -445,9 +477,6 @@ export default function BurnDashboard({
   if (periods.length === 0) return null;
 
   const budgetVariance = budget != null ? budget - totalBurn : null;
-  const varianceAccent = budgetVariance != null
-    ? budgetVariance >= 0 ? 'green' : 'red'
-    : 'muted';
 
   return (
     <div className="space-y-4">
@@ -466,23 +495,15 @@ export default function BurnDashboard({
         <KpiCard
           label="Forecast Final"
           value={forecastFinal != null ? formatCurrency(forecastFinal) : '—'}
-          sub={forecastFinal != null && budget != null
-            ? `${((forecastFinal / budget) * 100).toFixed(1)}% of budget`
-            : forecastFinal == null ? 'Needs end date' : undefined}
-          accent={
-            forecastFinal == null ? 'muted'
-              : budget != null && forecastFinal > budget ? 'red'
-              : undefined
-          }
+          sub={getForecastSub(forecastFinal, budget)}
+          accent={getForecastAccent(forecastFinal, budget)}
           dot
         />
         <KpiCard
           label="Variance"
           value={budgetVariance != null ? formatCurrency(budgetVariance) : '—'}
-          sub={budgetVariance != null
-            ? budgetVariance >= 0 ? 'Under budget' : 'Over budget'
-            : undefined}
-          accent={varianceAccent}
+          sub={getVarianceSub(budgetVariance)}
+          accent={getVarianceAccent(budgetVariance)}
           dot
         />
       </div>
