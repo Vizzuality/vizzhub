@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class BudgetLineCreate(BaseModel):
     functional_area_id: UUID | None = None
-    days: int = Field(ge=0)
+    days: float = Field(ge=0)
     details: str | None = Field(None, max_length=255)
 
 
@@ -24,6 +24,6 @@ class BudgetLineResponse(BaseModel):
     project_id: UUID
     functional_area_id: UUID | None
     functional_area_name: str | None = None
-    days: int | None
+    days: float | None
     percentage: float | None
     details: str | None
