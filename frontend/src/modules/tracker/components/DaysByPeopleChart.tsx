@@ -16,18 +16,20 @@ interface DaysByPeopleChartProps {
 }
 
 const COLORS = [
-  'rgb(59, 130, 246)',   // blue
-  'rgb(16, 185, 129)',   // emerald
-  'rgb(245, 158, 11)',   // amber
-  'rgb(168, 85, 247)',   // purple
-  'rgb(236, 72, 153)',   // pink
-  'rgb(6, 182, 212)',    // cyan
-  'rgb(249, 115, 22)',   // orange
-  'rgb(239, 68, 68)',    // red
-  'rgb(34, 197, 94)',    // green
-  'rgb(99, 102, 241)',   // indigo
-  'rgb(156, 163, 175)',  // gray
-  'rgb(217, 119, 6)',    // dark amber
+  '#5f7470', // deep-teal
+  '#889696', // cool-steel
+  '#b8bdb5', // ash-grey
+  '#d2d4c8', // dust-grey-4
+  '#D7D9CE', // dust-grey-3
+  '#D8DAD0', // dust-grey-2
+  '#D9DBD2', // dust-grey
+  '#DBDDD4', // soft-linen-3
+  '#DDDFD7', // soft-linen-2
+  '#e0e2db', // soft-linen
+  '#4a5d59', // deep-teal darker
+  '#6e8282', // cool-steel darker
+  '#a1a89e', // ash-grey darker
+  '#c2c5b8', // dust-grey lighter
 ];
 
 function shortMonth(dateStr: string): string {
@@ -120,7 +122,7 @@ export default function DaysByPeopleChart({ rows }: DaysByPeopleChartProps): JSX
               width={35}
               label={{ value: 'days', angle: -90, position: 'insideLeft', fontSize: 10, fill: 'var(--muted-foreground)' }}
             />
-            <RechartsTooltip content={<PeopleTooltip />} />
+            <RechartsTooltip content={<PeopleTooltip />} cursor={false} />
             {people.map((name, i) => (
               <Bar
                 key={name}
