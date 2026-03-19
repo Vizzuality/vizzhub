@@ -15,6 +15,10 @@ import type {
   BudgetLine,
   BudgetLineCreate,
   FunctionalArea,
+  ProgressReport,
+  ProgressReportCreate,
+  ProgressReportUpdate,
+  BatchProgressResponse,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -145,6 +149,49 @@ export const trackerApi = {
     const response = await api.put<BudgetLine[]>(
       `/tracker/projects/${projectId}/budget-lines`,
       { lines },
+    );
+    return response.data;
+  },
+
+  // Progress Reports
+  listProgress: async (projectId: string): Promise<ProgressReport[]> => {
+    const response = await api.get<ProgressReport[]>(
+      `/tracker/projects/${projectId}/progress`,
+    );
+    return response.data;
+  },
+
+  createProgress: async (
+    projectId: string,
+    data: ProgressReportCreate,
+  ): Promise<ProgressReport> => {
+    const response = await api.post<ProgressReport>(
+      `/tracker/projects/${projectId}/progress`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateProgress: async (
+    projectId: string,
+    progressId: string,
+    data: ProgressReportUpdate,
+  ): Promise<ProgressReport> => {
+    const response = await api.put<ProgressReport>(
+      `/tracker/projects/${projectId}/progress/${progressId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteProgress: async (projectId: string, progressId: string): Promise<void> => {
+    await api.delete(`/tracker/projects/${projectId}/progress/${progressId}`);
+  },
+
+  getBatchProgress: async (projectIds: string[]): Promise<BatchProgressResponse> => {
+    const response = await api.post<BatchProgressResponse>(
+      '/tracker/projects/batch-progress',
+      { project_ids: projectIds },
     );
     return response.data;
   },
