@@ -31,7 +31,7 @@ import {
 } from '@/shared/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useScoreThresholds } from '@/modules/scorecard/hooks/useConfig';
-import { getScoreColor, getScoreBgColor, getScoreDotClass } from '@/utils/scoreColors';
+import { getScoreBgColor, getScoreDotClass } from '@/utils/scoreColors';
 
 interface ScoreCardProps {
   readonly score: FinalScore;

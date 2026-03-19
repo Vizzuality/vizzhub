@@ -1,15 +1,12 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { PALETTE_HEX } from '@/shared/constants/palette';
 import { textColorForBg } from '@/shared/utils/colorContrast';
 import type { AggregationRow } from '../types/tracker';
+import { shortMonth } from '../utils/constants';
 
 interface DaysByPeopleChartProps {
   readonly rows: AggregationRow[];
-}
-
-function shortMonth(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
 }
 
 interface HeatmapData {
@@ -49,10 +46,10 @@ function buildHeatmap(rows: AggregationRow[]): HeatmapData {
 }
 
 const HEAT_STEPS = [
-  { threshold: 0.7, bg: '#5f7470' },
-  { threshold: 0.4, bg: '#889696' },
-  { threshold: 0.2, bg: '#b8bdb5' },
-  { threshold: 0,   bg: '#e0e2db' },
+  { threshold: 0.7, bg: PALETTE_HEX.deepTeal },
+  { threshold: 0.4, bg: PALETTE_HEX.coolSteel },
+  { threshold: 0.2, bg: PALETTE_HEX.ashGrey },
+  { threshold: 0,   bg: PALETTE_HEX.softLinen },
 ] as const;
 
 function cellStyle(value: number, max: number): { bg: string; text: string } | null {

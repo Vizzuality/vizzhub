@@ -14,16 +14,6 @@ from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
-def _valid_parts_filter(query):
-    """Apply standard filters: exclude estimated reports, null/zero percentage."""
-    return (
-        query
-        .where(ReportDB.estimated.is_(False))
-        .where(ReportPartDB.percentage.isnot(None))
-        .where(ReportPartDB.percentage > 0)
-    )
-
-
 from app.modules.tracker.schemas.aggregation import (
     AggregationPeriod,
     AggregationResponse,
@@ -35,6 +25,16 @@ from app.modules.tracker.schemas.project_cost import (
     ProjectCostSummaryLite,
     ProjectReportPartResponse,
 )
+
+
+def _valid_parts_filter(query):
+    """Apply standard filters: exclude estimated reports, null/zero percentage."""
+    return (
+        query
+        .where(ReportDB.estimated.is_(False))
+        .where(ReportPartDB.percentage.isnot(None))
+        .where(ReportPartDB.percentage > 0)
+    )
 
 
 async def get_project_cost_summary(
@@ -197,8 +197,12 @@ async def get_project_report_parts(
     project_id: UUID,
     period_id: UUID | None = None,
 ) -> list[ProjectReportPartResponse]:
-    """List report parts for a project with user and functional area details."""
-    query = (
+    """List report parts for a project with user and functional area details.
+
+    Includes estimated reports (shown with badge in UI), unlike aggregation
+    functions which exclude them via _valid_parts_filter.
+    """
+    base_query = (
         select(
             ReportPartDB.id,
             ReportingPeriodDB.date.label("period_date"),
@@ -223,6 +227,7 @@ async def get_project_report_parts(
         .where(ReportPartDB.percentage > 0)
         .order_by(ReportingPeriodDB.date.desc(), UserDB.name.asc())
     )
+    query = base_query
 
     if period_id is not None:
         query = query.where(ReportDB.reporting_period_id == period_id)

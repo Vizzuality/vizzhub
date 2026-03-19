@@ -13,6 +13,11 @@ export const PERIOD_STATUS_COLORS: Record<ReportingPeriod['status'], string> = {
 
 export const SELECT_CLASS = 'flex rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
+export function shortMonth(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('de-DE', {
     style: 'currency',

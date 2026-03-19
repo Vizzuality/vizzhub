@@ -10,6 +10,7 @@ import type { Project } from '@/core/types/project';
 import type { ProjectCostSummaryLite } from '@/modules/tracker/public';
 import { formatDate } from '@/utils/formatters';
 import { formatCurrency } from '@/modules/tracker/public';
+import { getScoreDotClass } from '@/utils/scoreColors';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { cn } from '@/lib/utils';
@@ -23,11 +24,7 @@ interface ProjectCardProps {
   readonly costs?: ProjectCostSummaryLite | null;
 }
 
-function getScoreDotClass(score: number): string {
-  if (score >= 70) return 'bg-aux-neon-grass';
-  if (score >= 40) return 'bg-aux-yellow';
-  return 'bg-aux-red';
-}
+const SCORE_THRESHOLDS = { green: 70, yellow: 40 };
 
 function getBurnDotClass(pct: number | null): string {
   if (pct == null) return 'bg-aux-dust-grey';
@@ -80,7 +77,7 @@ function ProjectMetrics({
           </div>
           <div className="flex items-center gap-1.5">
             <span
-              className={cn('inline-block w-2 h-2 rounded-full shrink-0', getScoreDotClass(score))}
+              className={cn('inline-block w-2 h-2 rounded-full shrink-0', getScoreDotClass(score, SCORE_THRESHOLDS))}
             />
             <span className="text-sm font-medium leading-tight">
               {Math.round(score)}

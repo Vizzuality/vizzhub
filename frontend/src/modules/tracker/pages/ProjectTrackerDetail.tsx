@@ -127,19 +127,17 @@ function PartsTable({
 
 function DetailSection({
   summary,
-  budget,
   projectEndDate,
   areaRows,
   userRows,
 }: {
   readonly summary: ProjectCostSummary;
-  readonly budget: number | null;
   readonly projectEndDate: string | null;
   readonly areaRows: AggregationRow[];
   readonly userRows: AggregationRow[];
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
-  const { monthly, avgMonthlyBurn } = useChartData(summary.periods, budget, projectEndDate);
+  const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
 
   const hasDetails = monthly.length > 0 || userRows.length > 0;
 
@@ -240,7 +238,6 @@ export default function ProjectTrackerDetail(): JSX.Element {
 
       <DetailSection
         summary={summary}
-        budget={summary.budget}
         projectEndDate={project?.end_date ?? null}
         areaRows={areaAgg?.rows ?? []}
         userRows={userAgg?.rows ?? []}
