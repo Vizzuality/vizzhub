@@ -12,7 +12,6 @@ import { formatDate } from '@/utils/formatters';
 import { formatCurrency } from '@/modules/tracker/public';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
-import { AUXILIARY_PALETTE } from '@/shared/constants/palette';
 import { cn } from '@/lib/utils';
 
 
@@ -24,17 +23,17 @@ interface ProjectCardProps {
   readonly costs?: ProjectCostSummaryLite | null;
 }
 
-function getScoreDotColor(score: number): string {
-  if (score >= 70) return AUXILIARY_PALETTE.neonGrass;
-  if (score >= 40) return AUXILIARY_PALETTE.coolSteel;
-  return AUXILIARY_PALETTE.red;
+function getScoreDotClass(score: number): string {
+  if (score >= 70) return 'bg-aux-neon-grass';
+  if (score >= 40) return 'bg-aux-cool-steel';
+  return 'bg-aux-red';
 }
 
-function getBurnDotColor(pct: number | null): string {
-  if (pct == null) return AUXILIARY_PALETTE.dustGrey;
-  if (pct > 100) return AUXILIARY_PALETTE.red;
-  if (pct >= 80) return AUXILIARY_PALETTE.coolSteel;
-  return AUXILIARY_PALETTE.neonGrass;
+function getBurnDotClass(pct: number | null): string {
+  if (pct == null) return 'bg-aux-dust-grey';
+  if (pct > 100) return 'bg-aux-red';
+  if (pct >= 80) return 'bg-aux-cool-steel';
+  return 'bg-aux-neon-grass';
 }
 
 function Metric({
@@ -81,8 +80,7 @@ function ProjectMetrics({
           </div>
           <div className="flex items-center gap-1.5">
             <span
-              className="inline-block w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: getScoreDotColor(score) }}
+              className={cn('inline-block w-2 h-2 rounded-full shrink-0', getScoreDotClass(score))}
             />
             <span className="text-sm font-medium leading-tight">
               {Math.round(score)}
@@ -107,8 +105,7 @@ function ProjectMetrics({
             </div>
             <div className="flex items-center gap-1.5">
               <span
-                className="inline-block w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: getBurnDotColor(costs.burn_percentage) }}
+                className={cn('inline-block w-2 h-2 rounded-full shrink-0', getBurnDotClass(costs.burn_percentage))}
               />
               <span className="text-sm font-medium leading-tight">
                 {costs.burn_percentage == null
