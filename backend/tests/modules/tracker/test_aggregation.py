@@ -329,3 +329,72 @@ class TestProjectReportParts:
         assert len(parts) == 1
         assert parts[0]["period_date"] == "2026-02-01"
         assert parts[0]["cost"] == pytest.approx(1137.01, rel=1e-4)
+
+
+class TestProjectAggregations:
+    @pytest.mark.asyncio
+    async def test_aggregate_by_functional_area(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        project_id = cost_data["project"].id
+        resp = await client.get(
+            f"/api/tracker/projects/{project_id}/aggregations",
+            params={"group_by": "functional_area"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["group_by"] == "functional_area"
+        assert len(data["rows"]) == 1
+        row = data["rows"][0]
+        assert row["name"] == "Backend Developer"
+        assert row["email"] is None
+        assert row["total_days"] == pytest.approx(4.44, rel=1e-2)
+        assert row["total_cost"] == pytest.approx(3411.03, rel=1e-4)
+        assert len(row["periods"]) == 2
+        assert row["periods"][0]["date"] == "2026-02-01"
+        assert row["periods"][1]["date"] == "2026-03-01"
+
+    @pytest.mark.asyncio
+    async def test_aggregate_by_user(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        project_id = cost_data["project"].id
+        resp = await client.get(
+            f"/api/tracker/projects/{project_id}/aggregations",
+            params={"group_by": "user"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["group_by"] == "user"
+        assert len(data["rows"]) == 1
+        row = data["rows"][0]
+        assert row["name"] == "Cost User"
+        assert row["email"] == "cost-test@example.com"
+        assert row["total_days"] == pytest.approx(4.44, rel=1e-2)
+
+    @pytest.mark.asyncio
+    async def test_aggregate_invalid_group_by(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        project_id = cost_data["project"].id
+        resp = await client.get(
+            f"/api/tracker/projects/{project_id}/aggregations",
+            params={"group_by": "invalid"},
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_aggregate_empty_project(
+        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+    ):
+        empty = ProjectDB(name="Empty", status="live")
+        db_session.add(empty)
+        await db_session.commit()
+        await db_session.refresh(empty)
+
+        resp = await client.get(
+            f"/api/tracker/projects/{empty.id}/aggregations",
+            params={"group_by": "functional_area"},
+        )
+        assert resp.status_code == 200
+        assert len(resp.json()["rows"]) == 0

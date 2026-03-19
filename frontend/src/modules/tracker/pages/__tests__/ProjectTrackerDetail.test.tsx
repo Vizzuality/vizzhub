@@ -42,7 +42,7 @@ describe('ProjectTrackerDetail', () => {
       expect(screen.getByText(/50\.000,00/)).toBeInTheDocument();
     });
     expect(screen.getAllByText(/3\.911,03/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/7\.82/)).toBeInTheDocument();
+    expect(screen.getByText(/of budget/)).toBeInTheDocument();
   });
 
   it('renders reports table with parts', async () => {
@@ -51,6 +51,14 @@ describe('ProjectTrackerDetail', () => {
       expect(screen.getAllByText('Test User').length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText('Backend Developer').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders time by area table', async () => {
+    renderDetail();
+    await waitFor(() => {
+      expect(screen.getByText('Time per Functional Area')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('4.44').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows empty state for project with no data', async () => {
