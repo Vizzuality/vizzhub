@@ -12,6 +12,9 @@ import type {
   ProjectReportPart,
   BatchCostsResponse,
   AggregationResponse,
+  BudgetLine,
+  BudgetLineCreate,
+  FunctionalArea,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -124,6 +127,31 @@ export const trackerApi = {
       `/tracker/projects/${projectId}/aggregations`,
       { params: { group_by: groupBy } },
     );
+    return response.data;
+  },
+
+  // Budget Lines
+  getBudgetLines: async (projectId: string): Promise<BudgetLine[]> => {
+    const response = await api.get<BudgetLine[]>(
+      `/tracker/projects/${projectId}/budget-lines`,
+    );
+    return response.data;
+  },
+
+  replaceBudgetLines: async (
+    projectId: string,
+    lines: BudgetLineCreate[],
+  ): Promise<BudgetLine[]> => {
+    const response = await api.put<BudgetLine[]>(
+      `/tracker/projects/${projectId}/budget-lines`,
+      { lines },
+    );
+    return response.data;
+  },
+
+  // Functional Areas
+  listFunctionalAreas: async (): Promise<FunctionalArea[]> => {
+    const response = await api.get<FunctionalArea[]>('/functional-areas');
     return response.data;
   },
 };

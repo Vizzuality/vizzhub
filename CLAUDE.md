@@ -52,6 +52,13 @@ src/
 │   │   ├── pages/         # Projects, ProjectDetail, GlobalDashboard
 │   │   ├── services/      # scores, metrics, global, exports
 │   │   └── types/         # scores, metrics, config, global
+│   ├── tracker/           # Budget tracking, time reports
+│   │   ├── components/    # BurnDashboard, TimeByAreaTable, DaysByPeopleChart, BudgetLinesEditor
+│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines
+│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail
+│   │   ├── services/      # tracker (API client)
+│   │   ├── types/         # tracker (all tracker types)
+│   │   └── utils/         # constants (formatCurrency, shortMonth, etc.)
 │   └── iso/               # ISO compliance UI
 │       ├── components/    # ISOConfig
 │       ├── hooks/         # useIso
@@ -60,7 +67,7 @@ src/
 │       └── types/         # iso
 ├── shared/                # Reusable across everything
 │   ├── components/        # ui/ (shadcn), theme-provider
-│   ├── constants/         # timing, dates
+│   ├── constants/         # timing, dates, palette
 │   └── hooks/             # useUrlState
 ├── types/index.ts         # Re-export barrel (convenience for cross-module type imports)
 ├── utils/                 # dateUtils, formatters

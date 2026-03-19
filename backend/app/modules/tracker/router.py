@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.modules.tracker.api import budget_lines as budget_lines_router
 from app.modules.tracker.api import non_staff_costs as non_staff_costs_router
 from app.modules.tracker.api import project_costs as project_costs_router
 from app.modules.tracker.api import report_parts as report_parts_router
@@ -34,4 +35,9 @@ router.include_router(
     project_costs_router.router,
     prefix="/projects",
     tags=["tracker:project-costs"],
+)
+router.include_router(
+    budget_lines_router.router,
+    prefix="/projects",
+    tags=["tracker:budget-lines"],
 )

@@ -32,6 +32,12 @@ export function getPerformanceColor(value: number): string {
   return 'text-score-red';
 }
 
+export function getPerformanceDotClass(value: number): string {
+  if (value >= 1) return 'bg-aux-neon-grass';
+  if (value >= 0.9) return 'bg-aux-yellow';
+  return 'bg-aux-red';
+}
+
 export function getPerformanceLabel(value: number, metric: 'spi' | 'cpi'): string {
   if (metric === 'spi') {
     if (value > 1) return 'Ahead of schedule';
