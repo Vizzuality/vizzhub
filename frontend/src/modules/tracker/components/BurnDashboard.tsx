@@ -260,12 +260,12 @@ function CumulativeBurnChart({
         <AreaChart data={data} margin={{ top: 10, right: 15, bottom: 5, left: 10 }}>
           <defs>
             <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#889696" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#889696" stopOpacity={0} />
+              <stop offset="5%" stopColor="#89FC00" stopOpacity={0.15} />
+              <stop offset="95%" stopColor="#89FC00" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="rgb(59, 130, 246)" stopOpacity={0.08} />
-              <stop offset="95%" stopColor="rgb(59, 130, 246)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#889696" stopOpacity={0.08} />
+              <stop offset="95%" stopColor="#889696" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
@@ -303,11 +303,11 @@ function CumulativeBurnChart({
           <Area
             type="monotone"
             dataKey="cumulative"
-            stroke="#889696"
+            stroke="#89FC00"
             strokeWidth={2}
             fill="url(#actualGrad)"
-            dot={{ r: 2.5, fill: '#889696', strokeWidth: 0 }}
-            activeDot={{ r: 4, fill: '#889696', strokeWidth: 2, stroke: 'white' }}
+            dot={{ r: 2.5, fill: '#89FC00', strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: '#89FC00', strokeWidth: 2, stroke: 'white' }}
             connectNulls={false}
             name="Actual"
           />
@@ -315,12 +315,12 @@ function CumulativeBurnChart({
             <Area
               type="monotone"
               dataKey="forecast"
-              stroke="rgb(59, 130, 246)"
+              stroke="#889696"
               strokeWidth={2}
               strokeDasharray="6 3"
               fill="url(#forecastGrad)"
-              dot={{ r: 2, fill: 'rgb(59, 130, 246)', strokeWidth: 0 }}
-              activeDot={{ r: 4, fill: 'rgb(59, 130, 246)', strokeWidth: 2, stroke: 'white' }}
+              dot={{ r: 2, fill: '#889696', strokeWidth: 0 }}
+              activeDot={{ r: 4, fill: '#889696', strokeWidth: 2, stroke: 'white' }}
               connectNulls={false}
               name="Forecast"
             />
@@ -329,12 +329,12 @@ function CumulativeBurnChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#889696' }} />
+          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#89FC00' }} />
           Actual
         </span>
         {hasForecast && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: 'rgb(59, 130, 246)' }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#889696' }} />
             Forecast
           </span>
         )}
