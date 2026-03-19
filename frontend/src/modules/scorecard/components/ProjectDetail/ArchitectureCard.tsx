@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { Button } from '@/shared/components/ui/button';
 import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { IndicatorScoreDisplay, KPIDisplay } from './IndicatorDisplay';
