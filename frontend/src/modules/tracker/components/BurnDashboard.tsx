@@ -365,7 +365,7 @@ function MonthlyCostsChart({
             tickFormatter={formatCompact}
             width={55}
           />
-          <RechartsTooltip content={<MonthlyTooltip />} />
+          <RechartsTooltip content={<MonthlyTooltip />} cursor={false} />
           {avgMonthlyBurn > 0 && (
             <ReferenceLine
               y={avgMonthlyBurn}
