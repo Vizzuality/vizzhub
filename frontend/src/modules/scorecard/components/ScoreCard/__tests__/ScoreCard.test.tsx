@@ -172,7 +172,7 @@ describe('ScoreCard', () => {
     expect(timeDot).not.toBeNull(); // >=80 = green dot
 
     const costScore = screen.getByText('70');
-    const costDot = costScore.querySelector('.bg-aux-cool-steel');
+    const costDot = costScore.querySelector('.bg-aux-yellow');
     expect(costDot).not.toBeNull(); // >=60 = yellow dot
 
     const qualityScore = screen.getByText('50');

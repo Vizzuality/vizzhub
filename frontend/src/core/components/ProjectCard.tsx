@@ -25,14 +25,14 @@ interface ProjectCardProps {
 
 function getScoreDotClass(score: number): string {
   if (score >= 70) return 'bg-aux-neon-grass';
-  if (score >= 40) return 'bg-aux-cool-steel';
+  if (score >= 40) return 'bg-aux-yellow';
   return 'bg-aux-red';
 }
 
 function getBurnDotClass(pct: number | null): string {
   if (pct == null) return 'bg-aux-dust-grey';
   if (pct > 100) return 'bg-aux-red';
-  if (pct >= 80) return 'bg-aux-cool-steel';
+  if (pct >= 80) return 'bg-aux-yellow';
   return 'bg-aux-neon-grass';
 }
 

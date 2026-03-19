@@ -20,7 +20,7 @@ const DEFAULT_CHART_COLOR = 'var(--chart-1)';
 
 function getPerformanceDotClass(value: number, target: number): string {
   if (value >= target) return 'bg-aux-neon-grass';
-  if (value >= target * 0.9) return 'bg-aux-cool-steel';
+  if (value >= target * 0.9) return 'bg-aux-yellow';
   return 'bg-aux-red';
 }
 

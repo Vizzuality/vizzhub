@@ -24,7 +24,7 @@ function getImpactDotClass(data: StrategicImpact | null | undefined): string {
   if (!data) return 'bg-aux-dust-grey';
   if (data === 'transformational') return 'bg-aux-neon-grass';
   if (data === 'high') return 'bg-blue-600';
-  if (data === 'medium') return 'bg-aux-cool-steel';
+  if (data === 'medium') return 'bg-aux-yellow';
   return 'bg-orange-600';
 }
 

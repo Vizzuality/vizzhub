@@ -18,7 +18,7 @@ export function getScoreDotClass(
 ): string {
   if (value === null) return 'bg-aux-dust-grey';
   if (value >= thresholds.green) return 'bg-aux-neon-grass';
-  if (value >= thresholds.yellow) return 'bg-aux-cool-steel';
+  if (value >= thresholds.yellow) return 'bg-aux-yellow';
   return 'bg-aux-red';
 }
 
@@ -32,7 +32,7 @@ export function getScoreColor(
 ): string {
   if (value === null) return 'text-muted-foreground';
   if (value >= thresholds.green) return 'text-aux-neon-grass';
-  if (value >= thresholds.yellow) return 'text-aux-cool-steel';
+  if (value >= thresholds.yellow) return 'text-aux-yellow';
   return 'text-aux-red';
 }
 

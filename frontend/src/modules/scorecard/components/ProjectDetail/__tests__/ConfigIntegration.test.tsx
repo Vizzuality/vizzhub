@@ -39,7 +39,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('5.0%');
-      expect(valueElement).toHaveClass('text-score-green');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
     });
 
     it('shows red color when value exceeds target (lower is better)', () => {
@@ -56,7 +56,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('10.0%');
-      expect(valueElement).toHaveClass('text-score-red');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
 
     it('shows green color when value meets target (higher is better)', () => {
@@ -73,7 +73,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('90.0%');
-      expect(valueElement).toHaveClass('text-score-green');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
     });
 
     it('shows red color when value misses target (higher is better)', () => {
@@ -90,7 +90,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('70.0%');
-      expect(valueElement).toHaveClass('text-score-red');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
 
     it('changing target affects both display value and color logic', () => {
@@ -107,7 +107,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       expect(screen.getByText('≥40%')).toBeInTheDocument();
-      expect(screen.getByText('50.0%')).toHaveClass('text-score-green');
+      expect(screen.getByText('50.0%').parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
 
       rerender(
         <SubIndicatorCard
@@ -122,7 +122,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       expect(screen.getByText('≥60%')).toBeInTheDocument();
-      expect(screen.getByText('50.0%')).toHaveClass('text-score-red');
+      expect(screen.getByText('50.0%').parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
   });
 
@@ -171,7 +171,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('3');
-      expect(valueElement.querySelector('.bg-aux-cool-steel')).not.toBeNull();
+      expect(valueElement.querySelector('.bg-aux-yellow')).not.toBeNull();
     });
 
     it('shows red dot when exceptions exceed target', () => {
@@ -370,7 +370,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('72.0%')).toHaveClass('text-score-red');
+      expect(screen.getByText('72.0%').parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
 
     it('value just above 90% of target still shows green', () => {
@@ -386,7 +386,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('80.0%')).toHaveClass('text-score-green');
+      expect(screen.getByText('80.0%').parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
     });
   });
 
@@ -404,7 +404,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('8.0d')).toHaveClass('text-score-green');
+      expect(screen.getByText('8.0d').parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
 
       rerender(
         <SubIndicatorCard
@@ -418,7 +418,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('8.0d')).toHaveClass('text-score-red');
+      expect(screen.getByText('8.0d').parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
   });
 });

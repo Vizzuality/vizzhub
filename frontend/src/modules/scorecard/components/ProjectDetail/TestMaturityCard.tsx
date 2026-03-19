@@ -34,7 +34,7 @@ function createTestTypeFieldHandler(
 
 const MATURITY_DOT_COLORS: Record<number, string> = {
   5: 'bg-aux-neon-grass',
-  3: 'bg-aux-cool-steel',
+  3: 'bg-aux-yellow',
   1: 'bg-orange-600',
   0: 'bg-aux-red',
 };
