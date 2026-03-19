@@ -212,12 +212,12 @@ function MonthlyTooltip({ active, payload, label }: ChartTooltipProps): JSX.Elem
     <div className="bg-popover border rounded px-3 py-2 shadow-lg text-xs space-y-1">
       <div className="font-medium">{label}</div>
       <div className="flex items-center gap-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#5f7470' }} />
         <span className="text-muted-foreground">Staff:</span>
         <span className="font-medium">{formatCurrency(staff)}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#b8bdb5' }} />
         <span className="text-muted-foreground">Non-staff:</span>
         <span className="font-medium">{formatCurrency(nonStaff)}</span>
       </div>
@@ -248,12 +248,12 @@ function CumulativeBurnChart({
         <AreaChart data={data} margin={{ top: 10, right: 15, bottom: 5, left: 10 }}>
           <defs>
             <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="rgb(16, 185, 129)" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="rgb(16, 185, 129)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#5f7470" stopOpacity={0.15} />
+              <stop offset="95%" stopColor="#5f7470" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="rgb(168, 85, 247)" stopOpacity={0.08} />
-              <stop offset="95%" stopColor="rgb(168, 85, 247)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#889696" stopOpacity={0.08} />
+              <stop offset="95%" stopColor="#889696" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
@@ -276,14 +276,14 @@ function CumulativeBurnChart({
           {budget != null && (
             <ReferenceLine
               y={budget}
-              stroke="rgb(59, 130, 246)"
+              stroke="#b8bdb5"
               strokeDasharray="8 4"
               strokeWidth={1.5}
               label={{
                 value: `Budget ${formatCompact(budget)}`,
                 position: 'insideTopRight',
                 fontSize: 11,
-                fill: 'rgb(59, 130, 246)',
+                fill: '#889696',
                 fontWeight: 500,
               }}
             />
@@ -291,11 +291,11 @@ function CumulativeBurnChart({
           <Area
             type="monotone"
             dataKey="cumulative"
-            stroke="rgb(16, 185, 129)"
+            stroke="#5f7470"
             strokeWidth={2}
             fill="url(#actualGrad)"
-            dot={{ r: 2.5, fill: 'rgb(16, 185, 129)', strokeWidth: 0 }}
-            activeDot={{ r: 4, fill: 'rgb(16, 185, 129)', strokeWidth: 2, stroke: 'white' }}
+            dot={{ r: 2.5, fill: '#5f7470', strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: '#5f7470', strokeWidth: 2, stroke: 'white' }}
             connectNulls={false}
             name="Actual"
           />
@@ -303,12 +303,12 @@ function CumulativeBurnChart({
             <Area
               type="monotone"
               dataKey="forecast"
-              stroke="rgb(168, 85, 247)"
+              stroke="#889696"
               strokeWidth={2}
               strokeDasharray="6 3"
               fill="url(#forecastGrad)"
-              dot={{ r: 2, fill: 'rgb(168, 85, 247)', strokeWidth: 0 }}
-              activeDot={{ r: 4, fill: 'rgb(168, 85, 247)', strokeWidth: 2, stroke: 'white' }}
+              dot={{ r: 2, fill: '#889696', strokeWidth: 0 }}
+              activeDot={{ r: 4, fill: '#889696', strokeWidth: 2, stroke: 'white' }}
               connectNulls={false}
               name="Forecast"
             />
@@ -317,18 +317,18 @@ function CumulativeBurnChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded bg-emerald-500" />
+          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#5f7470' }} />
           Actual
         </span>
         {hasForecast && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded bg-purple-500 opacity-60" />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#889696' }} />
             Forecast
           </span>
         )}
         {budget != null && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded bg-blue-500 opacity-60" />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#b8bdb5' }} />
             Budget
           </span>
         )}
@@ -371,35 +371,35 @@ export function MonthlyCostsChart({
           {avgMonthlyBurn > 0 && (
             <ReferenceLine
               y={avgMonthlyBurn}
-              stroke="rgb(99, 102, 241)"
+              stroke="#d2d4c8"
               strokeDasharray="4 3"
               strokeWidth={1}
               label={{
                 value: `Avg ${formatCompact(avgMonthlyBurn)}`,
                 position: 'insideTopRight',
                 fontSize: 10,
-                fill: 'rgb(99, 102, 241)',
+                fill: '#889696',
               }}
             />
           )}
           <Bar
             dataKey="staff"
             stackId="costs"
-            fill="rgb(59, 130, 246)"
+            fill="#5f7470"
             radius={[0, 0, 0, 0]}
             name="Staff"
           />
           <Bar
             dataKey="nonStaff"
             stackId="costs"
-            fill="rgb(245, 158, 11)"
+            fill="#b8bdb5"
             radius={[2, 2, 0, 0]}
             name="Non-staff"
           />
           <Line
             type="monotone"
             dataKey="total"
-            stroke="rgb(99, 102, 241)"
+            stroke="#889696"
             strokeWidth={1.5}
             dot={false}
             name="Trend"
@@ -408,15 +408,15 @@ export function MonthlyCostsChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-500" />
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#5f7470' }} />
           Staff
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500" />
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#b8bdb5' }} />
           Non-staff
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded bg-indigo-500" />
+          <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: '#889696' }} />
           Trend
         </span>
       </div>
