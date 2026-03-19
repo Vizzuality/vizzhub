@@ -14,6 +14,8 @@ import {
 import { formatPeriodDate, formatCurrency, SELECT_CLASS } from '../utils/constants';
 import BurnDashboard from '../components/BurnDashboard';
 import TimeByAreaTable from '../components/TimeByAreaTable';
+import DaysByPeopleChart from '../components/DaysByPeopleChart';
+import DaysTable from '../components/DaysTable';
 import type { ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 interface PeriodGroup {
@@ -142,12 +144,16 @@ export default function ProjectTrackerDetail(): JSX.Element {
     projectId || '',
     state.period || undefined,
   );
-  const { data: aggregations, isLoading: aggLoading } = useProjectAggregations(
+  const { data: areaAgg, isLoading: areaLoading } = useProjectAggregations(
     projectId || '',
     'functional_area',
   );
+  const { data: userAgg, isLoading: userLoading } = useProjectAggregations(
+    projectId || '',
+    'user',
+  );
 
-  if (summaryLoading || partsLoading || aggLoading) {
+  if (summaryLoading || partsLoading || areaLoading || userLoading) {
     return <LoadingSpinner />;
   }
 
@@ -186,7 +192,11 @@ export default function ProjectTrackerDetail(): JSX.Element {
         projectEndDate={project?.end_date ?? null}
       />
 
-      <TimeByAreaTable rows={aggregations?.rows ?? []} />
+      <TimeByAreaTable rows={areaAgg?.rows ?? []} />
+
+      <DaysByPeopleChart rows={userAgg?.rows ?? []} />
+
+      <DaysTable rows={userAgg?.rows ?? []} />
 
       <div className="flex items-center gap-3">
         <label htmlFor="period-filter" className="text-sm font-medium">

@@ -810,7 +810,28 @@ export const handlers = [
   http.get(`${BASE}/tracker/projects/:projectId/report-parts`, () => {
     return HttpResponse.json(defaultProjectReportParts);
   }),
-  http.get(`${BASE}/tracker/projects/:projectId/aggregations`, () => {
+  http.get(`${BASE}/tracker/projects/:projectId/aggregations`, ({ request }) => {
+    const url = new URL(request.url);
+    const groupBy = url.searchParams.get('group_by') ?? 'functional_area';
+
+    if (groupBy === 'user') {
+      return HttpResponse.json({
+        group_by: 'user',
+        rows: [
+          {
+            name: 'Test User',
+            email: 'test@example.com',
+            total_days: 4.44,
+            total_cost: 3411.03,
+            periods: [
+              { date: '2026-02-01', days: 1.48, cost: 1137.01 },
+              { date: '2026-03-01', days: 2.96, cost: 2274.02 },
+            ],
+          },
+        ],
+      });
+    }
+
     return HttpResponse.json({
       group_by: 'functional_area',
       rows: [
