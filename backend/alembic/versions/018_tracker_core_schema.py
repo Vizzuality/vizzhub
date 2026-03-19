@@ -10,16 +10,19 @@ Extends projects with program_id, code, is_billable, currency, notes, summary.
 Adds CHECK constraint on projects for end_date > start_date.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = "018_tracker_core"
-down_revision: Union[str, None] = "017_unify_tokens"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "017_unify_tokens"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+_UUID_DEFAULT = sa.text("gen_random_uuid()")
+_SET_NULL = "SET NULL"
 
 
 def upgrade() -> None:
@@ -30,7 +33,7 @@ def upgrade() -> None:
             "id",
             UUID(as_uuid=True),
             primary_key=True,
-            server_default=sa.text("gen_random_uuid()"),
+            server_default=_UUID_DEFAULT,
         ),
         sa.Column("name", sa.String(255), nullable=False, unique=True),
         sa.Column(
@@ -52,7 +55,7 @@ def upgrade() -> None:
             "id",
             UUID(as_uuid=True),
             primary_key=True,
-            server_default=sa.text("gen_random_uuid()"),
+            server_default=_UUID_DEFAULT,
         ),
         sa.Column("code", sa.String(50), nullable=False, unique=True),
         sa.Column("value", sa.Numeric(12, 2), nullable=False),
@@ -75,7 +78,7 @@ def upgrade() -> None:
             "id",
             UUID(as_uuid=True),
             primary_key=True,
-            server_default=sa.text("gen_random_uuid()"),
+            server_default=_UUID_DEFAULT,
         ),
         sa.Column("name", sa.String(255), nullable=False, unique=True),
         sa.Column(
@@ -97,7 +100,7 @@ def upgrade() -> None:
         sa.Column(
             "functional_area_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("functional_areas.id", ondelete="SET NULL"),
+            sa.ForeignKey("functional_areas.id", ondelete=_SET_NULL),
             nullable=True,
         ),
     )
@@ -106,7 +109,7 @@ def upgrade() -> None:
         sa.Column(
             "rate_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("rates.id", ondelete="SET NULL"),
+            sa.ForeignKey("rates.id", ondelete=_SET_NULL),
             nullable=True,
         ),
     )
@@ -127,7 +130,7 @@ def upgrade() -> None:
         sa.Column(
             "program_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("programs.id", ondelete="SET NULL"),
+            sa.ForeignKey("programs.id", ondelete=_SET_NULL),
             nullable=True,
         ),
     )
@@ -160,7 +163,7 @@ def upgrade() -> None:
             "id",
             UUID(as_uuid=True),
             primary_key=True,
-            server_default=sa.text("gen_random_uuid()"),
+            server_default=_UUID_DEFAULT,
         ),
         sa.Column(
             "program_id",

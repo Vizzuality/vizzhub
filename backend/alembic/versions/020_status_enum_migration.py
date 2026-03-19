@@ -8,15 +8,15 @@ Changes project status enum from (in_progress, finished) to (proposal, live, fin
 Updates existing rows: in_progress -> live.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "020_status_migration"
-down_revision: Union[str, None] = "019_tracker_module"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "019_tracker_module"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

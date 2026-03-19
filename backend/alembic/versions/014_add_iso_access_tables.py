@@ -8,7 +8,7 @@ Tables: access_snapshots, access_reviews, access_review_actions
 For ISO 27001 Google Workspace access review module.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -18,9 +18,9 @@ GEN_RANDOM_UUID = "gen_random_uuid()"
 FK_USERS_ID = "users.id"
 
 revision: str = "014_add_iso_access_tables"
-down_revision: Union[str, None] = "013_add_manifest_path"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "013_add_manifest_path"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

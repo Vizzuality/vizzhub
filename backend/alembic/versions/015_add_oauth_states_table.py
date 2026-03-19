@@ -8,15 +8,15 @@ Replaces in-memory OAuthStateManager._states dict with DB table
 for multi-worker support.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "015_add_oauth_states"
-down_revision: Union[str, None] = "014_add_iso_access_tables"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "014_add_iso_access_tables"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

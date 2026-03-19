@@ -17,6 +17,17 @@ import TimeByAreaTable from '../components/TimeByAreaTable';
 import DaysByPeopleChart from '../components/DaysByPeopleChart';
 import type { AggregationRow, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
+function getRowBorderClass(
+  partIdx: number,
+  partsLen: number,
+  groupIdx: number,
+  groupsLen: number,
+): string {
+  if (partIdx < partsLen - 1) return 'border-b';
+  if (groupIdx < groupsLen - 1) return 'border-b-2';
+  return '';
+}
+
 interface PeriodGroup {
   period: string;
   parts: ProjectReportPart[];
@@ -70,13 +81,7 @@ function PartsTable({
                   group.parts.map((part, pi) => (
                     <tr
                       key={part.id}
-                      className={
-                        pi < group.parts.length - 1
-                          ? 'border-b'
-                          : gi < groups.length - 1
-                            ? 'border-b-2'
-                            : ''
-                      }
+                      className={getRowBorderClass(pi, group.parts.length, gi, groups.length)}
                     >
                       {pi === 0 && (
                         <td
