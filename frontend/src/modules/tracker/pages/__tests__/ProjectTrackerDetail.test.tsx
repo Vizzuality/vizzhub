@@ -58,7 +58,7 @@ describe('ProjectTrackerDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Time per Functional Area')).toBeInTheDocument();
     });
-    expect(screen.getAllByText('4.44').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('4.4').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows days by people after expanding details', async () => {

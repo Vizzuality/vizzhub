@@ -17,10 +17,14 @@ import {
   buildBudgetPayload,
 } from '@/core/hooks/useProjectBudget';
 import { projectsApi } from '@/core/services/projects';
+import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
+import { trackerApi } from '@/modules/tracker/services/tracker';
+import BudgetLinesEditor from '@/modules/tracker/components/BudgetLinesEditor';
+import type { BudgetLineCreate } from '@/modules/tracker/types/tracker';
 import {
   calculateEVMValues,
   formatCurrency,
-  getPerformanceColor,
+  getPerformanceDotClass,
   getPerformanceLabel,
 } from '@/shared/utils/evmCalculations';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '@/shared/constants/dates';
@@ -190,6 +194,8 @@ export default function ProjectForm(): JSX.Element {
   const deleteMutation = useDeleteProject();
   const statusMutation = useUpdateProjectStatus(id ?? '');
   const budgetMutation = useUpdateProjectBudget(id ?? '');
+  const { data: existingBudgetLines } = useBudgetLines(id ?? '');
+  const budgetLinesMutation = useReplaceBudgetLines(id ?? '');
 
   const {
     channels,
@@ -210,6 +216,7 @@ export default function ProjectForm(): JSX.Element {
   const [pendingSubmitData, setPendingSubmitData] = useState<ProjectFormData | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [formInitialized, setFormInitialized] = useState(false);
+  const [pendingBudgetLines, setPendingBudgetLines] = useState<BudgetLineCreate[]>([]);
 
   const {
     register,
@@ -334,7 +341,7 @@ export default function ProjectForm(): JSX.Element {
     return calculateEVMValues(budget, cost, completed, planned);
   }, [watchedBudgetTotal, watchedCostToDate, watchedPercentCompleted, watchedPercentPlanned]);
 
-  const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending;
+  const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending;
 
   const navigateToProjects = (): void => {
     navigate('/projects');
@@ -398,6 +405,9 @@ export default function ProjectForm(): JSX.Element {
           promises.push(budgetMutation.mutateAsync(budgetPayload));
         }
         promises.push(projectsApi.replaceLinks(id!, validLinks));
+        if (pendingBudgetLines.length > 0) {
+          promises.push(budgetLinesMutation.mutateAsync(pendingBudgetLines));
+        }
         await Promise.all(promises);
       } else {
         const newProject = await createMutation.mutateAsync(projectPayload);
@@ -408,6 +418,9 @@ export default function ProjectForm(): JSX.Element {
           }
           if (validLinks.length > 0) {
             extraPromises.push(projectsApi.replaceLinks(newProject.id, validLinks));
+          }
+          if (pendingBudgetLines.length > 0) {
+            extraPromises.push(trackerApi.replaceBudgetLines(newProject.id, pendingBudgetLines));
           }
           if (extraPromises.length > 0) {
             await Promise.all(extraPromises);
@@ -852,7 +865,8 @@ export default function ProjectForm(): JSX.Element {
                           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1">SPI</p>
                           {evmPreview.spi !== null ? (
                             <>
-                              <p className={`text-lg font-semibold tabular-nums ${getPerformanceColor(evmPreview.spi)}`}>
+                              <p className="text-lg font-semibold tabular-nums text-foreground flex items-center gap-1.5">
+                                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getPerformanceDotClass(evmPreview.spi)}`} />
                                 {evmPreview.spi.toFixed(2)}
                               </p>
                               <p className="text-[11px] text-muted-foreground">{getPerformanceLabel(evmPreview.spi, 'spi')}</p>
@@ -865,7 +879,8 @@ export default function ProjectForm(): JSX.Element {
                           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1">CPI</p>
                           {evmPreview.cpi !== null ? (
                             <>
-                              <p className={`text-lg font-semibold tabular-nums ${getPerformanceColor(evmPreview.cpi)}`}>
+                              <p className="text-lg font-semibold tabular-nums text-foreground flex items-center gap-1.5">
+                                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getPerformanceDotClass(evmPreview.cpi)}`} />
                                 {evmPreview.cpi.toFixed(2)}
                               </p>
                               <p className="text-[11px] text-muted-foreground">{getPerformanceLabel(evmPreview.cpi, 'cpi')}</p>
@@ -880,6 +895,12 @@ export default function ProjectForm(): JSX.Element {
                 </CardContent>
               </Card>
             </section>
+
+            {/* Budget Lines */}
+            <BudgetLinesEditor
+              initialData={existingBudgetLines}
+              onLinesChange={setPendingBudgetLines}
+            />
 
             {/* Milestones */}
             <section>
