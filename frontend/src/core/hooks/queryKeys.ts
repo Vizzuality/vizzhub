@@ -133,6 +133,8 @@ export const queryKeys = {
         ['tracker', 'project-costs', projectId, 'summary'] as const,
       parts: (projectId: string, periodId?: string) =>
         ['tracker', 'project-costs', projectId, 'parts', periodId] as const,
+      aggregations: (projectId: string, groupBy: string) =>
+        ['tracker', 'project-costs', projectId, 'aggregations', groupBy] as const,
     },
   },
 } as const;

@@ -810,6 +810,23 @@ export const handlers = [
   http.get(`${BASE}/tracker/projects/:projectId/report-parts`, () => {
     return HttpResponse.json(defaultProjectReportParts);
   }),
+  http.get(`${BASE}/tracker/projects/:projectId/aggregations`, () => {
+    return HttpResponse.json({
+      group_by: 'functional_area',
+      rows: [
+        {
+          name: 'Backend Developer',
+          email: null,
+          total_days: 4.44,
+          total_cost: 3411.03,
+          periods: [
+            { date: '2026-02-01', days: 1.48, cost: 1137.01 },
+            { date: '2026-03-01', days: 2.96, cost: 2274.02 },
+          ],
+        },
+      ],
+    });
+  }),
 
   // Auth — AuthContext uses raw fetch with full URLs, not axios with relative paths.
   // Handlers must use the full origin to match.

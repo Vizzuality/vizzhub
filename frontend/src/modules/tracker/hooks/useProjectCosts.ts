@@ -17,3 +17,11 @@ export function useProjectReportParts(projectId: string, periodId?: string) {
     enabled: !!projectId,
   });
 }
+
+export function useProjectAggregations(projectId: string, groupBy: string) {
+  return useQuery({
+    queryKey: queryKeys.tracker.projectCosts.aggregations(projectId, groupBy),
+    queryFn: () => trackerApi.getProjectAggregations(projectId, groupBy),
+    enabled: !!projectId,
+  });
+}

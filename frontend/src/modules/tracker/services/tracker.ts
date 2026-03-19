@@ -11,6 +11,7 @@ import type {
   ProjectCostSummary,
   ProjectReportPart,
   BatchCostsResponse,
+  AggregationResponse,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -111,6 +112,17 @@ export const trackerApi = {
     const response = await api.post<BatchCostsResponse>(
       '/tracker/projects/batch-costs',
       { project_ids: projectIds },
+    );
+    return response.data;
+  },
+
+  getProjectAggregations: async (
+    projectId: string,
+    groupBy: string,
+  ): Promise<AggregationResponse> => {
+    const response = await api.get<AggregationResponse>(
+      `/tracker/projects/${projectId}/aggregations`,
+      { params: { group_by: groupBy } },
     );
     return response.data;
   },
