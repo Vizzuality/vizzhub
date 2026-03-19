@@ -8,16 +8,16 @@ This migration adds the jobs table to track async tasks like historical
 metrics capture. Jobs store progress, results, and error information.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "008_add_jobs_table"
-down_revision: Union[str, None] = "007_merge_snapshots_into_metrics"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "007_merge_snapshots_into_metrics"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

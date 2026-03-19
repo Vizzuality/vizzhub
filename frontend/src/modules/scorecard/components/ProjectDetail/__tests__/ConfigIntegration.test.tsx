@@ -39,7 +39,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('5.0%');
-      expect(valueElement).toHaveClass('text-score-green');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
     });
 
     it('shows red color when value exceeds target (lower is better)', () => {
@@ -56,7 +56,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('10.0%');
-      expect(valueElement).toHaveClass('text-score-red');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
 
     it('shows green color when value meets target (higher is better)', () => {
@@ -73,7 +73,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('90.0%');
-      expect(valueElement).toHaveClass('text-score-green');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
     });
 
     it('shows red color when value misses target (higher is better)', () => {
@@ -90,7 +90,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('70.0%');
-      expect(valueElement).toHaveClass('text-score-red');
+      expect(valueElement.parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
 
     it('changing target affects both display value and color logic', () => {
@@ -107,7 +107,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       expect(screen.getByText('≥40%')).toBeInTheDocument();
-      expect(screen.getByText('50.0%')).toHaveClass('text-score-green');
+      expect(screen.getByText('50.0%').parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
 
       rerender(
         <SubIndicatorCard
@@ -122,7 +122,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       expect(screen.getByText('≥60%')).toBeInTheDocument();
-      expect(screen.getByText('50.0%')).toHaveClass('text-score-red');
+      expect(screen.getByText('50.0%').parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
   });
 
@@ -146,7 +146,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       expect(screen.getByText('≤3 exceptions')).toBeInTheDocument();
     });
 
-    it('shows green when exceptions below target', () => {
+    it('shows green dot when exceptions below target', () => {
       render(
         <GovernanceCard
           value={1}
@@ -157,10 +157,10 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('1');
-      expect(valueElement).toHaveClass('text-score-green');
+      expect(valueElement.querySelector('.bg-aux-neon-grass')).not.toBeNull();
     });
 
-    it('shows yellow when exceptions equal target', () => {
+    it('shows yellow dot when exceptions equal target', () => {
       render(
         <GovernanceCard
           value={3}
@@ -171,10 +171,10 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('3');
-      expect(valueElement).toHaveClass('text-score-yellow');
+      expect(valueElement.querySelector('.bg-aux-yellow')).not.toBeNull();
     });
 
-    it('shows red when exceptions exceed target', () => {
+    it('shows red dot when exceptions exceed target', () => {
       render(
         <GovernanceCard
           value={5}
@@ -185,10 +185,10 @@ describe('Config Integration - Dynamic Target Display', () => {
       );
 
       const valueElement = screen.getByText('5');
-      expect(valueElement).toHaveClass('text-score-red');
+      expect(valueElement.querySelector('.bg-aux-red')).not.toBeNull();
     });
 
-    it('respects different target values - color changes with target', () => {
+    it('respects different target values - dot color changes with target', () => {
       const { rerender } = render(
         <GovernanceCard
           value={4}
@@ -198,7 +198,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('4')).toHaveClass('text-score-red');
+      expect(screen.getByText('4').querySelector('.bg-aux-red')).not.toBeNull();
       expect(screen.getByText('≤3 exceptions')).toBeInTheDocument();
 
       rerender(
@@ -210,7 +210,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('4')).toHaveClass('text-score-green');
+      expect(screen.getByText('4').querySelector('.bg-aux-neon-grass')).not.toBeNull();
       expect(screen.getByText('≤5 exceptions')).toBeInTheDocument();
     });
   });
@@ -277,7 +277,7 @@ describe('Config Integration - Dynamic Target Display', () => {
       expect(screen.getByText('Client Satisfaction Survey')).toBeInTheDocument();
     });
 
-    it('shows correct color based on dynamic target', () => {
+    it('shows correct dot color based on dynamic target', () => {
       render(
         <ClientSurveyCard
           data={{ understanding: 5, quality: 5 } as ClientSurvey}
@@ -290,10 +290,10 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('90%')).toHaveClass('text-score-green');
+      expect(screen.getByText('90%').querySelector('.bg-aux-neon-grass')).not.toBeNull();
     });
 
-    it('color changes when target changes', () => {
+    it('dot color changes when target changes', () => {
       const { rerender } = render(
         <ClientSurveyCard
           data={{ understanding: 5, quality: 5 } as ClientSurvey}
@@ -306,7 +306,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('80%')).toHaveClass('text-score-green');
+      expect(screen.getByText('80%').querySelector('.bg-aux-neon-grass')).not.toBeNull();
 
       rerender(
         <ClientSurveyCard
@@ -320,7 +320,7 @@ describe('Config Integration - Dynamic Target Display', () => {
         />
       );
 
-      expect(screen.getByText('80%')).toHaveClass('text-score-red');
+      expect(screen.getByText('80%').querySelector('.bg-aux-red')).not.toBeNull();
     });
 
     it('respects different target values for KPI display', () => {
@@ -370,7 +370,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('72.0%')).toHaveClass('text-score-red');
+      expect(screen.getByText('72.0%').parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
 
     it('value just above 90% of target still shows green', () => {
@@ -386,7 +386,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('80.0%')).toHaveClass('text-score-green');
+      expect(screen.getByText('80.0%').parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
     });
   });
 
@@ -404,7 +404,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('8.0d')).toHaveClass('text-score-green');
+      expect(screen.getByText('8.0d').parentElement?.querySelector('.bg-aux-neon-grass')).toBeTruthy();
 
       rerender(
         <SubIndicatorCard
@@ -418,7 +418,7 @@ describe('Config Values Must Match Between Config and Display', () => {
         />
       );
 
-      expect(screen.getByText('8.0d')).toHaveClass('text-score-red');
+      expect(screen.getByText('8.0d').parentElement?.querySelector('.bg-aux-red')).toBeTruthy();
     });
   });
 });

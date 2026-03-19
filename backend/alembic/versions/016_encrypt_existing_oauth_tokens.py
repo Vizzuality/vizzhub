@@ -9,16 +9,16 @@ access_token and refresh_token using OAUTH_ENCRYPTION_KEY.
 Requires the env var to be set before running.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from cryptography.fernet import Fernet
 
 revision: str = "016_encrypt_tokens"
-down_revision: Union[str, None] = "015_add_oauth_states"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "015_add_oauth_states"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 OAUTH_TOKENS = sa.table(
     "oauth_tokens",

@@ -61,6 +61,18 @@ describe('ProjectTrackerDetail', () => {
     expect(screen.getAllByText('4.44').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows days by people after expanding details', async () => {
+    const user = userEvent.setup();
+    renderDetail();
+    await waitFor(() => {
+      expect(screen.getByText(/Show more/)).toBeInTheDocument();
+    });
+    await user.click(screen.getByText(/Show more/));
+    await waitFor(() => {
+      expect(screen.getByText('Days by People')).toBeInTheDocument();
+    });
+  });
+
   it('shows empty state for project with no data', async () => {
     server.use(
       http.get('/api/tracker/projects/:projectId/cost-summary', () => {

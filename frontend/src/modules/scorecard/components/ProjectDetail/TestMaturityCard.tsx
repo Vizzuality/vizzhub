@@ -32,15 +32,15 @@ function createTestTypeFieldHandler(
   };
 }
 
-const MATURITY_COLORS: Record<number, string> = {
-  5: 'text-score-green',
-  3: 'text-score-yellow',
-  1: 'text-orange-600',
-  0: 'text-score-red',
+const MATURITY_DOT_COLORS: Record<number, string> = {
+  5: 'bg-aux-neon-grass',
+  3: 'bg-aux-yellow',
+  1: 'bg-orange-600',
+  0: 'bg-aux-red',
 };
 
-function getMaturityColor(value: number | null | undefined): string {
-  return value !== null && value !== undefined ? MATURITY_COLORS[value] ?? '' : '';
+function getMaturityDotClass(value: number | null | undefined): string {
+  return value !== null && value !== undefined ? MATURITY_DOT_COLORS[value] ?? '' : '';
 }
 
 interface TestMaturityCardProps {
@@ -113,7 +113,10 @@ export default function TestMaturityCard({
                 return (
                   <div key={key} className="flex justify-between text-xs">
                     <span className="text-muted-foreground">{label.replace(' Tests', '')}</span>
-                    <span className={cn(getMaturityColor(value))}>
+                    <span className="flex items-center gap-1">
+                      {value !== undefined && value !== null && (
+                        <span className={cn('inline-block w-1.5 h-1.5 rounded-full shrink-0', getMaturityDotClass(value))} />
+                      )}
                       {getLevelLabel(value)}
                     </span>
                   </div>

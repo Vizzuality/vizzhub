@@ -43,6 +43,15 @@
     --sidebar-accent-foreground: oklch(0.2050 0 0);
     --sidebar-border: oklch(0.9220 0 0);
     --sidebar-ring: oklch(0.7080 0 0);
+    --aux-onix: #0C0C0C;
+    --aux-deep-teal: #5f7470;
+    --aux-cool-steel: #889696;
+    --aux-ash-grey: #b8bdb5;
+    --aux-dust-grey: #d2d4c8;
+    --aux-soft-linen: #e0e2db;
+    --aux-neon-grass: #5AFF15;
+    --aux-yellow: #FFD23F;
+    --aux-red: #DE1A1A;
     --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: Geist Mono, ui-monospace, monospace;

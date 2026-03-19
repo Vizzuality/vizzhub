@@ -18,10 +18,10 @@ import type { Milestone, HistoricalDataPoint } from '@/modules/scorecard/types';
 
 const CHART_COLOR = 'var(--chart-1)';
 
-function getMilestoneColorClass(value: number, target: number): string {
-  if (value >= target) return 'text-score-green';
-  if (value >= target * 0.9) return 'text-score-yellow';
-  return 'text-score-red';
+function getMilestoneDotClass(value: number, target: number): string {
+  if (value >= target) return 'bg-aux-neon-grass';
+  if (value >= target * 0.9) return 'bg-aux-yellow';
+  return 'bg-aux-red';
 }
 
 interface MilestonesChartTooltipProps {
@@ -217,12 +217,8 @@ export default function MilestonesCard({
 
       {onTimeMilestones !== null ? (
         <>
-          <p
-            className={cn(
-              'text-xl font-semibold',
-              getMilestoneColorClass(onTimeMilestones, milestonesTarget)
-            )}
-          >
+          <p className="text-xl font-semibold text-foreground flex items-center gap-1.5">
+            <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', getMilestoneDotClass(onTimeMilestones, milestonesTarget))} />
             {(onTimeMilestones * 100).toFixed(0)}%
           </p>
           <div className="flex justify-between items-center">

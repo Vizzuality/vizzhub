@@ -6,11 +6,11 @@ import type { Milestone } from '@/modules/scorecard/types';
 
 type MilestoneStatus = 'on-time' | 'late' | 'pending';
 
-function getMilestoneActualDateColorClass(hasActualDate: boolean, status: MilestoneStatus): string {
+function getMilestoneDotClass(hasActualDate: boolean, status: MilestoneStatus): string {
   if (hasActualDate) {
-    return status === 'on-time' ? 'text-score-green' : 'text-score-red';
+    return status === 'on-time' ? 'bg-aux-neon-grass' : 'bg-aux-red';
   }
-  return status === 'pending' ? 'text-score-green' : 'text-score-red';
+  return status === 'pending' ? 'bg-aux-neon-grass' : 'bg-aux-red';
 }
 
 interface MilestonesListProps {
@@ -67,10 +67,10 @@ export default function MilestonesList({
               >
                 <div className="flex items-center gap-3">
                   {status === 'on-time' && (
-                    <CheckCircle2 className="w-5 h-5 text-score-green" />
+                    <CheckCircle2 className="w-5 h-5 text-aux-neon-grass" />
                   )}
                   {status === 'late' && (
-                    <AlertCircle className="w-5 h-5 text-score-red" />
+                    <AlertCircle className="w-5 h-5 text-aux-red" />
                   )}
                   {status === 'pending' && (
                     <Clock className="w-5 h-5 text-muted-foreground" />
@@ -82,11 +82,8 @@ export default function MilestonesList({
                     Planned:{' '}
                     {new Date(milestone.planned_date).toLocaleDateString()}
                   </span>
-                  <span
-                    className={cn(
-                      getMilestoneActualDateColorClass(!!milestone.actual_date, status)
-                    )}
-                  >
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn('inline-block w-1.5 h-1.5 rounded-full shrink-0', getMilestoneDotClass(!!milestone.actual_date, status))} />
                     Actual:{' '}
                     {milestone.actual_date
                       ? new Date(milestone.actual_date).toLocaleDateString()

@@ -10,16 +10,20 @@ Includes all CHECK constraints, UNIQUE constraints, composite indexes,
 and partial indexes as specified in the data migration design doc.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = "019_tracker_module"
-down_revision: Union[str, None] = "018_tracker_core"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "018_tracker_core"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+_UUID_DEFAULT = sa.text("gen_random_uuid()")
+_FK_PROJECTS = "projects.id"
+_FK_PERIODS = "reporting_periods.id"
 
 
 def upgrade() -> None:
@@ -27,9 +31,9 @@ def upgrade() -> None:
     op.create_table(
         "tracker_project_settings",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("project_id", UUID(as_uuid=True),
-                  sa.ForeignKey("projects.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PROJECTS, ondelete="CASCADE"),
                   nullable=False, unique=True),
         sa.Column("budget", sa.Numeric(12, 2), nullable=True),
         sa.Column("contract_rate", sa.Numeric(12, 2), nullable=False,
@@ -44,7 +48,7 @@ def upgrade() -> None:
     op.create_table(
         "reporting_periods",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("date", sa.Date(), nullable=False, unique=True),
         sa.Column("base_rate", sa.Numeric(12, 2), nullable=False,
                   server_default="175.00"),
@@ -71,9 +75,9 @@ def upgrade() -> None:
     op.create_table(
         "budget_lines",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("project_id", UUID(as_uuid=True),
-                  sa.ForeignKey("projects.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PROJECTS, ondelete="CASCADE"),
                   nullable=False),
         sa.Column("functional_area_id", UUID(as_uuid=True),
                   sa.ForeignKey("functional_areas.id", ondelete="SET NULL"),
@@ -105,9 +109,9 @@ def upgrade() -> None:
     op.create_table(
         "invoices",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("project_id", UUID(as_uuid=True),
-                  sa.ForeignKey("projects.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PROJECTS, ondelete="CASCADE"),
                   nullable=False),
         sa.Column("code", sa.String(100), nullable=True),
         sa.Column("amount", sa.Numeric(12, 2), nullable=False),
@@ -144,12 +148,12 @@ def upgrade() -> None:
     op.create_table(
         "non_staff_costs",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("project_id", UUID(as_uuid=True),
-                  sa.ForeignKey("projects.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PROJECTS, ondelete="CASCADE"),
                   nullable=False),
         sa.Column("reporting_period_id", UUID(as_uuid=True),
-                  sa.ForeignKey("reporting_periods.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PERIODS, ondelete="CASCADE"),
                   nullable=False),
         sa.Column("cost", sa.Numeric(12, 2), nullable=False),
         sa.Column("cost_type", sa.String(50), nullable=False),
@@ -175,12 +179,12 @@ def upgrade() -> None:
     op.create_table(
         "reports",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("user_id", UUID(as_uuid=True),
                   sa.ForeignKey("users.id", ondelete="RESTRICT"),
                   nullable=False),
         sa.Column("reporting_period_id", UUID(as_uuid=True),
-                  sa.ForeignKey("reporting_periods.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PERIODS, ondelete="CASCADE"),
                   nullable=False),
         sa.Column("estimated", sa.Boolean(), nullable=False,
                   server_default=sa.text("false")),
@@ -211,12 +215,12 @@ def upgrade() -> None:
     op.create_table(
         "report_parts",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("report_id", UUID(as_uuid=True),
                   sa.ForeignKey("reports.id", ondelete="CASCADE"),
                   nullable=False),
         sa.Column("project_id", UUID(as_uuid=True),
-                  sa.ForeignKey("projects.id", ondelete="RESTRICT"),
+                  sa.ForeignKey(_FK_PROJECTS, ondelete="RESTRICT"),
                   nullable=False),
         sa.Column("functional_area_id", UUID(as_uuid=True),
                   sa.ForeignKey("functional_areas.id", ondelete="SET NULL"),
@@ -250,12 +254,12 @@ def upgrade() -> None:
     op.create_table(
         "progress_reports",
         sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
+                  server_default=_UUID_DEFAULT),
         sa.Column("reporting_period_id", UUID(as_uuid=True),
-                  sa.ForeignKey("reporting_periods.id", ondelete="CASCADE"),
+                  sa.ForeignKey(_FK_PERIODS, ondelete="CASCADE"),
                   nullable=False),
         sa.Column("project_id", UUID(as_uuid=True),
-                  sa.ForeignKey("projects.id", ondelete="RESTRICT"),
+                  sa.ForeignKey(_FK_PROJECTS, ondelete="RESTRICT"),
                   nullable=False),
         sa.Column("percentage", sa.Numeric(5, 4), nullable=False),
         sa.Column("delta", sa.Numeric(5, 4), nullable=True),

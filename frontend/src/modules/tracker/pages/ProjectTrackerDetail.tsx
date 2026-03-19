@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -12,9 +12,21 @@ import {
   useProjectAggregations,
 } from '../hooks/useProjectCosts';
 import { formatPeriodDate, formatCurrency, SELECT_CLASS } from '../utils/constants';
-import BurnDashboard from '../components/BurnDashboard';
+import BurnDashboard, { useChartData, MonthlyCostsChart } from '../components/BurnDashboard';
 import TimeByAreaTable from '../components/TimeByAreaTable';
-import type { ProjectCostSummary, ProjectReportPart } from '../types/tracker';
+import DaysByPeopleChart from '../components/DaysByPeopleChart';
+import type { AggregationRow, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
+
+function getRowBorderClass(
+  partIdx: number,
+  partsLen: number,
+  groupIdx: number,
+  groupsLen: number,
+): string {
+  if (partIdx < partsLen - 1) return 'border-b';
+  if (groupIdx < groupsLen - 1) return 'border-b-2';
+  return '';
+}
 
 interface PeriodGroup {
   period: string;
@@ -69,13 +81,7 @@ function PartsTable({
                   group.parts.map((part, pi) => (
                     <tr
                       key={part.id}
-                      className={
-                        pi < group.parts.length - 1
-                          ? 'border-b'
-                          : gi < groups.length - 1
-                            ? 'border-b-2'
-                            : ''
-                      }
+                      className={getRowBorderClass(pi, group.parts.length, gi, groups.length)}
                     >
                       {pi === 0 && (
                         <td
@@ -124,6 +130,51 @@ function PartsTable({
   );
 }
 
+function DetailSection({
+  summary,
+  projectEndDate,
+  areaRows,
+  userRows,
+}: {
+  readonly summary: ProjectCostSummary;
+  readonly projectEndDate: string | null;
+  readonly areaRows: AggregationRow[];
+  readonly userRows: AggregationRow[];
+}): JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
+
+  const hasDetails = monthly.length > 0 || userRows.length > 0;
+
+  return (
+    <div className="space-y-4">
+      {hasDetails && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+        >
+          {expanded
+            ? <><ChevronUp className="w-4 h-4" />Show less</>
+            : <><ChevronDown className="w-4 h-4" />Show more</>}
+        </button>
+      )}
+
+      {expanded && (
+        <>
+          {monthly.length > 0 && (
+            <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
+          )}
+          {userRows.length > 0 && (
+            <DaysByPeopleChart rows={userRows} />
+          )}
+        </>
+      )}
+
+      <TimeByAreaTable rows={areaRows} />
+    </div>
+  );
+}
+
 export default function ProjectTrackerDetail(): JSX.Element {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -142,12 +193,16 @@ export default function ProjectTrackerDetail(): JSX.Element {
     projectId || '',
     state.period || undefined,
   );
-  const { data: aggregations, isLoading: aggLoading } = useProjectAggregations(
+  const { data: areaAgg, isLoading: areaLoading } = useProjectAggregations(
     projectId || '',
     'functional_area',
   );
+  const { data: userAgg, isLoading: userLoading } = useProjectAggregations(
+    projectId || '',
+    'user',
+  );
 
-  if (summaryLoading || partsLoading || aggLoading) {
+  if (summaryLoading || partsLoading || areaLoading || userLoading) {
     return <LoadingSpinner />;
   }
 
@@ -176,7 +231,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
           Back
         </Button>
         <h1 className="text-2xl font-semibold">
-          {project?.name ?? 'Project'} — Tracker
+          {project?.name ?? 'Project'}
         </h1>
       </div>
 
@@ -186,7 +241,12 @@ export default function ProjectTrackerDetail(): JSX.Element {
         projectEndDate={project?.end_date ?? null}
       />
 
-      <TimeByAreaTable rows={aggregations?.rows ?? []} />
+      <DetailSection
+        summary={summary}
+        projectEndDate={project?.end_date ?? null}
+        areaRows={areaAgg?.rows ?? []}
+        userRows={userAgg?.rows ?? []}
+      />
 
       <div className="flex items-center gap-3">
         <label htmlFor="period-filter" className="text-sm font-medium">

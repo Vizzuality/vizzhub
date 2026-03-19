@@ -9,16 +9,16 @@ This migration drops and recreates it with the correct schema.
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "005_recreate_metric_snapshots"
-down_revision: Union[str, None] = "004_metrics_hybrid_model"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "004_metrics_hybrid_model"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
