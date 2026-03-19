@@ -96,6 +96,7 @@ export interface ProjectCostSummaryLite {
   staff_cost: number;
   non_staff_cost: number;
   burn_percentage: number | null;
+  income: number;
 }
 
 export interface BatchCostsResponse {
@@ -141,5 +142,33 @@ export interface BudgetLineCreate {
 export interface FunctionalArea {
   id: string;
   name: string;
+}
+
+export interface ProgressReport {
+  id: string;
+  reporting_period_id: string;
+  project_id: string;
+  period_date: string | null;
+  percentage: number;
+  delta: number | null;
+}
+
+export interface ProgressReportCreate {
+  reporting_period_id: string;
+  percentage: number;
+}
+
+export interface ProgressReportUpdate {
+  percentage: number;
+}
+
+export interface ProgressSummary {
+  project_id: string;
+  percentage: number;
+  delta: number | null;
+}
+
+export interface BatchProgressResponse {
+  progress: Record<string, ProgressSummary>;
 }
 

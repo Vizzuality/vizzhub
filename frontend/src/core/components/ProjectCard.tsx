@@ -7,7 +7,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import type { Project } from '@/core/types/project';
-import type { ProjectCostSummaryLite } from '@/modules/tracker/public';
+import type { ProjectCostSummaryLite, ProgressSummary } from '@/modules/tracker/public';
 import { formatDate } from '@/utils/formatters';
 import { formatCurrency } from '@/modules/tracker/public';
 import { getScoreDotClass } from '@/utils/scoreColors';
@@ -22,6 +22,7 @@ interface ProjectCardProps {
   readonly isAdmin?: boolean;
   readonly score?: number | null;
   readonly costs?: ProjectCostSummaryLite | null;
+  readonly progress?: ProgressSummary | null;
 }
 
 const SCORE_THRESHOLDS = { green: 70, yellow: 40 };
@@ -62,9 +63,11 @@ function Metric({
 function ProjectMetrics({
   score,
   costs,
+  progress,
 }: {
   readonly score?: number | null;
   readonly costs?: ProjectCostSummaryLite | null;
+  readonly progress?: ProgressSummary | null;
 }): JSX.Element | null {
   if (score == null && !costs) return null;
 
@@ -111,8 +114,16 @@ function ProjectMetrics({
               </span>
             </div>
           </div>
-          <Metric label="Progress" value="—" muted />
-          <Metric label="Income" value="—" muted />
+          <Metric
+            label="Progress"
+            value={progress ? `${progress.percentage.toFixed(0)}%` : '—'}
+            muted={!progress}
+          />
+          <Metric
+            label="Income"
+            value={costs.income > 0 ? formatCurrency(costs.income) : '—'}
+            muted={costs.income === 0}
+          />
         </>
       )}
     </div>
@@ -190,6 +201,7 @@ export default function ProjectCard({
   isAdmin = false,
   score,
   costs,
+  progress,
 }: ProjectCardProps): JSX.Element {
   if (viewMode === 'grid') {
     return (
@@ -206,7 +218,7 @@ export default function ProjectCard({
 
           <div className="flex-1" />
 
-          <ProjectMetrics score={score} costs={costs} />
+          <ProjectMetrics score={score} costs={costs} progress={progress} />
 
           <div className="flex items-center justify-end pt-2.5 border-t border-border/50">
             <ProjectActions project={project} isAdmin={isAdmin} />
@@ -235,7 +247,7 @@ export default function ProjectCard({
           </div>
         </div>
 
-        <ProjectMetrics score={score} costs={costs} />
+        <ProjectMetrics score={score} costs={costs} progress={progress} />
       </div>
     </Card>
   );
