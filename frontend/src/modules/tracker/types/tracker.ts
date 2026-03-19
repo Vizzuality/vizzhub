@@ -103,3 +103,22 @@ export interface BatchCostsResponse {
   errors: Record<string, string>;
 }
 
+export interface AggregationPeriod {
+  date: string;
+  days: number;
+  cost: number;
+}
+
+export interface AggregationRow {
+  name: string;
+  email: string | null;
+  total_days: number;
+  total_cost: number;
+  periods: AggregationPeriod[];
+}
+
+export interface AggregationResponse {
+  group_by: string;
+  rows: AggregationRow[];
+}
+

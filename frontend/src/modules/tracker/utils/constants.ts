@@ -21,8 +21,3 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function burnColor(pct: number): string {
-  if (pct > 100) return 'bg-destructive';
-  if (pct >= 80) return 'bg-yellow-500';
-  return 'bg-primary';
-}

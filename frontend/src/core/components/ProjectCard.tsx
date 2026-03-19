@@ -7,9 +7,9 @@ import {
   Wallet,
 } from 'lucide-react';
 import type { Project } from '@/core/types/project';
-import type { ProjectCostSummaryLite } from '@/modules/tracker/types/tracker';
+import type { ProjectCostSummaryLite } from '@/modules/tracker/public';
 import { formatDate } from '@/utils/formatters';
-import { formatCurrency } from '@/modules/tracker/utils/constants';
+import { formatCurrency } from '@/modules/tracker/public';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { cn } from '@/lib/utils';
