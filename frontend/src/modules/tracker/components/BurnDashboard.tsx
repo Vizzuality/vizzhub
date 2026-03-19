@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -38,8 +38,6 @@ interface MonthlyPoint {
   total: number;
 }
 
-type ChartView = 'cumulative' | 'monthly';
-
 function shortMonth(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
@@ -55,7 +53,7 @@ function formatCompact(value: number): string {
   return `€${value.toFixed(0)}`;
 }
 
-function useChartData(
+export function useChartData(
   periods: PeriodCostBreakdown[],
   budget: number | null,
   projectEndDate: string | null,
@@ -339,7 +337,7 @@ function CumulativeBurnChart({
   );
 }
 
-function MonthlyCostsChart({
+export function MonthlyCostsChart({
   data,
   avgMonthlyBurn,
 }: {
@@ -347,7 +345,11 @@ function MonthlyCostsChart({
   readonly avgMonthlyBurn: number;
 }): JSX.Element {
   return (
-    <>
+    <Card>
+      <CardContent className="pt-5 pb-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+          Monthly Costs Breakdown
+        </div>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart data={data} margin={{ top: 5, right: 15, bottom: 5, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} vertical={false} />
@@ -418,38 +420,8 @@ function MonthlyCostsChart({
           Trend
         </span>
       </div>
-    </>
-  );
-}
-
-function ChartToggle({
-  view,
-  onChange,
-}: {
-  readonly view: ChartView;
-  readonly onChange: (v: ChartView) => void;
-}): JSX.Element {
-  return (
-    <div className="flex items-center border rounded-lg p-0.5">
-      <button
-        onClick={() => onChange('cumulative')}
-        className={cn(
-          'px-3 py-1 text-xs font-medium rounded transition-colors',
-          view === 'cumulative' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        Cumulative
-      </button>
-      <button
-        onClick={() => onChange('monthly')}
-        className={cn(
-          'px-3 py-1 text-xs font-medium rounded transition-colors',
-          view === 'monthly' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        Monthly
-      </button>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -458,8 +430,7 @@ export default function BurnDashboard({
   budget,
   projectEndDate,
 }: BurnDashboardProps): JSX.Element | null {
-  const [chartView, setChartView] = useState<ChartView>('cumulative');
-  const { cumulative, monthly, totalBurn, forecastFinal, avgMonthlyBurn } =
+  const { cumulative, totalBurn, forecastFinal } =
     useChartData(periods, budget, projectEndDate);
 
   if (periods.length === 0) return null;
@@ -505,18 +476,13 @@ export default function BurnDashboard({
         />
       </div>
 
-      {/* Chart with toggle */}
+      {/* Cumulative burn chart — always visible */}
       <Card>
         <CardContent className="pt-5 pb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {chartView === 'cumulative' ? 'Cumulative Burn vs Budget' : 'Monthly Costs Breakdown'}
-            </div>
-            <ChartToggle view={chartView} onChange={setChartView} />
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+            Cumulative Burn vs Budget
           </div>
-          {chartView === 'cumulative'
-            ? <CumulativeBurnChart data={cumulative} budget={budget} />
-            : <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />}
+          <CumulativeBurnChart data={cumulative} budget={budget} />
         </CardContent>
       </Card>
     </div>
