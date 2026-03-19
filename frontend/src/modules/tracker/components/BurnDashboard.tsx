@@ -13,6 +13,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { AUXILIARY_PALETTE } from '@/shared/constants/palette';
 import { cn } from '@/lib/utils';
 import type { PeriodCostBreakdown } from '../types/tracker';
 import { formatCurrency } from '../utils/constants';
@@ -137,9 +138,9 @@ export function useChartData(
   }, [periods, budget, projectEndDate]);
 }
 
-const ACCENT_DOT_COLORS: Record<string, string> = {
-  green: 'bg-emerald-500',
-  red: 'bg-red-500',
+const ACCENT_HEX: Record<string, string> = {
+  green: AUXILIARY_PALETTE.neonGrass,
+  red: AUXILIARY_PALETTE.red,
 };
 
 function KpiCard({
@@ -155,7 +156,7 @@ function KpiCard({
   readonly accent?: 'green' | 'red' | 'muted';
   readonly dot?: boolean;
 }): JSX.Element {
-  const dotColor = accent && ACCENT_DOT_COLORS[accent];
+  const accentHex = accent ? ACCENT_HEX[accent] : undefined;
 
   return (
     <Card>
@@ -167,13 +168,15 @@ function KpiCard({
           className={cn(
             'text-xl font-bold leading-tight flex items-center gap-2',
             accent === 'muted' && 'text-muted-foreground/50',
-            (!accent || (dot && dotColor)) && 'text-foreground',
-            !dot && accent === 'green' && 'text-emerald-600 dark:text-emerald-400',
-            !dot && accent === 'red' && 'text-red-600 dark:text-red-400',
+            (!accent || dot) && 'text-foreground',
           )}
+          style={!dot && accentHex ? { color: accentHex } : undefined}
         >
-          {dot && dotColor && (
-            <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', dotColor)} />
+          {dot && accentHex && (
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: accentHex }}
+            />
           )}
           {value}
         </div>

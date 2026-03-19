@@ -65,9 +65,9 @@ describe('ProjectTrackerDetail', () => {
     const user = userEvent.setup();
     renderDetail();
     await waitFor(() => {
-      expect(screen.getByText(/Show monthly breakdown/)).toBeInTheDocument();
+      expect(screen.getByText(/Show more/)).toBeInTheDocument();
     });
-    await user.click(screen.getByText(/Show monthly breakdown/));
+    await user.click(screen.getByText(/Show more/));
     await waitFor(() => {
       expect(screen.getByText('Days by People')).toBeInTheDocument();
     });
