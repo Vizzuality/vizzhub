@@ -31,7 +31,7 @@ import {
 } from '@/shared/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useScoreThresholds } from '@/modules/scorecard/hooks/useConfig';
-import { getScoreColor, getScoreBgColor } from '@/utils/scoreColors';
+import { getScoreColor, getScoreBgColor, getScoreDotClass } from '@/utils/scoreColors';
 
 interface ScoreCardProps {
   readonly score: FinalScore;
@@ -153,7 +153,8 @@ export default function ScoreCard({
             <div
               className={`w-32 h-32 rounded-full flex items-center justify-center ${getScoreBgColor(score.score, thresholds)}`}
             >
-              <span className={`text-5xl font-semibold ${getScoreColor(score.score, thresholds)}`}>
+              <span className="text-5xl font-semibold text-foreground flex items-center gap-2">
+                <span className={cn('inline-block w-3 h-3 rounded-full shrink-0', getScoreDotClass(score.score, thresholds))} />
                 {score.score}
               </span>
             </div>
@@ -226,9 +227,12 @@ function DimensionBadge({ label, dimension, score, thresholds, isVisible, onTogg
         </span>
       </div>
       <span className={cn(
-        'text-lg font-medium transition-opacity',
-        isVisible ? getScoreColor(score, thresholds) : 'text-muted-foreground'
+        'text-lg font-medium transition-opacity flex items-center gap-1.5',
+        isVisible ? 'text-foreground' : 'text-muted-foreground'
       )}>
+        {score !== null && (
+          <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', isVisible ? getScoreDotClass(score, thresholds) : 'bg-muted-foreground/50')} />
+        )}
         {score ?? '—'}
       </span>
     </>

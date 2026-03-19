@@ -2,13 +2,13 @@ import { cn } from '@/lib/utils';
 import EditableMetricCard, { type HistoricalDataPoint } from './EditableMetricCard';
 import { KPIDisplay } from './IndicatorDisplay';
 
-function getExceptionsColorClass(data: number | null | undefined, target: number | null): string {
+function getExceptionsDotClass(data: number | null | undefined, target: number | null): string {
   if (data === undefined || data === null || target === null) {
-    return 'text-muted-foreground';
+    return 'bg-aux-dust-grey';
   }
-  if (data < target) return 'text-score-green';
-  if (data === target) return 'text-score-yellow';
-  return 'text-score-red';
+  if (data < target) return 'bg-aux-neon-grass';
+  if (data === target) return 'bg-aux-cool-steel';
+  return 'bg-aux-red';
 }
 
 interface GovernanceCardProps {
@@ -60,10 +60,10 @@ export default function GovernanceCard({
             <span className="text-sm font-medium text-muted-foreground">Exceptions count</span>
             <span
               className={cn(
-                'text-3xl font-bold',
-                getExceptionsColorClass(data, target)
+                'text-3xl font-bold text-foreground flex items-center gap-1.5',
               )}
             >
+              <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', getExceptionsDotClass(data, target))} />
               {data ?? '—'}
             </span>
           </div>
