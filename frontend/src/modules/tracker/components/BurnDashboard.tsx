@@ -28,7 +28,6 @@ interface CumulativePoint {
   label: string;
   cumulative: number;
   forecast: number | null;
-  budget: number | null;
 }
 
 interface MonthlyPoint {
@@ -63,6 +62,7 @@ function useChartData(
 ): {
   cumulative: CumulativePoint[];
   monthly: MonthlyPoint[];
+  totalBurn: number;
   forecastFinal: number | null;
   avgMonthlyBurn: number;
 } {
@@ -79,7 +79,6 @@ function useChartData(
         label: shortMonth(p.date),
         cumulative: Math.round(cum * 100) / 100,
         forecast: null,
-        budget,
       };
     });
 
@@ -123,7 +122,6 @@ function useChartData(
             label: shortMonth(fDate.toISOString().slice(0, 10)),
             cumulative: 0,
             forecast: Math.round(fcum * 100) / 100,
-            budget,
           });
         }
       } else {
@@ -134,6 +132,7 @@ function useChartData(
     return {
       cumulative: cumWithForecast,
       monthly,
+      totalBurn,
       forecastFinal,
       avgMonthlyBurn,
     };
@@ -460,14 +459,10 @@ export default function BurnDashboard({
   projectEndDate,
 }: BurnDashboardProps): JSX.Element | null {
   const [chartView, setChartView] = useState<ChartView>('cumulative');
-  const { cumulative, monthly, forecastFinal, avgMonthlyBurn } =
+  const { cumulative, monthly, totalBurn, forecastFinal, avgMonthlyBurn } =
     useChartData(periods, budget, projectEndDate);
 
   if (periods.length === 0) return null;
-
-  const totalBurn = cumulative.find((d) => d.cumulative > 0)
-    ? cumulative.filter((d) => d.cumulative > 0).slice(-1)[0]?.cumulative ?? 0
-    : 0;
 
   const budgetVariance = budget != null ? budget - totalBurn : null;
   const varianceAccent = budgetVariance != null
