@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { cn } from '@/lib/utils';
 import { textColorForBg } from '@/shared/utils/colorContrast';
 import type { AggregationRow } from '../types/tracker';
 
@@ -104,11 +103,10 @@ export default function DaysByPeopleChart({ rows }: DaysByPeopleChartProps): JSX
                     return (
                       <td key={m} className="py-0.5 px-0.5">
                         <div
-                          className={cn(
-                            'rounded text-center py-1 px-1 tabular-nums transition-colors',
-                            style ? style.text : 'text-muted-foreground/20',
-                          )}
-                          style={style ? { backgroundColor: style.bg } : undefined}
+                          className="rounded text-center py-1 px-1 tabular-nums transition-colors"
+                          style={style
+                            ? { backgroundColor: style.bg, color: style.text }
+                            : { color: 'var(--muted-foreground)', opacity: 0.2 }}
                           title={`${person.name} — ${shortMonth(m)}: ${val.toFixed(1)} days`}
                         >
                           {val > 0 ? val.toFixed(1) : '·'}

@@ -21,5 +21,5 @@ function relativeLuminance(r: number, g: number, b: number): number {
 
 export function textColorForBg(hex: string): string {
   const [r, g, b] = hexToRgb(hex);
-  return relativeLuminance(r, g, b) > 0.4 ? 'text-foreground' : 'text-white';
+  return relativeLuminance(r, g, b) > 0.4 ? '#1a1a1a' : '#ffffff';
 }

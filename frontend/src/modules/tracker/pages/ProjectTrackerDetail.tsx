@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -141,17 +141,18 @@ function DetailSection({
   const [expanded, setExpanded] = useState(false);
   const { monthly, avgMonthlyBurn } = useChartData(summary.periods, budget, projectEndDate);
 
+  const hasDetails = monthly.length > 0 || userRows.length > 0;
+
   return (
     <div className="space-y-4">
-      <TimeByAreaTable rows={areaRows} />
-
-      {!expanded && (monthly.length > 0 || userRows.length > 0) && (
+      {hasDetails && (
         <button
-          onClick={() => setExpanded(true)}
+          onClick={() => setExpanded((v) => !v)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-2"
         >
-          <ChevronDown className="w-4 h-4" />
-          Show monthly breakdown & team activity
+          {expanded
+            ? <><ChevronUp className="w-4 h-4" />Hide details</>
+            : <><ChevronDown className="w-4 h-4" />Show monthly breakdown &amp; team activity</>}
         </button>
       )}
 
@@ -165,6 +166,8 @@ function DetailSection({
           )}
         </>
       )}
+
+      <TimeByAreaTable rows={areaRows} />
     </div>
   );
 }
