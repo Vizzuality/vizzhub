@@ -12,6 +12,7 @@ import { formatDate } from '@/utils/formatters';
 import { formatCurrency } from '@/modules/tracker/public';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
+import { AUXILIARY_PALETTE } from '@/shared/constants/palette';
 import { cn } from '@/lib/utils';
 
 
@@ -24,16 +25,16 @@ interface ProjectCardProps {
 }
 
 function getScoreDotColor(score: number): string {
-  if (score >= 70) return 'bg-green-500';
-  if (score >= 40) return 'bg-yellow-500';
-  return 'bg-red-500';
+  if (score >= 70) return AUXILIARY_PALETTE.neonGrass;
+  if (score >= 40) return AUXILIARY_PALETTE.coolSteel;
+  return AUXILIARY_PALETTE.red;
 }
 
-function getBurnColor(pct: number | null): string {
-  if (pct == null) return 'bg-muted-foreground/40';
-  if (pct > 100) return 'bg-red-500';
-  if (pct >= 80) return 'bg-yellow-500';
-  return 'bg-green-500';
+function getBurnDotColor(pct: number | null): string {
+  if (pct == null) return AUXILIARY_PALETTE.dustGrey;
+  if (pct > 100) return AUXILIARY_PALETTE.red;
+  if (pct >= 80) return AUXILIARY_PALETTE.coolSteel;
+  return AUXILIARY_PALETTE.neonGrass;
 }
 
 function Metric({
@@ -80,10 +81,8 @@ function ProjectMetrics({
           </div>
           <div className="flex items-center gap-1.5">
             <span
-              className={cn(
-                'inline-block w-2 h-2 rounded-full shrink-0',
-                getScoreDotColor(score),
-              )}
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: getScoreDotColor(score) }}
             />
             <span className="text-sm font-medium leading-tight">
               {Math.round(score)}
@@ -108,10 +107,8 @@ function ProjectMetrics({
             </div>
             <div className="flex items-center gap-1.5">
               <span
-                className={cn(
-                  'inline-block w-2 h-2 rounded-full shrink-0',
-                  getBurnColor(costs.burn_percentage),
-                )}
+                className="inline-block w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: getBurnDotColor(costs.burn_percentage) }}
               />
               <span className="text-sm font-medium leading-tight">
                 {costs.burn_percentage == null
