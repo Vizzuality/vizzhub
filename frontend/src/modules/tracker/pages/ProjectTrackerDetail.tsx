@@ -148,11 +148,11 @@ function DetailSection({
       {hasDetails && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-2"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
         >
           {expanded
-            ? <><ChevronUp className="w-4 h-4" />Hide details</>
-            : <><ChevronDown className="w-4 h-4" />Show monthly breakdown &amp; team activity</>}
+            ? <><ChevronUp className="w-4 h-4" />Show less</>
+            : <><ChevronDown className="w-4 h-4" />Show more</>}
         </button>
       )}
 
@@ -228,7 +228,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
           Back
         </Button>
         <h1 className="text-2xl font-semibold">
-          {project?.name ?? 'Project'} — Tracker
+          {project?.name ?? 'Project'}
         </h1>
       </div>
 
