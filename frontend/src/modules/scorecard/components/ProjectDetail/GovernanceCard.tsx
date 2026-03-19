@@ -7,7 +7,7 @@ function getExceptionsDotClass(data: number | null | undefined, target: number |
     return 'bg-aux-dust-grey';
   }
   if (data < target) return 'bg-aux-neon-grass';
-  if (data === target) return 'bg-aux-cool-steel';
+  if (data === target) return 'bg-aux-yellow';
   return 'bg-aux-red';
 }
 

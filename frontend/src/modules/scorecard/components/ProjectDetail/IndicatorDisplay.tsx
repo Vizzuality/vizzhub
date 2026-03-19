@@ -29,12 +29,12 @@ function getScoreColor(
     return 'text-muted-foreground';
   }
   if (indicatorValue >= targetNormalized) {
-    return 'text-score-green';
+    return 'text-aux-neon-grass';
   }
   if (indicatorValue >= targetNormalized * 0.9) {
-    return 'text-score-yellow';
+    return 'text-aux-yellow';
   }
-  return 'text-score-red';
+  return 'text-aux-red';
 }
 
 function getScoreDotBgClass(
@@ -48,7 +48,7 @@ function getScoreDotBgClass(
     return 'bg-aux-neon-grass';
   }
   if (indicatorValue >= targetNormalized * 0.9) {
-    return 'bg-aux-cool-steel';
+    return 'bg-aux-yellow';
   }
   return 'bg-aux-red';
 }

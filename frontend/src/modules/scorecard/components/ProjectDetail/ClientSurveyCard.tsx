@@ -35,7 +35,7 @@ function createSurveyFieldHandler(
 const RATING_DOT_COLORS: Record<number, string> = {
   5: 'bg-aux-neon-grass',
   4: 'bg-blue-600',
-  3: 'bg-aux-cool-steel',
+  3: 'bg-aux-yellow',
   2: 'bg-orange-600',
   1: 'bg-aux-red',
 };

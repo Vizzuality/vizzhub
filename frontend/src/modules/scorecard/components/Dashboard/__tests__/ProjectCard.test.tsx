@@ -273,7 +273,7 @@ describe('ProjectCard', () => {
     it('displays yellow dot for medium scores (60-79)', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={70} />);
 
-      const dotElement = container.querySelector('.bg-aux-cool-steel');
+      const dotElement = container.querySelector('.bg-aux-yellow');
       expect(dotElement).toBeDefined();
     });
 
@@ -308,7 +308,7 @@ describe('ProjectCard', () => {
       const { container } = renderWithRouter(<ProjectCard project={mockProject} score={60} />);
 
       expect(screen.getByText('60')).toBeDefined();
-      const yellowDot = container.querySelector('.bg-aux-cool-steel');
+      const yellowDot = container.querySelector('.bg-aux-yellow');
       expect(yellowDot).toBeDefined();
     });
 

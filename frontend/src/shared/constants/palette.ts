@@ -9,6 +9,7 @@
  *
  * Accent colors (KPI indicators, alerts):
  *   neonGrass — positive / actual data
+ *   yellow    — neutral / warning
  *   red       — negative / over-budget
  *
  * Tailwind usage:  bg-aux-neon-grass, text-aux-red, border-aux-cool-steel
@@ -22,5 +23,6 @@ export const AUXILIARY_PALETTE = {
   dustGrey: 'var(--aux-dust-grey)',
   softLinen: 'var(--aux-soft-linen)',
   neonGrass: 'var(--aux-neon-grass)',
+  yellow: 'var(--aux-yellow)',
   red: 'var(--aux-red)',
 } as const;
