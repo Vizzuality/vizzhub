@@ -108,6 +108,9 @@ export const queryKeys = {
     all: ['programs'] as const,
     list: ['programs', 'list'] as const,
   },
+  functionalAreas: {
+    all: ['functionalAreas'] as const,
+  },
   integrations: {
     status: ['integrations', 'status'] as const,
     slackChannels: ['integrations', 'slack', 'channels'] as const,
@@ -127,6 +130,10 @@ export const queryKeys = {
     costs: {
       batch: (ids: string[]) =>
         ['tracker', 'costs', 'batch', ...[...ids].sort((a, b) => a.localeCompare(b))] as const,
+    },
+    budgetLines: {
+      byProject: (projectId: string) =>
+        ['tracker', 'budget-lines', projectId] as const,
     },
     projectCosts: {
       summary: (projectId: string) =>

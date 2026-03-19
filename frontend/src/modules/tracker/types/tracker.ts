@@ -122,3 +122,24 @@ export interface AggregationResponse {
   rows: AggregationRow[];
 }
 
+export interface BudgetLine {
+  id: string;
+  project_id: string;
+  functional_area_id: string | null;
+  functional_area_name: string | null;
+  days: number | null;
+  percentage: number | null;
+  details: string | null;
+}
+
+export interface BudgetLineCreate {
+  functional_area_id: string | null;
+  days: number;
+  details: string | null;
+}
+
+export interface FunctionalArea {
+  id: string;
+  name: string;
+}
+

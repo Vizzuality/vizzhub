@@ -14,7 +14,7 @@ import {
 import {
   calculateEVMValues,
   formatCurrency,
-  getPerformanceColor,
+  getPerformanceDotClass,
   getPerformanceLabel,
 } from '@/shared/utils/evmCalculations';
 import type { EVMData } from '../../types';
@@ -225,7 +225,8 @@ export default function EVMForm({
                   </div>
                   {calculatedValues.spi !== null ? (
                     <>
-                      <p className={`text-lg font-semibold ${getPerformanceColor(calculatedValues.spi)}`}>
+                      <p className="text-lg font-semibold text-foreground flex items-center gap-1.5">
+                        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getPerformanceDotClass(calculatedValues.spi)}`} />
                         {calculatedValues.spi.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -256,7 +257,8 @@ export default function EVMForm({
                   </div>
                   {calculatedValues.cpi !== null ? (
                     <>
-                      <p className={`text-lg font-semibold ${getPerformanceColor(calculatedValues.cpi)}`}>
+                      <p className="text-lg font-semibold text-foreground flex items-center gap-1.5">
+                        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getPerformanceDotClass(calculatedValues.cpi)}`} />
                         {calculatedValues.cpi.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
