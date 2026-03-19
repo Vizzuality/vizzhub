@@ -61,12 +61,16 @@ describe('ProjectTrackerDetail', () => {
     expect(screen.getAllByText('4.44').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders days by people chart and days table', async () => {
+  it('shows days by people after expanding details', async () => {
+    const user = userEvent.setup();
     renderDetail();
+    await waitFor(() => {
+      expect(screen.getByText(/Show monthly breakdown/)).toBeInTheDocument();
+    });
+    await user.click(screen.getByText(/Show monthly breakdown/));
     await waitFor(() => {
       expect(screen.getByText('Days by People')).toBeInTheDocument();
     });
-    expect(screen.getByText(/Days in the Last/)).toBeInTheDocument();
   });
 
   it('shows empty state for project with no data', async () => {

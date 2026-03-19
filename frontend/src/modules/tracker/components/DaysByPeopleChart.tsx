@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { cn } from '@/lib/utils';
+import { textColorForBg } from '@/shared/utils/colorContrast';
 import type { AggregationRow } from '../types/tracker';
 
 interface DaysByPeopleChartProps {
@@ -48,13 +49,18 @@ function buildHeatmap(rows: AggregationRow[]): HeatmapData {
   return { people, months, grid, monthTotals, maxValue };
 }
 
-function cellColor(value: number, max: number): string {
-  if (value === 0 || max === 0) return '';
+const HEAT_STEPS = [
+  { threshold: 0.7, bg: '#5f7470' },
+  { threshold: 0.4, bg: '#889696' },
+  { threshold: 0.2, bg: '#b8bdb5' },
+  { threshold: 0,   bg: '#e0e2db' },
+] as const;
+
+function cellStyle(value: number, max: number): { bg: string; text: string } | null {
+  if (value === 0 || max === 0) return null;
   const intensity = value / max;
-  if (intensity > 0.7) return 'bg-[#5f7470] text-white';
-  if (intensity > 0.4) return 'bg-[#889696] text-white';
-  if (intensity > 0.2) return 'bg-[#b8bdb5]';
-  return 'bg-[#e0e2db]';
+  const step = HEAT_STEPS.find((s) => intensity > s.threshold) ?? HEAT_STEPS[HEAT_STEPS.length - 1];
+  return { bg: step.bg, text: textColorForBg(step.bg) };
 }
 
 export default function DaysByPeopleChart({ rows }: DaysByPeopleChartProps): JSX.Element | null {
@@ -94,15 +100,15 @@ export default function DaysByPeopleChart({ rows }: DaysByPeopleChartProps): JSX
                   </td>
                   {months.map((m) => {
                     const val = grid.get(`${person.name}|${m}`) ?? 0;
+                    const style = cellStyle(val, maxValue);
                     return (
                       <td key={m} className="py-0.5 px-0.5">
                         <div
                           className={cn(
                             'rounded text-center py-1 px-1 tabular-nums transition-colors',
-                            val > 0
-                              ? cellColor(val, maxValue)
-                              : 'text-muted-foreground/20',
+                            style ? style.text : 'text-muted-foreground/20',
                           )}
+                          style={style ? { backgroundColor: style.bg } : undefined}
                           title={`${person.name} — ${shortMonth(m)}: ${val.toFixed(1)} days`}
                         >
                           {val > 0 ? val.toFixed(1) : '·'}
