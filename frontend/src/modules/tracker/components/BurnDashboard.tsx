@@ -49,6 +49,30 @@ function formatCompact(value: number): string {
   return `€${value.toFixed(0)}`;
 }
 
+/**
+ * Weighted moving average: recent months weigh more.
+ * Last 3 months get weights 3, 2, 1; older months get weight 1.
+ * Falls back to simple average with fewer than 2 data points.
+ */
+function weightedMonthlyAvg(monthlyCosts: number[]): number {
+  const n = monthlyCosts.length;
+  if (n === 0) return 0;
+  if (n === 1) return monthlyCosts[0];
+
+  const RECENT_WINDOW = 3;
+  let weightedSum = 0;
+  let totalWeight = 0;
+
+  for (let i = 0; i < n; i++) {
+    const distFromEnd = n - 1 - i;
+    const weight = distFromEnd < RECENT_WINDOW ? RECENT_WINDOW - distFromEnd : 1;
+    weightedSum += monthlyCosts[i] * weight;
+    totalWeight += weight;
+  }
+
+  return weightedSum / totalWeight;
+}
+
 export function useChartData(
   periods: PeriodCostBreakdown[],
   projectEndDate: string | null,
@@ -87,6 +111,9 @@ export function useChartData(
     const monthCount = sorted.length;
     const avgMonthlyBurn = monthCount > 0 ? totalBurn / monthCount : 0;
 
+    const monthlyCosts = sorted.map((p) => p.total);
+    const weightedAvg = weightedMonthlyAvg(monthlyCosts);
+
     let forecastFinal: number | null = null;
     const cumWithForecast = [...cumulativeActual];
 
@@ -96,7 +123,7 @@ export function useChartData(
       const remainingMonths = monthsBetween(lastDate, endDate);
 
       if (remainingMonths > 0) {
-        forecastFinal = Math.round((totalBurn + avgMonthlyBurn * remainingMonths) * 100) / 100;
+        forecastFinal = Math.round((totalBurn + weightedAvg * remainingMonths) * 100) / 100;
 
         const lastActual = cumulativeActual[cumulativeActual.length - 1];
         cumWithForecast[cumWithForecast.length - 1] = {
@@ -109,7 +136,7 @@ export function useChartData(
         for (let i = 1; i <= maxForecastMonths; i++) {
           const fDate = new Date(lastDate);
           fDate.setMonth(fDate.getMonth() + i);
-          fcum += avgMonthlyBurn;
+          fcum += weightedAvg;
           cumWithForecast.push({
             date: fDate.toISOString().slice(0, 10),
             label: shortMonth(fDate.toISOString().slice(0, 10)),
@@ -261,8 +288,8 @@ function CumulativeBurnChart({
               <stop offset="95%" stopColor={PALETTE_HEX.neonGrass} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={PALETTE_HEX.coolSteel} stopOpacity={0.08} />
-              <stop offset="95%" stopColor={PALETTE_HEX.coolSteel} stopOpacity={0} />
+              <stop offset="5%" stopColor={PALETTE_HEX.dustGrey} stopOpacity={0.06} />
+              <stop offset="95%" stopColor={PALETTE_HEX.dustGrey} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
@@ -312,12 +339,12 @@ function CumulativeBurnChart({
             <Area
               type="monotone"
               dataKey="forecast"
-              stroke={PALETTE_HEX.coolSteel}
-              strokeWidth={2}
-              strokeDasharray="6 3"
+              stroke={PALETTE_HEX.dustGrey}
+              strokeWidth={1.5}
+              strokeDasharray="4 6"
               fill="url(#forecastGrad)"
-              dot={{ r: 2, fill: PALETTE_HEX.coolSteel, strokeWidth: 0 }}
-              activeDot={{ r: 4, fill: PALETTE_HEX.coolSteel, strokeWidth: 2, stroke: 'white' }}
+              dot={false}
+              activeDot={{ r: 3, fill: PALETTE_HEX.dustGrey, strokeWidth: 0 }}
               connectNulls={false}
               name="Forecast"
             />
@@ -331,7 +358,7 @@ function CumulativeBurnChart({
         </span>
         {hasForecast && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.dustGrey }} />
             {'Forecast'}
           </span>
         )}

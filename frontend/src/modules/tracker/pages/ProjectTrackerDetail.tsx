@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -11,11 +11,12 @@ import {
   useProjectReportParts,
   useProjectAggregations,
 } from '../hooks/useProjectCosts';
+import { useBudgetLines } from '../hooks/useBudgetLines';
 import { formatPeriodDate, formatCurrency, SELECT_CLASS } from '../utils/constants';
 import BurnDashboard, { useChartData, MonthlyCostsChart } from '../components/BurnDashboard';
 import TimeByAreaTable from '../components/TimeByAreaTable';
 import DaysByPeopleChart from '../components/DaysByPeopleChart';
-import type { AggregationRow, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
+import type { AggregationRow, BudgetLine, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 function getRowBorderClass(
   partIdx: number,
@@ -135,11 +136,13 @@ function DetailSection({
   projectEndDate,
   areaRows,
   userRows,
+  budgetLines,
 }: {
   readonly summary: ProjectCostSummary;
   readonly projectEndDate: string | null;
   readonly areaRows: AggregationRow[];
   readonly userRows: AggregationRow[];
+  readonly budgetLines?: BudgetLine[];
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
@@ -151,26 +154,26 @@ function DetailSection({
       {hasDetails && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+          className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors py-2"
         >
           {expanded
-            ? <><ChevronUp className="w-4 h-4" />Show less</>
-            : <><ChevronDown className="w-4 h-4" />Show more</>}
+            ? <><ChevronUp className="w-4 h-4" />{'Show less'}</>
+            : <><BarChart3 className="w-4 h-4" />{'Show more insights'}<ChevronDown className="w-4 h-4" /></>}
         </button>
       )}
 
       {expanded && (
         <>
-          {monthly.length > 0 && (
-            <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
-          )}
           {userRows.length > 0 && (
             <DaysByPeopleChart rows={userRows} />
+          )}
+          {monthly.length > 0 && (
+            <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
           )}
         </>
       )}
 
-      <TimeByAreaTable rows={areaRows} />
+      <TimeByAreaTable rows={areaRows} budgetLines={budgetLines} />
     </div>
   );
 }
@@ -201,6 +204,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
     projectId || '',
     'user',
   );
+  const { data: budgetLines } = useBudgetLines(projectId || '');
 
   if (summaryLoading || partsLoading || areaLoading || userLoading) {
     return <LoadingSpinner />;
@@ -246,6 +250,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
         projectEndDate={project?.end_date ?? null}
         areaRows={areaAgg?.rows ?? []}
         userRows={userAgg?.rows ?? []}
+        budgetLines={budgetLines}
       />
 
       <div className="flex items-center gap-3">
