@@ -67,11 +67,6 @@ export const projectsApi = {
   },
 
   updateBudget: async (projectId: string, data: {
-    evm_data?: {
-      cost_to_date?: number;
-      percent_completed?: number;
-      percent_planned?: number;
-    };
     milestones?: Array<{
       name: string;
       planned_date: string;
@@ -80,12 +75,6 @@ export const projectsApi = {
   }): Promise<{
     period_year: number;
     period_month: number;
-    evm_data: {
-      budget_total: number | null;
-      cost_to_date: number | null;
-      percent_completed: number | null;
-      percent_planned: number | null;
-    };
     milestones: Array<{
       name: string;
       planned_date: string;
