@@ -141,6 +141,10 @@ export const queryKeys = {
       batch: (ids: string[]) =>
         ['tracker', 'progress', 'batch', ...[...ids].sort((a, b) => a.localeCompare(b))] as const,
     },
+    invoices: {
+      byProject: (projectId: string) =>
+        ['tracker', 'invoices', projectId] as const,
+    },
     projectCosts: {
       summary: (projectId: string) =>
         ['tracker', 'project-costs', projectId, 'summary'] as const,

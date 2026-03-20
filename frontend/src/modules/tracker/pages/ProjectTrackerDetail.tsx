@@ -17,6 +17,7 @@ import BurnDashboard, { useChartData, MonthlyCostsChart } from '../components/Bu
 import TimeByAreaTable from '../components/TimeByAreaTable';
 import DaysByPeopleChart from '../components/DaysByPeopleChart';
 import ProgressCard from '../components/ProgressCard';
+import InvoicesCard from '../components/InvoicesCard';
 import type { AggregationRow, BudgetLine, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 function getRowBorderClass(
@@ -250,6 +251,8 @@ export default function ProjectTrackerDetail(): JSX.Element {
         projectId={projectId || ''}
         periods={summary.periods}
       />
+
+      <InvoicesCard projectId={projectId || ''} />
 
       <DetailSection
         summary={summary}

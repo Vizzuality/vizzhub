@@ -19,6 +19,10 @@ import type {
   ProgressReportCreate,
   ProgressReportUpdate,
   BatchProgressResponse,
+  Invoice,
+  InvoiceCreate,
+  InvoiceUpdate,
+  InvoiceStatus,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -194,6 +198,50 @@ export const trackerApi = {
       { project_ids: projectIds },
     );
     return response.data;
+  },
+
+  // Invoices
+  listInvoices: async (projectId: string): Promise<Invoice[]> => {
+    const response = await api.get<Invoice[]>(
+      `/tracker/projects/${projectId}/invoices`,
+    );
+    return response.data;
+  },
+
+  createInvoice: async (projectId: string, data: InvoiceCreate): Promise<Invoice> => {
+    const response = await api.post<Invoice>(
+      `/tracker/projects/${projectId}/invoices`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateInvoice: async (
+    projectId: string,
+    invoiceId: string,
+    data: InvoiceUpdate,
+  ): Promise<Invoice> => {
+    const response = await api.put<Invoice>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  transitionInvoice: async (
+    projectId: string,
+    invoiceId: string,
+    status: InvoiceStatus,
+  ): Promise<Invoice> => {
+    const response = await api.post<Invoice>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/transition`,
+      { status },
+    );
+    return response.data;
+  },
+
+  deleteInvoice: async (projectId: string, invoiceId: string): Promise<void> => {
+    await api.delete(`/tracker/projects/${projectId}/invoices/${invoiceId}`);
   },
 
   // Functional Areas

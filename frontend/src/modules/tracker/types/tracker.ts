@@ -172,3 +172,39 @@ export interface BatchProgressResponse {
   progress: Record<string, ProgressSummary>;
 }
 
+export type InvoiceStatus = 'scheduled' | 'pending_to_issue' | 'waiting_for_payment' | 'paid';
+
+export interface Invoice {
+  id: string;
+  project_id: string;
+  code: string | null;
+  amount: number;
+  currency: string | null;
+  due_date: string;
+  extended_date: string | null;
+  invoiced_on: string | null;
+  milestone: string;
+  observations: string | null;
+  status: InvoiceStatus;
+}
+
+export interface InvoiceCreate {
+  code?: string | null;
+  amount: number;
+  currency?: string;
+  due_date: string;
+  milestone: string;
+  observations?: string | null;
+}
+
+export interface InvoiceUpdate {
+  code?: string | null;
+  amount?: number;
+  currency?: string;
+  due_date?: string;
+  extended_date?: string | null;
+  invoiced_on?: string | null;
+  milestone?: string;
+  observations?: string | null;
+}
+
