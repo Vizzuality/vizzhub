@@ -451,7 +451,7 @@ export default function ProjectForm(): JSX.Element {
                 variant="ghost"
                 onClick={handleMarkFinished}
                 disabled={statusMutation.isPending}
-                className="border border-input hover:bg-score-green hover:border-score-green hover:text-black"
+                className="border border-input"
               >
                 <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
                 {statusMutation.isPending ? 'Updating...' : 'Mark as Finished'}
@@ -463,7 +463,7 @@ export default function ProjectForm(): JSX.Element {
                 variant="ghost"
                 onClick={handleReopen}
                 disabled={statusMutation.isPending}
-                className="border border-input hover:bg-score-green hover:border-score-green hover:text-black"
+                className="border border-input"
               >
                 <RotateCcw className="w-4 h-4 mr-2 text-score-green" />
                 {statusMutation.isPending ? 'Updating...' : 'Reopen Project'}
@@ -982,7 +982,7 @@ export default function ProjectForm(): JSX.Element {
                         variant="ghost"
                         onClick={() => setDeleteDialogOpen(true)}
                         disabled={deleteMutation.isPending}
-                        className="w-full hover:bg-destructive hover:border-destructive hover:text-white border border-input"
+                        className="w-full border border-input"
                       >
                         <Trash2 className="w-4 h-4 mr-2 text-destructive" />
                         {deleteMutation.isPending ? 'Deleting...' : 'Delete Project'}
