@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import { useForm, useFieldArray } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
 import {
@@ -157,6 +158,7 @@ function getApiErrorMessage(error: unknown): string {
 export default function ProjectForm(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { setGuard } = useNavigationGuard();
   const isEditMode = !!id;
 
   const { data: project, isLoading: isLoadingProject, isError: isProjectError } =
@@ -202,7 +204,7 @@ export default function ProjectForm(): JSX.Element {
     reset,
     control,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ProjectFormData>({
     defaultValues: {
       name: '',
@@ -274,9 +276,40 @@ export default function ProjectForm(): JSX.Element {
   const currentProgramId = watch('program_id');
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [extraDirty, setExtraDirty] = useState(false);
+  const hasUnsavedChanges = (isDirty || extraDirty) && !isSubmitting;
+
+  const guardFn = useCallback(
+    () => !hasUnsavedChanges || window.confirm('You have unsaved changes. Leave this page?'),
+    [hasUnsavedChanges],
+  );
+
+  useEffect(() => {
+    setGuard(guardFn);
+    return () => setGuard(null);
+  }, [guardFn, setGuard]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handler = (e: BeforeUnloadEvent): void => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
 
   const navigateToProjects = (): void => {
     navigate('/projects');
+  };
+
+  const handleLeave = (): void => {
+    if (hasUnsavedChanges) {
+      setLeaveDialogOpen(true);
+    } else {
+      navigateToProjects();
+    }
   };
 
   const handleFormSubmit = (data: ProjectFormData): void => {
@@ -359,6 +392,7 @@ export default function ProjectForm(): JSX.Element {
       } else {
         await submitCreate(payloads);
       }
+      setIsSubmitting(true);
       navigateToProjects();
     } catch (error) {
       setApiError(getApiErrorMessage(error));
@@ -381,6 +415,7 @@ export default function ProjectForm(): JSX.Element {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setDeleteDialogOpen(false);
+        setIsSubmitting(true);
         navigateToProjects();
       },
       onError: (error) => {
@@ -741,7 +776,7 @@ export default function ProjectForm(): JSX.Element {
                       <SlackChannelCombobox
                         id="slack_channel"
                         value={slackChannelId}
-                        onValueChange={setSlackChannelId}
+                        onValueChange={(v) => { setSlackChannelId(v); setExtraDirty(true); }}
                         channels={channels}
                         disabled={isLoadingChannels}
                         placeholder={isLoadingChannels ? 'Loading channels...' : 'Select a channel'}
@@ -906,19 +941,19 @@ export default function ProjectForm(): JSX.Element {
                 <CardContent className="pt-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="is_billable" className="cursor-pointer text-sm">Billable</Label>
-                    <Switch id="is_billable" checked={isBillable} onCheckedChange={setIsBillable} />
+                    <Switch id="is_billable" checked={isBillable} onCheckedChange={(v) => { setIsBillable(v); setExtraDirty(true); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_scorecard" className="cursor-pointer text-sm">Scorecard</Label>
-                    <Switch id="has_scorecard" checked={hasScorecard} onCheckedChange={setHasScorecard} />
+                    <Switch id="has_scorecard" checked={hasScorecard} onCheckedChange={(v) => { setHasScorecard(v); setExtraDirty(true); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_dependabot_alerts" className="cursor-pointer text-sm">Dependabot Alerts</Label>
-                    <Switch id="has_dependabot_alerts" checked={hasDependabotAlerts} onCheckedChange={setHasDependabotAlerts} />
+                    <Switch id="has_dependabot_alerts" checked={hasDependabotAlerts} onCheckedChange={(v) => { setHasDependabotAlerts(v); setExtraDirty(true); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_budget_alerts" className="cursor-pointer text-sm">Budget Alerts</Label>
-                    <Switch id="has_budget_alerts" checked={hasBudgetAlerts} onCheckedChange={setHasBudgetAlerts} />
+                    <Switch id="has_budget_alerts" checked={hasBudgetAlerts} onCheckedChange={(v) => { setHasBudgetAlerts(v); setExtraDirty(true); }} />
                   </div>
                 </CardContent>
               </Card>
@@ -967,7 +1002,7 @@ export default function ProjectForm(): JSX.Element {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={navigateToProjects}
+                    onClick={handleLeave}
                     disabled={isMutating}
                     className="w-full border border-input"
                   >
@@ -1035,6 +1070,23 @@ export default function ProjectForm(): JSX.Element {
             <AlertDialogCancel>Back to Edit</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmProposal}>
               Save as Proposal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave this page?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay on Page</AlertDialogCancel>
+            <AlertDialogAction onClick={navigateToProjects}>
+              Leave Page
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
