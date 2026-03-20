@@ -27,14 +27,15 @@ const projectNoDependabot = {
   has_scorecard: true,
   has_dependabot_alerts: false,
   has_budget_alerts: true,
-  currency: null,
+  currency: 'euro',
+  budget: 100000,
   notes: null,
   summary: null,
   jira_project_key: 'TEST',
   github_repo: 'org/test-repo',
   slack_channel_id: null,
   start_date: '2026-01-01',
-  end_date: null,
+  end_date: '2026-12-31',
   status: 'live' as const,
   finished_at: null,
   created_at: '2026-01-01T00:00:00Z',
@@ -76,6 +77,17 @@ function renderEdit(projectId = 'project-123'): ReturnType<typeof render> {
   );
 }
 
+async function fillRequiredFields(
+  user: ReturnType<typeof userEvent.setup>,
+  overrides: { name?: string; code?: string; budget?: string } = {},
+): Promise<void> {
+  await user.type(screen.getByLabelText(/name \*/i), overrides.name ?? 'Test Project');
+  await user.type(screen.getByLabelText(/code \*/i), overrides.code ?? 'TST.001');
+  await user.type(screen.getByRole('spinbutton', { name: /budget/i }), overrides.budget ?? '50000');
+  fireEvent.change(screen.getByLabelText(/start date/i), { target: { value: '2026-01-01' } });
+  fireEvent.change(screen.getByLabelText(/end date/i), { target: { value: '2026-12-31' } });
+}
+
 describe('ProjectForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -94,7 +106,6 @@ describe('ProjectForm', () => {
 
       expect(screen.getByText('General')).toBeInTheDocument();
       expect(screen.getByText('Integrations')).toBeInTheDocument();
-      expect(screen.getByText('Budget & Schedule')).toBeInTheDocument();
       expect(screen.getByText('Milestones')).toBeInTheDocument();
       expect(screen.getByText('Links')).toBeInTheDocument();
       expect(screen.getByText('Features')).toBeInTheDocument();
@@ -137,14 +148,14 @@ describe('ProjectForm', () => {
       expect(screen.getByLabelText('Budget Alerts')).toBeInTheDocument();
     });
 
-    it('renders currency dropdown with 10 options plus None', async () => {
+    it('renders currency dropdown with options', async () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      const currencySelect = screen.getByLabelText(/currency for invoices/i);
+      const currencySelect = screen.getByLabelText(/currency/i);
       const options = within(currencySelect).getAllByRole('option');
-      expect(options).toHaveLength(11);
-      expect(options[0]).toHaveTextContent('None');
+      expect(options).toHaveLength(2);
+      expect(options[0]).toHaveTextContent('US Dollar (USD)');
       expect(options[1]).toHaveTextContent('Euro (EUR)');
     });
 
@@ -217,8 +228,7 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      await user.type(screen.getByLabelText(/name \*/i), 'Test');
-      await user.type(screen.getByLabelText(/code \*/i), 'TST');
+      await fillRequiredFields(user, { name: 'Test', code: 'TST' });
 
       // Change status to live to skip proposal dialog
       fireEvent.change(screen.getByLabelText(/status/i), { target: { value: 'live' } });
@@ -244,8 +254,7 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      await user.type(screen.getByLabelText(/name \*/i), 'Test Proposal');
-      await user.type(screen.getByLabelText(/code \*/i), 'TST');
+      await fillRequiredFields(user, { name: 'Test Proposal', code: 'TST' });
 
       // Turn off Dependabot to avoid Slack validation
       await user.click(screen.getByLabelText('Dependabot Alerts'));
@@ -269,8 +278,7 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      await user.type(screen.getByLabelText(/name \*/i), 'Test Proposal');
-      await user.type(screen.getByLabelText(/code \*/i), 'TST');
+      await fillRequiredFields(user, { name: 'Test Proposal', code: 'TST' });
       await user.click(screen.getByLabelText('Dependabot Alerts'));
 
       await user.click(screen.getByRole('button', { name: /create project/i }));
@@ -305,8 +313,7 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      await user.type(screen.getByLabelText(/name \*/i), 'New Test Project');
-      await user.type(screen.getByLabelText(/code \*/i), 'NTP-001');
+      await fillRequiredFields(user, { name: 'New Test Project', code: 'NTP-001' });
 
       // Turn off Dependabot to skip Slack validation
       await user.click(screen.getByLabelText('Dependabot Alerts'));
@@ -323,55 +330,6 @@ describe('ProjectForm', () => {
       expect(capturedPayload).not.toBeNull();
       expect(capturedPayload!.name).toBe('New Test Project');
       expect(capturedPayload!.code).toBe('NTP-001');
-    });
-
-    it('creates project with budget data', async () => {
-      const user = userEvent.setup();
-      let budgetPayload: Record<string, unknown> | null = null;
-
-      server.use(
-        http.get(`${BASE}/admin/integrations/status`, () =>
-          HttpResponse.json(slackDisconnected),
-        ),
-        http.post(`${BASE}/projects`, async ({ request }) => {
-          const body = await request.json() as Record<string, unknown>;
-          return HttpResponse.json(
-            { id: 'new-id', ...body, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-            { status: 201 },
-          );
-        }),
-        http.put(`${BASE}/projects/new-id/budget`, async ({ request }) => {
-          budgetPayload = await request.json() as Record<string, unknown>;
-          return HttpResponse.json({
-            period_year: 2026,
-            period_month: 3,
-            evm_data: budgetPayload.evm_data ?? {},
-            milestones: budgetPayload.milestones ?? [],
-          });
-        }),
-      );
-
-      renderCreate();
-      await screen.findByText('New Project');
-
-      await user.type(screen.getByLabelText(/name \*/i), 'Budget Project');
-      await user.type(screen.getByLabelText(/code \*/i), 'BDG-001');
-
-      fireEvent.change(screen.getByLabelText(/status/i), { target: { value: 'live' } });
-      await user.click(screen.getByLabelText('Dependabot Alerts'));
-
-      await user.type(screen.getByLabelText(/total budget/i), '100000');
-      await user.type(screen.getByLabelText(/actual cost/i), '50000');
-
-      await user.click(screen.getByRole('button', { name: /create project/i }));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('projects-list')).toBeInTheDocument();
-      });
-
-      expect(budgetPayload).not.toBeNull();
-      expect((budgetPayload!.evm_data as Record<string, number>).budget_total).toBe(100000);
-      expect((budgetPayload!.evm_data as Record<string, number>).cost_to_date).toBe(50000);
     });
 
     it('creates project via proposal confirmation dialog', async () => {
@@ -394,8 +352,7 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      await user.type(screen.getByLabelText(/name \*/i), 'Proposal Project');
-      await user.type(screen.getByLabelText(/code \*/i), 'PRP-001');
+      await fillRequiredFields(user, { name: 'Proposal Project', code: 'PRP-001' });
       await user.click(screen.getByLabelText('Dependabot Alerts'));
 
       await user.click(screen.getByRole('button', { name: /create project/i }));
@@ -498,24 +455,6 @@ describe('ProjectForm', () => {
       expect(options.map((o) => o.textContent)).toContain('Project Management');
       expect(options.map((o) => o.textContent)).toContain('App Environments');
       expect(options.map((o) => o.textContent)).toContain('Design');
-    });
-  });
-
-  describe('Create Mode — EVM Preview', () => {
-    it('shows EVM preview when budget data is entered', async () => {
-      const user = userEvent.setup();
-      renderCreate();
-      await screen.findByText('New Project');
-
-      await user.type(screen.getByLabelText(/total budget/i), '100000');
-      await user.type(screen.getByLabelText(/work completed/i), '50');
-      await user.type(screen.getByLabelText(/expected progress/i), '60');
-
-      await waitFor(() => {
-        expect(screen.getByText('Earned Value')).toBeInTheDocument();
-        expect(screen.getByText('SPI')).toBeInTheDocument();
-        expect(screen.getByText('CPI')).toBeInTheDocument();
-      });
     });
   });
 
@@ -647,14 +586,12 @@ describe('ProjectForm', () => {
         http.get(`${BASE}/projects/:id`, () => {
           return HttpResponse.json(projectNoDependabot);
         }),
-        // Return metrics for current period (used by useCurrentPeriodMetrics)
         http.get(`${BASE}/metrics/project/:projectId/:year/:month`, () => {
           return HttpResponse.json({
             id: 'metrics-1',
             project_id: 'project-123',
             period_year: 2026,
             period_month: 3,
-            evm_data: null,
             milestones: [],
           });
         }),
@@ -666,6 +603,18 @@ describe('ProjectForm', () => {
             created_at: '2026-01-01T00:00:00Z',
             updated_at: '2026-01-15T00:00:00Z',
           });
+        }),
+        http.put(`${BASE}/projects/project-123/budget`, () => {
+          return HttpResponse.json({ period_year: 2026, period_month: 3, milestones: [] });
+        }),
+        http.put(`${BASE}/projects/project-123/links`, () => {
+          return HttpResponse.json([]);
+        }),
+        http.get(`${BASE}/tracker/projects/project-123/budget-lines`, () => {
+          return HttpResponse.json([]);
+        }),
+        http.get(`${BASE}/functional-areas`, () => {
+          return HttpResponse.json([]);
         }),
       );
 

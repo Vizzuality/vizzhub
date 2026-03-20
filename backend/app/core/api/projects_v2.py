@@ -25,7 +25,7 @@ from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.modules.scorecard.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
 from app.modules.scorecard.models.metrics.db import MetricsDB
-from app.modules.scorecard.public import EVMDataPartial, MetricsService, Milestone, SnapshotType
+from app.modules.scorecard.public import MetricsService, Milestone, SnapshotType, refresh_tracker_evm
 
 router = APIRouter()
 
@@ -197,11 +197,15 @@ async def replace_project(
     data: ProjectCreateV2,
     admin: AdminUser,
     db: DBSession,
+    cache: OptionalScoreCache,
 ) -> ProjectResponse:
     project = await get_project_or_404(db, project_id)
+    old_budget, old_start, old_end = project.budget, project.start_date, project.end_date
     _apply_project_data(project, data)
     await db.flush()
     await db.refresh(project)
+    if project.budget != old_budget or project.start_date != old_start or project.end_date != old_end:
+        await refresh_tracker_evm(db, project_id, score_cache=cache)
     return _project_to_response(project)
 
 
@@ -213,6 +217,7 @@ async def update_project(
     update: ProjectUpdate,
     admin: AdminUser,
     db: DBSession,
+    cache: OptionalScoreCache,
 ) -> ProjectResponse:
     PATCHABLE_FIELDS = {
         "name", "code", "program_id", "is_billable", "currency", "budget",
@@ -234,6 +239,10 @@ async def update_project(
         setattr(project, field, value)
     await db.flush()
     await db.refresh(project)
+
+    if "budget" in update_data or "start_date" in update_data or "end_date" in update_data:
+        await refresh_tracker_evm(db, project_id, score_cache=cache)
+
     return _project_to_response(project)
 
 
@@ -264,28 +273,15 @@ async def delete_project(
 
 
 class ProjectBudgetUpdate(BaseModel):
-    evm_data: EVMDataPartial | None = None
     milestones: list[Milestone] | None = None
-
-
-def _to_float(value) -> float | None:
-    """Convert Decimal or numeric to float, preserving None."""
-    return float(value) if value is not None else None
 
 
 def _metrics_to_budget_response(metrics: MetricsDB, year: int, month: int) -> dict:
     """Build budget response from metrics DB record."""
-    evm_data = {
-        "budget_total": _to_float(metrics.budget_total),
-        "cost_to_date": _to_float(metrics.cost_to_date),
-        "percent_completed": _to_float(metrics.percent_completed),
-        "percent_planned": _to_float(metrics.percent_planned),
-    }
     milestones = metrics.milestones if metrics.milestones else []
     return {
         "period_year": year,
         "period_month": month,
-        "evm_data": evm_data,
         "milestones": milestones,
     }
 
@@ -300,9 +296,10 @@ async def update_project_budget(
     payload: ProjectBudgetUpdate,
     cache: OptionalScoreCache,
 ) -> dict:
-    """Update EVM budget data and milestones for current period.
+    """Update milestones and budget_total for current period.
 
-    Auto-creates metrics record if none exists for the current period.
+    EVM fields (cost_to_date, percent_completed, percent_planned) are now
+    derived from the tracker module, not manually entered.
     """
     project = await get_project_or_404(db, project_id)
 
@@ -314,14 +311,7 @@ async def update_project_budget(
         "period_start": date(year, month, 1),
         "period_end": date(year, month, calendar.monthrange(year, month)[1]),
     }
-    if payload.evm_data:
-        evm_dict = payload.evm_data.to_evm_dict()
-        # budget_total is read from projects.budget, not from payload
-        evm_dict.pop("budget_total", None)
-        if project.budget is not None:
-            evm_dict["budget_total"] = float(project.budget)
-        data.update(evm_dict)
-    elif project.budget is not None:
+    if project.budget is not None:
         data["budget_total"] = float(project.budget)
     if payload.milestones is not None:
         data["milestones"] = [m.model_dump(mode="json") for m in payload.milestones]
@@ -333,14 +323,13 @@ async def update_project_budget(
         existing = await MetricsService.get_metrics(db, str(project_id), year, month)
         if existing:
             return _metrics_to_budget_response(existing, year, month)
-        return {"period_year": year, "period_month": month, "evm_data": {}, "milestones": []}
+        return {"period_year": year, "period_month": month, "milestones": []}
 
     metrics = await MetricsService.upsert_metrics(
         db, project_id, year, month, SnapshotType.CUMULATIVE, config, data
     )
 
-    if cache:
-        await cache.invalidate(str(project_id))
+    await refresh_tracker_evm(db, project_id, score_cache=cache)
 
     return _metrics_to_budget_response(metrics, year, month)
 
