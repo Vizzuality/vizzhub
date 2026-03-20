@@ -61,13 +61,8 @@ describe('ProjectTrackerDetail', () => {
     expect(screen.getAllByText('4.4').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows days by people after expanding details', async () => {
-    const user = userEvent.setup();
+  it('shows days by people expanded by default', async () => {
     renderDetail();
-    await waitFor(() => {
-      expect(screen.getByText(/Show more/)).toBeInTheDocument();
-    });
-    await user.click(screen.getByText(/Show more/));
     await waitFor(() => {
       expect(screen.getByText('Days by People')).toBeInTheDocument();
     });
