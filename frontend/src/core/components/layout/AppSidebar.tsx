@@ -56,6 +56,7 @@ const NOTIFICATION_TABS = [
 
 const TRACKER_TABS = [
   { to: '/admin/tracker/periods', label: 'Reporting Periods' },
+  { to: '/admin/tracker/invoices', label: 'Invoices' },
 ] as const;
 
 

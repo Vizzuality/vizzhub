@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.modules.tracker.api import admin_invoices as admin_invoices_router
 from app.modules.tracker.api import budget_lines as budget_lines_router
 from app.modules.tracker.api import invoices as invoices_router
 from app.modules.tracker.api import non_staff_costs as non_staff_costs_router
@@ -52,4 +53,9 @@ router.include_router(
     invoices_router.router,
     prefix="/projects",
     tags=["tracker:invoices"],
+)
+router.include_router(
+    admin_invoices_router.router,
+    prefix="/invoices",
+    tags=["tracker:admin-invoices"],
 )

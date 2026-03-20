@@ -37,11 +37,13 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
 };
 
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  scheduled: 'bg-aux-dust-grey text-aux-onix',
+  scheduled: 'text-foreground',
   pending_to_issue: 'bg-aux-yellow/20 text-aux-yellow',
   waiting_for_payment: 'bg-aux-red/20 text-aux-red',
   paid: 'bg-aux-neon-grass/20 text-aux-neon-grass',
 };
+
+const HOVER_COLORS = 'bg-muted text-foreground';
 
 const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
   scheduled: null,
@@ -92,7 +94,7 @@ function StatusCell({
   };
 
   const label = hovered && next ? NEXT_LABELS[invoice.status] : STATUS_LABELS[invoice.status];
-  const colors = hovered && next ? STATUS_COLORS[next] : STATUS_COLORS[invoice.status];
+  const colors = hovered && next ? HOVER_COLORS : STATUS_COLORS[invoice.status];
 
   return (
     <button
@@ -111,40 +113,43 @@ function StatusCell({
   );
 }
 
-function EditableCode({
-  invoice,
-  projectId,
+function EditableCell({
+  value: initial,
+  placeholder,
+  display,
+  inputType = 'text',
+  inputClass = 'h-6 text-sm px-1',
+  onSave,
 }: {
-  readonly invoice: Invoice;
-  readonly projectId: string;
+  readonly value: string;
+  readonly placeholder?: string;
+  readonly display?: string;
+  readonly inputType?: string;
+  readonly inputClass?: string;
+  readonly onSave: (value: string) => void;
 }): JSX.Element {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(invoice.code ?? '');
-  const updateMutation = useUpdateInvoice(projectId);
+  const [val, setVal] = useState(initial);
 
   const handleSave = (): void => {
-    const trimmed = value.trim();
-    if (trimmed !== (invoice.code ?? '')) {
-      updateMutation.mutate(
-        { invoiceId: invoice.id, data: { code: trimmed || null } },
-        { onSuccess: () => setEditing(false) },
-      );
-    } else {
-      setEditing(false);
+    if (val !== initial) {
+      onSave(val);
     }
+    setEditing(false);
   };
 
   if (editing) {
     return (
       <Input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        type={inputType}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
         onBlur={handleSave}
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleSave();
-          if (e.key === 'Escape') setEditing(false);
+          if (e.key === 'Escape') { setVal(initial); setEditing(false); }
         }}
-        className="h-6 w-24 text-sm px-1"
+        className={inputClass}
         autoFocus
       />
     );
@@ -152,11 +157,11 @@ function EditableCode({
 
   return (
     <span
-      className="cursor-pointer hover:underline text-sm"
-      onClick={() => { setValue(invoice.code ?? ''); setEditing(true); }}
+      className="cursor-pointer hover:underline"
+      onClick={() => { setVal(initial); setEditing(true); }}
       title="Click to edit"
     >
-      {invoice.code || <span className="text-muted-foreground/50 italic">add code</span>}
+      {display || initial || <span className="text-muted-foreground/50 italic">{placeholder ?? 'edit'}</span>}
     </span>
   );
 }
@@ -171,19 +176,52 @@ function InvoiceRow({
   readonly onError: (msg: string) => void;
 }): JSX.Element {
   const deleteMutation = useDeleteInvoice(projectId);
+  const updateMutation = useUpdateInvoice(projectId);
   const transitions = ALLOWED_TRANSITIONS[invoice.status];
   const transitionMutation = useTransitionInvoice(projectId);
 
+  const save = (field: string, value: string): void => {
+    const data: Record<string, unknown> = {};
+    if (field === 'code') data.code = value || null;
+    else if (field === 'amount') data.amount = parseFloat(value) || 0;
+    else data[field] = value;
+    updateMutation.mutate({ invoiceId: invoice.id, data });
+  };
+
   return (
     <tr className="border-b last:border-0">
-      <td className="py-2">
-        <EditableCode invoice={invoice} projectId={projectId} />
+      <td className="py-2 text-sm">
+        <EditableCell
+          value={invoice.code ?? ''}
+          placeholder="add code"
+          onSave={(v) => save('code', v)}
+          inputClass="h-6 w-24 text-sm px-1"
+        />
       </td>
-      <td className="py-2 text-sm">{invoice.milestone}</td>
+      <td className="py-2 text-sm">
+        <EditableCell
+          value={invoice.milestone}
+          onSave={(v) => save('milestone', v)}
+          inputClass="h-6 w-full text-sm px-1"
+        />
+      </td>
       <td className="py-2 text-sm text-right tabular-nums pr-4">
-        {formatCurrency(invoice.amount)}
+        <EditableCell
+          value={invoice.amount.toString()}
+          display={formatCurrency(invoice.amount)}
+          inputType="number"
+          onSave={(v) => save('amount', v)}
+          inputClass="h-6 w-24 text-sm px-1 text-right"
+        />
       </td>
-      <td className="py-2 text-sm pl-4">{invoice.due_date}</td>
+      <td className="py-2 text-sm pl-4">
+        <EditableCell
+          value={invoice.due_date}
+          inputType="date"
+          onSave={(v) => save('due_date', v)}
+          inputClass="h-6 w-36 text-sm px-1"
+        />
+      </td>
       <td className="py-2">
         <StatusCell invoice={invoice} projectId={projectId} onError={onError} />
       </td>
