@@ -17,7 +17,7 @@ ALLOWED_TRANSITIONS: dict[str, list[str]] = {
 
 
 class InvoiceCreate(BaseModel):
-    code: str | None = Field(None, max_length=100)
+    code: str = Field(min_length=1, max_length=100)
     amount: float = Field(ge=0)
     currency: str = "euro"
     due_date: dt.date

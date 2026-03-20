@@ -46,6 +46,7 @@ class TestInvoices:
             json={
                 "amount": 5000,
                 "currency": "euro",
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "Milestone 1",
             },
@@ -64,6 +65,7 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 5000,
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "M1",
             },
@@ -86,6 +88,7 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "M1",
             },
@@ -107,6 +110,7 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "M1",
             },
@@ -129,6 +133,7 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "M1",
             },
@@ -149,6 +154,7 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "M1",
             },
@@ -176,6 +182,7 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
+                "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "M1",
             },
@@ -197,11 +204,11 @@ class TestInvoices:
         # Create in reverse order
         await client.post(
             f"/api/tracker/projects/{pid}/invoices",
-            json={"amount": 2000, "due_date": "2026-12-01", "milestone": "M2"},
+            json={"code": "INV-002", "amount": 2000, "due_date": "2026-12-01", "milestone": "M2"},
         )
         await client.post(
             f"/api/tracker/projects/{pid}/invoices",
-            json={"amount": 1000, "due_date": "2026-06-01", "milestone": "M1"},
+            json={"code": "INV-001", "amount": 1000, "due_date": "2026-06-01", "milestone": "M1"},
         )
 
         resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
