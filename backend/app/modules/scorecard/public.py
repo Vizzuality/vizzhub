@@ -18,6 +18,24 @@ __all__ = ["MetricsService", "Milestone", "SnapshotType", "refresh_tracker_evm"]
 logger = logging.getLogger(__name__)
 
 
+def _resolve_budget(budget: float | None, project) -> float | None:
+    if budget is not None:
+        return budget
+    return float(project.budget) if project.budget is not None else None
+
+
+def _apply_evm_fields(metrics, budget: float | None, tracker_evm) -> None:
+    """Set EVM fields on a metrics record from tracker data."""
+    if budget is not None:
+        metrics.budget_total = budget
+    if tracker_evm.cost_to_date is not None:
+        metrics.cost_to_date = tracker_evm.cost_to_date
+    if tracker_evm.percent_completed is not None:
+        metrics.percent_completed = tracker_evm.percent_completed
+    if tracker_evm.percent_planned is not None:
+        metrics.percent_planned = tracker_evm.percent_planned
+
+
 async def refresh_tracker_evm(
     db: AsyncSession,
     project_id: UUID,
@@ -33,40 +51,29 @@ async def refresh_tracker_evm(
     from app.core.models.project import ProjectDB
     from app.modules.tracker.public import get_evm_from_tracker
 
-    today = date.today()
-    year, month = today.year, today.month
-
     project = await db.get(ProjectDB, project_id)
     if not project:
         return
 
-    effective_budget = budget if budget is not None else (
-        float(project.budget) if project.budget is not None else None
-    )
-
+    effective_budget = _resolve_budget(budget, project)
     tracker_evm = await get_evm_from_tracker(
         project_id, db, project.start_date, project.end_date
     )
 
-    has_metrics = False
+    today = date.today()
+    year, month = today.year, today.month
+    updated = False
+
     for snapshot_type in (SnapshotType.CUMULATIVE, SnapshotType.PUNCTUAL):
         metrics = await MetricsService.get_metrics(
             db, project_id, year, month, snapshot_type
         )
         if not metrics:
             continue
-        has_metrics = True
+        _apply_evm_fields(metrics, effective_budget, tracker_evm)
+        updated = True
 
-        if effective_budget is not None:
-            metrics.budget_total = effective_budget
-        if tracker_evm.cost_to_date is not None:
-            metrics.cost_to_date = tracker_evm.cost_to_date
-        if tracker_evm.percent_completed is not None:
-            metrics.percent_completed = tracker_evm.percent_completed
-        if tracker_evm.percent_planned is not None:
-            metrics.percent_planned = tracker_evm.percent_planned
-
-    if has_metrics:
+    if updated:
         await db.flush()
         if score_cache:
             await score_cache.invalidate(str(project_id))

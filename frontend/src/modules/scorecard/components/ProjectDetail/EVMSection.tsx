@@ -95,7 +95,7 @@ export default function EVMSection({
                 lowerIsBetter={false}
                 formula="EV / Cost to Date"
                 metrics={[
-                  { label: 'Earned Value', value: earnedValue !== null ? formatCurrency(earnedValue, currency) : '-' },
+                  { label: 'Earned Value', value: earnedValue === null ? '-' : formatCurrency(earnedValue, currency) },
                   { label: 'Cost to Date', value: formatCurrency(evmData.cost_to_date, currency) },
                 ]}
                 historicalData={getHistoricalData(snapshots, 'cpi', 100)}
