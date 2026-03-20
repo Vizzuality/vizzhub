@@ -6,7 +6,9 @@ collector modules (Jira, GitHub) to avoid duplication.
 """
 
 from datetime import datetime
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, TypeVar
+
+T = TypeVar("T")
 
 from fastapi import HTTPException, status
 
@@ -36,7 +38,7 @@ def parse_iso_datetime(dt_str: str | None) -> datetime | None:
         return None
 
 
-async def execute_collector[T](
+async def execute_collector(
     collector: Any,
     collect_coro: Awaitable[T],
     source_name: str,
