@@ -451,9 +451,9 @@ export default function ProjectForm(): JSX.Element {
                 variant="ghost"
                 onClick={handleMarkFinished}
                 disabled={statusMutation.isPending}
-                className="border border-input text-score-green hover:bg-score-green hover:border-score-green hover:text-black"
+                className="border border-input hover:bg-score-green hover:border-score-green hover:text-black"
               >
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
                 {statusMutation.isPending ? 'Updating...' : 'Mark as Finished'}
               </Button>
             )}
@@ -463,9 +463,9 @@ export default function ProjectForm(): JSX.Element {
                 variant="ghost"
                 onClick={handleReopen}
                 disabled={statusMutation.isPending}
-                className="border border-input text-score-green hover:bg-score-green hover:border-score-green hover:text-black"
+                className="border border-input hover:bg-score-green hover:border-score-green hover:text-black"
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
+                <RotateCcw className="w-4 h-4 mr-2 text-score-green" />
                 {statusMutation.isPending ? 'Updating...' : 'Reopen Project'}
               </Button>
             )}
@@ -982,9 +982,9 @@ export default function ProjectForm(): JSX.Element {
                         variant="ghost"
                         onClick={() => setDeleteDialogOpen(true)}
                         disabled={deleteMutation.isPending}
-                        className="w-full text-destructive hover:bg-destructive hover:border-destructive hover:text-white border border-input"
+                        className="w-full hover:bg-destructive hover:border-destructive hover:text-white border border-input"
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
+                        <Trash2 className="w-4 h-4 mr-2 text-destructive" />
                         {deleteMutation.isPending ? 'Deleting...' : 'Delete Project'}
                       </Button>
                     </>
