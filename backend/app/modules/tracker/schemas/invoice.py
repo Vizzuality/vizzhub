@@ -6,7 +6,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 VALID_STATUSES = ("scheduled", "pending_to_issue", "waiting_for_payment", "paid")
-VALID_CURRENCIES = ("euro", "dollar")
 
 ALLOWED_TRANSITIONS: dict[str, list[str]] = {
     "scheduled": [],
@@ -19,7 +18,6 @@ ALLOWED_TRANSITIONS: dict[str, list[str]] = {
 class InvoiceCreate(BaseModel):
     code: str | None = Field(None, max_length=100)
     amount: float = Field(ge=0)
-    currency: str = "euro"
     due_date: dt.date
     extended_date: dt.date | None = None
     invoiced_on: dt.date | None = None
@@ -31,7 +29,6 @@ class InvoiceCreate(BaseModel):
 class InvoiceUpdate(BaseModel):
     code: str | None = None
     amount: float | None = Field(None, ge=0)
-    currency: str | None = None
     due_date: dt.date | None = None
     extended_date: dt.date | None = None
     invoiced_on: dt.date | None = None
@@ -50,7 +47,6 @@ class InvoiceResponse(BaseModel):
     project_id: UUID
     code: str | None
     amount: float
-    currency: str | None
     due_date: dt.date
     extended_date: dt.date | None
     invoiced_on: dt.date | None

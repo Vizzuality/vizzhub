@@ -80,6 +80,7 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.has_dependabot_alerts = data.has_dependabot_alerts
     project.has_budget_alerts = data.has_budget_alerts
     project.currency = data.currency
+    project.budget = data.budget
     project.notes = data.notes
     project.summary = data.summary
     project.jira_project_key = (
@@ -214,7 +215,7 @@ async def update_project(
     db: DBSession,
 ) -> ProjectResponse:
     PATCHABLE_FIELDS = {
-        "name", "code", "program_id", "is_billable", "currency",
+        "name", "code", "program_id", "is_billable", "currency", "budget",
         "notes", "summary", "jira_project_key", "github_repo",
         "start_date", "end_date", "status", "finished_at",
         "slack_channel_id", "has_scorecard", "has_dependabot_alerts",
@@ -314,7 +315,14 @@ async def update_project_budget(
         "period_end": date(year, month, calendar.monthrange(year, month)[1]),
     }
     if payload.evm_data:
-        data.update(payload.evm_data.to_evm_dict())
+        evm_dict = payload.evm_data.to_evm_dict()
+        # budget_total is read from projects.budget, not from payload
+        evm_dict.pop("budget_total", None)
+        if project.budget is not None:
+            evm_dict["budget_total"] = float(project.budget)
+        data.update(evm_dict)
+    elif project.budget is not None:
+        data["budget_total"] = float(project.budget)
     if payload.milestones is not None:
         data["milestones"] = [m.model_dump(mode="json") for m in payload.milestones]
 

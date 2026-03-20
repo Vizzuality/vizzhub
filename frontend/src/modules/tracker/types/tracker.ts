@@ -179,7 +179,6 @@ export interface Invoice {
   project_id: string;
   code: string | null;
   amount: number;
-  currency: string | null;
   due_date: string;
   extended_date: string | null;
   invoiced_on: string | null;
@@ -191,7 +190,6 @@ export interface Invoice {
 export interface InvoiceCreate {
   code?: string | null;
   amount: number;
-  currency?: string;
   due_date: string;
   milestone: string;
   observations?: string | null;
@@ -203,7 +201,6 @@ export interface AdminInvoice {
   project_name: string;
   code: string | null;
   amount: number;
-  currency: string | null;
   due_date: string;
   extended_date: string | null;
   invoiced_on: string | null;
@@ -234,7 +231,6 @@ export interface AdminInvoiceParams {
 export interface InvoiceUpdate {
   code?: string | null;
   amount?: number;
-  currency?: string;
   due_date?: string;
   extended_date?: string | null;
   invoiced_on?: string | null;

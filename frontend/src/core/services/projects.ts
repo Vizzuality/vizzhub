@@ -68,7 +68,6 @@ export const projectsApi = {
 
   updateBudget: async (projectId: string, data: {
     evm_data?: {
-      budget_total?: number;
       cost_to_date?: number;
       percent_completed?: number;
       percent_planned?: number;

@@ -3,7 +3,6 @@ import { projectsApi } from '@/core/services/projects';
 import { queryKeys } from '@/core/hooks/queryKeys';
 
 interface EVMFormFields {
-  budget_total: string;
   cost_to_date: string;
   percent_completed: string;
   percent_planned: string;
@@ -17,7 +16,6 @@ interface MilestoneFormFields {
 
 interface BudgetPayload {
   evm_data?: {
-    budget_total?: number;
     cost_to_date?: number;
     percent_completed?: number;
     percent_planned?: number;
@@ -36,7 +34,6 @@ export function buildBudgetPayload(
   const payload: BudgetPayload = {};
 
   const evmFields: Record<string, number> = {};
-  if (evm.budget_total) evmFields.budget_total = Number.parseFloat(evm.budget_total);
   if (evm.cost_to_date) evmFields.cost_to_date = Number.parseFloat(evm.cost_to_date);
   if (evm.percent_completed) {
     evmFields.percent_completed = Number.parseFloat(evm.percent_completed) / 100;

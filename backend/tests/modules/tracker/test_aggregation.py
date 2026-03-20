@@ -56,13 +56,12 @@ async def cost_data(db_session: AsyncSession) -> dict:
     db_session.add_all([period1, period2])
     await db_session.flush()
 
-    project = ProjectDB(name="Cost Test Project", status="live")
+    project = ProjectDB(name="Cost Test Project", status="live", budget=Decimal("50000"))
     db_session.add(project)
     await db_session.flush()
 
     settings = TrackerProjectSettingsDB(
         project_id=project.id,
-        budget=Decimal("50000"),
         contract_rate=Decimal("175"),
     )
     db_session.add(settings)
@@ -172,11 +171,11 @@ class TestCostSummary:
     async def test_cost_summary_no_budget(
         self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
     ):
-        settings = cost_data["settings"]
-        settings.budget = None
+        project = cost_data["project"]
+        project.budget = None
         await db_session.commit()
 
-        project_id = cost_data["project"].id
+        project_id = project.id
         resp = await client.get(
             f"/api/tracker/projects/{project_id}/cost-summary",
         )
