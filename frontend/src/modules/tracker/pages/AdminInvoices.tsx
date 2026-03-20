@@ -47,21 +47,13 @@ function InvoiceRow({
 
   return (
     <tr className="border-b last:border-0 text-sm">
-      <td className="py-2">
+      <td className="py-2 max-w-[140px]">
         <Link
           to={`/tracker/projects/${invoice.project_id}`}
-          className="hover:underline font-medium"
+          className="hover:underline font-medium text-sm leading-tight block"
         >
           {invoice.project_name}
         </Link>
-      </td>
-      <td className="py-2">
-        <EditableCell
-          value={invoice.code ?? ''}
-          placeholder="add code"
-          onSave={(v) => save('code', v)}
-          inputClass="h-6 w-24 text-sm px-1"
-        />
       </td>
       <td className="py-2 max-w-[200px]">
         <EditableCell
@@ -70,6 +62,14 @@ function InvoiceRow({
           displayClass="truncate block max-w-[200px]"
           onSave={(v) => save('milestone', v)}
           inputClass="h-6 w-full text-sm px-1"
+        />
+      </td>
+      <td className="py-2">
+        <EditableCell
+          value={invoice.code ?? ''}
+          placeholder="add code"
+          onSave={(v) => save('code', v)}
+          inputClass="h-6 w-24 text-sm px-1"
         />
       </td>
       <td className="py-2 text-right tabular-nums pr-4">
@@ -281,9 +281,9 @@ export default function AdminInvoices(): JSX.Element {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-muted-foreground border-b">
-                    <th className="text-left font-medium pb-2">Project</th>
-                    <th className="text-left font-medium pb-2">Code</th>
+                    <th className="text-left font-medium pb-2 max-w-[140px]">Project</th>
                     <th className="text-left font-medium pb-2">Milestone</th>
+                    <th className="text-left font-medium pb-2">Code</th>
                     <th className="text-right font-medium pb-2 pr-4">Amount</th>
                     <th className="text-left font-medium pb-2 pl-4">Due</th>
                     <th className="text-left font-medium pb-2">Status</th>

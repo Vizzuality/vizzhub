@@ -33,17 +33,17 @@ function InvoiceRow({
     <tr className="border-b last:border-0">
       <td className="py-2 text-sm">
         <EditableCell
-          value={invoice.code ?? ''}
-          placeholder="add code"
-          onSave={(v) => save('code', v)}
-          inputClass="h-6 w-24 text-sm px-1"
+          value={invoice.milestone}
+          onSave={(v) => save('milestone', v)}
+          inputClass="h-6 w-full text-sm px-1"
         />
       </td>
       <td className="py-2 text-sm">
         <EditableCell
-          value={invoice.milestone}
-          onSave={(v) => save('milestone', v)}
-          inputClass="h-6 w-full text-sm px-1"
+          value={invoice.code ?? ''}
+          placeholder="add code"
+          onSave={(v) => save('code', v)}
+          inputClass="h-6 w-24 text-sm px-1"
         />
       </td>
       <td className="py-2 text-sm text-right tabular-nums pr-4">
@@ -136,8 +136,8 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-muted-foreground">
-                  <th className="text-left font-medium pb-1">Code</th>
                   <th className="text-left font-medium pb-1">Milestone</th>
+                  <th className="text-left font-medium pb-1">Code</th>
                   <th className="text-right font-medium pb-1 pr-4">Amount</th>
                   <th className="text-left font-medium pb-1 pl-4">Due</th>
                   <th className="text-left font-medium pb-1">Status</th>
