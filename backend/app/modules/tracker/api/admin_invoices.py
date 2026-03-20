@@ -24,7 +24,6 @@ class AdminInvoiceResponse(BaseModel):
     project_name: str
     code: str | None
     amount: float
-    currency: str | None
     due_date: dt.date
     extended_date: dt.date | None
     invoiced_on: dt.date | None
@@ -38,14 +37,6 @@ class PaginatedInvoicesResponse(BaseModel):
     total: int
     page: int
     pages: int
-
-
-STATUS_SORT_ORDER = {
-    "pending_to_issue": 0,
-    "waiting_for_payment": 1,
-    "scheduled": 2,
-    "paid": 3,
-}
 
 
 @router.get("")
@@ -142,7 +133,6 @@ async def list_all_invoices(
             project_name=project_name,
             code=inv.code,
             amount=float(inv.amount),
-            currency=inv.currency,
             due_date=inv.due_date,
             extended_date=inv.extended_date,
             invoiced_on=inv.invoiced_on,

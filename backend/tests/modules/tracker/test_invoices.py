@@ -45,7 +45,6 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 5000,
-                "currency": "euro",
                 "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "Milestone 1",

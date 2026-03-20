@@ -59,7 +59,6 @@ async def create_invoice(
         project_id=project_id,
         code=body.code,
         amount=Decimal(str(body.amount)),
-        currency=body.currency,
         due_date=body.due_date,
         extended_date=body.extended_date,
         invoiced_on=body.invoiced_on,

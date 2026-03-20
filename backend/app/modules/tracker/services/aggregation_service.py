@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.functional_area import FunctionalAreaDB
+from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.modules.tracker.constants import DEFAULT_RATE
 from app.modules.tracker.models.invoice import InvoiceDB
@@ -43,13 +44,15 @@ async def get_project_cost_summary(
     project_id: UUID,
 ) -> ProjectCostSummary:
     """Aggregate staff and non-staff costs for a project across all periods."""
+    project = await db.get(ProjectDB, project_id)
+    budget = float(project.budget) if project and project.budget is not None else None
+
     settings_result = await db.execute(
         select(TrackerProjectSettingsDB).where(
             TrackerProjectSettingsDB.project_id == project_id
         )
     )
     settings = settings_result.scalar_one_or_none()
-    budget = float(settings.budget) if settings and settings.budget is not None else None
     contract_rate = float(settings.contract_rate) if settings else float(DEFAULT_RATE)
 
     # Staff costs grouped by period
@@ -142,12 +145,12 @@ async def get_batch_cost_summaries(
     project_ids: list[UUID],
 ) -> dict[UUID, ProjectCostSummaryLite]:
     """Batch cost summaries for multiple projects using 2 aggregate queries."""
-    settings_result = await db.execute(
-        select(TrackerProjectSettingsDB).where(
-            TrackerProjectSettingsDB.project_id.in_(project_ids)
-        )
+    projects_result = await db.execute(
+        select(ProjectDB.id, ProjectDB.budget)
+        .where(ProjectDB.id.in_(project_ids))
+        .where(ProjectDB.budget.isnot(None))
     )
-    settings_map = {s.project_id: s for s in settings_result.scalars().all()}
+    budget_map = {row.id: float(row.budget) for row in projects_result.all()}
 
     staff_query = _valid_parts_filter(
         select(
@@ -189,8 +192,7 @@ async def get_batch_cost_summaries(
 
     results: dict[UUID, ProjectCostSummaryLite] = {}
     for pid in project_ids:
-        settings = settings_map.get(pid)
-        budget = float(settings.budget) if settings and settings.budget else None
+        budget = budget_map.get(pid)
         staff = staff_map.get(pid, 0.0)
         non_staff = non_staff_map.get(pid, 0.0)
         total = round(staff + non_staff, 2)

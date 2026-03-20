@@ -95,17 +95,8 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
 ];
 
 const CURRENCY_OPTIONS = [
-  { value: '', label: 'None' },
-  { value: 'EUR', label: 'Euro (EUR)' },
-  { value: 'USD', label: 'US Dollar (USD)' },
-  { value: 'GBP', label: 'British Pound (GBP)' },
-  { value: 'JPY', label: 'Japanese Yen (JPY)' },
-  { value: 'CHF', label: 'Swiss Franc (CHF)' },
-  { value: 'CAD', label: 'Canadian Dollar (CAD)' },
-  { value: 'AUD', label: 'Australian Dollar (AUD)' },
-  { value: 'CNY', label: 'Chinese Yuan (CNY)' },
-  { value: 'SEK', label: 'Swedish Krona (SEK)' },
-  { value: 'NOK', label: 'Norwegian Krone (NOK)' },
+  { value: 'dollar', label: 'US Dollar (USD)' },
+  { value: 'euro', label: 'Euro (EUR)' },
 ];
 
 const LINK_TYPE_OPTIONS = [
@@ -119,7 +110,7 @@ const EMPTY_MILESTONE = { name: '', planned_date: '', actual_date: '' };
 const EMPTY_LINK = { title: '', url: '', link_type: '' };
 
 interface BudgetFieldConfig {
-  name: 'budget_total' | 'cost_to_date' | 'percent_completed' | 'percent_planned';
+  name: 'cost_to_date' | 'percent_completed' | 'percent_planned';
   label: string;
   icon: typeof DollarSign;
   tooltip: string;
@@ -129,13 +120,6 @@ interface BudgetFieldConfig {
 }
 
 const BUDGET_FIELDS: BudgetFieldConfig[] = [
-  {
-    name: 'budget_total',
-    label: 'Total Budget',
-    icon: DollarSign,
-    tooltip: 'The total planned budget for the entire project (Planned Value)',
-    placeholder: 'e.g., 100000',
-  },
   {
     name: 'cost_to_date',
     label: 'Actual Cost',
@@ -231,7 +215,7 @@ export default function ProjectForm(): JSX.Element {
       name: '',
       code: '',
       status: 'proposal',
-      currency: '',
+      currency: 'dollar',
       program_id: '',
       jira_project_key: '',
       github_repo: '',
@@ -293,7 +277,7 @@ export default function ProjectForm(): JSX.Element {
       name: project.name,
       code: project.code ?? '',
       status: project.status,
-      currency: project.currency ?? '',
+      currency: project.currency,
       program_id: project.program_id ?? '',
       jira_project_key: project.jira_project_key ?? '',
       github_repo: project.github_repo ?? '',
@@ -301,7 +285,7 @@ export default function ProjectForm(): JSX.Element {
       end_date: project.end_date ?? '',
       notes: project.notes ?? '',
       summary: project.summary ?? '',
-      budget_total: metricsEvm?.budget_total?.toString() ?? '',
+      budget_total: project.budget?.toString() ?? '',
       cost_to_date: metricsEvm?.cost_to_date?.toString() ?? '',
       percent_completed: metricsEvm?.percent_completed
         ? (metricsEvm.percent_completed * 100).toString()
@@ -375,7 +359,8 @@ export default function ProjectForm(): JSX.Element {
       has_scorecard: hasScorecard,
       has_dependabot_alerts: hasDependabotAlerts,
       has_budget_alerts: hasBudgetAlerts,
-      currency: data.currency || null,
+      currency: data.currency,
+      budget: data.budget_total ? Number.parseFloat(data.budget_total) : null,
       program_id: data.program_id || null,
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
@@ -388,7 +373,6 @@ export default function ProjectForm(): JSX.Element {
 
     const budgetPayload = buildBudgetPayload(
       {
-        budget_total: data.budget_total,
         cost_to_date: data.cost_to_date,
         percent_completed: data.percent_completed,
         percent_planned: data.percent_planned,
@@ -593,26 +577,68 @@ export default function ProjectForm(): JSX.Element {
                       </NativeSelect>
                     </div>
                     <div className="space-y-2">
-                      <TooltipProvider>
-                        <div className="h-5 flex items-center gap-2">
-                          <Label htmlFor="currency">Currency for Invoices</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                                <Info className="h-3.5 w-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="text-sm">Used only for invoicing. The tracker operates in EUR by default.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TooltipProvider>
-                      <NativeSelect id="currency" className="w-full" {...register('currency')}>
+                      <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
+                      <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
                         {CURRENCY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </NativeSelect>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="budget_total" className="h-5 flex items-center">Budget *</Label>
+                      <Input
+                        id="budget_total"
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="e.g., 100000"
+                        {...register('budget_total', {
+                          required: 'Budget is required',
+                          min: { value: 0, message: 'Must be positive' },
+                        })}
+                      />
+                      {errors.budget_total && (
+                        <p className="text-sm text-destructive">{errors.budget_total.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="start_date" className="h-5 flex items-center">Start Date *</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        min={DATE_INPUT_MIN}
+                        max={DATE_INPUT_MAX}
+                        {...register('start_date', {
+                          required: 'Start date is required',
+                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
+                        })}
+                      />
+                      {errors.start_date && (
+                        <p className="text-sm text-destructive">{errors.start_date.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="end_date" className="h-5 flex items-center">End Date *</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        min={DATE_INPUT_MIN}
+                        max={DATE_INPUT_MAX}
+                        {...register('end_date', {
+                          required: 'End date is required',
+                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
+                          validate: (value) => {
+                            if (!value || !startDate) return true;
+                            return new Date(value) >= new Date(startDate) || 'End date must be on or after start date';
+                          },
+                        })}
+                      />
+                      {errors.end_date && (
+                        <p className="text-sm text-destructive">{errors.end_date.message}</p>
+                      )}
                     </div>
                   </div>
 
@@ -697,42 +723,6 @@ export default function ProjectForm(): JSX.Element {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="start_date" className="h-5 flex items-center">Start Date</Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        min={DATE_INPUT_MIN}
-                        max={DATE_INPUT_MAX}
-                        {...register('start_date', {
-                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
-                        })}
-                      />
-                      {errors.start_date && (
-                        <p className="text-sm text-destructive">{errors.start_date.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="end_date" className="h-5 flex items-center">End Date</Label>
-                      <Input
-                        id="end_date"
-                        type="date"
-                        min={DATE_INPUT_MIN}
-                        max={DATE_INPUT_MAX}
-                        {...register('end_date', {
-                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
-                          validate: (value) => {
-                            if (!value || !startDate) return true;
-                            return new Date(value) >= new Date(startDate) || 'End date must be on or after start date';
-                          },
-                        })}
-                      />
-                      {errors.end_date && (
-                        <p className="text-sm text-destructive">{errors.end_date.message}</p>
-                      )}
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </section>
