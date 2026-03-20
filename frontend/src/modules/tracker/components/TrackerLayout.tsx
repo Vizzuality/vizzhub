@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 
 const SUB_TABS = [
   { to: 'periods', label: 'Reporting Periods' },
+  { to: 'invoices', label: 'Invoices' },
 ] as const;
 
 export default function TrackerLayout(): JSX.Element {
