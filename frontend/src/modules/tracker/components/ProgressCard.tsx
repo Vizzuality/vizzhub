@@ -46,8 +46,8 @@ export default function ProgressCard({ projectId, periods }: ProgressCardProps):
     : null;
 
   const handleAdd = (): void => {
-    const pct = parseFloat(newPct);
-    if (!newPeriodId || isNaN(pct) || pct < 0 || pct > 100) return;
+    const pct = Number.parseFloat(newPct);
+    if (!newPeriodId || Number.isNaN(pct) || pct < 0 || pct > 100) return;
     createMutation.mutate(
       { reporting_period_id: newPeriodId, percentage: pct },
       {
@@ -181,8 +181,8 @@ function ProgressRowActions({
   const deleteMutation = useDeleteProgress(projectId);
 
   const handleSave = (): void => {
-    const pct = parseFloat(value);
-    if (isNaN(pct) || pct < 0 || pct > 100) return;
+    const pct = Number.parseFloat(value);
+    if (Number.isNaN(pct) || pct < 0 || pct > 100) return;
     updateMutation.mutate(
       { progressId: report.id, data: { percentage: pct } },
       { onSuccess: () => setEditing(false) },
