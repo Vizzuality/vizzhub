@@ -55,6 +55,7 @@ import {
   Loader2,
   Plus,
   Info,
+  X,
 } from 'lucide-react';
 
 interface ProjectFormData {
@@ -270,6 +271,7 @@ export default function ProjectForm(): JSX.Element {
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
+  const currentProgramId = watch('program_id');
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending;
 
@@ -540,7 +542,18 @@ export default function ProjectForm(): JSX.Element {
                             <option key={program.id} value={program.id}>{program.name}</option>
                           ))}
                         </NativeSelect>
-                        {!showNewProgram && (
+                        {!showNewProgram && currentProgramId && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setValue('program_id', '')}
+                            className="shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {!showNewProgram && !currentProgramId && (
                           <Button
                             type="button"
                             variant="ghost"
