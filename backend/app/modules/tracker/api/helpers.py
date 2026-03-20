@@ -1,5 +1,6 @@
 """Shared API helpers for tracker module."""
 
+import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -7,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import Base
+
+logger = logging.getLogger(__name__)
 
 
 async def get_or_404(
@@ -24,3 +27,14 @@ async def get_or_404(
             detail=f"{name} {obj_id} not found",
         )
     return obj
+
+
+async def refresh_scorecard_evm(
+    db: AsyncSession, project_id: UUID, score_cache=None,
+) -> None:
+    """Refresh all EVM fields on scorecard metrics from tracker data."""
+    try:
+        from app.modules.scorecard.public import refresh_tracker_evm
+        await refresh_tracker_evm(db, project_id, score_cache=score_cache)
+    except Exception:
+        logger.warning("Failed to refresh scorecard EVM", exc_info=True)

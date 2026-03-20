@@ -24,6 +24,7 @@ from app.modules.scorecard.services.collectors.jira import JiraCollector
 from app.modules.scorecard.services.collectors.utils import execute_collector
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.scorecard.services.score_computation import ScoreComputationService
+from app.modules.tracker.public import inject_evm_into_preserved
 
 router = APIRouter()
 
@@ -224,6 +225,12 @@ async def capture_period(
     # Get preserved manual fields with priority fallback for historical capture
     preserved = await MetricsService.get_manual_fields_for_historical_capture(
         db, project_id, year, month
+    )
+
+    # Inject budget_total and tracker EVM fields
+    budget = float(project.budget) if project.budget is not None else None
+    await inject_evm_into_preserved(
+        preserved, project_id, db, budget, project.start_date, project.end_date
     )
 
     # Define date ranges

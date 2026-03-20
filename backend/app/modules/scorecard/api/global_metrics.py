@@ -127,7 +127,7 @@ async def calculate_global_metrics(
     )
 
 
-@router.post("/recalculate")
+@router.post("/recalculate", responses={400: {"description": "Invalid date range or year before 2023"}})
 @limiter.limit("10/minute")
 async def recalculate_global_metrics(
     request: Request,

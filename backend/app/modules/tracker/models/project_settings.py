@@ -1,4 +1,4 @@
-"""Tracker-specific project settings (budget, contract rate)."""
+"""Tracker-specific project settings (contract rate)."""
 
 from __future__ import annotations
 
@@ -28,7 +28,6 @@ class TrackerProjectSettingsDB(Base):
         nullable=False,
         unique=True,
     )
-    budget: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     contract_rate: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="175.00"  # mirrors DEFAULT_RATE in constants.py
     )

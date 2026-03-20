@@ -14,6 +14,8 @@ from app.modules.tracker.api import reporting_periods as reporting_periods_route
 
 router = APIRouter()
 
+_PROJECTS_PREFIX = "/projects"
+
 router.include_router(
     reporting_periods_router.router,
     prefix="/reporting-periods",
@@ -36,22 +38,22 @@ router.include_router(
 )
 router.include_router(
     project_costs_router.router,
-    prefix="/projects",
+    prefix=_PROJECTS_PREFIX,
     tags=["tracker:project-costs"],
 )
 router.include_router(
     budget_lines_router.router,
-    prefix="/projects",
+    prefix=_PROJECTS_PREFIX,
     tags=["tracker:budget-lines"],
 )
 router.include_router(
     progress_reports_router.router,
-    prefix="/projects",
+    prefix=_PROJECTS_PREFIX,
     tags=["tracker:progress"],
 )
 router.include_router(
     invoices_router.router,
-    prefix="/projects",
+    prefix=_PROJECTS_PREFIX,
     tags=["tracker:invoices"],
 )
 router.include_router(

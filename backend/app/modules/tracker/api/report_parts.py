@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from app.core.api.deps import CurrentUser, DBSession
+from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.schemas.report_part import (
     ReportPartCreate,
@@ -14,7 +14,7 @@ from app.modules.tracker.schemas.report_part import (
 )
 from app.modules.tracker.services.cost_service import apply_cost_and_days
 from app.modules.tracker.api.enrichment import enrich_part
-from app.modules.tracker.api.helpers import get_or_404
+from app.modules.tracker.api.helpers import get_or_404, refresh_scorecard_evm
 
 router = APIRouter()
 
@@ -40,6 +40,7 @@ async def create_report_part(
     data: ReportPartCreate,
     db: DBSession,
     user: CurrentUser,
+    cache: OptionalScoreCache,
 ) -> ReportPartResponse:
     part = ReportPartDB(
         report_id=data.report_id,
@@ -53,6 +54,7 @@ async def create_report_part(
     part = await apply_cost_and_days(part, db)
     await db.commit()
     await db.refresh(part)
+    await refresh_scorecard_evm(db, part.project_id, score_cache=cache)
     return await enrich_part(part, db)
 
 
@@ -72,6 +74,7 @@ async def update_report_part(
     data: ReportPartUpdate,
     db: DBSession,
     user: CurrentUser,
+    cache: OptionalScoreCache,
 ) -> ReportPartResponse:
     part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
 
@@ -82,6 +85,7 @@ async def update_report_part(
     part = await apply_cost_and_days(part, db)
     await db.commit()
     await db.refresh(part)
+    await refresh_scorecard_evm(db, part.project_id, score_cache=cache)
     return await enrich_part(part, db)
 
 
@@ -90,7 +94,10 @@ async def delete_report_part(
     part_id: UUID,
     db: DBSession,
     user: CurrentUser,
+    cache: OptionalScoreCache,
 ) -> None:
     part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
+    project_id = part.project_id
     await db.delete(part)
     await db.commit()
+    await refresh_scorecard_evm(db, project_id, score_cache=cache)

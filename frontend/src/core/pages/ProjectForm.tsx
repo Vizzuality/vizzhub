@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
@@ -14,19 +14,12 @@ import { useSlackChannels } from '@/core/hooks/useSlackChannels';
 import {
   useCurrentPeriodMetrics,
   useUpdateProjectBudget,
-  buildBudgetPayload,
 } from '@/core/hooks/useProjectBudget';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
 import { trackerApi } from '@/modules/tracker/services/tracker';
 import BudgetLinesEditor from '@/modules/tracker/components/BudgetLinesEditor';
 import type { BudgetLineCreate } from '@/modules/tracker/types/tracker';
-import {
-  calculateEVMValues,
-  formatCurrency,
-  getPerformanceDotClass,
-  getPerformanceLabel,
-} from '@/shared/utils/evmCalculations';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '@/shared/constants/dates';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
@@ -62,10 +55,6 @@ import {
   Loader2,
   Plus,
   Info,
-  Calculator,
-  DollarSign,
-  TrendingUp,
-  Clock,
 } from 'lucide-react';
 
 interface ProjectFormData {
@@ -81,9 +70,6 @@ interface ProjectFormData {
   notes: string;
   summary: string;
   budget_total: string;
-  cost_to_date: string;
-  percent_completed: string;
-  percent_planned: string;
   milestones: { name: string; planned_date: string; actual_date: string }[];
   links: { title: string; url: string; link_type: string }[];
 }
@@ -95,17 +81,8 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
 ];
 
 const CURRENCY_OPTIONS = [
-  { value: '', label: 'None' },
-  { value: 'EUR', label: 'Euro (EUR)' },
-  { value: 'USD', label: 'US Dollar (USD)' },
-  { value: 'GBP', label: 'British Pound (GBP)' },
-  { value: 'JPY', label: 'Japanese Yen (JPY)' },
-  { value: 'CHF', label: 'Swiss Franc (CHF)' },
-  { value: 'CAD', label: 'Canadian Dollar (CAD)' },
-  { value: 'AUD', label: 'Australian Dollar (AUD)' },
-  { value: 'CNY', label: 'Chinese Yuan (CNY)' },
-  { value: 'SEK', label: 'Swedish Krona (SEK)' },
-  { value: 'NOK', label: 'Norwegian Krone (NOK)' },
+  { value: 'dollar', label: 'US Dollar (USD)' },
+  { value: 'euro', label: 'Euro (EUR)' },
 ];
 
 const LINK_TYPE_OPTIONS = [
@@ -118,50 +95,49 @@ const LINK_TYPE_OPTIONS = [
 const EMPTY_MILESTONE = { name: '', planned_date: '', actual_date: '' };
 const EMPTY_LINK = { title: '', url: '', link_type: '' };
 
-interface BudgetFieldConfig {
-  name: 'budget_total' | 'cost_to_date' | 'percent_completed' | 'percent_planned';
-  label: string;
-  icon: typeof DollarSign;
-  tooltip: string;
-  placeholder: string;
-  suffix?: string;
-  max?: number;
+interface ProjectData {
+  name: string;
+  code?: string | null;
+  status: ProjectStatus;
+  currency: string;
+  program_id?: string | null;
+  jira_project_key?: string | null;
+  github_repo?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  notes?: string | null;
+  summary?: string | null;
+  budget?: number | null;
 }
 
-const BUDGET_FIELDS: BudgetFieldConfig[] = [
-  {
-    name: 'budget_total',
-    label: 'Total Budget',
-    icon: DollarSign,
-    tooltip: 'The total planned budget for the entire project (Planned Value)',
-    placeholder: 'e.g., 100000',
-  },
-  {
-    name: 'cost_to_date',
-    label: 'Actual Cost',
-    icon: TrendingUp,
-    tooltip: 'The actual expenses incurred to date (Actual Cost)',
-    placeholder: 'e.g., 45000',
-  },
-  {
-    name: 'percent_completed',
-    label: 'Work Completed',
-    icon: Calculator,
-    tooltip: 'Estimated percentage of the total work completed (0-100%)',
-    placeholder: 'e.g., 50',
-    suffix: '%',
-    max: 100,
-  },
-  {
-    name: 'percent_planned',
-    label: 'Expected Progress',
-    icon: Clock,
-    tooltip: 'Percentage of work that should be done by now according to schedule (0-100%)',
-    placeholder: 'e.g., 45',
-    suffix: '%',
-    max: 100,
-  },
-];
+function buildFormDefaults(
+  project: ProjectData,
+  milestones: { name: string; planned_date: string; actual_date?: string }[] | undefined,
+  links: { title: string; url: string; link_type: string }[] | null,
+): ProjectFormData {
+  return {
+    name: project.name,
+    code: project.code ?? '',
+    status: project.status,
+    currency: project.currency,
+    program_id: project.program_id ?? '',
+    jira_project_key: project.jira_project_key ?? '',
+    github_repo: project.github_repo ?? '',
+    start_date: project.start_date ?? '',
+    end_date: project.end_date ?? '',
+    notes: project.notes ?? '',
+    summary: project.summary ?? '',
+    budget_total: project.budget?.toString() ?? '',
+    milestones: milestones?.length
+      ? milestones.map((m) => ({
+          name: m.name,
+          planned_date: m.planned_date,
+          actual_date: m.actual_date ?? '',
+        }))
+      : [{ ...EMPTY_MILESTONE }],
+    links: links ?? [{ ...EMPTY_LINK }],
+  };
+}
 
 function getSubmitButtonText(isPending: boolean, isEditMode: boolean): string {
   if (isPending) {
@@ -231,7 +207,7 @@ export default function ProjectForm(): JSX.Element {
       name: '',
       code: '',
       status: 'proposal',
-      currency: '',
+      currency: 'dollar',
       program_id: '',
       jira_project_key: '',
       github_repo: '',
@@ -240,9 +216,6 @@ export default function ProjectForm(): JSX.Element {
       notes: '',
       summary: '',
       budget_total: '',
-      cost_to_date: '',
-      percent_completed: '',
-      percent_planned: '',
       milestones: [{ ...EMPTY_MILESTONE }],
       links: [{ ...EMPTY_LINK }],
     },
@@ -286,38 +259,7 @@ export default function ProjectForm(): JSX.Element {
   const linksReady = !isEditMode || initialLinks !== null;
 
   if (isEditMode && project && !formInitialized && currentMetrics !== undefined && linksReady) {
-    const metricsEvm = currentMetrics?.evm_data;
-    const metricsMilestones = currentMetrics?.milestones;
-
-    reset({
-      name: project.name,
-      code: project.code ?? '',
-      status: project.status,
-      currency: project.currency ?? '',
-      program_id: project.program_id ?? '',
-      jira_project_key: project.jira_project_key ?? '',
-      github_repo: project.github_repo ?? '',
-      start_date: project.start_date ?? '',
-      end_date: project.end_date ?? '',
-      notes: project.notes ?? '',
-      summary: project.summary ?? '',
-      budget_total: metricsEvm?.budget_total?.toString() ?? '',
-      cost_to_date: metricsEvm?.cost_to_date?.toString() ?? '',
-      percent_completed: metricsEvm?.percent_completed
-        ? (metricsEvm.percent_completed * 100).toString()
-        : '',
-      percent_planned: metricsEvm?.percent_planned
-        ? (metricsEvm.percent_planned * 100).toString()
-        : '',
-      milestones: metricsMilestones?.length
-        ? metricsMilestones.map((m: { name: string; planned_date: string; actual_date?: string }) => ({
-            name: m.name,
-            planned_date: m.planned_date,
-            actual_date: m.actual_date ?? '',
-          }))
-        : [{ ...EMPTY_MILESTONE }],
-      links: initialLinks ?? [{ ...EMPTY_LINK }],
-    });
+    reset(buildFormDefaults(project, currentMetrics?.milestones, initialLinks));
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
     setHasScorecard(project.has_scorecard);
@@ -328,18 +270,6 @@ export default function ProjectForm(): JSX.Element {
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
-  const watchedBudgetTotal = watch('budget_total');
-  const watchedCostToDate = watch('cost_to_date');
-  const watchedPercentCompleted = watch('percent_completed');
-  const watchedPercentPlanned = watch('percent_planned');
-
-  const evmPreview = useMemo(() => {
-    const budget = Number.parseFloat(watchedBudgetTotal) || 0;
-    const cost = Number.parseFloat(watchedCostToDate) || 0;
-    const completed = (Number.parseFloat(watchedPercentCompleted) || 0) / 100;
-    const planned = (Number.parseFloat(watchedPercentPlanned) || 0) / 100;
-    return calculateEVMValues(budget, cost, completed, planned);
-  }, [watchedBudgetTotal, watchedCostToDate, watchedPercentCompleted, watchedPercentPlanned]);
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending;
 
@@ -364,10 +294,12 @@ export default function ProjectForm(): JSX.Element {
     submitForm(data);
   };
 
-  const submitForm = async (data: ProjectFormData): Promise<void> => {
-    setApiError(null);
-
-    const projectPayload: ProjectCreate = {
+  const buildPayloads = (data: ProjectFormData): {
+    project: ProjectCreate;
+    milestones: { milestones: { name: string; planned_date: string; actual_date?: string }[] } | null;
+    links: { title: string; url: string; link_type: string }[];
+  } => {
+    const project: ProjectCreate = {
       name: data.name,
       code: data.code,
       status: data.status,
@@ -375,7 +307,8 @@ export default function ProjectForm(): JSX.Element {
       has_scorecard: hasScorecard,
       has_dependabot_alerts: hasDependabotAlerts,
       has_budget_alerts: hasBudgetAlerts,
-      currency: data.currency || null,
+      currency: data.currency,
+      budget: data.budget_total ? Number.parseFloat(data.budget_total) : null,
       program_id: data.program_id || null,
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
@@ -386,46 +319,43 @@ export default function ProjectForm(): JSX.Element {
       summary: data.summary?.trim() || null,
     };
 
-    const budgetPayload = buildBudgetPayload(
-      {
-        budget_total: data.budget_total,
-        cost_to_date: data.cost_to_date,
-        percent_completed: data.percent_completed,
-        percent_planned: data.percent_planned,
-      },
-      data.milestones,
-    );
+    const validMilestones = data.milestones
+      .filter((m) => m.name && m.planned_date)
+      .map((m) => ({ name: m.name, planned_date: m.planned_date, actual_date: m.actual_date || undefined }));
 
-    const validLinks = data.links.filter((l) => l.title || l.url);
+    return {
+      project,
+      milestones: validMilestones.length > 0 ? { milestones: validMilestones } : null,
+      links: data.links.filter((l) => l.title || l.url),
+    };
+  };
 
+  const submitEdit = async (payloads: ReturnType<typeof buildPayloads>): Promise<void> => {
+    const promises: Promise<unknown>[] = [replaceMutation.mutateAsync(payloads.project)];
+    if (payloads.milestones) promises.push(budgetMutation.mutateAsync(payloads.milestones));
+    promises.push(projectsApi.replaceLinks(id!, payloads.links));
+    if (pendingBudgetLines.length > 0) promises.push(budgetLinesMutation.mutateAsync(pendingBudgetLines));
+    await Promise.all(promises);
+  };
+
+  const submitCreate = async (payloads: ReturnType<typeof buildPayloads>): Promise<void> => {
+    const newProject = await createMutation.mutateAsync(payloads.project);
+    if (!newProject?.id) return;
+    const extras: Promise<unknown>[] = [];
+    if (payloads.milestones) extras.push(projectsApi.updateBudget(newProject.id, payloads.milestones));
+    if (payloads.links.length > 0) extras.push(projectsApi.replaceLinks(newProject.id, payloads.links));
+    if (pendingBudgetLines.length > 0) extras.push(trackerApi.replaceBudgetLines(newProject.id, pendingBudgetLines));
+    if (extras.length > 0) await Promise.all(extras);
+  };
+
+  const submitForm = async (data: ProjectFormData): Promise<void> => {
+    setApiError(null);
+    const payloads = buildPayloads(data);
     try {
       if (isEditMode) {
-        const promises: Promise<unknown>[] = [replaceMutation.mutateAsync(projectPayload)];
-        if (budgetPayload) {
-          promises.push(budgetMutation.mutateAsync(budgetPayload));
-        }
-        promises.push(projectsApi.replaceLinks(id!, validLinks));
-        if (pendingBudgetLines.length > 0) {
-          promises.push(budgetLinesMutation.mutateAsync(pendingBudgetLines));
-        }
-        await Promise.all(promises);
+        await submitEdit(payloads);
       } else {
-        const newProject = await createMutation.mutateAsync(projectPayload);
-        if (newProject?.id) {
-          const extraPromises: Promise<unknown>[] = [];
-          if (budgetPayload) {
-            extraPromises.push(projectsApi.updateBudget(newProject.id, budgetPayload));
-          }
-          if (validLinks.length > 0) {
-            extraPromises.push(projectsApi.replaceLinks(newProject.id, validLinks));
-          }
-          if (pendingBudgetLines.length > 0) {
-            extraPromises.push(trackerApi.replaceBudgetLines(newProject.id, pendingBudgetLines));
-          }
-          if (extraPromises.length > 0) {
-            await Promise.all(extraPromises);
-          }
-        }
+        await submitCreate(payloads);
       }
       navigateToProjects();
     } catch (error) {
@@ -593,26 +523,68 @@ export default function ProjectForm(): JSX.Element {
                       </NativeSelect>
                     </div>
                     <div className="space-y-2">
-                      <TooltipProvider>
-                        <div className="h-5 flex items-center gap-2">
-                          <Label htmlFor="currency">Currency for Invoices</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                                <Info className="h-3.5 w-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="text-sm">Used only for invoicing. The tracker operates in EUR by default.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TooltipProvider>
-                      <NativeSelect id="currency" className="w-full" {...register('currency')}>
+                      <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
+                      <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
                         {CURRENCY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </NativeSelect>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="budget_total" className="h-5 flex items-center">Budget *</Label>
+                      <Input
+                        id="budget_total"
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="e.g., 100000"
+                        {...register('budget_total', {
+                          required: 'Budget is required',
+                          min: { value: 0, message: 'Must be positive' },
+                        })}
+                      />
+                      {errors.budget_total && (
+                        <p className="text-sm text-destructive">{errors.budget_total.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="start_date" className="h-5 flex items-center">Start Date *</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        min={DATE_INPUT_MIN}
+                        max={DATE_INPUT_MAX}
+                        {...register('start_date', {
+                          required: 'Start date is required',
+                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
+                        })}
+                      />
+                      {errors.start_date && (
+                        <p className="text-sm text-destructive">{errors.start_date.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="end_date" className="h-5 flex items-center">End Date *</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        min={DATE_INPUT_MIN}
+                        max={DATE_INPUT_MAX}
+                        {...register('end_date', {
+                          required: 'End date is required',
+                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
+                          validate: (value) => {
+                            if (!value || !startDate) return true;
+                            return new Date(value) >= new Date(startDate) || 'End date must be on or after start date';
+                          },
+                        })}
+                      />
+                      {errors.end_date && (
+                        <p className="text-sm text-destructive">{errors.end_date.message}</p>
+                      )}
                     </div>
                   </div>
 
@@ -697,42 +669,6 @@ export default function ProjectForm(): JSX.Element {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="start_date" className="h-5 flex items-center">Start Date</Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        min={DATE_INPUT_MIN}
-                        max={DATE_INPUT_MAX}
-                        {...register('start_date', {
-                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
-                        })}
-                      />
-                      {errors.start_date && (
-                        <p className="text-sm text-destructive">{errors.start_date.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="end_date" className="h-5 flex items-center">End Date</Label>
-                      <Input
-                        id="end_date"
-                        type="date"
-                        min={DATE_INPUT_MIN}
-                        max={DATE_INPUT_MAX}
-                        {...register('end_date', {
-                          pattern: { value: /^\d{4}-\d{2}-\d{2}$/, message: 'Invalid date format' },
-                          validate: (value) => {
-                            if (!value || !startDate) return true;
-                            return new Date(value) >= new Date(startDate) || 'End date must be on or after start date';
-                          },
-                        })}
-                      />
-                      {errors.end_date && (
-                        <p className="text-sm text-destructive">{errors.end_date.message}</p>
-                      )}
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </section>
@@ -798,100 +734,6 @@ export default function ProjectForm(): JSX.Element {
                       Select a channel to receive project notifications
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            {/* Budget & Schedule */}
-            <section>
-              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">Budget & Schedule</h2>
-              <Card>
-                <CardContent className="pt-6 space-y-6">
-                  <TooltipProvider>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {BUDGET_FIELDS.map((field) => {
-                        const Icon = field.icon;
-                        return (
-                          <div key={field.name} className="space-y-2">
-                            <div className="h-5 flex items-center gap-2">
-                              <Icon className="w-4 h-4 text-muted-foreground" />
-                              <Label htmlFor={field.name}>{field.label}</Label>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                                    <Info className="h-3.5 w-3.5" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <p className="text-sm">{field.tooltip}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <div className="relative">
-                              <Input
-                                id={field.name}
-                                type="number"
-                                step="any"
-                                min="0"
-                                max={field.max}
-                                placeholder={field.placeholder}
-                                {...register(field.name, {
-                                  min: { value: 0, message: 'Must be positive' },
-                                  max: field.max ? { value: field.max, message: `Max ${field.max}%` } : undefined,
-                                })}
-                                className={field.suffix ? 'pr-8' : ''}
-                              />
-                              {field.suffix && (
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                                  {field.suffix}
-                                </span>
-                              )}
-                            </div>
-                            {errors[field.name] && (
-                              <p className="text-sm text-destructive">{errors[field.name]?.message}</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {evmPreview.hasData && (
-                      <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-muted/40">
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Earned Value</p>
-                          <p className="text-lg font-semibold tabular-nums">{formatCurrency(evmPreview.ev)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1">SPI</p>
-                          {evmPreview.spi !== null ? (
-                            <>
-                              <p className="text-lg font-semibold tabular-nums text-foreground flex items-center gap-1.5">
-                                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getPerformanceDotClass(evmPreview.spi)}`} />
-                                {evmPreview.spi.toFixed(2)}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">{getPerformanceLabel(evmPreview.spi, 'spi')}</p>
-                            </>
-                          ) : (
-                            <p className="text-lg font-semibold text-muted-foreground">&mdash;</p>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1">CPI</p>
-                          {evmPreview.cpi !== null ? (
-                            <>
-                              <p className="text-lg font-semibold tabular-nums text-foreground flex items-center gap-1.5">
-                                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getPerformanceDotClass(evmPreview.cpi)}`} />
-                                {evmPreview.cpi.toFixed(2)}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">{getPerformanceLabel(evmPreview.cpi, 'cpi')}</p>
-                            </>
-                          ) : (
-                            <p className="text-lg font-semibold text-muted-foreground">&mdash;</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </TooltipProvider>
                 </CardContent>
               </Card>
             </section>

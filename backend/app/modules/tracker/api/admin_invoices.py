@@ -18,13 +18,46 @@ from pydantic import BaseModel
 router = APIRouter()
 
 
+def _apply_filters(
+    stmt,
+    status: str | None,
+    project_id: UUID | None,
+    search: str | None,
+    due_from: dt.date | None,
+    due_to: dt.date | None,
+    today: dt.date,
+):
+    if status:
+        if status == "pending_to_issue":
+            stmt = stmt.where(
+                ((InvoiceDB.status == "pending_to_issue") |
+                 ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today)))
+            )
+        elif status == "scheduled":
+            stmt = stmt.where(
+                (InvoiceDB.status == "scheduled") & (InvoiceDB.due_date > today)
+            )
+        else:
+            stmt = stmt.where(InvoiceDB.status == status)
+
+    if project_id:
+        stmt = stmt.where(InvoiceDB.project_id == project_id)
+    if search:
+        stmt = stmt.where(ProjectDB.name.ilike(f"%{search}%"))
+    if due_from:
+        stmt = stmt.where(InvoiceDB.due_date >= due_from)
+    if due_to:
+        stmt = stmt.where(InvoiceDB.due_date <= due_to)
+
+    return stmt
+
+
 class AdminInvoiceResponse(BaseModel):
     id: UUID
     project_id: UUID
     project_name: str
     code: str | None
     amount: float
-    currency: str | None
     due_date: dt.date
     extended_date: dt.date | None
     invoiced_on: dt.date | None
@@ -38,14 +71,6 @@ class PaginatedInvoicesResponse(BaseModel):
     total: int
     page: int
     pages: int
-
-
-STATUS_SORT_ORDER = {
-    "pending_to_issue": 0,
-    "waiting_for_payment": 1,
-    "scheduled": 2,
-    "paid": 3,
-}
 
 
 @router.get("")
@@ -77,29 +102,7 @@ async def list_all_invoices(
         .join(ProjectDB, InvoiceDB.project_id == ProjectDB.id)
     )
 
-    if status:
-        if status == "pending_to_issue":
-            base = base.where(
-                ((InvoiceDB.status == "pending_to_issue") |
-                 ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today)))
-            )
-        elif status == "scheduled":
-            base = base.where(
-                (InvoiceDB.status == "scheduled") & (InvoiceDB.due_date > today)
-            )
-        else:
-            base = base.where(InvoiceDB.status == status)
-
-    if project_id:
-        base = base.where(InvoiceDB.project_id == project_id)
-
-    if search:
-        base = base.where(ProjectDB.name.ilike(f"%{search}%"))
-
-    if due_from:
-        base = base.where(InvoiceDB.due_date >= due_from)
-    if due_to:
-        base = base.where(InvoiceDB.due_date <= due_to)
+    base = _apply_filters(base, status, project_id, search, due_from, due_to, today)
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(count_stmt)).scalar() or 0
@@ -142,7 +145,6 @@ async def list_all_invoices(
             project_name=project_name,
             code=inv.code,
             amount=float(inv.amount),
-            currency=inv.currency,
             due_date=inv.due_date,
             extended_date=inv.extended_date,
             invoiced_on=inv.invoiced_on,

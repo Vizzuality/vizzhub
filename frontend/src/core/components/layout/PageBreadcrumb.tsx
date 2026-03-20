@@ -7,6 +7,62 @@ interface BreadcrumbSegment {
   to?: string;
 }
 
+const ADMIN_LABELS: Record<string, string> = {
+  'global-scores': 'Global Scores',
+  'scorecard-parameters': 'Scorecard Parameters',
+  integrations: 'Integrations',
+  jobs: 'Jobs',
+  users: 'Users',
+};
+
+const NOTIFICATION_LABELS: Record<string, string> = {
+  log: 'Alert Log',
+  silences: 'Active Silences',
+  config: 'Configuration',
+  stats: 'Statistics',
+};
+
+function resolvePathBreadcrumbs(pathname: string): BreadcrumbSegment[] | null {
+  if (pathname === '/scorecard') return [{ label: 'Projects' }];
+  if (pathname === '/projects') return [{ label: 'Projects' }];
+  if (pathname === '/tracker/how-to-report') {
+    return [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'How to Report' }];
+  }
+
+  if (pathname.startsWith('/iso/snapshots/')) {
+    return [{ label: 'Access Control', to: '/iso/snapshots' }, { label: 'Snapshot Detail' }];
+  }
+  if (pathname.startsWith('/iso')) return [{ label: 'Access Control' }];
+
+  if (pathname.startsWith('/admin/notifications')) {
+    const subPath = pathname.split('/admin/notifications/')[1];
+    return [
+      { label: 'Notifications', to: '/admin/notifications/log' },
+      { label: NOTIFICATION_LABELS[subPath] ?? subPath },
+    ];
+  }
+  if (pathname.startsWith('/admin/tracker/periods/')) {
+    return [{ label: 'Reporting Periods', to: '/admin/tracker/periods' }, { label: 'Period Detail' }];
+  }
+  if (pathname.startsWith('/admin/tracker/invoices')) return [{ label: 'Invoices' }];
+  if (pathname.startsWith('/admin/tracker/periods')) return [{ label: 'Reporting Periods' }];
+  if (pathname.startsWith('/admin/tracker')) return [{ label: 'Tracker' }];
+  if (pathname.startsWith('/admin')) {
+    const subPath = pathname.split('/admin/')[1];
+    return [{ label: ADMIN_LABELS[subPath] ?? 'Admin' }];
+  }
+
+  if (pathname.match(/^\/tracker\/projects\/[^/]+$/)) {
+    return [{ label: 'Projects', to: '/projects' }, { label: 'Tracker Detail' }];
+  }
+  if (pathname.startsWith('/tracker/my-reports')) {
+    return [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'Report History' }];
+  }
+  if (pathname.startsWith('/tracker/my-report')) return [{ label: 'My Report' }];
+
+  return null;
+}
+
 function useBreadcrumbs(): BreadcrumbSegment[] {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
@@ -15,10 +71,6 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
   const isProjectDetail = pathname.match(/^\/scorecard\/[^/]+$/);
   const { data: project } = useProject(isProjectDetail && id ? id : '');
 
-  if (pathname === '/scorecard') {
-    return [{ label: 'Projects' }];
-  }
-
   if (isProjectDetail) {
     return [
       { label: 'Projects', to: '/scorecard' },
@@ -26,92 +78,7 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
     ];
   }
 
-  if (pathname.startsWith('/iso/snapshots/')) {
-    return [
-      { label: 'Access Control', to: '/iso/snapshots' },
-      { label: 'Snapshot Detail' },
-    ];
-  }
-
-  if (pathname.startsWith('/iso')) {
-    return [{ label: 'Access Control' }];
-  }
-
-  if (pathname.startsWith('/admin/notifications')) {
-    const subPath = pathname.split('/admin/notifications/')[1];
-    const subLabels: Record<string, string> = {
-      log: 'Alert Log',
-      silences: 'Active Silences',
-      config: 'Configuration',
-      stats: 'Statistics',
-    };
-    return [
-      { label: 'Notifications', to: '/admin/notifications/log' },
-      { label: subLabels[subPath] ?? subPath },
-    ];
-  }
-
-  if (pathname.startsWith('/admin/tracker/periods/')) {
-    return [
-      { label: 'Reporting Periods', to: '/admin/tracker/periods' },
-      { label: 'Period Detail' },
-    ];
-  }
-
-  if (pathname.startsWith('/admin/tracker/invoices')) {
-    return [{ label: 'Invoices' }];
-  }
-
-  if (pathname.startsWith('/admin/tracker/periods')) {
-    return [{ label: 'Reporting Periods' }];
-  }
-
-  if (pathname.startsWith('/admin/tracker')) {
-    return [{ label: 'Tracker' }];
-  }
-
-  if (pathname.startsWith('/admin')) {
-    const adminLabels: Record<string, string> = {
-      'global-scores': 'Global Scores',
-      'scorecard-parameters': 'Scorecard Parameters',
-      integrations: 'Integrations',
-      jobs: 'Jobs',
-      users: 'Users',
-    };
-    const subPath = pathname.split('/admin/')[1];
-    return [{ label: adminLabels[subPath] ?? 'Admin' }];
-  }
-
-  if (pathname.match(/^\/tracker\/projects\/[^/]+$/)) {
-    return [
-      { label: 'Projects', to: '/projects' },
-      { label: 'Tracker Detail' },
-    ];
-  }
-
-  if (pathname === '/tracker/how-to-report') {
-    return [
-      { label: 'My Report', to: '/tracker/my-report' },
-      { label: 'How to Report' },
-    ];
-  }
-
-  if (pathname.startsWith('/tracker/my-reports')) {
-    return [
-      { label: 'My Report', to: '/tracker/my-report' },
-      { label: 'Report History' },
-    ];
-  }
-
-  if (pathname.startsWith('/tracker/my-report')) {
-    return [{ label: 'My Report' }];
-  }
-
-  if (pathname === '/projects') {
-    return [{ label: 'Projects' }];
-  }
-
-  return [{ label: 'Dashboard' }];
+  return resolvePathBreadcrumbs(pathname) ?? [{ label: 'Dashboard' }];
 }
 
 export function PageBreadcrumb(): JSX.Element {

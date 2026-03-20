@@ -55,7 +55,7 @@ describe('EVMForm', () => {
     fireEvent.change(plannedInput, { target: { value: '40' } });
 
     await waitFor(() => {
-      expect(screen.getByText('$50,000')).toBeInTheDocument();
+      expect(screen.getByText(/50\.000/)).toBeInTheDocument();
       expect(screen.getByText('1.25')).toBeInTheDocument();
       expect(screen.getByText('1.00')).toBeInTheDocument();
     });

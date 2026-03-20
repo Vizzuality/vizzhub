@@ -17,12 +17,18 @@ export function calculateEVMValues(
   return { ev, spi, cpi, hasData: budgetTotal > 0 };
 }
 
-export function formatCurrency(value: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+const CURRENCY_MAP: Record<string, { code: string; locale: string }> = {
+  euro: { code: 'EUR', locale: 'de-DE' },
+  dollar: { code: 'USD', locale: 'en-US' },
+};
+
+export function formatCurrency(value: number, currency = 'euro', decimals = 0): string {
+  const { code, locale } = CURRENCY_MAP[currency] ?? CURRENCY_MAP.euro;
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    currency: code,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(value);
 }
 
