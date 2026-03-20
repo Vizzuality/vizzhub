@@ -221,7 +221,7 @@ function ProgressRowActions({
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 opacity-0 group-hover/row:opacity-100"
+        className="h-6 w-6 opacity-50 hover:opacity-100"
         onClick={() => { setValue(report.percentage.toString()); setEditing(true); }}
       >
         <Pencil className="h-3 w-3" />
@@ -229,7 +229,7 @@ function ProgressRowActions({
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 opacity-0 group-hover/row:opacity-100 text-destructive"
+        className="h-6 w-6 opacity-50 hover:opacity-100 text-destructive"
         onClick={() => deleteMutation.mutate(report.id)}
         disabled={deleteMutation.isPending}
       >
