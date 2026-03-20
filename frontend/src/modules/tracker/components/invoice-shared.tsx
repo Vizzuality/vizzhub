@@ -304,7 +304,7 @@ export function useInvoiceFieldSave(
   return (field: string, value: string) => {
     const data: Record<string, unknown> = {};
     if (field === 'code') data.code = value || null;
-    else if (field === 'amount') data.amount = parseFloat(value) || 0;
+    else if (field === 'amount') data.amount = Number.parseFloat(value) || 0;
     else data[field] = value;
     updateMutation.mutate({ invoiceId, data }, { onSuccess });
   };
