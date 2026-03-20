@@ -2,168 +2,20 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/shared/components/ui/alert-dialog';
-import { Plus, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-  useInvoices,
-  useCreateInvoice,
-  useUpdateInvoice,
-  useTransitionInvoice,
-  useDeleteInvoice,
-} from '../hooks/useInvoices';
+import { Plus } from 'lucide-react';
+import { useInvoices, useCreateInvoice } from '../hooks/useInvoices';
 import { formatCurrency } from '../utils/constants';
-import type { Invoice, InvoiceStatus } from '../types/tracker';
+import {
+  EditableCell,
+  StatusCell,
+  RevertButton,
+  DeleteButton,
+  useInvoiceFieldSave,
+} from './invoice-shared';
+import type { Invoice } from '../types/tracker';
 
 interface InvoicesCardProps {
   readonly projectId: string;
-}
-
-const STATUS_LABELS: Record<InvoiceStatus, string> = {
-  scheduled: 'Scheduled',
-  pending_to_issue: 'Pending',
-  waiting_for_payment: 'Waiting',
-  paid: 'Paid',
-};
-
-const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  scheduled: 'text-foreground',
-  pending_to_issue: 'bg-aux-yellow/20 text-aux-yellow',
-  waiting_for_payment: 'bg-aux-red/20 text-aux-red',
-  paid: 'bg-aux-neon-grass/20 text-aux-neon-grass',
-};
-
-const HOVER_COLORS = 'bg-muted text-foreground';
-
-const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
-  scheduled: null,
-  pending_to_issue: 'waiting_for_payment',
-  waiting_for_payment: 'paid',
-  paid: null,
-};
-
-const NEXT_LABELS: Record<InvoiceStatus, string> = {
-  scheduled: '',
-  pending_to_issue: 'Mark waiting',
-  waiting_for_payment: 'Mark paid',
-  paid: '',
-};
-
-const ALLOWED_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
-  scheduled: [],
-  pending_to_issue: ['waiting_for_payment'],
-  waiting_for_payment: ['paid', 'pending_to_issue'],
-  paid: ['waiting_for_payment'],
-};
-
-function StatusCell({
-  invoice,
-  projectId,
-  onError,
-}: {
-  readonly invoice: Invoice;
-  readonly projectId: string;
-  readonly onError: (msg: string) => void;
-}): JSX.Element {
-  const [hovered, setHovered] = useState(false);
-  const transitionMutation = useTransitionInvoice(projectId);
-  const next = NEXT_STATUS[invoice.status];
-
-  const handleTransition = (): void => {
-    if (!next) return;
-    transitionMutation.mutate(
-      { invoiceId: invoice.id, status: next },
-      {
-        onError: (err: unknown) => {
-          const msg = (err as { response?: { data?: { detail?: string } } })
-            ?.response?.data?.detail ?? 'Transition failed';
-          onError(msg);
-        },
-      },
-    );
-  };
-
-  const label = hovered && next ? NEXT_LABELS[invoice.status] : STATUS_LABELS[invoice.status];
-  const colors = hovered && next ? HOVER_COLORS : STATUS_COLORS[invoice.status];
-
-  return (
-    <button
-      className={cn(
-        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-[100px] justify-center transition-colors whitespace-nowrap',
-        next ? 'cursor-pointer' : 'cursor-default',
-        colors,
-      )}
-      onMouseEnter={() => next && setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={handleTransition}
-      disabled={!next || transitionMutation.isPending}
-    >
-      {label}
-    </button>
-  );
-}
-
-function EditableCell({
-  value: initial,
-  placeholder,
-  display,
-  inputType = 'text',
-  inputClass = 'h-6 text-sm px-1',
-  onSave,
-}: {
-  readonly value: string;
-  readonly placeholder?: string;
-  readonly display?: string;
-  readonly inputType?: string;
-  readonly inputClass?: string;
-  readonly onSave: (value: string) => void;
-}): JSX.Element {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(initial);
-
-  const handleSave = (): void => {
-    if (val !== initial) {
-      onSave(val);
-    }
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <Input
-        type={inputType}
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSave();
-          if (e.key === 'Escape') { setVal(initial); setEditing(false); }
-        }}
-        className={inputClass}
-        autoFocus
-      />
-    );
-  }
-
-  return (
-    <span
-      className="cursor-pointer hover:underline"
-      onClick={() => { setVal(initial); setEditing(true); }}
-      title="Click to edit"
-    >
-      {display || initial || <span className="text-muted-foreground/50 italic">{placeholder ?? 'edit'}</span>}
-    </span>
-  );
 }
 
 function InvoiceRow({
@@ -175,18 +27,7 @@ function InvoiceRow({
   readonly projectId: string;
   readonly onError: (msg: string) => void;
 }): JSX.Element {
-  const deleteMutation = useDeleteInvoice(projectId);
-  const updateMutation = useUpdateInvoice(projectId);
-  const transitions = ALLOWED_TRANSITIONS[invoice.status];
-  const transitionMutation = useTransitionInvoice(projectId);
-
-  const save = (field: string, value: string): void => {
-    const data: Record<string, unknown> = {};
-    if (field === 'code') data.code = value || null;
-    else if (field === 'amount') data.amount = parseFloat(value) || 0;
-    else data[field] = value;
-    updateMutation.mutate({ invoiceId: invoice.id, data });
-  };
+  const save = useInvoiceFieldSave(projectId, invoice.id);
 
   return (
     <tr className="border-b last:border-0">
@@ -223,50 +64,12 @@ function InvoiceRow({
         />
       </td>
       <td className="py-2">
-        <StatusCell invoice={invoice} projectId={projectId} onError={onError} />
+        <StatusCell invoice={invoice} onError={onError} />
       </td>
       <td className="py-2 text-right">
         <div className="flex items-center gap-1 justify-end">
-          {invoice.status === 'paid' && transitions.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs text-muted-foreground"
-              onClick={() => transitionMutation.mutate({ invoiceId: invoice.id, status: transitions[0] })}
-              disabled={transitionMutation.isPending}
-            >
-              Revert
-            </Button>
-          )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete the invoice &quot;{invoice.milestone}&quot;
-                  ({formatCurrency(invoice.amount)}). This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => deleteMutation.mutate(invoice.id)}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <RevertButton invoice={invoice} />
+          <DeleteButton invoice={invoice} projectId={projectId} />
         </div>
       </td>
     </tr>
@@ -295,12 +98,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
     const amount = parseFloat(newAmount);
     if (!newMilestone || isNaN(amount) || !newDueDate) return;
     createMutation.mutate(
-      {
-        code: newCode || undefined,
-        milestone: newMilestone,
-        amount,
-        due_date: newDueDate,
-      },
+      { code: newCode || undefined, milestone: newMilestone, amount, due_date: newDueDate },
       {
         onSuccess: () => {
           setAdding(false);
@@ -322,9 +120,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
           </div>
           {invoices && invoices.length > 0 && (
             <div className="text-sm tabular-nums text-muted-foreground">
-              {formatCurrency(paidAmount)}
-              {' / '}
-              {formatCurrency(totalAmount)}
+              {formatCurrency(paidAmount)} / {formatCurrency(totalAmount)}
             </div>
           )}
         </div>
@@ -363,47 +159,15 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
 
         {adding ? (
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Input
-              placeholder="Code"
-              value={newCode}
-              onChange={(e) => setNewCode(e.target.value)}
-              className="w-24 h-8 text-sm"
-            />
-            <Input
-              placeholder="Milestone"
-              value={newMilestone}
-              onChange={(e) => setNewMilestone(e.target.value)}
-              className="h-8 text-sm min-w-[120px] flex-1"
-            />
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Amount"
-              value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
-              className="w-28 h-8 text-right text-sm"
-            />
-            <Input
-              type="date"
-              value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              className="w-36 h-8 text-sm"
-            />
-            <Button size="sm" className="h-8" onClick={handleAdd} disabled={createMutation.isPending}>
-              Save
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => setAdding(false)}>
-              Cancel
-            </Button>
+            <Input placeholder="Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="w-24 h-8 text-sm" />
+            <Input placeholder="Milestone" value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} className="h-8 text-sm min-w-[120px] flex-1" />
+            <Input type="number" min="0" step="0.01" placeholder="Amount" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} className="w-28 h-8 text-right text-sm" />
+            <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="w-36 h-8 text-sm" />
+            <Button size="sm" className="h-8" onClick={handleAdd} disabled={createMutation.isPending}>Save</Button>
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setAdding(false)}>Cancel</Button>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-3 gap-1 text-muted-foreground"
-            onClick={() => setAdding(true)}
-          >
+          <Button variant="ghost" size="sm" className="mt-3 gap-1 text-muted-foreground" onClick={() => setAdding(true)}>
             <Plus className="h-3.5 w-3.5" />
             Add invoice
           </Button>
