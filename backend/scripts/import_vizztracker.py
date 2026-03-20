@@ -371,7 +371,7 @@ def import_projects(legacy, target, maps):
 
 
 def import_tracker_project_settings(legacy, target, maps):
-    """Import contract budget/rate as tracker_project_settings."""
+    """Import contract rate as tracker_project_settings, budget goes to projects."""
     cur_l = legacy.cursor()
     cur_t = target.cursor()
     count = 0
@@ -388,12 +388,19 @@ def import_tracker_project_settings(legacy, target, maps):
         budget_dec = Decimal(str(budget)) if budget is not None else None
         rate_dec = Decimal(str(contract_rate)) if contract_rate else Decimal("175.00")
 
+        # Budget lives on projects table
+        if budget_dec is not None:
+            cur_t.execute(
+                "UPDATE projects SET budget = %s WHERE id = %s",
+                (budget_dec, project_id),
+            )
+
         cur_t.execute(
-            "INSERT INTO tracker_project_settings (id, project_id, budget, contract_rate) "
-            "VALUES (%s, %s, %s, %s) "
+            "INSERT INTO tracker_project_settings (id, project_id, contract_rate) "
+            "VALUES (%s, %s, %s) "
             "ON CONFLICT (project_id) DO UPDATE "
-            "SET budget = EXCLUDED.budget, contract_rate = EXCLUDED.contract_rate",
-            (uuid.uuid4(), project_id, budget_dec, rate_dec),
+            "SET contract_rate = EXCLUDED.contract_rate",
+            (uuid.uuid4(), project_id, rate_dec),
         )
         count += 1
 
@@ -784,7 +791,7 @@ def _validate_financial_totals(cur_l, cur_t, errors):
     """Validate budget and invoice totals."""
     cur_l.execute("SELECT ROUND(SUM(budget)::numeric, 2) FROM contracts WHERE budget IS NOT NULL")
     l_budget = cur_l.fetchone()[0]
-    cur_t.execute("SELECT ROUND(SUM(budget), 2) FROM tracker_project_settings WHERE budget IS NOT NULL")
+    cur_t.execute("SELECT ROUND(SUM(budget), 2) FROM projects WHERE budget IS NOT NULL")
     t_budget = cur_t.fetchone()[0]
     status = "OK" if l_budget == t_budget else "MISMATCH"
     if status == "MISMATCH":

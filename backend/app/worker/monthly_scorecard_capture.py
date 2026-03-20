@@ -22,6 +22,7 @@ from app.modules.scorecard.api.capture import (
 from app.modules.scorecard.models.metrics import SnapshotType
 from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.metrics_service import MetricsService
+from app.modules.tracker.public import inject_evm_into_preserved
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,12 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
 
                 preserved = await MetricsService.get_manual_fields_for_historical_capture(
                     db, project.id, year, month
+                )
+
+                # Inject budget_total and tracker EVM fields
+                budget = float(project.budget) if project.budget is not None else None
+                await inject_evm_into_preserved(
+                    preserved, project.id, db, budget, project.start_date, project.end_date
                 )
 
                 punctual_jira = await _collect_from_jira(db, project, month_start, month_end)

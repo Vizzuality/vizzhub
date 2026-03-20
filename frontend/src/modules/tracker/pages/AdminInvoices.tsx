@@ -116,7 +116,8 @@ function SortButton({
   readonly onClick: (field: SortField) => void;
 }): JSX.Element {
   const isActive = currentField === field;
-  const Icon = !isActive ? ArrowUpDown : currentOrder === 'asc' ? ArrowUp : ArrowDown;
+  const activeIcon = currentOrder === 'asc' ? ArrowUp : ArrowDown;
+  const Icon = isActive ? activeIcon : ArrowUpDown;
   return (
     <button
       onClick={() => onClick(field)}

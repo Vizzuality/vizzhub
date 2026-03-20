@@ -21,10 +21,6 @@ class InvoiceDB(Base):
     __table_args__ = (
         CheckConstraint("amount >= 0", name="ck_invoices_amount_positive"),
         CheckConstraint(
-            "currency IN ('euro', 'dollar')",
-            name="ck_invoices_currency_valid",
-        ),
-        CheckConstraint(
             "extended_date IS NULL OR due_date IS NULL OR extended_date >= due_date",
             name="ck_invoices_extended_after_due",
         ),
@@ -44,7 +40,6 @@ class InvoiceDB(Base):
     )
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    currency: Mapped[str | None] = mapped_column(String(20), nullable=True)
     due_date: Mapped[date] = mapped_column(nullable=False)
     extended_date: Mapped[date | None] = mapped_column(nullable=True)
     invoiced_on: Mapped[date | None] = mapped_column(nullable=True)

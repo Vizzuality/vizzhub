@@ -6,7 +6,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.core.api.deps import CurrentUser, DBSession
+from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache
+from app.modules.tracker.api.helpers import refresh_scorecard_evm
 from app.modules.tracker.models.progress_report import ProgressReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 from app.modules.tracker.schemas.progress_report import (
@@ -83,6 +84,7 @@ async def create_progress(
     body: ProgressReportCreate,
     db: DBSession,
     user: CurrentUser,
+    cache: OptionalScoreCache,
 ) -> ProgressReportResponse:
     pct = Decimal(str(body.percentage)) / Decimal("100")
     prev = await _previous_percentage(db, project_id, body.reporting_period_id)
@@ -101,18 +103,23 @@ async def create_progress(
         await db.rollback()
         raise HTTPException(409, "Progress already exists for this project/period")
     await db.refresh(pr)
+    await refresh_scorecard_evm(db, project_id, score_cache=cache)
 
     period = await db.get(ReportingPeriodDB, pr.reporting_period_id)
     return _to_response(pr, str(period.date) if period else None)
 
 
-@router.put("/{project_id}/progress/{progress_id}")
+@router.put(
+    "/{project_id}/progress/{progress_id}",
+    responses={404: {"description": "Progress report not found"}},
+)
 async def update_progress(
     project_id: UUID,
     progress_id: UUID,
     body: ProgressReportUpdate,
     db: DBSession,
     user: CurrentUser,
+    cache: OptionalScoreCache,
 ) -> ProgressReportResponse:
     pr = await db.get(ProgressReportDB, progress_id)
     if not pr or pr.project_id != project_id:
@@ -126,23 +133,30 @@ async def update_progress(
     pr.delta = delta
     await db.commit()
     await db.refresh(pr)
+    await refresh_scorecard_evm(db, project_id, score_cache=cache)
 
     period = await db.get(ReportingPeriodDB, pr.reporting_period_id)
     return _to_response(pr, str(period.date) if period else None)
 
 
-@router.delete("/{project_id}/progress/{progress_id}", status_code=204)
+@router.delete(
+    "/{project_id}/progress/{progress_id}",
+    status_code=204,
+    responses={404: {"description": "Progress report not found"}},
+)
 async def delete_progress(
     project_id: UUID,
     progress_id: UUID,
     db: DBSession,
     user: CurrentUser,
+    cache: OptionalScoreCache,
 ) -> None:
     pr = await db.get(ProgressReportDB, progress_id)
     if not pr or pr.project_id != project_id:
         raise HTTPException(404, "Progress report not found")
     await db.delete(pr)
     await db.commit()
+    await refresh_scorecard_evm(db, project_id, score_cache=cache)
 
 
 @router.post("/batch-progress")

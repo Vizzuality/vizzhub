@@ -95,7 +95,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
   };
 
   const handleAdd = (): void => {
-    const amount = parseFloat(newAmount);
+    const amount = Number.parseFloat(newAmount);
     if (!newMilestone || isNaN(amount) || !newDueDate) return;
     createMutation.mutate(
       { code: newCode || undefined, milestone: newMilestone, amount, due_date: newDueDate },
@@ -153,7 +153,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
           </div>
         )}
 
-        {invoices && invoices.length === 0 && !adding && (
+        {invoices?.length === 0 && !adding && (
           <p className="text-muted-foreground text-sm">No invoices</p>
         )}
 

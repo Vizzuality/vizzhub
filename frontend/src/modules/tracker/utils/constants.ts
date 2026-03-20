@@ -1,4 +1,9 @@
+import { formatCurrency as formatCurrencyBase } from '@/shared/utils/evmCalculations';
 import type { ReportingPeriod } from '../types/tracker';
+
+export function formatCurrency(value: number): string {
+  return formatCurrencyBase(value, 'euro', 2);
+}
 
 export function formatPeriodDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
@@ -18,11 +23,4 @@ export function shortMonth(dateStr: string): string {
   return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
 }
 
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(value);
-}
 

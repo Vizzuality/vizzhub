@@ -325,6 +325,7 @@ export default function ProjectDetail(): JSX.Element {
             getTarget={getTarget}
             snapshots={snapshots}
             visibleDimensions={visibleDimensions}
+            currency={project?.currency}
           />
         </>
       )}

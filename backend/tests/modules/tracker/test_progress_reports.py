@@ -65,8 +65,8 @@ class TestProgressReports:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["percentage"] == 30.0
-        assert data["delta"] == 30.0
+        assert data["percentage"] == pytest.approx(30.0)
+        assert data["delta"] == pytest.approx(30.0)
         assert data["period_date"] == "2026-01-01"
 
     async def test_create_second_progress_calculates_delta(
@@ -91,8 +91,8 @@ class TestProgressReports:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["percentage"] == 55.0
-        assert data["delta"] == 25.0
+        assert data["percentage"] == pytest.approx(55.0)
+        assert data["delta"] == pytest.approx(25.0)
 
     async def test_duplicate_returns_409(
         self, client: AsyncClient, setup_progress: dict,
@@ -132,8 +132,8 @@ class TestProgressReports:
             json={"percentage": 45},
         )
         assert resp.status_code == 200
-        assert resp.json()["percentage"] == 45.0
-        assert resp.json()["delta"] == 45.0
+        assert resp.json()["percentage"] == pytest.approx(45.0)
+        assert resp.json()["delta"] == pytest.approx(45.0)
 
     async def test_delete_progress(
         self, client: AsyncClient, setup_progress: dict,
@@ -206,8 +206,8 @@ class TestProgressReports:
         assert resp.status_code == 200
         data = resp.json()["progress"]
         assert pid in data
-        assert data[pid]["percentage"] == 55.0
-        assert data[pid]["delta"] == 25.0
+        assert data[pid]["percentage"] == pytest.approx(55.0)
+        assert data[pid]["delta"] == pytest.approx(25.0)
 
     async def test_percentage_validation(
         self, client: AsyncClient, setup_progress: dict,

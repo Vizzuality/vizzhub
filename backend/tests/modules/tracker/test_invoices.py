@@ -45,7 +45,6 @@ class TestInvoices:
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 5000,
-                "currency": "euro",
                 "code": "INV-001",
                 "due_date": "2026-06-01",
                 "milestone": "Milestone 1",
@@ -53,7 +52,7 @@ class TestInvoices:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["amount"] == 5000.0
+        assert data["amount"] == pytest.approx(5000.0)
         assert data["status"] == "scheduled"
         assert data["milestone"] == "Milestone 1"
 
@@ -77,7 +76,7 @@ class TestInvoices:
             json={"amount": 7500, "milestone": "M1 updated"},
         )
         assert resp.status_code == 200
-        assert resp.json()["amount"] == 7500.0
+        assert resp.json()["amount"] == pytest.approx(7500.0)
         assert resp.json()["milestone"] == "M1 updated"
 
     async def test_auto_pending_by_date(

@@ -12,7 +12,8 @@ export interface Project {
   has_scorecard: boolean;
   has_dependabot_alerts: boolean;
   has_budget_alerts: boolean;
-  currency: string | null;
+  currency: string;
+  budget: number | null;
   notes: string | null;
   summary: string | null;
   jira_project_key: string | null;
@@ -34,7 +35,8 @@ export interface ProjectCreate {
   has_scorecard?: boolean;
   has_dependabot_alerts?: boolean;
   has_budget_alerts?: boolean;
-  currency?: string | null;
+  currency: string;
+  budget: number | null;
   notes?: string | null;
   summary?: string | null;
   jira_project_key?: string;
@@ -53,7 +55,8 @@ export interface ProjectUpdate {
   has_scorecard?: boolean;
   has_dependabot_alerts?: boolean;
   has_budget_alerts?: boolean;
-  currency?: string | null;
+  currency?: string;
+  budget?: number | null;
   notes?: string | null;
   summary?: string | null;
   jira_project_key?: string;
