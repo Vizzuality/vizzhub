@@ -197,6 +197,40 @@ export interface InvoiceCreate {
   observations?: string | null;
 }
 
+export interface AdminInvoice {
+  id: string;
+  project_id: string;
+  project_name: string;
+  code: string | null;
+  amount: number;
+  currency: string | null;
+  due_date: string;
+  extended_date: string | null;
+  invoiced_on: string | null;
+  milestone: string;
+  observations: string | null;
+  status: InvoiceStatus;
+}
+
+export interface PaginatedInvoices {
+  items: AdminInvoice[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface AdminInvoiceParams {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  project_id?: string;
+  search?: string;
+  due_from?: string;
+  due_to?: string;
+  sort_by?: string;
+  sort_order?: string;
+}
+
 export interface InvoiceUpdate {
   code?: string | null;
   amount?: number;
