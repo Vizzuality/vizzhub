@@ -98,9 +98,6 @@ class MetricsDB(Base):
     MANUAL_FIELDS = [
         "sev1_incident",
         "budget_total",
-        "cost_to_date",
-        "percent_completed",
-        "percent_planned",
         "governance_exceptions",
         "strategic_impact",
         "milestones",
@@ -108,6 +105,13 @@ class MetricsDB(Base):
         "test_maturity",
         "architecture",
         "client_survey",
+    ]
+
+    # EVM fields populated from tracker/project data (not manually entered)
+    TRACKER_EVM_FIELDS = [
+        "cost_to_date",
+        "percent_completed",
+        "percent_planned",
     ]
 
     # Fields collected from GitHub (preserved when only running Jira collector)

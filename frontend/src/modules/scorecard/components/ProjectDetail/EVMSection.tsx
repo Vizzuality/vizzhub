@@ -6,7 +6,7 @@ import { Separator } from '@/shared/components/ui/separator';
 import SubIndicatorCard from '../SubIndicatorCard';
 import { EVMDataGrid } from './EVM';
 import { getHistoricalData } from '@/utils/chartUtils';
-import { calculateEVMValues, getPerformanceLabel } from '@/shared/utils/evmCalculations';
+import { calculateEVMValues, formatCurrency, getPerformanceLabel } from '@/shared/utils/evmCalculations';
 import type { EVMData, Milestone, Indicators, MetricsWithScores, Dimension } from '../../types';
 
 interface EVMSectionProps {
@@ -17,6 +17,7 @@ interface EVMSectionProps {
   readonly getTarget: (name: string) => number | null;
   readonly snapshots?: MetricsWithScores[];
   readonly visibleDimensions?: Set<Dimension>;
+  readonly currency?: string;
 }
 
 function isDimensionVisible(visibleDimensions: Set<Dimension> | undefined, dimension: Dimension): boolean {
@@ -32,6 +33,7 @@ export default function EVMSection({
   getTarget,
   snapshots,
   visibleDimensions,
+  currency,
 }: EVMSectionProps): JSX.Element {
   const showTime = isDimensionVisible(visibleDimensions, 'Time');
   const showCost = isDimensionVisible(visibleDimensions, 'Cost');
@@ -67,7 +69,7 @@ export default function EVMSection({
         <Card className="mb-6">
           <CardContent className="pt-6">
             {evmData ? (
-              <EVMDataGrid evmData={evmData} />
+              <EVMDataGrid evmData={evmData} currency={currency} />
             ) : (
               <p className="text-muted-foreground">
                 No budget data available. Click &quot;Add Budget Data&quot; to enter budget and
@@ -93,8 +95,8 @@ export default function EVMSection({
                 lowerIsBetter={false}
                 formula="EV / Cost to Date"
                 metrics={[
-                  { label: 'Earned Value', value: `$${earnedValue?.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
-                  { label: 'Cost to Date', value: `$${evmData.cost_to_date.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+                  { label: 'Earned Value', value: earnedValue !== null ? formatCurrency(earnedValue, currency) : '-' },
+                  { label: 'Cost to Date', value: formatCurrency(evmData.cost_to_date, currency) },
                 ]}
                 historicalData={getHistoricalData(snapshots, 'cpi', 100)}
               />

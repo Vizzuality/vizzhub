@@ -1,4 +1,8 @@
-"""Tests for PUT /api/projects/{project_id}/budget endpoint."""
+"""Tests for PUT /api/projects/{project_id}/budget endpoint.
+
+EVM fields (cost_to_date, percent_completed, percent_planned) are now derived
+from the tracker module. This endpoint only handles milestones and budget_total.
+"""
 
 from datetime import date
 from uuid import uuid4
@@ -14,7 +18,7 @@ def _ensure_scoring_config(scoring_config):
 
 @pytest.mark.usefixtures("_ensure_scoring_config")
 class TestProjectBudgetEndpoint:
-    """Tests for the project budget (EVM + milestones) endpoint."""
+    """Tests for the project budget (milestones) endpoint."""
 
     async def _create_project(
         self, client: AsyncClient, budget: float | None = None,
@@ -28,50 +32,19 @@ class TestProjectBudgetEndpoint:
         return resp.json()
 
     @pytest.mark.asyncio
-    async def test_budget_creates_metrics_if_none_exist(
+    async def test_budget_creates_metrics_with_budget_total(
         self, client: AsyncClient
     ) -> None:
         project = await self._create_project(client, budget=100000)
         resp = await client.put(
             f"/api/projects/{project['id']}/budget",
-            json={"evm_data": {"cost_to_date": 50000}},
+            json={"milestones": [{"name": "M1", "planned_date": "2026-06-01"}]},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["period_year"] == date.today().year
         assert data["period_month"] == date.today().month
-        assert data["evm_data"]["budget_total"] == 100000
-
-    @pytest.mark.asyncio
-    async def test_partial_evm_budget_from_project(self, client: AsyncClient) -> None:
-        project = await self._create_project(client, budget=50000)
-        resp = await client.put(
-            f"/api/projects/{project['id']}/budget",
-            json={"evm_data": {"cost_to_date": 10000}},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["evm_data"]["budget_total"] == 50000
-        assert data["evm_data"]["cost_to_date"] == 10000
-
-    @pytest.mark.asyncio
-    async def test_full_evm_all_fields(self, client: AsyncClient) -> None:
-        project = await self._create_project(client, budget=200000)
-        evm = {
-            "cost_to_date": 80000,
-            "percent_completed": 0.4,
-            "percent_planned": 0.5,
-        }
-        resp = await client.put(
-            f"/api/projects/{project['id']}/budget",
-            json={"evm_data": evm},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["evm_data"]["budget_total"] == 200000
-        assert data["evm_data"]["cost_to_date"] == 80000
-        assert data["evm_data"]["percent_completed"] == pytest.approx(0.4)
-        assert data["evm_data"]["percent_planned"] == pytest.approx(0.5)
+        assert len(data["milestones"]) == 1
 
     @pytest.mark.asyncio
     async def test_milestones_array(self, client: AsyncClient) -> None:
@@ -95,37 +68,23 @@ class TestProjectBudgetEndpoint:
         assert data["milestones"][1]["actual_date"] == "2026-06-15"
 
     @pytest.mark.asyncio
-    async def test_evm_and_milestones_together(self, client: AsyncClient) -> None:
-        project = await self._create_project(client, budget=300000)
-        resp = await client.put(
-            f"/api/projects/{project['id']}/budget",
-            json={
-                "evm_data": {"cost_to_date": 100000},
-                "milestones": [
-                    {"name": "Phase 1", "planned_date": "2026-03-15"},
-                ],
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["evm_data"]["budget_total"] == 300000
-        assert len(data["milestones"]) == 1
-
-    @pytest.mark.asyncio
-    async def test_sequential_updates_preserve_fields(
+    async def test_sequential_updates_preserve_milestones(
         self, client: AsyncClient
     ) -> None:
         project = await self._create_project(client, budget=100000)
         url = f"/api/projects/{project['id']}/budget"
 
-        await client.put(url, json={"evm_data": {"cost_to_date": 20000}})
+        await client.put(
+            url,
+            json={"milestones": [{"name": "Phase 1", "planned_date": "2026-04-01"}]},
+        )
         resp = await client.put(
-            url, json={"evm_data": {"cost_to_date": 40000}}
+            url,
+            json={"milestones": [{"name": "Phase 2", "planned_date": "2026-06-01"}]},
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["evm_data"]["budget_total"] == 100000
-        assert data["evm_data"]["cost_to_date"] == 40000
+        assert data["milestones"][0]["name"] == "Phase 2"
 
     @pytest.mark.asyncio
     async def test_empty_body_returns_200(self, client: AsyncClient) -> None:
@@ -137,7 +96,7 @@ class TestProjectBudgetEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert "period_year" in data
-        assert "evm_data" in data
+        assert "milestones" in data
 
     @pytest.mark.asyncio
     async def test_nonexistent_project_returns_404(
@@ -146,24 +105,17 @@ class TestProjectBudgetEndpoint:
         fake_id = str(uuid4())
         resp = await client.put(
             f"/api/projects/{fake_id}/budget",
-            json={"evm_data": {"cost_to_date": 1000}},
+            json={"milestones": []},
         )
         assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_negative_evm_rejected(self, client: AsyncClient) -> None:
-        project = await self._create_project(client)
+    async def test_no_evm_data_accepted(self, client: AsyncClient) -> None:
+        """evm_data is no longer accepted in the payload."""
+        project = await self._create_project(client, budget=100000)
         resp = await client.put(
             f"/api/projects/{project['id']}/budget",
-            json={"evm_data": {"cost_to_date": -5000}},
+            json={"evm_data": {"cost_to_date": 50000}},
         )
-        assert resp.status_code in (400, 422)
-
-    @pytest.mark.asyncio
-    async def test_percent_over_one_rejected(self, client: AsyncClient) -> None:
-        project = await self._create_project(client)
-        resp = await client.put(
-            f"/api/projects/{project['id']}/budget",
-            json={"evm_data": {"percent_completed": 1.5}},
-        )
-        assert resp.status_code in (400, 422)
+        # evm_data is silently ignored (Pydantic model_config forbid not set)
+        assert resp.status_code == 200

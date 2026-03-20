@@ -1,7 +1,9 @@
 import type { EVMData } from '@/modules/scorecard/types';
+import { formatCurrency } from '@/shared/utils/evmCalculations';
 
 interface EVMDataGridProps {
   evmData: EVMData;
+  currency?: string;
 }
 
 interface DataItem {
@@ -9,10 +11,10 @@ interface DataItem {
   value: string;
 }
 
-export default function EVMDataGrid({ evmData }: EVMDataGridProps): JSX.Element {
+export default function EVMDataGrid({ evmData, currency }: EVMDataGridProps): JSX.Element {
   const items: DataItem[] = [
-    { label: 'Total Budget', value: `$${evmData.budget_total.toLocaleString()}` },
-    { label: 'Actual Cost', value: `$${evmData.cost_to_date.toLocaleString()}` },
+    { label: 'Total Budget', value: formatCurrency(evmData.budget_total, currency) },
+    { label: 'Actual Cost', value: formatCurrency(evmData.cost_to_date, currency) },
     { label: 'Work Completed', value: `${(evmData.percent_completed * 100).toFixed(0)}%` },
     { label: 'Expected Progress', value: `${(evmData.percent_planned * 100).toFixed(0)}%` },
   ];
