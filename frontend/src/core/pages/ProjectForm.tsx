@@ -206,7 +206,7 @@ export default function ProjectForm(): JSX.Element {
     defaultValues: {
       name: '',
       code: '',
-      status: 'proposal',
+      status: 'live',
       currency: 'dollar',
       program_id: '',
       jira_project_key: '',
@@ -487,6 +487,7 @@ export default function ProjectForm(): JSX.Element {
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">General</h2>
               <Card>
                 <CardContent className="pt-6 space-y-6">
+                  {/* Row 1: Name, Code */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="name" className="h-5 flex items-center">Name *</Label>
@@ -513,14 +514,87 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
+                  {/* Row 2: Program, Currency */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
-                      <NativeSelect id="status" className="w-full" {...register('status')}>
-                        {STATUS_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </NativeSelect>
+                      <TooltipProvider>
+                        <div className="h-5 flex items-center gap-2">
+                          <Label htmlFor="program_id">Program</Label>
+                          <span className="text-xs text-muted-foreground">(optional)</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Info className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">Select if this project belongs to a program that includes several phases or contracts.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
+                      <div className="flex gap-3 items-start">
+                        <NativeSelect id="program_id" className="flex-1" {...register('program_id')}>
+                          <option value="">None</option>
+                          {programs.map((program) => (
+                            <option key={program.id} value={program.id}>{program.name}</option>
+                          ))}
+                        </NativeSelect>
+                        {!showNewProgram && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowNewProgram(true)}
+                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            New
+                          </Button>
+                        )}
+                      </div>
+                      {showNewProgram && (
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            value={newProgramName}
+                            onChange={(e) => setNewProgramName(e.target.value)}
+                            placeholder="Program name"
+                            className="flex-1"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setShowNewProgram(false);
+                                setNewProgramName('');
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!newProgramName.trim() || createProgramMutation.isPending}
+                            onClick={async () => {
+                              const created = await createProgramMutation.mutateAsync(newProgramName.trim());
+                              setValue('program_id', created.id);
+                              setNewProgramName('');
+                              setShowNewProgram(false);
+                            }}
+                          >
+                            {createProgramMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Create'
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setShowNewProgram(false); setNewProgramName(''); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
@@ -532,7 +606,16 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {/* Row 3: Status, Budget */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
+                      <NativeSelect id="status" className="w-full" {...register('status')}>
+                        {STATUS_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </NativeSelect>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="budget_total" className="h-5 flex items-center">Budget *</Label>
                       <Input
@@ -550,6 +633,10 @@ export default function ProjectForm(): JSX.Element {
                         <p className="text-sm text-destructive">{errors.budget_total.message}</p>
                       )}
                     </div>
+                  </div>
+
+                  {/* Row 4: Start Date, End Date */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="start_date" className="h-5 flex items-center">Start Date *</Label>
                       <Input
@@ -586,87 +673,6 @@ export default function ProjectForm(): JSX.Element {
                         <p className="text-sm text-destructive">{errors.end_date.message}</p>
                       )}
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <TooltipProvider>
-                      <div className="h-5 flex items-center gap-2">
-                        <Label htmlFor="program_id">Program</Label>
-                        <span className="text-xs text-muted-foreground">(optional)</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Info className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            <p className="text-sm">Select if this project belongs to a program that includes several phases or contracts.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TooltipProvider>
-                    <div className="flex gap-3 items-start">
-                      <NativeSelect id="program_id" className="flex-1" {...register('program_id')}>
-                        <option value="">None</option>
-                        {programs.map((program) => (
-                          <option key={program.id} value={program.id}>{program.name}</option>
-                        ))}
-                      </NativeSelect>
-                      {!showNewProgram && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowNewProgram(true)}
-                          className="shrink-0 text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          New
-                        </Button>
-                      )}
-                    </div>
-                    {showNewProgram && (
-                      <div className="flex gap-2 items-center">
-                        <Input
-                          value={newProgramName}
-                          onChange={(e) => setNewProgramName(e.target.value)}
-                          placeholder="Program name"
-                          className="flex-1"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              setShowNewProgram(false);
-                              setNewProgramName('');
-                            }
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={!newProgramName.trim() || createProgramMutation.isPending}
-                          onClick={async () => {
-                            const created = await createProgramMutation.mutateAsync(newProgramName.trim());
-                            setValue('program_id', created.id);
-                            setNewProgramName('');
-                            setShowNewProgram(false);
-                          }}
-                        >
-                          {createProgramMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            'Create'
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setShowNewProgram(false); setNewProgramName(''); }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    )}
                   </div>
 
                 </CardContent>

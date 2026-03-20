@@ -230,9 +230,6 @@ describe('ProjectForm', () => {
 
       await fillRequiredFields(user, { name: 'Test', code: 'TST' });
 
-      // Change status to live to skip proposal dialog
-      fireEvent.change(screen.getByLabelText(/status/i), { target: { value: 'live' } });
-
       await user.click(screen.getByRole('button', { name: /create project/i }));
 
       expect(
@@ -255,6 +252,9 @@ describe('ProjectForm', () => {
       await screen.findByText('New Project');
 
       await fillRequiredFields(user, { name: 'Test Proposal', code: 'TST' });
+
+      // Set status to proposal (default is live)
+      await user.selectOptions(screen.getByLabelText(/status/i), 'proposal');
 
       // Turn off Dependabot to avoid Slack validation
       await user.click(screen.getByLabelText('Dependabot Alerts'));
@@ -279,6 +279,7 @@ describe('ProjectForm', () => {
       await screen.findByText('New Project');
 
       await fillRequiredFields(user, { name: 'Test Proposal', code: 'TST' });
+      await user.selectOptions(screen.getByLabelText(/status/i), 'proposal');
       await user.click(screen.getByLabelText('Dependabot Alerts'));
 
       await user.click(screen.getByRole('button', { name: /create project/i }));
@@ -318,10 +319,7 @@ describe('ProjectForm', () => {
       // Turn off Dependabot to skip Slack validation
       await user.click(screen.getByLabelText('Dependabot Alerts'));
 
-      // Default status is 'proposal', so the proposal dialog shows
       await user.click(screen.getByRole('button', { name: /create project/i }));
-      await screen.findByText('Save as Proposal?');
-      await user.click(screen.getByRole('button', { name: /save as proposal/i }));
 
       await waitFor(() => {
         expect(screen.getByTestId('projects-list')).toBeInTheDocument();
@@ -353,6 +351,7 @@ describe('ProjectForm', () => {
       await screen.findByText('New Project');
 
       await fillRequiredFields(user, { name: 'Proposal Project', code: 'PRP-001' });
+      await user.selectOptions(screen.getByLabelText(/status/i), 'proposal');
       await user.click(screen.getByLabelText('Dependabot Alerts'));
 
       await user.click(screen.getByRole('button', { name: /create project/i }));
@@ -390,7 +389,6 @@ describe('ProjectForm', () => {
       await user.type(screen.getByLabelText(/name \*/i), 'Test');
       await user.type(screen.getByLabelText(/code \*/i), 'TST');
 
-      fireEvent.change(screen.getByLabelText(/status/i), { target: { value: 'live' } });
       await user.click(screen.getByLabelText('Dependabot Alerts'));
 
       await user.click(screen.getByRole('button', { name: /create project/i }));
