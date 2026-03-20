@@ -30,14 +30,11 @@ export default function ProjectHeader({
   project,
 }: ProjectHeaderProps): JSX.Element {
   const hasDateRange = project.start_date || project.end_date;
-  const hasMoreInfo = project.summary || project.notes;
   const [links, setLinks] = useState<ProjectLink[]>([]);
 
   useEffect(() => {
     projectsApi.getLinks(project.id).then(setLinks).catch(() => setLinks([]));
   }, [project.id]);
-
-  const showMoreInfo = hasMoreInfo || links.length > 0;
 
   return (
     <>
@@ -102,8 +99,7 @@ export default function ProjectHeader({
           </div>
         </CardHeader>
 
-        {showMoreInfo && (
-          <CardContent className="pt-0">
+        <CardContent className="pt-0">
             <Collapsible defaultOpen>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                 More Info
@@ -144,7 +140,6 @@ export default function ProjectHeader({
               </CollapsibleContent>
             </Collapsible>
           </CardContent>
-        )}
       </Card>
     </>
   );
