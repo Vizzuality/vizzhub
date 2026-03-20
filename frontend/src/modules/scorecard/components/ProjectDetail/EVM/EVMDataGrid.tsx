@@ -2,8 +2,8 @@ import type { EVMData } from '@/modules/scorecard/types';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 
 interface EVMDataGridProps {
-  evmData: EVMData;
-  currency?: string;
+  readonly evmData: EVMData;
+  readonly currency?: string;
 }
 
 interface DataItem {
