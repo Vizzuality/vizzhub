@@ -516,7 +516,7 @@ export default function ProjectForm(): JSX.Element {
 
                   {/* Row 2: Program, Currency */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-w-0">
                       <TooltipProvider>
                         <div className="h-5 flex items-center gap-2">
                           <Label htmlFor="program_id">Program</Label>
@@ -533,8 +533,8 @@ export default function ProjectForm(): JSX.Element {
                           </Tooltip>
                         </div>
                       </TooltipProvider>
-                      <div className="flex gap-3 items-start">
-                        <NativeSelect id="program_id" className="flex-1" {...register('program_id')}>
+                      <div className="flex gap-3 items-start min-w-0">
+                        <NativeSelect id="program_id" className="flex-1 min-w-0" {...register('program_id')}>
                           <option value="">None</option>
                           {programs.map((program) => (
                             <option key={program.id} value={program.id}>{program.name}</option>
