@@ -95,6 +95,50 @@ const LINK_TYPE_OPTIONS = [
 const EMPTY_MILESTONE = { name: '', planned_date: '', actual_date: '' };
 const EMPTY_LINK = { title: '', url: '', link_type: '' };
 
+interface ProjectData {
+  name: string;
+  code?: string | null;
+  status: ProjectStatus;
+  currency: string;
+  program_id?: string | null;
+  jira_project_key?: string | null;
+  github_repo?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  notes?: string | null;
+  summary?: string | null;
+  budget?: number | null;
+}
+
+function buildFormDefaults(
+  project: ProjectData,
+  milestones: { name: string; planned_date: string; actual_date?: string }[] | undefined,
+  links: { title: string; url: string; link_type: string }[] | null,
+): ProjectFormData {
+  return {
+    name: project.name,
+    code: project.code ?? '',
+    status: project.status,
+    currency: project.currency,
+    program_id: project.program_id ?? '',
+    jira_project_key: project.jira_project_key ?? '',
+    github_repo: project.github_repo ?? '',
+    start_date: project.start_date ?? '',
+    end_date: project.end_date ?? '',
+    notes: project.notes ?? '',
+    summary: project.summary ?? '',
+    budget_total: project.budget?.toString() ?? '',
+    milestones: milestones?.length
+      ? milestones.map((m) => ({
+          name: m.name,
+          planned_date: m.planned_date,
+          actual_date: m.actual_date ?? '',
+        }))
+      : [{ ...EMPTY_MILESTONE }],
+    links: links ?? [{ ...EMPTY_LINK }],
+  };
+}
+
 function getSubmitButtonText(isPending: boolean, isEditMode: boolean): string {
   if (isPending) {
     return isEditMode ? 'Saving...' : 'Creating...';
@@ -215,30 +259,7 @@ export default function ProjectForm(): JSX.Element {
   const linksReady = !isEditMode || initialLinks !== null;
 
   if (isEditMode && project && !formInitialized && currentMetrics !== undefined && linksReady) {
-    const metricsMilestones = currentMetrics?.milestones;
-
-    reset({
-      name: project.name,
-      code: project.code ?? '',
-      status: project.status,
-      currency: project.currency,
-      program_id: project.program_id ?? '',
-      jira_project_key: project.jira_project_key ?? '',
-      github_repo: project.github_repo ?? '',
-      start_date: project.start_date ?? '',
-      end_date: project.end_date ?? '',
-      notes: project.notes ?? '',
-      summary: project.summary ?? '',
-      budget_total: project.budget?.toString() ?? '',
-      milestones: metricsMilestones?.length
-        ? metricsMilestones.map((m: { name: string; planned_date: string; actual_date?: string }) => ({
-            name: m.name,
-            planned_date: m.planned_date,
-            actual_date: m.actual_date ?? '',
-          }))
-        : [{ ...EMPTY_MILESTONE }],
-      links: initialLinks ?? [{ ...EMPTY_LINK }],
-    });
+    reset(buildFormDefaults(project, currentMetrics?.milestones, initialLinks));
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
     setHasScorecard(project.has_scorecard);
@@ -273,10 +294,12 @@ export default function ProjectForm(): JSX.Element {
     submitForm(data);
   };
 
-  const submitForm = async (data: ProjectFormData): Promise<void> => {
-    setApiError(null);
-
-    const projectPayload: ProjectCreate = {
+  const buildPayloads = (data: ProjectFormData): {
+    project: ProjectCreate;
+    milestones: { milestones: { name: string; planned_date: string; actual_date?: string }[] } | null;
+    links: { title: string; url: string; link_type: string }[];
+  } => {
+    const project: ProjectCreate = {
       name: data.name,
       code: data.code,
       status: data.status,
@@ -299,38 +322,40 @@ export default function ProjectForm(): JSX.Element {
     const validMilestones = data.milestones
       .filter((m) => m.name && m.planned_date)
       .map((m) => ({ name: m.name, planned_date: m.planned_date, actual_date: m.actual_date || undefined }));
-    const milestonesPayload = validMilestones.length > 0 ? { milestones: validMilestones } : null;
 
-    const validLinks = data.links.filter((l) => l.title || l.url);
+    return {
+      project,
+      milestones: validMilestones.length > 0 ? { milestones: validMilestones } : null,
+      links: data.links.filter((l) => l.title || l.url),
+    };
+  };
 
+  const submitEdit = async (payloads: ReturnType<typeof buildPayloads>): Promise<void> => {
+    const promises: Promise<unknown>[] = [replaceMutation.mutateAsync(payloads.project)];
+    if (payloads.milestones) promises.push(budgetMutation.mutateAsync(payloads.milestones));
+    promises.push(projectsApi.replaceLinks(id!, payloads.links));
+    if (pendingBudgetLines.length > 0) promises.push(budgetLinesMutation.mutateAsync(pendingBudgetLines));
+    await Promise.all(promises);
+  };
+
+  const submitCreate = async (payloads: ReturnType<typeof buildPayloads>): Promise<void> => {
+    const newProject = await createMutation.mutateAsync(payloads.project);
+    if (!newProject?.id) return;
+    const extras: Promise<unknown>[] = [];
+    if (payloads.milestones) extras.push(projectsApi.updateBudget(newProject.id, payloads.milestones));
+    if (payloads.links.length > 0) extras.push(projectsApi.replaceLinks(newProject.id, payloads.links));
+    if (pendingBudgetLines.length > 0) extras.push(trackerApi.replaceBudgetLines(newProject.id, pendingBudgetLines));
+    if (extras.length > 0) await Promise.all(extras);
+  };
+
+  const submitForm = async (data: ProjectFormData): Promise<void> => {
+    setApiError(null);
+    const payloads = buildPayloads(data);
     try {
       if (isEditMode) {
-        const promises: Promise<unknown>[] = [replaceMutation.mutateAsync(projectPayload)];
-        if (milestonesPayload) {
-          promises.push(budgetMutation.mutateAsync(milestonesPayload));
-        }
-        promises.push(projectsApi.replaceLinks(id!, validLinks));
-        if (pendingBudgetLines.length > 0) {
-          promises.push(budgetLinesMutation.mutateAsync(pendingBudgetLines));
-        }
-        await Promise.all(promises);
+        await submitEdit(payloads);
       } else {
-        const newProject = await createMutation.mutateAsync(projectPayload);
-        if (newProject?.id) {
-          const extraPromises: Promise<unknown>[] = [];
-          if (milestonesPayload) {
-            extraPromises.push(projectsApi.updateBudget(newProject.id, milestonesPayload));
-          }
-          if (validLinks.length > 0) {
-            extraPromises.push(projectsApi.replaceLinks(newProject.id, validLinks));
-          }
-          if (pendingBudgetLines.length > 0) {
-            extraPromises.push(trackerApi.replaceBudgetLines(newProject.id, pendingBudgetLines));
-          }
-          if (extraPromises.length > 0) {
-            await Promise.all(extraPromises);
-          }
-        }
+        await submitCreate(payloads);
       }
       navigateToProjects();
     } catch (error) {

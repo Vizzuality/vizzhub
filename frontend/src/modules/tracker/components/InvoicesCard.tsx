@@ -153,7 +153,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
           </div>
         )}
 
-        {invoices && invoices.length === 0 && !adding && (
+        {invoices?.length === 0 && !adding && (
           <p className="text-muted-foreground text-sm">No invoices</p>
         )}
 
