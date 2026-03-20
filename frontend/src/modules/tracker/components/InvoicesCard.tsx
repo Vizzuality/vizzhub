@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
-import { Plus, Trash2, ChevronRight } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   useInvoices,
@@ -31,23 +31,12 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   paid: 'bg-aux-neon-grass/20 text-aux-neon-grass',
 };
 
-const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
-  scheduled: 'pending_to_issue',
-  pending_to_issue: 'waiting_for_payment',
-  waiting_for_payment: 'paid',
-  paid: null,
+const ALLOWED_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
+  scheduled: ['pending_to_issue'],
+  pending_to_issue: ['waiting_for_payment', 'scheduled'],
+  waiting_for_payment: ['paid', 'pending_to_issue'],
+  paid: ['waiting_for_payment'],
 };
-
-function StatusBadge({ status }: { readonly status: InvoiceStatus }): JSX.Element {
-  return (
-    <span className={cn(
-      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-      STATUS_COLORS[status],
-    )}>
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
 
 function InvoiceRow({
   invoice,
@@ -58,7 +47,7 @@ function InvoiceRow({
 }): JSX.Element {
   const transitionMutation = useTransitionInvoice(projectId);
   const deleteMutation = useDeleteInvoice(projectId);
-  const next = NEXT_STATUS[invoice.status];
+  const transitions = ALLOWED_TRANSITIONS[invoice.status];
 
   return (
     <tr className="group/row border-b last:border-0">
@@ -69,32 +58,36 @@ function InvoiceRow({
       </td>
       <td className="py-2 text-sm">{invoice.due_date}</td>
       <td className="py-2">
-        <StatusBadge status={invoice.status} />
+        <select
+          className={cn(
+            'appearance-none cursor-pointer border-0 rounded px-2 py-0.5 text-xs font-medium',
+            STATUS_COLORS[invoice.status],
+          )}
+          value={invoice.status}
+          onChange={(e) => {
+            const newStatus = e.target.value as InvoiceStatus;
+            if (newStatus !== invoice.status) {
+              transitionMutation.mutate({ invoiceId: invoice.id, status: newStatus });
+            }
+          }}
+          disabled={transitionMutation.isPending}
+        >
+          <option value={invoice.status}>{STATUS_LABELS[invoice.status]}</option>
+          {transitions.map((s) => (
+            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+          ))}
+        </select>
       </td>
       <td className="py-2 text-right">
-        <div className="flex items-center gap-1 justify-end">
-          {next && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs opacity-0 group-hover/row:opacity-100 gap-1"
-              onClick={() => transitionMutation.mutate({ invoiceId: invoice.id, status: next })}
-              disabled={transitionMutation.isPending}
-            >
-              <ChevronRight className="h-3 w-3" />
-              {STATUS_LABELS[next]}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 opacity-0 group-hover/row:opacity-100 text-destructive"
-            onClick={() => deleteMutation.mutate(invoice.id)}
-            disabled={deleteMutation.isPending}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-0 group-hover/row:opacity-100 text-destructive"
+          onClick={() => deleteMutation.mutate(invoice.id)}
+          disabled={deleteMutation.isPending}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
       </td>
     </tr>
   );
@@ -104,6 +97,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
   const { data: invoices } = useInvoices(projectId);
   const createMutation = useCreateInvoice(projectId);
   const [adding, setAdding] = useState(false);
+  const [newCode, setNewCode] = useState('');
   const [newMilestone, setNewMilestone] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
@@ -113,12 +107,13 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
 
   const handleAdd = (): void => {
     const amount = parseFloat(newAmount);
-    if (!newMilestone || isNaN(amount) || !newDueDate) return;
+    if (!newCode || !newMilestone || isNaN(amount) || !newDueDate) return;
     createMutation.mutate(
-      { milestone: newMilestone, amount, due_date: newDueDate },
+      { code: newCode, milestone: newMilestone, amount, due_date: newDueDate },
       {
         onSuccess: () => {
           setAdding(false);
+          setNewCode('');
           setNewMilestone('');
           setNewAmount('');
           setNewDueDate('');
@@ -170,12 +165,18 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
         )}
 
         {adding ? (
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <Input
+              placeholder="Code"
+              value={newCode}
+              onChange={(e) => setNewCode(e.target.value)}
+              className="w-24 h-8 text-sm"
+            />
             <Input
               placeholder="Milestone"
               value={newMilestone}
               onChange={(e) => setNewMilestone(e.target.value)}
-              className="h-8 text-sm flex-1"
+              className="h-8 text-sm flex-1 min-w-[120px]"
             />
             <Input
               type="number"
