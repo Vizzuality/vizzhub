@@ -1,5 +1,6 @@
 """Invoice CRUD and status transition endpoints."""
 
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -20,6 +21,18 @@ from fastapi import APIRouter, HTTPException
 router = APIRouter()
 
 
+def _effective_status(inv: InvoiceDB) -> str:
+    if inv.status == "scheduled" and inv.due_date <= date.today():
+        return "pending_to_issue"
+    return inv.status
+
+
+def _to_response(inv: InvoiceDB) -> InvoiceResponse:
+    resp = InvoiceResponse.model_validate(inv)
+    resp.status = _effective_status(inv)
+    return resp
+
+
 @router.get("/{project_id}/invoices")
 async def list_invoices(
     project_id: UUID,
@@ -32,7 +45,7 @@ async def list_invoices(
         .order_by(InvoiceDB.due_date.asc())
     )
     result = await db.execute(stmt)
-    return [InvoiceResponse.model_validate(inv) for inv in result.scalars().all()]
+    return [_to_response(inv) for inv in result.scalars().all()]
 
 
 @router.post("/{project_id}/invoices", status_code=201)
@@ -57,7 +70,7 @@ async def create_invoice(
     db.add(inv)
     await db.commit()
     await db.refresh(inv)
-    return InvoiceResponse.model_validate(inv)
+    return _to_response(inv)
 
 
 @router.put("/{project_id}/invoices/{invoice_id}")
@@ -81,7 +94,7 @@ async def update_invoice(
 
     await db.commit()
     await db.refresh(inv)
-    return InvoiceResponse.model_validate(inv)
+    return _to_response(inv)
 
 
 @router.post("/{project_id}/invoices/{invoice_id}/transition")
@@ -96,7 +109,8 @@ async def transition_invoice(
     if not inv or inv.project_id != project_id:
         raise HTTPException(404, "Invoice not found")
 
-    allowed = ALLOWED_TRANSITIONS.get(inv.status, [])
+    effective = _effective_status(inv)
+    allowed = ALLOWED_TRANSITIONS.get(effective, [])
     if body.status not in allowed:
         raise HTTPException(
             400,
@@ -104,10 +118,16 @@ async def transition_invoice(
             f"Allowed: {', '.join(allowed)}",
         )
 
+    if body.status == "paid" and not inv.code:
+        raise HTTPException(
+            400,
+            "Invoice code is required before marking as paid",
+        )
+
     inv.status = body.status
     await db.commit()
     await db.refresh(inv)
-    return InvoiceResponse.model_validate(inv)
+    return _to_response(inv)
 
 
 @router.delete("/{project_id}/invoices/{invoice_id}", status_code=204)

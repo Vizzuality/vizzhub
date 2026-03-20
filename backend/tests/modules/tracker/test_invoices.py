@@ -80,7 +80,24 @@ class TestInvoices:
         assert resp.json()["amount"] == 7500.0
         assert resp.json()["milestone"] == "M1 updated"
 
-    async def test_transition_scheduled_to_pending(
+    async def test_auto_pending_by_date(
+        self, client: AsyncClient, setup_invoices: dict,
+    ) -> None:
+        """Scheduled invoices with past due_date show as pending_to_issue."""
+        pid = setup_invoices["project_id"]
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices",
+            json={
+                "amount": 1000,
+                "code": "INV-001",
+                "due_date": "2020-01-01",
+                "milestone": "M1",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["status"] == "pending_to_issue"
+
+    async def test_scheduled_stays_for_future_date(
         self, client: AsyncClient, setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
@@ -89,35 +106,31 @@ class TestInvoices:
             json={
                 "amount": 1000,
                 "code": "INV-001",
-                "due_date": "2026-06-01",
+                "due_date": "2030-06-01",
                 "milestone": "M1",
             },
         )
-        inv_id = resp.json()["id"]
-
-        resp = await client.post(
-            f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
-            json={"status": "pending_to_issue"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "pending_to_issue"
+        assert resp.status_code == 201
+        assert resp.json()["status"] == "scheduled"
 
     async def test_full_lifecycle(
         self, client: AsyncClient, setup_invoices: dict,
     ) -> None:
+        """Past due_date auto-promotes to pending, then manual transitions."""
         pid = setup_invoices["project_id"]
         resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
                 "code": "INV-001",
-                "due_date": "2026-06-01",
+                "due_date": "2020-01-01",
                 "milestone": "M1",
             },
         )
         inv_id = resp.json()["id"]
+        assert resp.json()["status"] == "pending_to_issue"
 
-        for status in ("pending_to_issue", "waiting_for_payment", "paid"):
+        for status in ("waiting_for_payment", "paid"):
             resp = await client.post(
                 f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
                 json={"status": status},
@@ -125,16 +138,17 @@ class TestInvoices:
             assert resp.status_code == 200
             assert resp.json()["status"] == status
 
-    async def test_invalid_transition(
+    async def test_invalid_transition_from_scheduled(
         self, client: AsyncClient, setup_invoices: dict,
     ) -> None:
+        """Scheduled with future date cannot be manually transitioned."""
         pid = setup_invoices["project_id"]
         resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices",
             json={
                 "amount": 1000,
                 "code": "INV-001",
-                "due_date": "2026-06-01",
+                "due_date": "2030-06-01",
                 "milestone": "M1",
             },
         )
@@ -146,7 +160,7 @@ class TestInvoices:
         )
         assert resp.status_code == 400
 
-    async def test_reverse_transition(
+    async def test_reverse_transition_paid_to_waiting(
         self, client: AsyncClient, setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
@@ -155,24 +169,25 @@ class TestInvoices:
             json={
                 "amount": 1000,
                 "code": "INV-001",
-                "due_date": "2026-06-01",
+                "due_date": "2020-01-01",
                 "milestone": "M1",
             },
         )
         inv_id = resp.json()["id"]
 
-        # Forward to pending_to_issue
-        await client.post(
-            f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
-            json={"status": "pending_to_issue"},
-        )
-        # Reverse back to scheduled
+        # Forward to paid
+        for status in ("waiting_for_payment", "paid"):
+            await client.post(
+                f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
+                json={"status": status},
+            )
+        # Reverse to waiting
         resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
-            json={"status": "scheduled"},
+            json={"status": "waiting_for_payment"},
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] == "scheduled"
+        assert resp.json()["status"] == "waiting_for_payment"
 
     async def test_delete_invoice(
         self, client: AsyncClient, setup_invoices: dict,

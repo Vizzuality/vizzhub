@@ -9,15 +9,15 @@ VALID_STATUSES = ("scheduled", "pending_to_issue", "waiting_for_payment", "paid"
 VALID_CURRENCIES = ("euro", "dollar")
 
 ALLOWED_TRANSITIONS: dict[str, list[str]] = {
-    "scheduled": ["pending_to_issue"],
-    "pending_to_issue": ["waiting_for_payment", "scheduled"],
+    "scheduled": [],
+    "pending_to_issue": ["waiting_for_payment"],
     "waiting_for_payment": ["paid", "pending_to_issue"],
     "paid": ["waiting_for_payment"],
 }
 
 
 class InvoiceCreate(BaseModel):
-    code: str = Field(min_length=1, max_length=100)
+    code: str | None = Field(None, max_length=100)
     amount: float = Field(ge=0)
     currency: str = "euro"
     due_date: dt.date
