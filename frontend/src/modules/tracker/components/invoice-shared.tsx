@@ -110,7 +110,7 @@ export function EditableCell({
       title={display || initial || undefined}
     >
       {display || initial || (
-        <span className="text-muted-foreground opacity-30 italic">{placeholder ?? 'edit'}</span>
+        <span className="text-muted-foreground italic">{placeholder ?? 'edit'}</span>
       )}
     </span>
   );
