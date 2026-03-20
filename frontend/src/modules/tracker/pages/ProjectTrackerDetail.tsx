@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, BarChart3, Pencil, Calendar, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Pencil, Calendar, ExternalLink } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import {
@@ -153,7 +153,6 @@ function DetailSection({
   readonly userRows: AggregationRow[];
   readonly budgetLines?: BudgetLine[];
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(true);
   const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
 
   const hasDetails = monthly.length > 0 || userRows.length > 0;
@@ -161,25 +160,20 @@ function DetailSection({
   return (
     <div className="space-y-4">
       {hasDetails && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors py-2"
-        >
-          {expanded
-            ? <><ChevronUp className="w-4 h-4" />{'Show less'}</>
-            : <><BarChart3 className="w-4 h-4" />{'Show more insights'}<ChevronDown className="w-4 h-4" /></>}
-        </button>
-      )}
-
-      {expanded && (
-        <>
-          {userRows.length > 0 && (
-            <DaysByPeopleChart rows={userRows} />
-          )}
-          {monthly.length > 0 && (
-            <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
-          )}
-        </>
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 group">
+            Insights
+            <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4">
+            {userRows.length > 0 && (
+              <DaysByPeopleChart rows={userRows} />
+            )}
+            {monthly.length > 0 && (
+              <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       <TimeByAreaTable rows={areaRows} budgetLines={budgetLines} />
@@ -281,17 +275,10 @@ export default function ProjectTrackerDetail(): JSX.Element {
         projectEndDate={project?.end_date ?? null}
       />
 
-      <ProgressCard
-        projectId={projectId || ''}
-        periods={summary.periods}
-      />
-
-      <InvoicesCard projectId={projectId || ''} />
-
       {hasMoreInfo && (
         <Card>
           <CardContent className="pt-5">
-            <Collapsible defaultOpen>
+            <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                 More Info
                 <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
@@ -333,6 +320,13 @@ export default function ProjectTrackerDetail(): JSX.Element {
           </CardContent>
         </Card>
       )}
+
+      <ProgressCard
+        projectId={projectId || ''}
+        periods={summary.periods}
+      />
+
+      <InvoicesCard projectId={projectId || ''} />
 
       <DetailSection
         summary={summary}
