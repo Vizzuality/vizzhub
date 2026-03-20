@@ -140,44 +140,36 @@ function PartsTable({
   );
 }
 
-function DetailSection({
+function InsightsSection({
   summary,
   projectEndDate,
-  areaRows,
   userRows,
-  budgetLines,
 }: {
   readonly summary: ProjectCostSummary;
   readonly projectEndDate: string | null;
-  readonly areaRows: AggregationRow[];
   readonly userRows: AggregationRow[];
-  readonly budgetLines?: BudgetLine[];
 }): JSX.Element {
   const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
 
   const hasDetails = monthly.length > 0 || userRows.length > 0;
 
-  return (
-    <div className="space-y-4">
-      {hasDetails && (
-        <Collapsible defaultOpen>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 group">
-            Insights
-            <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4">
-            {userRows.length > 0 && (
-              <DaysByPeopleChart rows={userRows} />
-            )}
-            {monthly.length > 0 && (
-              <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
-            )}
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+  if (!hasDetails) return <></>;
 
-      <TimeByAreaTable rows={areaRows} budgetLines={budgetLines} />
-    </div>
+  return (
+    <Collapsible defaultOpen>
+      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 group">
+        Insights
+        <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4">
+        {userRows.length > 0 && (
+          <DaysByPeopleChart rows={userRows} />
+        )}
+        {monthly.length > 0 && (
+          <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -253,7 +245,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
             </h1>
           </div>
           {(project?.start_date || project?.end_date) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground ml-14">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4 shrink-0" />
               {project.start_date && formatDate(project.start_date)}
               {project.start_date && project.end_date && ' - '}
@@ -321,19 +313,19 @@ export default function ProjectTrackerDetail(): JSX.Element {
         </Card>
       )}
 
+      <TimeByAreaTable rows={areaAgg?.rows ?? []} budgetLines={budgetLines} />
+
+      <InvoicesCard projectId={projectId || ''} />
+
       <ProgressCard
         projectId={projectId || ''}
         periods={summary.periods}
       />
 
-      <InvoicesCard projectId={projectId || ''} />
-
-      <DetailSection
+      <InsightsSection
         summary={summary}
         projectEndDate={project?.end_date ?? null}
-        areaRows={areaAgg?.rows ?? []}
         userRows={userAgg?.rows ?? []}
-        budgetLines={budgetLines}
       />
 
       <div className="flex items-center gap-3">
