@@ -93,7 +93,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 ## Constraints
 
 - **Targets vs Ideals**: Target = minimum acceptable (color coding). Ideal = perfect score (100 pts). SPI 0.85 → green (above target) but 85 points (not 100). Only SPI/CPI have explicit ideals.
-- **Snapshot types**: Capture creates BOTH cumulative and punctual. Manual fields synced between types; collector fields are NOT.
+- **Snapshot types**: Capture creates BOTH cumulative and punctual. Manual fields synced between types; collector fields are NOT. EVM fields (cost_to_date, percent_completed, percent_planned) are derived from tracker data, not manual — see `TRACKER_EVM_FIELDS` in `MetricsDB`.
 - **Disabled governance tools** → score 0, not neutral.
 - **No trailing slashes**: Routes use `""` not `"/"`. `redirect_slashes=False` in main.py.
 - **DBSession manages transactions**: Do NOT use `async with db.begin()` inside endpoints — nested transaction error. Only use manual `db.begin()` outside request context.
