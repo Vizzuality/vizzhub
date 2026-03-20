@@ -20,6 +20,8 @@ from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
+_INVOICE_NOT_FOUND = "Invoice not found"
+
 
 def _effective_status(inv: InvoiceDB) -> str:
     if inv.status == "scheduled" and inv.due_date <= date.today():
@@ -72,7 +74,10 @@ async def create_invoice(
     return _to_response(inv)
 
 
-@router.put("/{project_id}/invoices/{invoice_id}")
+@router.put(
+    "/{project_id}/invoices/{invoice_id}",
+    responses={404: {"description": "Invoice not found"}},
+)
 async def update_invoice(
     project_id: UUID,
     invoice_id: UUID,
@@ -82,7 +87,7 @@ async def update_invoice(
 ) -> InvoiceResponse:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
-        raise HTTPException(404, "Invoice not found")
+        raise HTTPException(404, _INVOICE_NOT_FOUND)
 
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -96,7 +101,13 @@ async def update_invoice(
     return _to_response(inv)
 
 
-@router.post("/{project_id}/invoices/{invoice_id}/transition")
+@router.post(
+    "/{project_id}/invoices/{invoice_id}/transition",
+    responses={
+        400: {"description": "Invalid transition or missing invoice code"},
+        404: {"description": "Invoice not found"},
+    },
+)
 async def transition_invoice(
     project_id: UUID,
     invoice_id: UUID,
@@ -106,7 +117,7 @@ async def transition_invoice(
 ) -> InvoiceResponse:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
-        raise HTTPException(404, "Invoice not found")
+        raise HTTPException(404, _INVOICE_NOT_FOUND)
 
     effective = _effective_status(inv)
     allowed = ALLOWED_TRANSITIONS.get(effective, [])
@@ -129,7 +140,11 @@ async def transition_invoice(
     return _to_response(inv)
 
 
-@router.delete("/{project_id}/invoices/{invoice_id}", status_code=204)
+@router.delete(
+    "/{project_id}/invoices/{invoice_id}",
+    status_code=204,
+    responses={404: {"description": "Invoice not found"}},
+)
 async def delete_invoice(
     project_id: UUID,
     invoice_id: UUID,
@@ -138,6 +153,6 @@ async def delete_invoice(
 ) -> None:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
-        raise HTTPException(404, "Invoice not found")
+        raise HTTPException(404, _INVOICE_NOT_FOUND)
     await db.delete(inv)
     await db.commit()

@@ -87,7 +87,12 @@ export default function ProgressCard({ projectId, periods }: ProgressCardProps):
               </tr>
             </thead>
             <tbody>
-              {progressList.map((pr) => (
+              {progressList.map((pr) => {
+                const deltaPrefix = pr.delta !== null && pr.delta >= 0 ? '+' : '';
+                const deltaLabel = pr.delta !== null
+                  ? `${deltaPrefix}${pr.delta.toFixed(1)}%`
+                  : '\u2014';
+                return (
                 <tr key={pr.id} className="group/row border-b last:border-0">
                   <td className="py-2 text-sm">
                     {pr.period_date ? formatPeriodDate(pr.period_date) : '—'}
@@ -96,15 +101,14 @@ export default function ProgressCard({ projectId, periods }: ProgressCardProps):
                     {pr.percentage.toFixed(1)}%
                   </td>
                   <td className="py-2 text-sm text-right tabular-nums text-muted-foreground">
-                    {pr.delta !== null
-                      ? `${pr.delta >= 0 ? '+' : ''}${pr.delta.toFixed(1)}%`
-                      : '—'}
+                    {deltaLabel}
                   </td>
                   <td className="py-2 text-right">
                     <ProgressRowActions report={pr} projectId={projectId} />
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

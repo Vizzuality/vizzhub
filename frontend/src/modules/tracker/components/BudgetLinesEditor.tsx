@@ -10,14 +10,17 @@ import type { BudgetLine, BudgetLineCreate } from '../types/tracker';
 
 const OTHER_VALUE = '__other__';
 
+let rowIdCounter = 0;
+
 interface BudgetLineRow {
+  key: number;
   selectValue: string;
   days: string;
   details: string;
 }
 
 function newRow(): BudgetLineRow {
-  return { selectValue: '', days: '', details: '' };
+  return { key: ++rowIdCounter, selectValue: '', days: '', details: '' };
 }
 
 interface BudgetLinesEditorProps {
@@ -48,6 +51,7 @@ export default function BudgetLinesEditor({
     if (initialData.length > 0) {
       setRows(
         initialData.map((bl) => ({
+          key: ++rowIdCounter,
           selectValue: bl.functional_area_id ?? (bl.details ? OTHER_VALUE : ''),
           days: bl.days?.toString() ?? '',
           details: bl.details ?? '',
@@ -109,7 +113,7 @@ export default function BudgetLinesEditor({
               const showInlineText = isOther && row.details;
 
               return (
-                <div key={index} className="space-y-2">
+                <div key={row.key} className="space-y-2">
                   <div className="grid grid-cols-[1fr_80px_50px_36px] sm:grid-cols-[1fr_100px_60px_36px] gap-2 sm:gap-3 items-center">
                     {showInlineText ? (
                       <Input

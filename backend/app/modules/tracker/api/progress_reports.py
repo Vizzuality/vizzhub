@@ -109,7 +109,10 @@ async def create_progress(
     return _to_response(pr, str(period.date) if period else None)
 
 
-@router.put("/{project_id}/progress/{progress_id}")
+@router.put(
+    "/{project_id}/progress/{progress_id}",
+    responses={404: {"description": "Progress report not found"}},
+)
 async def update_progress(
     project_id: UUID,
     progress_id: UUID,
@@ -136,7 +139,11 @@ async def update_progress(
     return _to_response(pr, str(period.date) if period else None)
 
 
-@router.delete("/{project_id}/progress/{progress_id}", status_code=204)
+@router.delete(
+    "/{project_id}/progress/{progress_id}",
+    status_code=204,
+    responses={404: {"description": "Progress report not found"}},
+)
 async def delete_progress(
     project_id: UUID,
     progress_id: UUID,

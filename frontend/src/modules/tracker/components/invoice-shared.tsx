@@ -103,10 +103,15 @@ export function EditableCell({
     );
   }
 
+  const startEditing = (): void => { setVal(initial); setEditing(true); };
+
   return (
     <span
+      role="button"
+      tabIndex={0}
       className={cn('cursor-pointer hover:underline', displayClass)}
-      onClick={() => { setVal(initial); setEditing(true); }}
+      onClick={startEditing}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEditing(); } }}
       title={display || initial || undefined}
     >
       {display || initial || (
