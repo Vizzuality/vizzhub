@@ -23,6 +23,8 @@ import type {
   InvoiceCreate,
   InvoiceUpdate,
   InvoiceStatus,
+  PaginatedInvoices,
+  AdminInvoiceParams,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -242,6 +244,12 @@ export const trackerApi = {
 
   deleteInvoice: async (projectId: string, invoiceId: string): Promise<void> => {
     await api.delete(`/tracker/projects/${projectId}/invoices/${invoiceId}`);
+  },
+
+  // Admin Invoices
+  listAllInvoices: async (params: AdminInvoiceParams): Promise<PaginatedInvoices> => {
+    const response = await api.get<PaginatedInvoices>('/tracker/invoices', { params });
+    return response.data;
   },
 
   // Functional Areas
