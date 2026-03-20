@@ -146,7 +146,7 @@ function DetailSection({
   readonly userRows: AggregationRow[];
   readonly budgetLines?: BudgetLine[];
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
 
   const hasDetails = monthly.length > 0 || userRows.length > 0;
