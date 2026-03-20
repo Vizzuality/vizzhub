@@ -145,7 +145,7 @@ export default function AdminInvoices(): JSX.Element {
     sort_order: { defaultValue: 'asc' },
   });
 
-  const page = parseInt(state.page, 10) || 1;
+  const page = Number.parseInt(state.page, 10) || 1;
   const [localSearch, setLocalSearch] = useState(state.search);
 
   useEffect(() => { setLocalSearch(state.search); }, [state.search]);
