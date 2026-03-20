@@ -238,9 +238,9 @@ export default function AdminInvoices(): JSX.Element {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Due:</span>
-            <Input type="date" value={state.due_from} onChange={(e) => setState({ due_from: e.target.value, page: '1' })} className="w-32 h-8 text-sm" />
+            <Input type="date" value={state.due_from} onChange={(e) => setState({ due_from: e.target.value, page: '1' })} className="w-40 h-8 text-sm" />
             <span className="text-muted-foreground">-</span>
-            <Input type="date" value={state.due_to} onChange={(e) => setState({ due_to: e.target.value, page: '1' })} className="w-32 h-8 text-sm" />
+            <Input type="date" value={state.due_to} onChange={(e) => setState({ due_to: e.target.value, page: '1' })} className="w-40 h-8 text-sm" />
           </div>
 
           <div className="flex items-center gap-1 ml-auto">
