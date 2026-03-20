@@ -58,6 +58,10 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
     ];
   }
 
+  if (pathname.startsWith('/admin/tracker/invoices')) {
+    return [{ label: 'Invoices' }];
+  }
+
   if (pathname.startsWith('/admin/tracker')) {
     return [{ label: 'Reporting Periods' }];
   }
