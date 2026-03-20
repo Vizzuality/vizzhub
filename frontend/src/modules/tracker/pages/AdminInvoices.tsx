@@ -47,7 +47,7 @@ function InvoiceRow({
 
   return (
     <tr className="border-b last:border-0 text-sm">
-      <td className="py-2 max-w-[140px]">
+      <td className="py-2 pr-4 max-w-[140px]">
         <Link
           to={`/tracker/projects/${invoice.project_id}`}
           className="hover:underline font-medium text-sm leading-tight block"
