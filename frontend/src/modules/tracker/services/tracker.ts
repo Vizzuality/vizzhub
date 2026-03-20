@@ -25,6 +25,9 @@ import type {
   InvoiceStatus,
   PaginatedInvoices,
   AdminInvoiceParams,
+  NonStaffCost,
+  NonStaffCostCreate,
+  NonStaffCostUpdate,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -250,6 +253,28 @@ export const trackerApi = {
   listAllInvoices: async (params: AdminInvoiceParams): Promise<PaginatedInvoices> => {
     const response = await api.get<PaginatedInvoices>('/tracker/invoices', { params });
     return response.data;
+  },
+
+  // Non-Staff Costs
+  listNonStaffCosts: async (projectId: string): Promise<NonStaffCost[]> => {
+    const { data } = await api.get<NonStaffCost[]>('/tracker/non-staff-costs', {
+      params: { project_id: projectId },
+    });
+    return data;
+  },
+
+  createNonStaffCost: async (payload: NonStaffCostCreate): Promise<NonStaffCost> => {
+    const { data } = await api.post<NonStaffCost>('/tracker/non-staff-costs', payload);
+    return data;
+  },
+
+  updateNonStaffCost: async (costId: string, payload: NonStaffCostUpdate): Promise<NonStaffCost> => {
+    const { data } = await api.put<NonStaffCost>(`/tracker/non-staff-costs/${costId}`, payload);
+    return data;
+  },
+
+  deleteNonStaffCost: async (costId: string): Promise<void> => {
+    await api.delete(`/tracker/non-staff-costs/${costId}`);
   },
 
   // Functional Areas

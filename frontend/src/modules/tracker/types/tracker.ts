@@ -238,3 +238,30 @@ export interface InvoiceUpdate {
   observations?: string | null;
 }
 
+export type NonStaffCostType = 'outsource' | 'travel' | 'servers' | 'others';
+
+export interface NonStaffCost {
+  id: string;
+  project_id: string;
+  reporting_period_id: string;
+  cost: number;
+  cost_type: string;
+  details: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NonStaffCostCreate {
+  project_id: string;
+  reporting_period_id: string;
+  cost: number;
+  cost_type: NonStaffCostType;
+  details?: string | null;
+}
+
+export interface NonStaffCostUpdate {
+  cost?: number;
+  cost_type?: NonStaffCostType;
+  details?: string | null;
+}
+

@@ -147,6 +147,10 @@ export const queryKeys = {
       all: (params: Record<string, unknown>) =>
         ['tracker', 'invoices', 'all', params] as const,
     },
+    nonStaffCosts: {
+      byProject: (projectId: string) =>
+        ['tracker', 'non-staff-costs', projectId] as const,
+    },
     projectCosts: {
       summary: (projectId: string) =>
         ['tracker', 'project-costs', projectId, 'summary'] as const,

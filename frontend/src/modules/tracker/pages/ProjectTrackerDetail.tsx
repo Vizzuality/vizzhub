@@ -25,6 +25,7 @@ import TimeByAreaTable from '../components/TimeByAreaTable';
 import DaysByPeopleChart from '../components/DaysByPeopleChart';
 import ProgressCard from '../components/ProgressCard';
 import InvoicesCard from '../components/InvoicesCard';
+import NonStaffCostsCard from '../components/NonStaffCostsCard';
 import type { AggregationRow, BudgetLine, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 function getRowBorderClass(
@@ -316,6 +317,11 @@ export default function ProjectTrackerDetail(): JSX.Element {
       <TimeByAreaTable rows={areaAgg?.rows ?? []} budgetLines={budgetLines} />
 
       <InvoicesCard projectId={projectId || ''} />
+
+      <NonStaffCostsCard
+        projectId={projectId || ''}
+        periods={summary.periods}
+      />
 
       <ProgressCard
         projectId={projectId || ''}
