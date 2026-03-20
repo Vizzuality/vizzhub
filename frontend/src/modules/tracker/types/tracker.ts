@@ -189,7 +189,7 @@ export interface Invoice {
 }
 
 export interface InvoiceCreate {
-  code: string;
+  code?: string | null;
   amount: number;
   currency?: string;
   due_date: string;

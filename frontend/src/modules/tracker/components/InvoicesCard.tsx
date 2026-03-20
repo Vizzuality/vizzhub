@@ -2,11 +2,23 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/shared/components/ui/alert-dialog';
 import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   useInvoices,
   useCreateInvoice,
+  useUpdateInvoice,
   useTransitionInvoice,
   useDeleteInvoice,
 } from '../hooks/useInvoices';
@@ -27,67 +39,197 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
   scheduled: 'bg-aux-dust-grey text-aux-onix',
   pending_to_issue: 'bg-aux-yellow/20 text-aux-yellow',
-  waiting_for_payment: 'bg-aux-cool-steel/20 text-aux-cool-steel',
+  waiting_for_payment: 'bg-aux-red/20 text-aux-red',
   paid: 'bg-aux-neon-grass/20 text-aux-neon-grass',
 };
 
+const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
+  scheduled: null,
+  pending_to_issue: 'waiting_for_payment',
+  waiting_for_payment: 'paid',
+  paid: null,
+};
+
+const NEXT_LABELS: Record<InvoiceStatus, string> = {
+  scheduled: '',
+  pending_to_issue: 'Mark waiting',
+  waiting_for_payment: 'Mark paid',
+  paid: '',
+};
+
 const ALLOWED_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
-  scheduled: ['pending_to_issue'],
-  pending_to_issue: ['waiting_for_payment', 'scheduled'],
+  scheduled: [],
+  pending_to_issue: ['waiting_for_payment'],
   waiting_for_payment: ['paid', 'pending_to_issue'],
   paid: ['waiting_for_payment'],
 };
 
-function InvoiceRow({
+function StatusCell({
+  invoice,
+  projectId,
+  onError,
+}: {
+  readonly invoice: Invoice;
+  readonly projectId: string;
+  readonly onError: (msg: string) => void;
+}): JSX.Element {
+  const [hovered, setHovered] = useState(false);
+  const transitionMutation = useTransitionInvoice(projectId);
+  const next = NEXT_STATUS[invoice.status];
+
+  const handleTransition = (): void => {
+    if (!next) return;
+    transitionMutation.mutate(
+      { invoiceId: invoice.id, status: next },
+      {
+        onError: (err: unknown) => {
+          const msg = (err as { response?: { data?: { detail?: string } } })
+            ?.response?.data?.detail ?? 'Transition failed';
+          onError(msg);
+        },
+      },
+    );
+  };
+
+  const label = hovered && next ? NEXT_LABELS[invoice.status] : STATUS_LABELS[invoice.status];
+  const colors = hovered && next ? STATUS_COLORS[next] : STATUS_COLORS[invoice.status];
+
+  return (
+    <button
+      className={cn(
+        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-[100px] justify-center transition-colors whitespace-nowrap',
+        next ? 'cursor-pointer' : 'cursor-default',
+        colors,
+      )}
+      onMouseEnter={() => next && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={handleTransition}
+      disabled={!next || transitionMutation.isPending}
+    >
+      {label}
+    </button>
+  );
+}
+
+function EditableCode({
   invoice,
   projectId,
 }: {
   readonly invoice: Invoice;
   readonly projectId: string;
 }): JSX.Element {
-  const transitionMutation = useTransitionInvoice(projectId);
-  const deleteMutation = useDeleteInvoice(projectId);
-  const transitions = ALLOWED_TRANSITIONS[invoice.status];
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(invoice.code ?? '');
+  const updateMutation = useUpdateInvoice(projectId);
+
+  const handleSave = (): void => {
+    const trimmed = value.trim();
+    if (trimmed !== (invoice.code ?? '')) {
+      updateMutation.mutate(
+        { invoiceId: invoice.id, data: { code: trimmed || null } },
+        { onSuccess: () => setEditing(false) },
+      );
+    } else {
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSave();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className="h-6 w-24 text-sm px-1"
+        autoFocus
+      />
+    );
+  }
 
   return (
-    <tr className="group/row border-b last:border-0">
+    <span
+      className="cursor-pointer hover:underline text-sm"
+      onClick={() => { setValue(invoice.code ?? ''); setEditing(true); }}
+      title="Click to edit"
+    >
+      {invoice.code || <span className="text-muted-foreground/50 italic">add code</span>}
+    </span>
+  );
+}
+
+function InvoiceRow({
+  invoice,
+  projectId,
+  onError,
+}: {
+  readonly invoice: Invoice;
+  readonly projectId: string;
+  readonly onError: (msg: string) => void;
+}): JSX.Element {
+  const deleteMutation = useDeleteInvoice(projectId);
+  const transitions = ALLOWED_TRANSITIONS[invoice.status];
+  const transitionMutation = useTransitionInvoice(projectId);
+
+  return (
+    <tr className="border-b last:border-0">
+      <td className="py-2">
+        <EditableCode invoice={invoice} projectId={projectId} />
+      </td>
       <td className="py-2 text-sm">{invoice.milestone}</td>
-      <td className="py-2 text-sm text-muted-foreground">{invoice.code ?? '—'}</td>
-      <td className="py-2 text-sm text-right tabular-nums">
+      <td className="py-2 text-sm text-right tabular-nums pr-4">
         {formatCurrency(invoice.amount)}
       </td>
-      <td className="py-2 text-sm">{invoice.due_date}</td>
+      <td className="py-2 text-sm pl-4">{invoice.due_date}</td>
       <td className="py-2">
-        <select
-          className={cn(
-            'appearance-none cursor-pointer border-0 rounded px-2 py-0.5 text-xs font-medium',
-            STATUS_COLORS[invoice.status],
-          )}
-          value={invoice.status}
-          onChange={(e) => {
-            const newStatus = e.target.value as InvoiceStatus;
-            if (newStatus !== invoice.status) {
-              transitionMutation.mutate({ invoiceId: invoice.id, status: newStatus });
-            }
-          }}
-          disabled={transitionMutation.isPending}
-        >
-          <option value={invoice.status}>{STATUS_LABELS[invoice.status]}</option>
-          {transitions.map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-          ))}
-        </select>
+        <StatusCell invoice={invoice} projectId={projectId} onError={onError} />
       </td>
       <td className="py-2 text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 opacity-0 group-hover/row:opacity-100 text-destructive"
-          onClick={() => deleteMutation.mutate(invoice.id)}
-          disabled={deleteMutation.isPending}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-1 justify-end">
+          {invoice.status === 'paid' && transitions.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              onClick={() => transitionMutation.mutate({ invoiceId: invoice.id, status: transitions[0] })}
+              disabled={transitionMutation.isPending}
+            >
+              Revert
+            </Button>
+          )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete the invoice &quot;{invoice.milestone}&quot;
+                  ({formatCurrency(invoice.amount)}). This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteMutation.mutate(invoice.id)}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </td>
     </tr>
   );
@@ -101,15 +243,26 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
   const [newMilestone, setNewMilestone] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const totalAmount = (invoices ?? []).reduce((s, i) => s + i.amount, 0);
   const paidAmount = (invoices ?? []).filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
 
+  const showError = (msg: string): void => {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(null), 5000);
+  };
+
   const handleAdd = (): void => {
     const amount = parseFloat(newAmount);
-    if (!newCode || !newMilestone || isNaN(amount) || !newDueDate) return;
+    if (!newMilestone || isNaN(amount) || !newDueDate) return;
     createMutation.mutate(
-      { code: newCode, milestone: newMilestone, amount, due_date: newDueDate },
+      {
+        code: newCode || undefined,
+        milestone: newMilestone,
+        amount,
+        due_date: newDueDate,
+      },
       {
         onSuccess: () => {
           setAdding(false);
@@ -123,7 +276,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
   };
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardContent className="pt-5">
         <div className="flex items-center justify-between mb-4">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -138,22 +291,28 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
           )}
         </div>
 
+        {errorMsg && (
+          <div className="mb-3 px-3 py-2 rounded bg-destructive/10 text-destructive text-sm">
+            {errorMsg}
+          </div>
+        )}
+
         {invoices && invoices.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-muted-foreground">
-                  <th className="text-left font-medium pb-1">Milestone</th>
                   <th className="text-left font-medium pb-1">Code</th>
-                  <th className="text-right font-medium pb-1">Amount</th>
-                  <th className="text-left font-medium pb-1">Due</th>
+                  <th className="text-left font-medium pb-1">Milestone</th>
+                  <th className="text-right font-medium pb-1 pr-4">Amount</th>
+                  <th className="text-left font-medium pb-1 pl-4">Due</th>
                   <th className="text-left font-medium pb-1">Status</th>
-                  <th className="w-32" />
+                  <th className="w-24" />
                 </tr>
               </thead>
               <tbody>
                 {invoices.map((inv) => (
-                  <InvoiceRow key={inv.id} invoice={inv} projectId={projectId} />
+                  <InvoiceRow key={inv.id} invoice={inv} projectId={projectId} onError={showError} />
                 ))}
               </tbody>
             </table>
@@ -176,7 +335,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
               placeholder="Milestone"
               value={newMilestone}
               onChange={(e) => setNewMilestone(e.target.value)}
-              className="h-8 text-sm flex-1 min-w-[120px]"
+              className="h-8 text-sm min-w-[120px] flex-1"
             />
             <Input
               type="number"
