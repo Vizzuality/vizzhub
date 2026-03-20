@@ -22,13 +22,13 @@ const CURRENCY_MAP: Record<string, { code: string; locale: string }> = {
   dollar: { code: 'USD', locale: 'en-US' },
 };
 
-export function formatCurrency(value: number, currency = 'euro'): string {
+export function formatCurrency(value: number, currency = 'euro', decimals = 0): string {
   const { code, locale } = CURRENCY_MAP[currency] ?? CURRENCY_MAP.euro;
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: code,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(value);
 }
 
