@@ -42,7 +42,7 @@ src/
 │   ├── components/        # layout/, Admin/, NotificationsAdmin/, ErrorBoundary, ProtectedRoute
 │   ├── contexts/          # AuthContext
 │   ├── hooks/             # queryKeys, useProjects, useJobs, useAlertDefinitions, etc.
-│   ├── pages/             # Admin, LoginPage
+│   ├── pages/             # Admin, LoginPage, Landing
 │   ├── services/          # client (axios), projects, jobs, notifications, integrations
 │   └── types/             # project, jobs, alerts, auth, common
 ├── modules/
@@ -101,6 +101,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **React Query keys**: Always use `queryKeys` from `core/hooks/queryKeys.ts`. Never string literals.
 - **Invoice effective status**: Derived at query time, not stored. Uses SQL CASE with postponement subquery. `postponed` = has active postponement (postponed_to > today). `pending_to_issue` = scheduled past due OR postponement expired. Transitions blocked for postponed invoices.
 - **Exchange rates**: ECB rates stored in `exchange_rates` table, fetched daily at 14:30 UTC. EUR-based (rate = units per 1 EUR). Conversion: `amount / rate`. EUR passthrough (rate = 1.0). Currencies endpoint: `GET /api/currencies`.
+- **Landing page**: `/` renders `Landing.tsx` inside `AppLayout` (with sidebar). Logo links to `/`. Uses `--lnd-green` CSS var: `deepTeal` in light mode, `neonGrass` in dark. Top 5 scores widget uses `useActiveProjectSummaries` + `useProjectScoresMap`.
 - **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
 
 ## Reference Docs
