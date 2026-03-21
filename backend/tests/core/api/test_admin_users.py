@@ -4,6 +4,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from unittest.mock import patch
 
 from app.core.models.user import UserDB, UserPublic, UserRole
 
@@ -157,3 +158,72 @@ class TestUpdateUser:
         )
         assert response.status_code == 400
         assert "Cannot deactivate yourself" in response.json()["detail"]
+
+
+class TestInactiveUserLogin:
+    """Tests for login block on inactive users."""
+
+    @pytest.mark.asyncio
+    async def test_inactive_user_cannot_login(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        """An existing inactive user should get 403 on Google login."""
+        user = UserDB(
+            id="00000000-0000-0000-0000-000000000020",
+            email="deactivated@test.com",
+            first_name="Deactivated",
+            last_name="User",
+            role=UserRole.USER.value,
+            active=False,
+        )
+        db_session.add(user)
+        await db_session.commit()
+
+        mock_idinfo = {
+            "email": "deactivated@test.com",
+            "given_name": "Deactivated",
+            "family_name": "User",
+            "picture": None,
+        }
+        with patch("app.core.api.auth.id_token.verify_oauth2_token", return_value=mock_idinfo), \
+             patch("app.core.api.auth.settings") as mock_settings:
+            mock_settings.allowed_google_domain = None
+            mock_settings.initial_admin_email = None
+            response = await client.post(
+                "/api/auth/google",
+                json={"credential": "fake-google-token"},
+            )
+        assert response.status_code == 403
+        assert "Account deactivated" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_active_user_can_login(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        """An existing active user should be able to login."""
+        user = UserDB(
+            id="00000000-0000-0000-0000-000000000021",
+            email="active-login@test.com",
+            first_name="Active",
+            last_name="Login",
+            role=UserRole.USER.value,
+            active=True,
+        )
+        db_session.add(user)
+        await db_session.commit()
+
+        mock_idinfo = {
+            "email": "active-login@test.com",
+            "given_name": "Active",
+            "family_name": "Login",
+            "picture": None,
+        }
+        with patch("app.core.api.auth.id_token.verify_oauth2_token", return_value=mock_idinfo), \
+             patch("app.core.api.auth.settings") as mock_settings:
+            mock_settings.allowed_google_domain = None
+            mock_settings.initial_admin_email = None
+            response = await client.post(
+                "/api/auth/google",
+                json={"credential": "fake-google-token"},
+            )
+        assert response.status_code == 200

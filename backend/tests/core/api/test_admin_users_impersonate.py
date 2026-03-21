@@ -88,6 +88,32 @@ class TestImpersonate:
         )
         assert response.status_code == 404
 
+    @pytest_asyncio.fixture
+    async def inactive_user(self, db_session: AsyncSession) -> UserDB:
+        """Create an inactive user."""
+        user = UserDB(
+            id="00000000-0000-0000-0000-000000000003",
+            email="inactive@test.com",
+            first_name="Inactive",
+            last_name="User",
+            role=UserRole.USER.value,
+            active=False,
+        )
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+        return user
+
+    @pytest.mark.asyncio
+    async def test_impersonate_inactive_user_returns_400(
+        self, client: AsyncClient, admin_user: UserDB, inactive_user: UserDB
+    ):
+        response = await client.post(
+            f"/api/admin/users/{inactive_user.id}/impersonate"
+        )
+        assert response.status_code == 400
+        assert "Cannot impersonate an inactive user" in response.json()["detail"]
+
 
 class TestStopImpersonate:
     """Tests for POST /admin/users/stop-impersonate."""

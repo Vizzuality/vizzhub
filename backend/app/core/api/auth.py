@@ -99,6 +99,11 @@ async def google_auth(
             await db.refresh(user)
             logger.info(f"Created new user: {email} with role {role.value}")
         else:
+            if not user.active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account deactivated. Contact an administrator.",
+                )
             # Update last login and profile info
             user.last_login_at = datetime.now(timezone.utc)
             user.first_name = idinfo.get("given_name") or user.first_name
