@@ -61,7 +61,7 @@ function DedicationInput({
         className="w-[200px]"
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => {
-          const parsed = local ? parseFloat(local) : null;
+          const parsed = local ? Number.parseFloat(local) : null;
           if (parsed !== value) onSave(parsed);
         }}
       />
