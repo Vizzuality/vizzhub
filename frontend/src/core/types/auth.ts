@@ -14,6 +14,7 @@ export interface User {
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
+  is_impersonating?: boolean;
 }
 
 export interface UserPublic {
@@ -38,4 +39,7 @@ export interface AuthState {
 export interface AuthContextType extends AuthState {
   login: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
+  isImpersonating: boolean;
+  impersonate: (userId: string) => Promise<void>;
+  stopImpersonating: () => Promise<void>;
 }

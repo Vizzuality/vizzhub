@@ -25,6 +25,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
+  const [isImpersonating, setIsImpersonating] = useState<boolean>(false);
 
   /**
    * Login with Google credential.
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
 
     localStorage.removeItem(USER_STORAGE_KEY);
+    setIsImpersonating(false);
     setAuthState({
       user: null,
       isAuthenticated: false,
@@ -85,8 +87,10 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       });
 
       if (response.ok) {
-        const user: UserPublic = await response.json();
+        const data = await response.json();
+        const { is_impersonating, ...user } = data as UserPublic & { is_impersonating?: boolean };
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        setIsImpersonating(is_impersonating ?? false);
         setAuthState({
           user,
           isAuthenticated: true,
@@ -123,11 +127,56 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     initAuth();
   }, [validateSession]);
 
+  const impersonate = useCallback(async (userId: string): Promise<void> => {
+    const response = await fetch(`${API_URL}/api/admin/users/${userId}/impersonate`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Impersonation failed');
+    }
+
+    const user: UserPublic = await response.json();
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    setIsImpersonating(true);
+    setAuthState({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  }, []);
+
+  const stopImpersonating = useCallback(async (): Promise<void> => {
+    const response = await fetch(`${API_URL}/api/admin/users/stop-impersonate`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to stop impersonation');
+    }
+
+    const user: UserPublic = await response.json();
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    setIsImpersonating(false);
+    setAuthState({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  }, []);
+
   const contextValue = useMemo<AuthContextType>(() => ({
     ...authState,
     login,
     logout,
-  }), [authState, login, logout]);
+    isImpersonating,
+    impersonate,
+    stopImpersonating,
+  }), [authState, login, logout, isImpersonating, impersonate, stopImpersonating]);
 
   return (
     <AuthContext.Provider value={contextValue}>
