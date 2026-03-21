@@ -437,7 +437,7 @@
 
 .landing::after {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: repeating-linear-gradient(
     0deg,

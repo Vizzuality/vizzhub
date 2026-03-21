@@ -107,7 +107,7 @@ export function AppSidebar(): JSX.Element {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <GuardedLink to="/projects" className="flex items-center gap-2">
+        <GuardedLink to="/" className="flex items-center gap-2">
           <VizzualityLogo className="h-6 w-auto shrink-0 group-data-[collapsible=icon]:hidden" />
         </GuardedLink>
       </SidebarHeader>
