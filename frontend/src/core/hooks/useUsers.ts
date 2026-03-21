@@ -8,13 +8,16 @@ import { User, UserRole } from '../types/auth';
 import { queryKeys } from './queryKeys';
 
 /**
- * Fetch all users (admin only)
+ * Fetch users (admin only). Excludes inactive by default.
  */
-export function useUsers(): ReturnType<typeof useQuery<User[], Error>> {
+export function useUsers(
+  includeInactive = false,
+): ReturnType<typeof useQuery<User[], Error>> {
   return useQuery({
-    queryKey: queryKeys.users.all,
+    queryKey: [...queryKeys.users.all, { includeInactive }],
     queryFn: async (): Promise<User[]> => {
-      const response = await api.get<User[]>('/admin/users');
+      const params = includeInactive ? { include_inactive: true } : {};
+      const response = await api.get<User[]>('/admin/users', { params });
       return response.data;
     },
   });
@@ -31,6 +34,25 @@ export function useUpdateUserRole(): ReturnType<
   return useMutation({
     mutationFn: async ({ userId, role }): Promise<User> => {
       const response = await api.patch<User>(`/admin/users/${userId}`, { role });
+      return response.data;
+    },
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+}
+
+/**
+ * Toggle user active status (admin only)
+ */
+export function useToggleUserActive(): ReturnType<
+  typeof useMutation<User, Error, { userId: string; active: boolean }>
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, active }): Promise<User> => {
+      const response = await api.patch<User>(`/admin/users/${userId}`, { active });
       return response.data;
     },
     onSuccess: (): void => {
