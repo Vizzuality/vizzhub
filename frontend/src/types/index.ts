@@ -69,6 +69,8 @@ export type {
   AlertSilenceUpdate,
   AlertTestResponse,
   ChannelType,
+  CustomNotificationRequest,
+  CustomNotificationResponse,
   JobTriggerResponse,
   MessageTemplate,
   MessageTemplateUpdate,

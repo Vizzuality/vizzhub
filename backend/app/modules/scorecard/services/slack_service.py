@@ -14,6 +14,9 @@ class SlackService:
         bot_token: str,
         channel_id: str,
         message: str,
+        *,
+        unfurl_links: bool = True,
+        unfurl_media: bool = True,
     ) -> dict[str, Any]:
         """Send a message to a Slack channel.
 
@@ -21,6 +24,8 @@ class SlackService:
             bot_token: Slack bot OAuth token (xoxb-...).
             channel_id: Slack channel ID to send message to.
             message: Message text (supports Slack markdown).
+            unfurl_links: Enable link previews.
+            unfurl_media: Enable media previews.
 
         Returns:
             Slack API response containing ok status and message timestamp.
@@ -33,6 +38,8 @@ class SlackService:
                     "channel": channel_id,
                     "text": message,
                     "mrkdwn": True,
+                    "unfurl_links": unfurl_links,
+                    "unfurl_media": unfurl_media,
                 },
             )
             return response.json()

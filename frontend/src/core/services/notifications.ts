@@ -5,6 +5,8 @@ import type {
   AlertSilenceCreate,
   AlertSilenceUpdate,
   AlertTestResponse,
+  CustomNotificationRequest,
+  CustomNotificationResponse,
   JobTriggerResponse,
   MessageTemplate,
   MessageTemplateUpdate,
@@ -82,6 +84,14 @@ export const alertsAdminApi = {
 
   updateTemplate: async (templateId: number, data: MessageTemplateUpdate): Promise<MessageTemplate> => {
     const response = await api.put<MessageTemplate>(`/admin/templates/${templateId}`, data);
+    return response.data;
+  },
+
+  sendCustom: async (data: CustomNotificationRequest): Promise<CustomNotificationResponse> => {
+    const response = await api.post<CustomNotificationResponse>(
+      '/admin/notifications/send-custom',
+      data,
+    );
     return response.data;
   },
 };

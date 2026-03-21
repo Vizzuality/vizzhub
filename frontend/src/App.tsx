@@ -28,6 +28,7 @@ import AlertLogTab from './core/components/NotificationsAdmin/AlertLogTab';
 import SilencesTab from './core/components/NotificationsAdmin/SilencesTab';
 import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab';
 import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
+import CustomNotificationTab from './core/components/NotificationsAdmin/CustomNotificationTab';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
 import UserDetail from './core/pages/UserDetail';
@@ -46,6 +47,7 @@ function AdminRoutes(): JSX.Element {
         <Route path="silences" element={<SilencesTab />} />
         <Route path="config" element={<AlertConfigTab />} />
         <Route path="stats" element={<StatisticsTab />} />
+        <Route path="custom" element={<CustomNotificationTab />} />
       </Route>
       <Route path="tracker" element={<TrackerLayout />}>
         <Route path="periods" element={<ReportingPeriods />} />

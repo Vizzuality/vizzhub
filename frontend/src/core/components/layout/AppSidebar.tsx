@@ -54,6 +54,7 @@ const NOTIFICATION_TABS = [
   { to: '/admin/notifications/silences', label: 'Active Silences' },
   { to: '/admin/notifications/config', label: 'Configuration' },
   { to: '/admin/notifications/stats', label: 'Statistics' },
+  { to: '/admin/notifications/custom', label: 'Custom' },
 ] as const;
 
 const TRACKER_TABS = [
