@@ -280,7 +280,7 @@ export default function UserDetail(): JSX.Element {
                 if (!userId) return;
                 syncSlack.mutateAsync(userId)
                   .then(() => showMessage('success', 'Slack profile updated'))
-                  .catch((err) => showMessage('error', err instanceof Error ? err.message : 'Sync failed'));
+                  .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
               }}
               disabled={syncSlack.isPending}
             >
@@ -297,7 +297,7 @@ export default function UserDetail(): JSX.Element {
                 if (!userId) return;
                 syncSlack.mutateAsync(userId)
                   .then(() => showMessage('success', 'Slack profile linked'))
-                  .catch((err) => showMessage('error', err instanceof Error ? err.message : 'Sync failed'));
+                  .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
               }}
               disabled={syncSlack.isPending}
             >
