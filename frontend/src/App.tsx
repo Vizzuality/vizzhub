@@ -30,6 +30,7 @@ import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab'
 import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
+import Landing from './core/pages/Landing';
 
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
 
@@ -61,7 +62,7 @@ function AppRoutes(): JSX.Element {
     return (
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/projects" element={<CoreProjects />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
@@ -90,7 +91,7 @@ function AppRoutes(): JSX.Element {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/projects" element={<CoreProjects />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
