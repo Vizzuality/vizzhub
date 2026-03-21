@@ -83,13 +83,8 @@ async def sync_slack(
             detail=f"No Slack user found for {user.email}",
         )
 
-    profile = slack_user.get("profile", {})
     user.slack_user_id = slack_user["id"]
-    user.slack_display_name = (
-        profile.get("display_name")
-        or profile.get("real_name")
-        or slack_user.get("name")
-    )
+    user.slack_display_name = SlackService.extract_display_name(slack_user)
     await db.commit()
     await db.refresh(user)
 
