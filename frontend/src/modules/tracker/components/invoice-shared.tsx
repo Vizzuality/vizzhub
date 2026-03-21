@@ -235,9 +235,16 @@ export function PostponeButton({
 
   const baseDate = invoice.postponed_to ?? invoice.due_date;
   const base = new Date(baseDate + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const minDate = new Date(base);
   minDate.setDate(minDate.getDate() + 1);
-  const maxDate = new Date(base);
+  if (minDate < today) {
+    minDate.setTime(today.getTime());
+    minDate.setDate(minDate.getDate() + 1);
+  }
+  const maxRef = base > today ? base : today;
+  const maxDate = new Date(maxRef);
   maxDate.setDate(maxDate.getDate() + 30);
 
   const fmt = (d: Date): string => d.toISOString().split('T')[0];
