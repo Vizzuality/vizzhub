@@ -1,5 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
+import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
+import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
+import { PALETTE_HEX } from '@/shared/constants/palette';
 import './Landing.css';
 
 interface ModuleCard {
@@ -51,6 +54,13 @@ const MODULES: ModuleCard[] = [
   },
 ];
 
+function getScoreHex(score: number | null): string {
+  if (score === null) return '#4a4a4a';
+  if (score >= 70) return PALETTE_HEX.neonGrass;
+  if (score >= 40) return PALETTE_HEX.yellow;
+  return PALETTE_HEX.red;
+}
+
 function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
   if (type === 'scorecard') {
     return (
@@ -68,6 +78,60 @@ function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
     admin: 'landing__icon-admin',
   };
   return <span className={`landing__card-icon ${classMap[type]}`} />;
+}
+
+function TopScores(): JSX.Element | null {
+  const navigate = useNavigate();
+  const { data: projects, isLoading: projectsLoading } = useActiveProjectSummaries();
+  const { scoresMap, isLoading: scoresLoading } = useProjectScoresMap(projects);
+
+  if (projectsLoading || scoresLoading) return null;
+  if (!projects || projects.length === 0) return null;
+
+  const top5 = [...projects]
+    .filter((p) => scoresMap[p.id] !== null)
+    .sort((a, b) => (scoresMap[b.id] ?? 0) - (scoresMap[a.id] ?? 0))
+    .slice(0, 5);
+
+  if (top5.length === 0) return null;
+
+  const maxScore = scoresMap[top5[0].id] ?? 100;
+
+  return (
+    <div className="landing__top5">
+      <div className="landing__top5-list">
+        {top5.map((p, i) => {
+          const score = scoresMap[p.id] ?? 0;
+          const color = getScoreHex(score);
+          const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
+          return (
+            <div
+              key={p.id}
+              className="landing__top5-row"
+              onClick={() => navigate(`/scorecard/${p.id}`)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') navigate(`/scorecard/${p.id}`);
+              }}
+            >
+              <span className="landing__top5-rank">{String(i + 1).padStart(2, '0')}</span>
+              <span className="landing__top5-name">{p.name}</span>
+              <div className="landing__top5-bar-track">
+                <div
+                  className="landing__top5-bar-fill"
+                  style={{ width: `${barWidth}%`, backgroundColor: color }}
+                />
+              </div>
+              <span className="landing__top5-score" style={{ color }}>
+                {Math.round(score)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function Landing(): JSX.Element {
@@ -89,9 +153,8 @@ export default function Landing(): JSX.Element {
           </button>
         </div>
         <p className="landing__subtitle">
-          Centralized command interface for project management systems.
-          High-fidelity data access protocol initiated. Select a node to begin
-          sequence.
+          Project hub. Track budgets, measure performance, and manage compliance
+          across all active projects. Select a module to get started.
         </p>
       </header>
 
@@ -114,6 +177,8 @@ export default function Landing(): JSX.Element {
           </div>
         ))}
       </div>
+
+      <TopScores />
     </div>
   );
 }
