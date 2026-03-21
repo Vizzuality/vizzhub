@@ -115,6 +115,45 @@ export function useDeleteUser(): ReturnType<typeof useMutation<void, Error, stri
 }
 
 /**
+ * Sync a user's Slack profile by email lookup (admin only).
+ */
+export function useSyncSlack(): ReturnType<
+  typeof useMutation<User, Error, string>
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId): Promise<User> => {
+      const response = await api.post<User>(`/admin/users/${userId}/sync-slack`);
+      return response.data;
+    },
+    onSuccess: (_data, userId): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
+    },
+  });
+}
+
+/**
+ * Sync Slack profiles for all active users (admin only).
+ */
+export function useSyncSlackAll(): ReturnType<
+  typeof useMutation<User[], Error, void>
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<User[]> => {
+      const response = await api.post<User[]>('/admin/users/sync-slack-all');
+      return response.data;
+    },
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+}
+
+/**
  * Fetch functional areas.
  */
 export function useFunctionalAreas(): ReturnType<typeof useQuery<FunctionalArea[], Error>> {
