@@ -4,7 +4,7 @@
   --lnd-bg: var(--background);
   --lnd-card: var(--card);
   --lnd-card-border: var(--border);
-  --lnd-green: var(--aux-neon-grass);
+  --lnd-green: var(--aux-deep-teal);
   --lnd-steel: var(--muted-foreground);
   --lnd-ash: var(--muted-foreground);
   --lnd-dust: var(--foreground);
@@ -19,6 +19,22 @@
   padding: 3rem 2rem 4rem;
   font-family: var(--font-mono);
   overflow-x: hidden;
+}
+
+.dark .landing {
+  --lnd-green: var(--aux-neon-grass);
+}
+
+.dark .landing__card:hover {
+  box-shadow:
+    0 0 30px rgba(90, 255, 21, 0.15),
+    inset 0 0 60px rgba(90, 255, 21, 0.05);
+}
+
+.dark .landing__cta:hover {
+  box-shadow:
+    0 0 30px rgba(90, 255, 21, 0.15),
+    inset 0 0 60px rgba(90, 255, 21, 0.05);
 }
 
 /* ── Header ── */
@@ -98,9 +114,7 @@
 /* Hover → neon green */
 .landing__card:hover {
   border-color: var(--lnd-green);
-  box-shadow:
-    0 0 30px rgba(90, 255, 21, 0.15),
-    inset 0 0 60px rgba(90, 255, 21, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .landing__card:hover .landing__card-number {
@@ -346,9 +360,7 @@
 .landing__cta:hover {
   border-color: var(--lnd-green);
   color: var(--lnd-green);
-  box-shadow:
-    0 0 30px rgba(90, 255, 21, 0.15),
-    inset 0 0 60px rgba(90, 255, 21, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* ── Top 5 ── */

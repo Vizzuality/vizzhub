@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
-import { PALETTE_HEX } from '@/shared/constants/palette';
 import './Landing.css';
 
 interface ModuleCard {
@@ -54,11 +53,11 @@ const MODULES: ModuleCard[] = [
   },
 ];
 
-function getScoreHex(score: number | null): string {
-  if (score === null) return '#4a4a4a';
-  if (score >= 70) return PALETTE_HEX.neonGrass;
-  if (score >= 40) return PALETTE_HEX.yellow;
-  return PALETTE_HEX.red;
+function getScoreCssVar(score: number | null): string {
+  if (score === null) return 'var(--muted-foreground)';
+  if (score >= 70) return 'var(--lnd-green)';
+  if (score >= 40) return 'var(--aux-yellow)';
+  return 'var(--aux-red)';
 }
 
 function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
@@ -102,7 +101,7 @@ function TopScores(): JSX.Element | null {
       <div className="landing__top5-list">
         {top5.map((p, i) => {
           const score = scoresMap[p.id] ?? 0;
-          const color = getScoreHex(score);
+          const color = getScoreCssVar(score);
           const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
           return (
             <div
