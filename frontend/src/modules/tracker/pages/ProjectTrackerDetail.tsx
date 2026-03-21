@@ -26,7 +26,7 @@ import DaysByPeopleChart from '../components/DaysByPeopleChart';
 import ProgressCard from '../components/ProgressCard';
 import InvoicesCard from '../components/InvoicesCard';
 import NonStaffCostsCard from '../components/NonStaffCostsCard';
-import type { AggregationRow, BudgetLine, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
+import type { AggregationRow, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 function getRowBorderClass(
   partIdx: number,
