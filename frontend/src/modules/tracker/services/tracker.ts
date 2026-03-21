@@ -25,6 +25,8 @@ import type {
   InvoiceStatus,
   PaginatedInvoices,
   AdminInvoiceParams,
+  InvoiceTotals,
+  Postponement,
   NonStaffCost,
   NonStaffCostCreate,
   NonStaffCostUpdate,
@@ -255,6 +257,34 @@ export const trackerApi = {
     return response.data;
   },
 
+  getInvoiceTotals: async (): Promise<InvoiceTotals> => {
+    const { data } = await api.get<InvoiceTotals>('/tracker/invoices/totals');
+    return data;
+  },
+
+  postponeInvoice: async (
+    projectId: string,
+    invoiceId: string,
+    body: { postponed_to: string; reason: string },
+  ): Promise<Postponement> => {
+    const { data } = await api.post<Postponement>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postpone`,
+      body,
+    );
+    return data;
+  },
+
+  listPostponements: async (projectId: string, invoiceId: string): Promise<Postponement[]> => {
+    const { data } = await api.get<Postponement[]>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postponements`,
+    );
+    return data;
+  },
+
+  deleteLatestPostponement: async (projectId: string, invoiceId: string): Promise<void> => {
+    await api.delete(`/tracker/projects/${projectId}/invoices/${invoiceId}/postponements/latest`);
+  },
+
   // Non-Staff Costs
   listNonStaffCosts: async (projectId: string): Promise<NonStaffCost[]> => {
     const { data } = await api.get<NonStaffCost[]>('/tracker/non-staff-costs', {
@@ -281,5 +311,11 @@ export const trackerApi = {
   listFunctionalAreas: async (): Promise<FunctionalArea[]> => {
     const response = await api.get<FunctionalArea[]>('/functional-areas');
     return response.data;
+  },
+
+  // Currencies
+  listCurrencies: async (): Promise<string[]> => {
+    const { data } = await api.get<string[]>('/currencies');
+    return data;
   },
 };

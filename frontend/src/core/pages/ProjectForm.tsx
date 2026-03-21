@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -16,6 +16,8 @@ import {
   useCurrentPeriodMetrics,
   useUpdateProjectBudget,
 } from '@/core/hooks/useProjectBudget';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
 import { trackerApi } from '@/modules/tracker/services/tracker';
@@ -82,10 +84,19 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: 'finished', label: 'Finished' },
 ];
 
-const CURRENCY_OPTIONS = [
-  { value: 'dollar', label: 'US Dollar (USD)' },
-  { value: 'euro', label: 'Euro (EUR)' },
-];
+function buildCurrencyOptions(dbCodes: string[]): { value: string; label: string }[] {
+  const opts: { value: string; label: string }[] = [
+    { value: 'dollar', label: 'US Dollar (USD)' },
+    { value: 'euro', label: 'Euro (EUR)' },
+  ];
+  const skip = new Set(['USD', 'EUR']);
+  for (const code of dbCodes) {
+    if (!skip.has(code)) {
+      opts.push({ value: code, label: code });
+    }
+  }
+  return opts;
+}
 
 const LINK_TYPE_OPTIONS = [
   { value: 'code', label: 'Code' },
@@ -175,6 +186,16 @@ export default function ProjectForm(): JSX.Element {
   const budgetMutation = useUpdateProjectBudget(id ?? '');
   const { data: existingBudgetLines } = useBudgetLines(id ?? '');
   const budgetLinesMutation = useReplaceBudgetLines(id ?? '');
+
+  const { data: dbCurrencies } = useQuery({
+    queryKey: queryKeys.currencies.all,
+    queryFn: () => trackerApi.listCurrencies(),
+    staleTime: 300_000,
+  });
+  const currencyOptions = useMemo(
+    () => buildCurrencyOptions(dbCurrencies ?? []),
+    [dbCurrencies],
+  );
 
   const {
     channels,
@@ -647,7 +668,7 @@ export default function ProjectForm(): JSX.Element {
                     <div className="space-y-2">
                       <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
                       <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
-                        {CURRENCY_OPTIONS.map((opt) => (
+                        {currencyOptions.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </NativeSelect>

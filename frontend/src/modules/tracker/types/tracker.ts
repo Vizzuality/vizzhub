@@ -172,7 +172,7 @@ export interface BatchProgressResponse {
   progress: Record<string, ProgressSummary>;
 }
 
-export type InvoiceStatus = 'scheduled' | 'pending_to_issue' | 'waiting_for_payment' | 'paid';
+export type InvoiceStatus = 'scheduled' | 'pending_to_issue' | 'postponed' | 'waiting_for_payment' | 'paid';
 
 export interface Invoice {
   id: string;
@@ -180,11 +180,12 @@ export interface Invoice {
   code: string | null;
   amount: number;
   due_date: string;
-  extended_date: string | null;
   invoiced_on: string | null;
   milestone: string;
   observations: string | null;
   status: InvoiceStatus;
+  postpone_count: number;
+  postponed_to: string | null;
 }
 
 export interface InvoiceCreate {
@@ -201,12 +202,14 @@ export interface AdminInvoice {
   project_name: string;
   code: string | null;
   amount: number;
+  currency: string;
   due_date: string;
-  extended_date: string | null;
   invoiced_on: string | null;
   milestone: string;
   observations: string | null;
   status: InvoiceStatus;
+  postpone_count: number;
+  postponed_to: string | null;
 }
 
 export interface PaginatedInvoices {
@@ -214,6 +217,24 @@ export interface PaginatedInvoices {
   total: number;
   page: number;
   pages: number;
+}
+
+export interface InvoiceTotals {
+  total_pending_eur: number;
+  total_postponed_eur: number;
+  total_waiting_eur: number;
+  total_current_year_eur: number;
+  usd_eur_rate: number | null;
+  rate_date: string | null;
+}
+
+export interface Postponement {
+  id: string;
+  invoice_id: string;
+  postponed_to: string;
+  reason: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface AdminInvoiceParams {
@@ -232,7 +253,6 @@ export interface InvoiceUpdate {
   code?: string | null;
   amount?: number;
   due_date?: string;
-  extended_date?: string | null;
   invoiced_on?: string | null;
   milestone?: string;
   observations?: string | null;

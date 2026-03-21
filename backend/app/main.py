@@ -14,6 +14,7 @@ from app.core.api import admin_users as admin_users_router
 from app.core.api import auth as auth_router
 from app.core.api import jobs as jobs_router
 from app.core.api import oauth as oauth_router
+from app.core.api import currencies as currencies_router
 from app.core.api import functional_areas as functional_areas_router
 from app.core.api import programs as programs_router
 from app.core.api import projects_v2 as projects_v2_router
@@ -169,6 +170,11 @@ app.include_router(admin_users_router.router, prefix="/api")
 app.include_router(projects_v2_router.router, prefix="/api/projects", tags=["projects"])
 app.include_router(programs_router.router, prefix="/api/programs", tags=["programs"])
 app.include_router(oauth_router.router, prefix="/api/oauth", tags=["oauth"])
+app.include_router(
+    currencies_router.router,
+    prefix="/api/currencies",
+    tags=["currencies"],
+)
 app.include_router(
     functional_areas_router.router,
     prefix="/api/functional-areas",
