@@ -239,7 +239,6 @@ export function UsersContent(): JSX.Element {
               <th className="text-left p-3 font-medium">Email</th>
               <th className="text-left p-3 font-medium">Role</th>
               <th className="text-left p-3 font-medium">Status</th>
-              <th className="text-left p-3 font-medium hidden lg:table-cell">Slack</th>
               <th className="text-left p-3 font-medium hidden md:table-cell">Dedication</th>
               <th className="text-left p-3 font-medium hidden sm:table-cell">Last Login</th>
               <th className="w-[80px] p-3"></th>
@@ -260,7 +259,12 @@ export function UsersContent(): JSX.Element {
                       {fullName}
                     </Link>
                   </td>
-                  <td className="p-3 text-muted-foreground text-sm">{user.email}</td>
+                  <td className="p-3 max-w-[180px]">
+                    <p className="text-sm text-muted-foreground truncate" title={user.email}>{user.email}</p>
+                    {user.slack_display_name && (
+                      <p className="text-xs text-muted-foreground/70 truncate">{user.slack_display_name}</p>
+                    )}
+                  </td>
                   <td className="p-3">
                     <Select
                       value={user.role}
@@ -297,9 +301,6 @@ export function UsersContent(): JSX.Element {
                         {user.active ? 'Active' : 'Inactive'}
                       </span>
                     </button>
-                  </td>
-                  <td className="p-3 text-muted-foreground text-sm hidden lg:table-cell">
-                    {user.slack_display_name ?? '-'}
                   </td>
                   <td className="p-3 text-muted-foreground text-sm tabular-nums hidden md:table-cell">
                     {user.dedication != null ? Number(user.dedication).toFixed(2) : '-'}
