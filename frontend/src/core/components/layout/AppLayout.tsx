@@ -34,8 +34,12 @@ export function AppLayout(): JSX.Element {
   };
 
   const handleStopImpersonating = async (): Promise<void> => {
-    await auth.stopImpersonating();
-    window.location.reload();
+    try {
+      await auth.stopImpersonating();
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to stop impersonating:', err);
+    }
   };
 
   const { data: periods } = useReportingPeriods();

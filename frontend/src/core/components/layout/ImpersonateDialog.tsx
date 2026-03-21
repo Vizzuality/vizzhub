@@ -33,10 +33,14 @@ export function ImpersonateDialog({
   const [search, setSearch] = useState('');
 
   const handleSelect = async (userId: string): Promise<void> => {
-    await auth.impersonate(userId);
-    onOpenChange(false);
-    setSearch('');
-    window.location.reload();
+    try {
+      await auth.impersonate(userId);
+      onOpenChange(false);
+      setSearch('');
+      window.location.reload();
+    } catch (err) {
+      console.error('Impersonation failed:', err);
+    }
   };
 
   const filteredUsers = users?.filter(
