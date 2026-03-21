@@ -22,6 +22,7 @@ import {
 import { Button } from '@/shared/components/ui/button';
 import { PageBreadcrumb } from './PageBreadcrumb';
 import { useReportingPeriods } from '@/modules/tracker/public';
+import { getFullName, getInitials } from '@/utils/formatters';
 
 export function AppLayout(): JSX.Element {
   const auth = useAuth();
@@ -45,11 +46,7 @@ export function AppLayout(): JSX.Element {
   const { data: periods } = useReportingPeriods();
   const activePeriod = periods?.find((p) => p.status === 'active');
 
-  const userInitials = [auth.user?.first_name, auth.user?.last_name]
-    .filter(Boolean)
-    .map((n) => n![0])
-    .join('')
-    .toUpperCase() || '?';
+  const userInitials = getInitials(auth.user?.first_name, auth.user?.last_name);
 
   return (
     <SidebarProvider>
@@ -84,7 +81,7 @@ export function AppLayout(): JSX.Element {
                       </p>
                     )}
                     <p className="text-sm font-medium leading-none">
-                      {[auth.user?.first_name, auth.user?.last_name].filter(Boolean).join(' ') || 'Dev User'}
+                      {getFullName(auth.user?.first_name, auth.user?.last_name, 'Dev User')}
                     </p>
                     {auth.user?.email && (
                       <p className="text-xs leading-none text-muted-foreground">
@@ -139,7 +136,9 @@ export function AppLayout(): JSX.Element {
           </div>
         </main>
       </SidebarInset>
-      <ImpersonateDialog open={impersonateOpen} onOpenChange={setImpersonateOpen} />
+      {impersonateOpen && (
+        <ImpersonateDialog open={impersonateOpen} onOpenChange={setImpersonateOpen} />
+      )}
     </SidebarProvider>
   );
 }

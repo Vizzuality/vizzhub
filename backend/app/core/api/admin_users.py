@@ -9,8 +9,8 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.api.deps import AdminUser, CurrentUser, DBSession
-from app.core.auth import ALGORITHM, create_access_token, get_cookie_settings
-from app.core.models.user import User, UserDB, UserPublic, UserUpdate
+from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
+from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ async def stop_impersonate(
             admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
         )
         admin_role = payload.get("role")
-        if admin_role != "admin":
+        if admin_role != UserRole.ADMIN.value:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Stored token is not an admin",
@@ -116,13 +116,7 @@ async def stop_impersonate(
     cookie_settings = get_cookie_settings()
     response.set_cookie(value=admin_token, **cookie_settings)
 
-    response.delete_cookie(
-        key="admin_token",
-        path=cookie_settings["path"],
-        samesite=cookie_settings["samesite"],
-        secure=cookie_settings["secure"],
-        httponly=cookie_settings["httponly"],
-    )
+    delete_auth_cookie(response, key="admin_token")
 
     admin_id = payload["sub"]
     result = await db.execute(select(UserDB).where(UserDB.id == admin_id))
@@ -145,7 +139,6 @@ async def stop_impersonate(
 @router.post("/{user_id}/impersonate")
 async def impersonate_user(
     user_id: UUID,
-    request: Request,
     response: Response,
     current_user: AdminUser,
     db: DBSession,

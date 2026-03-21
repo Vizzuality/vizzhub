@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar';
 import { useUsers } from '@/core/hooks/useUsers';
 import { useAuth } from '@/core/hooks/useAuth';
+import { getFullName, getInitials } from '@/utils/formatters';
 
 interface ImpersonateDialogProps {
   open: boolean;
@@ -74,21 +75,12 @@ export function ImpersonateDialog({
                 .filter((u) => {
                   const q = search.toLowerCase();
                   if (!q) return true;
-                  const name = [u.first_name, u.last_name]
-                    .filter(Boolean)
-                    .join(' ')
-                    .toLowerCase();
-                  return name.includes(q) || u.email.toLowerCase().includes(q);
+                  return getFullName(u.first_name, u.last_name).toLowerCase().includes(q)
+                    || u.email.toLowerCase().includes(q);
                 })
                 .map((u) => {
-                  const name = [u.first_name, u.last_name]
-                    .filter(Boolean)
-                    .join(' ') || u.email;
-                  const initials = [u.first_name, u.last_name]
-                    .filter(Boolean)
-                    .map((n) => n![0])
-                    .join('')
-                    .toUpperCase() || '?';
+                  const name = getFullName(u.first_name, u.last_name, u.email);
+                  const initials = getInitials(u.first_name, u.last_name);
 
                   return (
                     <CommandItem
