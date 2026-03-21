@@ -22,6 +22,7 @@ The existing auth system (`get_current_user`, `require_role`, middleware) is **n
 
 **`POST /admin/users/{user_id}/impersonate`**
 - Dependency: `AdminUser`, `DBSession`
+- Guards: 400 if `user_id == current_user.user_id` ("Cannot impersonate yourself")
 - Validates target user exists in DB
 - Copies current `access_token` cookie → `admin_token` cookie (httpOnly, path=/api, samesite=lax)
 - Creates new JWT with target user's `sub`, `email`, `role`
@@ -29,7 +30,7 @@ The existing auth system (`get_current_user`, `require_role`, middleware) is **n
 - Returns `UserPublic` of the target user
 
 **`POST /admin/users/stop-impersonate`**
-- No auth dependency (the current `access_token` is the impersonated user, not admin)
+- Dependency: `CurrentUser` (ensures a valid session exists; the impersonated user passes this)
 - Reads `admin_token` cookie; 400 if missing
 - Validates it's a valid JWT belonging to an admin
 - Restores `admin_token` → `access_token`
@@ -44,6 +45,11 @@ Both `admin_token` and `access_token` use identical settings:
 - `samesite="lax"`
 - `path="/api"`
 - `max_age=settings.JWT_EXPIRE_HOURS * 3600`
+
+### Changes to Existing Auth
+
+- `core/api/auth.py` — **Logout endpoint**: also deletes `admin_token` cookie if present (prevents orphaned admin JWT after logout-while-impersonating)
+- `core/api/auth.py` — **`GET /auth/me`**: response includes `is_impersonating: bool` (true when `admin_token` cookie is present on the request). This is the authoritative source of impersonation state, eliminating localStorage desync issues.
 
 ### No Changes To
 
@@ -66,11 +72,11 @@ interface AuthContextType {
 }
 ```
 
-- **`isImpersonating`**: Derived from localStorage flag (`impersonating`). Cannot read httpOnly cookie directly, so the flag is set/cleared by the impersonate/stop methods.
-- **`impersonate(userId)`**: `POST /api/admin/users/{userId}/impersonate`, updates `auth_user` in localStorage with returned user, sets `impersonating` flag in localStorage.
-- **`stopImpersonating()`**: `POST /api/admin/users/stop-impersonate`, updates `auth_user` with returned admin, clears `impersonating` flag from localStorage.
+- **`isImpersonating`**: Derived from `/api/auth/me` response (`is_impersonating` field). Set on login, `validateSession`, and after impersonate/stop calls. No localStorage flag needed — the backend is the source of truth.
+- **`impersonate(userId)`**: `POST /api/admin/users/{userId}/impersonate`, updates `auth_user` in localStorage with returned user, sets `isImpersonating: true`.
+- **`stopImpersonating()`**: `POST /api/admin/users/stop-impersonate`, updates `auth_user` with returned admin, sets `isImpersonating: false`.
 
-On app mount (`validateSession`), if localStorage has `impersonating: true`, set `isImpersonating` state accordingly.
+On app mount, `validateSession` calls `/api/auth/me` which returns `is_impersonating`, keeping state in sync even after page reload or localStorage clear.
 
 ### AppLayout Avatar Menu
 
@@ -99,7 +105,9 @@ Current menu items: user name/email, My Report (conditional), Log out.
 ## Edge Cases
 
 - **Admin token cookie lost** (cleared manually, expired): Admin uses normal logout/login flow to restore their session. No special handling needed.
-- **App reload while impersonating**: `validateSession` calls `/api/auth/me` which returns the impersonated user (their JWT is in `access_token`). localStorage `impersonating` flag preserves the UI indicator. Works transparently.
+- **App reload while impersonating**: `validateSession` calls `/api/auth/me` which returns the impersonated user with `is_impersonating: true`. State restores correctly without localStorage dependency.
+- **Self-impersonation**: Blocked with 400 "Cannot impersonate yourself."
+- **Logout while impersonating**: Logout endpoint deletes both `access_token` and `admin_token` cookies. Clean state.
 - **Impersonating and navigating to admin pages**: The impersonated user may not be admin, so admin routes will deny access. This is expected — the admin is experiencing the app as that user.
 - **Nested impersonation**: Not possible. While impersonating, the user is not admin, so "Impersonate User" menu item won't appear.
 
@@ -107,6 +115,7 @@ Current menu items: user name/email, My Report (conditional), Log out.
 
 ### Backend
 - `backend/app/core/api/admin_users.py` — 2 new endpoints
+- `backend/app/core/api/auth.py` — logout deletes `admin_token`; `/auth/me` returns `is_impersonating`
 
 ### Frontend
 - `frontend/src/core/contexts/AuthContext.tsx` — `isImpersonating`, `impersonate()`, `stopImpersonating()`
