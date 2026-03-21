@@ -176,6 +176,12 @@ async def impersonate_user(
             detail="User not found",
         )
 
+    if not target.active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot impersonate an inactive user",
+        )
+
     # Save admin JWT in admin_token cookie
     admin_token = create_access_token(
         data={
