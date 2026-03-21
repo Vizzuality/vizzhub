@@ -47,17 +47,17 @@ async def postpone_invoice(
     base_date = latest if latest is not None else inv.due_date
 
     today = date.today()
-    min_date = max(base_date, today)
+    window_base = max(base_date, today)
 
     if body.postponed_to <= base_date:
         raise HTTPException(
             status_code=400,
             detail=f"New date must be after {base_date}",
         )
-    if body.postponed_to > min_date + timedelta(days=MAX_POSTPONE_DAYS):
+    if body.postponed_to > window_base + timedelta(days=MAX_POSTPONE_DAYS):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot postpone more than {MAX_POSTPONE_DAYS} days from {min_date}",
+            detail=f"Cannot postpone more than {MAX_POSTPONE_DAYS} days from {window_base}",
         )
 
     postponement = InvoicePostponementDB(

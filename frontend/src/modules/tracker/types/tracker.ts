@@ -33,6 +33,10 @@ export interface ReportCreate {
   estimated?: boolean;
 }
 
+export interface ReportUpdate {
+  estimated?: boolean;
+}
+
 export interface ReportPart {
   id: string;
   report_id: string;
