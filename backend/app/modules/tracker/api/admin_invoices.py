@@ -262,6 +262,11 @@ async def list_all_invoices(
         else_=5,
     )
 
+    paid_last = case(
+        (effective_status == "paid", 1),
+        else_=0,
+    )
+
     if sort_by == "project":
         order_col = ProjectDB.name
     elif sort_by == "due_date":
@@ -271,7 +276,12 @@ async def list_all_invoices(
     else:
         order_col = status_order
 
-    if sort_order == "desc":
+    if sort_by == "due_date":
+        if sort_order == "desc":
+            base = base.order_by(paid_last.asc(), order_col.desc())
+        else:
+            base = base.order_by(paid_last.asc(), order_col.asc())
+    elif sort_order == "desc":
         base = base.order_by(order_col.desc(), InvoiceDB.due_date.asc())
     else:
         base = base.order_by(order_col.asc(), InvoiceDB.due_date.asc())
