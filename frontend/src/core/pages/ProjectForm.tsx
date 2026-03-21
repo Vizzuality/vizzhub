@@ -12,6 +12,8 @@ import {
 } from '@/core/hooks/useProjects';
 import { usePrograms, useCreateProgram } from '@/core/hooks/usePrograms';
 import { useSlackChannels } from '@/core/hooks/useSlackChannels';
+import { useUsers } from '@/core/hooks/useUsers';
+import { getFullName } from '@/utils/formatters';
 import {
   useCurrentPeriodMetrics,
   useUpdateProjectBudget,
@@ -67,6 +69,7 @@ interface ProjectFormData {
   status: ProjectStatus;
   currency: string;
   program_id: string;
+  project_manager_id: string;
   jira_project_key: string;
   github_repo: string;
   start_date: string;
@@ -114,6 +117,7 @@ interface ProjectData {
   status: ProjectStatus;
   currency: string;
   program_id?: string | null;
+  project_manager_id?: string | null;
   jira_project_key?: string | null;
   github_repo?: string | null;
   start_date?: string | null;
@@ -134,6 +138,7 @@ function buildFormDefaults(
     status: project.status,
     currency: project.currency,
     program_id: project.program_id ?? '',
+    project_manager_id: project.project_manager_id ?? '',
     jira_project_key: project.jira_project_key ?? '',
     github_repo: project.github_repo ?? '',
     start_date: project.start_date ?? '',
@@ -204,6 +209,14 @@ export default function ProjectForm(): JSX.Element {
     isCheckingStatus,
   } = useSlackChannels();
 
+  const { data: users } = useUsers();
+  const activeUsersSorted = useMemo(
+    () => (users ?? [])
+      .filter((u) => u.active)
+      .sort((a, b) => getFullName(a.first_name, a.last_name).localeCompare(getFullName(b.first_name, b.last_name))),
+    [users],
+  );
+
   const [slackChannelId, setSlackChannelId] = useState<string>('');
   const [isBillable, setIsBillable] = useState<boolean>(true);
   const [hasScorecard, setHasScorecard] = useState<boolean>(true);
@@ -233,6 +246,7 @@ export default function ProjectForm(): JSX.Element {
       status: 'live',
       currency: 'dollar',
       program_id: '',
+      project_manager_id: '',
       jira_project_key: '',
       github_repo: '',
       start_date: '',
@@ -366,6 +380,7 @@ export default function ProjectForm(): JSX.Element {
       currency: data.currency,
       budget: data.budget_total ? Number.parseFloat(data.budget_total) : null,
       program_id: data.program_id || null,
+      project_manager_id: data.project_manager_id || null,
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
       slack_channel_id: slackChannelId || undefined,
@@ -675,7 +690,22 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  {/* Row 3: Status, Budget */}
+                  {/* Row 3: Project Manager */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="project_manager_id" className="h-5 flex items-center">Project Manager</Label>
+                      <NativeSelect id="project_manager_id" className="w-full" {...register('project_manager_id')}>
+                        <option value="">None</option>
+                        {activeUsersSorted.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {getFullName(u.first_name, u.last_name, u.email)}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Status, Budget */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
