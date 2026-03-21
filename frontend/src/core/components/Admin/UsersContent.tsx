@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useUsers, useUpdateUserRole, useDeleteUser, useToggleUserActive } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User, UserRole } from '../../types/auth';
+import { getFullName } from '@/utils/formatters';
 import {
   Select,
   SelectContent,
@@ -137,7 +138,7 @@ export function UsersContent(): JSX.Element {
           <tbody>
             {users?.map((user) => {
               const isCurrentUser = currentUser?.id === user.id;
-              const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
+              const fullName = getFullName(user.first_name, user.last_name, '-');
 
               return (
                 <tr key={user.id} className={`border-t ${!user.active ? 'opacity-60' : ''}`}>
