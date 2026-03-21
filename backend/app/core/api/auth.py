@@ -13,6 +13,8 @@ from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
 from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserRole
+from app.modules.scorecard.services.slack_service import SlackService
+from app.utils.slack import get_slack_bot_token
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -98,6 +100,25 @@ async def google_auth(
             await db.commit()
             await db.refresh(user)
             logger.info(f"Created new user: {email} with role {role.value}")
+
+            # Auto-link Slack profile
+            try:
+                bot_token = await get_slack_bot_token(db)
+                if bot_token:
+                    slack_user = await SlackService.lookup_user_by_email(bot_token, email)
+                    if slack_user:
+                        profile = slack_user.get("profile", {})
+                        user.slack_user_id = slack_user["id"]
+                        user.slack_display_name = (
+                            profile.get("display_name")
+                            or profile.get("real_name")
+                            or slack_user.get("name")
+                        )
+                        await db.commit()
+                        await db.refresh(user)
+                        logger.info(f"Auto-linked Slack for {email}: {user.slack_display_name}")
+            except Exception:
+                logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
         else:
             if not user.active:
                 raise HTTPException(
