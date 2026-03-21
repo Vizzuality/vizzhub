@@ -35,12 +35,19 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarSeparator,
+  useSidebar,
 } from '@/shared/components/ui/sidebar';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/shared/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu';
 
 const ADMIN_ITEMS = [
   { to: '/admin/scorecard-parameters', label: 'Parameters', icon: SlidersHorizontal },
@@ -60,6 +67,10 @@ const NOTIFICATION_TABS = [
 const TRACKER_TABS = [
   { to: '/admin/tracker/periods', label: 'Reporting Periods' },
   { to: '/admin/tracker/invoices', label: 'Invoices' },
+] as const;
+
+const ISO_TABS = [
+  { to: '/iso/snapshots', label: 'Access Control' },
 ] as const;
 
 
@@ -84,6 +95,77 @@ function GuardedLink({
     <Link to={to} className={className} onClick={handleClick}>
       {children}
     </Link>
+  );
+}
+
+interface SubItem {
+  readonly to: string;
+  readonly label: string;
+}
+
+function CollapsibleMenuItem({
+  icon: Icon,
+  label,
+  isActive,
+  items,
+}: {
+  readonly icon: React.ComponentType;
+  readonly label: string;
+  readonly isActive: boolean;
+  readonly items: readonly SubItem[];
+}): JSX.Element {
+  const { state, isMobile } = useSidebar();
+  const location = useLocation();
+
+  if (!isMobile && state === 'collapsed') {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton isActive={isActive} tooltip={label}>
+              <Icon />
+              <span>{label}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" sideOffset={4}>
+            {items.map(({ to, label: itemLabel }) => (
+              <DropdownMenuItem key={to} asChild>
+                <GuardedLink to={to}>{itemLabel}</GuardedLink>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <Collapsible
+      key={isActive ? `${label}-open` : `${label}-closed`}
+      defaultOpen={isActive}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton isActive={isActive} tooltip={label}>
+            <Icon />
+            <span>{label}</span>
+            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {items.map(({ to, label: itemLabel }) => (
+              <SidebarMenuSubItem key={to}>
+                <SidebarMenuSubButton asChild isActive={location.pathname === to || location.pathname.startsWith(to)}>
+                  <GuardedLink to={to}>{itemLabel}</GuardedLink>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 
@@ -175,38 +257,12 @@ export function AppSidebar(): JSX.Element {
               )}
 
               {isAdmin && (
-                <Collapsible
-                  key={isActive('/iso') ? 'iso-open' : 'iso-closed'}
-                  defaultOpen={isActive('/iso')}
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        isActive={isActive('/iso')}
-                        tooltip="ISO"
-                      >
-                        <Shield />
-                        <span>ISO</span>
-                        <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={isActive('/iso/snapshots')}
-                          >
-                            <GuardedLink to="/iso/snapshots">
-                              <span>Access Control</span>
-                            </GuardedLink>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
+                <CollapsibleMenuItem
+                  icon={Shield}
+                  label="ISO"
+                  isActive={isActive('/iso')}
+                  items={ISO_TABS}
+                />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -234,71 +290,19 @@ export function AppSidebar(): JSX.Element {
                     </SidebarMenuItem>
                   ))}
 
-                  <Collapsible
-                    key={location.pathname.startsWith('/admin/notifications') ? 'notif-open' : 'notif-closed'}
-                    defaultOpen={location.pathname.startsWith('/admin/notifications')}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton
-                          isActive={location.pathname.startsWith('/admin/notifications')}
-                          tooltip="Notifications"
-                        >
-                          <Bell />
-                          <span>Notifications</span>
-                          <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {NOTIFICATION_TABS.map(({ to, label }) => (
-                            <SidebarMenuSubItem key={to}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={location.pathname === to}
-                              >
-                                <GuardedLink to={to}>{label}</GuardedLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
+                  <CollapsibleMenuItem
+                    icon={Bell}
+                    label="Notifications"
+                    isActive={location.pathname.startsWith('/admin/notifications')}
+                    items={NOTIFICATION_TABS}
+                  />
 
-                  <Collapsible
-                    key={location.pathname.startsWith('/admin/tracker') ? 'tracker-open' : 'tracker-closed'}
-                    defaultOpen={location.pathname.startsWith('/admin/tracker')}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton
-                          isActive={location.pathname.startsWith('/admin/tracker')}
-                          tooltip="Tracker"
-                        >
-                          <Clock />
-                          <span>Tracker</span>
-                          <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {TRACKER_TABS.map(({ to, label }) => (
-                            <SidebarMenuSubItem key={to}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={location.pathname.startsWith(to)}
-                              >
-                                <GuardedLink to={to}>{label}</GuardedLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
+                  <CollapsibleMenuItem
+                    icon={Clock}
+                    label="Tracker"
+                    isActive={location.pathname.startsWith('/admin/tracker')}
+                    items={TRACKER_TABS}
+                  />
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
