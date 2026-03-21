@@ -10,6 +10,8 @@ from app.modules.scorecard.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
     AlertTestResponse,
+    CustomNotificationRequest,
+    CustomNotificationResponse,
     MessageTemplateResponse,
     MessageTemplateUpdate,
 )
@@ -24,6 +26,7 @@ FAILED_TO_SEND_TEST_ALERT = "Failed to send test alert"
 
 alerts_router = APIRouter(prefix="/admin/alerts", tags=["alerts-admin"])
 templates_router = APIRouter(prefix="/admin/templates", tags=["templates-admin"])
+custom_router = APIRouter(prefix="/admin/notifications", tags=["custom-notifications"])
 
 
 @alerts_router.get("", response_model=list[AlertDefinitionResponse])
@@ -203,3 +206,52 @@ async def update_message_template(
     await db.commit()
     await db.refresh(template)
     return template
+
+
+# --- Custom notifications ---
+
+
+@custom_router.post("/send-custom", response_model=CustomNotificationResponse)
+@limiter.limit("10/minute")
+async def send_custom_notification(
+    request: Request,
+    current_user: AdminUser,
+    db: DBSession,
+    payload: CustomNotificationRequest,
+) -> CustomNotificationResponse:
+    """Send a custom Slack DM to a user. Requires admin."""
+    bot_token = await IntegrationTokenService.get_token(db, "slack")
+    if not bot_token:
+        return CustomNotificationResponse(
+            ok=False,
+            message="Cannot send notification",
+            error="No Slack bot token configured",
+        )
+
+    try:
+        result = await SlackService.send_message(
+            bot_token,
+            payload.slack_user_id,
+            payload.message,
+            unfurl_links=payload.unfurl_links,
+            unfurl_media=payload.unfurl_links,
+        )
+
+        if result.get("ok"):
+            return CustomNotificationResponse(
+                ok=True,
+                message="Message sent successfully",
+            )
+        else:
+            return CustomNotificationResponse(
+                ok=False,
+                message="Failed to send message",
+                error=result.get("error", "Unknown Slack error"),
+            )
+    except Exception as e:
+        logger.exception("Failed to send custom notification")
+        return CustomNotificationResponse(
+            ok=False,
+            message="Failed to send message",
+            error=str(e),
+        )

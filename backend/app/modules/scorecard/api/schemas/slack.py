@@ -171,3 +171,19 @@ class AlertTestResponse(BaseModel):
     message: str
     channel_id: str | None = None
     error: str | None = None
+
+
+class CustomNotificationRequest(BaseModel):
+    """Request to send a custom Slack notification."""
+
+    slack_user_id: str = Field(..., description="Slack user ID to DM")
+    message: str = Field(..., min_length=1, description="Message text (Slack mrkdwn)")
+    unfurl_links: bool = Field(True, description="Enable link previews")
+
+
+class CustomNotificationResponse(BaseModel):
+    """Response from sending a custom notification."""
+
+    ok: bool
+    message: str
+    error: str | None = None

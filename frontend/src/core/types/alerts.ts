@@ -122,3 +122,15 @@ export interface AlertTestResponse {
   channel_id: string | null;
   error: string | null;
 }
+
+export interface CustomNotificationRequest {
+  slack_user_id: string;
+  message: string;
+  unfurl_links?: boolean;
+}
+
+export interface CustomNotificationResponse {
+  ok: boolean;
+  message: string;
+  error: string | null;
+}

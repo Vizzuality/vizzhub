@@ -28,6 +28,7 @@ router.include_router(exports_router.router, prefix="/exports", tags=["exports"]
 router.include_router(global_metrics_router.router)
 router.include_router(slack_admin_router.alerts_router)
 router.include_router(slack_admin_router.templates_router)
+router.include_router(slack_admin_router.custom_router)
 router.include_router(integrations_admin_router.router)
 router.include_router(silences_router.router)
 router.include_router(notifications_router.router)
