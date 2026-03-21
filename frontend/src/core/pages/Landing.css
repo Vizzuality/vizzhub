@@ -1,0 +1,389 @@
+/* Uses theme fonts: DM Sans (--font-sans) and Geist Mono (--font-mono) */
+
+.landing {
+  --lnd-bg: #0C0C0C;
+  --lnd-card: #141414;
+  --lnd-card-border: #2a2a2a;
+  --lnd-green: #5AFF15;
+  --lnd-steel: #889696;
+  --lnd-ash: #b8bdb5;
+  --lnd-dust: #d2d4c8;
+  --lnd-muted: #4a4a4a;
+
+  min-height: calc(100vh - 3rem);
+  margin: -1.5rem;
+  background-color: var(--lnd-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 2rem 4rem;
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+}
+
+/* ── Header ── */
+
+.landing__header {
+  width: 100%;
+  max-width: 720px;
+  margin-bottom: 3rem;
+}
+
+.landing__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.landing__title {
+  font-family: var(--font-sans);
+  font-size: 2.4rem;
+  font-weight: 400;
+  color: var(--lnd-dust);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1;
+}
+
+.landing__subtitle {
+  font-size: 0.75rem;
+  color: var(--lnd-muted);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+/* ── Grid ── */
+
+.landing__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 720px;
+  margin-bottom: 2.5rem;
+}
+
+/* ── Card ── */
+
+.landing__card {
+  position: relative;
+  background: var(--lnd-card);
+  border: 1px solid var(--lnd-steel);
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.25s, box-shadow 0.25s;
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.landing__card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.015) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* Hover → neon green */
+.landing__card:hover {
+  border-color: var(--lnd-green);
+  box-shadow:
+    0 0 30px rgba(90, 255, 21, 0.15),
+    inset 0 0 60px rgba(90, 255, 21, 0.05);
+}
+
+.landing__card:hover .landing__card-number {
+  color: var(--lnd-green);
+}
+
+.landing__card:hover .landing__card-symbol {
+  color: var(--lnd-green);
+}
+
+.landing__card:hover .landing__card-label {
+  color: var(--lnd-green);
+}
+
+.landing__card:hover .landing__card-icon * {
+  background: var(--lnd-green);
+}
+
+.landing__card:hover .landing__card-icon::before,
+.landing__card:hover .landing__card-icon::after {
+  border-color: var(--lnd-green);
+  background: var(--lnd-green);
+}
+
+/* Disabled card */
+.landing__card--disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ── Card internals ── */
+
+.landing__card-number {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  font-size: 0.6rem;
+  color: var(--lnd-steel);
+  letter-spacing: 0.04em;
+  transition: color 0.25s;
+}
+
+.landing__card-icon {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 14px;
+  height: 14px;
+}
+
+.landing__card-symbol {
+  font-family: var(--font-sans);
+  font-size: 4.5rem;
+  font-weight: 300;
+  color: var(--lnd-dust);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  transition: color 0.25s;
+}
+
+.landing__card-label {
+  position: absolute;
+  bottom: 0.75rem;
+  font-size: 0.6rem;
+  color: var(--lnd-steel);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.25s;
+}
+
+/* ── CSS Icons ── */
+
+/* Trending chart (tracker) */
+.landing__icon-tracker {
+  overflow: hidden;
+}
+
+.landing__icon-tracker::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--lnd-steel);
+  transition: background 0.25s;
+}
+
+.landing__icon-tracker::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  clip-path: polygon(0% 100%, 35% 40%, 60% 70%, 100% 10%, 100% 100%);
+  background: var(--lnd-steel);
+  transition: background 0.25s;
+}
+
+/* Grid dots (scorecard) */
+.landing__icon-scorecard {
+  display: grid;
+  grid-template-columns: repeat(3, 3px);
+  grid-template-rows: repeat(3, 3px);
+  gap: 1.5px;
+}
+
+.landing__icon-scorecard span {
+  width: 3px;
+  height: 3px;
+  background: var(--lnd-steel);
+  border-radius: 0.5px;
+  transition: background 0.25s;
+}
+
+/* Diamond (ISO) */
+.landing__icon-iso {
+}
+
+.landing__icon-iso::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--lnd-steel);
+  background: transparent;
+  transform: rotate(45deg);
+  transition: border-color 0.25s;
+}
+
+/* Play button (playbook) */
+.landing__icon-playbook {
+}
+
+.landing__icon-playbook::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--lnd-steel);
+  border-radius: 2px;
+  background: transparent;
+  transition: border-color 0.25s;
+}
+
+.landing__icon-playbook::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--lnd-steel);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  background: transparent;
+  transition: border-left-color 0.25s;
+}
+
+/* Gear (admin) — circle + cross */
+.landing__icon-admin {
+}
+
+.landing__icon-admin::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--lnd-steel);
+  border-radius: 50%;
+  background: transparent;
+  transition: border-color 0.25s;
+}
+
+.landing__icon-admin::after {
+  content: '+';
+  position: absolute;
+  top: -1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  font-size: 16px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--lnd-steel);
+  font-weight: 300;
+  transition: color 0.25s;
+}
+
+/* Hover overrides for icons with border-only elements */
+.landing__card:hover .landing__icon-iso::before {
+  border-color: var(--lnd-green);
+  background: transparent;
+}
+
+.landing__card:hover .landing__icon-playbook::before {
+  border-color: var(--lnd-green);
+  background: transparent;
+}
+
+.landing__card:hover .landing__icon-playbook::after {
+  border-left-color: var(--lnd-green);
+  background: transparent;
+}
+
+.landing__card:hover .landing__icon-admin::before {
+  border-color: var(--lnd-green);
+  background: transparent;
+}
+
+.landing__card:hover .landing__icon-admin::after {
+  color: var(--lnd-green);
+}
+
+/* ── CTA Button ── */
+
+.landing__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  padding: 0 1rem;
+  background: transparent;
+  color: var(--lnd-dust);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid var(--lnd-steel);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+
+.landing__cta:hover {
+  border-color: var(--lnd-green);
+  color: var(--lnd-green);
+  box-shadow:
+    0 0 30px rgba(90, 255, 21, 0.15),
+    inset 0 0 60px rgba(90, 255, 21, 0.05);
+}
+
+/* ── Scanline overlay ── */
+
+.landing::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 600px) {
+  .landing {
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  .landing__title {
+    font-size: 1.6rem;
+  }
+
+  .landing__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .landing__card-symbol {
+    font-size: 3rem;
+  }
+}
