@@ -87,7 +87,9 @@ class IndicatorNormalizer:
 
     def _calculate_budget_variance(self, evm: EVMData | None) -> float | None:
         """Calculate budget overrun percentage."""
-        if evm is None:
+        if evm is None or evm.cost_to_date is None or evm.budget_total is None:
+            return None
+        if evm.cost_to_date <= 0:
             return None
         return normalize_budget_variance(evm.cost_to_date, evm.budget_total, False)
 
