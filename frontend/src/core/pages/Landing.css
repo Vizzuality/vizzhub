@@ -1,14 +1,14 @@
 /* Uses theme fonts: DM Sans (--font-sans) and Geist Mono (--font-mono) */
 
 .landing {
-  --lnd-bg: #0C0C0C;
-  --lnd-card: #141414;
-  --lnd-card-border: #2a2a2a;
-  --lnd-green: #5AFF15;
-  --lnd-steel: #889696;
-  --lnd-ash: #b8bdb5;
-  --lnd-dust: #d2d4c8;
-  --lnd-muted: #4a4a4a;
+  --lnd-bg: var(--background);
+  --lnd-card: var(--card);
+  --lnd-card-border: var(--border);
+  --lnd-green: var(--aux-neon-grass);
+  --lnd-steel: var(--muted-foreground);
+  --lnd-ash: var(--muted-foreground);
+  --lnd-dust: var(--foreground);
+  --lnd-muted: var(--muted-foreground);
 
   min-height: calc(100vh - 3rem);
   margin: -1.5rem;
