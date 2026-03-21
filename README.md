@@ -62,4 +62,4 @@ docker-compose up -d
 
 ## License
 
-MIT
+Copyright (c) 2026 Vizzuality. All rights reserved. See [LICENSE.md](LICENSE.md).
