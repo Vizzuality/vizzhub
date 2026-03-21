@@ -114,6 +114,9 @@ export const queryKeys = {
   functionalAreas: {
     all: ['functionalAreas'] as const,
   },
+  rates: {
+    all: ['rates'] as const,
+  },
   integrations: {
     status: ['integrations', 'status'] as const,
     slackChannels: ['integrations', 'slack', 'channels'] as const,

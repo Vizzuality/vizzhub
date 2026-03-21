@@ -79,26 +79,6 @@ export function useUpdateUser(): ReturnType<
 }
 
 /**
- * Toggle user active status (admin only)
- */
-export function useToggleUserActive(): ReturnType<
-  typeof useMutation<User, Error, { userId: string; active: boolean }>
-> {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, active }): Promise<User> => {
-      const response = await api.patch<User>(`/admin/users/${userId}`, { active });
-      return response.data;
-    },
-    onSuccess: (_data, { userId }): void => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
-    },
-  });
-}
-
-/**
  * Delete user (admin only)
  */
 export function useDeleteUser(): ReturnType<typeof useMutation<void, Error, string>> {
@@ -171,7 +151,7 @@ export function useFunctionalAreas(): ReturnType<typeof useQuery<FunctionalArea[
  */
 export function useRates(): ReturnType<typeof useQuery<Rate[], Error>> {
   return useQuery({
-    queryKey: ['rates'],
+    queryKey: queryKeys.rates.all,
     queryFn: async (): Promise<Rate[]> => {
       const response = await api.get<Rate[]>('/rates');
       return response.data;

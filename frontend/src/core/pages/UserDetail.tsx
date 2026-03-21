@@ -8,7 +8,6 @@ import { ArrowLeft } from 'lucide-react';
 import {
   useUser,
   useUpdateUser,
-  useToggleUserActive,
   useDeleteUser,
   useFunctionalAreas,
   useRates,
@@ -78,7 +77,6 @@ export default function UserDetail(): JSX.Element {
   const { data: functionalAreas } = useFunctionalAreas();
   const { data: rates } = useRates();
   const updateUser = useUpdateUser();
-  const toggleActive = useToggleUserActive();
   const deleteUser = useDeleteUser();
   const syncSlack = useSyncSlack();
 
@@ -103,25 +101,15 @@ export default function UserDetail(): JSX.Element {
     }
   };
 
-  const handleDeactivate = async (): Promise<void> => {
+  const handleToggleActive = async (active: boolean): Promise<void> => {
     if (!userId) return;
     try {
-      await toggleActive.mutateAsync({ userId, active: false });
-      showMessage('success', 'User deactivated');
+      await updateUser.mutateAsync({ userId, data: { active } });
+      showMessage('success', active ? 'User activated' : 'User deactivated');
     } catch (err) {
-      showMessage('error', err instanceof Error ? err.message : 'Failed to deactivate');
+      showMessage('error', err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setShowDeactivateDialog(false);
-    }
-  };
-
-  const handleActivate = async (): Promise<void> => {
-    if (!userId) return;
-    try {
-      await toggleActive.mutateAsync({ userId, active: true });
-      showMessage('success', 'User activated');
-    } catch (err) {
-      showMessage('error', err instanceof Error ? err.message : 'Failed to activate');
     }
   };
 
@@ -267,44 +255,30 @@ export default function UserDetail(): JSX.Element {
       {/* Slack */}
       <div className="border rounded-lg p-6 space-y-4">
         <h3 className="font-medium">Slack</h3>
-        {user.slack_display_name ? (
-          <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
+          {user.slack_display_name ? (
             <div className="space-y-1">
               <p className="text-sm">{user.slack_display_name}</p>
               <p className="text-xs text-muted-foreground">{user.slack_user_id}</p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!userId) return;
-                syncSlack.mutateAsync(userId)
-                  .then(() => showMessage('success', 'Slack profile updated'))
-                  .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
-              }}
-              disabled={syncSlack.isPending}
-            >
-              {syncSlack.isPending ? 'Syncing...' : 'Re-sync'}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
+          ) : (
             <p className="text-sm text-muted-foreground">Not linked</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!userId) return;
-                syncSlack.mutateAsync(userId)
-                  .then(() => showMessage('success', 'Slack profile linked'))
-                  .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
-              }}
-              disabled={syncSlack.isPending}
-            >
-              {syncSlack.isPending ? 'Syncing...' : 'Link Slack'}
-            </Button>
-          </div>
-        )}
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (!userId) return;
+              const label = user.slack_display_name ? 'updated' : 'linked';
+              syncSlack.mutateAsync(userId)
+                .then(() => showMessage('success', `Slack profile ${label}`))
+                .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
+            }}
+            disabled={syncSlack.isPending}
+          >
+            {syncSlack.isPending ? 'Syncing...' : user.slack_display_name ? 'Re-sync' : 'Link Slack'}
+          </Button>
+        </div>
       </div>
 
       {/* Actions */}
@@ -331,7 +305,7 @@ export default function UserDetail(): JSX.Element {
               Deactivate
             </Button>
           ) : (
-            <Button variant="outline" onClick={handleActivate}>
+            <Button variant="outline" onClick={() => handleToggleActive(true)}>
               Activate
             </Button>
           )}
@@ -367,7 +341,7 @@ export default function UserDetail(): JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleDeactivate(); }}
+              onClick={(e) => { e.preventDefault(); handleToggleActive(false); }}
             >
               Deactivate
             </AlertDialogAction>

@@ -96,29 +96,21 @@ async def google_auth(
                 role=role.value,
                 last_login_at=datetime.now(timezone.utc),
             )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-            logger.info(f"Created new user: {email} with role {role.value}")
-
-            # Auto-link Slack profile
+            # Auto-link Slack profile before first commit
             try:
                 bot_token = await get_slack_bot_token(db)
                 if bot_token:
                     slack_user = await SlackService.lookup_user_by_email(bot_token, email)
                     if slack_user:
-                        profile = slack_user.get("profile", {})
                         user.slack_user_id = slack_user["id"]
-                        user.slack_display_name = (
-                            profile.get("display_name")
-                            or profile.get("real_name")
-                            or slack_user.get("name")
-                        )
-                        await db.commit()
-                        await db.refresh(user)
-                        logger.info(f"Auto-linked Slack for {email}: {user.slack_display_name}")
+                        user.slack_display_name = SlackService.extract_display_name(slack_user)
             except Exception:
                 logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
+
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            logger.info(f"Created new user: {email} with role {role.value}")
         else:
             if not user.active:
                 raise HTTPException(

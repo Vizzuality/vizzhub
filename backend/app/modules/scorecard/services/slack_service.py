@@ -84,6 +84,16 @@ class SlackService:
         return channels
 
     @staticmethod
+    def extract_display_name(slack_user: dict[str, Any]) -> str | None:
+        """Extract the best display name from a Slack user object."""
+        profile = slack_user.get("profile", {})
+        return (
+            profile.get("display_name")
+            or profile.get("real_name")
+            or slack_user.get("name")
+        )
+
+    @staticmethod
     async def lookup_user_by_email(
         bot_token: str,
         email: str,

@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
-import { useUsers, useUpdateUserRole, useToggleUserActive, useSyncSlackAll } from '../../hooks/useUsers';
+import { useUsers, useUpdateUserRole, useUpdateUser, useSyncSlackAll } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User, UserRole } from '../../types/auth';
 import { getFullName } from '@/utils/formatters';
@@ -99,7 +99,7 @@ export function UsersContent(): JSX.Element {
   const [showInactive, setShowInactive] = useState(false);
   const { data: users, isLoading, error } = useUsers(showInactive);
   const updateRole = useUpdateUserRole();
-  const toggleActive = useToggleUserActive();
+  const updateUser = useUpdateUser();
   const syncSlackAll = useSyncSlackAll();
   const { user: currentUser } = useAuth();
 
@@ -146,7 +146,7 @@ export function UsersContent(): JSX.Element {
 
   const handleToggleActive = async (userId: string, active: boolean): Promise<void> => {
     try {
-      await toggleActive.mutateAsync({ userId, active });
+      await updateUser.mutateAsync({ userId, data: { active } });
       showMessage('success', active ? 'User activated' : 'User deactivated');
     } catch (err) {
       showMessage('error', err instanceof Error ? err.message : 'Failed to update status');
