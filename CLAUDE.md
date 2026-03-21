@@ -13,9 +13,9 @@ Worker: `cd backend && arq app.worker.settings.WorkerSettings`
 ```
 app/
 ├── core/                  # Shared across all modules
-│   ├── api/               # auth, projects, admin_users, jobs, oauth, deps.py
-│   ├── models/            # Project, User, Job, OAuthToken, IntegrationSetting
-│   └── services/          # oauth_service, job_service, integration_token_service
+│   ├── api/               # auth, projects, admin_users, jobs, oauth, currencies, rates, deps.py
+│   ├── models/            # Project, User, Job, OAuthToken, IntegrationSetting, ExchangeRate
+│   └── services/          # oauth_service, job_service, integration_token_service, exchange_rate_service
 ├── modules/
 │   ├── scorecard/         # Scoring, metrics, collectors, calculators
 │   │   ├── api/           # 13 sub-routers (scores, metrics, capture, config, etc.)
@@ -42,7 +42,7 @@ src/
 │   ├── components/        # layout/, Admin/, NotificationsAdmin/, ErrorBoundary, ProtectedRoute
 │   ├── contexts/          # AuthContext
 │   ├── hooks/             # queryKeys, useProjects, useJobs, useAlertDefinitions, etc.
-│   ├── pages/             # Admin, LoginPage
+│   ├── pages/             # Admin, LoginPage, Landing, UserDetail
 │   ├── services/          # client (axios), projects, jobs, notifications, integrations
 │   └── types/             # project, jobs, alerts, auth, common
 ├── modules/
@@ -54,8 +54,8 @@ src/
 │   │   └── types/         # scores, metrics, config, global
 │   ├── tracker/           # Budget tracking, time reports
 │   │   ├── components/    # BurnDashboard, TimeByAreaTable, DaysByPeopleChart, BudgetLinesEditor
-│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines
-│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail
+│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines, useInvoices
+│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail, AdminInvoices
 │   │   ├── services/      # tracker (API client)
 │   │   ├── types/         # tracker (all tracker types)
 │   │   └── utils/         # constants (formatCurrency, shortMonth, etc.)
@@ -93,12 +93,21 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 ## Constraints
 
 - **Targets vs Ideals**: Target = minimum acceptable (color coding). Ideal = perfect score (100 pts). SPI 0.85 → green (above target) but 85 points (not 100). Only SPI/CPI have explicit ideals.
-- **Snapshot types**: Capture creates BOTH cumulative and punctual. Manual fields synced between types; collector fields are NOT.
+- **Snapshot types**: Capture creates BOTH cumulative and punctual. Manual fields synced between types; collector fields are NOT. EVM fields (cost_to_date, percent_completed, percent_planned) are derived from tracker data, not manual — see `TRACKER_EVM_FIELDS` in `MetricsDB`.
 - **Disabled governance tools** → score 0, not neutral.
 - **No trailing slashes**: Routes use `""` not `"/"`. `redirect_slashes=False` in main.py.
 - **DBSession manages transactions**: Do NOT use `async with db.begin()` inside endpoints — nested transaction error. Only use manual `db.begin()` outside request context.
 - **Weights must sum to 1.0** per group in `config_parameters`.
 - **React Query keys**: Always use `queryKeys` from `core/hooks/queryKeys.ts`. Never string literals.
+- **Invoice effective status**: Derived at query time, not stored. Uses SQL CASE with postponement subquery. `postponed` = has active postponement (postponed_to > today). `pending_to_issue` = scheduled past due OR postponement expired. Transitions blocked for postponed invoices.
+- **Exchange rates**: ECB rates stored in `exchange_rates` table, fetched daily at 14:30 UTC. EUR-based (rate = units per 1 EUR). Conversion: `amount / rate`. EUR passthrough (rate = 1.0). Currencies endpoint: `GET /api/currencies`.
+- **Landing page**: `/` renders `Landing.tsx` inside `AppLayout` (with sidebar). Logo links to `/`. Uses `--lnd-green` CSS var: `deepTeal` in light mode, `neonGrass` in dark. Top 5 scores widget uses `useActiveProjectSummaries` + `useProjectScoresMap`.
+- **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
+- **Admin impersonation**: Token swap via `admin_token` httpOnly cookie. `stop-impersonate` uses `CurrentUser` (not `AdminUser`) because the session is the impersonated user. Use `delete_auth_cookie(response, key)` from `core/auth.py` for cookie deletion — never hand-unpack `get_cookie_settings()`.
+- **User display helpers**: Use `getFullName(first, last, fallback?)` and `getInitials(first, last)` from `src/utils/formatters.ts` — don't inline `[first, last].filter(Boolean).join(' ')`.
+- **User active scope**: `GET /admin/users` filters inactive by default (`include_inactive=true` to see all). Inactive users cannot log in (403) or be impersonated (400). Deactivation requires confirmation dialog.
+- **Slack integration on users**: `slack_user_id` and `slack_display_name` on `UserDB`. Auto-linked on signup via `users.lookupByEmail`. Bulk sync via `POST /admin/users/sync-slack-all`. Display name extraction: `SlackService.extract_display_name(slack_user)`. Bot token requires `users:read.email` scope.
+- **Rates API**: `GET /api/rates` lists rate bands (A-D). Endpoint in `core/api/rates.py`.
 
 ## Reference Docs
 

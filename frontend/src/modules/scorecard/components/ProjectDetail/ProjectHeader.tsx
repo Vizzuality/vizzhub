@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Github, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, Github, BarChart3, Calendar, Pencil } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
@@ -43,6 +44,14 @@ export default function ProjectHeader({
                   {getStatusLabel(project.status)}
                 </Badge>
               </div>
+              {hasDateRange && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4 shrink-0" />
+                  {project.start_date && formatDate(project.start_date)}
+                  {project.start_date && project.end_date && ' - '}
+                  {project.end_date && formatDate(project.end_date)}
+                </div>
+              )}
               <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 text-base text-muted-foreground">
                 {project.jira_project_key && (
                   <span className="flex items-center gap-2 min-w-0">
@@ -56,18 +65,18 @@ export default function ProjectHeader({
                     <span className="truncate">GitHub: {project.github_repo}</span>
                   </span>
                 )}
-                {hasDateRange && (
-                  <span className="flex items-center gap-2 shrink-0">
-                    <Calendar className="w-5 h-5 shrink-0" />
-                    {project.start_date && formatDate(project.start_date)}
-                    {project.start_date && project.end_date && ' - '}
-                    {project.end_date && formatDate(project.end_date)}
-                  </span>
-                )}
               </div>
             </div>
 
-            <StatusControls projectId={project.id} />
+            <div className="flex items-center gap-2">
+              <Link to={`/projects/${project.id}/edit`}>
+                <Button type="button" variant="ghost" size="sm" className="border border-input">
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              </Link>
+              <StatusControls projectId={project.id} />
+            </div>
           </div>
         </CardHeader>
       </Card>

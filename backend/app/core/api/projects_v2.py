@@ -23,6 +23,7 @@ from app.core.api.deps import (
 from app.core.models.link import Link, LinkCreate, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
+from app.core.models.user import UserDB
 from app.modules.scorecard.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
 from app.modules.scorecard.models.metrics.db import MetricsDB
 from app.modules.scorecard.public import MetricsService, Milestone, SnapshotType, refresh_tracker_evm
@@ -62,11 +63,17 @@ def _build_project_filters(
     return filters
 
 
-def _project_to_response(
-    project: ProjectDB, program_name: str | None = None
-) -> ProjectResponse:
+def _user_full_name_expr(user_alias):
+    """SQL expression for user full name, NULL when both names are absent."""
+    return func.nullif(
+        func.trim(func.concat_ws(" ", user_alias.first_name, user_alias.last_name)),
+        "",
+    )
+
+
+def _project_to_response(project: ProjectDB, **extras) -> ProjectResponse:
     data = {c.key: getattr(project, c.key) for c in project.__table__.columns}
-    data["program_name"] = program_name
+    data.update(extras)
     return ProjectResponse.model_validate(data)
 
 
@@ -91,6 +98,7 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.end_date = data.end_date
     project.status = data.status.value if data.status else "proposal"
     project.slack_channel_id = data.slack_channel_id
+    project.project_manager_id = data.project_manager_id
 
 
 @router.get("")
@@ -121,9 +129,15 @@ async def list_projects(
         return [ProjectSummary.model_validate(p) for p in projects]
 
     program = aliased(ProgramDB)
+    manager = aliased(UserDB)
     query = (
-        select(ProjectDB, program.name.label("program_name"))
+        select(
+            ProjectDB,
+            program.name.label("program_name"),
+            _user_full_name_expr(manager).label("pm_name"),
+        )
         .outerjoin(program, ProjectDB.program_id == program.id)
+        .outerjoin(manager, ProjectDB.project_manager_id == manager.id)
     )
     count_query = select(func.count()).select_from(ProjectDB)
 
@@ -148,7 +162,10 @@ async def list_projects(
 
     result = await db.execute(query)
     rows = result.all()
-    items = [_project_to_response(row[0], row[1]) for row in rows]
+    items = [
+        _project_to_response(proj, program_name=pname, project_manager_name=pmname)
+        for proj, pname, pmname in rows
+    ]
 
     return PaginatedProjectsResponse(
         items=items,
@@ -178,15 +195,22 @@ async def get_project(
     request: Request, project_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> ProjectResponse:
     program = aliased(ProgramDB)
+    manager = aliased(UserDB)
     result = await db.execute(
-        select(ProjectDB, program.name.label("program_name"))
+        select(
+            ProjectDB,
+            program.name.label("program_name"),
+            _user_full_name_expr(manager).label("pm_name"),
+        )
         .outerjoin(program, ProjectDB.program_id == program.id)
+        .outerjoin(manager, ProjectDB.project_manager_id == manager.id)
         .where(ProjectDB.id == project_id)
     )
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Project not found")
-    return _project_to_response(row[0], row[1])
+    proj, pname, pmname = row
+    return _project_to_response(proj, program_name=pname, project_manager_name=pmname)
 
 
 @router.put("/{project_id}")
@@ -224,7 +248,7 @@ async def update_project(
         "notes", "summary", "jira_project_key", "github_repo",
         "start_date", "end_date", "status", "finished_at",
         "slack_channel_id", "has_scorecard", "has_dependabot_alerts",
-        "has_budget_alerts",
+        "has_budget_alerts", "project_manager_id",
     }
 
     project = await get_project_or_404(db, project_id)

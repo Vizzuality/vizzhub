@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import BaseModel
@@ -11,8 +11,10 @@ from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
-from app.core.auth import create_access_token, get_cookie_settings
+from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserRole
+from app.modules.scorecard.services.slack_service import SlackService
+from app.utils.slack import get_slack_bot_token
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -30,6 +32,12 @@ class AuthLoginResponse(BaseModel):
     """Response for successful authentication (no token in body)."""
 
     user: UserPublic
+
+
+class MeResponse(User):
+    """Response for /auth/me with impersonation status."""
+
+    is_impersonating: bool = False
 
 
 @router.post("/google")
@@ -88,11 +96,27 @@ async def google_auth(
                 role=role.value,
                 last_login_at=datetime.now(timezone.utc),
             )
+            # Auto-link Slack profile before first commit
+            try:
+                bot_token = await get_slack_bot_token(db)
+                if bot_token:
+                    slack_user = await SlackService.lookup_user_by_email(bot_token, email)
+                    if slack_user:
+                        user.slack_user_id = slack_user["id"]
+                        user.slack_display_name = SlackService.extract_display_name(slack_user)
+            except Exception:
+                logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
+
             db.add(user)
             await db.commit()
             await db.refresh(user)
             logger.info(f"Created new user: {email} with role {role.value}")
         else:
+            if not user.active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account deactivated. Contact an administrator.",
+                )
             # Update last login and profile info
             user.last_login_at = datetime.now(timezone.utc)
             user.first_name = idinfo.get("given_name") or user.first_name
@@ -126,9 +150,10 @@ async def google_auth(
 
 @router.get("/me")
 async def get_current_user_info(
+    request: Request,
     current_user: CurrentUser,
     db: DBSession,
-) -> User:
+) -> MeResponse:
     """Get the current authenticated user's information."""
     result = await db.execute(
         select(UserDB).where(UserDB.id == current_user.user_id)
@@ -141,19 +166,17 @@ async def get_current_user_info(
             detail="User not found",
         )
 
-    return User.model_validate(user)
+    user_data = User.model_validate(user)
+    return MeResponse(
+        **user_data.model_dump(),
+        is_impersonating=request.cookies.get("admin_token") is not None,
+    )
 
 
 @router.post("/logout")
 async def logout(current_user: CurrentUser, response: Response) -> dict:
     """Logout: clear the httpOnly cookie."""
-    cookie_settings = get_cookie_settings()
-    response.delete_cookie(
-        key=cookie_settings["key"],
-        path=cookie_settings["path"],
-        samesite=cookie_settings["samesite"],
-        secure=cookie_settings["secure"],
-        httponly=cookie_settings["httponly"],
-    )
+    delete_auth_cookie(response)
+    delete_auth_cookie(response, key="admin_token")
     logger.info(f"User logged out: {current_user.user_id}")
     return {"message": "Logged out successfully"}

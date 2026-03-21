@@ -2,10 +2,13 @@
  * User management tab in Admin panel
  */
 
-import { useState } from 'react';
-import { useUsers, useUpdateUserRole, useDeleteUser } from '../../hooks/useUsers';
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
+import { useUsers, useUpdateUserRole, useUpdateUser, useSyncSlackAll } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User, UserRole } from '../../types/auth';
+import { getFullName } from '@/utils/formatters';
 import {
   Select,
   SelectContent,
@@ -24,44 +27,137 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
 import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
-import { Trash2 } from 'lucide-react';
+import { Switch } from '@/shared/components/ui/switch';
+import { Label } from '@/shared/components/ui/label';
+import { cn } from '@/lib/utils';
+import { useUrlState } from '@/shared/hooks/useUrlState';
+
+const SEARCH_DEBOUNCE_MS = 300;
+type SortField = 'email' | 'name';
+type SortOrder = 'asc' | 'desc';
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return 'Never';
   return new Date(dateString).toLocaleString();
 }
 
+function SortButton({
+  field,
+  label,
+  currentField,
+  currentOrder,
+  onClick,
+}: {
+  readonly field: SortField;
+  readonly label: string;
+  readonly currentField: string;
+  readonly currentOrder: string;
+  readonly onClick: (field: SortField) => void;
+}): JSX.Element {
+  const isActive = currentField === field;
+  const activeIcon = currentOrder === 'asc' ? ArrowUp : ArrowDown;
+  const Icon = isActive ? activeIcon : ArrowUpDown;
+  return (
+    <button
+      onClick={() => onClick(field)}
+      className={cn(
+        'flex items-center gap-1 px-2 py-1 text-sm font-medium rounded-md transition-colors',
+        isActive
+          ? 'bg-muted text-foreground'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+      )}
+    >
+      {label}
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+function sortUsers(users: User[], field: SortField, order: SortOrder): User[] {
+  return [...users].sort((a, b) => {
+    let cmp: number;
+    if (field === 'email') {
+      cmp = a.email.localeCompare(b.email);
+    } else {
+      const nameA = getFullName(a.first_name, a.last_name, a.email);
+      const nameB = getFullName(b.first_name, b.last_name, b.email);
+      cmp = nameA.localeCompare(nameB);
+    }
+    return order === 'asc' ? cmp : -cmp;
+  });
+}
+
 export function UsersContent(): JSX.Element {
-  const { data: users, isLoading, error } = useUsers();
+  const { state, setState } = useUrlState({
+    search: { defaultValue: '' },
+    sort_by: { defaultValue: 'name' },
+    sort_order: { defaultValue: 'asc' },
+  });
+
+  const [showInactive, setShowInactive] = useState(false);
+  const { data: users, isLoading, error } = useUsers(showInactive);
   const updateRole = useUpdateUserRole();
-  const deleteUser = useDeleteUser();
+  const updateUser = useUpdateUser();
+  const syncSlackAll = useSyncSlackAll();
   const { user: currentUser } = useAuth();
 
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [localSearch, setLocalSearch] = useState(state.search);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+
+  useEffect(() => { setLocalSearch(state.search); }, [state.search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== state.search) {
+        setState({ search: localSearch });
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [localSearch, state.search, setState]);
+
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    const q = state.search.toLowerCase();
+    const filtered = q
+      ? users.filter((u) =>
+          u.email.toLowerCase().includes(q)
+          || getFullName(u.first_name, u.last_name).toLowerCase().includes(q),
+        )
+      : users;
+    return sortUsers(filtered, state.sort_by as SortField, state.sort_order as SortOrder);
+  }, [users, state.search, state.sort_by, state.sort_order]);
+
+  const showMessage = (type: 'success' | 'error', text: string): void => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const handleRoleChange = async (userId: string, newRole: UserRole): Promise<void> => {
     try {
       await updateRole.mutateAsync({ userId, role: newRole });
-      setMessage({ type: 'success', text: 'User role updated' });
-      setTimeout(() => setMessage(null), 3000);
+      showMessage('success', 'User role updated');
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to update role' });
+      showMessage('error', err instanceof Error ? err.message : 'Failed to update role');
     }
   };
 
-  const handleDelete = async (): Promise<void> => {
-    if (!userToDelete) return;
-
+  const handleToggleActive = async (userId: string, active: boolean): Promise<void> => {
     try {
-      await deleteUser.mutateAsync(userToDelete.id);
-      setMessage({ type: 'success', text: 'User deleted' });
-      setTimeout(() => setMessage(null), 3000);
+      await updateUser.mutateAsync({ userId, data: { active } });
+      showMessage('success', active ? 'User activated' : 'User deactivated');
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to delete user' });
-    } finally {
-      setUserToDelete(null);
+      showMessage('error', err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
+
+  const handleSort = (field: SortField): void => {
+    if (state.sort_by === field) {
+      setState({ sort_order: state.sort_order === 'asc' ? 'desc' : 'asc' });
+    } else {
+      setState({ sort_by: field, sort_order: 'asc' });
     }
   };
 
@@ -79,11 +175,51 @@ export function UsersContent(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Users</h2>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search by name or email..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="pl-9 h-8"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="show-inactive"
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+          />
+          <Label htmlFor="show-inactive" className="text-sm text-muted-foreground">
+            Show inactive
+          </Label>
+        </div>
+
+        <div className="flex items-center gap-1 ml-auto">
+          <SortButton field="name" label="Name" currentField={state.sort_by} currentOrder={state.sort_order} onClick={handleSort} />
+          <SortButton field="email" label="Email" currentField={state.sort_by} currentOrder={state.sort_order} onClick={handleSort} />
+        </div>
+
         <span className="text-muted-foreground text-sm">
-          {users?.length || 0} users
+          {filteredUsers.length} users
         </span>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            syncSlackAll.mutateAsync()
+              .then((updated) => showMessage('success', `Synced Slack for ${updated.length} users`))
+              .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
+          }}
+          disabled={syncSlackAll.isPending}
+        >
+          {syncSlackAll.isPending ? 'Syncing...' : 'Sync Slack'}
+        </Button>
       </div>
 
       {message && (
@@ -94,26 +230,41 @@ export function UsersContent(): JSX.Element {
         </div>
       )}
 
+      {/* Table */}
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
-              <th className="text-left p-3 font-medium">Email</th>
               <th className="text-left p-3 font-medium">Name</th>
+              <th className="text-left p-3 font-medium">Email / Slack</th>
               <th className="text-left p-3 font-medium">Role</th>
-              <th className="text-left p-3 font-medium">Last Login</th>
+              <th className="text-left p-3 font-medium">Status</th>
+              <th className="text-left p-3 font-medium hidden md:table-cell">Dedication</th>
+              <th className="text-left p-3 font-medium hidden sm:table-cell">Last Login</th>
               <th className="w-[80px] p-3"></th>
             </tr>
           </thead>
           <tbody>
-            {users?.map((user) => {
+            {filteredUsers.map((user) => {
               const isCurrentUser = currentUser?.id === user.id;
-              const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
+              const fullName = getFullName(user.first_name, user.last_name, user.email);
 
               return (
-                <tr key={user.id} className="border-t">
-                  <td className="p-3 font-medium">{user.email}</td>
-                  <td className="p-3">{fullName}</td>
+                <tr key={user.id} className={`border-t ${!user.active ? 'opacity-60' : ''}`}>
+                  <td className="p-3">
+                    <Link
+                      to={`/admin/users/${user.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {fullName}
+                    </Link>
+                  </td>
+                  <td className="p-3 max-w-[180px]">
+                    <p className="text-sm text-muted-foreground truncate" title={user.email}>{user.email}</p>
+                    {user.slack_display_name && (
+                      <p className="text-xs text-muted-foreground/70 truncate">{user.slack_display_name}</p>
+                    )}
+                  </td>
                   <td className="p-3">
                     <Select
                       value={user.role}
@@ -129,18 +280,43 @@ export function UsersContent(): JSX.Element {
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="p-3 text-muted-foreground text-sm">
+                  <td className="p-3">
+                    <button
+                      className="flex items-center gap-2 group"
+                      onClick={() => {
+                        if (isCurrentUser) return;
+                        if (user.active) {
+                          setUserToDeactivate(user);
+                        } else {
+                          handleToggleActive(user.id, true);
+                        }
+                      }}
+                      disabled={isCurrentUser}
+                      title={isCurrentUser ? 'Cannot change your own status' : user.active ? 'Click to deactivate' : 'Click to activate'}
+                    >
+                      <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+                        user.active ? 'bg-green-500' : 'bg-muted-foreground'
+                      }`} />
+                      <span className="text-sm text-foreground group-hover:underline">
+                        {user.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </button>
+                  </td>
+                  <td className="p-3 text-muted-foreground text-sm tabular-nums hidden md:table-cell">
+                    {user.dedication != null ? Number(user.dedication).toFixed(2) : '-'}
+                  </td>
+                  <td className="p-3 text-muted-foreground text-sm hidden sm:table-cell">
                     {formatDate(user.last_login_at)}
                   </td>
                   <td className="p-3">
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setUserToDelete(user)}
-                      disabled={isCurrentUser}
-                      title={isCurrentUser ? 'Cannot delete yourself' : 'Delete user'}
+                      asChild
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Link to={`/admin/users/${user.id}`} title="Edit user">
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
                     </Button>
                   </td>
                 </tr>
@@ -150,18 +326,27 @@ export function UsersContent(): JSX.Element {
         </table>
       </div>
 
-      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+      <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogTitle>Deactivate user</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {userToDelete?.email}? This action cannot be undone.
+              Are you sure you want to deactivate {userToDeactivate?.email}?
+              They will no longer be able to log in.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Delete
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (userToDeactivate) {
+                  handleToggleActive(userToDeactivate.id, false);
+                  setUserToDeactivate(null);
+                }
+              }}
+            >
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,8 +1,15 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ChevronDown, Pencil, Calendar, ExternalLink } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/shared/components/ui/collapsible';
+import { projectsApi } from '@/core/services/projects';
+import { formatDate } from '@/utils/formatters';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useProject } from '@/core/hooks/useProjects';
@@ -18,7 +25,8 @@ import TimeByAreaTable from '../components/TimeByAreaTable';
 import DaysByPeopleChart from '../components/DaysByPeopleChart';
 import ProgressCard from '../components/ProgressCard';
 import InvoicesCard from '../components/InvoicesCard';
-import type { AggregationRow, BudgetLine, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
+import NonStaffCostsCard from '../components/NonStaffCostsCard';
+import type { AggregationRow, ProjectCostSummary, ProjectReportPart } from '../types/tracker';
 
 function getRowBorderClass(
   partIdx: number,
@@ -133,50 +141,36 @@ function PartsTable({
   );
 }
 
-function DetailSection({
+function InsightsSection({
   summary,
   projectEndDate,
-  areaRows,
   userRows,
-  budgetLines,
 }: {
   readonly summary: ProjectCostSummary;
   readonly projectEndDate: string | null;
-  readonly areaRows: AggregationRow[];
   readonly userRows: AggregationRow[];
-  readonly budgetLines?: BudgetLine[];
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
   const { monthly, avgMonthlyBurn } = useChartData(summary.periods, projectEndDate);
 
   const hasDetails = monthly.length > 0 || userRows.length > 0;
 
+  if (!hasDetails) return <></>;
+
   return (
-    <div className="space-y-4">
-      {hasDetails && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors py-2"
-        >
-          {expanded
-            ? <><ChevronUp className="w-4 h-4" />{'Show less'}</>
-            : <><BarChart3 className="w-4 h-4" />{'Show more insights'}<ChevronDown className="w-4 h-4" /></>}
-        </button>
-      )}
-
-      {expanded && (
-        <>
-          {userRows.length > 0 && (
-            <DaysByPeopleChart rows={userRows} />
-          )}
-          {monthly.length > 0 && (
-            <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
-          )}
-        </>
-      )}
-
-      <TimeByAreaTable rows={areaRows} budgetLines={budgetLines} />
-    </div>
+    <Collapsible defaultOpen>
+      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 group">
+        Insights
+        <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4">
+        {userRows.length > 0 && (
+          <DaysByPeopleChart rows={userRows} />
+        )}
+        {monthly.length > 0 && (
+          <MonthlyCostsChart data={monthly} avgMonthlyBurn={avgMonthlyBurn} />
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -208,6 +202,13 @@ export default function ProjectTrackerDetail(): JSX.Element {
   );
   const { data: budgetLines } = useBudgetLines(projectId || '');
 
+  const [links, setLinks] = useState<{ id: string; title: string | null; url: string | null; link_type: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    projectsApi.getLinks(projectId).then(setLinks).catch(() => setLinks([]));
+  }, [projectId]);
+
   if (summaryLoading || partsLoading || areaLoading || userLoading) {
     return <LoadingSpinner />;
   }
@@ -224,21 +225,41 @@ export default function ProjectTrackerDetail(): JSX.Element {
     );
   }
 
+  const hasMoreInfo = project?.summary || project?.notes || links.length > 0;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1"
-          onClick={() => navigate('/projects')}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <h1 className="text-2xl font-semibold">
-          {project?.name ?? 'Project'}
-        </h1>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1"
+              onClick={() => navigate('/projects')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <h1 className="text-2xl font-semibold">
+              {project?.name ?? 'Project'}
+            </h1>
+          </div>
+          {(project?.start_date || project?.end_date) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="w-4 h-4 shrink-0" />
+              {project.start_date && formatDate(project.start_date)}
+              {project.start_date && project.end_date && ' - '}
+              {project.end_date && formatDate(project.end_date)}
+            </div>
+          )}
+        </div>
+        <Link to={`/projects/${projectId}/edit`}>
+          <Button type="button" variant="ghost" size="sm" className="border border-input">
+            <Pencil className="w-4 h-4 mr-2" />
+            Edit
+          </Button>
+        </Link>
       </div>
 
       <BurnDashboard
@@ -247,19 +268,70 @@ export default function ProjectTrackerDetail(): JSX.Element {
         projectEndDate={project?.end_date ?? null}
       />
 
+      {hasMoreInfo && (
+        <Card>
+          <CardContent className="pt-5">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                More Info
+                <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4 space-y-4">
+                {project?.summary && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">Summary</p>
+                    <p className="text-sm">{project.summary}</p>
+                  </div>
+                )}
+                {project?.notes && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm whitespace-pre-line">{project.notes}</p>
+                  </div>
+                )}
+                {links.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">Links</p>
+                    <div className="flex flex-wrap gap-3">
+                      {links.map((link) => (
+                        <a
+                          key={link.id}
+                          href={link.url ?? '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          {link.title || link.url}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+      )}
+
+      <TimeByAreaTable rows={areaAgg?.rows ?? []} budgetLines={budgetLines} />
+
+      <InvoicesCard projectId={projectId || ''} />
+
+      <NonStaffCostsCard
+        projectId={projectId || ''}
+        periods={summary.periods}
+      />
+
       <ProgressCard
         projectId={projectId || ''}
         periods={summary.periods}
       />
 
-      <InvoicesCard projectId={projectId || ''} />
-
-      <DetailSection
+      <InsightsSection
         summary={summary}
         projectEndDate={project?.end_date ?? null}
-        areaRows={areaAgg?.rows ?? []}
         userRows={userAgg?.rows ?? []}
-        budgetLines={budgetLines}
       />
 
       <div className="flex items-center gap-3">

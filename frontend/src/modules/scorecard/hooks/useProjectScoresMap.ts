@@ -3,15 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { scoresApi } from '../services';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { TIMING } from '@/shared/constants/timing';
-import type { Project } from '@/core/types/project';
-
 export interface UseProjectScoresMapReturn {
   scoresMap: Record<string, number | null>;
   isLoading: boolean;
 }
 
 export function useProjectScoresMap(
-  projects: Project[] | undefined,
+  projects: { id: string }[] | undefined,
 ): UseProjectScoresMapReturn {
   const projectIds = useMemo(
     () => (projects ?? []).map((p) => p.id),

@@ -14,6 +14,9 @@ class SlackService:
         bot_token: str,
         channel_id: str,
         message: str,
+        *,
+        unfurl_links: bool = True,
+        unfurl_media: bool = True,
     ) -> dict[str, Any]:
         """Send a message to a Slack channel.
 
@@ -21,6 +24,8 @@ class SlackService:
             bot_token: Slack bot OAuth token (xoxb-...).
             channel_id: Slack channel ID to send message to.
             message: Message text (supports Slack markdown).
+            unfurl_links: Enable link previews.
+            unfurl_media: Enable media previews.
 
         Returns:
             Slack API response containing ok status and message timestamp.
@@ -33,6 +38,8 @@ class SlackService:
                     "channel": channel_id,
                     "text": message,
                     "mrkdwn": True,
+                    "unfurl_links": unfurl_links,
+                    "unfurl_media": unfurl_media,
                 },
             )
             return response.json()
@@ -82,6 +89,39 @@ class SlackService:
         # Sort channels alphabetically by name
         channels.sort(key=lambda c: c.get("name", "").lower())
         return channels
+
+    @staticmethod
+    def extract_display_name(slack_user: dict[str, Any]) -> str | None:
+        """Extract the best display name from a Slack user object."""
+        profile = slack_user.get("profile", {})
+        return (
+            profile.get("display_name")
+            or profile.get("real_name")
+            or slack_user.get("name")
+        )
+
+    @staticmethod
+    async def lookup_user_by_email(
+        bot_token: str,
+        email: str,
+    ) -> dict[str, Any] | None:
+        """Look up a Slack user by email address.
+
+        Requires the `users:read.email` scope on the bot token.
+
+        Returns:
+            Slack user object if found, None otherwise.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{SlackService.BASE_URL}/users.lookupByEmail",
+                headers={"Authorization": f"Bearer {bot_token}"},
+                params={"email": email},
+            )
+            data = response.json()
+            if data.get("ok"):
+                return data["user"]
+            return None
 
     @staticmethod
     async def test_connection(bot_token: str) -> dict[str, Any]:

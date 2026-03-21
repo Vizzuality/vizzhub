@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
+import { Textarea } from '@/shared/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,35 +14,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
-import { Trash2 } from 'lucide-react';
+import { Trash2, PauseCircle, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import {
   useUpdateInvoice,
   useTransitionInvoice,
   useDeleteInvoice,
 } from '../hooks/useInvoices';
+import { trackerApi } from '../services/tracker';
 import { formatCurrency } from '../utils/constants';
-import type { InvoiceStatus } from '../types/tracker';
+import type { InvoiceStatus, Postponement } from '../types/tracker';
 
 export const STATUS_LABELS: Record<InvoiceStatus, string> = {
   scheduled: 'Scheduled',
   pending_to_issue: 'Pending',
+  postponed: 'Postponed',
   waiting_for_payment: 'Waiting',
   paid: 'Paid',
 };
 
-export const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  scheduled: 'text-foreground',
-  pending_to_issue: 'bg-aux-yellow/20 text-aux-yellow',
-  waiting_for_payment: 'bg-aux-red/20 text-aux-red',
-  paid: 'bg-aux-neon-grass/20 text-aux-neon-grass',
+export const STATUS_DOT_COLORS: Record<InvoiceStatus, string> = {
+  scheduled: 'bg-muted-foreground',
+  pending_to_issue: 'bg-aux-yellow',
+  postponed: 'bg-orange-400',
+  waiting_for_payment: 'bg-aux-red',
+  paid: 'bg-aux-neon-grass',
 };
-
-const HOVER_COLORS = 'bg-muted text-foreground';
 
 const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
   scheduled: null,
   pending_to_issue: 'waiting_for_payment',
+  postponed: null,
   waiting_for_payment: 'paid',
   paid: null,
 };
@@ -48,6 +53,7 @@ const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
 const NEXT_LABELS: Record<InvoiceStatus, string> = {
   scheduled: '',
   pending_to_issue: 'Mark waiting',
+  postponed: '',
   waiting_for_payment: 'Mark paid',
   paid: '',
 };
@@ -55,9 +61,16 @@ const NEXT_LABELS: Record<InvoiceStatus, string> = {
 export const ALLOWED_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
   scheduled: [],
   pending_to_issue: ['waiting_for_payment'],
+  postponed: [],
   waiting_for_payment: ['paid', 'pending_to_issue'],
   paid: ['waiting_for_payment'],
 };
+
+// -- Shared helpers --
+
+export function getDisplayDate(invoice: { status: string; postponed_to?: string | null; due_date: string }): string {
+  return invoice.status === 'postponed' && invoice.postponed_to ? invoice.postponed_to : invoice.due_date;
+}
 
 // -- EditableCell --
 
@@ -131,6 +144,8 @@ interface BaseInvoice {
   milestone: string;
   due_date: string;
   status: InvoiceStatus;
+  postpone_count?: number;
+  postponed_to?: string | null;
 }
 
 export function StatusCell({
@@ -164,21 +179,19 @@ export function StatusCell({
   };
 
   const label = hovered && next ? NEXT_LABELS[invoice.status] : STATUS_LABELS[invoice.status];
-  const colors = hovered && next ? HOVER_COLORS : STATUS_COLORS[invoice.status];
-
   return (
     <>
       <button
         className={cn(
-          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-[100px] justify-center transition-colors whitespace-nowrap',
-          next ? 'cursor-pointer' : 'cursor-default',
-          colors,
+          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium text-foreground transition-colors whitespace-nowrap w-[90px]',
+          next ? 'cursor-pointer hover:bg-muted/50' : 'cursor-default',
         )}
         onMouseEnter={() => next && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => next && setConfirming(true)}
         disabled={!next || transitionMutation.isPending}
       >
+        <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', STATUS_DOT_COLORS[invoice.status])} />
         {label}
       </button>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
@@ -199,6 +212,203 @@ export function StatusCell({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+// -- PostponeButton --
+
+export function PostponeButton({
+  invoice,
+  onError,
+  onSuccess,
+}: {
+  readonly invoice: BaseInvoice;
+  readonly onError: (msg: string) => void;
+  readonly onSuccess?: () => void;
+}): JSX.Element | null {
+  const [open, setOpen] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  if (invoice.status !== 'pending_to_issue') return null;
+
+  const baseDate = invoice.postponed_to ?? invoice.due_date;
+  const base = new Date(baseDate + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = new Date(base);
+  minDate.setDate(minDate.getDate() + 1);
+  if (minDate < today) {
+    minDate.setTime(today.getTime());
+    minDate.setDate(minDate.getDate() + 1);
+  }
+  const maxRef = base > today ? base : today;
+  const maxDate = new Date(maxRef);
+  maxDate.setDate(maxDate.getDate() + 30);
+
+  const fmt = (d: Date): string => d.toISOString().split('T')[0];
+
+  const handlePostpone = async (e: React.MouseEvent): Promise<void> => {
+    e.preventDefault();
+    if (!newDate || !reason.trim()) return;
+    setSubmitting(true);
+    try {
+      await trackerApi.postponeInvoice(invoice.project_id, invoice.id, {
+        postponed_to: newDate,
+        reason: reason.trim(),
+      });
+      setOpen(false);
+      setNewDate('');
+      setReason('');
+      onSuccess?.();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail ?? 'Postpone failed';
+      onError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <button
+          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          title="Postpone"
+        >
+          <PauseCircle className="w-4 h-4" />
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Postpone invoice</AlertDialogTitle>
+          <AlertDialogDescription>
+            {invoice.milestone} ({formatCurrency(invoice.amount)})
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="text-xs text-muted-foreground">
+            Base date: {baseDate} &middot; Limit: {fmt(maxDate)}
+          </div>
+          <Input
+            type="date"
+            value={newDate}
+            min={fmt(minDate)}
+            max={fmt(maxDate)}
+            onChange={(e) => setNewDate(e.target.value)}
+            className="h-8 text-sm"
+          />
+          <Textarea
+            placeholder="Reason for postponement..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="text-sm min-h-[60px]"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handlePostpone}
+            disabled={submitting || !newDate || !reason.trim()}
+          >
+            Postpone
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// -- PostponementHistory (expandable) --
+
+export function PostponementHistory({
+  projectId,
+  invoiceId,
+  expanded,
+  colSpan,
+  onDelete,
+}: {
+  readonly projectId: string;
+  readonly invoiceId: string;
+  readonly expanded: boolean;
+  readonly colSpan: number;
+  readonly onDelete?: () => void;
+}): JSX.Element | null {
+  const { data, refetch } = useQuery({
+    queryKey: queryKeys.tracker.invoices.postponements(projectId, invoiceId),
+    queryFn: () => trackerApi.listPostponements(projectId, invoiceId),
+    enabled: expanded,
+  });
+  const [deleting, setDeleting] = useState(false);
+
+  if (!expanded || !data || data.length === 0) return null;
+
+  const handleDelete = async (): Promise<void> => {
+    setDeleting(true);
+    try {
+      await trackerApi.deleteLatestPostponement(projectId, invoiceId);
+      await refetch();
+      onDelete?.();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <tr className="bg-muted/30">
+      <td colSpan={colSpan} className="px-4 py-2">
+        <div className="space-y-1.5">
+          {data.map((p: Postponement, idx: number) => (
+            <div key={p.id} className="flex items-center gap-3 text-xs">
+              <span className="text-muted-foreground shrink-0 tabular-nums">{p.postponed_to}</span>
+              <span className="text-foreground flex-1">{p.reason}</span>
+              <span className="text-muted-foreground/60 shrink-0">
+                {new Date(p.created_at).toLocaleDateString()}
+              </span>
+              {idx === 0 && (
+                <button
+                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-0.5 disabled:opacity-50"
+                  title="Remove last postponement"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// -- HistoryToggle icon --
+
+export function HistoryToggle({
+  count,
+  expanded,
+  onToggle,
+}: {
+  readonly count: number;
+  readonly expanded: boolean;
+  readonly onToggle: () => void;
+}): JSX.Element | null {
+  if (count === 0) return null;
+
+  return (
+    <button
+      className={cn(
+        'text-muted-foreground hover:text-foreground transition-colors p-0.5',
+        expanded && 'text-foreground',
+      )}
+      onClick={onToggle}
+      title={`${count} postponement${count > 1 ? 's' : ''}`}
+    >
+      <History className="w-3.5 h-3.5" />
+    </button>
   );
 }
 

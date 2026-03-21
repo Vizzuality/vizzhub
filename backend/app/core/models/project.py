@@ -85,6 +85,11 @@ class ProjectDB(Base):
     status: Mapped[str] = mapped_column(String(20), default="proposal", nullable=False)
     finished_at: Mapped[date | None] = mapped_column(nullable=True)
     slack_channel_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    project_manager_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -114,6 +119,7 @@ class ProjectBase(BaseModel):
     status: ProjectStatus = ProjectStatus.PROPOSAL
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
+    project_manager_id: UUID | None = None
 
     @field_validator("jira_project_key")
     @classmethod
@@ -175,6 +181,7 @@ class ProjectUpdate(BaseModel):
     status: ProjectStatus | None = None
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
+    project_manager_id: UUID | None = None
     clear_finished_at: bool = False
 
     @field_validator("jira_project_key")
@@ -200,6 +207,7 @@ class Project(ProjectBase):
 
 
 class ProjectResponse(Project):
-    """Project response with resolved program name."""
+    """Project response with resolved program and project manager names."""
 
     program_name: str | None = None
+    project_manager_name: str | None = None

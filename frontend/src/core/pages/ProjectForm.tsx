@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import { useForm, useFieldArray } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
 import {
@@ -11,10 +12,14 @@ import {
 } from '@/core/hooks/useProjects';
 import { usePrograms, useCreateProgram } from '@/core/hooks/usePrograms';
 import { useSlackChannels } from '@/core/hooks/useSlackChannels';
+import { useUsers } from '@/core/hooks/useUsers';
+import { getFullName } from '@/utils/formatters';
 import {
   useCurrentPeriodMetrics,
   useUpdateProjectBudget,
 } from '@/core/hooks/useProjectBudget';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
 import { trackerApi } from '@/modules/tracker/services/tracker';
@@ -55,6 +60,7 @@ import {
   Loader2,
   Plus,
   Info,
+  X,
 } from 'lucide-react';
 
 interface ProjectFormData {
@@ -63,6 +69,7 @@ interface ProjectFormData {
   status: ProjectStatus;
   currency: string;
   program_id: string;
+  project_manager_id: string;
   jira_project_key: string;
   github_repo: string;
   start_date: string;
@@ -80,10 +87,19 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: 'finished', label: 'Finished' },
 ];
 
-const CURRENCY_OPTIONS = [
-  { value: 'dollar', label: 'US Dollar (USD)' },
-  { value: 'euro', label: 'Euro (EUR)' },
-];
+function buildCurrencyOptions(dbCodes: string[]): { value: string; label: string }[] {
+  const opts: { value: string; label: string }[] = [
+    { value: 'dollar', label: 'US Dollar (USD)' },
+    { value: 'euro', label: 'Euro (EUR)' },
+  ];
+  const skip = new Set(['USD', 'EUR']);
+  for (const code of dbCodes) {
+    if (!skip.has(code)) {
+      opts.push({ value: code, label: code });
+    }
+  }
+  return opts;
+}
 
 const LINK_TYPE_OPTIONS = [
   { value: 'code', label: 'Code' },
@@ -101,6 +117,7 @@ interface ProjectData {
   status: ProjectStatus;
   currency: string;
   program_id?: string | null;
+  project_manager_id?: string | null;
   jira_project_key?: string | null;
   github_repo?: string | null;
   start_date?: string | null;
@@ -121,6 +138,7 @@ function buildFormDefaults(
     status: project.status,
     currency: project.currency,
     program_id: project.program_id ?? '',
+    project_manager_id: project.project_manager_id ?? '',
     jira_project_key: project.jira_project_key ?? '',
     github_repo: project.github_repo ?? '',
     start_date: project.start_date ?? '',
@@ -156,6 +174,7 @@ function getApiErrorMessage(error: unknown): string {
 export default function ProjectForm(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { setGuard } = useNavigationGuard();
   const isEditMode = !!id;
 
   const { data: project, isLoading: isLoadingProject, isError: isProjectError } =
@@ -173,12 +192,30 @@ export default function ProjectForm(): JSX.Element {
   const { data: existingBudgetLines } = useBudgetLines(id ?? '');
   const budgetLinesMutation = useReplaceBudgetLines(id ?? '');
 
+  const { data: dbCurrencies } = useQuery({
+    queryKey: queryKeys.currencies.all,
+    queryFn: () => trackerApi.listCurrencies(),
+    staleTime: 300_000,
+  });
+  const currencyOptions = useMemo(
+    () => buildCurrencyOptions(dbCurrencies ?? []),
+    [dbCurrencies],
+  );
+
   const {
     channels,
     isLoading: isLoadingChannels,
     isSlackConfigured,
     isCheckingStatus,
   } = useSlackChannels();
+
+  const { data: users } = useUsers();
+  const activeUsersSorted = useMemo(
+    () => (users ?? [])
+      .filter((u) => u.active)
+      .sort((a, b) => getFullName(a.first_name, a.last_name).localeCompare(getFullName(b.first_name, b.last_name))),
+    [users],
+  );
 
   const [slackChannelId, setSlackChannelId] = useState<string>('');
   const [isBillable, setIsBillable] = useState<boolean>(true);
@@ -201,14 +238,15 @@ export default function ProjectForm(): JSX.Element {
     reset,
     control,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ProjectFormData>({
     defaultValues: {
       name: '',
       code: '',
-      status: 'proposal',
+      status: 'live',
       currency: 'dollar',
       program_id: '',
+      project_manager_id: '',
       jira_project_key: '',
       github_repo: '',
       start_date: '',
@@ -270,11 +308,43 @@ export default function ProjectForm(): JSX.Element {
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
+  const currentProgramId = watch('program_id');
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [extraDirty, setExtraDirty] = useState(false);
+  const hasUnsavedChanges = (isDirty || extraDirty) && !isSubmitting;
+
+  const guardFn = useCallback(
+    () => !hasUnsavedChanges || window.confirm('You have unsaved changes. Leave this page?'),
+    [hasUnsavedChanges],
+  );
+
+  useEffect(() => {
+    setGuard(guardFn);
+    return () => setGuard(null);
+  }, [guardFn, setGuard]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handler = (e: BeforeUnloadEvent): void => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
 
   const navigateToProjects = (): void => {
     navigate('/projects');
+  };
+
+  const handleLeave = (): void => {
+    if (hasUnsavedChanges) {
+      setLeaveDialogOpen(true);
+    } else {
+      navigateToProjects();
+    }
   };
 
   const handleFormSubmit = (data: ProjectFormData): void => {
@@ -310,6 +380,7 @@ export default function ProjectForm(): JSX.Element {
       currency: data.currency,
       budget: data.budget_total ? Number.parseFloat(data.budget_total) : null,
       program_id: data.program_id || null,
+      project_manager_id: data.project_manager_id || null,
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
       slack_channel_id: slackChannelId || undefined,
@@ -357,6 +428,7 @@ export default function ProjectForm(): JSX.Element {
       } else {
         await submitCreate(payloads);
       }
+      setIsSubmitting(true);
       navigateToProjects();
     } catch (error) {
       setApiError(getApiErrorMessage(error));
@@ -379,6 +451,7 @@ export default function ProjectForm(): JSX.Element {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setDeleteDialogOpen(false);
+        setIsSubmitting(true);
         navigateToProjects();
       },
       onError: (error) => {
@@ -449,9 +522,9 @@ export default function ProjectForm(): JSX.Element {
                 variant="ghost"
                 onClick={handleMarkFinished}
                 disabled={statusMutation.isPending}
-                className="border border-input text-score-green hover:bg-score-green hover:border-score-green hover:text-black"
+                className="border border-input"
               >
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
                 {statusMutation.isPending ? 'Updating...' : 'Mark as Finished'}
               </Button>
             )}
@@ -461,9 +534,9 @@ export default function ProjectForm(): JSX.Element {
                 variant="ghost"
                 onClick={handleReopen}
                 disabled={statusMutation.isPending}
-                className="border border-input text-score-green hover:bg-score-green hover:border-score-green hover:text-black"
+                className="border border-input"
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
+                <RotateCcw className="w-4 h-4 mr-2 text-score-green" />
                 {statusMutation.isPending ? 'Updating...' : 'Reopen Project'}
               </Button>
             )}
@@ -487,6 +560,7 @@ export default function ProjectForm(): JSX.Element {
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">General</h2>
               <Card>
                 <CardContent className="pt-6 space-y-6">
+                  {/* Row 1: Name, Code */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="name" className="h-5 flex items-center">Name *</Label>
@@ -513,6 +587,125 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
+                  {/* Row 2: Program, Currency */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2 min-w-0">
+                      <TooltipProvider>
+                        <div className="h-5 flex items-center gap-2">
+                          <Label htmlFor="program_id">Program</Label>
+                          <span className="text-xs text-muted-foreground">(optional)</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Info className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">Select if this project belongs to a program that includes several phases or contracts.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
+                      <div className="flex gap-3 items-start min-w-0">
+                        <NativeSelect id="program_id" className="flex-1 min-w-0" {...register('program_id')}>
+                          <option value="">None</option>
+                          {programs.map((program) => (
+                            <option key={program.id} value={program.id}>{program.name}</option>
+                          ))}
+                        </NativeSelect>
+                        {!showNewProgram && currentProgramId && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setValue('program_id', '')}
+                            className="shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {!showNewProgram && !currentProgramId && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowNewProgram(true)}
+                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            New
+                          </Button>
+                        )}
+                      </div>
+                      {showNewProgram && (
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            value={newProgramName}
+                            onChange={(e) => setNewProgramName(e.target.value)}
+                            placeholder="Program name"
+                            className="flex-1"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setShowNewProgram(false);
+                                setNewProgramName('');
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!newProgramName.trim() || createProgramMutation.isPending}
+                            onClick={async () => {
+                              const created = await createProgramMutation.mutateAsync(newProgramName.trim());
+                              setValue('program_id', created.id);
+                              setNewProgramName('');
+                              setShowNewProgram(false);
+                            }}
+                          >
+                            {createProgramMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Create'
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setShowNewProgram(false); setNewProgramName(''); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
+                      <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
+                        {currencyOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Project Manager */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="project_manager_id" className="h-5 flex items-center">Project Manager</Label>
+                      <NativeSelect id="project_manager_id" className="w-full" {...register('project_manager_id')}>
+                        <option value="">None</option>
+                        {activeUsersSorted.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {getFullName(u.first_name, u.last_name, u.email)}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Status, Budget */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
@@ -522,17 +715,6 @@ export default function ProjectForm(): JSX.Element {
                         ))}
                       </NativeSelect>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
-                      <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
-                        {CURRENCY_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </NativeSelect>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="budget_total" className="h-5 flex items-center">Budget *</Label>
                       <Input
@@ -550,6 +732,10 @@ export default function ProjectForm(): JSX.Element {
                         <p className="text-sm text-destructive">{errors.budget_total.message}</p>
                       )}
                     </div>
+                  </div>
+
+                  {/* Row 4: Start Date, End Date */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="start_date" className="h-5 flex items-center">Start Date *</Label>
                       <Input
@@ -586,87 +772,6 @@ export default function ProjectForm(): JSX.Element {
                         <p className="text-sm text-destructive">{errors.end_date.message}</p>
                       )}
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <TooltipProvider>
-                      <div className="h-5 flex items-center gap-2">
-                        <Label htmlFor="program_id">Program</Label>
-                        <span className="text-xs text-muted-foreground">(optional)</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Info className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            <p className="text-sm">Select if this project belongs to a program that includes several phases or contracts.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TooltipProvider>
-                    <div className="flex gap-3 items-start">
-                      <NativeSelect id="program_id" className="flex-1" {...register('program_id')}>
-                        <option value="">None</option>
-                        {programs.map((program) => (
-                          <option key={program.id} value={program.id}>{program.name}</option>
-                        ))}
-                      </NativeSelect>
-                      {!showNewProgram && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowNewProgram(true)}
-                          className="shrink-0 text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          New
-                        </Button>
-                      )}
-                    </div>
-                    {showNewProgram && (
-                      <div className="flex gap-2 items-center">
-                        <Input
-                          value={newProgramName}
-                          onChange={(e) => setNewProgramName(e.target.value)}
-                          placeholder="Program name"
-                          className="flex-1"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              setShowNewProgram(false);
-                              setNewProgramName('');
-                            }
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={!newProgramName.trim() || createProgramMutation.isPending}
-                          onClick={async () => {
-                            const created = await createProgramMutation.mutateAsync(newProgramName.trim());
-                            setValue('program_id', created.id);
-                            setNewProgramName('');
-                            setShowNewProgram(false);
-                          }}
-                        >
-                          {createProgramMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            'Create'
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setShowNewProgram(false); setNewProgramName(''); }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    )}
                   </div>
 
                 </CardContent>
@@ -722,7 +827,7 @@ export default function ProjectForm(): JSX.Element {
                       <SlackChannelCombobox
                         id="slack_channel"
                         value={slackChannelId}
-                        onValueChange={setSlackChannelId}
+                        onValueChange={(v) => { setSlackChannelId(v); setExtraDirty(true); }}
                         channels={channels}
                         disabled={isLoadingChannels}
                         placeholder={isLoadingChannels ? 'Loading channels...' : 'Select a channel'}
@@ -887,19 +992,19 @@ export default function ProjectForm(): JSX.Element {
                 <CardContent className="pt-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="is_billable" className="cursor-pointer text-sm">Billable</Label>
-                    <Switch id="is_billable" checked={isBillable} onCheckedChange={setIsBillable} />
+                    <Switch id="is_billable" checked={isBillable} onCheckedChange={(v) => { setIsBillable(v); setExtraDirty(true); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_scorecard" className="cursor-pointer text-sm">Scorecard</Label>
-                    <Switch id="has_scorecard" checked={hasScorecard} onCheckedChange={setHasScorecard} />
+                    <Switch id="has_scorecard" checked={hasScorecard} onCheckedChange={(v) => { setHasScorecard(v); setExtraDirty(true); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_dependabot_alerts" className="cursor-pointer text-sm">Dependabot Alerts</Label>
-                    <Switch id="has_dependabot_alerts" checked={hasDependabotAlerts} onCheckedChange={setHasDependabotAlerts} />
+                    <Switch id="has_dependabot_alerts" checked={hasDependabotAlerts} onCheckedChange={(v) => { setHasDependabotAlerts(v); setExtraDirty(true); }} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="has_budget_alerts" className="cursor-pointer text-sm">Budget Alerts</Label>
-                    <Switch id="has_budget_alerts" checked={hasBudgetAlerts} onCheckedChange={setHasBudgetAlerts} />
+                    <Switch id="has_budget_alerts" checked={hasBudgetAlerts} onCheckedChange={(v) => { setHasBudgetAlerts(v); setExtraDirty(true); }} />
                   </div>
                 </CardContent>
               </Card>
@@ -948,7 +1053,7 @@ export default function ProjectForm(): JSX.Element {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={navigateToProjects}
+                    onClick={handleLeave}
                     disabled={isMutating}
                     className="w-full border border-input"
                   >
@@ -963,9 +1068,9 @@ export default function ProjectForm(): JSX.Element {
                         variant="ghost"
                         onClick={() => setDeleteDialogOpen(true)}
                         disabled={deleteMutation.isPending}
-                        className="w-full text-destructive hover:bg-destructive hover:border-destructive hover:text-white border border-input"
+                        className="w-full border border-input"
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
+                        <Trash2 className="w-4 h-4 mr-2 text-destructive" />
                         {deleteMutation.isPending ? 'Deleting...' : 'Delete Project'}
                       </Button>
                     </>
@@ -1016,6 +1121,23 @@ export default function ProjectForm(): JSX.Element {
             <AlertDialogCancel>Back to Edit</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmProposal}>
               Save as Proposal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave this page?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay on Page</AlertDialogCancel>
+            <AlertDialogAction onClick={navigateToProjects}>
+              Leave Page
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

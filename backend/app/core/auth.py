@@ -33,6 +33,18 @@ def get_cookie_settings() -> dict:
     }
 
 
+def delete_auth_cookie(response, key: str = COOKIE_NAME) -> None:
+    """Delete an auth cookie with the standard security settings."""
+    cookie_settings = get_cookie_settings()
+    response.delete_cookie(
+        key=key,
+        path=cookie_settings["path"],
+        samesite=cookie_settings["samesite"],
+        secure=cookie_settings["secure"],
+        httponly=cookie_settings["httponly"],
+    )
+
+
 class TokenData(BaseModel):
     """Token payload data."""
 

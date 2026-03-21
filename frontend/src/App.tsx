@@ -28,8 +28,11 @@ import AlertLogTab from './core/components/NotificationsAdmin/AlertLogTab';
 import SilencesTab from './core/components/NotificationsAdmin/SilencesTab';
 import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab';
 import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
+import CustomNotificationTab from './core/components/NotificationsAdmin/CustomNotificationTab';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
+import UserDetail from './core/pages/UserDetail';
+import Landing from './core/pages/Landing';
 
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
 
@@ -44,6 +47,7 @@ function AdminRoutes(): JSX.Element {
         <Route path="silences" element={<SilencesTab />} />
         <Route path="config" element={<AlertConfigTab />} />
         <Route path="stats" element={<StatisticsTab />} />
+        <Route path="custom" element={<CustomNotificationTab />} />
       </Route>
       <Route path="tracker" element={<TrackerLayout />}>
         <Route path="periods" element={<ReportingPeriods />} />
@@ -52,6 +56,7 @@ function AdminRoutes(): JSX.Element {
       </Route>
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />
+      <Route path="users/:userId" element={<UserDetail />} />
     </>
   );
 }
@@ -61,7 +66,7 @@ function AppRoutes(): JSX.Element {
     return (
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/projects" element={<CoreProjects />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
@@ -90,7 +95,7 @@ function AppRoutes(): JSX.Element {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/projects" element={<CoreProjects />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
