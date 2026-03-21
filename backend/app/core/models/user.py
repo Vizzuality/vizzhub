@@ -107,5 +107,6 @@ class UserPublic(BaseModel):
     last_name: str | None = None
     picture: str | None = None
     role: UserRole
+    active: bool = True
 
     model_config = {"from_attributes": True}
