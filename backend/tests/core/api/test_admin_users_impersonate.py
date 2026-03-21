@@ -160,3 +160,52 @@ class TestStopImpersonate:
         # admin_token should be deleted (max-age=0)
         cookies = {c.name: c for c in response.cookies.jar}
         assert "access_token" in cookies
+
+
+class TestAuthMeImpersonation:
+    """Tests for /auth/me is_impersonating field."""
+
+    @pytest.mark.asyncio
+    async def test_auth_me_not_impersonating(
+        self, client: AsyncClient, admin_user: UserDB
+    ):
+        response = await client.get("/api/auth/me")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_impersonating"] is False
+
+    @pytest.mark.asyncio
+    async def test_auth_me_while_impersonating(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        # Impersonate
+        resp = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        for cookie in resp.cookies.jar:
+            client.cookies.set(cookie.name, cookie.value)
+
+        response = await client.get("/api/auth/me")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_impersonating"] is True
+        assert data["email"] == "user@test.com"
+
+
+class TestLogoutClearsAdminToken:
+    """Tests that logout deletes admin_token cookie."""
+
+    @pytest.mark.asyncio
+    async def test_logout_while_impersonating_clears_both_cookies(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        # Impersonate
+        resp = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        for cookie in resp.cookies.jar:
+            client.cookies.set(cookie.name, cookie.value)
+
+        # Logout
+        response = await client.post("/api/auth/logout")
+        assert response.status_code == 200
