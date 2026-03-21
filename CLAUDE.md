@@ -99,7 +99,10 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **DBSession manages transactions**: Do NOT use `async with db.begin()` inside endpoints — nested transaction error. Only use manual `db.begin()` outside request context.
 - **Weights must sum to 1.0** per group in `config_parameters`.
 - **React Query keys**: Always use `queryKeys` from `core/hooks/queryKeys.ts`. Never string literals.
-- **Invoice effective status**: Derived at query time, not stored. Uses SQL CASE with postponement subquery. `postponed` = has active postponement (postponed_to > today). `pending_to_issue` = scheduled past due OR postponement expired. Transitions blocked for postponed invoices.
+- **Invoice effective status**: Derived at query time, not stored. Uses SQL CASE with postponement subquery. `postponed` = has active postponement (postponed_to > today). `pending_to_issue` = scheduled past due OR postponement expired. Transitions blocked for postponed invoices. Postpone max date: `max(base_date, today) + 30 days`. Admin sort by due_date pushes paid invoices last.
+- **Report estimated flag**: `estimated=true` excludes report from burn calculations. UI has Confirm/Reopen button to toggle. Confirmed reports show green badge, estimated show yellow.
+- **Reporting period uniqueness**: Date normalized to first of month via Pydantic validator. Unique constraint on `date` column. 409 response on duplicate creation.
+- **Scorecard cost dimension**: `budget_variance` returns `None` when `cost_to_date <= 0` — projects with budget but no actual cost data show "-" instead of 100.
 - **Exchange rates**: ECB rates stored in `exchange_rates` table, fetched daily at 14:30 UTC. EUR-based (rate = units per 1 EUR). Conversion: `amount / rate`. EUR passthrough (rate = 1.0). Currencies endpoint: `GET /api/currencies`.
 - **Landing page**: `/` renders `Landing.tsx` inside `AppLayout` (with sidebar). Logo links to `/`. Uses `--lnd-green` CSS var: `deepTeal` in light mode, `neonGrass` in dark. Top 5 scores widget uses `useActiveProjectSummaries` + `useProjectScoresMap`.
 - **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
@@ -108,6 +111,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **User active scope**: `GET /admin/users` filters inactive by default (`include_inactive=true` to see all). Inactive users cannot log in (403) or be impersonated (400). Deactivation requires confirmation dialog.
 - **Slack integration on users**: `slack_user_id` and `slack_display_name` on `UserDB`. Auto-linked on signup via `users.lookupByEmail`. Bulk sync via `POST /admin/users/sync-slack-all`. Display name extraction: `SlackService.extract_display_name(slack_user)`. Bot token requires `users:read.email` scope.
 - **Rates API**: `GET /api/rates` lists rate bands (A-D). Endpoint in `core/api/rates.py`.
+- **Project manager**: `project_manager_id` FK to `users.id` (SET NULL on delete). `project_manager_name` resolved via SQL join in list/detail responses. Use `_user_full_name_expr()` helper in `projects_v2.py` for the SQL name expression.
 
 ## Reference Docs
 
