@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Pencil } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
 import { useUsers, useUpdateUserRole, useToggleUserActive, useSyncSlackAll } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User, UserRole } from '../../types/auth';
@@ -315,7 +315,7 @@ export function UsersContent(): JSX.Element {
                       asChild
                     >
                       <Link to={`/admin/users/${user.id}`} title="Edit user">
-                        <Pencil className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4" />
                       </Link>
                     </Button>
                   </td>
