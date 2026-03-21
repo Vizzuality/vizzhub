@@ -21,9 +21,13 @@ router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 async def list_users(
     current_user: AdminUser,
     db: DBSession,
+    include_inactive: bool = False,
 ) -> list[User]:
-    """List all users (admin only)."""
-    result = await db.execute(select(UserDB).order_by(UserDB.created_at.desc()))
+    """List all users (admin only). Excludes inactive by default."""
+    query = select(UserDB)
+    if not include_inactive:
+        query = query.where(UserDB.active == True)  # noqa: E712
+    result = await db.execute(query.order_by(UserDB.created_at.desc()))
     users = result.scalars().all()
     return [User.model_validate(u) for u in users]
 
@@ -35,7 +39,7 @@ async def update_user(
     current_user: AdminUser,
     db: DBSession,
 ) -> User:
-    """Update a user's role (admin only)."""
+    """Update a user (admin only)."""
     result = await db.execute(select(UserDB).where(UserDB.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -45,9 +49,22 @@ async def update_user(
             detail="User not found",
         )
 
-    if update.role is not None:
-        user.role = update.role.value
-        logger.info(f"User {user.email} role updated to {update.role.value} by {current_user.email}")
+    if update.active is False and str(user_id) == current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate yourself",
+        )
+
+    update_data = update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "role":
+            setattr(user, field, value.value)
+            logger.info(f"User {user.email} role updated to {value.value} by {current_user.email}")
+        else:
+            setattr(user, field, value)
+
+    if "active" in update_data:
+        logger.info(f"User {user.email} active={update.active} by {current_user.email}")
 
     await db.commit()
     await db.refresh(user)
