@@ -13,9 +13,9 @@ Worker: `cd backend && arq app.worker.settings.WorkerSettings`
 ```
 app/
 ├── core/                  # Shared across all modules
-│   ├── api/               # auth, projects, admin_users, jobs, oauth, deps.py
-│   ├── models/            # Project, User, Job, OAuthToken, IntegrationSetting
-│   └── services/          # oauth_service, job_service, integration_token_service
+│   ├── api/               # auth, projects, admin_users, jobs, oauth, currencies, deps.py
+│   ├── models/            # Project, User, Job, OAuthToken, IntegrationSetting, ExchangeRate
+│   └── services/          # oauth_service, job_service, integration_token_service, exchange_rate_service
 ├── modules/
 │   ├── scorecard/         # Scoring, metrics, collectors, calculators
 │   │   ├── api/           # 13 sub-routers (scores, metrics, capture, config, etc.)
@@ -54,8 +54,8 @@ src/
 │   │   └── types/         # scores, metrics, config, global
 │   ├── tracker/           # Budget tracking, time reports
 │   │   ├── components/    # BurnDashboard, TimeByAreaTable, DaysByPeopleChart, BudgetLinesEditor
-│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines
-│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail
+│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines, useInvoices
+│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail, AdminInvoices
 │   │   ├── services/      # tracker (API client)
 │   │   ├── types/         # tracker (all tracker types)
 │   │   └── utils/         # constants (formatCurrency, shortMonth, etc.)
@@ -99,6 +99,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **DBSession manages transactions**: Do NOT use `async with db.begin()` inside endpoints — nested transaction error. Only use manual `db.begin()` outside request context.
 - **Weights must sum to 1.0** per group in `config_parameters`.
 - **React Query keys**: Always use `queryKeys` from `core/hooks/queryKeys.ts`. Never string literals.
+- **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
 
 ## Reference Docs
 
