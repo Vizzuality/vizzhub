@@ -6,6 +6,7 @@ const SUB_TABS = [
   { to: 'silences', label: 'Active Silences' },
   { to: 'config', label: 'Configuration' },
   { to: 'stats', label: 'Statistics' },
+  { to: 'custom', label: 'Custom' },
 ] as const;
 
 export default function AdminNotificationsLayout(): JSX.Element {

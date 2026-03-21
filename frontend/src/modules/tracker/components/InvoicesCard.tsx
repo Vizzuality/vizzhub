@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, Fragment, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -8,15 +10,21 @@ import { formatCurrency } from '../utils/constants';
 import {
   EditableCell,
   StatusCell,
+  PostponeButton,
+  PostponementHistory,
+  HistoryToggle,
   RevertButton,
   DeleteButton,
   useInvoiceFieldSave,
+  getDisplayDate,
 } from './invoice-shared';
 import type { Invoice } from '../types/tracker';
 
 interface InvoicesCardProps {
   readonly projectId: string;
 }
+
+const COL_COUNT = 6;
 
 function InvoiceRow({
   invoice,
@@ -27,52 +35,79 @@ function InvoiceRow({
   readonly projectId: string;
   readonly onError: (msg: string) => void;
 }): JSX.Element {
+  const qc = useQueryClient();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const invalidate = useCallback(
+    () => { qc.invalidateQueries({ queryKey: queryKeys.tracker.invoices.byProject(projectId) }); },
+    [qc, projectId],
+  );
   const save = useInvoiceFieldSave(projectId, invoice.id);
 
+  const displayDate = getDisplayDate(invoice);
+
   return (
-    <tr className="border-b last:border-0">
-      <td className="py-2 text-sm">
-        <EditableCell
-          value={invoice.milestone}
-          onSave={(v) => save('milestone', v)}
-          inputClass="h-6 w-full text-sm px-1"
-        />
-      </td>
-      <td className="py-2 text-sm">
-        <EditableCell
-          value={invoice.code ?? ''}
-          placeholder="add code"
-          onSave={(v) => save('code', v)}
-          inputClass="h-6 w-24 text-sm px-1"
-        />
-      </td>
-      <td className="py-2 text-sm text-right tabular-nums pr-4">
-        <EditableCell
-          value={invoice.amount.toString()}
-          display={formatCurrency(invoice.amount)}
-          inputType="number"
-          onSave={(v) => save('amount', v)}
-          inputClass="h-6 w-24 text-sm px-1 text-right"
-        />
-      </td>
-      <td className="py-2 text-sm pl-4">
-        <EditableCell
-          value={invoice.due_date}
-          inputType="date"
-          onSave={(v) => save('due_date', v)}
-          inputClass="h-6 w-36 text-sm px-1"
-        />
-      </td>
-      <td className="py-2">
-        <StatusCell invoice={invoice} onError={onError} />
-      </td>
-      <td className="py-2 text-right">
-        <div className="flex items-center gap-1 justify-end">
-          <RevertButton invoice={invoice} />
-          <DeleteButton invoice={invoice} projectId={projectId} />
-        </div>
-      </td>
-    </tr>
+    <Fragment>
+      <tr className="border-b last:border-0">
+        <td className="py-2 text-sm">
+          <EditableCell
+            value={invoice.milestone}
+            display={invoice.milestone}
+            displayClass="truncate block max-w-[200px]"
+            onSave={(v) => save('milestone', v)}
+            inputClass="h-6 w-full text-sm px-1"
+          />
+        </td>
+        <td className="py-2 text-sm hidden lg:table-cell">
+          <EditableCell
+            value={invoice.code ?? ''}
+            placeholder="add code"
+            onSave={(v) => save('code', v)}
+            inputClass="h-6 w-24 text-sm px-1"
+          />
+        </td>
+        <td className="py-2 text-sm text-right tabular-nums pr-4">
+          <EditableCell
+            value={invoice.amount.toString()}
+            display={formatCurrency(invoice.amount)}
+            inputType="number"
+            onSave={(v) => save('amount', v)}
+            inputClass="h-6 w-24 text-sm px-1 text-right"
+          />
+        </td>
+        <td className="py-2 text-sm pl-4 hidden sm:table-cell">
+          <EditableCell
+            value={displayDate}
+            inputType="date"
+            onSave={(v) => save('due_date', v)}
+            inputClass="h-6 w-36 text-sm px-1"
+          />
+        </td>
+        <td className="py-2">
+          <div className="flex items-center gap-2">
+            <StatusCell invoice={invoice} onError={onError} />
+            <PostponeButton invoice={invoice} onError={onError} onSuccess={invalidate} />
+            <HistoryToggle
+              count={invoice.postpone_count}
+              expanded={historyOpen}
+              onToggle={() => setHistoryOpen(!historyOpen)}
+            />
+          </div>
+        </td>
+        <td className="py-2 text-right hidden sm:table-cell">
+          <div className="flex items-center gap-1 justify-end">
+            <RevertButton invoice={invoice} />
+            <DeleteButton invoice={invoice} projectId={projectId} />
+          </div>
+        </td>
+      </tr>
+      <PostponementHistory
+        projectId={projectId}
+        invoiceId={invoice.id}
+        expanded={historyOpen}
+        colSpan={COL_COUNT}
+        onDelete={invalidate}
+      />
+    </Fragment>
   );
 }
 
@@ -137,11 +172,11 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
               <thead>
                 <tr className="text-xs text-muted-foreground">
                   <th className="text-left font-medium pb-1">Milestone</th>
-                  <th className="text-left font-medium pb-1">Code</th>
+                  <th className="text-left font-medium pb-1 hidden lg:table-cell">Code</th>
                   <th className="text-right font-medium pb-1 pr-4">Amount</th>
-                  <th className="text-left font-medium pb-1 pl-4">Due</th>
+                  <th className="text-left font-medium pb-1 pl-4 hidden sm:table-cell">Due</th>
                   <th className="text-left font-medium pb-1">Status</th>
-                  <th className="w-24" />
+                  <th className="w-24 hidden sm:table-cell" />
                 </tr>
               </thead>
               <tbody>

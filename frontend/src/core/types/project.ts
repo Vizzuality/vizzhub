@@ -19,6 +19,8 @@ export interface Project {
   jira_project_key: string | null;
   github_repo: string | null;
   slack_channel_id: string | null;
+  project_manager_id: string | null;
+  project_manager_name: string | null;
   start_date: string | null;
   end_date: string | null;
   status: ProjectStatus;
@@ -42,6 +44,7 @@ export interface ProjectCreate {
   jira_project_key?: string;
   github_repo?: string;
   slack_channel_id?: string;
+  project_manager_id?: string | null;
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;
@@ -62,6 +65,7 @@ export interface ProjectUpdate {
   jira_project_key?: string;
   github_repo?: string;
   slack_channel_id?: string | null;
+  project_manager_id?: string | null;
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;

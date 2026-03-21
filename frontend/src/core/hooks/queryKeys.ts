@@ -108,8 +108,14 @@ export const queryKeys = {
     all: ['programs'] as const,
     list: ['programs', 'list'] as const,
   },
+  currencies: {
+    all: ['currencies'] as const,
+  },
   functionalAreas: {
     all: ['functionalAreas'] as const,
+  },
+  rates: {
+    all: ['rates'] as const,
   },
   integrations: {
     status: ['integrations', 'status'] as const,
@@ -146,6 +152,13 @@ export const queryKeys = {
         ['tracker', 'invoices', projectId] as const,
       all: (params: Record<string, unknown>) =>
         ['tracker', 'invoices', 'all', params] as const,
+      totals: ['tracker', 'invoices', 'totals'] as const,
+      postponements: (projectId: string, invoiceId: string) =>
+        ['tracker', 'invoices', projectId, invoiceId, 'postponements'] as const,
+    },
+    nonStaffCosts: {
+      byProject: (projectId: string) =>
+        ['tracker', 'non-staff-costs', projectId] as const,
     },
     projectCosts: {
       summary: (projectId: string) =>

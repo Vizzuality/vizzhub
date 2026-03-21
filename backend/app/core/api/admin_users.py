@@ -3,11 +3,16 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from jose import JWTError, jwt as jose_jwt
 from sqlalchemy import select
 
-from app.core.api.deps import AdminUser, DBSession
-from app.core.models.user import User, UserDB, UserUpdate
+from app.config import get_settings
+from app.core.api.deps import AdminUser, CurrentUser, DBSession
+from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
+from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
+from app.modules.scorecard.services.slack_service import SlackService
+from app.utils.slack import get_slack_bot_token
 
 logger = logging.getLogger(__name__)
 
@@ -18,21 +23,24 @@ router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 async def list_users(
     current_user: AdminUser,
     db: DBSession,
+    include_inactive: bool = False,
 ) -> list[User]:
-    """List all users (admin only)."""
-    result = await db.execute(select(UserDB).order_by(UserDB.created_at.desc()))
+    """List all users (admin only). Excludes inactive by default."""
+    query = select(UserDB)
+    if not include_inactive:
+        query = query.where(UserDB.active == True)  # noqa: E712
+    result = await db.execute(query.order_by(UserDB.created_at.desc()))
     users = result.scalars().all()
     return [User.model_validate(u) for u in users]
 
 
-@router.patch("/{user_id}")
-async def update_user(
+@router.get("/{user_id}")
+async def get_user(
     user_id: UUID,
-    update: UserUpdate,
     current_user: AdminUser,
     db: DBSession,
 ) -> User:
-    """Update a user's role (admin only)."""
+    """Get a single user by ID (admin only)."""
     result = await db.execute(select(UserDB).where(UserDB.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -42,9 +50,117 @@ async def update_user(
             detail="User not found",
         )
 
-    if update.role is not None:
-        user.role = update.role.value
-        logger.info(f"User {user.email} role updated to {update.role.value} by {current_user.email}")
+    return User.model_validate(user)
+
+
+@router.post("/{user_id}/sync-slack")
+async def sync_slack(
+    user_id: UUID,
+    current_user: AdminUser,
+    db: DBSession,
+) -> User:
+    """Look up the user's Slack profile by email and store the Slack ID + display name."""
+    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    bot_token = await get_slack_bot_token(db)
+    if not bot_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slack integration not configured",
+        )
+
+    slack_user = await SlackService.lookup_user_by_email(bot_token, user.email)
+    if not slack_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No Slack user found for {user.email}",
+        )
+
+    user.slack_user_id = slack_user["id"]
+    user.slack_display_name = SlackService.extract_display_name(slack_user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(f"Synced Slack for {user.email}: {user.slack_display_name}")
+    return User.model_validate(user)
+
+
+@router.post("/sync-slack-all")
+async def sync_slack_all(
+    current_user: AdminUser,
+    db: DBSession,
+) -> list[User]:
+    """Sync Slack profiles for all active users."""
+    bot_token = await get_slack_bot_token(db)
+    if not bot_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slack integration not configured",
+        )
+
+    result = await db.execute(
+        select(UserDB).where(UserDB.active == True).order_by(UserDB.email)  # noqa: E712
+    )
+    users = result.scalars().all()
+    updated = []
+
+    for user in users:
+        slack_user = await SlackService.lookup_user_by_email(bot_token, user.email)
+        if slack_user:
+            profile = slack_user.get("profile", {})
+            user.slack_user_id = slack_user["id"]
+            user.slack_display_name = (
+                profile.get("display_name")
+                or profile.get("real_name")
+                or slack_user.get("name")
+            )
+            updated.append(user)
+
+    await db.commit()
+    logger.info(f"Synced Slack for {len(updated)}/{len(users)} users by {current_user.email}")
+    return [User.model_validate(u) for u in updated]
+
+
+@router.patch("/{user_id}")
+async def update_user(
+    user_id: UUID,
+    update: UserUpdate,
+    current_user: AdminUser,
+    db: DBSession,
+) -> User:
+    """Update a user (admin only)."""
+    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if update.active is False and str(user_id) == current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate yourself",
+        )
+
+    update_data = update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "role":
+            setattr(user, field, value.value)
+            logger.info(f"User {user.email} role updated to {value.value} by {current_user.email}")
+        else:
+            setattr(user, field, value)
+
+    if "active" in update_data:
+        logger.info(f"User {user.email} active={update.active} by {current_user.email}")
 
     await db.commit()
     await db.refresh(user)
@@ -76,3 +192,112 @@ async def delete_user(
     logger.info(f"User {user.email} deleted by {current_user.email}")
     await db.delete(user)
     await db.commit()
+
+
+@router.post("/stop-impersonate")
+async def stop_impersonate(
+    request: Request,
+    response: Response,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> UserPublic:
+    """Stop impersonating and restore admin session."""
+    admin_token = request.cookies.get("admin_token")
+    if not admin_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Not currently impersonating",
+        )
+
+    settings = get_settings()
+    try:
+        payload = jose_jwt.decode(
+            admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
+        )
+        admin_role = payload.get("role")
+        if admin_role != UserRole.ADMIN.value:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Stored token is not an admin",
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid admin token",
+        )
+
+    cookie_settings = get_cookie_settings()
+    response.set_cookie(value=admin_token, **cookie_settings)
+
+    delete_auth_cookie(response, key="admin_token")
+
+    admin_id = payload["sub"]
+    result = await db.execute(select(UserDB).where(UserDB.id == admin_id))
+    admin = result.scalar_one_or_none()
+
+    if admin is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin user not found",
+        )
+
+    logger.info(
+        f"Admin {admin.email} stopped impersonating "
+        f"(was {current_user.email})"
+    )
+
+    return UserPublic.model_validate(admin)
+
+
+@router.post("/{user_id}/impersonate")
+async def impersonate_user(
+    user_id: UUID,
+    response: Response,
+    current_user: AdminUser,
+    db: DBSession,
+) -> UserPublic:
+    """Start impersonating another user (admin only)."""
+    if str(user_id) == current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot impersonate yourself",
+        )
+
+    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
+    target = result.scalar_one_or_none()
+
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not target.active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot impersonate an inactive user",
+        )
+
+    # Save admin JWT in admin_token cookie
+    admin_token = create_access_token(
+        data={
+            "sub": current_user.user_id,
+            "email": current_user.email,
+            "role": current_user.role,
+        }
+    )
+    cookie_settings = get_cookie_settings()
+    response.set_cookie(value=admin_token, **{**cookie_settings, "key": "admin_token"})
+
+    # Issue new JWT for target user in access_token cookie
+    target_token = create_access_token(
+        data={
+            "sub": str(target.id),
+            "email": target.email,
+            "role": target.role,
+        }
+    )
+    response.set_cookie(value=target_token, **cookie_settings)
+
+    logger.info(f"Admin {current_user.email} started impersonating {target.email}")
+    return UserPublic.model_validate(target)

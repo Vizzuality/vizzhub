@@ -39,6 +39,11 @@ SCHEDULED_JOBS = {
         "schedule": "Monthly on 5th at 2:00 AM UTC",
         "description": "Captures Jira/GitHub metrics for all scorecard-enabled projects",
     },
+    "fetch_exchange_rates": {
+        "name": "fetch_exchange_rates",
+        "schedule": "Daily at 2:30 PM UTC",
+        "description": "Fetches ECB daily exchange rates for EUR-based currency conversion",
+    },
 }
 
 

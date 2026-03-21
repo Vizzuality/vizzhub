@@ -21,10 +21,6 @@ class InvoiceDB(Base):
     __table_args__ = (
         CheckConstraint("amount >= 0", name="ck_invoices_amount_positive"),
         CheckConstraint(
-            "extended_date IS NULL OR due_date IS NULL OR extended_date >= due_date",
-            name="ck_invoices_extended_after_due",
-        ),
-        CheckConstraint(
             "status IN ('scheduled', 'pending_to_issue', 'waiting_for_payment', 'paid')",
             name="ck_invoices_status_valid",
         ),
@@ -41,7 +37,6 @@ class InvoiceDB(Base):
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     due_date: Mapped[date] = mapped_column(nullable=False)
-    extended_date: Mapped[date | None] = mapped_column(nullable=True)
     invoiced_on: Mapped[date | None] = mapped_column(nullable=True)
     milestone: Mapped[str] = mapped_column(Text, nullable=False)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)

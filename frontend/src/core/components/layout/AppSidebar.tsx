@@ -1,4 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
+import type { To } from 'react-router-dom';
+import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import {
   BarChart3,
   ClipboardList,
@@ -52,6 +54,7 @@ const NOTIFICATION_TABS = [
   { to: '/admin/notifications/silences', label: 'Active Silences' },
   { to: '/admin/notifications/config', label: 'Configuration' },
   { to: '/admin/notifications/stats', label: 'Statistics' },
+  { to: '/admin/notifications/custom', label: 'Custom' },
 ] as const;
 
 const TRACKER_TABS = [
@@ -59,6 +62,30 @@ const TRACKER_TABS = [
   { to: '/admin/tracker/invoices', label: 'Invoices' },
 ] as const;
 
+
+function GuardedLink({
+  to,
+  children,
+  className,
+}: {
+  readonly to: To;
+  readonly children: React.ReactNode;
+  readonly className?: string;
+}): JSX.Element {
+  const { confirmNavigation } = useNavigationGuard();
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (!confirmNavigation()) {
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <Link to={to} className={className} onClick={handleClick}>
+      {children}
+    </Link>
+  );
+}
 
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
@@ -81,9 +108,9 @@ export function AppSidebar(): JSX.Element {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <Link to="/projects" className="flex items-center gap-2">
+        <GuardedLink to="/" className="flex items-center gap-2">
           <VizzualityLogo className="h-6 w-auto shrink-0 group-data-[collapsible=icon]:hidden" />
-        </Link>
+        </GuardedLink>
       </SidebarHeader>
 
       <SidebarSeparator />
@@ -99,10 +126,10 @@ export function AppSidebar(): JSX.Element {
                   isActive={isActive('/projects')}
                   tooltip="Projects"
                 >
-                  <Link to="/projects">
+                  <GuardedLink to="/projects">
                     <FolderKanban />
                     <span>Projects</span>
-                  </Link>
+                  </GuardedLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -112,10 +139,10 @@ export function AppSidebar(): JSX.Element {
                   isActive={isActive('/scorecard')}
                   tooltip="Scorecard"
                 >
-                  <Link to="/scorecard">
+                  <GuardedLink to="/scorecard">
                     <BarChart3 />
                     <span>Scorecard</span>
-                  </Link>
+                  </GuardedLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -125,10 +152,10 @@ export function AppSidebar(): JSX.Element {
                   isActive={isActive('/tracker/my-report')}
                   tooltip="My Report"
                 >
-                  <Link to="/tracker/my-report">
+                  <GuardedLink to="/tracker/my-report">
                     <ClipboardList />
                     <span>My Report</span>
-                  </Link>
+                  </GuardedLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -139,10 +166,10 @@ export function AppSidebar(): JSX.Element {
                     isActive={isActive('/admin/global-scores')}
                     tooltip="Global Scores"
                   >
-                    <Link to="/admin/global-scores">
+                    <GuardedLink to="/admin/global-scores">
                       <Globe />
                       <span>Global Scores</span>
-                    </Link>
+                    </GuardedLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -171,9 +198,9 @@ export function AppSidebar(): JSX.Element {
                             asChild
                             isActive={isActive('/iso/snapshots')}
                           >
-                            <Link to="/iso/snapshots">
+                            <GuardedLink to="/iso/snapshots">
                               <span>Access Control</span>
-                            </Link>
+                            </GuardedLink>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>
@@ -199,10 +226,10 @@ export function AppSidebar(): JSX.Element {
                         isActive={location.pathname === to}
                         tooltip={label}
                       >
-                        <Link to={to}>
+                        <GuardedLink to={to}>
                           <Icon />
                           <span>{label}</span>
-                        </Link>
+                        </GuardedLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -231,7 +258,7 @@ export function AppSidebar(): JSX.Element {
                                 asChild
                                 isActive={location.pathname === to}
                               >
-                                <Link to={to}>{label}</Link>
+                                <GuardedLink to={to}>{label}</GuardedLink>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}
@@ -264,7 +291,7 @@ export function AppSidebar(): JSX.Element {
                                 asChild
                                 isActive={location.pathname.startsWith(to)}
                               >
-                                <Link to={to}>{label}</Link>
+                                <GuardedLink to={to}>{label}</GuardedLink>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}

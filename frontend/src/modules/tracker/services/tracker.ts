@@ -25,6 +25,11 @@ import type {
   InvoiceStatus,
   PaginatedInvoices,
   AdminInvoiceParams,
+  InvoiceTotals,
+  Postponement,
+  NonStaffCost,
+  NonStaffCostCreate,
+  NonStaffCostUpdate,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -252,9 +257,65 @@ export const trackerApi = {
     return response.data;
   },
 
+  getInvoiceTotals: async (): Promise<InvoiceTotals> => {
+    const { data } = await api.get<InvoiceTotals>('/tracker/invoices/totals');
+    return data;
+  },
+
+  postponeInvoice: async (
+    projectId: string,
+    invoiceId: string,
+    body: { postponed_to: string; reason: string },
+  ): Promise<Postponement> => {
+    const { data } = await api.post<Postponement>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postpone`,
+      body,
+    );
+    return data;
+  },
+
+  listPostponements: async (projectId: string, invoiceId: string): Promise<Postponement[]> => {
+    const { data } = await api.get<Postponement[]>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postponements`,
+    );
+    return data;
+  },
+
+  deleteLatestPostponement: async (projectId: string, invoiceId: string): Promise<void> => {
+    await api.delete(`/tracker/projects/${projectId}/invoices/${invoiceId}/postponements/latest`);
+  },
+
+  // Non-Staff Costs
+  listNonStaffCosts: async (projectId: string): Promise<NonStaffCost[]> => {
+    const { data } = await api.get<NonStaffCost[]>('/tracker/non-staff-costs', {
+      params: { project_id: projectId },
+    });
+    return data;
+  },
+
+  createNonStaffCost: async (payload: NonStaffCostCreate): Promise<NonStaffCost> => {
+    const { data } = await api.post<NonStaffCost>('/tracker/non-staff-costs', payload);
+    return data;
+  },
+
+  updateNonStaffCost: async (costId: string, payload: NonStaffCostUpdate): Promise<NonStaffCost> => {
+    const { data } = await api.put<NonStaffCost>(`/tracker/non-staff-costs/${costId}`, payload);
+    return data;
+  },
+
+  deleteNonStaffCost: async (costId: string): Promise<void> => {
+    await api.delete(`/tracker/non-staff-costs/${costId}`);
+  },
+
   // Functional Areas
   listFunctionalAreas: async (): Promise<FunctionalArea[]> => {
     const response = await api.get<FunctionalArea[]>('/functional-areas');
     return response.data;
+  },
+
+  // Currencies
+  listCurrencies: async (): Promise<string[]> => {
+    const { data } = await api.get<string[]>('/currencies');
+    return data;
   },
 };
