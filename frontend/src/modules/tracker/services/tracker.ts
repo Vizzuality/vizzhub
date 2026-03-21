@@ -5,6 +5,7 @@ import type {
   Report,
   ReportWithParts,
   ReportCreate,
+  ReportUpdate,
   ReportPart,
   ReportPartCreate,
   ReportPartUpdate,
@@ -89,6 +90,11 @@ export const trackerApi = {
 
   getReport: async (id: string): Promise<ReportWithParts> => {
     const response = await api.get<ReportWithParts>(`/tracker/reports/${id}`);
+    return response.data;
+  },
+
+  updateReport: async (id: string, data: ReportUpdate): Promise<Report> => {
+    const response = await api.put<Report>(`/tracker/reports/${id}`, data);
     return response.data;
   },
 

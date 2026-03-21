@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { trackerApi } from '../services/tracker';
-import type { ReportCreate, ReportPartCreate, ReportPartUpdate } from '../types/tracker';
+import type { ReportCreate, ReportUpdate, ReportPartCreate, ReportPartUpdate } from '../types/tracker';
 
 export function useReports(periodId: string) {
   return useQuery({
@@ -27,6 +27,23 @@ export function useCreateReport(periodId: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.tracker.reports.byPeriod(periodId),
       });
+    },
+  });
+}
+
+export function useUpdateReport(reportId: string, periodId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ReportUpdate) => trackerApi.updateReport(reportId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tracker.reports.detail(reportId),
+      });
+      if (periodId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.tracker.reports.byPeriod(periodId),
+        });
+      }
     },
   });
 }

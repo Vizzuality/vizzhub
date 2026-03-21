@@ -20,10 +20,12 @@ export default function PeriodForm(): JSX.Element {
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [baseRate, setBaseRate] = useState(DEFAULT_BASE_RATE);
+  const [error, setError] = useState<string | null>(null);
   const createPeriod = useCreatePeriod();
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
+    setError(null);
     const date = `${now.getFullYear()}-${month.padStart(2, '0')}-01`;
     const parsed = Number.parseFloat(baseRate);
     createPeriod.mutate(
@@ -32,6 +34,11 @@ export default function PeriodForm(): JSX.Element {
         onSuccess: () => {
           setOpen(false);
           setBaseRate(DEFAULT_BASE_RATE);
+        },
+        onError: (err: unknown) => {
+          const detail = (err as { response?: { data?: { detail?: string } } })
+            ?.response?.data?.detail;
+          setError(detail ?? 'A period for this month already exists.');
         },
       },
     );
@@ -71,6 +78,9 @@ export default function PeriodForm(): JSX.Element {
               onChange={(e) => setBaseRate(e.target.value)}
             />
           </div>
+          {error && (
+            <p className="text-sm text-destructive">{error}</p>
+          )}
           <div className="flex justify-end gap-2">
             <Button
               type="button"

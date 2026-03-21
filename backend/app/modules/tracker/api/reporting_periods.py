@@ -2,8 +2,9 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.tracker.models.report import ReportDB
@@ -50,7 +51,15 @@ async def create_period(
     user: CurrentUser,
 ) -> ReportingPeriodResponse:
     period = await period_service.create_period(data, db)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        month_name = data.date.strftime("%B %Y")
+        raise HTTPException(
+            status_code=409,
+            detail=f"A reporting period for {month_name} already exists.",
+        )
     await db.refresh(period)
     return ReportingPeriodResponse.model_validate(period)
 
