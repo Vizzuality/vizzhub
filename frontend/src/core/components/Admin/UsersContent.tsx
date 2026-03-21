@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Pencil } from 'lucide-react';
-import { useUsers, useUpdateUserRole, useToggleUserActive } from '../../hooks/useUsers';
+import { useUsers, useUpdateUserRole, useToggleUserActive, useSyncSlackAll } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User, UserRole } from '../../types/auth';
 import { getFullName } from '@/utils/formatters';
@@ -100,6 +100,7 @@ export function UsersContent(): JSX.Element {
   const { data: users, isLoading, error } = useUsers(showInactive);
   const updateRole = useUpdateUserRole();
   const toggleActive = useToggleUserActive();
+  const syncSlackAll = useSyncSlackAll();
   const { user: currentUser } = useAuth();
 
   const [localSearch, setLocalSearch] = useState(state.search);
@@ -206,6 +207,19 @@ export function UsersContent(): JSX.Element {
         <span className="text-muted-foreground text-sm">
           {filteredUsers.length} users
         </span>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            syncSlackAll.mutateAsync()
+              .then((updated) => showMessage('success', `Synced Slack for ${updated.length} users`))
+              .catch((err) => showMessage('error', err?.response?.data?.detail ?? 'Sync failed'));
+          }}
+          disabled={syncSlackAll.isPending}
+        >
+          {syncSlackAll.isPending ? 'Syncing...' : 'Sync Slack'}
+        </Button>
       </div>
 
       {message && (
