@@ -103,6 +103,8 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **Exchange rates**: ECB rates stored in `exchange_rates` table, fetched daily at 14:30 UTC. EUR-based (rate = units per 1 EUR). Conversion: `amount / rate`. EUR passthrough (rate = 1.0). Currencies endpoint: `GET /api/currencies`.
 - **Landing page**: `/` renders `Landing.tsx` inside `AppLayout` (with sidebar). Logo links to `/`. Uses `--lnd-green` CSS var: `deepTeal` in light mode, `neonGrass` in dark. Top 5 scores widget uses `useActiveProjectSummaries` + `useProjectScoresMap`.
 - **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
+- **Admin impersonation**: Token swap via `admin_token` httpOnly cookie. `stop-impersonate` uses `CurrentUser` (not `AdminUser`) because the session is the impersonated user. Use `delete_auth_cookie(response, key)` from `core/auth.py` for cookie deletion — never hand-unpack `get_cookie_settings()`.
+- **User display helpers**: Use `getFullName(first, last, fallback?)` and `getInitials(first, last)` from `src/utils/formatters.ts` — don't inline `[first, last].filter(Boolean).join(' ')`.
 
 ## Reference Docs
 
