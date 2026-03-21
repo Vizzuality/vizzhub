@@ -12,10 +12,24 @@ export interface User {
   picture: string | null;
   role: UserRole;
   active: boolean;
+  functional_area_id: string | null;
+  rate_id: string | null;
+  dedication: number | null;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
   is_impersonating?: boolean;
+}
+
+export interface FunctionalArea {
+  id: string;
+  name: string;
+}
+
+export interface Rate {
+  id: string;
+  code: string;
+  value: number;
 }
 
 export interface UserPublic {

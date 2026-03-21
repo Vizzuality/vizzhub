@@ -136,7 +136,7 @@ function TopScores(): JSX.Element | null {
 export default function Landing(): JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.is_admin ?? false;
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="landing">
@@ -158,15 +158,17 @@ export default function Landing(): JSX.Element {
       </header>
 
       <div className="landing__grid">
-        {MODULES.map((mod) => (
+        {MODULES.map((mod) => {
+          const disabled = mod.adminOnly && !isAdmin;
+          return (
           <div
             key={mod.number}
-            className="landing__card"
-            onClick={() => navigate(mod.path)}
+            className={`landing__card${disabled ? ' landing__card--disabled' : ''}`}
+            onClick={() => !disabled && navigate(mod.path)}
             role="button"
-            tabIndex={0}
+            tabIndex={disabled ? -1 : 0}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') navigate(mod.path);
+              if (!disabled && (e.key === 'Enter' || e.key === ' ')) navigate(mod.path);
             }}
           >
             <span className="landing__card-number">{mod.number}</span>
@@ -174,7 +176,8 @@ export default function Landing(): JSX.Element {
             <span className="landing__card-symbol">{mod.symbol}</span>
             <span className="landing__card-label">{mod.label}</span>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <TopScores />
