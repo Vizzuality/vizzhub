@@ -12,6 +12,7 @@ import {
   useDeleteUser,
   useFunctionalAreas,
   useRates,
+  useSyncSlack,
 } from '@/core/hooks/useUsers';
 import { useAuth } from '@/core/hooks/useAuth';
 import { getFullName } from '@/utils/formatters';
@@ -79,6 +80,7 @@ export default function UserDetail(): JSX.Element {
   const updateUser = useUpdateUser();
   const toggleActive = useToggleUserActive();
   const deleteUser = useDeleteUser();
+  const syncSlack = useSyncSlack();
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -260,6 +262,49 @@ export default function UserDetail(): JSX.Element {
           value={user.dedication}
           onSave={(val) => handleFieldChange('dedication', val)}
         />
+      </div>
+
+      {/* Slack */}
+      <div className="border rounded-lg p-6 space-y-4">
+        <h3 className="font-medium">Slack</h3>
+        {user.slack_display_name ? (
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm">{user.slack_display_name}</p>
+              <p className="text-xs text-muted-foreground">{user.slack_user_id}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (!userId) return;
+                syncSlack.mutateAsync(userId)
+                  .then(() => showMessage('success', 'Slack profile updated'))
+                  .catch((err) => showMessage('error', err instanceof Error ? err.message : 'Sync failed'));
+              }}
+              disabled={syncSlack.isPending}
+            >
+              {syncSlack.isPending ? 'Syncing...' : 'Re-sync'}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Not linked</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (!userId) return;
+                syncSlack.mutateAsync(userId)
+                  .then(() => showMessage('success', 'Slack profile linked'))
+                  .catch((err) => showMessage('error', err instanceof Error ? err.message : 'Sync failed'));
+              }}
+              disabled={syncSlack.isPending}
+            >
+              {syncSlack.isPending ? 'Syncing...' : 'Link Slack'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Actions */}

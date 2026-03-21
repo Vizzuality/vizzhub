@@ -11,6 +11,8 @@ from app.config import get_settings
 from app.core.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
+from app.modules.scorecard.services.slack_service import SlackService
+from app.utils.slack import get_slack_bot_token
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,86 @@ async def get_user(
         )
 
     return User.model_validate(user)
+
+
+@router.post("/{user_id}/sync-slack")
+async def sync_slack(
+    user_id: UUID,
+    current_user: AdminUser,
+    db: DBSession,
+) -> User:
+    """Look up the user's Slack profile by email and store the Slack ID + display name."""
+    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    bot_token = await get_slack_bot_token(db)
+    if not bot_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slack integration not configured",
+        )
+
+    slack_user = await SlackService.lookup_user_by_email(bot_token, user.email)
+    if not slack_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No Slack user found for {user.email}",
+        )
+
+    profile = slack_user.get("profile", {})
+    user.slack_user_id = slack_user["id"]
+    user.slack_display_name = (
+        profile.get("display_name")
+        or profile.get("real_name")
+        or slack_user.get("name")
+    )
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(f"Synced Slack for {user.email}: {user.slack_display_name}")
+    return User.model_validate(user)
+
+
+@router.post("/sync-slack-all")
+async def sync_slack_all(
+    current_user: AdminUser,
+    db: DBSession,
+) -> list[User]:
+    """Sync Slack profiles for all active users."""
+    bot_token = await get_slack_bot_token(db)
+    if not bot_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slack integration not configured",
+        )
+
+    result = await db.execute(
+        select(UserDB).where(UserDB.active == True).order_by(UserDB.email)  # noqa: E712
+    )
+    users = result.scalars().all()
+    updated = []
+
+    for user in users:
+        slack_user = await SlackService.lookup_user_by_email(bot_token, user.email)
+        if slack_user:
+            profile = slack_user.get("profile", {})
+            user.slack_user_id = slack_user["id"]
+            user.slack_display_name = (
+                profile.get("display_name")
+                or profile.get("real_name")
+                or slack_user.get("name")
+            )
+            updated.append(user)
+
+    await db.commit()
+    logger.info(f"Synced Slack for {len(updated)}/{len(users)} users by {current_user.email}")
+    return [User.model_validate(u) for u in updated]
 
 
 @router.patch("/{user_id}")

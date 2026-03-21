@@ -15,6 +15,8 @@ export interface User {
   functional_area_id: string | null;
   rate_id: string | null;
   dedication: number | null;
+  slack_user_id: string | null;
+  slack_display_name: string | null;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;

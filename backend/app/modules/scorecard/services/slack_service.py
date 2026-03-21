@@ -84,6 +84,29 @@ class SlackService:
         return channels
 
     @staticmethod
+    async def lookup_user_by_email(
+        bot_token: str,
+        email: str,
+    ) -> dict[str, Any] | None:
+        """Look up a Slack user by email address.
+
+        Requires the `users:read.email` scope on the bot token.
+
+        Returns:
+            Slack user object if found, None otherwise.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{SlackService.BASE_URL}/users.lookupByEmail",
+                headers={"Authorization": f"Bearer {bot_token}"},
+                params={"email": email},
+            )
+            data = response.json()
+            if data.get("ok"):
+                return data["user"]
+            return None
+
+    @staticmethod
     async def test_connection(bot_token: str) -> dict[str, Any]:
         """Test Slack bot token validity.
 

@@ -48,6 +48,8 @@ class UserDB(Base):
     dedication: Mapped[Decimal | None] = mapped_column(
         Numeric(3, 2), nullable=True
     )
+    slack_user_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    slack_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -72,6 +74,8 @@ class UserBase(BaseModel):
     functional_area_id: UUID | None = None
     rate_id: UUID | None = None
     dedication: Decimal | None = None
+    slack_user_id: str | None = None
+    slack_display_name: str | None = None
     active: bool = True
 
 
