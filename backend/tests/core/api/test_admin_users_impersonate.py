@@ -5,6 +5,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import create_access_token
 from app.core.models.user import UserDB, UserRole
 
 
@@ -86,3 +87,76 @@ class TestImpersonate:
             "/api/admin/users/00000000-0000-0000-0000-000000000099/impersonate"
         )
         assert response.status_code == 404
+
+
+class TestStopImpersonate:
+    """Tests for POST /admin/users/stop-impersonate."""
+
+    @pytest.mark.asyncio
+    async def test_stop_impersonate_restores_admin(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        # Set real admin JWT so impersonate stores a proper admin_token
+        admin_jwt = create_access_token(
+            data={
+                "sub": str(admin_user.id),
+                "email": admin_user.email,
+                "role": admin_user.role,
+            }
+        )
+        client.cookies.set("access_token", admin_jwt)
+
+        # Impersonate
+        resp = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        assert resp.status_code == 200
+
+        # Extract cookies from impersonate response and set them on client
+        for cookie in resp.cookies.jar:
+            client.cookies.set(cookie.name, cookie.value)
+
+        # Stop impersonating
+        response = await client.post("/api/admin/users/stop-impersonate")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["email"] == "admin@test.com"
+        assert data["role"] == "admin"
+        assert data["first_name"] == "Admin"
+        assert data["last_name"] == "User"
+
+    @pytest.mark.asyncio
+    async def test_stop_impersonate_without_admin_token_returns_400(
+        self, client: AsyncClient, admin_user: UserDB
+    ):
+        response = await client.post("/api/admin/users/stop-impersonate")
+        assert response.status_code == 400
+        assert "Not currently impersonating" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_stop_impersonate_deletes_admin_token_cookie(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        # Set real admin JWT so impersonate stores a proper admin_token
+        admin_jwt = create_access_token(
+            data={
+                "sub": str(admin_user.id),
+                "email": admin_user.email,
+                "role": admin_user.role,
+            }
+        )
+        client.cookies.set("access_token", admin_jwt)
+
+        # First impersonate
+        resp = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        for cookie in resp.cookies.jar:
+            client.cookies.set(cookie.name, cookie.value)
+
+        # Stop
+        response = await client.post("/api/admin/users/stop-impersonate")
+        assert response.status_code == 200
+        # admin_token should be deleted (max-age=0)
+        cookies = {c.name: c for c in response.cookies.jar}
+        assert "access_token" in cookies

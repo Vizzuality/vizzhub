@@ -4,10 +4,12 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from jose import JWTError, jwt as jose_jwt
 from sqlalchemy import select
 
-from app.core.api.deps import AdminUser, DBSession
-from app.core.auth import create_access_token, get_cookie_settings
+from app.config import get_settings
+from app.core.api.deps import AdminUser, CurrentUser, DBSession
+from app.core.auth import ALGORITHM, create_access_token, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserUpdate
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,67 @@ async def delete_user(
     logger.info(f"User {user.email} deleted by {current_user.email}")
     await db.delete(user)
     await db.commit()
+
+
+@router.post("/stop-impersonate")
+async def stop_impersonate(
+    request: Request,
+    response: Response,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> UserPublic:
+    """Stop impersonating and restore admin session."""
+    admin_token = request.cookies.get("admin_token")
+    if not admin_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Not currently impersonating",
+        )
+
+    settings = get_settings()
+    try:
+        payload = jose_jwt.decode(
+            admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
+        )
+        admin_role = payload.get("role")
+        if admin_role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Stored token is not an admin",
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid admin token",
+        )
+
+    cookie_settings = get_cookie_settings()
+    response.set_cookie(value=admin_token, **cookie_settings)
+
+    response.delete_cookie(
+        key="admin_token",
+        path=cookie_settings["path"],
+        samesite=cookie_settings["samesite"],
+        secure=cookie_settings["secure"],
+        httponly=cookie_settings["httponly"],
+    )
+
+    admin_id = payload["sub"]
+    result = await db.execute(select(UserDB).where(UserDB.id == admin_id))
+    admin = result.scalar_one_or_none()
+
+    if admin is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin user not found",
+        )
+
+    logger.info(
+        f"Admin {admin.email} stopped impersonating "
+        f"(was {current_user.email})"
+    )
+
+    return UserPublic.model_validate(admin)
 
 
 @router.post("/{user_id}/impersonate")
