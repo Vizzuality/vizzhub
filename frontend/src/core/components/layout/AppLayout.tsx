@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, FileText } from 'lucide-react';
+import { LogOut, FileText, UserRoundCog, UserX } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
+import { ImpersonateDialog } from './ImpersonateDialog';
 import { useAuth } from '@/core/hooks/useAuth';
 import {
   SidebarInset,
@@ -24,10 +26,16 @@ import { useReportingPeriods } from '@/modules/tracker/public';
 export function AppLayout(): JSX.Element {
   const auth = useAuth();
   const navigate = useNavigate();
+  const [impersonateOpen, setImpersonateOpen] = useState(false);
 
   const handleLogout = async (): Promise<void> => {
     await auth.logout();
     navigate('/login');
+  };
+
+  const handleStopImpersonating = async (): Promise<void> => {
+    await auth.stopImpersonating();
+    window.location.reload();
   };
 
   const { data: periods } = useReportingPeriods();
@@ -52,7 +60,7 @@ export function AppLayout(): JSX.Element {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-8 w-8">
+                  <Avatar className={`h-8 w-8 ${auth.isImpersonating ? 'ring-2 ring-orange-500' : ''}`}>
                     <AvatarImage
                       src={auth.user?.picture ?? undefined}
                       alt={auth.user?.first_name ?? 'User'}
@@ -66,6 +74,11 @@ export function AppLayout(): JSX.Element {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col gap-1">
+                    {auth.isImpersonating && (
+                      <p className="text-xs font-medium text-orange-500">
+                        Viewing as:
+                      </p>
+                    )}
                     <p className="text-sm font-medium leading-none">
                       {[auth.user?.first_name, auth.user?.last_name].filter(Boolean).join(' ') || 'Dev User'}
                     </p>
@@ -82,6 +95,24 @@ export function AppLayout(): JSX.Element {
                     <DropdownMenuItem onClick={() => navigate('/tracker/my-report')}>
                       <FileText className="mr-2 h-4 w-4" />
                       My Report
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {auth.user?.role === 'admin' && !auth.isImpersonating && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setImpersonateOpen(true)}>
+                      <UserRoundCog className="mr-2 h-4 w-4" />
+                      Impersonate User
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {auth.isImpersonating && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleStopImpersonating}>
+                      <UserX className="mr-2 h-4 w-4" />
+                      Stop Impersonating
                     </DropdownMenuItem>
                   </>
                 )}
@@ -104,6 +135,7 @@ export function AppLayout(): JSX.Element {
           </div>
         </main>
       </SidebarInset>
+      <ImpersonateDialog open={impersonateOpen} onOpenChange={setImpersonateOpen} />
     </SidebarProvider>
   );
 }
