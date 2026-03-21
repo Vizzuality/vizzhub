@@ -16,6 +16,7 @@ from app.core.api import jobs as jobs_router
 from app.core.api import oauth as oauth_router
 from app.core.api import currencies as currencies_router
 from app.core.api import functional_areas as functional_areas_router
+from app.core.api import rates as rates_router
 from app.core.api import programs as programs_router
 from app.core.api import projects_v2 as projects_v2_router
 from app.modules.iso.router import router as iso_router
@@ -179,6 +180,11 @@ app.include_router(
     functional_areas_router.router,
     prefix="/api/functional-areas",
     tags=["functional-areas"],
+)
+app.include_router(
+    rates_router.router,
+    prefix="/api/rates",
+    tags=["rates"],
 )
 app.include_router(jobs_router.router, prefix="/api")
 app.include_router(scorecard_router, prefix="/api", tags=["scorecard"])

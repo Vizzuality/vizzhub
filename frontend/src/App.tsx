@@ -30,6 +30,7 @@ import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab'
 import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
+import UserDetail from './core/pages/UserDetail';
 import Landing from './core/pages/Landing';
 
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
@@ -53,6 +54,7 @@ function AdminRoutes(): JSX.Element {
       </Route>
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />
+      <Route path="users/:userId" element={<UserDetail />} />
     </>
   );
 }

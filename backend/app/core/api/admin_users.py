@@ -32,6 +32,25 @@ async def list_users(
     return [User.model_validate(u) for u in users]
 
 
+@router.get("/{user_id}")
+async def get_user(
+    user_id: UUID,
+    current_user: AdminUser,
+    db: DBSession,
+) -> User:
+    """Get a single user by ID (admin only)."""
+    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return User.model_validate(user)
+
+
 @router.patch("/{user_id}")
 async def update_user(
     user_id: UUID,

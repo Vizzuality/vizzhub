@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/core/services/client';
-import { User, UserRole } from '../types/auth';
+import { User, UserRole, FunctionalArea, Rate } from '../types/auth';
 import { queryKeys } from './queryKeys';
 
 /**
@@ -20,6 +20,22 @@ export function useUsers(
       const response = await api.get<User[]>('/admin/users', { params });
       return response.data;
     },
+  });
+}
+
+/**
+ * Fetch a single user by ID (admin only).
+ */
+export function useUser(
+  userId: string,
+): ReturnType<typeof useQuery<User, Error>> {
+  return useQuery({
+    queryKey: queryKeys.users.detail(userId),
+    queryFn: async (): Promise<User> => {
+      const response = await api.get<User>(`/admin/users/${userId}`);
+      return response.data;
+    },
+    enabled: !!userId,
   });
 }
 
@@ -43,6 +59,26 @@ export function useUpdateUserRole(): ReturnType<
 }
 
 /**
+ * Update user fields (admin only)
+ */
+export function useUpdateUser(): ReturnType<
+  typeof useMutation<User, Error, { userId: string; data: Record<string, unknown> }>
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, data }): Promise<User> => {
+      const response = await api.patch<User>(`/admin/users/${userId}`, data);
+      return response.data;
+    },
+    onSuccess: (_data, { userId }): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
+    },
+  });
+}
+
+/**
  * Toggle user active status (admin only)
  */
 export function useToggleUserActive(): ReturnType<
@@ -55,8 +91,9 @@ export function useToggleUserActive(): ReturnType<
       const response = await api.patch<User>(`/admin/users/${userId}`, { active });
       return response.data;
     },
-    onSuccess: (): void => {
+    onSuccess: (_data, { userId }): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
     },
   });
 }
@@ -73,6 +110,32 @@ export function useDeleteUser(): ReturnType<typeof useMutation<void, Error, stri
     },
     onSuccess: (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+}
+
+/**
+ * Fetch functional areas.
+ */
+export function useFunctionalAreas(): ReturnType<typeof useQuery<FunctionalArea[], Error>> {
+  return useQuery({
+    queryKey: queryKeys.functionalAreas.all,
+    queryFn: async (): Promise<FunctionalArea[]> => {
+      const response = await api.get<FunctionalArea[]>('/functional-areas');
+      return response.data;
+    },
+  });
+}
+
+/**
+ * Fetch rates.
+ */
+export function useRates(): ReturnType<typeof useQuery<Rate[], Error>> {
+  return useQuery({
+    queryKey: ['rates'],
+    queryFn: async (): Promise<Rate[]> => {
+      const response = await api.get<Rate[]>('/rates');
+      return response.data;
     },
   });
 }
