@@ -13,7 +13,7 @@ Worker: `cd backend && arq app.worker.settings.WorkerSettings`
 ```
 app/
 ├── core/                  # Shared across all modules
-│   ├── api/               # auth, projects, admin_users, jobs, oauth, currencies, deps.py
+│   ├── api/               # auth, projects, admin_users, jobs, oauth, currencies, rates, deps.py
 │   ├── models/            # Project, User, Job, OAuthToken, IntegrationSetting, ExchangeRate
 │   └── services/          # oauth_service, job_service, integration_token_service, exchange_rate_service
 ├── modules/
@@ -42,7 +42,7 @@ src/
 │   ├── components/        # layout/, Admin/, NotificationsAdmin/, ErrorBoundary, ProtectedRoute
 │   ├── contexts/          # AuthContext
 │   ├── hooks/             # queryKeys, useProjects, useJobs, useAlertDefinitions, etc.
-│   ├── pages/             # Admin, LoginPage, Landing
+│   ├── pages/             # Admin, LoginPage, Landing, UserDetail
 │   ├── services/          # client (axios), projects, jobs, notifications, integrations
 │   └── types/             # project, jobs, alerts, auth, common
 ├── modules/
@@ -105,6 +105,9 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
 - **Admin impersonation**: Token swap via `admin_token` httpOnly cookie. `stop-impersonate` uses `CurrentUser` (not `AdminUser`) because the session is the impersonated user. Use `delete_auth_cookie(response, key)` from `core/auth.py` for cookie deletion — never hand-unpack `get_cookie_settings()`.
 - **User display helpers**: Use `getFullName(first, last, fallback?)` and `getInitials(first, last)` from `src/utils/formatters.ts` — don't inline `[first, last].filter(Boolean).join(' ')`.
+- **User active scope**: `GET /admin/users` filters inactive by default (`include_inactive=true` to see all). Inactive users cannot log in (403) or be impersonated (400). Deactivation requires confirmation dialog.
+- **Slack integration on users**: `slack_user_id` and `slack_display_name` on `UserDB`. Auto-linked on signup via `users.lookupByEmail`. Bulk sync via `POST /admin/users/sync-slack-all`. Display name extraction: `SlackService.extract_display_name(slack_user)`. Bot token requires `users:read.email` scope.
+- **Rates API**: `GET /api/rates` lists rate bands (A-D). Endpoint in `core/api/rates.py`.
 
 ## Reference Docs
 
