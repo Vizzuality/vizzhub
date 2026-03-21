@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
-from app.core.auth import create_access_token, get_cookie_settings
+from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserRole
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,12 @@ class AuthLoginResponse(BaseModel):
     """Response for successful authentication (no token in body)."""
 
     user: UserPublic
+
+
+class MeResponse(User):
+    """Response for /auth/me with impersonation status."""
+
+    is_impersonating: bool = False
 
 
 @router.post("/google")
@@ -126,9 +132,10 @@ async def google_auth(
 
 @router.get("/me")
 async def get_current_user_info(
+    request: Request,
     current_user: CurrentUser,
     db: DBSession,
-) -> User:
+) -> MeResponse:
     """Get the current authenticated user's information."""
     result = await db.execute(
         select(UserDB).where(UserDB.id == current_user.user_id)
@@ -141,19 +148,17 @@ async def get_current_user_info(
             detail="User not found",
         )
 
-    return User.model_validate(user)
+    user_data = User.model_validate(user)
+    return MeResponse(
+        **user_data.model_dump(),
+        is_impersonating=request.cookies.get("admin_token") is not None,
+    )
 
 
 @router.post("/logout")
 async def logout(current_user: CurrentUser, response: Response) -> dict:
     """Logout: clear the httpOnly cookie."""
-    cookie_settings = get_cookie_settings()
-    response.delete_cookie(
-        key=cookie_settings["key"],
-        path=cookie_settings["path"],
-        samesite=cookie_settings["samesite"],
-        secure=cookie_settings["secure"],
-        httponly=cookie_settings["httponly"],
-    )
+    delete_auth_cookie(response)
+    delete_auth_cookie(response, key="admin_token")
     logger.info(f"User logged out: {current_user.user_id}")
     return {"message": "Logged out successfully"}
