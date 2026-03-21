@@ -15,7 +15,11 @@ from app.core.models.exchange_rate import ExchangeRateDB
 logger = logging.getLogger(__name__)
 
 ECB_DAILY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
-ECB_NS = {"gesmes": "http://www.gesmes.org/xml/2002-08-01", "ecb": "http://www.ecb.int/vocabulary/2002-08-01/eurofxref"}
+# XML namespace identifiers (not network URLs — must match ECB's XML declaration)
+ECB_NS = {
+    "gesmes": "http://www.gesmes.org/xml/2002-08-01",  # NOSONAR
+    "ecb": "http://www.ecb.int/vocabulary/2002-08-01/eurofxref",  # NOSONAR
+}
 
 CURRENCY_NAME_MAP: dict[str, str] = {
     "dollar": "USD",
