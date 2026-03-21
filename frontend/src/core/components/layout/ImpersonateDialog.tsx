@@ -45,7 +45,7 @@ export function ImpersonateDialog({
   };
 
   const filteredUsers = users?.filter(
-    (u) => u.id !== auth.user?.id,
+    (u) => u.id !== auth.user?.id && u.active,
   ) ?? [];
 
   return (

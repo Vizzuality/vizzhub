@@ -11,6 +11,7 @@ export interface User {
   last_name: string | null;
   picture: string | null;
   role: UserRole;
+  active: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -24,6 +25,7 @@ export interface UserPublic {
   last_name: string | null;
   picture: string | null;
   role: UserRole;
+  active: boolean;
 }
 
 export interface AuthLoginResponse {

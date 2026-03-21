@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { useUsers, useUpdateUserRole, useDeleteUser } from '../../hooks/useUsers';
+import { useUsers, useUpdateUserRole, useDeleteUser, useToggleUserActive } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User, UserRole } from '../../types/auth';
 import {
@@ -25,6 +25,8 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { Switch } from '@/shared/components/ui/switch';
+import { Label } from '@/shared/components/ui/label';
 import { Trash2 } from 'lucide-react';
 
 function formatDate(dateString: string | null): string {
@@ -33,21 +35,36 @@ function formatDate(dateString: string | null): string {
 }
 
 export function UsersContent(): JSX.Element {
-  const { data: users, isLoading, error } = useUsers();
+  const [showInactive, setShowInactive] = useState(false);
+  const { data: users, isLoading, error } = useUsers(showInactive);
   const updateRole = useUpdateUserRole();
   const deleteUser = useDeleteUser();
+  const toggleActive = useToggleUserActive();
   const { user: currentUser } = useAuth();
 
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const showMessage = (type: 'success' | 'error', text: string): void => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   const handleRoleChange = async (userId: string, newRole: UserRole): Promise<void> => {
     try {
       await updateRole.mutateAsync({ userId, role: newRole });
-      setMessage({ type: 'success', text: 'User role updated' });
-      setTimeout(() => setMessage(null), 3000);
+      showMessage('success', 'User role updated');
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to update role' });
+      showMessage('error', err instanceof Error ? err.message : 'Failed to update role');
+    }
+  };
+
+  const handleToggleActive = async (userId: string, active: boolean): Promise<void> => {
+    try {
+      await toggleActive.mutateAsync({ userId, active });
+      showMessage('success', active ? 'User activated' : 'User deactivated');
+    } catch (err) {
+      showMessage('error', err instanceof Error ? err.message : 'Failed to update status');
     }
   };
 
@@ -56,10 +73,9 @@ export function UsersContent(): JSX.Element {
 
     try {
       await deleteUser.mutateAsync(userToDelete.id);
-      setMessage({ type: 'success', text: 'User deleted' });
-      setTimeout(() => setMessage(null), 3000);
+      showMessage('success', 'User deleted');
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to delete user' });
+      showMessage('error', err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
       setUserToDelete(null);
     }
@@ -81,9 +97,21 @@ export function UsersContent(): JSX.Element {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Users</h2>
-        <span className="text-muted-foreground text-sm">
-          {users?.length || 0} users
-        </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="show-inactive"
+              checked={showInactive}
+              onCheckedChange={setShowInactive}
+            />
+            <Label htmlFor="show-inactive" className="text-sm text-muted-foreground">
+              Show inactive
+            </Label>
+          </div>
+          <span className="text-muted-foreground text-sm">
+            {users?.length || 0} users
+          </span>
+        </div>
       </div>
 
       {message && (
@@ -101,6 +129,7 @@ export function UsersContent(): JSX.Element {
               <th className="text-left p-3 font-medium">Email</th>
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Role</th>
+              <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium">Last Login</th>
               <th className="w-[80px] p-3"></th>
             </tr>
@@ -111,7 +140,7 @@ export function UsersContent(): JSX.Element {
               const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
 
               return (
-                <tr key={user.id} className="border-t">
+                <tr key={user.id} className={`border-t ${!user.active ? 'opacity-60' : ''}`}>
                   <td className="p-3 font-medium">{user.email}</td>
                   <td className="p-3">{fullName}</td>
                   <td className="p-3">
@@ -129,10 +158,29 @@ export function UsersContent(): JSX.Element {
                       </SelectContent>
                     </Select>
                   </td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+                        user.active ? 'bg-green-500' : 'bg-muted-foreground'
+                      }`} />
+                      <span className="text-sm text-foreground">
+                        {user.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="p-3 text-muted-foreground text-sm">
                     {formatDate(user.last_login_at)}
                   </td>
-                  <td className="p-3">
+                  <td className="p-3 flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleActive(user.id, !user.active)}
+                      disabled={isCurrentUser}
+                      title={isCurrentUser ? 'Cannot change your own status' : user.active ? 'Deactivate user' : 'Activate user'}
+                    >
+                      {user.active ? 'Deactivate' : 'Activate'}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
