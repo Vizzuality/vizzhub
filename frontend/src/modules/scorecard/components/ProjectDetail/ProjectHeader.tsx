@@ -5,7 +5,6 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
-import StatusControls from './StatusControls';
 import type { Project } from '@/core/types/project';
 
 interface ProjectHeaderProps {
@@ -68,15 +67,12 @@ export default function ProjectHeader({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Link to={`/projects/${project.id}/edit`}>
-                <Button type="button" variant="ghost" size="sm" className="border border-input">
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-              </Link>
-              <StatusControls projectId={project.id} />
-            </div>
+            <Link to={`/projects/${project.id}/edit`}>
+              <Button type="button" variant="ghost" size="sm" className="border border-input">
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
           </div>
         </CardHeader>
       </Card>
