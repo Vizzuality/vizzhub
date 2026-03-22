@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   Customized,
 } from 'recharts';
-import type { PeriodInsight } from '@/modules/capacity/types/capacity';
+import type { ChartDataPoint, PeriodInsight } from '@/modules/capacity/types/capacity';
 import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
 import { ChartPagination, useChartPagination } from './ChartPagination';
@@ -18,11 +18,6 @@ const BAR_TYPES = [
   { suffix: 'projects', opacity: 1 },
   { suffix: 'others', opacity: 0.3 },
 ] as const;
-
-interface ChartDataPoint {
-  month: string;
-  [key: string]: number | string;
-}
 
 function transformData(data: PeriodInsight[]): ChartDataPoint[] {
   return data.map((period) => {

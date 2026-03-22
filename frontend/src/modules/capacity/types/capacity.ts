@@ -36,3 +36,8 @@ export interface ReportableUser {
   id: string;
   name: string;
 }
+
+export interface ChartDataPoint {
+  month: string;
+  [key: string]: number | string;
+}

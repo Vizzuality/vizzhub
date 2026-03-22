@@ -9,23 +9,12 @@ import {
   Customized,
   LabelList,
 } from 'recharts';
-import type { PeriodUserInsight } from '@/modules/capacity/types/capacity';
-import { FA_ORDER } from '@/modules/capacity/utils/constants';
+import type { ChartDataPoint, PeriodUserInsight } from '@/modules/capacity/types/capacity';
+import { FA_ORDER, ITEM_PALETTE } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
-
-const USER_PALETTE = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
-  '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
-];
-
-interface ChartDataPoint {
-  month: string;
-  [key: string]: number | string;
-}
 
 function transformDetailData(data: PeriodUserInsight[]): {
   chartData: ChartDataPoint[];
@@ -60,16 +49,21 @@ function transformDetailData(data: PeriodUserInsight[]): {
   return { chartData, userNames, userIdByName };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderCountLabel(props: any): JSX.Element | null {
-  const { x, y, width, value } = props as {
-    x: number; y: number; width: number; value: number;
-  };
+interface CountLabelProps {
+  x?: string | number;
+  y?: string | number;
+  width?: string | number;
+  value?: string | number;
+}
+
+function renderCountLabel({ x = 0, y = 0, width = 0, value }: CountLabelProps): JSX.Element | null {
   if (value == null) return null;
+  const cx = Number(x) + Number(width) / 2;
+  const cy = Number(y) - 8;
   return (
     <text
-      x={x + width / 2}
-      y={y - 8}
+      x={cx}
+      y={cy}
       textAnchor="middle"
       fontSize={10}
       className="fill-foreground"
@@ -108,7 +102,7 @@ export function FADetailChart({
   const userColors = useMemo(() => {
     const map: Record<string, string> = {};
     userNames.forEach((name, i) => {
-      map[name] = USER_PALETTE[i % USER_PALETTE.length];
+      map[name] = ITEM_PALETTE[i % ITEM_PALETTE.length];
     });
     return map;
   }, [userNames]);
