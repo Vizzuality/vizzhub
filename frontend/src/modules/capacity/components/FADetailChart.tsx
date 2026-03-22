@@ -135,7 +135,8 @@ export function FADetailChart({
                 <LabelList
                   dataKey={`${name}_count`}
                   position="top"
-                  style={{ fontSize: 10, fill: 'currentColor' }}
+                  fontSize={10}
+                  fill="hsl(var(--foreground))"
                 />
               </Bar>,
             ])}

@@ -34,9 +34,12 @@ SHORT_TO_FA_NAME: dict[str, str] = {v: k for k, v in TARGET_FA_MAPPING.items()}
 
 
 def _format_user_name(
-    first_name: str | None, last_name: str | None, full_name: str | None = None,
+    first_name: str | None,
+    last_name: str | None,
+    full_name: str | None = None,
+    email: str | None = None,
 ) -> str:
-    """Format as 'F. Lastname' with fallbacks."""
+    """Format as 'F. Lastname' with fallbacks: first/last > full_name > email prefix."""
     if first_name and last_name:
         return f"{first_name[0]}. {last_name}"
     if last_name:
@@ -48,6 +51,12 @@ def _format_user_name(
         if len(parts) >= 2:
             return f"{parts[0][0]}. {parts[-1]}"
         return full_name
+    if email:
+        local = email.split("@")[0]
+        parts = local.replace("_", ".").split(".")
+        if len(parts) >= 2:
+            return f"{parts[0][0].upper()}. {parts[-1].capitalize()}"
+        return local.capitalize()
     return "Unknown"
 
 
@@ -80,7 +89,7 @@ async def get_capacity_fa_detail(
         return []
 
     eligible_users = list(await db.execute(
-        select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name)
+        select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
         .join(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
         .where(
             UserDB.active.is_(True),
@@ -95,8 +104,8 @@ async def get_capacity_fa_detail(
             for _, p_date in periods
         ]
 
-    user_ids = [uid for uid, _, _, _ in eligible_users]
-    user_info = {uid: (fn, ln, name) for uid, fn, ln, name in eligible_users}
+    user_ids = [uid for uid, _, _, _, _ in eligible_users]
+    user_info = {uid: (fn, ln, name, em) for uid, fn, ln, name, em in eligible_users}
 
     period_ids = [p_id for p_id, _ in periods]
 
@@ -150,10 +159,10 @@ async def get_capacity_fa_detail(
             entry = report_lookup.get((uid, period_id))
             if not entry or entry[0] <= 0:
                 continue
-            fn, ln, full = user_info[uid]
+            fn, ln, full, em = user_info[uid]
             users_list.append({
                 "user_id": uid,
-                "name": _format_user_name(fn, ln, full),
+                "name": _format_user_name(fn, ln, full, em),
                 "billable_pct": round(entry[1], 4),
                 "billable_project_count": entry[2],
             })
