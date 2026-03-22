@@ -52,6 +52,7 @@ class TokenData(BaseModel):
     email: str | None = None
     role: str | None = None
     roles: list[str] = []
+    permissions: list[str] = []
     exp: datetime | None = None
 
 
