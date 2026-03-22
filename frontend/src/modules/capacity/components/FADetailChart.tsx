@@ -37,7 +37,7 @@ function transformDetailData(data: PeriodUserInsight[]): {
       userNameSet.add(user.name);
     }
   }
-  const userNames = [...userNameSet].sort();
+  const userNames = [...userNameSet].sort((a, b) => a.localeCompare(b));
 
   const chartData = data.map((period) => {
     const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
