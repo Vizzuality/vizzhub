@@ -97,7 +97,9 @@ function TopScores(): JSX.Element | null {
   const maxScore = scoresMap[top5[0].id] ?? 100;
 
   return (
-    <div className="landing__top5">
+    <div className="landing__card landing__card--scores">
+      <span className="landing__card-number">06</span>
+      <span className="landing__card-label">TOP_SCORES</span>
       <div className="landing__top5-list">
         {top5.map((p, i) => {
           const score = scoresMap[p.id] ?? 0;
@@ -178,9 +180,8 @@ export default function Landing(): JSX.Element {
           </div>
           );
         })}
+        <TopScores />
       </div>
-
-      <TopScores />
     </div>
   );
 }
