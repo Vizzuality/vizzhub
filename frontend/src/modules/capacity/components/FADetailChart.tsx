@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -7,7 +7,6 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   LabelList,
-  Tooltip,
 } from 'recharts';
 import type { PeriodUserInsight } from '@/modules/capacity/types/capacity';
 import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
@@ -55,21 +54,25 @@ function renderCountLabel(props: Record<string, unknown>): JSX.Element | null {
   );
 }
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{ dataKey: string; value: number }>;
-}
-
-function CustomTooltip({ active, payload }: CustomTooltipProps): JSX.Element | null {
-  if (!active || !payload?.length) return null;
-  const dataKey = payload[0].dataKey as string;
-  const name = dataKey.replace(/_projects$|_others$/, '');
-  const projectsPct = payload.find((p) => p.dataKey.endsWith('_projects'))?.value ?? 0;
+function renderNameLabel(props: Record<string, unknown>): JSX.Element | null {
+  const { x, y, width, height, value } = props as {
+    x: number; y: number; width: number; height: number; value: number;
+  };
+  if (!value) return null;
+  const name = String(props.name ?? '');
+  if (!name) return null;
   return (
-    <div className="rounded bg-muted px-2 py-1 text-sm text-foreground">
-      <div className="font-medium">{name}</div>
-      <div>{projectsPct}% projects</div>
-    </div>
+    <text
+      x={x + width / 2}
+      y={y + height / 2}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fontSize={9}
+      className="fill-foreground"
+      style={{ pointerEvents: 'none' }}
+    >
+      {name}
+    </text>
   );
 }
 
@@ -91,6 +94,8 @@ export function FADetailChart({
   onRangeChange,
 }: FADetailChartProps): JSX.Element {
   const { chartData, userNames } = useMemo(() => transformDetailData(data), [data]);
+  const [hoveredUser, setHoveredUser] = useState<string | null>(null);
+  const handleLeave = useCallback(() => setHoveredUser(null), []);
 
   const color = FA_COLORS[fa] ?? '#6b7280';
 
@@ -132,39 +137,55 @@ export function FADetailChart({
     <div className="space-y-4">
       {controls}
 
-      <ResponsiveContainer width="100%" height={450}>
-        <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-          <YAxis
-            domain={[0, 100]}
-            tickFormatter={(v: number) => `${v}%`}
-            tick={{ fontSize: 12 }}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={false} />
-          {userNames.flatMap((name) => [
-            <Bar
-              key={`${name}_projects`}
-              dataKey={`${name}_projects`}
-              stackId={name}
-              fill={color}
-              fillOpacity={1}
-            />,
-            <Bar
-              key={`${name}_others`}
-              dataKey={`${name}_others`}
-              stackId={name}
-              fill={color}
-              fillOpacity={0.3}
-            >
-              <LabelList
-                dataKey={`${name}_count`}
-                content={renderCountLabel}
-              />
-            </Bar>,
-          ])}
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="relative">
+        {hoveredUser && (
+          <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-3 py-1.5 text-sm font-medium text-foreground shadow">
+            {hoveredUser}
+          </div>
+        )}
+
+        <ResponsiveContainer width="100%" height={450}>
+          <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+            <YAxis
+              domain={[0, 100]}
+              tickFormatter={(v: number) => `${v}%`}
+              tick={{ fontSize: 12 }}
+            />
+            {userNames.flatMap((name) => [
+              <Bar
+                key={`${name}_projects`}
+                dataKey={`${name}_projects`}
+                stackId={name}
+                fill={color}
+                fillOpacity={1}
+                onMouseEnter={() => setHoveredUser(name)}
+                onMouseLeave={handleLeave}
+              >
+                <LabelList
+                  dataKey={`${name}_projects`}
+                  content={(props) => renderNameLabel({ ...props, name })}
+                />
+              </Bar>,
+              <Bar
+                key={`${name}_others`}
+                dataKey={`${name}_others`}
+                stackId={name}
+                fill={color}
+                fillOpacity={0.3}
+                onMouseEnter={() => setHoveredUser(name)}
+                onMouseLeave={handleLeave}
+              >
+                <LabelList
+                  dataKey={`${name}_count`}
+                  content={renderCountLabel}
+                />
+              </Bar>,
+            ])}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
