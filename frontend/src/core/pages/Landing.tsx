@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
+import { usePermission, Action } from '@/core/permissions';
 import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
 import { useReportingPeriods } from '@/modules/tracker/hooks/useReportingPeriods';
@@ -168,7 +169,7 @@ function useReportStatus(userEmail: string | undefined) {
 export default function Landing(): JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = usePermission(Action.ADMIN_USERS);
   const reportStatus = useReportStatus(user?.email);
   const firstName = user?.first_name ?? user?.email?.split('@')[0];
 

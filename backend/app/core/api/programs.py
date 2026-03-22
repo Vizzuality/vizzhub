@@ -1,9 +1,15 @@
 """Programs endpoints."""
 
-from fastapi import APIRouter, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 
-from app.core.api.deps import AdminUser, CurrentUser, DBSession, limiter
+from app.core.api.deps import CurrentUser, DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 from app.core.models.program import Program, ProgramCreate, ProgramDB
 
 router = APIRouter()
@@ -21,7 +27,7 @@ async def list_programs(
 @router.post("")
 @limiter.limit("30/minute")
 async def create_program(
-    request: Request, current_user: AdminUser, db: DBSession, payload: ProgramCreate
+    request: Request, current_user: ProjectManager, db: DBSession, payload: ProgramCreate
 ) -> Program:
     program = ProgramDB(name=payload.name)
     db.add(program)

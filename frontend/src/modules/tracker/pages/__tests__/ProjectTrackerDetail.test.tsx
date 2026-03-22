@@ -18,6 +18,25 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => vi.fn() };
 });
 
+vi.mock('@/core/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: {
+      id: 'user-1',
+      email: 'user@test.com',
+      first_name: null,
+      last_name: null,
+      picture: null,
+      roles: ['user'],
+      permissions: ['scorecard:view', 'scorecard:edit_metrics', 'tracker:view', 'tracker:manage_own_reports', 'projects:view'],
+      active: true,
+    },
+    permissions: ['scorecard:view', 'scorecard:edit_metrics', 'tracker:view', 'tracker:manage_own_reports', 'projects:view'],
+    isAuthenticated: true,
+    isLoading: false,
+    isImpersonating: false,
+  }),
+}));
+
 function renderDetail(projectId: string = 'project-1'): ReturnType<typeof render> {
   return render(
     <QueryClientProvider client={createQueryClient()}>

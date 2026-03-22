@@ -12,6 +12,7 @@ import { projectsApi } from '@/core/services/projects';
 import { formatDate } from '@/utils/formatters';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useUrlState } from '@/shared/hooks/useUrlState';
+import { Can, Action } from '@/core/permissions';
 import { useProject } from '@/core/hooks/useProjects';
 import {
   useProjectCostSummary,
@@ -316,17 +317,21 @@ export default function ProjectTrackerDetail(): JSX.Element {
 
       <TimeByAreaTable rows={areaAgg?.rows ?? []} budgetLines={budgetLines} />
 
-      <InvoicesCard projectId={projectId || ''} />
+      <Can do={Action.TRACKER_MANAGE}>
+        <InvoicesCard projectId={projectId || ''} />
+      </Can>
 
       <NonStaffCostsCard
         projectId={projectId || ''}
         periods={summary.periods}
       />
 
-      <ProgressCard
-        projectId={projectId || ''}
-        periods={summary.periods}
-      />
+      <Can do={Action.TRACKER_MANAGE}>
+        <ProgressCard
+          projectId={projectId || ''}
+          periods={summary.periods}
+        />
+      </Can>
 
       <InsightsSection
         summary={summary}

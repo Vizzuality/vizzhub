@@ -19,20 +19,3 @@ export function ProtectedRoute(): JSX.Element {
 
   return <Outlet />;
 }
-
-/**
- * Admin route wrapper - redirects to /scorecard if not admin
- */
-export function AdminRoute(): JSX.Element {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <LoadingSpinner className="min-h-screen" />;
-  }
-
-  if (user?.role !== 'admin') {
-    return <Navigate to="/scorecard" replace />;
-  }
-
-  return <Outlet />;
-}

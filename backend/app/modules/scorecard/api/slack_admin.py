@@ -1,11 +1,16 @@
 """Slack alert and template admin API endpoints."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 from app.modules.scorecard.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
@@ -33,7 +38,7 @@ custom_router = APIRouter(prefix="/admin/notifications", tags=["custom-notificat
 @limiter.limit("100/minute")
 async def list_alert_definitions(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
 ) -> list[AlertDefinitionDB]:
     """List all alert definitions. Requires authentication."""
@@ -45,7 +50,7 @@ async def list_alert_definitions(
 @limiter.limit("10/minute")
 async def update_alert_definition(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
     alert_id: int,
     update: AlertDefinitionUpdate,
@@ -77,7 +82,7 @@ async def update_alert_definition(
 @limiter.limit("5/minute")
 async def test_alert(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
     alert_id: int,
 ) -> AlertTestResponse:
@@ -152,7 +157,7 @@ async def test_alert(
 @limiter.limit("100/minute")
 async def get_alert_templates(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
     alert_id: int,
 ) -> list[MessageTemplateDB]:
@@ -180,7 +185,7 @@ async def get_alert_templates(
 @limiter.limit("10/minute")
 async def update_message_template(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
     template_id: int,
     update: MessageTemplateUpdate,
@@ -215,7 +220,7 @@ async def update_message_template(
 @limiter.limit("10/minute")
 async def send_custom_notification(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
     payload: CustomNotificationRequest,
 ) -> CustomNotificationResponse:

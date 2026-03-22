@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './core/contexts/AuthContext';
 import { ErrorBoundary } from './core/components/ErrorBoundary';
-import { ProtectedRoute, AdminRoute } from './core/components/ProtectedRoute';
+import { ProtectedRoute } from './core/components/ProtectedRoute';
+import { PermissionRoute, Action } from './core/permissions';
 import { AppLayout } from './core/components/layout/AppLayout';
 import CoreProjects from './core/pages/Projects';
 import ProjectFormPage from './core/pages/ProjectForm';
@@ -106,10 +107,12 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
-          <Route element={<AdminRoute />}>
+          <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
             </Route>
+          </Route>
+          <Route element={<PermissionRoute require={Action.ISO_VIEW} />}>
             <Route path="/iso" element={<ISO />}>
               <Route path="snapshots" element={<ISOSnapshots />} />
               <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />

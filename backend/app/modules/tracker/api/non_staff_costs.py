@@ -3,10 +3,14 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
 from app.modules.tracker.schemas.non_staff_cost import (
     NonStaffCostCreate,
@@ -43,7 +47,7 @@ async def list_non_staff_costs(
 async def create_non_staff_cost(
     data: NonStaffCostCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> NonStaffCostResponse:
     cost = NonStaffCostDB(
         project_id=data.project_id,
@@ -73,7 +77,7 @@ async def update_non_staff_cost(
     cost_id: UUID,
     data: NonStaffCostUpdate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> NonStaffCostResponse:
     cost = await get_or_404(NonStaffCostDB, cost_id, db, NON_STAFF_COST_LABEL)
 
@@ -90,7 +94,7 @@ async def update_non_staff_cost(
 async def delete_non_staff_cost(
     cost_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> None:
     cost = await get_or_404(NonStaffCostDB, cost_id, db, NON_STAFF_COST_LABEL)
     await db.delete(cost)

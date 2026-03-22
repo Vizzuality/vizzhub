@@ -5,17 +5,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
-import { useUsers, useUpdateUserRole, useUpdateUser, useSyncSlackAll } from '../../hooks/useUsers';
+import { useUsers, useUpdateUser, useSyncSlackAll } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
-import { User, UserRole } from '../../types/auth';
+import { User } from '../../types/auth';
 import { getFullName } from '@/utils/formatters';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,7 +91,6 @@ export function UsersContent(): JSX.Element {
 
   const [showInactive, setShowInactive] = useState(false);
   const { data: users, isLoading, error } = useUsers(showInactive);
-  const updateRole = useUpdateUserRole();
   const updateUser = useUpdateUser();
   const syncSlackAll = useSyncSlackAll();
   const { user: currentUser } = useAuth();
@@ -133,15 +125,6 @@ export function UsersContent(): JSX.Element {
   const showMessage = (type: 'success' | 'error', text: string): void => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleRoleChange = async (userId: string, newRole: UserRole): Promise<void> => {
-    try {
-      await updateRole.mutateAsync({ userId, role: newRole });
-      showMessage('success', 'User role updated');
-    } catch (err) {
-      showMessage('error', err instanceof Error ? err.message : 'Failed to update role');
-    }
   };
 
   const handleToggleActive = async (userId: string, active: boolean): Promise<void> => {
@@ -237,7 +220,7 @@ export function UsersContent(): JSX.Element {
             <tr>
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Email / Slack</th>
-              <th className="text-left p-3 font-medium">Role</th>
+              <th className="text-left p-3 font-medium">Roles</th>
               <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium hidden md:table-cell">Dedication</th>
               <th className="text-left p-3 font-medium hidden sm:table-cell">Last Login</th>
@@ -265,20 +248,8 @@ export function UsersContent(): JSX.Element {
                       <p className="text-xs text-muted-foreground/70 truncate">{user.slack_display_name}</p>
                     )}
                   </td>
-                  <td className="p-3">
-                    <Select
-                      value={user.role}
-                      onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
-                      disabled={isCurrentUser}
-                    >
-                      <SelectTrigger className="w-[100px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">user</SelectItem>
-                        <SelectItem value="admin">admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <td className="p-3 text-sm">
+                    {user.roles.join(', ')}
                   </td>
                   <td className="p-3">
                     <button

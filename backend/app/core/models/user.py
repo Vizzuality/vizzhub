@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
@@ -12,13 +11,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.database import Base
-
-
-class UserRole(str, Enum):
-    """User roles for access control."""
-
-    USER = "user"
-    ADMIN = "admin"
 
 
 class UserDB(Base):
@@ -34,7 +26,6 @@ class UserDB(Base):
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     picture: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
     functional_area_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("functional_areas.id", ondelete="SET NULL"),
@@ -70,7 +61,7 @@ class UserBase(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     picture: str | None = None
-    role: UserRole = UserRole.USER
+    roles: list[str] = []
     functional_area_id: UUID | None = None
     rate_id: UUID | None = None
     dedication: Decimal | None = None
@@ -82,7 +73,6 @@ class UserBase(BaseModel):
 class UserUpdate(BaseModel):
     """Schema for updating a user."""
 
-    role: UserRole | None = None
     name: str | None = None
     functional_area_id: UUID | None = None
     rate_id: UUID | None = None
@@ -110,7 +100,8 @@ class UserPublic(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     picture: str | None = None
-    role: UserRole
+    roles: list[str] = []
+    permissions: list[str] = []
     active: bool = True
 
     model_config = {"from_attributes": True}

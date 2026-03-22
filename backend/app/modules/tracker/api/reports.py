@@ -1,13 +1,18 @@
 """Report CRUD endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
@@ -90,7 +95,7 @@ async def list_reports(
 async def create_report(
     data: ReportCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: OwnReportManager,
 ) -> ReportResponse:
     report = ReportDB(
         user_id=UUID(user.user_id),
@@ -141,7 +146,7 @@ async def update_report(
     report_id: UUID,
     data: ReportUpdate,
     db: DBSession,
-    user: CurrentUser,
+    user: OwnReportManager,
 ) -> ReportResponse:
     report = await get_or_404(ReportDB, report_id, db, "Report")
     update_data = data.model_dump(exclude_unset=True)
@@ -156,7 +161,7 @@ async def update_report(
 async def delete_report(
     report_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: OwnReportManager,
 ) -> None:
     report = await get_or_404(ReportDB, report_id, db, "Report")
     await db.delete(report)

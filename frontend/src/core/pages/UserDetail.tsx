@@ -12,6 +12,8 @@ import {
   useFunctionalAreas,
   useRates,
   useSyncSlack,
+  useAvailableRoles,
+  useAssignRoles,
 } from '@/core/hooks/useUsers';
 import { useAuth } from '@/core/hooks/useAuth';
 import { getFullName } from '@/utils/formatters';
@@ -79,6 +81,8 @@ export default function UserDetail(): JSX.Element {
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
   const syncSlack = useSyncSlack();
+  const { data: availableRoles } = useAvailableRoles();
+  const assignRoles = useAssignRoles();
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -185,22 +189,47 @@ export default function UserDetail(): JSX.Element {
           </div>
         </div>
 
-        {/* Role */}
+        {/* Roles */}
         <div className="space-y-1.5">
-          <Label>Role</Label>
-          <Select
-            value={user.role}
-            onValueChange={(value) => handleFieldChange('role', value)}
-            disabled={isCurrentUser}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user">user</SelectItem>
-              <SelectItem value="admin">admin</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label>Roles</Label>
+          <div className="flex flex-col gap-2">
+            {availableRoles?.map((role) => (
+              <label key={role.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={user.roles.includes(role.name)}
+                  disabled={role.name === 'user' || isCurrentUser || assignRoles.isPending}
+                  onChange={async (e) => {
+                    const newRoles = e.target.checked
+                      ? [...user.roles, role.name]
+                      : user.roles.filter((r) => r !== role.name);
+                    try {
+                      await assignRoles.mutateAsync({
+                        userId: userId!,
+                        roles: newRoles,
+                      });
+                      showMessage('success', 'Roles updated');
+                    } catch (err) {
+                      showMessage(
+                        'error',
+                        err instanceof Error ? err.message : 'Failed to assign roles',
+                      );
+                    }
+                  }}
+                  className="rounded border-input"
+                />
+                <span className="capitalize">{role.name}</span>
+                {role.description && (
+                  <span className="text-muted-foreground text-xs">
+                    — {role.description}
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Role changes take effect on the user&apos;s next login.
+          </p>
         </div>
 
         {/* Functional Area */}

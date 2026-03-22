@@ -22,7 +22,7 @@ import { NativeSelect } from '@/shared/components/ui/native-select';
 import { Calculator, RefreshCw, Globe, FileDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExport } from '@/modules/scorecard/hooks/useExport';
-import { useAuth } from '@/core/hooks/useAuth';
+import { usePermission, Action } from '@/core/permissions';
 import type { Dimension } from '@/modules/scorecard/types';
 import { ALL_DIMENSIONS } from '@/modules/scorecard/types';
 import type { GlobalMetricsRecord } from '@/modules/scorecard/types/global';
@@ -65,8 +65,7 @@ export default function GlobalDashboard(): JSX.Element {
   const recalculateMutation = useRecalculateGlobalMetrics();
   const thresholds = useScoreThresholds();
   const { exportGlobal, isExporting, error: exportError } = useExport();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = usePermission(Action.SCORECARD_MANAGE);
 
   const [exportFromYear, setExportFromYear] = useState(now.getFullYear());
   const [exportFromMonth, setExportFromMonth] = useState(1);

@@ -5,16 +5,19 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, case, literal
 
-from app.core.api.deps import AdminUser, DBSession
+from app.core.api.deps import DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
 from app.core.models.exchange_rate import ExchangeRateDB
 from app.core.models.project import ProjectDB
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
-
-from fastapi import APIRouter, Query
 from pydantic import BaseModel
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 
 router = APIRouter()
 
@@ -134,7 +137,7 @@ class InvoiceTotalsResponse(BaseModel):
 @router.get("/totals")
 async def get_invoice_totals(
     db: DBSession,
-    user: AdminUser,
+    user: TrackerManager,
 ) -> InvoiceTotalsResponse:
     """KPI totals for admin invoices — all amounts normalized to EUR."""
     today = dt.date.today()
@@ -217,7 +220,7 @@ async def get_invoice_totals(
 @router.get("")
 async def list_all_invoices(
     db: DBSession,
-    user: AdminUser,
+    user: TrackerManager,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
     status: Annotated[str | None, Query()] = None,

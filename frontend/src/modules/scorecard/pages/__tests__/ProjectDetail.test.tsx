@@ -185,7 +185,18 @@ vi.mock('@/modules/scorecard/hooks/useSnapshots', () => ({
 
 vi.mock('@/core/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'user-1', email: 'admin@test.com', role: 'admin' },
+    user: {
+      id: 'user-1',
+      email: 'admin@test.com',
+      first_name: null,
+      last_name: null,
+      picture: null,
+      roles: ['user', 'admin'],
+      permissions: ['*'],
+      active: true,
+    },
+    permissions: ['*'],
+    isImpersonating: false,
     isAuthenticated: true,
     isLoading: false,
   }),
