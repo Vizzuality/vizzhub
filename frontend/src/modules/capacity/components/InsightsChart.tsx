@@ -32,7 +32,10 @@ interface ChartDataPoint {
 
 function transformData(data: PeriodInsight[]): ChartDataPoint[] {
   return data.map((period) => {
-    const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
+    const point: ChartDataPoint = {
+      month: shortMonth(`${period.period}-01`),
+      period: period.period,
+    };
     for (const fa of period.functional_areas) {
       point[`${fa.short}_projects`] = Math.round(fa.billable_pct * 100);
       point[`${fa.short}_others`] = Math.round((1 - fa.billable_pct) * 100);
@@ -43,9 +46,10 @@ function transformData(data: PeriodInsight[]): ChartDataPoint[] {
 
 interface InsightsChartProps {
   readonly data: PeriodInsight[];
+  readonly onBarClick?: (fa: string, period: string) => void;
 }
 
-export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
+export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Element {
   const chartData = useMemo(() => transformData(data), [data]);
   const [hoveredFA, setHoveredFA] = useState<string | null>(null);
 
@@ -111,6 +115,11 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
                   fillOpacity={opacity}
                   onMouseEnter={() => setHoveredFA(fa)}
                   onMouseLeave={handleLeave}
+                  onClick={(barData) => {
+                    if (onBarClick && barData?.payload?.period) {
+                      onBarClick(fa, String(barData.payload.period));
+                    }
+                  }}
                 />
               )),
             )}
