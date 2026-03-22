@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.core.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.user import User, UserDB, UserPublic, UserUpdate
+from app.core.permissions.resolver import resolve_permissions
 from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
@@ -214,8 +215,8 @@ async def stop_impersonate(
         payload = jose_jwt.decode(
             admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
         )
-        admin_role = payload.get("role")
-        if admin_role != "admin":
+        admin_permissions = payload.get("permissions", [])
+        if "*" not in admin_permissions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Stored token is not an admin",
@@ -246,7 +247,18 @@ async def stop_impersonate(
         f"(was {current_user.email})"
     )
 
-    return UserPublic.model_validate(admin)
+    admin_roles, admin_permissions = await resolve_permissions(db, str(admin.id))
+    return UserPublic(
+        id=admin.id,
+        email=admin.email,
+        name=admin.name,
+        first_name=admin.first_name,
+        last_name=admin.last_name,
+        picture=admin.picture,
+        roles=admin_roles,
+        permissions=admin_permissions,
+        active=admin.active,
+    )
 
 
 @router.post("/{user_id}/impersonate")
@@ -283,21 +295,34 @@ async def impersonate_user(
         data={
             "sub": current_user.user_id,
             "email": current_user.email,
-            "role": current_user.role,
+            "roles": current_user.roles,
+            "permissions": current_user.permissions,
         }
     )
     cookie_settings = get_cookie_settings()
     response.set_cookie(value=admin_token, **{**cookie_settings, "key": "admin_token"})
 
     # Issue new JWT for target user in access_token cookie
+    target_roles, target_permissions = await resolve_permissions(db, str(target.id))
     target_token = create_access_token(
         data={
             "sub": str(target.id),
             "email": target.email,
-            "role": target.role,
+            "roles": target_roles,
+            "permissions": target_permissions,
         }
     )
     response.set_cookie(value=target_token, **cookie_settings)
 
     logger.info(f"Admin {current_user.email} started impersonating {target.email}")
-    return UserPublic.model_validate(target)
+    return UserPublic(
+        id=target.id,
+        email=target.email,
+        name=target.name,
+        first_name=target.first_name,
+        last_name=target.last_name,
+        picture=target.picture,
+        roles=target_roles,
+        permissions=target_permissions,
+        active=target.active,
+    )
