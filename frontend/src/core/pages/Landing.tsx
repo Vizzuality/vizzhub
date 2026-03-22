@@ -11,6 +11,7 @@ interface ModuleCard {
   path: string;
   iconType: 'tracker' | 'scorecard' | 'iso' | 'playbook' | 'admin';
   adminOnly?: boolean;
+  comingSoon?: boolean;
 }
 
 const MODULES: ModuleCard[] = [
@@ -31,7 +32,7 @@ const MODULES: ModuleCard[] = [
   {
     number: '03',
     symbol: 'Is',
-    label: 'ISO_CORE',
+    label: 'ISO',
     path: '/iso/snapshots',
     iconType: 'iso',
     adminOnly: true,
@@ -45,19 +46,19 @@ const MODULES: ModuleCard[] = [
   },
   {
     number: '05',
-    symbol: 'Ad',
-    label: 'ADMIN',
-    path: '/admin',
+    symbol: 'Ca',
+    label: 'CAPACITY',
+    path: '/capacity',
     iconType: 'admin',
-    adminOnly: true,
+    comingSoon: true,
   },
 ];
 
 function getScoreCssVar(score: number | null): string {
   if (score === null) return 'var(--muted-foreground)';
-  if (score >= 70) return 'var(--lnd-green)';
-  if (score >= 40) return 'var(--aux-yellow)';
-  return 'var(--aux-red)';
+  if (score >= 70) return 'var(--aux-dust-grey)';
+  if (score >= 40) return 'var(--aux-deep-teal)';
+  return 'var(--aux-cool-steel)';
 }
 
 function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
@@ -161,7 +162,7 @@ export default function Landing(): JSX.Element {
 
       <div className="landing__grid">
         {MODULES.map((mod) => {
-          const disabled = mod.adminOnly && !isAdmin;
+          const disabled = mod.comingSoon || (mod.adminOnly && !isAdmin);
           return (
           <div
             key={mod.number}
