@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useCapacityInsights } from '@/modules/capacity/hooks/useCapacityInsights';
 import { useCapacityFADetail } from '@/modules/capacity/hooks/useCapacityFADetail';
@@ -44,7 +44,7 @@ export default function Insights(): JSX.Element {
     error: detailError,
   } = useCapacityFADetail(state.fa, state.detail_start, state.detail_end);
 
-  const handleBarClick = (fa: string, period: string): void => {
+  const handleBarClick = useCallback((fa: string, period: string): void => {
     const [year, month] = period.split('-').map(Number);
     const clickedDate = new Date(year, month - 1, 1);
     const startDate = new Date(clickedDate.getFullYear(), clickedDate.getMonth() - 1, 1);
@@ -55,7 +55,7 @@ export default function Insights(): JSX.Element {
       detail_end: fmtMonth(endDate),
     });
     detailRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, [setState]);
 
   return (
     <div className="space-y-6 p-6">
@@ -81,7 +81,13 @@ export default function Insights(): JSX.Element {
         </div>
       )}
 
-      {data && <InsightsChart data={data} onBarClick={handleBarClick} />}
+      {data && (
+        <InsightsChart
+          key={`${state.start}-${state.end}`}
+          data={data}
+          onBarClick={handleBarClick}
+        />
+      )}
 
       <div ref={detailRef}>
         {detailLoading && (
@@ -98,6 +104,7 @@ export default function Insights(): JSX.Element {
 
         {detailData && (
           <FADetailChart
+            key={`${state.fa}-${state.detail_start}-${state.detail_end}`}
             data={detailData}
             fa={state.fa}
             onFAChange={(fa) => setState({ fa })}

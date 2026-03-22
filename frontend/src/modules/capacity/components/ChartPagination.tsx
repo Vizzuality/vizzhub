@@ -11,12 +11,13 @@ interface ChartPaginationProps<T> {
 export function useChartPagination<T>(data: T[], page: number): {
   visible: T[];
   totalPages: number;
+  safePage: number;
 } {
   const totalPages = Math.max(1, Math.ceil(data.length / MAX_VISIBLE));
   const safePage = Math.min(page, totalPages - 1);
   const start = safePage * MAX_VISIBLE;
   const visible = data.slice(start, start + MAX_VISIBLE);
-  return { visible, totalPages };
+  return { visible, totalPages, safePage };
 }
 
 export function ChartPagination<T>({
@@ -24,10 +25,8 @@ export function ChartPagination<T>({
   page,
   onPageChange,
 }: ChartPaginationProps<T>): JSX.Element | null {
-  const totalPages = Math.max(1, Math.ceil(data.length / MAX_VISIBLE));
+  const { totalPages, safePage } = useChartPagination(data, page);
   if (totalPages <= 1) return null;
-
-  const safePage = Math.min(page, totalPages - 1);
 
   return (
     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">

@@ -109,7 +109,7 @@ async def get_capacity_fa_detail(
 
     period_ids = [p_id for p_id, _ in periods]
 
-    report_subq = (
+    report_rows = await db.execute(
         select(
             ReportDB.user_id,
             ReportDB.reporting_period_id,
@@ -135,17 +135,6 @@ async def get_capacity_fa_detail(
             ReportDB.reporting_period_id.in_(period_ids),
         )
         .group_by(ReportDB.user_id, ReportDB.reporting_period_id)
-        .subquery()
-    )
-
-    report_rows = await db.execute(
-        select(
-            report_subq.c.user_id,
-            report_subq.c.reporting_period_id,
-            report_subq.c.total_pct,
-            report_subq.c.billable_pct,
-            report_subq.c.billable_project_count,
-        )
     )
 
     report_lookup: dict[tuple, tuple[float, float, int]] = {}
