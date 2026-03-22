@@ -26,9 +26,10 @@ from app.core.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
 from app.core.security_middleware import SecurityHeadersMiddleware
-from app.database import init_db
+from app.database import init_db, get_db
 from scripts.seed_alert_definitions import seed_alert_definitions
 from scripts.seed_config_parameters import seed_config_parameters
+from sqlalchemy import select
 
 # Configure detailed logging
 logging.basicConfig(
@@ -56,6 +57,21 @@ async def lifespan(app: FastAPI) -> Any:
     # Seed config parameters and alert definitions from CSV if not already seeded
     await seed_config_parameters()
     await seed_alert_definitions()
+
+    # Validate roles table matches code definitions
+    from app.core.permissions.roles import ROLE_PERMISSIONS
+    from app.core.models.role import RoleDB
+    async for _db in get_db():
+        _result = await _db.execute(select(RoleDB.name))
+        db_roles = {row[0] for row in _result.all()}
+        code_roles = set(ROLE_PERMISSIONS.keys())
+        missing_in_db = code_roles - db_roles
+        extra_in_db = db_roles - code_roles
+        if missing_in_db:
+            logger.warning(f"Roles defined in code but missing from DB: {missing_in_db}")
+        if extra_in_db:
+            logger.warning(f"Roles in DB but not defined in code: {extra_in_db}")
+        break
 
     # Load scoring config from database into memory
     await load_scoring_config_from_db()
