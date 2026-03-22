@@ -45,7 +45,15 @@ export default function Insights(): JSX.Element {
   } = useCapacityFADetail(state.fa, state.detail_start, state.detail_end);
 
   const handleBarClick = (fa: string, period: string): void => {
-    setState({ fa, detail_start: period, detail_end: period });
+    const [year, month] = period.split('-').map(Number);
+    const clickedDate = new Date(year, month - 1, 1);
+    const startDate = new Date(clickedDate.getFullYear(), clickedDate.getMonth() - 1, 1);
+    const endDate = new Date(clickedDate.getFullYear(), clickedDate.getMonth() + 1, 1);
+    setState({
+      fa,
+      detail_start: fmtMonth(startDate),
+      detail_end: fmtMonth(endDate),
+    });
     detailRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
