@@ -127,6 +127,20 @@ class TestImpersonate:
         assert response.status_code == 400
         assert "Cannot impersonate an inactive user" in response.json()["detail"]
 
+    @pytest.mark.asyncio
+    async def test_impersonate_response_includes_roles(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        response = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "roles" in data
+        assert "user" in data["roles"]
+        assert "permissions" in data
+        assert len(data["permissions"]) > 0
+
 
 class TestStopImpersonate:
     """Tests for POST /admin/users/stop-impersonate."""
@@ -199,6 +213,33 @@ class TestStopImpersonate:
         # admin_token should be deleted (max-age=0)
         cookies = {c.name: c for c in response.cookies.jar}
         assert "access_token" in cookies
+
+    @pytest.mark.asyncio
+    async def test_stop_impersonate_response_includes_roles(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        admin_jwt = create_access_token(
+            data={
+                "sub": str(admin_user.id),
+                "email": admin_user.email,
+                "roles": ["user", "admin"],
+                "permissions": ["*"],
+            }
+        )
+        client.cookies.set("access_token", admin_jwt)
+
+        resp = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        for cookie in resp.cookies.jar:
+            client.cookies.set(cookie.name, cookie.value)
+
+        response = await client.post("/api/admin/users/stop-impersonate")
+        assert response.status_code == 200
+        data = response.json()
+        assert "roles" in data
+        assert "admin" in data["roles"]
+        assert "permissions" in data
 
 
 class TestAuthMeImpersonation:
