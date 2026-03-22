@@ -125,6 +125,8 @@ export const queryKeys = {
   capacity: {
     insights: (startDate: string, endDate: string) =>
       ['capacity', 'insights', startDate, endDate] as const,
+    faDetail: (fa: string, startDate: string, endDate: string) =>
+      ['capacity', 'fa-detail', fa, startDate, endDate] as const,
   },
   tracker: {
     periods: {
