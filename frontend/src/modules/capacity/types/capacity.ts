@@ -20,3 +20,19 @@ export interface PeriodUserInsight {
   period: string;
   users: UserInsight[];
 }
+
+export interface ProjectInsight {
+  project_id: string;
+  name: string;
+  percentage: number;
+}
+
+export interface PeriodProjectInsight {
+  period: string;
+  projects: ProjectInsight[];
+}
+
+export interface ReportableUser {
+  id: string;
+  name: string;
+}
