@@ -3,19 +3,23 @@
 import asyncio
 import calendar
 from datetime import date
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from app.core.api.deps import (
-    CurrentUser,
     DBSession,
     OptionalScoreCache,
     ScoringConfigDep,
     get_project_or_404,
     limiter,
 )
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardCapturer = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_CAPTURE))]
 from app.modules.scorecard.api.scores import ScoreResponse
 from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.core.models.project import ProjectDB
@@ -160,7 +164,7 @@ async def capture_period(
     request: Request,
     project_id: UUID,
     data: CapturePeriodRequest,
-    current_user: CurrentUser,
+    current_user: ScorecardCapturer,
     db: DBSession,
     config: ScoringConfigDep,
     cache: OptionalScoreCache,

@@ -1,9 +1,14 @@
 """Jobs API endpoints."""
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_project_or_404
+from app.core.api.deps import DBSession, get_project_or_404
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
 from app.modules.scorecard.api.schemas.job import (
     CaptureHistoryRequest,
     JobDetailResponse,
@@ -25,7 +30,7 @@ JOB_NOT_FOUND = "Job not found"
 )
 async def create_capture_history_job(
     request: CaptureHistoryRequest,
-    current_user: AdminUser,
+    current_user: JobAdmin,
     db: DBSession,
 ) -> Job:
     """Create a historical capture job."""
@@ -98,7 +103,7 @@ async def create_capture_history_job(
 @router.get("/{job_id}", response_model=JobDetailResponse)
 async def get_job(
     job_id: uuid.UUID,
-    current_user: CurrentUser,
+    current_user: JobAdmin,
     db: DBSession,
 ) -> Job:
     """Get job details for polling."""
@@ -113,7 +118,7 @@ async def get_job(
 
 @router.get("", response_model=list[JobSummaryResponse])
 async def list_jobs(
-    current_user: CurrentUser,
+    current_user: JobAdmin,
     db: DBSession,
     project_id: uuid.UUID | None = None,
     status: JobStatus | None = None,
@@ -133,7 +138,7 @@ async def list_jobs(
 @router.post("/{job_id}/cancel", response_model=JobResponse)
 async def cancel_job(
     job_id: uuid.UUID,
-    current_user: AdminUser,
+    current_user: JobAdmin,
     db: DBSession,
 ) -> Job:
     """Cancel a pending job."""
@@ -156,7 +161,7 @@ async def cancel_job(
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_job(
     job_id: uuid.UUID,
-    current_user: AdminUser,
+    current_user: JobAdmin,
     db: DBSession,
 ) -> None:
     """Delete a job. Only completed, failed, or cancelled jobs can be deleted."""
@@ -181,7 +186,7 @@ async def delete_job(
 )
 async def retry_job(
     job_id: uuid.UUID,
-    current_user: AdminUser,
+    current_user: JobAdmin,
     db: DBSession,
 ) -> Job:
     """Retry a failed job by creating a new one with same params."""

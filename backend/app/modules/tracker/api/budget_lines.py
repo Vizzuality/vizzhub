@@ -1,11 +1,17 @@
 """Budget line CRUD endpoints (bulk replace)."""
 
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
+from fastapi import Depends
 from sqlalchemy import delete, select
 
-from app.core.api.deps import CurrentUser, DBSession
+from app.core.api.deps import DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.core.models.functional_area import FunctionalAreaDB
 from app.modules.tracker.models.budget_line import BudgetLineDB
 from app.modules.tracker.schemas.budget_line import (
@@ -52,7 +58,7 @@ async def _list_budget_lines(
 async def list_budget_lines(
     project_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> list[BudgetLineResponse]:
     return await _list_budget_lines(db, project_id)
 
@@ -62,7 +68,7 @@ async def bulk_replace_budget_lines(
     project_id: UUID,
     body: BudgetLineBulkRequest,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> list[BudgetLineResponse]:
     await db.execute(
         delete(BudgetLineDB).where(BudgetLineDB.project_id == project_id)

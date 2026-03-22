@@ -40,25 +40,6 @@ export function useUser(
 }
 
 /**
- * Update user role (admin only)
- */
-export function useUpdateUserRole(): ReturnType<
-  typeof useMutation<User, Error, { userId: string; role: string }>
-> {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, role }): Promise<User> => {
-      const response = await api.patch<User>(`/admin/users/${userId}`, { role });
-      return response.data;
-    },
-    onSuccess: (): void => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
-}
-
-/**
  * Update user fields (admin only)
  */
 export function useUpdateUser(): ReturnType<

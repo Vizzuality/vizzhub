@@ -1,12 +1,17 @@
 """Reporting periods CRUD and state transition endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.api.deps import CurrentUser, DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.schemas.reporting_period import (
     ReportingPeriodCreate,
@@ -48,7 +53,7 @@ async def list_periods(
 async def create_period(
     data: ReportingPeriodCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.create_period(data, db)
     try:
@@ -79,7 +84,7 @@ async def update_period(
     period_id: UUID,
     data: ReportingPeriodUpdate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.update_period(period_id, data, db)
     await db.commit()
@@ -91,7 +96,7 @@ async def update_period(
 async def delete_period(
     period_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> None:
     await period_service.delete_period(period_id, db)
     await db.commit()
@@ -101,7 +106,7 @@ async def delete_period(
 async def activate_period(
     period_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.activate_period(period_id, db)
     await db.commit()
@@ -113,7 +118,7 @@ async def activate_period(
 async def finish_period(
     period_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.finish_period(period_id, db)
     await db.commit()
@@ -125,7 +130,7 @@ async def finish_period(
 async def reactivate_period(
     period_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.activate_period(period_id, db)
     await db.commit()

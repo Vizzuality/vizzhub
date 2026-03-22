@@ -75,9 +75,19 @@ async def list_users(
     result = await db.execute(query.order_by(UserDB.created_at.desc()))
     users = result.scalars().all()
 
+    user_ids = [u.id for u in users]
+    roles_result = await db.execute(
+        select(UserRoleDB.user_id, RoleDB.name)
+        .join(RoleDB, RoleDB.id == UserRoleDB.role_id)
+        .where(UserRoleDB.user_id.in_(user_ids))
+    )
+    roles_by_user: dict[str, list[str]] = {}
+    for uid, role_name in roles_result.all():
+        roles_by_user.setdefault(str(uid), []).append(role_name)
+
     user_responses = [User.model_validate(u) for u in users]
     for user_resp in user_responses:
-        user_resp.roles = await get_user_roles(db, str(user_resp.id))
+        user_resp.roles = sorted(roles_by_user.get(str(user_resp.id), []))
     return user_responses
 
 
@@ -137,8 +147,8 @@ async def stop_impersonate(
         payload = jose_jwt.decode(
             admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
         )
-        admin_permissions = payload.get("permissions", [])
-        if "*" not in admin_permissions:
+        token_permissions = payload.get("permissions", [])
+        if "*" not in token_permissions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Stored token is not an admin",
@@ -169,18 +179,10 @@ async def stop_impersonate(
         f"(was {current_user.email})"
     )
 
-    admin_roles, admin_permissions = await resolve_permissions(db, str(admin.id))
-    return UserPublic(
-        id=admin.id,
-        email=admin.email,
-        name=admin.name,
-        first_name=admin.first_name,
-        last_name=admin.last_name,
-        picture=admin.picture,
-        roles=admin_roles,
-        permissions=admin_permissions,
-        active=admin.active,
-    )
+    result = UserPublic.model_validate(admin)
+    result.roles = payload.get("roles", [])
+    result.permissions = payload.get("permissions", [])
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -403,14 +405,7 @@ async def impersonate_user(
     response.set_cookie(value=target_token, **cookie_settings)
 
     logger.info(f"Admin {current_user.email} started impersonating {target.email}")
-    return UserPublic(
-        id=target.id,
-        email=target.email,
-        name=target.name,
-        first_name=target.first_name,
-        last_name=target.last_name,
-        picture=target.picture,
-        roles=target_roles,
-        permissions=target_permissions,
-        active=target.active,
-    )
+    result = UserPublic.model_validate(target)
+    result.roles = target_roles
+    result.permissions = target_permissions
+    return result

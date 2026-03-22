@@ -61,7 +61,7 @@ class UserBase(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     picture: str | None = None
-    roles: list[str] = ["user"]
+    roles: list[str] = []
     functional_area_id: UUID | None = None
     rate_id: UUID | None = None
     dedication: Decimal | None = None
