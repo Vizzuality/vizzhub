@@ -19,14 +19,13 @@ def require_permission(*permissions: str):
         current_user: Annotated[TokenData, Depends(get_current_user)]
     ) -> TokenData:
         user_perms = set(current_user.permissions)
-        if "*" in user_perms:
-            return current_user
-        for p in permissions:
-            if p not in user_perms:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Permission '{p}' required",
-                )
+        if "*" not in user_perms:
+            for p in permissions:
+                if p not in user_perms:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Permission '{p}' required",
+                    )
         return current_user
 
     return checker

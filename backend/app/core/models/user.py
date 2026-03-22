@@ -42,6 +42,9 @@ class UserDB(Base):
     slack_user_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     slack_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    requires_project_reporting: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -68,6 +71,7 @@ class UserBase(BaseModel):
     slack_user_id: str | None = None
     slack_display_name: str | None = None
     active: bool = True
+    requires_project_reporting: bool = True
 
 
 class UserUpdate(BaseModel):
@@ -78,6 +82,7 @@ class UserUpdate(BaseModel):
     rate_id: UUID | None = None
     dedication: Decimal | None = None
     active: bool | None = None
+    requires_project_reporting: bool | None = None
 
 
 class User(UserBase):

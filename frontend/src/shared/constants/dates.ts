@@ -23,3 +23,8 @@ export const MONTHS_SHORT = [
 
 export type MonthName = (typeof MONTHS)[number];
 export type MonthNameShort = (typeof MONTHS_SHORT)[number];
+
+export function shortMonth(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
+}

@@ -1,0 +1,121 @@
+import { useCallback, useRef } from 'react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
+import { useCapacityInsights } from '@/modules/capacity/hooks/useCapacityInsights';
+import { useCapacityFADetail } from '@/modules/capacity/hooks/useCapacityFADetail';
+import { InsightsChart } from '@/modules/capacity/components/InsightsChart';
+import { FADetailChart } from '@/modules/capacity/components/FADetailChart';
+import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
+
+const fmtMonth = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+function defaultOverviewRange(): { start: string; end: string } {
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 5, 1);
+  return { start: fmtMonth(startDate), end: fmtMonth(endDate) };
+}
+
+function defaultDetailRange(): { detail_start: string; detail_end: string } {
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);
+  return { detail_start: fmtMonth(startDate), detail_end: fmtMonth(endDate) };
+}
+
+const overviewDefaults = defaultOverviewRange();
+const detailDefaults = defaultDetailRange();
+
+export default function Insights(): JSX.Element {
+  const { state, setState } = useUrlState({
+    start: { defaultValue: overviewDefaults.start },
+    end: { defaultValue: overviewDefaults.end },
+    fa: { defaultValue: 'FE' },
+    detail_start: { defaultValue: detailDefaults.detail_start },
+    detail_end: { defaultValue: detailDefaults.detail_end },
+  });
+
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  const { data, isLoading, error } = useCapacityInsights(state.start, state.end);
+  const {
+    data: detailData,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useCapacityFADetail(state.fa, state.detail_start, state.detail_end);
+
+  const handleBarClick = useCallback((fa: string, period: string): void => {
+    const [year, month] = period.split('-').map(Number);
+    const clickedDate = new Date(year, month - 1, 1);
+    const startDate = new Date(clickedDate.getFullYear(), clickedDate.getMonth() - 1, 1);
+    const endDate = new Date(clickedDate.getFullYear(), clickedDate.getMonth() + 1, 1);
+    setState({
+      fa,
+      detail_start: fmtMonth(startDate),
+      detail_end: fmtMonth(endDate),
+    });
+    detailRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [setState]);
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Capacity Insights</h1>
+        <MonthRangePicker
+          startDate={state.start}
+          endDate={state.end}
+          onChange={(start, end) => setState({ start, end })}
+          idPrefix="overview-"
+        />
+      </div>
+
+      {isLoading && (
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          Loading...
+        </div>
+      )}
+
+      {error && (
+        <div className="flex h-64 items-center justify-center text-destructive">
+          Failed to load capacity data
+        </div>
+      )}
+
+      {data && (
+        <InsightsChart
+          key={`${state.start}-${state.end}`}
+          data={data}
+          onBarClick={handleBarClick}
+        />
+      )}
+
+      <div ref={detailRef}>
+        {detailLoading && (
+          <div className="flex h-64 items-center justify-center text-muted-foreground">
+            Loading...
+          </div>
+        )}
+
+        {detailError && (
+          <div className="flex h-64 items-center justify-center text-destructive">
+            Failed to load detail data
+          </div>
+        )}
+
+        {detailData && (
+          <FADetailChart
+            key={`${state.fa}-${state.detail_start}-${state.detail_end}`}
+            data={detailData}
+            fa={state.fa}
+            onFAChange={(fa) => setState({ fa })}
+            startDate={state.detail_start}
+            endDate={state.detail_end}
+            onRangeChange={(detail_start, detail_end) =>
+              setState({ detail_start, detail_end })
+            }
+          />
+        )}
+      </div>
+    </div>
+  );
+}
