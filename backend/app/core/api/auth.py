@@ -20,6 +20,61 @@ from app.utils.slack import get_slack_bot_token
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+
+async def _create_new_user(db, email: str, idinfo: dict, app_settings) -> UserDB:
+    """Create a new user from Google SSO data, auto-link Slack, assign roles."""
+    user = UserDB(
+        email=email,
+        first_name=idinfo.get("given_name"),
+        last_name=idinfo.get("family_name"),
+        picture=idinfo.get("picture"),
+        last_login_at=datetime.now(timezone.utc),
+    )
+    try:
+        bot_token = await get_slack_bot_token(db)
+        if bot_token:
+            slack_user = await SlackService.lookup_user_by_email(bot_token, email)
+            if slack_user:
+                user.slack_user_id = slack_user["id"]
+                user.slack_display_name = SlackService.extract_display_name(slack_user)
+    except Exception:
+        logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
+
+    db.add(user)
+    await db.flush()
+
+    user_role_obj = (await db.execute(
+        select(RoleDB).where(RoleDB.name == "user")
+    )).scalar_one()
+    db.add(UserRoleDB(user_id=user.id, role_id=user_role_obj.id))
+
+    if app_settings.initial_admin_email and email == app_settings.initial_admin_email.lower():
+        admin_role_obj = (await db.execute(
+            select(RoleDB).where(RoleDB.name == "admin")
+        )).scalar_one()
+        db.add(UserRoleDB(user_id=user.id, role_id=admin_role_obj.id))
+        logger.info(f"Creating initial admin user: {email}")
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def _update_existing_user(db, user: UserDB, idinfo: dict) -> None:
+    """Update login timestamp and profile info for existing user."""
+    if not user.active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account deactivated. Contact an administrator.",
+        )
+    user.last_login_at = datetime.now(timezone.utc)
+    user.first_name = idinfo.get("given_name") or user.first_name
+    user.last_name = idinfo.get("family_name") or user.last_name
+    user.picture = idinfo.get("picture") or user.picture
+    await db.commit()
+    await db.refresh(user)
+
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -84,57 +139,9 @@ async def google_auth(
         user = result.scalar_one_or_none()
 
         if user is None:
-            user = UserDB(
-                email=email,
-                first_name=idinfo.get("given_name"),
-                last_name=idinfo.get("family_name"),
-                picture=idinfo.get("picture"),
-                last_login_at=datetime.now(timezone.utc),
-            )
-            # Auto-link Slack profile before first commit
-            try:
-                bot_token = await get_slack_bot_token(db)
-                if bot_token:
-                    slack_user = await SlackService.lookup_user_by_email(bot_token, email)
-                    if slack_user:
-                        user.slack_user_id = slack_user["id"]
-                        user.slack_display_name = SlackService.extract_display_name(slack_user)
-            except Exception:
-                logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
-
-            db.add(user)
-            await db.flush()
-
-            # Assign roles
-            user_role_result = await db.execute(
-                select(RoleDB).where(RoleDB.name == "user")
-            )
-            user_role_obj = user_role_result.scalar_one()
-            db.add(UserRoleDB(user_id=user.id, role_id=user_role_obj.id))
-
-            if settings.initial_admin_email and email == settings.initial_admin_email.lower():
-                admin_role_result = await db.execute(
-                    select(RoleDB).where(RoleDB.name == "admin")
-                )
-                admin_role_obj = admin_role_result.scalar_one()
-                db.add(UserRoleDB(user_id=user.id, role_id=admin_role_obj.id))
-                logger.info(f"Creating initial admin user: {email}")
-
-            await db.commit()
-            await db.refresh(user)
+            user = await _create_new_user(db, email, idinfo, settings)
         else:
-            if not user.active:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Account deactivated. Contact an administrator.",
-                )
-            # Update last login and profile info
-            user.last_login_at = datetime.now(timezone.utc)
-            user.first_name = idinfo.get("given_name") or user.first_name
-            user.last_name = idinfo.get("family_name") or user.last_name
-            user.picture = idinfo.get("picture") or user.picture
-            await db.commit()
-            await db.refresh(user)
+            await _update_existing_user(db, user, idinfo)
 
         # Resolve roles and permissions, then create JWT
         roles, permissions = await resolve_permissions(db, str(user.id))

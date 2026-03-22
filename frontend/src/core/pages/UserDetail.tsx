@@ -21,6 +21,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { Switch } from '@/shared/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -279,6 +280,22 @@ export default function UserDetail(): JSX.Element {
           value={user.dedication}
           onSave={(val) => handleFieldChange('dedication', val)}
         />
+
+        {/* Requires project reporting */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Requires project reporting</Label>
+            <p className="text-xs text-muted-foreground">
+              Whether this user must submit time reports to projects.
+            </p>
+          </div>
+          <Switch
+            checked={user.requires_project_reporting}
+            onCheckedChange={(checked) =>
+              handleFieldChange('requires_project_reporting', checked)
+            }
+          />
+        </div>
       </div>
 
       {/* Slack */}

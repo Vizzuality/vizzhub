@@ -250,6 +250,7 @@ export function UsersContent(): JSX.Element {
               <th className="text-left p-3 font-medium">Roles</th>
               <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium hidden md:table-cell">Dedication</th>
+              <th className="text-left p-3 font-medium hidden md:table-cell">Reports</th>
               <th className="text-left p-3 font-medium hidden sm:table-cell">Last Login</th>
               <th className="w-[80px] p-3"></th>
             </tr>
@@ -302,6 +303,21 @@ export function UsersContent(): JSX.Element {
                   </td>
                   <td className="p-3 text-muted-foreground text-sm tabular-nums hidden md:table-cell">
                     {user.dedication != null ? Number(user.dedication).toFixed(2) : '-'}
+                  </td>
+                  <td className="p-3 hidden md:table-cell">
+                    <Switch
+                      checked={user.requires_project_reporting}
+                      onCheckedChange={(checked) => {
+                        updateUser.mutateAsync({
+                          userId: user.id,
+                          data: { requires_project_reporting: checked },
+                        })
+                          .then(() => showMessage('success', 'User updated'))
+                          .catch((err) =>
+                            showMessage('error', err instanceof Error ? err.message : 'Failed to update'),
+                          );
+                      }}
+                    />
                   </td>
                   <td className="p-3 text-muted-foreground text-sm hidden sm:table-cell">
                     {formatDate(user.last_login_at)}

@@ -34,6 +34,7 @@ import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
 import UserDetail from './core/pages/UserDetail';
 import Landing from './core/pages/Landing';
+import CapacityInsights from './modules/capacity/pages/Insights';
 
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
 
@@ -85,6 +86,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
+          <Route path="/capacity/insights" element={<CapacityInsights />} />
         </Route>
         <Route path="/login" element={<Navigate to="/projects" replace />} />
       </Routes>
@@ -107,6 +109,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
+          <Route path="/capacity/insights" element={<CapacityInsights />} />
           <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}

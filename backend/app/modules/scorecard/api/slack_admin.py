@@ -216,7 +216,7 @@ async def update_message_template(
 # --- Custom notifications ---
 
 
-@custom_router.post("/send-custom", response_model=CustomNotificationResponse)
+@custom_router.post("/send-custom")
 @limiter.limit("10/minute")
 async def send_custom_notification(
     request: Request,

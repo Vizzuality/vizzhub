@@ -16,6 +16,7 @@ export interface User {
   dedication: number | null;
   slack_user_id: string | null;
   slack_display_name: string | null;
+  requires_project_reporting: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
