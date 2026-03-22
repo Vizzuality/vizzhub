@@ -9,9 +9,15 @@ import {
   LabelList,
 } from 'recharts';
 import type { PeriodUserInsight } from '@/modules/capacity/types/capacity';
-import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
+import { FA_ORDER } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { shortMonth } from '@/shared/constants/dates';
+
+const USER_PALETTE = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
+  '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
+];
 
 interface ChartDataPoint {
   month: string;
@@ -54,28 +60,6 @@ function renderCountLabel(props: Record<string, unknown>): JSX.Element | null {
   );
 }
 
-function renderNameLabel(props: Record<string, unknown>): JSX.Element | null {
-  const { x, y, width, height, value } = props as {
-    x: number; y: number; width: number; height: number; value: number;
-  };
-  if (!value) return null;
-  const name = String(props.name ?? '');
-  if (!name) return null;
-  return (
-    <text
-      x={x + width / 2}
-      y={y + height / 2}
-      textAnchor="middle"
-      dominantBaseline="middle"
-      fontSize={9}
-      className="fill-foreground"
-      style={{ pointerEvents: 'none' }}
-    >
-      {name}
-    </text>
-  );
-}
-
 interface FADetailChartProps {
   readonly data: PeriodUserInsight[];
   readonly fa: string;
@@ -97,7 +81,13 @@ export function FADetailChart({
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const handleLeave = useCallback(() => setHoveredUser(null), []);
 
-  const color = FA_COLORS[fa] ?? '#6b7280';
+  const userColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    userNames.forEach((name, i) => {
+      map[name] = USER_PALETTE[i % USER_PALETTE.length];
+    });
+    return map;
+  }, [userNames]);
 
   const controls = (
     <div className="flex items-center justify-between">
@@ -137,6 +127,18 @@ export function FADetailChart({
     <div className="space-y-4">
       {controls}
 
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        {userNames.map((name) => (
+          <div key={name} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ backgroundColor: userColors[name] }}
+            />
+            <span>{name}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="relative">
         {hoveredUser && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-3 py-1.5 text-sm font-medium text-foreground shadow">
@@ -158,21 +160,16 @@ export function FADetailChart({
                 key={`${name}_projects`}
                 dataKey={`${name}_projects`}
                 stackId={name}
-                fill={color}
+                fill={userColors[name]}
                 fillOpacity={1}
                 onMouseEnter={() => setHoveredUser(name)}
                 onMouseLeave={handleLeave}
-              >
-                <LabelList
-                  dataKey={`${name}_projects`}
-                  content={(props) => renderNameLabel({ ...props, name })}
-                />
-              </Bar>,
+              />,
               <Bar
                 key={`${name}_others`}
                 dataKey={`${name}_others`}
                 stackId={name}
-                fill={color}
+                fill={userColors[name]}
                 fillOpacity={0.3}
                 onMouseEnter={() => setHoveredUser(name)}
                 onMouseLeave={handleLeave}
