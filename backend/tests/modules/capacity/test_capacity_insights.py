@@ -162,19 +162,57 @@ class TestGetCapacityInsights:
         assert fa_map["FE"]["user_count"] == 2
 
     @pytest.mark.asyncio
-    async def test_user_with_no_report_contributes_zero(
+    async def test_users_with_no_report_excluded_from_average(
         self, db_session: AsyncSession, capacity_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_insights
 
-        # Feb has no reports for anyone
+        # Feb has no reports for anyone — all users excluded (on leave)
         result = await get_capacity_insights(
             db=db_session,
             start_date=dt.date(2026, 2, 1),
             end_date=dt.date(2026, 2, 1),
         )
+        # No FAs should appear since all users have 0 report total
+        assert result[0]["functional_areas"] == []
+
+    @pytest.mark.asyncio
+    async def test_on_leave_user_excluded_from_average(
+        self, db_session: AsyncSession, capacity_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_capacity_insights
+
+        # Add a third FE user who has a report but total = 0 (on leave)
+        fa_fe = capacity_data["fa_fe"]
+        period_jan = capacity_data["period_jan"]
+        user_on_leave = UserDB(
+            email="leave@test.com", first_name="On", last_name="Leave",
+            functional_area_id=fa_fe.id, active=True, requires_project_reporting=True,
+        )
+        db_session.add(user_on_leave)
+        await db_session.flush()
+
+        # Report with 0% total (all parts have percentage=0)
+        report_leave = ReportDB(
+            user_id=user_on_leave.id, reporting_period_id=period_jan.id,
+        )
+        db_session.add(report_leave)
+        await db_session.flush()
+        db_session.add(ReportPartDB(
+            report_id=report_leave.id,
+            project_id=capacity_data["billable_project"].id,
+            percentage=Decimal("0.0000"),
+        ))
+        await db_session.commit()
+
+        result = await get_capacity_insights(
+            db=db_session,
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
+        )
         fa_map = {fa["short"]: fa for fa in result[0]["functional_areas"]}
-        assert fa_map["FE"]["billable_pct"] == 0.0
+        # On-leave user excluded: still (0.6 + 0.8) / 2 = 0.7, not / 3
+        assert fa_map["FE"]["billable_pct"] == pytest.approx(0.7, abs=0.01)
         assert fa_map["FE"]["user_count"] == 2
 
     @pytest.mark.asyncio

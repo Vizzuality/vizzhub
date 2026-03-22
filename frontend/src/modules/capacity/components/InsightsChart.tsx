@@ -1,13 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
-  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Legend,
+  Cell,
 } from 'recharts';
 import type { PeriodInsight } from '@/modules/capacity/types/capacity';
 
@@ -39,7 +38,6 @@ function transformData(data: PeriodInsight[]): ChartDataPoint[] {
     for (const fa of period.functional_areas) {
       point[`${fa.short}_projects`] = Math.round(fa.billable_pct * 100);
       point[`${fa.short}_others`] = Math.round((1 - fa.billable_pct) * 100);
-      point[`${fa.short}_users`] = fa.user_count;
     }
     return point;
   });
@@ -51,6 +49,7 @@ interface InsightsChartProps {
 
 export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
   const chartData = useMemo(() => transformData(data), [data]);
+  const [hoveredFA, setHoveredFA] = useState<string | null>(null);
 
   const activeFAs = useMemo(() => {
     const found = new Set<string>();
@@ -71,49 +70,69 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={450}>
-      <BarChart data={chartData} barCategoryGap="15%" barGap={1}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-        <YAxis
-          domain={[0, 100]}
-          tickFormatter={(v: number) => `${v}%`}
-          tick={{ fontSize: 12 }}
-        />
-        <RechartsTooltip
-          formatter={(value: number, name: string) => {
-            const [fa, type] = name.split('_');
-            const label = type === 'projects' ? `${fa} Projects` : `${fa} Others`;
-            return [`${value}%`, label];
-          }}
-          labelFormatter={(label: string) => label}
-        />
-        <Legend
-          formatter={(value: string) => {
-            const [fa, type] = value.split('_');
-            return type === 'projects' ? `${fa} Projects` : `${fa} Others`;
-          }}
-        />
+    <div className="space-y-4">
+      <h2 className="text-lg font-medium">Projects time per functional area</h2>
+
+      <div className="flex items-center gap-4 text-sm">
         {activeFAs.map((fa) => (
-          <Bar
-            key={`${fa}_projects`}
-            dataKey={`${fa}_projects`}
-            stackId={fa}
-            fill={FA_COLORS[fa]}
-            name={`${fa}_projects`}
-          />
+          <div key={fa} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ backgroundColor: FA_COLORS[fa] }}
+            />
+            <span>{fa}</span>
+          </div>
         ))}
-        {activeFAs.map((fa) => (
-          <Bar
-            key={`${fa}_others`}
-            dataKey={`${fa}_others`}
-            stackId={fa}
-            fill={FA_COLORS[fa]}
-            fillOpacity={0.3}
-            name={`${fa}_others`}
-          />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+      </div>
+
+      <div className="relative">
+        {hoveredFA && (
+          <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-2 py-1 text-sm text-foreground">
+            {hoveredFA}
+          </div>
+        )}
+
+        <ResponsiveContainer width="100%" height={450}>
+          <BarChart data={chartData} barCategoryGap="15%" barGap={1}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+            <YAxis
+              domain={[0, 100]}
+              tickFormatter={(v: number) => `${v}%`}
+              tick={{ fontSize: 12 }}
+            />
+            {activeFAs.map((fa) => (
+              <Bar
+                key={`${fa}_projects`}
+                dataKey={`${fa}_projects`}
+                stackId={fa}
+                fill={FA_COLORS[fa]}
+                onMouseEnter={() => setHoveredFA(fa)}
+                onMouseLeave={() => setHoveredFA(null)}
+              >
+                {chartData.map((_, i) => (
+                  <Cell key={i} cursor="pointer" />
+                ))}
+              </Bar>
+            ))}
+            {activeFAs.map((fa) => (
+              <Bar
+                key={`${fa}_others`}
+                dataKey={`${fa}_others`}
+                stackId={fa}
+                fill={FA_COLORS[fa]}
+                fillOpacity={0.3}
+                onMouseEnter={() => setHoveredFA(fa)}
+                onMouseLeave={() => setHoveredFA(null)}
+              >
+                {chartData.map((_, i) => (
+                  <Cell key={i} cursor="pointer" />
+                ))}
+              </Bar>
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
