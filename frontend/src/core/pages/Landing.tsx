@@ -52,9 +52,8 @@ const MODULES: ModuleCard[] = [
     number: '05',
     symbol: 'Ca',
     label: 'CAPACITY',
-    path: '/capacity',
+    path: '/capacity/insights',
     iconType: 'admin',
-    comingSoon: true,
   },
 ];
 
