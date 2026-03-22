@@ -11,11 +11,24 @@ import MyReport from '../MyReport';
 const AUTH_EMAIL = 'admin@test.com';
 
 const mockAuth: AuthContextType = {
-  user: { id: 'user-1', email: AUTH_EMAIL, role: 'admin' },
+  user: {
+    id: 'user-1',
+    email: AUTH_EMAIL,
+    first_name: null,
+    last_name: null,
+    picture: null,
+    roles: ['user', 'admin'],
+    permissions: ['*'],
+    active: true,
+  },
   isAuthenticated: true,
   isLoading: false,
+  permissions: ['*'],
+  isImpersonating: false,
   login: vi.fn(),
   logout: vi.fn(),
+  impersonate: vi.fn(),
+  stopImpersonating: vi.fn(),
 };
 
 const reportWithMatchingEmail = {
