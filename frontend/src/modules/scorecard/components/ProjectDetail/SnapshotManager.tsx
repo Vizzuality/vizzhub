@@ -12,7 +12,7 @@ import { NativeSelect } from '@/shared/components/ui/native-select';
 import { FileDown, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import HistoricalCaptureSection from './HistoricalCaptureSection';
 import { useExport } from '../../hooks/useExport';
-import { useAuth } from '@/core/hooks/useAuth';
+import { usePermission, Action } from '@/core/permissions';
 
 interface SnapshotManagerProps {
   readonly projectId: string;
@@ -33,8 +33,7 @@ export default function SnapshotManager({
   const [snapshotType, setSnapshotType] = useState('cumulative');
 
   const { exportProject, isExporting, error } = useExport();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = usePermission(Action.SCORECARD_MANAGE);
 
   const handleExport = async (): Promise<void> => {
     await exportProject(

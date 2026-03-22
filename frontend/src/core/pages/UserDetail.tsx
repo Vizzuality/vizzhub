@@ -189,7 +189,7 @@ export default function UserDetail(): JSX.Element {
         <div className="space-y-1.5">
           <Label>Role</Label>
           <Select
-            value={user.role}
+            value={user.roles[0] ?? 'user'}
             onValueChange={(value) => handleFieldChange('role', value)}
             disabled={isCurrentUser}
           >

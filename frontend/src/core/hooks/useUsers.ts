@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/core/services/client';
-import { User, UserRole, FunctionalArea, Rate } from '../types/auth';
+import { User, FunctionalArea, Rate } from '../types/auth';
 import { queryKeys } from './queryKeys';
 
 /**
@@ -43,7 +43,7 @@ export function useUser(
  * Update user role (admin only)
  */
 export function useUpdateUserRole(): ReturnType<
-  typeof useMutation<User, Error, { userId: string; role: UserRole }>
+  typeof useMutation<User, Error, { userId: string; role: string }>
 > {
   const queryClient = useQueryClient();
 
