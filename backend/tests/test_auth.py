@@ -325,8 +325,7 @@ class TestTokenValidation:
 class TestPermissionAuthorization:
     """Test permission-based authorization."""
 
-    @pytest.mark.asyncio
-    async def test_require_permission_allows_user_with_permission(self) -> None:
+    def test_require_permission_allows_user_with_permission(self) -> None:
         """User with required permission should get access."""
         from app.core.auth import TokenData
         from app.core.permissions import require_permission
@@ -338,12 +337,11 @@ class TestPermissionAuthorization:
         )
 
         checker = require_permission("*")
-        result = await checker(user)
+        result = checker(user)
 
         assert result.user_id == "admin-user"
 
-    @pytest.mark.asyncio
-    async def test_require_permission_denies_user_without_permission(self) -> None:
+    def test_require_permission_denies_user_without_permission(self) -> None:
         """User without required permission should get 403."""
         from app.core.auth import TokenData
         from app.core.permissions import require_permission
@@ -357,7 +355,7 @@ class TestPermissionAuthorization:
         checker = require_permission("*")
 
         with pytest.raises(Exception) as exc_info:
-            await checker(user)
+            checker(user)
 
         assert exc_info.value.status_code == 403
 
