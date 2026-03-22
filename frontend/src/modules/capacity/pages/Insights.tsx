@@ -2,8 +2,11 @@ import { useCallback, useRef } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useCapacityInsights } from '@/modules/capacity/hooks/useCapacityInsights';
 import { useCapacityFADetail } from '@/modules/capacity/hooks/useCapacityFADetail';
+import { useCapacityUserDetail } from '@/modules/capacity/hooks/useCapacityUserDetail';
+import { useReportableUsers } from '@/modules/capacity/hooks/useReportableUsers';
 import { InsightsChart } from '@/modules/capacity/components/InsightsChart';
 import { FADetailChart } from '@/modules/capacity/components/FADetailChart';
+import { UserDetailChart } from '@/modules/capacity/components/UserDetailChart';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 
 const fmtMonth = (d: Date): string =>
@@ -23,8 +26,16 @@ function defaultDetailRange(): { detail_start: string; detail_end: string } {
   return { detail_start: fmtMonth(startDate), detail_end: fmtMonth(endDate) };
 }
 
+function defaultUserDetailRange(): { user_start: string; user_end: string } {
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 5, 1);
+  return { user_start: fmtMonth(startDate), user_end: fmtMonth(endDate) };
+}
+
 const overviewDefaults = defaultOverviewRange();
 const detailDefaults = defaultDetailRange();
+const userDetailDefaults = defaultUserDetailRange();
 
 export default function Insights(): JSX.Element {
   const { state, setState } = useUrlState({
@@ -33,9 +44,13 @@ export default function Insights(): JSX.Element {
     fa: { defaultValue: 'FE' },
     detail_start: { defaultValue: detailDefaults.detail_start },
     detail_end: { defaultValue: detailDefaults.detail_end },
+    user_id: { defaultValue: '' },
+    user_start: { defaultValue: userDetailDefaults.user_start },
+    user_end: { defaultValue: userDetailDefaults.user_end },
   });
 
   const detailRef = useRef<HTMLDivElement>(null);
+  const userDetailRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, error } = useCapacityInsights(state.start, state.end);
   const {
@@ -43,6 +58,12 @@ export default function Insights(): JSX.Element {
     isLoading: detailLoading,
     error: detailError,
   } = useCapacityFADetail(state.fa, state.detail_start, state.detail_end);
+  const { data: reportableUsers } = useReportableUsers();
+  const {
+    data: userDetailData,
+    isLoading: userDetailLoading,
+    error: userDetailError,
+  } = useCapacityUserDetail(state.user_id, state.user_start, state.user_end);
 
   const handleBarClick = useCallback((fa: string, period: string): void => {
     const [year, month] = period.split('-').map(Number);
@@ -55,6 +76,11 @@ export default function Insights(): JSX.Element {
       detail_end: fmtMonth(endDate),
     });
     detailRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [setState]);
+
+  const handleUserClick = useCallback((userId: string): void => {
+    setState({ user_id: userId });
+    userDetailRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [setState]);
 
   return (
@@ -112,6 +138,36 @@ export default function Insights(): JSX.Element {
             endDate={state.detail_end}
             onRangeChange={(detail_start, detail_end) =>
               setState({ detail_start, detail_end })
+            }
+            onUserClick={handleUserClick}
+          />
+        )}
+      </div>
+
+      <div ref={userDetailRef}>
+        {userDetailLoading && (
+          <div className="flex h-64 items-center justify-center text-muted-foreground">
+            Loading...
+          </div>
+        )}
+
+        {userDetailError && (
+          <div className="flex h-64 items-center justify-center text-destructive">
+            Failed to load user detail data
+          </div>
+        )}
+
+        {reportableUsers && (
+          <UserDetailChart
+            key={`${state.user_id}-${state.user_start}-${state.user_end}`}
+            data={userDetailData ?? []}
+            userId={state.user_id}
+            users={reportableUsers}
+            onUserChange={(user_id) => setState({ user_id })}
+            startDate={state.user_start}
+            endDate={state.user_end}
+            onRangeChange={(user_start, user_end) =>
+              setState({ user_start, user_end })
             }
           />
         )}

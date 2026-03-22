@@ -164,6 +164,105 @@ async def get_capacity_fa_detail(
     return result
 
 
+async def get_reportable_users(db: AsyncSession) -> list[dict]:
+    """Return all active users that require project reporting, for selectors."""
+    rows = await db.execute(
+        select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
+        .where(
+            UserDB.active.is_(True),
+            UserDB.requires_project_reporting.is_(True),
+        )
+        .order_by(UserDB.email)
+    )
+    result = []
+    for uid, fn, ln, full_name, email in rows:
+        result.append({
+            "id": str(uid),
+            "name": _format_user_name(fn, ln, full_name, email),
+        })
+    result.sort(key=lambda u: u["name"])
+    return result
+
+
+async def get_capacity_user_detail(
+    db: AsyncSession,
+    user_id: str,
+    start_date: date,
+    end_date: date,
+) -> list[dict]:
+    """Per-project breakdown for a single user per period.
+
+    Returns list of dicts sorted by period ascending, each containing
+    'period' (YYYY-MM) and 'projects' list with per-project breakdown.
+    Only billable projects are listed individually; the remainder is 'others'.
+    """
+    from uuid import UUID
+    uid = UUID(user_id)
+
+    user_row = await db.execute(
+        select(UserDB.id).where(UserDB.id == uid)
+    )
+    if not user_row.scalar_one_or_none():
+        return []
+
+    periods_result = await db.execute(
+        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+        .where(
+            ReportingPeriodDB.date >= start_date,
+            ReportingPeriodDB.date <= end_date,
+        )
+        .order_by(ReportingPeriodDB.date)
+    )
+    periods = list(periods_result)
+    if not periods:
+        return []
+
+    period_ids = [p_id for p_id, _ in periods]
+
+    report_rows = await db.execute(
+        select(
+            ReportDB.reporting_period_id,
+            ProjectDB.id,
+            ProjectDB.name,
+            ProjectDB.is_billable,
+            ReportPartDB.percentage,
+        )
+        .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
+        .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
+        .where(
+            ReportPartDB.percentage.isnot(None),
+            ReportDB.user_id == uid,
+            ReportDB.reporting_period_id.in_(period_ids),
+        )
+    )
+
+    # {period_id: [(project_id, name, is_billable, pct), ...]}
+    period_projects: dict[object, list[tuple]] = {}
+    for pid, proj_id, proj_name, is_billable, pct in report_rows:
+        period_projects.setdefault(pid, []).append(
+            (str(proj_id), proj_name, bool(is_billable), float(pct))
+        )
+
+    result = []
+    for period_id, period_date in periods:
+        entries = period_projects.get(period_id, [])
+        projects = []
+        for proj_id, proj_name, is_billable, pct in entries:
+            if is_billable and pct > 0:
+                projects.append({
+                    "project_id": proj_id,
+                    "name": proj_name,
+                    "percentage": round(pct, 4),
+                })
+        projects.sort(key=lambda p: p["name"])
+        result.append({
+            "period": period_date.strftime("%Y-%m"),
+            "projects": projects,
+        })
+
+    return result
+
+
 async def get_capacity_insights(
     db: AsyncSession,
     start_date: date,
