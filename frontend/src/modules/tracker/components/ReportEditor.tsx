@@ -34,10 +34,9 @@ export default function ReportEditor({
   const parts = reportWithParts?.parts ?? [];
   const isEstimated = reportWithParts?.estimated ?? report.estimated;
 
-  const totalPercentage = parts.reduce(
-    (sum, p) => sum + (p.percentage ?? 0) * 100,
-    0,
-  );
+  const totalPercentage = Math.round(
+    parts.reduce((sum, p) => sum + (p.percentage ?? 0) * 100, 0) * 100,
+  ) / 100;
   const isOverAllocated = totalPercentage > 100;
 
   const existingProjectIds = new Set(parts.map((p) => p.project_id));
