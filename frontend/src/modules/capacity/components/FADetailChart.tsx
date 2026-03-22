@@ -11,6 +11,7 @@ import {
 import type { PeriodUserInsight } from '@/modules/capacity/types/capacity';
 import { FA_ORDER } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
+import { ChartPagination, useChartPagination } from './ChartPagination';
 import { shortMonth } from '@/shared/constants/dates';
 
 const USER_PALETTE = [
@@ -80,6 +81,9 @@ export function FADetailChart({
   const { chartData, userNames } = useMemo(() => transformDetailData(data), [data]);
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const handleLeave = useCallback(() => setHoveredUser(null), []);
+  const [page, setPage] = useState(0);
+
+  const { visible } = useChartPagination(chartData, page);
 
   const userColors = useMemo(() => {
     const map: Record<string, string> = {};
@@ -147,8 +151,8 @@ export function FADetailChart({
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60} margin={{ top: 16 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <BarChart data={visible} barCategoryGap="15%" barGap={1} maxBarSize={60} margin={{ top: 16 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={true} strokeOpacity={0.15} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
@@ -183,6 +187,8 @@ export function FADetailChart({
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      <ChartPagination data={chartData} page={page} onPageChange={setPage} />
     </div>
   );
 }
