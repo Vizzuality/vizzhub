@@ -8,7 +8,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import type { PeriodInsight } from '@/modules/capacity/types/capacity';
-import { shortMonth } from '@/modules/tracker/utils/constants';
+import { shortMonth } from '@/shared/constants/dates';
 
 const FA_COLORS: Record<string, string> = {
   FE: '#3b82f6',
@@ -85,7 +85,7 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
         ))}
       </div>
 
-      <div className="relative">
+      <div className="relative cursor-pointer">
         {hoveredFA && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-2 py-1 text-sm text-foreground">
             {hoveredFA}
@@ -109,7 +109,6 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
                   stackId={fa}
                   fill={FA_COLORS[fa]}
                   fillOpacity={opacity}
-                  cursor="pointer"
                   onMouseEnter={() => setHoveredFA(fa)}
                   onMouseLeave={handleLeave}
                 />
