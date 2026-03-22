@@ -15,7 +15,7 @@ def require_permission(*permissions: str):
     Uses Depends(get_current_user) so FastAPI resolves the JWT automatically.
     """
 
-    async def checker(
+    def checker(
         current_user: Annotated[TokenData, Depends(get_current_user)]
     ) -> TokenData:
         user_perms = set(current_user.permissions)
