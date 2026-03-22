@@ -22,7 +22,7 @@ import {
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
 import { useProjectCostsMap, useProjectProgressMap } from '@/modules/tracker/public';
 import ProjectCard from '@/core/components/ProjectCard';
-import { useAuth } from '@/core/hooks/useAuth';
+import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import {
@@ -49,9 +49,9 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 
 export default function Projects(): JSX.Element {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
-  const isAdmin = bypassAuth || user?.role === 'admin';
+  const canManageProjects = usePermission(Action.PROJECTS_MANAGE);
+  const isAdmin = bypassAuth || canManageProjects;
 
   const [viewMode, setViewMode] = useState<ViewMode>(
     () => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'grid'

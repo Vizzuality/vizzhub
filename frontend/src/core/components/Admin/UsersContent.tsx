@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
 import { useUsers, useUpdateUserRole, useUpdateUser, useSyncSlackAll } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
-import { User, UserRole } from '../../types/auth';
+import { User } from '../../types/auth';
 import { getFullName } from '@/utils/formatters';
 import {
   Select,
@@ -135,7 +135,7 @@ export function UsersContent(): JSX.Element {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole): Promise<void> => {
+  const handleRoleChange = async (userId: string, newRole: string): Promise<void> => {
     try {
       await updateRole.mutateAsync({ userId, role: newRole });
       showMessage('success', 'User role updated');
@@ -267,8 +267,8 @@ export function UsersContent(): JSX.Element {
                   </td>
                   <td className="p-3">
                     <Select
-                      value={user.role}
-                      onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
+                      value={user.roles[0] ?? 'user'}
+                      onValueChange={(value) => handleRoleChange(user.id, value)}
                       disabled={isCurrentUser}
                     >
                       <SelectTrigger className="w-[100px]">

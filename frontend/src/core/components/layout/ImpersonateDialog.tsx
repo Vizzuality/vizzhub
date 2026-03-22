@@ -102,7 +102,7 @@ export function ImpersonateDialog({
                         </span>
                       </div>
                       <span className="ml-auto text-xs text-muted-foreground">
-                        {u.role}
+                        {u.roles[0] ?? 'user'}
                       </span>
                     </CommandItem>
                   );

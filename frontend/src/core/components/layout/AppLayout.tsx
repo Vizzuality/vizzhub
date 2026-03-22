@@ -23,10 +23,12 @@ import { Button } from '@/shared/components/ui/button';
 import { PageBreadcrumb } from './PageBreadcrumb';
 import { useReportingPeriods } from '@/modules/tracker/public';
 import { getFullName, getInitials } from '@/utils/formatters';
+import { usePermission, Action } from '@/core/permissions';
 
 export function AppLayout(): JSX.Element {
   const auth = useAuth();
   const navigate = useNavigate();
+  const canAdmin = usePermission(Action.ADMIN_USERS);
   const [impersonateOpen, setImpersonateOpen] = useState(false);
 
   const handleLogout = async (): Promise<void> => {
@@ -99,7 +101,7 @@ export function AppLayout(): JSX.Element {
                     </DropdownMenuItem>
                   </>
                 )}
-                {auth.user?.role === 'admin' && !auth.isImpersonating && (
+                {canAdmin && !auth.isImpersonating && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setImpersonateOpen(true)}>
