@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig, get_scoring_config
 from app.core.auth import TokenData, get_current_user
-from app.core.permissions import require_permission
+from app.core.permissions import Action, require_permission
 from app.core.exceptions import ProjectNotFoundError
 from app.database import get_db
 from app.core.models.project import ProjectDB
@@ -23,7 +23,7 @@ limiter = Limiter(key_func=get_remote_address)
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 ScoringConfigDep = Annotated[ScoringConfig, Depends(get_scoring_config)]
 CurrentUser = Annotated[TokenData, Depends(get_current_user)]
-AdminUser = Annotated[TokenData, Depends(require_permission("*"))]
+AdminUser = Annotated[TokenData, Depends(require_permission(Action.ALL))]
 
 
 def get_score_cache(request: Request) -> ScoreCacheService | None:

@@ -6,20 +6,23 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import aliased
 
 from app.config import get_scoring_config
 from app.core.api.deps import (
-    AdminUser,
     CurrentUser,
     DBSession,
     OptionalScoreCache,
     get_project_or_404,
     limiter,
 )
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 from app.core.models.link import Link, LinkCreate, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
@@ -179,7 +182,7 @@ async def list_projects(
 @router.post("", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
 async def create_project(
-    request: Request, project: ProjectCreateV2, admin: AdminUser, db: DBSession
+    request: Request, project: ProjectCreateV2, admin: ProjectManager, db: DBSession
 ) -> ProjectResponse:
     db_project = ProjectDB()
     _apply_project_data(db_project, project)
@@ -219,7 +222,7 @@ async def replace_project(
     request: Request,
     project_id: UUID,
     data: ProjectCreateV2,
-    admin: AdminUser,
+    admin: ProjectManager,
     db: DBSession,
     cache: OptionalScoreCache,
 ) -> ProjectResponse:
@@ -239,7 +242,7 @@ async def update_project(
     request: Request,
     project_id: UUID,
     update: ProjectUpdate,
-    admin: AdminUser,
+    admin: ProjectManager,
     db: DBSession,
     cache: OptionalScoreCache,
 ) -> ProjectResponse:
@@ -277,7 +280,7 @@ async def update_project(
 )
 @limiter.limit("10/minute")
 async def delete_project(
-    request: Request, project_id: UUID, admin: AdminUser, db: DBSession
+    request: Request, project_id: UUID, admin: ProjectManager, db: DBSession
 ) -> None:
     project = await get_project_or_404(db, project_id)
 
@@ -394,7 +397,7 @@ class ProjectLinkInput(BaseModel):
 @limiter.limit("30/minute")
 async def replace_project_links(
     request: Request,
-    current_user: AdminUser,
+    current_user: ProjectManager,
     db: DBSession,
     project_id: UUID,
     payload: list[ProjectLinkInput],

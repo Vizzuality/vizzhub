@@ -1,11 +1,16 @@
 """Metrics input endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+MetricsEditor = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_EDIT_METRICS))]
 from app.core.exceptions import MetricsNotFoundError
 from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
@@ -81,7 +86,7 @@ async def create_metrics(
     request: Request,
     project_id: UUID,
     metrics: MetricsCreate,
-    current_user: CurrentUser,
+    current_user: MetricsEditor,
     db: DBSession,
     config: ScoringConfigDep,
     cache: OptionalScoreCache,
@@ -147,11 +152,11 @@ async def get_metrics(
 async def delete_metrics(
     request: Request,
     metrics_id: UUID,
-    current_user: CurrentUser,
+    current_user: MetricsEditor,
     db: DBSession,
     cache: OptionalScoreCache,
 ) -> None:
-    """Delete metrics by ID. Requires authentication."""
+    """Delete metrics by ID."""
     result = await db.execute(
         select(MetricsDB).where(MetricsDB.id == str(metrics_id))
     )

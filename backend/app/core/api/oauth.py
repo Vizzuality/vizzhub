@@ -3,11 +3,15 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.api.deps import AdminUser, CurrentUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+IntegrationAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_INTEGRATIONS))]
 from app.config import get_settings
 from app.core.oauth_state import OAuthStateManager
 from app.core.security_logger import (
@@ -28,7 +32,7 @@ TOKEN_REFRESH_FAILED = "Token refresh failed"
 @router.get("/jira/authorize")
 @limiter.limit("10/minute")
 async def authorize_jira(
-    request: Request, current_user: CurrentUser, db: DBSession
+    request: Request, current_user: IntegrationAdmin, db: DBSession
 ) -> RedirectResponse:
     """
     Initiate Jira OAuth flow with CSRF protection.
@@ -129,7 +133,7 @@ async def jira_callback(
 @router.get("/jira/status")
 @limiter.limit("30/minute")
 async def jira_oauth_status(
-    request: Request, current_user: CurrentUser, db: DBSession
+    request: Request, current_user: IntegrationAdmin, db: DBSession
 ) -> dict[str, bool]:
     """
     Check Jira OAuth token status.
@@ -148,7 +152,7 @@ async def jira_oauth_status(
 @router.post("/jira/refresh")
 @limiter.limit("10/minute")
 async def refresh_jira_token(
-    request: Request, current_user: CurrentUser, db: DBSession
+    request: Request, current_user: IntegrationAdmin, db: DBSession
 ) -> dict[str, str]:
     """
     Manually refresh Jira access token.
@@ -195,7 +199,7 @@ async def refresh_jira_token(
 @router.delete("/jira/disconnect")
 @limiter.limit("10/minute")
 async def disconnect_jira(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request, current_user: IntegrationAdmin, db: DBSession
 ) -> dict[str, str]:
     """Disconnect Jira OAuth. Deletes the stored token. Requires admin."""
     deleted = await IntegrationTokenService.delete_token(db, "jira")

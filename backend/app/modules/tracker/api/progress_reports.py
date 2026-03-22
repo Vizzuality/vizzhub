@@ -1,12 +1,18 @@
 """Progress report CRUD endpoints."""
 
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
+from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.modules.tracker.api.helpers import refresh_scorecard_evm
 from app.modules.tracker.models.progress_report import ProgressReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
@@ -62,7 +68,7 @@ def _to_response(
 async def list_progress(
     project_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> list[ProgressReportResponse]:
     stmt = (
         select(ProgressReportDB, ReportingPeriodDB.date)
@@ -83,7 +89,7 @@ async def create_progress(
     project_id: UUID,
     body: ProgressReportCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
     cache: OptionalScoreCache,
 ) -> ProgressReportResponse:
     pct = Decimal(str(body.percentage)) / Decimal("100")
@@ -118,7 +124,7 @@ async def update_progress(
     progress_id: UUID,
     body: ProgressReportUpdate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
     cache: OptionalScoreCache,
 ) -> ProgressReportResponse:
     pr = await db.get(ProgressReportDB, progress_id)
@@ -148,7 +154,7 @@ async def delete_progress(
     project_id: UUID,
     progress_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
     cache: OptionalScoreCache,
 ) -> None:
     pr = await db.get(ProgressReportDB, progress_id)
@@ -163,7 +169,7 @@ async def delete_progress(
 async def batch_progress(
     body: dict,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> BatchProgressResponse:
     """Get latest progress for multiple projects."""
     project_ids = [UUID(pid) for pid in body.get("project_ids", [])]

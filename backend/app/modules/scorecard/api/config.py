@@ -1,11 +1,16 @@
 """Configuration endpoints."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
 
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 from app.core.error_handler import ValidationErrorHandler
 from app.modules.scorecard.models.config import (
     ConfigParameterResponse,
@@ -111,12 +116,12 @@ async def get_config_parameters(
 @limiter.limit("10/minute")
 async def update_config_parameters(
     request: Request,
-    current_user: CurrentUser,
+    current_user: ScorecardManager,
     db: DBSession,
     cache: OptionalScoreCache,
     updates: list[ConfigParameterUpdate],
 ) -> dict[str, str]:
-    """Update multiple config parameters. Validates weight groups. Requires authentication."""
+    """Update multiple config parameters. Validates weight groups."""
     try:
         await ConfigService.update_parameters(db, updates)
 

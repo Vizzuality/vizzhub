@@ -6,11 +6,16 @@ from enum import Enum
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.sql import func
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+IsoViewer = Annotated[TokenData, Depends(require_permission(Action.ISO_VIEW))]
+IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
 from app.modules.scorecard.api.schemas.common import PaginatedResponse
 from app.modules.iso.api.helpers import (
     get_review_or_404,
@@ -38,7 +43,7 @@ router = APIRouter()
 @limiter.limit("30/minute")
 async def list_reviews(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoViewer,
     db: DBSession,
     status: str | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
@@ -57,7 +62,7 @@ async def list_reviews(
 @router.get("/{review_id}", response_model=AccessReviewDetailResponse)
 @limiter.limit("30/minute")
 async def get_review(
-    request: Request, review_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, review_id: UUID, current_user: IsoViewer, db: DBSession
 ) -> dict:
     review = await get_review_or_404(db, review_id)
     return await load_review_with_actions(db, review)
@@ -73,7 +78,7 @@ async def update_review(
     request: Request,
     review_id: UUID,
     body: AccessReviewUpdate,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
@@ -104,7 +109,7 @@ async def update_action(
     review_id: UUID,
     action_id: UUID,
     body: AccessReviewActionUpdate,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
 ) -> AccessReviewActionDB:
     review = await get_review_or_404(db, review_id)
@@ -149,7 +154,7 @@ async def update_action(
 async def sign_review(
     request: Request,
     review_id: UUID,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
     body: SignReviewRequest | None = None,
 ) -> AccessReviewDB:
@@ -216,7 +221,7 @@ async def sign_review(
 )
 @limiter.limit("10/minute")
 async def unsign_review(
-    request: Request, review_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, review_id: UUID, current_user: IsoManager, db: DBSession
 ) -> AccessReviewDB:
     review = await get_review_or_404(db, review_id)
 

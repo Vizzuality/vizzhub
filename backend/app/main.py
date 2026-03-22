@@ -61,7 +61,8 @@ async def lifespan(app: FastAPI) -> Any:
     # Validate roles table matches code definitions
     from app.core.permissions.roles import ROLE_PERMISSIONS
     from app.core.models.role import RoleDB
-    async for _db in get_db():
+    from app.database import async_session_maker
+    async with async_session_maker() as _db:
         _result = await _db.execute(select(RoleDB.name))
         db_roles = {row[0] for row in _result.all()}
         code_roles = set(ROLE_PERMISSIONS.keys())
@@ -71,7 +72,6 @@ async def lifespan(app: FastAPI) -> Any:
             logger.warning(f"Roles defined in code but missing from DB: {missing_in_db}")
         if extra_in_db:
             logger.warning(f"Roles in DB but not defined in code: {extra_in_db}")
-        break
 
     # Load scoring config from database into memory
     await load_scoring_config_from_db()

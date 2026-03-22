@@ -1,18 +1,22 @@
 """Data collection endpoints."""
 
 from datetime import datetime, timezone
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.core.api.deps import (
-    CurrentUser,
     DBSession,
     OptionalScoreCache,
     get_project_or_404,
     limiter,
 )
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 from app.core.exceptions import ConfigurationError
 from app.modules.scorecard.models.metrics import Metrics, MetricsDB, SnapshotType
 from app.modules.scorecard.services.collectors.github import GitHubCollector
@@ -29,7 +33,7 @@ router = APIRouter()
 async def collect_jira_metrics(
     request: Request,
     project_id: UUID,
-    current_user: CurrentUser,
+    current_user: ScorecardManager,
     db: DBSession,
     cache: OptionalScoreCache,
 ) -> Metrics:
@@ -124,7 +128,7 @@ async def collect_jira_metrics(
 async def collect_github_metrics(
     request: Request,
     project_id: UUID,
-    current_user: CurrentUser,
+    current_user: ScorecardManager,
     db: DBSession,
     cache: OptionalScoreCache,
 ) -> Metrics:

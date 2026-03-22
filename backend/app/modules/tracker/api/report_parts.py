@@ -1,11 +1,16 @@
 """Report part CRUD endpoints with auto-calculated cost/days."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.schemas.report_part import (
     ReportPartCreate,
@@ -39,7 +44,7 @@ async def list_report_parts(
 async def create_report_part(
     data: ReportPartCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: OwnReportManager,
     cache: OptionalScoreCache,
 ) -> ReportPartResponse:
     part = ReportPartDB(
@@ -73,7 +78,7 @@ async def update_report_part(
     part_id: UUID,
     data: ReportPartUpdate,
     db: DBSession,
-    user: CurrentUser,
+    user: OwnReportManager,
     cache: OptionalScoreCache,
 ) -> ReportPartResponse:
     part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
@@ -93,7 +98,7 @@ async def update_report_part(
 async def delete_report_part(
     part_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: OwnReportManager,
     cache: OptionalScoreCache,
 ) -> None:
     part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)

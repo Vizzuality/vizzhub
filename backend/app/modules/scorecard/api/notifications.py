@@ -5,10 +5,14 @@ from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 from app.modules.scorecard.api.schemas.slack import (
     AlertNotificationResponse,
     NotificationStatsResponse,
@@ -26,7 +30,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @limiter.limit("100/minute")
 async def list_notifications(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
     project_id: UUID | None = None,
     alert_definition_id: int | None = None,
@@ -115,7 +119,7 @@ async def list_notifications(
 @limiter.limit("60/minute")
 async def get_notification_stats(
     request: Request,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
 ) -> NotificationStatsResponse:
     """Get notification statistics."""

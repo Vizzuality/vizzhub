@@ -2,12 +2,17 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import CurrentUser, DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 from app.modules.scorecard.api.schemas.slack import (
     AlertSilenceCreate,
     AlertSilenceResponse,
@@ -25,7 +30,7 @@ router = APIRouter(prefix="/silences", tags=["silences"])
 @limiter.limit("100/minute")
 async def list_silences(
     request: Request,
-    current_user: AdminUser,
+    current_user: CurrentUser,
     db: DBSession,
     project_id: UUID | None = None,
     include_expired: bool = False,
@@ -80,7 +85,7 @@ async def list_silences(
 async def create_silence(
     request: Request,
     silence: AlertSilenceCreate,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
 ) -> AlertSilenceResponse:
     """Create a new alert silence."""
@@ -147,7 +152,7 @@ async def update_silence(
     request: Request,
     silence_id: int,
     update: AlertSilenceUpdate,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
 ) -> AlertSilenceResponse:
     """Update a silence."""
@@ -203,7 +208,7 @@ async def update_silence(
 async def delete_silence(
     request: Request,
     silence_id: int,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
     db: DBSession,
 ) -> None:
     """Delete a silence."""

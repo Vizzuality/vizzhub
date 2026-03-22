@@ -4,11 +4,15 @@ import logging
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
 from app.core.oauth_state import OAuthStateManager
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.core.services.oauth_service import OAuthService
@@ -26,7 +30,7 @@ DOMAIN_PATTERN = r"^[a-zA-Z0-9]([a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$"
 @router.get("/google-workspace")
 @limiter.limit("30/minute")
 async def get_google_workspace_status(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request, current_user: IsoManager, db: DBSession
 ) -> dict:
     return await GoogleWorkspaceOAuth.get_status(db)
 
@@ -35,7 +39,7 @@ async def get_google_workspace_status(
 @limiter.limit("10/minute")
 async def authorize_google_workspace(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
     domain: Annotated[
         str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)
@@ -59,7 +63,7 @@ async def authorize_google_workspace(
 @limiter.limit("10/minute")
 async def google_workspace_callback(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
     code: Annotated[str, Query()],
     state: Annotated[str, Query()] = "",
@@ -93,7 +97,7 @@ async def google_workspace_callback(
 @router.delete("/google-workspace/disconnect")
 @limiter.limit("10/minute")
 async def disconnect_google_workspace(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request, current_user: IsoManager, db: DBSession
 ) -> dict:
     await GoogleWorkspaceOAuth.disconnect(db)
     return {"status": "success", "message": "Google Workspace disconnected"}
@@ -113,7 +117,7 @@ class GitHubOrgRequest(BaseModel):
 @router.get("/github")
 @limiter.limit("30/minute")
 async def get_github_status(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request, current_user: IsoManager, db: DBSession
 ) -> dict:
     token = await IntegrationTokenService.get_token(db, GITHUB_PROVIDER)
     org_name = await IntegrationTokenService.get_setting(
@@ -129,7 +133,7 @@ async def get_github_status(
 @limiter.limit("10/minute")
 async def save_github_org(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
     body: GitHubOrgRequest,
 ) -> dict:
@@ -147,7 +151,7 @@ async def save_github_org(
 @router.delete("/github")
 @limiter.limit("10/minute")
 async def clear_github_org(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request, current_user: IsoManager, db: DBSession
 ) -> dict:
     from sqlalchemy import delete
     from app.core.models.integration_setting import IntegrationSettingDB
@@ -167,7 +171,7 @@ async def clear_github_org(
 @router.get("/jira")
 @limiter.limit("30/minute")
 async def get_jira_status(
-    request: Request, current_user: AdminUser, db: DBSession
+    request: Request, current_user: IsoManager, db: DBSession
 ) -> dict:
     site_info = await OAuthService.get_jira_site_info(db)
     token = await OAuthService.get_valid_jira_token(db)

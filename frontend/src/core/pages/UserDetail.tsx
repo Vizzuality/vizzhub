@@ -198,7 +198,7 @@ export default function UserDetail(): JSX.Element {
                 <input
                   type="checkbox"
                   checked={user.roles.includes(role.name)}
-                  disabled={role.name === 'user' || isCurrentUser}
+                  disabled={role.name === 'user' || isCurrentUser || assignRoles.isPending}
                   onChange={async (e) => {
                     const newRoles = e.target.checked
                       ? [...user.roles, role.name]

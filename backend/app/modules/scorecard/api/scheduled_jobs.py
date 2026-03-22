@@ -1,11 +1,16 @@
 """Scheduled jobs API endpoints."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
 from app.modules.scorecard.api.schemas.slack import (
     JobTriggerResponse,
     ScheduledJobInfo,
@@ -51,7 +56,7 @@ SCHEDULED_JOBS = {
 @limiter.limit("100/minute")
 async def list_scheduled_jobs(
     request: Request,
-    current_user: AdminUser,
+    current_user: JobAdmin,
     db: DBSession,
 ) -> list[ScheduledJobInfo]:
     """List all scheduled jobs with their last run status.
@@ -102,7 +107,7 @@ async def list_scheduled_jobs(
 @limiter.limit("10/minute")
 async def trigger_scheduled_job(
     request: Request,
-    current_user: AdminUser,
+    current_user: JobAdmin,
     db: DBSession,
     job_name: str,
 ) -> JobTriggerResponse:
