@@ -1,10 +1,15 @@
 """Admin API endpoints for managing integration tokens."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.core.api.deps import AdminUser, CurrentUser, DBSession, limiter
+from app.core.api.deps import CurrentUser, DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+IntegrationAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_INTEGRATIONS))]
 from app.modules.scorecard.api.schemas.integrations import (
     AllIntegrationsStatus,
     GitHubTokenInput,
@@ -66,7 +71,7 @@ async def get_all_integrations_status(
 @limiter.limit("10/minute")
 async def save_github_token(
     request: Request,
-    current_user: AdminUser,
+    current_user: IntegrationAdmin,
     db: DBSession,
     body: GitHubTokenInput,
 ) -> ProviderStatus:
@@ -93,7 +98,7 @@ async def save_github_token(
 @limiter.limit("10/minute")
 async def delete_github_token(
     request: Request,
-    current_user: AdminUser,
+    current_user: IntegrationAdmin,
     db: DBSession,
 ) -> dict[str, str]:
     """Disconnect GitHub integration. Requires admin role."""
@@ -111,7 +116,7 @@ async def delete_github_token(
 @limiter.limit("10/minute")
 async def save_slack_token(
     request: Request,
-    current_user: AdminUser,
+    current_user: IntegrationAdmin,
     db: DBSession,
     body: SlackTokenInput,
 ) -> ProviderStatus:
@@ -138,7 +143,7 @@ async def save_slack_token(
 @limiter.limit("10/minute")
 async def delete_slack_token(
     request: Request,
-    current_user: AdminUser,
+    current_user: IntegrationAdmin,
     db: DBSession,
 ) -> dict[str, str]:
     """Disconnect Slack integration. Requires admin role."""
@@ -156,7 +161,7 @@ async def delete_slack_token(
 @limiter.limit("10/minute")
 async def update_slack_settings(
     request: Request,
-    current_user: AdminUser,
+    current_user: IntegrationAdmin,
     db: DBSession,
     body: SlackSettingsUpdate,
 ) -> dict[str, str | None]:
@@ -210,7 +215,7 @@ async def list_slack_channels(
 @limiter.limit("10/minute")
 async def test_slack_connection(
     request: Request,
-    current_user: AdminUser,
+    current_user: IntegrationAdmin,
     db: DBSession,
 ) -> SlackTestResult:
     """Test Slack connection using configured bot token. Requires admin role."""

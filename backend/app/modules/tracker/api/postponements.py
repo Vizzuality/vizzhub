@@ -1,13 +1,18 @@
 """Invoice postponement endpoints."""
 
 from datetime import date, timedelta
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import CurrentUser, DBSession
+from app.core.api.deps import DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 from app.modules.tracker.schemas.postponement import PostponeRequest, PostponementResponse
@@ -27,7 +32,7 @@ async def postpone_invoice(
     invoice_id: UUID,
     body: PostponeRequest,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> PostponementResponse:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
@@ -77,7 +82,7 @@ async def list_postponements(
     project_id: UUID,
     invoice_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> list[PostponementResponse]:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
@@ -99,7 +104,7 @@ async def delete_latest_postponement(
     project_id: UUID,
     invoice_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> None:
     """Delete the most recent postponement, reverting to previous date or due_date."""
     inv = await db.get(InvoiceDB, invoice_id)

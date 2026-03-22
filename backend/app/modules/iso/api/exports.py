@@ -4,12 +4,16 @@ from datetime import date, datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
 from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.core.models.user import UserDB
 from app.modules.iso.models.access_review import AccessReviewDB
@@ -113,7 +117,7 @@ async def _build_export_data(
 @limiter.limit("10/minute")
 async def export_snapshot_range(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
     from_date: Annotated[str, Query(alias="from", description="Start date (YYYY-MM-DD)")],
     to_date: Annotated[str, Query(alias="to", description="End date (YYYY-MM-DD)")],
@@ -161,7 +165,7 @@ async def export_snapshot_range(
 async def export_single_snapshot(
     request: Request,
     snapshot_id: UUID,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
 ) -> Response:
     result = await db.execute(

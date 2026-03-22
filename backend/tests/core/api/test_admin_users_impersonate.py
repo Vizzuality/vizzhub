@@ -1,41 +1,53 @@
 """Tests for admin user impersonation endpoints."""
 
+from uuid import UUID
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import create_access_token
-from app.core.models.user import UserDB, UserRole
+from app.core.models.role import RoleDB
+from app.core.models.user import UserDB
+from tests.conftest import seed_roles, assign_roles
 
 
 @pytest_asyncio.fixture
-async def admin_user(db_session: AsyncSession) -> UserDB:
+async def roles(db_session: AsyncSession) -> dict[str, RoleDB]:
+    """Seed roles once for all user fixtures in this module."""
+    return await seed_roles(db_session)
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession, roles) -> UserDB:
     """Create an admin user in the test DB."""
     user = UserDB(
-        id="00000000-0000-0000-0000-000000000001",
+        id=UUID("00000000-0000-0000-0000-000000000001"),
         email="admin@test.com",
         first_name="Admin",
         last_name="User",
-        role=UserRole.ADMIN.value,
     )
     db_session.add(user)
+    await db_session.flush()
+    await assign_roles(db_session, user.id, [roles["user"].id, roles["admin"].id])
     await db_session.commit()
     await db_session.refresh(user)
     return user
 
 
 @pytest_asyncio.fixture
-async def regular_user(db_session: AsyncSession) -> UserDB:
+async def regular_user(db_session: AsyncSession, roles) -> UserDB:
     """Create a regular user in the test DB."""
     user = UserDB(
-        id="00000000-0000-0000-0000-000000000002",
+        id=UUID("00000000-0000-0000-0000-000000000002"),
         email="user@test.com",
         first_name="Regular",
         last_name="User",
-        role=UserRole.USER.value,
     )
     db_session.add(user)
+    await db_session.flush()
+    await assign_roles(db_session, user.id, [roles["user"].id])
     await db_session.commit()
     await db_session.refresh(user)
     return user
@@ -54,7 +66,7 @@ class TestImpersonate:
         assert response.status_code == 200
         data = response.json()
         assert data["email"] == "user@test.com"
-        assert data["role"] == "user"
+        assert "user" in data["roles"]
         assert data["id"] == str(regular_user.id)
 
     @pytest.mark.asyncio
@@ -89,17 +101,18 @@ class TestImpersonate:
         assert response.status_code == 404
 
     @pytest_asyncio.fixture
-    async def inactive_user(self, db_session: AsyncSession) -> UserDB:
+    async def inactive_user(self, db_session: AsyncSession, roles) -> UserDB:
         """Create an inactive user."""
         user = UserDB(
-            id="00000000-0000-0000-0000-000000000003",
+            id=UUID("00000000-0000-0000-0000-000000000003"),
             email="inactive@test.com",
             first_name="Inactive",
             last_name="User",
-            role=UserRole.USER.value,
             active=False,
         )
         db_session.add(user)
+        await db_session.flush()
+        await assign_roles(db_session, user.id, [roles["user"].id])
         await db_session.commit()
         await db_session.refresh(user)
         return user
@@ -114,6 +127,20 @@ class TestImpersonate:
         assert response.status_code == 400
         assert "Cannot impersonate an inactive user" in response.json()["detail"]
 
+    @pytest.mark.asyncio
+    async def test_impersonate_response_includes_roles(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        response = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "roles" in data
+        assert "user" in data["roles"]
+        assert "permissions" in data
+        assert len(data["permissions"]) > 0
+
 
 class TestStopImpersonate:
     """Tests for POST /admin/users/stop-impersonate."""
@@ -122,12 +149,12 @@ class TestStopImpersonate:
     async def test_stop_impersonate_restores_admin(
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
-        # Set real admin JWT so impersonate stores a proper admin_token
         admin_jwt = create_access_token(
             data={
                 "sub": str(admin_user.id),
                 "email": admin_user.email,
-                "role": admin_user.role,
+                "roles": ["user", "admin"],
+                "permissions": ["*"],
             }
         )
         client.cookies.set("access_token", admin_jwt)
@@ -147,7 +174,7 @@ class TestStopImpersonate:
         assert response.status_code == 200
         data = response.json()
         assert data["email"] == "admin@test.com"
-        assert data["role"] == "admin"
+        assert "admin" in data["roles"]
         assert data["first_name"] == "Admin"
         assert data["last_name"] == "User"
 
@@ -163,12 +190,12 @@ class TestStopImpersonate:
     async def test_stop_impersonate_deletes_admin_token_cookie(
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
-        # Set real admin JWT so impersonate stores a proper admin_token
         admin_jwt = create_access_token(
             data={
                 "sub": str(admin_user.id),
                 "email": admin_user.email,
-                "role": admin_user.role,
+                "roles": ["user", "admin"],
+                "permissions": ["*"],
             }
         )
         client.cookies.set("access_token", admin_jwt)
@@ -186,6 +213,33 @@ class TestStopImpersonate:
         # admin_token should be deleted (max-age=0)
         cookies = {c.name: c for c in response.cookies.jar}
         assert "access_token" in cookies
+
+    @pytest.mark.asyncio
+    async def test_stop_impersonate_response_includes_roles(
+        self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
+    ):
+        admin_jwt = create_access_token(
+            data={
+                "sub": str(admin_user.id),
+                "email": admin_user.email,
+                "roles": ["user", "admin"],
+                "permissions": ["*"],
+            }
+        )
+        client.cookies.set("access_token", admin_jwt)
+
+        resp = await client.post(
+            f"/api/admin/users/{regular_user.id}/impersonate"
+        )
+        for cookie in resp.cookies.jar:
+            client.cookies.set(cookie.name, cookie.value)
+
+        response = await client.post("/api/admin/users/stop-impersonate")
+        assert response.status_code == 200
+        data = response.json()
+        assert "roles" in data
+        assert "admin" in data["roles"]
+        assert "permissions" in data
 
 
 class TestAuthMeImpersonation:

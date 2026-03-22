@@ -2,9 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from app.core.api.deps import AdminUser, CurrentUser, DBSession, ScoringConfigDep, limiter
+from app.core.api.deps import CurrentUser, DBSession, ScoringConfigDep, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
 from app.modules.scorecard.models.global_metrics import (
     CalculateBatchRequest,
     CalculateBatchResponse,
@@ -12,6 +14,8 @@ from app.modules.scorecard.models.global_metrics import (
     GlobalMetricsRecord,
 )
 from app.modules.scorecard.services.global_metrics_service import GlobalMetricsService
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 
 router = APIRouter(prefix="/global", tags=["global"])
 
@@ -91,7 +95,7 @@ async def calculate_global_metrics(
     batch_request: CalculateBatchRequest,
     db: DBSession,
     config: ScoringConfigDep,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
 ) -> CalculateBatchResponse:
     """Calculate and store global metrics for a date range (batch).
 
@@ -134,7 +138,7 @@ async def recalculate_global_metrics(
     batch_request: CalculateBatchRequest,
     db: DBSession,
     config: ScoringConfigDep,
-    current_user: AdminUser,
+    current_user: ScorecardManager,
 ) -> CalculateBatchResponse:
     """Recalculate global metrics with current weights for a date range.
 

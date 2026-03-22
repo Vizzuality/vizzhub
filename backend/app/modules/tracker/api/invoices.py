@@ -2,12 +2,18 @@
 
 from datetime import date
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
+from fastapi import Depends
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import CurrentUser, DBSession
+from app.core.api.deps import DBSession
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 from app.modules.tracker.schemas.invoice import (
@@ -105,7 +111,7 @@ async def _to_response(inv: InvoiceDB, db: AsyncSession) -> InvoiceResponse:
 async def list_invoices(
     project_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> list[InvoiceResponse]:
     today = date.today()
     pp_sub = _postponement_subquery()
@@ -146,7 +152,7 @@ async def create_invoice(
     project_id: UUID,
     body: InvoiceCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> InvoiceResponse:
     inv = InvoiceDB(
         project_id=project_id,
@@ -173,7 +179,7 @@ async def update_invoice(
     invoice_id: UUID,
     body: InvoiceUpdate,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> InvoiceResponse:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
@@ -203,7 +209,7 @@ async def transition_invoice(
     invoice_id: UUID,
     body: InvoiceTransition,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> InvoiceResponse:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
@@ -242,7 +248,7 @@ async def delete_invoice(
     project_id: UUID,
     invoice_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: TrackerManager,
 ) -> None:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:

@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
@@ -12,7 +11,9 @@ from sqlalchemy import select
 from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
 from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
-from app.core.models.user import User, UserDB, UserPublic, UserRole
+from app.core.models.role import RoleDB, UserRoleDB
+from app.core.models.user import User, UserDB, UserPublic
+from app.core.permissions.resolver import resolve_permissions
 from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
@@ -37,6 +38,7 @@ class AuthLoginResponse(BaseModel):
 class MeResponse(User):
     """Response for /auth/me with impersonation status."""
 
+    permissions: list[str] = []
     is_impersonating: bool = False
 
 
@@ -82,18 +84,11 @@ async def google_auth(
         user = result.scalar_one_or_none()
 
         if user is None:
-            # Determine role - admin if initial admin email
-            role = UserRole.USER
-            if settings.initial_admin_email and email == settings.initial_admin_email.lower():
-                role = UserRole.ADMIN
-                logger.info(f"Creating initial admin user: {email}")
-
             user = UserDB(
                 email=email,
                 first_name=idinfo.get("given_name"),
                 last_name=idinfo.get("family_name"),
                 picture=idinfo.get("picture"),
-                role=role.value,
                 last_login_at=datetime.now(timezone.utc),
             )
             # Auto-link Slack profile before first commit
@@ -108,9 +103,25 @@ async def google_auth(
                 logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
 
             db.add(user)
+            await db.flush()
+
+            # Assign roles
+            user_role_result = await db.execute(
+                select(RoleDB).where(RoleDB.name == "user")
+            )
+            user_role_obj = user_role_result.scalar_one()
+            db.add(UserRoleDB(user_id=user.id, role_id=user_role_obj.id))
+
+            if settings.initial_admin_email and email == settings.initial_admin_email.lower():
+                admin_role_result = await db.execute(
+                    select(RoleDB).where(RoleDB.name == "admin")
+                )
+                admin_role_obj = admin_role_result.scalar_one()
+                db.add(UserRoleDB(user_id=user.id, role_id=admin_role_obj.id))
+                logger.info(f"Creating initial admin user: {email}")
+
             await db.commit()
             await db.refresh(user)
-            logger.info(f"Created new user: {email} with role {role.value}")
         else:
             if not user.active:
                 raise HTTPException(
@@ -125,20 +136,23 @@ async def google_auth(
             await db.commit()
             await db.refresh(user)
 
-        # Create JWT and set as httpOnly cookie
+        # Resolve roles and permissions, then create JWT
+        roles, permissions = await resolve_permissions(db, str(user.id))
         token = create_access_token(
             data={
                 "sub": str(user.id),
                 "email": user.email,
-                "role": user.role,
+                "roles": roles,
+                "permissions": permissions,
             }
         )
 
         response.set_cookie(value=token, **get_cookie_settings())
 
-        return AuthLoginResponse(
-            user=UserPublic.model_validate(user),
-        )
+        user_public = UserPublic.model_validate(user)
+        user_public.roles = roles
+        user_public.permissions = permissions
+        return AuthLoginResponse(user=user_public)
 
     except ValueError:
         logger.warning("Google token validation failed")
@@ -167,8 +181,10 @@ async def get_current_user_info(
         )
 
     user_data = User.model_validate(user)
+    user_data.roles = current_user.roles
     return MeResponse(
         **user_data.model_dump(),
+        permissions=current_user.permissions,
         is_impersonating=request.cookies.get("admin_token") is not None,
     )
 

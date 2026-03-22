@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/core/services/client';
-import { User, UserRole, FunctionalArea, Rate } from '../types/auth';
+import { User, FunctionalArea, Rate, RoleInfo } from '../types/auth';
 import { queryKeys } from './queryKeys';
 
 /**
@@ -36,25 +36,6 @@ export function useUser(
       return response.data;
     },
     enabled: !!userId,
-  });
-}
-
-/**
- * Update user role (admin only)
- */
-export function useUpdateUserRole(): ReturnType<
-  typeof useMutation<User, Error, { userId: string; role: UserRole }>
-> {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, role }): Promise<User> => {
-      const response = await api.patch<User>(`/admin/users/${userId}`, { role });
-      return response.data;
-    },
-    onSuccess: (): void => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
   });
 }
 
@@ -155,6 +136,38 @@ export function useRates(): ReturnType<typeof useQuery<Rate[], Error>> {
     queryFn: async (): Promise<Rate[]> => {
       const response = await api.get<Rate[]>('/rates');
       return response.data;
+    },
+  });
+}
+
+/**
+ * Fetch available roles (admin only).
+ */
+export function useAvailableRoles(): ReturnType<typeof useQuery<RoleInfo[], Error>> {
+  return useQuery({
+    queryKey: queryKeys.users.roles,
+    queryFn: async (): Promise<RoleInfo[]> => {
+      const response = await api.get<RoleInfo[]>('/admin/users/roles');
+      return response.data;
+    },
+  });
+}
+
+/**
+ * Assign roles to a user (admin only).
+ */
+export function useAssignRoles(): ReturnType<
+  typeof useMutation<void, Error, { userId: string; roles: string[] }>
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, roles }): Promise<void> => {
+      await api.put(`/admin/users/${userId}/roles`, { roles });
+    },
+    onSuccess: (_data, { userId }): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
     },
   });
 }

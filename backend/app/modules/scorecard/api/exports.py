@@ -4,10 +4,14 @@ import re
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from app.core.api.deps import CurrentUser, DBSession, ScoringConfigDep, get_project_or_404, limiter
+from app.core.api.deps import DBSession, ScoringConfigDep, get_project_or_404, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
 from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.modules.scorecard.models.metrics import SnapshotType
 from app.modules.scorecard.services.export_service import ExportService
@@ -58,7 +62,7 @@ def _sanitize_filename(name: str) -> str:
 async def export_project_detail(
     request: Request,
     project_id: UUID,
-    current_user: CurrentUser,
+    current_user: ScorecardManager,
     db: DBSession,
     config: ScoringConfigDep,
     start: Annotated[str, Query(description="Start period (YYYY-MM)")],
@@ -94,7 +98,7 @@ async def export_project_detail(
 @limiter.limit("10/minute")
 async def export_global_dashboard(
     request: Request,
-    current_user: CurrentUser,
+    current_user: ScorecardManager,
     db: DBSession,
     config: ScoringConfigDep,
     start: Annotated[str, Query(description="Start period (YYYY-MM)")],

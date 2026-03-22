@@ -18,7 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useAuth } from '@/core/hooks/useAuth';
+import { usePermission, Action } from '@/core/permissions';
 import { VizzualityLogo } from './VizzualityLogo';
 import {
   Sidebar,
@@ -171,11 +171,11 @@ function CollapsibleMenuItem({
 
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
-  const auth = useAuth();
   const { theme, setTheme } = useTheme();
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
-  const isAdmin = bypassAuth || auth.user?.role === 'admin';
+  const canAdmin = usePermission(Action.ADMIN_USERS);
+  const isAdmin = bypassAuth || canAdmin;
 
   const isActive = (path: string): boolean => {
     if (path === '/scorecard') {

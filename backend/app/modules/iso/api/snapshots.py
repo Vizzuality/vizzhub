@@ -6,11 +6,16 @@ from typing import Annotated
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.sql import func
 
-from app.core.api.deps import AdminUser, DBSession, limiter
+from app.core.api.deps import DBSession, limiter
+from app.core.auth import TokenData
+from app.core.permissions import Action, require_permission
+
+IsoViewer = Annotated[TokenData, Depends(require_permission(Action.ISO_VIEW))]
+IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
 from app.modules.scorecard.api.schemas.common import PaginatedResponse
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
@@ -71,7 +76,7 @@ def _get_diff_context(snapshot: AccessSnapshotDB) -> str:
 @limiter.limit("5/minute")
 async def capture_snapshot(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoManager,
     db: DBSession,
     provider: Annotated[str, Query()] = "google_workspace",
 ) -> AccessSnapshotDB:
@@ -133,7 +138,7 @@ async def capture_snapshot(
 @limiter.limit("30/minute")
 async def list_snapshots(
     request: Request,
-    current_user: AdminUser,
+    current_user: IsoViewer,
     db: DBSession,
     provider: str | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
@@ -190,7 +195,7 @@ async def list_snapshots(
 )
 @limiter.limit("30/minute")
 async def get_snapshot(
-    request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, snapshot_id: UUID, current_user: IsoViewer, db: DBSession
 ) -> AccessSnapshotDB:
     result = await db.execute(
         select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
@@ -208,7 +213,7 @@ async def get_snapshot(
 )
 @limiter.limit("10/minute")
 async def delete_snapshot(
-    request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, snapshot_id: UUID, current_user: IsoManager, db: DBSession
 ) -> Response:
     result = await db.execute(
         select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
@@ -249,7 +254,7 @@ async def delete_snapshot(
 )
 @limiter.limit("30/minute")
 async def get_snapshot_review(
-    request: Request, snapshot_id: UUID, current_user: AdminUser, db: DBSession
+    request: Request, snapshot_id: UUID, current_user: IsoViewer, db: DBSession
 ) -> dict:
     result = await db.execute(
         select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot_id)
