@@ -1,7 +1,3 @@
-/**
- * Renders vertical dashed lines between category groups in a Recharts BarChart.
- * Use as: <Customized component={GroupSeparators} />
- */
 export function GroupSeparators(props: Record<string, unknown>): JSX.Element | null {
   const xAxisMap = props.xAxisMap as Record<string, Record<string, unknown>> | undefined;
   const offset = props.offset as { top: number; height: number } | undefined;
