@@ -33,6 +33,12 @@ export interface Rate {
   value: number;
 }
 
+export interface RoleInfo {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 export interface UserPublic {
   id: string;
   email: string;

@@ -81,6 +81,7 @@ export const queryKeys = {
   users: {
     all: ['users'] as const,
     detail: (id: string) => ['users', id] as const,
+    roles: ['users', 'roles'] as const,
   },
   iso: {
     config: {
