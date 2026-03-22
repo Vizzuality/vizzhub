@@ -152,8 +152,9 @@ export function FADetailChart({
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
-              tickFormatter={(v: number) => v === 100 ? 'Projects' : `${v}%`}
+              tickFormatter={(v: number) => `${v}%`}
               tick={{ fontSize: 12 }}
+              label={{ value: 'Projects', position: 'insideTopLeft', offset: -4, fontSize: 12, className: 'fill-muted-foreground' }}
             />
             {userNames.flatMap((name) => [
               <Bar
