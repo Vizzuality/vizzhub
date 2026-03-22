@@ -9,19 +9,9 @@ import {
   LabelList,
 } from 'recharts';
 import type { PeriodUserInsight } from '@/modules/capacity/types/capacity';
+import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { shortMonth } from '@/shared/constants/dates';
-
-const FA_COLORS: Record<string, string> = {
-  FE: '#3b82f6',
-  BE: '#10b981',
-  Design: '#f59e0b',
-  PM: '#8b5cf6',
-  Sci: '#ef4444',
-  Coms: '#06b6d4',
-};
-
-const FA_OPTIONS = ['FE', 'BE', 'Design', 'PM', 'Sci', 'Coms'] as const;
 
 interface ChartDataPoint {
   month: string;
@@ -33,24 +23,17 @@ function transformDetailData(data: PeriodUserInsight[]): {
   userNames: string[];
 } {
   const userNameSet = new Set<string>();
-  for (const period of data) {
-    for (const user of period.users) {
-      userNameSet.add(user.name);
-    }
-  }
-  const userNames = [...userNameSet].sort();
-
   const chartData = data.map((period) => {
     const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
     for (const user of period.users) {
+      userNameSet.add(user.name);
       point[`${user.name}_projects`] = Math.round(user.billable_pct * 100);
       point[`${user.name}_others`] = Math.round((1 - user.billable_pct) * 100);
       point[`${user.name}_count`] = user.billable_project_count;
     }
     return point;
   });
-
-  return { chartData, userNames };
+  return { chartData, userNames: [...userNameSet].sort() };
 }
 
 interface FADetailChartProps {
@@ -85,7 +68,7 @@ export function FADetailChart({
           onChange={(e) => onFAChange(e.target.value)}
           className="flex rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          {FA_OPTIONS.map((code) => (
+          {FA_ORDER.map((code) => (
             <option key={code} value={code}>{code}</option>
           ))}
         </select>

@@ -8,18 +8,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 import type { PeriodInsight } from '@/modules/capacity/types/capacity';
+import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
-
-const FA_COLORS: Record<string, string> = {
-  FE: '#3b82f6',
-  BE: '#10b981',
-  Design: '#f59e0b',
-  PM: '#8b5cf6',
-  Sci: '#ef4444',
-  Coms: '#06b6d4',
-};
-
-const FA_ORDER = ['FE', 'BE', 'Design', 'PM', 'Sci', 'Coms'];
 const BAR_TYPES = [
   { suffix: 'projects', opacity: 1 },
   { suffix: 'others', opacity: 0.3 },
