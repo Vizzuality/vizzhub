@@ -71,7 +71,7 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-medium">Projects time per functional area</h2>
+      <h2 className="text-lg font-medium">Project time per functional area</h2>
 
       <div className="flex items-center gap-4 text-sm">
         {activeFAs.map((fa) => (
