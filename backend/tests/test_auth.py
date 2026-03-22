@@ -322,35 +322,44 @@ class TestTokenValidation:
             assert exc_info.value.status_code == 401
 
 
-class TestRoleAuthorization:
-    """Test role-based authorization."""
+class TestPermissionAuthorization:
+    """Test permission-based authorization."""
 
     @pytest.mark.asyncio
-    async def test_require_role_allows_user_with_role(self) -> None:
-        """User with required role should get access."""
-        from app.core.auth import TokenData, require_role
+    async def test_require_permission_allows_user_with_permission(self) -> None:
+        """User with required permission should get access."""
+        from app.core.auth import TokenData
+        from app.core.permissions import require_permission
 
-        user = TokenData(user_id="admin-user", roles=["admin", "user"])
+        user = TokenData(
+            user_id="admin-user",
+            roles=["admin", "user"],
+            permissions=["*"],
+        )
 
-        role_checker = require_role("admin")
-        result = await role_checker(user)
+        checker = require_permission("*")
+        result = await checker(user)
 
         assert result.user_id == "admin-user"
 
     @pytest.mark.asyncio
-    async def test_require_role_denies_user_without_role(self) -> None:
-        """User without role should get 403."""
-        from app.core.auth import TokenData, require_role
+    async def test_require_permission_denies_user_without_permission(self) -> None:
+        """User without required permission should get 403."""
+        from app.core.auth import TokenData
+        from app.core.permissions import require_permission
 
-        user = TokenData(user_id="regular-user", roles=["user"])
+        user = TokenData(
+            user_id="regular-user",
+            roles=["user"],
+            permissions=["scorecard:view", "tracker:view"],
+        )
 
-        role_checker = require_role("admin")
+        checker = require_permission("*")
 
         with pytest.raises(Exception) as exc_info:
-            await role_checker(user)
+            await checker(user)
 
         assert exc_info.value.status_code == 403
-        assert "admin" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_development_mode_logs_security_warning(self, caplog) -> None:
