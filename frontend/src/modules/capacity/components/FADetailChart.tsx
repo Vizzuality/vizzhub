@@ -50,7 +50,7 @@ function renderCountLabel(props: Record<string, unknown>): JSX.Element | null {
   return (
     <text
       x={x + width / 2}
-      y={y - 4}
+      y={y - 8}
       textAnchor="middle"
       fontSize={10}
       className="fill-foreground"
