@@ -30,6 +30,156 @@ TARGET_FA_MAPPING: dict[str, str] = {
 }
 
 
+SHORT_TO_FA_NAME: dict[str, str] = {v: k for k, v in TARGET_FA_MAPPING.items()}
+
+
+def _format_user_name(first_name: str | None, last_name: str | None) -> str:
+    """Format as 'F. Lastname' with fallbacks."""
+    if first_name and last_name:
+        return f"{first_name[0]}. {last_name}"
+    if last_name:
+        return last_name
+    if first_name:
+        return first_name
+    return "Unknown"
+
+
+async def get_capacity_fa_detail(
+    db: AsyncSession,
+    fa_short: str,
+    start_date: date,
+    end_date: date,
+) -> list[dict]:
+    """Per-user billable allocation for a single FA per period.
+
+    Returns list of dicts sorted by period ascending, each containing
+    'period' (YYYY-MM) and 'users' list with per-user breakdown.
+    """
+    fa_name = SHORT_TO_FA_NAME.get(fa_short)
+    if not fa_name:
+        return []
+
+    fa_row = (await db.execute(
+        select(FunctionalAreaDB.id)
+        .where(FunctionalAreaDB.name == fa_name)
+    )).scalar_one_or_none()
+
+    if fa_row is None:
+        logger.warning("Capacity FA detail: FA '%s' not found in database", fa_name)
+        periods_result = await db.execute(
+            select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+            .where(
+                ReportingPeriodDB.date >= start_date,
+                ReportingPeriodDB.date <= end_date,
+            )
+            .order_by(ReportingPeriodDB.date)
+        )
+        return [
+            {"period": p_date.strftime("%Y-%m"), "users": []}
+            for _, p_date in periods_result
+        ]
+
+    fa_id = fa_row
+
+    periods_result = await db.execute(
+        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+        .where(
+            ReportingPeriodDB.date >= start_date,
+            ReportingPeriodDB.date <= end_date,
+        )
+        .order_by(ReportingPeriodDB.date)
+    )
+    periods = list(periods_result)
+
+    if not periods:
+        return []
+
+    eligible_users = list(await db.execute(
+        select(UserDB.id, UserDB.first_name, UserDB.last_name)
+        .where(
+            UserDB.active.is_(True),
+            UserDB.requires_project_reporting.is_(True),
+            UserDB.functional_area_id == fa_id,
+        )
+    ))
+
+    if not eligible_users:
+        return [
+            {"period": p_date.strftime("%Y-%m"), "users": []}
+            for _, p_date in periods
+        ]
+
+    user_ids = [uid for uid, _, _ in eligible_users]
+    user_info = {uid: (fn, ln) for uid, fn, ln in eligible_users}
+
+    period_ids = [p_id for p_id, _ in periods]
+
+    report_subq = (
+        select(
+            ReportDB.user_id,
+            ReportDB.reporting_period_id,
+            func.coalesce(func.sum(ReportPartDB.percentage), 0).label("total_pct"),
+            func.coalesce(func.sum(
+                case(
+                    (ProjectDB.is_billable.is_(True), ReportPartDB.percentage),
+                    else_=0,
+                )
+            ), 0).label("billable_pct"),
+            func.count(func.distinct(
+                case(
+                    (ProjectDB.is_billable.is_(True), ReportPartDB.project_id),
+                    else_=None,
+                )
+            )).label("billable_project_count"),
+        )
+        .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
+        .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
+        .where(
+            ReportPartDB.percentage.isnot(None),
+            ReportDB.user_id.in_(user_ids),
+            ReportDB.reporting_period_id.in_(period_ids),
+        )
+        .group_by(ReportDB.user_id, ReportDB.reporting_period_id)
+        .subquery()
+    )
+
+    report_rows = await db.execute(
+        select(
+            report_subq.c.user_id,
+            report_subq.c.reporting_period_id,
+            report_subq.c.total_pct,
+            report_subq.c.billable_pct,
+            report_subq.c.billable_project_count,
+        )
+    )
+
+    report_lookup: dict[tuple, tuple[float, float, int]] = {}
+    for uid, pid, total, billable, proj_count in report_rows:
+        report_lookup[(uid, pid)] = (float(total), float(billable), int(proj_count))
+
+    result = []
+    for period_id, period_date in periods:
+        users_list = []
+        for uid in user_ids:
+            entry = report_lookup.get((uid, period_id))
+            if not entry or entry[0] <= 0:
+                continue
+            fn, ln = user_info[uid]
+            users_list.append({
+                "user_id": uid,
+                "name": _format_user_name(fn, ln),
+                "billable_pct": round(entry[1], 4),
+                "billable_project_count": entry[2],
+            })
+        users_list.sort(key=lambda u: u["name"])
+        result.append({
+            "period": period_date.strftime("%Y-%m"),
+            "users": users_list,
+        })
+
+    return result
+
+
 async def get_capacity_insights(
     db: AsyncSession,
     start_date: date,
