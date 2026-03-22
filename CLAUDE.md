@@ -23,6 +23,10 @@ app/
 │   │   ├── services/      # calculators/, collectors/, normalizers/, export, cache
 │   │   ├── router.py      # Aggregates all scorecard sub-routers
 │   │   └── public.py      # Cross-module interface
+│   ├── capacity/          # Capacity insights (cross-module analytical views)
+│   │   ├── api/           # insights, fa_detail, _validation
+│   │   ├── router.py      # Aggregates capacity sub-routers
+│   │   └── public.py      # Cross-module interface
 │   └── iso/               # ISO compliance (snapshots, reviews, exports)
 │       ├── api/           # snapshots, reviews, config, exports
 │       ├── models/        # AccessSnapshot, AccessReview
@@ -59,6 +63,13 @@ src/
 │   │   ├── services/      # tracker (API client)
 │   │   ├── types/         # tracker (all tracker types)
 │   │   └── utils/         # constants (formatCurrency, shortMonth, etc.)
+│   ├── capacity/          # Capacity insights & FA detail drill-down
+│   │   ├── components/    # InsightsChart, FADetailChart, ChartPagination, GroupSeparators, MonthRangePicker
+│   │   ├── hooks/         # useCapacityInsights, useCapacityFADetail
+│   │   ├── pages/         # Insights
+│   │   ├── services/      # capacity (API client)
+│   │   ├── types/         # capacity (PeriodInsight, PeriodUserInsight)
+│   │   └── utils/         # constants (FA_COLORS, FA_ORDER)
 │   └── iso/               # ISO compliance UI
 │       ├── components/    # ISOConfig
 │       ├── hooks/         # useIso
@@ -77,7 +88,7 @@ src/
 
 ## Modular Architecture Rules (MUST FOLLOW)
 
-The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_integration.md`.
+The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `docs/tracker_integration.md`.
 
 1. **ALL code lives in `core/`, `modules/`, or `shared/`** — no files in legacy flat directories (`app/api/`, `app/models/`, `app/services/`, `src/components/`, `src/hooks/`, etc.).
 2. **Core entities** (`Project`, `User`, `Job`) in `app/core/models/`. Frontend core types in `src/core/types/`.
@@ -86,7 +97,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 5. **Entity placement**: ALL modules need it → `core/`. One creates, others read → owner + `public.py`. Single module → private.
 6. **Frontend modules self-contained**: own `components/`, `hooks/`, `pages/`, `services/`, `types/`. Shared UI → `src/shared/`. Cross-module shared → `src/core/`.
 7. **Router aggregation**: Module `router.py` aggregates sub-routers. `main.py` only mounts core routers + module routers. Prefixes in `include_router`, never in router files.
-8. **Permissions**: `CurrentUser`/`AdminUser` from `app/core/api/deps.py`. No project-scoped permissions yet.
+8. **Permissions**: RBAC via `core/permissions/`. 3 roles (`user`, `manager`, `admin`), multiple per user (union of perms). Use `require_permission(Action.X)` for endpoint gating. `AdminUser` = alias for `require_permission("*")`. `CurrentUser` = any authenticated user. Permissions resolved at login, cached in JWT. Frontend: `usePermission()`, `<Can do={Action.X}>`, `<PermissionRoute require={...}>`. No project-scoped permissions yet.
 9. **URL = source of truth**: All view state in URL params. Use `useUrlState` hook, not bare `useState`. Tabs use nested routes.
 10. **Frontend imports**: Use direct module paths (`@/core/services/jobs`, `@/modules/scorecard/types/scores`). The `@/types` barrel is acceptable for cross-module type imports. No barrel files for services.
 
@@ -111,6 +122,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker). See `docs/tracker_
 - **User active scope**: `GET /admin/users` filters inactive by default (`include_inactive=true` to see all). Inactive users cannot log in (403) or be impersonated (400). Deactivation requires confirmation dialog.
 - **Slack integration on users**: `slack_user_id` and `slack_display_name` on `UserDB`. Auto-linked on signup via `users.lookupByEmail`. Bulk sync via `POST /admin/users/sync-slack-all`. Display name extraction: `SlackService.extract_display_name(slack_user)`. Bot token requires `users:read.email` scope.
 - **Rates API**: `GET /api/rates` lists rate bands (A-D). Endpoint in `core/api/rates.py`.
+- **Capacity insights**: Analytical cross-module JOINs in `core/services/capacity_insights.py`. Overview endpoint `GET /api/capacity/insights` (FA-level averages). Detail endpoint `GET /api/capacity/insights/detail?fa=FE` (per-user breakdown). 6 target FAs: FE, BE, Design, PM, Sci, Coms (`TARGET_FA_MAPPING`). Excludes users with `requires_project_reporting=false`, inactive users, and on-leave users (total report = 0). Name formatting: first/last > `name` field > email prefix fallback. Charts paginated to max 6 months with `<>` navigation.
 - **Project manager**: `project_manager_id` FK to `users.id` (SET NULL on delete). `project_manager_name` resolved via SQL join in list/detail responses. Use `_user_full_name_expr()` helper in `projects_v2.py` for the SQL name expression.
 
 ## Reference Docs
