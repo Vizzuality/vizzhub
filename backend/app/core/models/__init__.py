@@ -19,7 +19,7 @@ from app.core.models.project import (
     ProjectUpdate,
 )
 from app.core.models.rate import Rate, RateCreate, RateDB
-from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
+from app.core.models.user import User, UserDB, UserPublic, UserUpdate
 
 __all__ = [
     "ExchangeRate",
@@ -54,6 +54,5 @@ __all__ = [
     "User",
     "UserDB",
     "UserPublic",
-    "UserRole",
     "UserUpdate",
 ]
