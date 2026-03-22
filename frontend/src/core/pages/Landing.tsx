@@ -2,6 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
+import { useReportingPeriods } from '@/modules/tracker/hooks/useReportingPeriods';
+import { useReports } from '@/modules/tracker/hooks/useReports';
+import { formatPeriodDate } from '@/modules/tracker/utils/constants';
 import './Landing.css';
 
 interface ModuleCard {
@@ -53,6 +56,13 @@ const MODULES: ModuleCard[] = [
     comingSoon: true,
   },
 ];
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 function getScoreCssVar(score: number | null): string {
   if (score === null) return 'var(--muted-foreground)';
@@ -136,10 +146,31 @@ function TopScores(): JSX.Element | null {
   );
 }
 
+function useReportStatus(userEmail: string | undefined) {
+  const { data: periods } = useReportingPeriods();
+  const activePeriod = periods?.find((p) => p.status === 'active');
+  const { data: reports } = useReports(activePeriod?.id ?? '');
+  const myReport = reports?.find((r) => r.user_email === userEmail);
+
+  if (!activePeriod) return null;
+
+  const periodLabel = formatPeriodDate(activePeriod.date);
+
+  if (!myReport) {
+    return { text: `Your ${periodLabel} report hasn't been started yet.`, pending: true };
+  }
+  if (myReport.estimated) {
+    return { text: `Your ${periodLabel} report is pending confirmation.`, pending: true };
+  }
+  return { text: `Your ${periodLabel} report is confirmed.`, pending: false };
+}
+
 export default function Landing(): JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const reportStatus = useReportStatus(user?.email);
+  const firstName = user?.first_name ?? user?.email?.split('@')[0];
 
   return (
     <div className="landing">
@@ -155,8 +186,8 @@ export default function Landing(): JSX.Element {
           </button>
         </div>
         <p className="landing__subtitle">
-          Project hub. Track budgets, measure performance, and manage compliance
-          across all active projects. Select a module to get started.
+          {getGreeting()}{firstName ? `, ${firstName}` : ''}.{' '}
+          {reportStatus?.text ?? 'No active reporting period.'}
         </p>
       </header>
 
