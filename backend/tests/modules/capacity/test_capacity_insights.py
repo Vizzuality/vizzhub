@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.functional_area import FunctionalAreaDB
@@ -205,3 +206,68 @@ class TestGetCapacityInsights:
         assert len(result) == 2
         assert result[0]["period"] == "2026-01"
         assert result[1]["period"] == "2026-02"
+
+
+class TestCapacityInsightsEndpoint:
+    @pytest.mark.asyncio
+    async def test_get_insights_returns_200(
+        self, client: AsyncClient, capacity_data: dict,
+    ):
+        resp = await client.get(
+            "/api/capacity/insights",
+            params={"start_date": "2026-01", "end_date": "2026-02"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 2
+        assert data[0]["period"] == "2026-01"
+
+    @pytest.mark.asyncio
+    async def test_invalid_date_range_returns_422(
+        self, client: AsyncClient, capacity_data: dict,
+    ):
+        resp = await client.get(
+            "/api/capacity/insights",
+            params={"start_date": "2026-03", "end_date": "2026-01"},
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_range_exceeds_24_months_returns_422(
+        self, client: AsyncClient, capacity_data: dict,
+    ):
+        resp = await client.get(
+            "/api/capacity/insights",
+            params={"start_date": "2024-01", "end_date": "2026-03"},
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_exactly_24_months_returns_422(
+        self, client: AsyncClient, capacity_data: dict,
+    ):
+        # 24-month diff = 25 data points, exceeds limit
+        resp = await client.get(
+            "/api/capacity/insights",
+            params={"start_date": "2024-01", "end_date": "2026-01"},
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_23_month_range_returns_200(
+        self, client: AsyncClient, capacity_data: dict,
+    ):
+        # 23-month diff = 24 data points, within limit
+        resp = await client.get(
+            "/api/capacity/insights",
+            params={"start_date": "2024-02", "end_date": "2026-01"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_missing_params_returns_400(
+        self, client: AsyncClient, capacity_data: dict,
+    ):
+        # FastAPI validation errors return 400 via custom handler in main.py
+        resp = await client.get("/api/capacity/insights")
+        assert resp.status_code == 400
