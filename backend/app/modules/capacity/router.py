@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.modules.capacity.api import fa_detail as fa_detail_router
 from app.modules.capacity.api import insights as insights_router
+from app.modules.capacity.api import user_detail as user_detail_router
 
 router = APIRouter()
 router.include_router(
@@ -9,4 +10,7 @@ router.include_router(
 )
 router.include_router(
     fa_detail_router.router, prefix="/insights/detail", tags=["capacity:fa-detail"]
+)
+router.include_router(
+    user_detail_router.router, prefix="/insights/user-detail", tags=["capacity:user-detail"]
 )

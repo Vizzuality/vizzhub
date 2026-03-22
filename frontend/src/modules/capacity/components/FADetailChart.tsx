@@ -30,11 +30,14 @@ interface ChartDataPoint {
 function transformDetailData(data: PeriodUserInsight[]): {
   chartData: ChartDataPoint[];
   userNames: string[];
+  userIdByName: Record<string, string>;
 } {
   const userNameSet = new Set<string>();
+  const userIdByName: Record<string, string> = {};
   for (const period of data) {
     for (const user of period.users) {
       userNameSet.add(user.name);
+      userIdByName[user.name] = user.user_id;
     }
   }
   const userNames = [...userNameSet].sort((a, b) => a.localeCompare(b));
@@ -54,10 +57,11 @@ function transformDetailData(data: PeriodUserInsight[]): {
     }
     return point;
   });
-  return { chartData, userNames };
+  return { chartData, userNames, userIdByName };
 }
 
-function renderCountLabel(props: Record<string, unknown>): JSX.Element | null {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderCountLabel(props: any): JSX.Element | null {
   const { x, y, width, value } = props as {
     x: number; y: number; width: number; value: number;
   };
@@ -82,6 +86,7 @@ interface FADetailChartProps {
   readonly startDate: string;
   readonly endDate: string;
   readonly onRangeChange: (start: string, end: string) => void;
+  readonly onUserClick?: (userId: string) => void;
 }
 
 export function FADetailChart({
@@ -91,8 +96,9 @@ export function FADetailChart({
   startDate,
   endDate,
   onRangeChange,
+  onUserClick,
 }: FADetailChartProps): JSX.Element {
-  const { chartData, userNames } = useMemo(() => transformDetailData(data), [data]);
+  const { chartData, userNames, userIdByName } = useMemo(() => transformDetailData(data), [data]);
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const handleLeave = useCallback(() => setHoveredUser(null), []);
   const [page, setPage] = useState(0);
@@ -109,8 +115,8 @@ export function FADetailChart({
 
   const controls = (
     <div className="flex items-center justify-between">
-      <h2 className="text-lg font-medium">Project time by user</h2>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <h2 className="text-lg font-medium">Project time by user</h2>
         <select
           value={fa}
           onChange={(e) => onFAChange(e.target.value)}
@@ -120,13 +126,13 @@ export function FADetailChart({
             <option key={code} value={code}>{code}</option>
           ))}
         </select>
-        <MonthRangePicker
-          startDate={startDate}
-          endDate={endDate}
-          onChange={onRangeChange}
-          idPrefix="detail-"
-        />
       </div>
+      <MonthRangePicker
+        startDate={startDate}
+        endDate={endDate}
+        onChange={onRangeChange}
+        idPrefix="detail-"
+      />
     </div>
   );
 
@@ -157,7 +163,7 @@ export function FADetailChart({
         ))}
       </div>
 
-      <div className="relative">
+      <div className={`relative${onUserClick ? ' cursor-pointer' : ''}`}>
         {hoveredUser && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-3 py-1.5 text-sm font-medium text-foreground shadow">
             {hoveredUser}
@@ -190,6 +196,11 @@ export function FADetailChart({
                 fillOpacity={1}
                 onMouseEnter={() => setHoveredUser(name)}
                 onMouseLeave={handleLeave}
+                onClick={() => {
+                  if (onUserClick && userIdByName[name]) {
+                    onUserClick(userIdByName[name]);
+                  }
+                }}
               />,
               <Bar
                 key={`${name}_others`}
@@ -199,6 +210,11 @@ export function FADetailChart({
                 fillOpacity={0.3}
                 onMouseEnter={() => setHoveredUser(name)}
                 onMouseLeave={handleLeave}
+                onClick={() => {
+                  if (onUserClick && userIdByName[name]) {
+                    onUserClick(userIdByName[name]);
+                  }
+                }}
               >
                 <LabelList
                   dataKey={`${name}_count`}
