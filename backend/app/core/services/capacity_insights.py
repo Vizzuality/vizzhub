@@ -82,10 +82,11 @@ async def get_capacity_insights(
         short = fa_id_to_short[fa_id]
         users_by_fa.setdefault(short, []).append(user_id)
 
-    billable_sum_subq = (
+    report_subq = (
         select(
             ReportDB.user_id,
             ReportDB.reporting_period_id,
+            func.coalesce(func.sum(ReportPartDB.percentage), 0).label("total_pct"),
             func.coalesce(func.sum(
                 case(
                     (ProjectDB.is_billable.is_(True), ReportPartDB.percentage),
@@ -101,17 +102,19 @@ async def get_capacity_insights(
     )
 
     period_ids = [p_id for p_id, _ in periods]
-    billable_rows = await db.execute(
+    report_rows = await db.execute(
         select(
-            billable_sum_subq.c.user_id,
-            billable_sum_subq.c.reporting_period_id,
-            billable_sum_subq.c.billable_pct,
-        ).where(billable_sum_subq.c.reporting_period_id.in_(period_ids))
+            report_subq.c.user_id,
+            report_subq.c.reporting_period_id,
+            report_subq.c.total_pct,
+            report_subq.c.billable_pct,
+        ).where(report_subq.c.reporting_period_id.in_(period_ids))
     )
 
-    billable_lookup: dict[tuple, float] = {}
-    for user_id, period_id, pct in billable_rows:
-        billable_lookup[(user_id, period_id)] = float(pct)
+    # (user_id, period_id) -> (total_pct, billable_pct)
+    report_lookup: dict[tuple, tuple[float, float]] = {}
+    for user_id, period_id, total, billable in report_rows:
+        report_lookup[(user_id, period_id)] = (float(total), float(billable))
 
     result = []
     for period_id, period_date in periods:
@@ -119,15 +122,20 @@ async def get_capacity_insights(
         for short, user_ids in sorted(users_by_fa.items()):
             if not user_ids:
                 continue
-            total_billable = sum(
-                billable_lookup.get((uid, period_id), 0.0)
-                for uid in user_ids
-            )
-            avg_billable = total_billable / len(user_ids)
+            # Exclude users on leave (total report = 0 or no report)
+            active_billable = []
+            for uid in user_ids:
+                entry = report_lookup.get((uid, period_id))
+                if entry and entry[0] > 0:
+                    active_billable.append(entry[1])
+            user_count = len(active_billable)
+            if user_count == 0:
+                continue
+            avg_billable = sum(active_billable) / user_count
             fas.append({
                 "short": short,
                 "billable_pct": round(avg_billable, 4),
-                "user_count": len(user_ids),
+                "user_count": user_count,
             })
         result.append({
             "period": period_date.strftime("%Y-%m"),

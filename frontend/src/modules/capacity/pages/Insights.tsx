@@ -5,15 +5,12 @@ import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker
 
 function defaultRange(): { start: string; end: string } {
   const now = new Date();
-  const endYear = now.getFullYear();
-  const endMonth = now.getMonth() + 1;
-  const startDate = new Date(endYear, endMonth - 7, 1);
-  const startYear = startDate.getFullYear();
-  const startMonth = startDate.getMonth() + 1;
-  return {
-    start: `${startYear}-${String(startMonth).padStart(2, '0')}`,
-    end: `${endYear}-${String(endMonth).padStart(2, '0')}`,
-  };
+  // End = previous month (exclude current)
+  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 5, 1);
+  const fmt = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return { start: fmt(startDate), end: fmt(endDate) };
 }
 
 const defaults = defaultRange();
