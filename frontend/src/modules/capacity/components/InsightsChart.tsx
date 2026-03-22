@@ -10,6 +10,8 @@ import {
 import type { PeriodInsight } from '@/modules/capacity/types/capacity';
 import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
+import { ChartPagination, useChartPagination } from './ChartPagination';
+
 const BAR_TYPES = [
   { suffix: 'projects', opacity: 1 },
   { suffix: 'others', opacity: 0.3 },
@@ -42,6 +44,9 @@ interface InsightsChartProps {
 export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Element {
   const chartData = useMemo(() => transformData(data), [data]);
   const [hoveredFA, setHoveredFA] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+
+  const { visible } = useChartPagination(chartData, page);
 
   const activeFAs = useMemo(() => {
     const found = new Set<string>();
@@ -87,8 +92,8 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <BarChart data={visible} barCategoryGap="15%" barGap={1} maxBarSize={60}>
+            <CartesianGrid strokeDasharray="3 3" vertical={true} strokeOpacity={0.15} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
@@ -116,6 +121,8 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      <ChartPagination data={chartData} page={page} onPageChange={setPage} />
     </div>
   );
 }
