@@ -6,11 +6,13 @@ import {
   YAxis,
   ResponsiveContainer,
   CartesianGrid,
+  Customized,
 } from 'recharts';
 import type { PeriodInsight } from '@/modules/capacity/types/capacity';
 import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
 import { ChartPagination, useChartPagination } from './ChartPagination';
+import { GroupSeparators } from './GroupSeparators';
 
 const BAR_TYPES = [
   { suffix: 'projects', opacity: 1 },
@@ -92,8 +94,9 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={visible} barCategoryGap="15%" barGap={1}>
-            <CartesianGrid strokeDasharray="3 3" vertical={true} strokeOpacity={0.15} />
+          <BarChart data={visible} barCategoryGap="15%" barGap={1} maxBarSize={60}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <Customized component={GroupSeparators} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
