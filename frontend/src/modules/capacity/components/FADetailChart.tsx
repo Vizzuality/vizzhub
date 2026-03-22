@@ -147,14 +147,14 @@ export function FADetailChart({
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60} margin={{ top: 16 }}>
+          <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60} margin={{ top: 28 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
               tickFormatter={(v: number) => `${v}%`}
               tick={{ fontSize: 12 }}
-              label={{ value: 'Projects', position: 'insideTopLeft', offset: -4, fontSize: 12, className: 'fill-muted-foreground' }}
+              label={{ value: 'Projects', position: 'insideTopLeft', offset: -20, fontSize: 12, className: 'fill-muted-foreground' }}
             />
             {userNames.flatMap((name) => [
               <Bar
