@@ -362,6 +362,19 @@ class TestPermissionAuthorization:
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
+    async def test_dev_bypass_includes_permissions(self) -> None:
+        """Dev bypass mock user should include wildcard permission and admin role."""
+        from app.core.auth import get_current_user
+
+        with patch("app.core.auth.settings") as mock_settings:
+            mock_settings.debug = True
+            user = await get_current_user(_make_request(), None)
+
+        assert user.permissions == ["*"]
+        assert "admin" in user.roles
+        assert "user" in user.roles
+
+    @pytest.mark.asyncio
     async def test_development_mode_logs_security_warning(self, caplog) -> None:
         """Dev bypass should log warning message."""
         import logging
