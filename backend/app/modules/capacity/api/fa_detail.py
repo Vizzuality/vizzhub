@@ -1,5 +1,7 @@
 """Capacity FA detail drill-down endpoint."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.api.deps import CurrentUser, DBSession
@@ -15,9 +17,9 @@ _VALID_FA_CODES = set(SHORT_TO_FA_NAME.keys())
 async def capacity_fa_detail(
     db: DBSession,
     user: CurrentUser,
-    fa: str = Query(..., description="FA short code (FE, BE, Design, PM, Sci, Coms)"),
-    start_date: str = Query(..., description="Start month (YYYY-MM)"),
-    end_date: str = Query(..., description="End month (YYYY-MM)"),
+    fa: Annotated[str, Query(description="FA short code (FE, BE, Design, PM, Sci, Coms)")],
+    start_date: Annotated[str, Query(description="Start month (YYYY-MM)")],
+    end_date: Annotated[str, Query(description="End month (YYYY-MM)")],
 ) -> list[dict]:
     if fa not in _VALID_FA_CODES:
         raise HTTPException(

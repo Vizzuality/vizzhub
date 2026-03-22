@@ -1,5 +1,7 @@
 """Capacity insights endpoint."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, Query
 
 from app.core.api.deps import CurrentUser, DBSession
@@ -13,8 +15,8 @@ router = APIRouter()
 async def capacity_insights(
     db: DBSession,
     user: CurrentUser,
-    start_date: str = Query(..., description="Start month (YYYY-MM)"),
-    end_date: str = Query(..., description="End month (YYYY-MM)"),
+    start_date: Annotated[str, Query(description="Start month (YYYY-MM)")],
+    end_date: Annotated[str, Query(description="End month (YYYY-MM)")],
 ) -> list[dict]:
     start = parse_month(start_date)
     end = parse_month(end_date)
