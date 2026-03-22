@@ -25,6 +25,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import ScoringConfig, set_scoring_config
+from app.core.models.role import RoleDB, UserRoleDB
 from app.database import Base, get_db
 from app.main import app
 
@@ -120,6 +121,28 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
     app.dependency_overrides.clear()
+
+
+async def seed_roles(db_session: AsyncSession) -> dict[str, RoleDB]:
+    """Seed roles table for tests. Returns name->RoleDB mapping."""
+    roles = {}
+    for name in ("user", "manager", "admin"):
+        role = RoleDB(name=name)
+        db_session.add(role)
+        roles[name] = role
+    await db_session.flush()
+    return roles
+
+
+async def assign_roles(
+    db_session: AsyncSession,
+    user_id,
+    role_ids: list,
+) -> None:
+    """Assign roles to a user in tests."""
+    for role_id in role_ids:
+        db_session.add(UserRoleDB(user_id=user_id, role_id=role_id))
+    await db_session.flush()
 
 
 @pytest.fixture

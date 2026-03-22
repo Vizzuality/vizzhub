@@ -1,60 +1,73 @@
 """Tests for admin user management endpoints."""
 
+from uuid import UUID
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import patch
 
-from app.core.models.user import UserDB, UserPublic, UserRole
+from app.core.models.role import RoleDB
+from app.core.models.user import UserDB, UserPublic
+from tests.conftest import seed_roles, assign_roles
 
 
 @pytest_asyncio.fixture
-async def admin_user(db_session: AsyncSession) -> UserDB:
+async def roles(db_session: AsyncSession) -> dict[str, RoleDB]:
+    """Seed roles once for all user fixtures in this module."""
+    return await seed_roles(db_session)
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession, roles) -> UserDB:
     """Create an admin user in the test DB."""
     user = UserDB(
-        id="00000000-0000-0000-0000-000000000001",
+        id=UUID("00000000-0000-0000-0000-000000000001"),
         email="admin@test.com",
         first_name="Admin",
         last_name="User",
-        role=UserRole.ADMIN.value,
         active=True,
     )
     db_session.add(user)
+    await db_session.flush()
+    await assign_roles(db_session, user.id, [roles["user"].id, roles["admin"].id])
     await db_session.commit()
     await db_session.refresh(user)
     return user
 
 
 @pytest_asyncio.fixture
-async def active_user(db_session: AsyncSession) -> UserDB:
+async def active_user(db_session: AsyncSession, roles) -> UserDB:
     """Create an active regular user."""
     user = UserDB(
-        id="00000000-0000-0000-0000-000000000010",
+        id=UUID("00000000-0000-0000-0000-000000000010"),
         email="active@test.com",
         first_name="Active",
         last_name="User",
-        role=UserRole.USER.value,
         active=True,
     )
     db_session.add(user)
+    await db_session.flush()
+    await assign_roles(db_session, user.id, [roles["user"].id])
     await db_session.commit()
     await db_session.refresh(user)
     return user
 
 
 @pytest_asyncio.fixture
-async def inactive_user(db_session: AsyncSession) -> UserDB:
+async def inactive_user(db_session: AsyncSession, roles) -> UserDB:
     """Create an inactive user."""
     user = UserDB(
-        id="00000000-0000-0000-0000-000000000011",
+        id=UUID("00000000-0000-0000-0000-000000000011"),
         email="inactive@test.com",
         first_name="Inactive",
         last_name="User",
-        role=UserRole.USER.value,
         active=False,
     )
     db_session.add(user)
+    await db_session.flush()
+    await assign_roles(db_session, user.id, [roles["user"].id])
     await db_session.commit()
     await db_session.refresh(user)
     return user
@@ -65,11 +78,10 @@ class TestUserPublicSchema:
 
     def test_user_public_includes_active_field(self):
         user = UserDB(
-            id="00000000-0000-0000-0000-000000000001",
+            id=UUID("00000000-0000-0000-0000-000000000001"),
             email="test@test.com",
             first_name="Test",
             last_name="User",
-            role=UserRole.USER.value,
             active=True,
         )
         public = UserPublic.model_validate(user)
@@ -77,11 +89,10 @@ class TestUserPublicSchema:
 
     def test_user_public_inactive_user(self):
         user = UserDB(
-            id="00000000-0000-0000-0000-000000000002",
+            id=UUID("00000000-0000-0000-0000-000000000002"),
             email="inactive@test.com",
             first_name="Inactive",
             last_name="User",
-            role=UserRole.USER.value,
             active=False,
         )
         public = UserPublic.model_validate(user)
@@ -168,15 +179,17 @@ class TestInactiveUserLogin:
         self, client: AsyncClient, db_session: AsyncSession
     ):
         """An existing inactive user should get 403 on Google login."""
+        roles = await seed_roles(db_session)
         user = UserDB(
-            id="00000000-0000-0000-0000-000000000020",
+            id=UUID("00000000-0000-0000-0000-000000000020"),
             email="deactivated@test.com",
             first_name="Deactivated",
             last_name="User",
-            role=UserRole.USER.value,
             active=False,
         )
         db_session.add(user)
+        await db_session.flush()
+        await assign_roles(db_session, user.id, [roles["user"].id])
         await db_session.commit()
 
         mock_idinfo = {
@@ -201,15 +214,17 @@ class TestInactiveUserLogin:
         self, client: AsyncClient, db_session: AsyncSession
     ):
         """An existing active user should be able to login."""
+        roles = await seed_roles(db_session)
         user = UserDB(
-            id="00000000-0000-0000-0000-000000000021",
+            id=UUID("00000000-0000-0000-0000-000000000021"),
             email="active-login@test.com",
             first_name="Active",
             last_name="Login",
-            role=UserRole.USER.value,
             active=True,
         )
         db_session.add(user)
+        await db_session.flush()
+        await assign_roles(db_session, user.id, [roles["user"].id])
         await db_session.commit()
 
         mock_idinfo = {

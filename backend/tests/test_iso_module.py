@@ -59,7 +59,7 @@ class TestAccessSnapshotModel:
     async def test_snapshot_with_captured_by(self, db_session) -> None:
         from app.core.models.user import UserDB
 
-        user = UserDB(email="admin@test.com", role="admin")
+        user = UserDB(email="admin@test.com")
         db_session.add(user)
         await db_session.flush()
 
@@ -87,7 +87,7 @@ class TestAccessReviewModel:
     async def test_create_review(self, db_session) -> None:
         from app.core.models.user import UserDB
 
-        user = UserDB(email="reviewer@test.com", role="admin")
+        user = UserDB(email="reviewer@test.com")
         db_session.add(user)
         await db_session.flush()
 
@@ -128,7 +128,7 @@ class TestAccessReviewModel:
     async def test_review_signed(self, db_session) -> None:
         from app.core.models.user import UserDB
 
-        user = UserDB(email="signer@test.com", role="admin")
+        user = UserDB(email="signer@test.com")
         db_session.add(user)
         await db_session.flush()
 
@@ -163,7 +163,7 @@ class TestAccessReviewActionModel:
     async def test_create_action(self, db_session) -> None:
         from app.core.models.user import UserDB
 
-        user = UserDB(email="reviewer@test.com", role="admin")
+        user = UserDB(email="reviewer@test.com")
         db_session.add(user)
         await db_session.flush()
 
@@ -211,7 +211,7 @@ class TestAccessReviewActionModel:
     async def test_action_with_decision(self, db_session) -> None:
         from app.core.models.user import UserDB
 
-        user = UserDB(email="approver@test.com", role="admin")
+        user = UserDB(email="approver@test.com")
         db_session.add(user)
         await db_session.flush()
 
