@@ -16,6 +16,7 @@ import {
   Moon,
   Sun,
   ChevronRight,
+  TrendingUp,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { usePermission, Action } from '@/core/permissions';
@@ -71,6 +72,10 @@ const TRACKER_TABS = [
 
 const ISO_TABS = [
   { to: '/iso/snapshots', label: 'Access Control' },
+] as const;
+
+const CAPACITY_TABS = [
+  { to: '/capacity/insights', label: 'Insights' },
 ] as const;
 
 
@@ -240,6 +245,13 @@ export function AppSidebar(): JSX.Element {
                   </GuardedLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              <CollapsibleMenuItem
+                icon={TrendingUp}
+                label="Capacity"
+                isActive={isActive('/capacity')}
+                items={CAPACITY_TABS}
+              />
 
               {isAdmin && (
                 <SidebarMenuItem>
