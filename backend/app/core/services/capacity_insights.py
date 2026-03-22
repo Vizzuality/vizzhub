@@ -7,6 +7,7 @@ Placed in core/services/ per architecture Rule 4.
 
 import logging
 from datetime import date
+from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -172,7 +173,6 @@ async def get_reportable_users(db: AsyncSession) -> list[dict]:
             UserDB.active.is_(True),
             UserDB.requires_project_reporting.is_(True),
         )
-        .order_by(UserDB.email)
     )
     result = []
     for uid, fn, ln, full_name, email in rows:
@@ -196,14 +196,7 @@ async def get_capacity_user_detail(
     'period' (YYYY-MM) and 'projects' list with per-project breakdown.
     Only billable projects are listed individually; the remainder is 'others'.
     """
-    from uuid import UUID
     uid = UUID(user_id)
-
-    user_row = await db.execute(
-        select(UserDB.id).where(UserDB.id == uid)
-    )
-    if not user_row.scalar_one_or_none():
-        return []
 
     periods_result = await db.execute(
         select(ReportingPeriodDB.id, ReportingPeriodDB.date)

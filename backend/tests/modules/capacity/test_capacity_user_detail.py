@@ -110,7 +110,7 @@ class TestGetCapacityUserDetail:
         assert names == sorted(names)
 
     @pytest.mark.asyncio
-    async def test_unknown_user_returns_empty(
+    async def test_unknown_user_returns_empty_projects(
         self, db_session: AsyncSession, user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
@@ -119,7 +119,8 @@ class TestGetCapacityUserDetail:
             db=db_session, user_id=str(uuid4()),
             start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
         )
-        assert result == []
+        assert len(result) == 1
+        assert result[0]["projects"] == []
 
     @pytest.mark.asyncio
     async def test_empty_period_returns_no_projects(
