@@ -5,19 +5,24 @@ interface MonthRangePickerProps {
   readonly startDate: string;
   readonly endDate: string;
   readonly onChange: (start: string, end: string) => void;
+  readonly idPrefix?: string;
 }
 
 export function MonthRangePicker({
   startDate,
   endDate,
   onChange,
+  idPrefix = '',
 }: MonthRangePickerProps): JSX.Element {
+  const startId = `${idPrefix}start-month`;
+  const endId = `${idPrefix}end-month`;
+
   return (
     <div className="flex items-end gap-4">
       <div className="space-y-1">
-        <Label htmlFor="start-month">From</Label>
+        <Label htmlFor={startId}>From</Label>
         <Input
-          id="start-month"
+          id={startId}
           type="month"
           value={startDate}
           onChange={(e) => onChange(e.target.value, endDate)}
@@ -25,9 +30,9 @@ export function MonthRangePicker({
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="end-month">To</Label>
+        <Label htmlFor={endId}>To</Label>
         <Input
-          id="end-month"
+          id={endId}
           type="month"
           value={endDate}
           onChange={(e) => onChange(startDate, e.target.value)}
