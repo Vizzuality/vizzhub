@@ -8,3 +8,9 @@ export const FA_COLORS: Record<string, string> = {
 };
 
 export const FA_ORDER = ['FE', 'BE', 'Design', 'PM', 'Sci', 'Coms'] as const;
+
+export const ITEM_PALETTE = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
+  '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
+];

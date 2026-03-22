@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -8,22 +8,15 @@ import {
   CartesianGrid,
   Customized,
 } from 'recharts';
-import type { PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
+import type { ChartDataPoint, PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
+import { ITEM_PALETTE } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
 
-const PROJECT_PALETTE = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
-  '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
-];
-
-interface ChartDataPoint {
-  month: string;
-  [key: string]: number | string;
-}
+const OTHERS_KEY = '_others';
+const OTHERS_LABEL = 'Others';
 
 function transformUserDetailData(data: PeriodProjectInsight[]): {
   chartData: ChartDataPoint[];
@@ -45,7 +38,7 @@ function transformUserDetailData(data: PeriodProjectInsight[]): {
       point[project.name] = pct;
       billableTotal += pct;
     }
-    point._others = Math.max(0, 100 - billableTotal);
+    point[OTHERS_KEY] = Math.max(0, 100 - billableTotal);
     return point;
   });
   return { chartData, projectNames };
@@ -72,19 +65,25 @@ export function UserDetailChart({
 }: UserDetailChartProps): JSX.Element {
   const { chartData, projectNames } = useMemo(() => transformUserDetailData(data), [data]);
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
+  const handleLeave = useCallback(() => setHoveredProject(null), []);
   const [page, setPage] = useState(0);
+
+  useEffect(() => setPage(0), [userId]);
 
   const { visible } = useChartPagination(chartData, page);
 
   const projectColors = useMemo(() => {
     const map: Record<string, string> = {};
     projectNames.forEach((name, i) => {
-      map[name] = PROJECT_PALETTE[i % PROJECT_PALETTE.length];
+      map[name] = ITEM_PALETTE[i % ITEM_PALETTE.length];
     });
     return map;
   }, [projectNames]);
 
-  const userName = users.find((u) => u.id === userId)?.name ?? '';
+  const userName = useMemo(
+    () => users.find((u) => u.id === userId)?.name ?? '',
+    [users, userId],
+  );
 
   const controls = (
     <div className="flex items-center justify-between">
@@ -150,7 +149,7 @@ export function UserDetailChart({
             className="inline-block h-3 w-3 rounded-sm"
             style={{ backgroundColor: '#6b7280', opacity: 0.3 }}
           />
-          <span>Others</span>
+          <span>{OTHERS_LABEL}</span>
         </div>
       </div>
 
@@ -179,16 +178,16 @@ export function UserDetailChart({
                 fill={projectColors[name]}
                 fillOpacity={1}
                 onMouseEnter={() => setHoveredProject(name)}
-                onMouseLeave={() => setHoveredProject(null)}
+                onMouseLeave={handleLeave}
               />
             ))}
             <Bar
-              dataKey="_others"
+              dataKey={OTHERS_KEY}
               stackId="user"
               fill="#6b7280"
               fillOpacity={0.3}
-              onMouseEnter={() => setHoveredProject('Others')}
-              onMouseLeave={() => setHoveredProject(null)}
+              onMouseEnter={() => setHoveredProject(OTHERS_LABEL)}
+              onMouseLeave={handleLeave}
             />
           </BarChart>
         </ResponsiveContainer>

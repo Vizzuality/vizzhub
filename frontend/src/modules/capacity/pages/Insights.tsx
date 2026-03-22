@@ -12,41 +12,27 @@ import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker
 const fmtMonth = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-function defaultOverviewRange(): { start: string; end: string } {
+function defaultRange(monthsBack: number): { start: string; end: string } {
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 5, 1);
+  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - monthsBack, 1);
   return { start: fmtMonth(startDate), end: fmtMonth(endDate) };
 }
 
-function defaultDetailRange(): { detail_start: string; detail_end: string } {
-  const now = new Date();
-  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);
-  return { detail_start: fmtMonth(startDate), detail_end: fmtMonth(endDate) };
-}
-
-function defaultUserDetailRange(): { user_start: string; user_end: string } {
-  const now = new Date();
-  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 5, 1);
-  return { user_start: fmtMonth(startDate), user_end: fmtMonth(endDate) };
-}
-
-const overviewDefaults = defaultOverviewRange();
-const detailDefaults = defaultDetailRange();
-const userDetailDefaults = defaultUserDetailRange();
+const overviewDefaults = defaultRange(5);
+const detailDefaults = defaultRange(2);
+const userDetailDefaults = defaultRange(5);
 
 export default function Insights(): JSX.Element {
   const { state, setState } = useUrlState({
     start: { defaultValue: overviewDefaults.start },
     end: { defaultValue: overviewDefaults.end },
     fa: { defaultValue: 'FE' },
-    detail_start: { defaultValue: detailDefaults.detail_start },
-    detail_end: { defaultValue: detailDefaults.detail_end },
+    detail_start: { defaultValue: detailDefaults.start },
+    detail_end: { defaultValue: detailDefaults.end },
     user_id: { defaultValue: '' },
-    user_start: { defaultValue: userDetailDefaults.user_start },
-    user_end: { defaultValue: userDetailDefaults.user_end },
+    user_start: { defaultValue: userDetailDefaults.start },
+    user_end: { defaultValue: userDetailDefaults.end },
   });
 
   const detailRef = useRef<HTMLDivElement>(null);
