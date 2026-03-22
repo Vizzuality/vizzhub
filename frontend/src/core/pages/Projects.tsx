@@ -54,7 +54,7 @@ export default function Projects(): JSX.Element {
   const isAdmin = bypassAuth || user?.role === 'admin';
 
   const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'list'
+    () => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'grid'
   );
 
   const {

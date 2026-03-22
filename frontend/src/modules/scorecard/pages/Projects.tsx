@@ -48,7 +48,7 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 export default function Projects(): JSX.Element {
   const navigate = useNavigate();
   const [viewModeSchema] = useState(() => ({
-    view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'list' },
+    view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'grid' },
   }));
   const { state: viewState, setState: setViewState } = useUrlState(viewModeSchema);
   const viewMode = viewState.view as ViewMode;
