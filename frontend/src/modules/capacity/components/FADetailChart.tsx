@@ -151,7 +151,7 @@ export function FADetailChart({
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={visible} barCategoryGap="15%" barGap={1} maxBarSize={60} margin={{ top: 16 }}>
+          <BarChart data={visible} barCategoryGap="15%" barGap={1} margin={{ top: 16 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={true} strokeOpacity={0.15} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
