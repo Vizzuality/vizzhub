@@ -19,6 +19,8 @@ from app.utils.slack import get_slack_bot_token
 
 logger = logging.getLogger(__name__)
 
+_USER_NOT_FOUND = "User not found"
+
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
@@ -202,7 +204,7 @@ async def get_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=_USER_NOT_FOUND,
         )
 
     user_resp = User.model_validate(user)
@@ -236,7 +238,7 @@ async def assign_roles(
     user_result = await db.execute(select(UserDB).where(UserDB.id == user_id))
     user = user_result.scalar_one_or_none()
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=_USER_NOT_FOUND)
 
     await db.execute(
         sa_delete(UserRoleDB).where(UserRoleDB.user_id == user_id)
@@ -262,7 +264,7 @@ async def sync_slack(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=_USER_NOT_FOUND,
         )
 
     bot_token = await get_slack_bot_token(db)
@@ -302,7 +304,7 @@ async def update_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=_USER_NOT_FOUND,
         )
 
     if update.active is False and str(user_id) == current_user.user_id:
@@ -345,7 +347,7 @@ async def delete_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=_USER_NOT_FOUND,
         )
 
     logger.info(f"User {user.email} deleted by {current_user.email}")
@@ -373,7 +375,7 @@ async def impersonate_user(
     if target is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=_USER_NOT_FOUND,
         )
 
     if not target.active:

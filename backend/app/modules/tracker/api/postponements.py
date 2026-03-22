@@ -13,6 +13,8 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
+
+_INVOICE_NOT_FOUND = "Invoice not found"
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 from app.modules.tracker.schemas.postponement import PostponeRequest, PostponementResponse
@@ -36,7 +38,7 @@ async def postpone_invoice(
 ) -> PostponementResponse:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+        raise HTTPException(status_code=404, detail=_INVOICE_NOT_FOUND)
 
     eff, _, _ = await _invoice_status_info(inv, db)
     if eff != "pending_to_issue":
@@ -86,7 +88,7 @@ async def list_postponements(
 ) -> list[PostponementResponse]:
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+        raise HTTPException(status_code=404, detail=_INVOICE_NOT_FOUND)
 
     result = await db.execute(
         select(InvoicePostponementDB)
@@ -109,7 +111,7 @@ async def delete_latest_postponement(
     """Delete the most recent postponement, reverting to previous date or due_date."""
     inv = await db.get(InvoiceDB, invoice_id)
     if not inv or inv.project_id != project_id:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+        raise HTTPException(status_code=404, detail=_INVOICE_NOT_FOUND)
 
     result = await db.execute(
         select(InvoicePostponementDB)
