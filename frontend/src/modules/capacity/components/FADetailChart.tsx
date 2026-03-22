@@ -32,17 +32,29 @@ function transformDetailData(data: PeriodUserInsight[]): {
   userNames: string[];
 } {
   const userNameSet = new Set<string>();
-  const chartData = data.map((period) => {
-    const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
+  for (const period of data) {
     for (const user of period.users) {
       userNameSet.add(user.name);
+    }
+  }
+  const userNames = [...userNameSet].sort();
+
+  const chartData = data.map((period) => {
+    const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
+    const presentUsers = new Set(period.users.map((u) => u.name));
+    for (const user of period.users) {
       point[`${user.name}_projects`] = Math.round(user.billable_pct * 100);
       point[`${user.name}_others`] = Math.round((1 - user.billable_pct) * 100);
       point[`${user.name}_count`] = user.billable_project_count;
     }
+    for (const name of userNames) {
+      if (!presentUsers.has(name)) {
+        point[`${name}_empty`] = 100;
+      }
+    }
     return point;
   });
-  return { chartData, userNames: [...userNameSet].sort() };
+  return { chartData, userNames };
 }
 
 function renderCountLabel(props: Record<string, unknown>): JSX.Element | null {
@@ -163,6 +175,13 @@ export function FADetailChart({
               tick={{ fontSize: 12 }}
             />
             {userNames.flatMap((name) => [
+              <Bar
+                key={`${name}_empty`}
+                dataKey={`${name}_empty`}
+                stackId={name}
+                fill="#6b7280"
+                fillOpacity={0.15}
+              />,
               <Bar
                 key={`${name}_projects`}
                 dataKey={`${name}_projects`}
