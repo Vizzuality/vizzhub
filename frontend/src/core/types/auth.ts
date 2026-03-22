@@ -2,15 +2,14 @@
  * Authentication types for Google OAuth integration
  */
 
-export type UserRole = 'user' | 'admin';
-
 export interface User {
   id: string;
   email: string;
   first_name: string | null;
   last_name: string | null;
   picture: string | null;
-  role: UserRole;
+  roles: string[];
+  permissions: string[];
   active: boolean;
   functional_area_id: string | null;
   rate_id: string | null;
@@ -40,7 +39,8 @@ export interface UserPublic {
   first_name: string | null;
   last_name: string | null;
   picture: string | null;
-  role: UserRole;
+  roles: string[];
+  permissions: string[];
   active: boolean;
 }
 
@@ -52,6 +52,7 @@ export interface AuthState {
   user: UserPublic | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  permissions: string[];
 }
 
 export interface AuthContextType extends AuthState {

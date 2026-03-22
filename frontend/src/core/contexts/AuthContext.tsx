@@ -15,6 +15,7 @@ const DEFAULT_AUTH_STATE: AuthState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  permissions: [],
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       user: data.user,
       isAuthenticated: true,
       isLoading: false,
+      permissions: data.user.permissions ?? [],
     });
   }, []);
 
@@ -74,6 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      permissions: [],
     });
   }, []);
 
@@ -88,13 +91,17 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
       if (response.ok) {
         const data = await response.json();
-        const { is_impersonating, ...user } = data as UserPublic & { is_impersonating?: boolean };
+        const { is_impersonating, ...userData } = data as UserPublic & {
+          is_impersonating?: boolean;
+        };
+        const user: UserPublic = userData;
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
         setIsImpersonating(is_impersonating ?? false);
         setAuthState({
           user,
           isAuthenticated: true,
           isLoading: false,
+          permissions: user.permissions ?? [],
         });
         return true;
       }
@@ -117,6 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            permissions: [],
           });
         }
       } else {
@@ -145,6 +153,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       user,
       isAuthenticated: true,
       isLoading: false,
+      permissions: user.permissions ?? [],
     });
   }, []);
 
@@ -166,6 +175,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       user,
       isAuthenticated: true,
       isLoading: false,
+      permissions: user.permissions ?? [],
     });
   }, []);
 
