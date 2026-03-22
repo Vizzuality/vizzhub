@@ -6,22 +6,21 @@ import { InsightsChart } from '@/modules/capacity/components/InsightsChart';
 import { FADetailChart } from '@/modules/capacity/components/FADetailChart';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 
+const fmtMonth = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
 function defaultOverviewRange(): { start: string; end: string } {
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 5, 1);
-  const fmt = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  return { start: fmt(startDate), end: fmt(endDate) };
+  return { start: fmtMonth(startDate), end: fmtMonth(endDate) };
 }
 
 function defaultDetailRange(): { detail_start: string; detail_end: string } {
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);
-  const fmt = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  return { detail_start: fmt(startDate), detail_end: fmt(endDate) };
+  return { detail_start: fmtMonth(startDate), detail_end: fmtMonth(endDate) };
 }
 
 const overviewDefaults = defaultOverviewRange();

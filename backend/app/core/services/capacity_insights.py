@@ -59,28 +59,6 @@ async def get_capacity_fa_detail(
     if not fa_name:
         return []
 
-    fa_row = (await db.execute(
-        select(FunctionalAreaDB.id)
-        .where(FunctionalAreaDB.name == fa_name)
-    )).scalar_one_or_none()
-
-    if fa_row is None:
-        logger.warning("Capacity FA detail: FA '%s' not found in database", fa_name)
-        periods_result = await db.execute(
-            select(ReportingPeriodDB.id, ReportingPeriodDB.date)
-            .where(
-                ReportingPeriodDB.date >= start_date,
-                ReportingPeriodDB.date <= end_date,
-            )
-            .order_by(ReportingPeriodDB.date)
-        )
-        return [
-            {"period": p_date.strftime("%Y-%m"), "users": []}
-            for _, p_date in periods_result
-        ]
-
-    fa_id = fa_row
-
     periods_result = await db.execute(
         select(ReportingPeriodDB.id, ReportingPeriodDB.date)
         .where(
@@ -96,10 +74,11 @@ async def get_capacity_fa_detail(
 
     eligible_users = list(await db.execute(
         select(UserDB.id, UserDB.first_name, UserDB.last_name)
+        .join(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
         .where(
             UserDB.active.is_(True),
             UserDB.requires_project_reporting.is_(True),
-            UserDB.functional_area_id == fa_id,
+            FunctionalAreaDB.name == fa_name,
         )
     ))
 
