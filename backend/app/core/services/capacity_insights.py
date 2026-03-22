@@ -122,7 +122,6 @@ async def get_capacity_insights(
         for short, user_ids in sorted(users_by_fa.items()):
             if not user_ids:
                 continue
-            # Exclude users on leave (total report = 0 or no report)
             active_billable = []
             for uid in user_ids:
                 entry = report_lookup.get((uid, period_id))

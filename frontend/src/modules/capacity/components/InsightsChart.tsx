@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -6,9 +6,9 @@ import {
   YAxis,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
 } from 'recharts';
 import type { PeriodInsight } from '@/modules/capacity/types/capacity';
+import { shortMonth } from '@/modules/tracker/utils/constants';
 
 const FA_COLORS: Record<string, string> = {
   FE: '#3b82f6',
@@ -20,21 +20,19 @@ const FA_COLORS: Record<string, string> = {
 };
 
 const FA_ORDER = ['FE', 'BE', 'Design', 'PM', 'Sci', 'Coms'];
+const BAR_TYPES = [
+  { suffix: 'projects', opacity: 1 },
+  { suffix: 'others', opacity: 0.3 },
+] as const;
 
 interface ChartDataPoint {
   month: string;
   [key: string]: number | string;
 }
 
-function formatMonth(period: string): string {
-  const [year, month] = period.split('-');
-  const date = new Date(Number(year), Number(month) - 1);
-  return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-}
-
 function transformData(data: PeriodInsight[]): ChartDataPoint[] {
   return data.map((period) => {
-    const point: ChartDataPoint = { month: formatMonth(period.period) };
+    const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
     for (const fa of period.functional_areas) {
       point[`${fa.short}_projects`] = Math.round(fa.billable_pct * 100);
       point[`${fa.short}_others`] = Math.round((1 - fa.billable_pct) * 100);
@@ -60,6 +58,8 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
     }
     return FA_ORDER.filter((fa) => found.has(fa));
   }, [data]);
+
+  const handleLeave = useCallback(() => setHoveredFA(null), []);
 
   if (chartData.length === 0) {
     return (
@@ -101,35 +101,20 @@ export function InsightsChart({ data }: InsightsChartProps): JSX.Element {
               tickFormatter={(v: number) => `${v}%`}
               tick={{ fontSize: 12 }}
             />
-            {activeFAs.map((fa) => (
-              <Bar
-                key={`${fa}_projects`}
-                dataKey={`${fa}_projects`}
-                stackId={fa}
-                fill={FA_COLORS[fa]}
-                onMouseEnter={() => setHoveredFA(fa)}
-                onMouseLeave={() => setHoveredFA(null)}
-              >
-                {chartData.map((_, i) => (
-                  <Cell key={i} cursor="pointer" />
-                ))}
-              </Bar>
-            ))}
-            {activeFAs.map((fa) => (
-              <Bar
-                key={`${fa}_others`}
-                dataKey={`${fa}_others`}
-                stackId={fa}
-                fill={FA_COLORS[fa]}
-                fillOpacity={0.3}
-                onMouseEnter={() => setHoveredFA(fa)}
-                onMouseLeave={() => setHoveredFA(null)}
-              >
-                {chartData.map((_, i) => (
-                  <Cell key={i} cursor="pointer" />
-                ))}
-              </Bar>
-            ))}
+            {BAR_TYPES.flatMap(({ suffix, opacity }) =>
+              activeFAs.map((fa) => (
+                <Bar
+                  key={`${fa}_${suffix}`}
+                  dataKey={`${fa}_${suffix}`}
+                  stackId={fa}
+                  fill={FA_COLORS[fa]}
+                  fillOpacity={opacity}
+                  cursor="pointer"
+                  onMouseEnter={() => setHoveredFA(fa)}
+                  onMouseLeave={handleLeave}
+                />
+              )),
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>
