@@ -105,7 +105,7 @@ export function FADetailChart({
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={chartData} barCategoryGap="15%" barGap={1}>
+          <BarChart data={chartData} barCategoryGap="15%" barGap={1} maxBarSize={60}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
