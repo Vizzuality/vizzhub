@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
-import { useUsers, useUpdateUser, useSyncSlackAll } from '../../hooks/useUsers';
+import { useUsers, useUpdateUser, useSyncSlackAll, useFunctionalAreas } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User } from '../../types/auth';
 import { getFullName } from '@/utils/formatters';
@@ -24,6 +24,13 @@ import { Input } from '@/shared/components/ui/input';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 
@@ -87,10 +94,12 @@ export function UsersContent(): JSX.Element {
     search: { defaultValue: '' },
     sort_by: { defaultValue: 'name' },
     sort_order: { defaultValue: 'asc' },
+    area: { defaultValue: '' },
   });
 
   const [showInactive, setShowInactive] = useState(false);
   const { data: users, isLoading, error } = useUsers(showInactive);
+  const { data: functionalAreas } = useFunctionalAreas();
   const updateUser = useUpdateUser();
   const syncSlackAll = useSyncSlackAll();
   const { user: currentUser } = useAuth();
@@ -113,14 +122,17 @@ export function UsersContent(): JSX.Element {
   const filteredUsers = useMemo(() => {
     if (!users) return [];
     const q = state.search.toLowerCase();
-    const filtered = q
+    let filtered = q
       ? users.filter((u) =>
           u.email.toLowerCase().includes(q)
           || getFullName(u.first_name, u.last_name).toLowerCase().includes(q),
         )
       : users;
+    if (state.area) {
+      filtered = filtered.filter((u) => u.functional_area_id === state.area);
+    }
     return sortUsers(filtered, state.sort_by as SortField, state.sort_order as SortOrder);
-  }, [users, state.search, state.sort_by, state.sort_order]);
+  }, [users, state.search, state.sort_by, state.sort_order, state.area]);
 
   const showMessage = (type: 'success' | 'error', text: string): void => {
     setMessage({ type, text });
@@ -171,16 +183,20 @@ export function UsersContent(): JSX.Element {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <Switch
-            id="show-inactive"
-            checked={showInactive}
-            onCheckedChange={setShowInactive}
-          />
-          <Label htmlFor="show-inactive" className="text-sm text-muted-foreground">
-            Show inactive
-          </Label>
-        </div>
+        <Select
+          value={state.area || 'all'}
+          onValueChange={(v) => setState({ area: v === 'all' ? '' : v })}
+        >
+          <SelectTrigger className="h-8 w-[180px]">
+            <SelectValue placeholder="All areas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All areas</SelectItem>
+            {functionalAreas?.map((fa) => (
+              <SelectItem key={fa.id} value={fa.id}>{fa.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="flex items-center gap-1 ml-auto">
           <SortButton field="name" label="Name" currentField={state.sort_by} currentOrder={state.sort_order} onClick={handleSort} />
@@ -203,6 +219,17 @@ export function UsersContent(): JSX.Element {
         >
           {syncSlackAll.isPending ? 'Syncing...' : 'Sync Slack'}
         </Button>
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="show-inactive"
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+          />
+          <Label htmlFor="show-inactive" className="text-sm text-muted-foreground">
+            Show inactive
+          </Label>
+        </div>
       </div>
 
       {message && (
