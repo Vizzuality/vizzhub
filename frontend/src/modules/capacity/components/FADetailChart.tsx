@@ -6,12 +6,14 @@ import {
   YAxis,
   ResponsiveContainer,
   CartesianGrid,
+  Customized,
   LabelList,
 } from 'recharts';
 import type { PeriodUserInsight } from '@/modules/capacity/types/capacity';
 import { FA_ORDER } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
+import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
 
 const USER_PALETTE = [
@@ -151,8 +153,9 @@ export function FADetailChart({
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={visible} barCategoryGap="15%" barGap={1} margin={{ top: 16 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={true} strokeOpacity={0.15} />
+          <BarChart data={visible} barCategoryGap="15%" barGap={1} maxBarSize={60} margin={{ top: 16 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <Customized component={GroupSeparators} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
