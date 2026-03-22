@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
 from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
-from app.core.models.user import User, UserDB, UserPublic, UserRole
+from app.core.models.user import User, UserDB, UserPublic
 from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
@@ -82,10 +82,7 @@ async def google_auth(
         user = result.scalar_one_or_none()
 
         if user is None:
-            # Determine role - admin if initial admin email
-            role = UserRole.USER
             if settings.initial_admin_email and email == settings.initial_admin_email.lower():
-                role = UserRole.ADMIN
                 logger.info(f"Creating initial admin user: {email}")
 
             user = UserDB(
@@ -93,7 +90,6 @@ async def google_auth(
                 first_name=idinfo.get("given_name"),
                 last_name=idinfo.get("family_name"),
                 picture=idinfo.get("picture"),
-                role=role.value,
                 last_login_at=datetime.now(timezone.utc),
             )
             # Auto-link Slack profile before first commit

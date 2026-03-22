@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.core.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
-from app.core.models.user import User, UserDB, UserPublic, UserRole, UserUpdate
+from app.core.models.user import User, UserDB, UserPublic, UserUpdate
 from app.modules.scorecard.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
@@ -215,7 +215,7 @@ async def stop_impersonate(
             admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
         )
         admin_role = payload.get("role")
-        if admin_role != UserRole.ADMIN.value:
+        if admin_role != "admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Stored token is not an admin",
