@@ -1,0 +1,200 @@
+import { useMemo, useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  CartesianGrid,
+  Customized,
+} from 'recharts';
+import type { PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
+import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
+import { ChartPagination, useChartPagination } from './ChartPagination';
+import { GroupSeparators } from './GroupSeparators';
+import { shortMonth } from '@/shared/constants/dates';
+
+const PROJECT_PALETTE = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
+  '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
+];
+
+interface ChartDataPoint {
+  month: string;
+  [key: string]: number | string;
+}
+
+function transformUserDetailData(data: PeriodProjectInsight[]): {
+  chartData: ChartDataPoint[];
+  projectNames: string[];
+} {
+  const projectNameSet = new Set<string>();
+  for (const period of data) {
+    for (const project of period.projects) {
+      projectNameSet.add(project.name);
+    }
+  }
+  const projectNames = [...projectNameSet].sort((a, b) => a.localeCompare(b));
+
+  const chartData = data.map((period) => {
+    const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
+    let billableTotal = 0;
+    for (const project of period.projects) {
+      const pct = Math.round(project.percentage * 100);
+      point[project.name] = pct;
+      billableTotal += pct;
+    }
+    point._others = Math.max(0, 100 - billableTotal);
+    return point;
+  });
+  return { chartData, projectNames };
+}
+
+interface UserDetailChartProps {
+  readonly data: PeriodProjectInsight[];
+  readonly userId: string;
+  readonly users: ReportableUser[];
+  readonly onUserChange: (userId: string) => void;
+  readonly startDate: string;
+  readonly endDate: string;
+  readonly onRangeChange: (start: string, end: string) => void;
+}
+
+export function UserDetailChart({
+  data,
+  userId,
+  users,
+  onUserChange,
+  startDate,
+  endDate,
+  onRangeChange,
+}: UserDetailChartProps): JSX.Element {
+  const { chartData, projectNames } = useMemo(() => transformUserDetailData(data), [data]);
+  const [hoveredProject, setHoveredProject] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+
+  const { visible } = useChartPagination(chartData, page);
+
+  const projectColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    projectNames.forEach((name, i) => {
+      map[name] = PROJECT_PALETTE[i % PROJECT_PALETTE.length];
+    });
+    return map;
+  }, [projectNames]);
+
+  const userName = users.find((u) => u.id === userId)?.name ?? '';
+
+  const controls = (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <h2 className="text-lg font-medium">Project time by project</h2>
+        <select
+          value={userId}
+          onChange={(e) => onUserChange(e.target.value)}
+          className="flex max-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
+      </div>
+      <MonthRangePicker
+        startDate={startDate}
+        endDate={endDate}
+        onChange={onRangeChange}
+        idPrefix="user-detail-"
+      />
+    </div>
+  );
+
+  if (!userId) {
+    return (
+      <div className="space-y-4">
+        {controls}
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          Select a user to view project breakdown
+        </div>
+      </div>
+    );
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="space-y-4">
+        {controls}
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          No data for {userName} in the selected period
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {controls}
+
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        {projectNames.map((name) => (
+          <div key={name} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ backgroundColor: projectColors[name] }}
+            />
+            <span>{name}</span>
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
+            style={{ backgroundColor: '#6b7280', opacity: 0.3 }}
+          />
+          <span>Others</span>
+        </div>
+      </div>
+
+      <div className="relative">
+        {hoveredProject && (
+          <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-3 py-1.5 text-sm font-medium text-foreground shadow">
+            {hoveredProject}
+          </div>
+        )}
+
+        <ResponsiveContainer width="100%" height={450}>
+          <BarChart data={visible} barCategoryGap="25%" margin={{ top: 16 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <Customized component={GroupSeparators} />
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+            <YAxis
+              domain={[0, 100]}
+              tickFormatter={(v: number) => `${v}%`}
+              tick={{ fontSize: 12 }}
+            />
+            {projectNames.map((name) => (
+              <Bar
+                key={name}
+                dataKey={name}
+                stackId="user"
+                fill={projectColors[name]}
+                fillOpacity={1}
+                onMouseEnter={() => setHoveredProject(name)}
+                onMouseLeave={() => setHoveredProject(null)}
+              />
+            ))}
+            <Bar
+              dataKey="_others"
+              stackId="user"
+              fill="#6b7280"
+              fillOpacity={0.3}
+              onMouseEnter={() => setHoveredProject('Others')}
+              onMouseLeave={() => setHoveredProject(null)}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <ChartPagination data={chartData} page={page} onPageChange={setPage} />
+    </div>
+  );
+}

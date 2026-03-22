@@ -1,5 +1,10 @@
 import api from '@/core/services/client';
-import type { PeriodInsight, PeriodUserInsight } from '@/modules/capacity/types/capacity';
+import type {
+  PeriodInsight,
+  PeriodProjectInsight,
+  PeriodUserInsight,
+  ReportableUser,
+} from '@/modules/capacity/types/capacity';
 
 export const capacityApi = {
   getInsights: async (startDate: string, endDate: string): Promise<PeriodInsight[]> => {
@@ -16,6 +21,20 @@ export const capacityApi = {
     const response = await api.get<PeriodUserInsight[]>('/capacity/insights/detail', {
       params: { fa, start_date: startDate, end_date: endDate },
     });
+    return response.data;
+  },
+  getUserDetail: async (
+    userId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<PeriodProjectInsight[]> => {
+    const response = await api.get<PeriodProjectInsight[]>('/capacity/insights/user-detail', {
+      params: { user_id: userId, start_date: startDate, end_date: endDate },
+    });
+    return response.data;
+  },
+  getReportableUsers: async (): Promise<ReportableUser[]> => {
+    const response = await api.get<ReportableUser[]>('/capacity/insights/user-detail/users');
     return response.data;
   },
 };
