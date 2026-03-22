@@ -252,27 +252,36 @@ async def get_capacity_insights(
 
     result = []
     for period_id, period_date in periods:
-        fas = []
-        for short, user_ids in sorted(users_by_fa.items()):
-            if not user_ids:
-                continue
-            active_billable = []
-            for uid in user_ids:
-                entry = report_lookup.get((uid, period_id))
-                if entry and entry[0] > 0:
-                    active_billable.append(entry[1])
-            user_count = len(active_billable)
-            if user_count == 0:
-                continue
-            avg_billable = sum(active_billable) / user_count
-            fas.append({
-                "short": short,
-                "billable_pct": round(avg_billable, 4),
-                "user_count": user_count,
-            })
+        fas = _aggregate_fa_period(users_by_fa, report_lookup, period_id)
         result.append({
             "period": period_date.strftime("%Y-%m"),
             "functional_areas": fas,
         })
 
     return result
+
+
+def _aggregate_fa_period(
+    users_by_fa: dict[str, list],
+    report_lookup: dict[tuple, tuple[float, float]],
+    period_id: object,
+) -> list[dict]:
+    """Aggregate billable % per FA for a single period."""
+    fas = []
+    for short, user_ids in sorted(users_by_fa.items()):
+        if not user_ids:
+            continue
+        active_billable = [
+            report_lookup[(uid, period_id)][1]
+            for uid in user_ids
+            if (uid, period_id) in report_lookup and report_lookup[(uid, period_id)][0] > 0
+        ]
+        if not active_billable:
+            continue
+        avg_billable = sum(active_billable) / len(active_billable)
+        fas.append({
+            "short": short,
+            "billable_pct": round(avg_billable, 4),
+            "user_count": len(active_billable),
+        })
+    return fas
