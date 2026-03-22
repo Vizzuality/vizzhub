@@ -50,7 +50,6 @@ class TokenData(BaseModel):
 
     user_id: str
     email: str | None = None
-    role: str | None = None
     roles: list[str] = []
     permissions: list[str] = []
     exp: datetime | None = None
@@ -114,6 +113,7 @@ async def get_current_user(
         return TokenData(
             user_id="00000000-0000-0000-0000-000000000001",
             roles=["user", "admin"],
+            permissions=["*"],
         )
 
     if token is None:
@@ -137,40 +137,14 @@ async def get_current_user(
         payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
         user_id: str | None = payload.get("sub")
         email: str | None = payload.get("email")
-        role: str | None = payload.get("role")
         roles: list[str] = payload.get("roles", [])
+        permissions: list[str] = payload.get("permissions", [])
 
         if user_id is None:
             raise credentials_exception
 
-        # Add role to roles list for backward compatibility
-        if role and role not in roles:
-            roles = [role] + roles
-
-        return TokenData(user_id=user_id, email=email, role=role, roles=roles)
+        return TokenData(
+            user_id=user_id, email=email, roles=roles, permissions=permissions
+        )
     except JWTError:
         raise credentials_exception
-
-
-def require_role(required_role: str):
-    """
-    Dependency to check if user has required role.
-
-    Args:
-        required_role: Role name required for access
-
-    Returns:
-        Dependency function that validates user role
-    """
-
-    async def role_checker(
-        current_user: Annotated[TokenData, Depends(get_current_user)]
-    ) -> TokenData:
-        if required_role not in current_user.roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{required_role}' required for this operation",
-            )
-        return current_user
-
-    return role_checker
