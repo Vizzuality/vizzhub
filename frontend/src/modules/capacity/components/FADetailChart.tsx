@@ -152,7 +152,7 @@ export function FADetailChart({
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
               domain={[0, 100]}
-              tickFormatter={(v: number) => `${v}%`}
+              tickFormatter={(v: number) => v === 100 ? 'Projects' : `${v}%`}
               tick={{ fontSize: 12 }}
             />
             {userNames.flatMap((name) => [
