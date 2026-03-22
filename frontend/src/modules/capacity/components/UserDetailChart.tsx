@@ -8,6 +8,22 @@ import {
   CartesianGrid,
   Customized,
 } from 'recharts';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/shared/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
 import type { ChartDataPoint, PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
 import { ITEM_PALETTE } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
@@ -85,19 +101,55 @@ export function UserDetailChart({
     [users, userId],
   );
 
+  const [comboOpen, setComboOpen] = useState(false);
+
   const controls = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         <h2 className="text-lg font-medium">Project time by project</h2>
-        <select
-          value={userId}
-          onChange={(e) => onUserChange(e.target.value)}
-          className="flex max-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.name}</option>
-          ))}
-        </select>
+        <Popover open={comboOpen} onOpenChange={setComboOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={comboOpen}
+              className="w-[200px] justify-between font-normal"
+            >
+              <span className="truncate">
+                {userName || 'Select user...'}
+              </span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search users..." />
+              <CommandList>
+                <CommandEmpty>No user found.</CommandEmpty>
+                <CommandGroup>
+                  {users.map((u) => (
+                    <CommandItem
+                      key={u.id}
+                      value={u.name}
+                      onSelect={() => {
+                        onUserChange(u.id);
+                        setComboOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          userId === u.id ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      {u.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
       <MonthRangePicker
         startDate={startDate}
