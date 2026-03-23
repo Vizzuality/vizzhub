@@ -22,6 +22,7 @@ import MyReportHistory from './modules/tracker/pages/MyReportHistory';
 import HowToReport from './modules/tracker/pages/HowToReport';
 import ProjectTrackerDetail from './modules/tracker/pages/ProjectTrackerDetail';
 import AdminInvoices from './modules/tracker/pages/AdminInvoices';
+import Moods from './modules/tracker/pages/Moods';
 import ConfigurationTab from './modules/scorecard/components/Settings/ConfigurationTab';
 import IntegrationsTab from './modules/scorecard/components/Settings/IntegrationsTab';
 import AdminNotificationsLayout from './core/components/NotificationsAdmin/AdminNotificationsLayout';
@@ -55,6 +56,7 @@ function AdminRoutes(): JSX.Element {
         <Route path="periods" element={<ReportingPeriods />} />
         <Route path="periods/:periodId" element={<PeriodDetail />} />
         <Route path="invoices" element={<AdminInvoices />} />
+        <Route path="moods" element={<Moods />} />
       </Route>
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />
