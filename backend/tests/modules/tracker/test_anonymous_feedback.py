@@ -26,7 +26,7 @@ class TestAnonymousFeedback:
         assert row.text == "Good vibes"
 
     @pytest.mark.asyncio
-    async def test_anonymous_feedback_has_no_user_id_column(
+    async def test_anonymous_feedback_only_has_allowed_columns(
         self, db_session: AsyncSession
     ):
         result = await db_session.execute(
@@ -36,9 +36,7 @@ class TestAnonymousFeedback:
             )
         )
         columns = {r[0] for r in result.all()}
-        assert "user_id" not in columns
-        assert "created_at" not in columns
-        assert "updated_at" not in columns
+        assert columns == {"id", "month", "year", "text"}
 
     @pytest.mark.asyncio
     async def test_anonymous_feedback_has_no_fk(
