@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -38,6 +38,8 @@ class ReportDB(Base):
         nullable=False,
     )
     estimated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mood: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    feedback_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

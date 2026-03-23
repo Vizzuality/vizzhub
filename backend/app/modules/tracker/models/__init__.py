@@ -1,3 +1,4 @@
+from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.budget_line import BudgetLineDB
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.non_staff_cost import CostType, NonStaffCostDB
@@ -11,6 +12,7 @@ from app.modules.tracker.models.reporting_period import (
 )
 
 __all__ = [
+    "AnonymousFeedbackDB",
     "BudgetLineDB",
     "CostType",
     "InvoiceDB",

@@ -19,7 +19,7 @@ from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
 from app.modules.iso.models import AccessSnapshotDB, AccessReviewDB, AccessReviewActionDB  # noqa: F401
 from app.modules.tracker.models import (  # noqa: F401
-    BudgetLineDB, InvoiceDB, NonStaffCostDB, ProgressReportDB,
+    AnonymousFeedbackDB, BudgetLineDB, InvoiceDB, NonStaffCostDB, ProgressReportDB,
     ReportDB, ReportPartDB, ReportingPeriodDB, TrackerProjectSettingsDB,
 )
 
