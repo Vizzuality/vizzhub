@@ -172,6 +172,7 @@ export const queryKeys = {
     },
     moods: (month: number, year: number) =>
       ['tracker', 'moods', month, year] as const,
+    moodsTrend: ['tracker', 'moods', 'trend'] as const,
     projectCosts: {
       summary: (projectId: string) =>
         ['tracker', 'project-costs', projectId, 'summary'] as const,
