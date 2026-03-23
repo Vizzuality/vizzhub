@@ -60,7 +60,7 @@ export default function PeriodDetail(): JSX.Element {
         </Card>
       ) : (
         <div className="space-y-4">
-          {reports.map((report) => (
+          {[...reports].sort((a, b) => reportTitle(a).localeCompare(reportTitle(b))).map((report) => (
             <ReportEditor
               key={report.id}
               report={report}
