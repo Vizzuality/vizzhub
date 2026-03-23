@@ -1,10 +1,11 @@
 """Admin moods endpoint — aggregated mood data and feedback."""
 
 import datetime
+from collections import defaultdict
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Query
+from sqlalchemy import func, select, tuple_
 
 from app.core.api.deps import AdminUser, DBSession
 from app.core.models.user import UserDB
@@ -18,6 +19,7 @@ from app.modules.tracker.schemas.mood import (
     NamedFeedbackItem,
     TrendMonth,
 )
+from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
 
@@ -110,11 +112,6 @@ async def get_moods_trend(
     db: DBSession,
     user: AdminUser,
 ) -> MoodsTrendResponse:
-    period_result = await db.execute(
-        select(ReportingPeriodDB).order_by(ReportingPeriodDB.date.desc())
-    )
-    all_periods = period_result.scalars().all()
-
     today = datetime.date.today()
     target_months: list[tuple[int, int]] = []
     d = datetime.date(today.year, today.month, 1)
@@ -124,32 +121,50 @@ async def get_moods_trend(
         else:
             d = datetime.date(d.year, d.month - 1, 1)
         target_months.append((d.month, d.year))
-
     target_months.reverse()
+    target_set = set(target_months)
 
-    months: list[TrendMonth] = []
-    for m, y in target_months:
-        period_ids = [
-            p.id for p in all_periods
-            if p.date.month == m and p.date.year == y
-        ]
+    period_result = await db.execute(
+        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+    )
+    period_to_month: dict[UUID, tuple[int, int]] = {}
+    for pid, pdate in period_result.all():
+        key = (pdate.month, pdate.year)
+        if key in target_set:
+            period_to_month[pid] = key
 
-        label = datetime.date(y, m, 1).strftime("%b %Y")
+    all_period_ids = list(period_to_month.keys())
 
-        if not period_ids:
-            months.append(TrendMonth(month=m, year=y, label=label))
-            continue
-
+    reports_by_month: dict[tuple[int, int], list[tuple]] = defaultdict(list)
+    if all_period_ids:
         reports_result = await db.execute(
             select(ReportDB, UserDB)
             .join(UserDB, ReportDB.user_id == UserDB.id)
-            .where(ReportDB.reporting_period_id.in_(period_ids))
+            .where(ReportDB.reporting_period_id.in_(all_period_ids))
         )
-        rows = reports_result.all()
+        for report, db_user in reports_result.all():
+            key = period_to_month[report.reporting_period_id]
+            reports_by_month[key].append((report, db_user))
+
+    anon_by_month: dict[tuple[int, int], list[AnonymousFeedbackDB]] = defaultdict(list)
+    if target_months:
+        anon_result = await db.execute(
+            select(AnonymousFeedbackDB).where(
+                tuple_(AnonymousFeedbackDB.month, AnonymousFeedbackDB.year).in_(
+                    target_months
+                )
+            )
+        )
+        for fb in anon_result.scalars().all():
+            anon_by_month[(fb.month, fb.year)].append(fb)
+
+    months: list[TrendMonth] = []
+    for m, y in target_months:
+        label = datetime.date(y, m, 1).strftime("%b %Y")
+        rows = reports_by_month.get((m, y), [])
 
         moods: list[int] = []
         named_feedback: list[NamedFeedbackItem] = []
-
         for report, db_user in rows:
             if report.mood is not None:
                 moods.append(report.mood)
@@ -163,15 +178,9 @@ async def get_moods_trend(
                     )
                 )
 
-        anon_result = await db.execute(
-            select(AnonymousFeedbackDB).where(
-                AnonymousFeedbackDB.month == m,
-                AnonymousFeedbackDB.year == y,
-            )
-        )
         anonymous_feedback = [
-            AnonymousFeedbackItem(id=str(r.id), text=r.text)
-            for r in anon_result.scalars().all()
+            AnonymousFeedbackItem(id=str(fb.id), text=fb.text)
+            for fb in anon_by_month.get((m, y), [])
         ]
 
         avg = round(sum(moods) / len(moods), 1) if moods else None
@@ -196,12 +205,7 @@ async def delete_anonymous_feedback(
     db: DBSession,
     user: AdminUser,
 ) -> None:
-    result = await db.execute(
-        select(AnonymousFeedbackDB).where(AnonymousFeedbackDB.id == feedback_id)
-    )
-    feedback = result.scalar_one_or_none()
-    if not feedback:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback not found")
+    feedback = await get_or_404(AnonymousFeedbackDB, feedback_id, db, "Feedback")
     await db.delete(feedback)
     await db.commit()
 
@@ -212,12 +216,7 @@ async def delete_report_mood(
     db: DBSession,
     user: AdminUser,
 ) -> None:
-    result = await db.execute(
-        select(ReportDB).where(ReportDB.id == report_id)
-    )
-    report = result.scalar_one_or_none()
-    if not report:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    report = await get_or_404(ReportDB, report_id, db, "Report")
     report.mood = None
     report.feedback_text = None
     await db.commit()

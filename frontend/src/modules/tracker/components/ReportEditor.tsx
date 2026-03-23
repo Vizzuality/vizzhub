@@ -188,16 +188,19 @@ export default function ReportEditor({
       </CardContent>
     );
 
-  const moodDialog = showMoodDialog && periodDate ? (
-    <MoodDialog
-      open={showMoodDialog}
-      onClose={() => setShowMoodDialog(false)}
-      reportId={report.id}
-      periodId={report.reporting_period_id}
-      periodMonth={new Date(periodDate).getMonth() + 1}
-      periodYear={new Date(periodDate).getFullYear()}
-    />
-  ) : null;
+  const moodDialog = showMoodDialog && periodDate ? (() => {
+    const d = new Date(periodDate);
+    return (
+      <MoodDialog
+        open={showMoodDialog}
+        onClose={() => setShowMoodDialog(false)}
+        reportId={report.id}
+        periodId={report.reporting_period_id}
+        periodMonth={d.getMonth() + 1}
+        periodYear={d.getFullYear()}
+      />
+    );
+  })() : null;
 
   if (collapsible) {
     return (

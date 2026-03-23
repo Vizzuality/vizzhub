@@ -1,27 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useMoodsTrend } from '../hooks/useMoods';
+import { MOOD_EMOJIS, MOOD_HEX_COLORS } from '../utils/constants';
 import type { TrendMonth } from '../types/tracker';
-
-const EMOJI_MAP: Record<number, string> = {
-  1: '\u{1F62B}',
-  2: '\u{1F61F}',
-  3: '\u{1F610}',
-  4: '\u{1F642}',
-  5: '\u{1F604}',
-};
-
-const MOOD_COLORS: Record<number, string> = {
-  1: '#ef4444',
-  2: '#f97316',
-  3: '#eab308',
-  4: '#22c55e',
-  5: '#10b981',
-};
 
 function getMoodColor(avg: number): string {
   const rounded = Math.round(avg);
-  return MOOD_COLORS[rounded] ?? '#6b7280';
+  return MOOD_HEX_COLORS[rounded] ?? '#6b7280';
 }
 
 interface TrendBarProps {
@@ -86,7 +71,7 @@ function FeedbackByMonth({ months }: { months: TrendMonth[] }): JSX.Element {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-foreground text-sm">{item.user_name}</span>
                   {item.mood !== null && (
-                    <span className="text-lg">{EMOJI_MAP[item.mood] ?? ''}</span>
+                    <span className="text-lg">{MOOD_EMOJIS[item.mood] ?? ''}</span>
                   )}
                 </div>
                 {item.text && (
@@ -128,7 +113,7 @@ export default function MoodTrend(): JSX.Element {
           {overallAvg !== null && (
             <div className="mb-4 text-sm text-muted-foreground">
               Overall average: <span className="font-medium text-foreground">{overallAvg.toFixed(1)}</span>
-              {' '}{EMOJI_MAP[Math.round(overallAvg)] ?? ''}
+              {' '}{MOOD_EMOJIS[Math.round(overallAvg)] ?? ''}
               {' · '}{withData.length} months with data
             </div>
           )}
