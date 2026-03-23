@@ -187,7 +187,7 @@ export default function Moods(): JSX.Element {
                       />
                     ))}
                   </div>
-                  {data && data.total_responses === 0 && (
+                  {data?.total_responses === 0 && (
                     <p className="text-sm text-muted-foreground mt-4 text-center">No mood data for this month.</p>
                   )}
                 </CardContent>
@@ -256,7 +256,7 @@ export default function Moods(): JSX.Element {
             <AlertDialogDescription>
               {deleteTarget?.type === 'anonymous'
                 ? 'This will permanently delete this anonymous feedback entry.'
-                : `This will clear mood and feedback for ${deleteTarget?.type === 'named' ? deleteTarget.userName : ''}.`}
+                : `This will clear mood and feedback for ${deleteTarget?.userName ?? ''}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
