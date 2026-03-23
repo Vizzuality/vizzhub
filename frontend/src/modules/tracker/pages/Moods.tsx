@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useMoods } from '../hooks/useMoods';
+import { useReportingPeriods } from '../hooks/useReportingPeriods';
+import { formatPeriodDate } from '../utils/constants';
 import type { NamedFeedbackItem } from '../types/tracker';
 
 const EMOJI_MAP: Record<number, string> = {
@@ -23,23 +23,6 @@ const BAR_COLORS: Record<number, string> = {
 };
 
 const now = new Date();
-
-function formatMonth(year: number, month: number): string {
-  return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-}
-
-function navigate(year: number, month: number, direction: 1 | -1): { year: number; month: number } {
-  let nextMonth = month + direction;
-  let nextYear = year;
-  if (nextMonth > 12) {
-    nextMonth = 1;
-    nextYear += 1;
-  } else if (nextMonth < 1) {
-    nextMonth = 12;
-    nextYear -= 1;
-  }
-  return { year: nextYear, month: nextMonth };
-}
 
 interface MoodBarProps {
   readonly moodKey: number;
@@ -91,16 +74,18 @@ export default function Moods(): JSX.Element {
     year: { defaultValue: now.getFullYear() },
   });
 
+  const { data: periods } = useReportingPeriods();
   const { data, isLoading } = useMoods(state.month, state.year);
 
-  const handlePrev = (): void => {
-    const next = navigate(state.year, state.month, -1);
-    setState(next);
-  };
+  const sortedPeriods = [...(periods ?? [])].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
 
-  const handleNext = (): void => {
-    const next = navigate(state.year, state.month, 1);
-    setState(next);
+  const selectedValue = `${state.year}-${String(state.month).padStart(2, '0')}`;
+
+  const handlePeriodChange = (value: string): void => {
+    const d = new Date(value + '-01');
+    setState({ month: d.getMonth() + 1, year: d.getFullYear() });
   };
 
   const distribution = data?.mood_distribution ?? {};
@@ -109,15 +94,22 @@ export default function Moods(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="icon" onClick={handlePrev} aria-label="Previous month">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-xl font-semibold text-foreground min-w-40 text-center">
-          {formatMonth(state.year, state.month)}
-        </h1>
-        <Button variant="outline" size="icon" onClick={handleNext} aria-label="Next month">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+        <h1 className="text-xl font-semibold text-foreground">Team Moods</h1>
+        <select
+          value={selectedValue}
+          onChange={(e) => handlePeriodChange(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          {sortedPeriods.map((p) => {
+            const d = new Date(p.date);
+            const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return (
+              <option key={p.id} value={val}>
+                {formatPeriodDate(p.date)}
+              </option>
+            );
+          })}
+        </select>
       </div>
 
       {isLoading ? (
