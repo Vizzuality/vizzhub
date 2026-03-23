@@ -22,6 +22,8 @@ async def enrich_report(report: ReportDB, db: AsyncSession) -> ReportResponse:
         user_id=report.user_id,
         reporting_period_id=report.reporting_period_id,
         estimated=report.estimated,
+        mood=report.mood,
+        feedback_text=report.feedback_text,
         user_name=report_user.name if report_user else None,
         user_email=report_user.email if report_user else None,
         created_at=report.created_at,
