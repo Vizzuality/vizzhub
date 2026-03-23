@@ -45,6 +45,7 @@ function resolvePathBreadcrumbs(pathname: string): BreadcrumbSegment[] | null {
     return [{ label: 'Reporting Periods', to: '/admin/tracker/periods' }, { label: 'Period Detail' }];
   }
   if (pathname.startsWith('/admin/tracker/invoices')) return [{ label: 'Invoices' }];
+  if (pathname.startsWith('/admin/tracker/moods')) return [{ label: 'Moods' }];
   if (pathname.startsWith('/admin/tracker/periods')) return [{ label: 'Reporting Periods' }];
   if (pathname.startsWith('/admin/tracker')) return [{ label: 'Tracker' }];
   if (pathname.startsWith('/admin')) {
