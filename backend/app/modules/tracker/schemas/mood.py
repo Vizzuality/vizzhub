@@ -28,3 +28,18 @@ class MoodsResponse(BaseModel):
     average_mood: float | None = None
     anonymous_feedback: list[AnonymousFeedbackItem]
     named_feedback: list[NamedFeedbackItem]
+
+
+class TrendMonth(BaseModel):
+    month: int
+    year: int
+    label: str
+    average_mood: float | None = None
+    total_responses: int = 0
+    total_reports: int = 0
+    anonymous_feedback: list[AnonymousFeedbackItem] = []
+    named_feedback: list[NamedFeedbackItem] = []
+
+
+class MoodsTrendResponse(BaseModel):
+    months: list[TrendMonth]

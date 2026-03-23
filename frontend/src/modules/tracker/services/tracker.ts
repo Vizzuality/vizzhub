@@ -33,6 +33,7 @@ import type {
   NonStaffCostUpdate,
   AnonymousFeedbackCreate,
   MoodsResponse,
+  MoodsTrendResponse,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -333,6 +334,11 @@ export const trackerApi = {
 
   deleteReportMood: async (reportId: string): Promise<void> => {
     await api.delete(`/tracker/moods/report/${reportId}/mood`);
+  },
+
+  getMoodsTrend: async (): Promise<MoodsTrendResponse> => {
+    const { data } = await api.get<MoodsTrendResponse>('/tracker/moods/trend');
+    return data;
   },
 
   // Functional Areas

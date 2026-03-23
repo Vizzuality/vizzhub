@@ -27,6 +27,13 @@ export function useDeleteAnonymousFeedback(month: number, year: number) {
   });
 }
 
+export function useMoodsTrend() {
+  return useQuery({
+    queryKey: queryKeys.tracker.moodsTrend,
+    queryFn: () => trackerApi.getMoodsTrend(),
+  });
+}
+
 export function useDeleteReportMood(month: number, year: number) {
   const queryClient = useQueryClient();
   return useMutation({

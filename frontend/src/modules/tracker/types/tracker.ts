@@ -320,3 +320,18 @@ export interface MoodsResponse {
   named_feedback: NamedFeedbackItem[];
 }
 
+export interface TrendMonth {
+  month: number;
+  year: number;
+  label: string;
+  average_mood: number | null;
+  total_responses: number;
+  total_reports: number;
+  anonymous_feedback: AnonymousFeedbackItem[];
+  named_feedback: NamedFeedbackItem[];
+}
+
+export interface MoodsTrendResponse {
+  months: TrendMonth[];
+}
+

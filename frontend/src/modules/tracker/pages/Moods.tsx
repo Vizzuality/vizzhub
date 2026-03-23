@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +18,7 @@ import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useMoods, useDeleteAnonymousFeedback, useDeleteReportMood } from '../hooks/useMoods';
 import { useReportingPeriods } from '../hooks/useReportingPeriods';
 import { formatPeriodDate } from '../utils/constants';
+import MoodTrend from '../components/MoodTrend';
 import type { NamedFeedbackItem } from '../types/tracker';
 
 const EMOJI_MAP: Record<number, string> = {
@@ -96,6 +98,7 @@ export default function Moods(): JSX.Element {
   const { state, setState } = useUrlState({
     month: { defaultValue: now.getMonth() + 1 },
     year: { defaultValue: now.getFullYear() },
+    tab: { defaultValue: 'monthly' },
   });
 
   const { data: periods } = useReportingPeriods();
@@ -133,116 +136,130 @@ export default function Moods(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-foreground">Team Moods</h1>
-        <select
-          value={selectedValue}
-          onChange={(e) => handlePeriodChange(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          {sortedPeriods.map((p) => {
-            const d = new Date(p.date);
-            const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            return (
-              <option key={p.id} value={val}>
-                {formatPeriodDate(p.date)}
-              </option>
-            );
-          })}
-        </select>
-      </div>
+      <h1 className="text-xl font-semibold text-foreground">Team Moods</h1>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <LoadingSpinner />
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mood Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data && (
-                <div className="mb-4 flex gap-4 text-sm text-muted-foreground">
-                  <span>
-                    Responses: <span className="font-medium text-foreground">{data.total_responses}</span>
-                    {' / '}
-                    {data.total_reports} reports
-                  </span>
-                  {data.average_mood !== null && (
-                    <span>
-                      Average: <span className="font-medium text-foreground">{data.average_mood.toFixed(1)}</span>
-                      {' '}{EMOJI_MAP[Math.round(data.average_mood)] ?? ''}
-                    </span>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-3 items-end">
-                {[1, 2, 3, 4, 5].map((key) => (
-                  <MoodBar
-                    key={key}
-                    moodKey={key}
-                    count={Number(distribution[String(key)] ?? 0)}
-                    maxCount={maxCount}
-                  />
-                ))}
-              </div>
-              {data && data.total_responses === 0 && (
-                <p className="text-sm text-muted-foreground mt-4 text-center">No mood data for this month.</p>
-              )}
-            </CardContent>
-          </Card>
+      <Tabs value={state.tab} onValueChange={(tab) => setState({ tab })}>
+        <TabsList>
+          <TabsTrigger value="monthly">Monthly</TabsTrigger>
+          <TabsTrigger value="trend">Trend</TabsTrigger>
+        </TabsList>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Anonymous Feedback</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data && data.anonymous_feedback.length > 0 ? (
-                <div className="space-y-2">
-                  {data.anonymous_feedback.map((item) => (
-                    <div key={item.id} className="rounded-lg bg-muted/30 p-3 flex items-start justify-between gap-2">
-                      <p className="text-sm text-foreground min-w-0">{item.text}</p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeleteTarget({ type: 'anonymous', id: item.id })}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+        <TabsContent value="monthly" className="space-y-6 mt-4">
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedValue}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {sortedPeriods.map((p) => {
+                const d = new Date(p.date);
+                const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                return (
+                  <option key={p.id} value={val}>
+                    {formatPeriodDate(p.date)}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Mood Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {data && (
+                    <div className="mb-4 flex gap-4 text-sm text-muted-foreground">
+                      <span>
+                        Responses: <span className="font-medium text-foreground">{data.total_responses}</span>
+                        {' / '}
+                        {data.total_reports} reports
+                      </span>
+                      {data.average_mood !== null && (
+                        <span>
+                          Average: <span className="font-medium text-foreground">{data.average_mood.toFixed(1)}</span>
+                          {' '}{EMOJI_MAP[Math.round(data.average_mood)] ?? ''}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No anonymous feedback for this month.</p>
-              )}
-            </CardContent>
-          </Card>
+                  )}
+                  <div className="flex gap-3 items-end">
+                    {[1, 2, 3, 4, 5].map((key) => (
+                      <MoodBar
+                        key={key}
+                        moodKey={key}
+                        count={Number(distribution[String(key)] ?? 0)}
+                        maxCount={maxCount}
+                      />
+                    ))}
+                  </div>
+                  {data && data.total_responses === 0 && (
+                    <p className="text-sm text-muted-foreground mt-4 text-center">No mood data for this month.</p>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Named Feedback</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data && data.named_feedback.length > 0 ? (
-                <div className="space-y-2">
-                  {data.named_feedback.map((item) => (
-                    <NamedFeedbackCard
-                      key={item.report_id}
-                      item={item}
-                      onDelete={() => setDeleteTarget({ type: 'named', reportId: item.report_id, userName: item.user_name })}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No named feedback for this month.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Anonymous Feedback</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {data && data.anonymous_feedback.length > 0 ? (
+                    <div className="space-y-2">
+                      {data.anonymous_feedback.map((item) => (
+                        <div key={item.id} className="rounded-lg bg-muted/30 p-3 flex items-start justify-between gap-2">
+                          <p className="text-sm text-foreground min-w-0">{item.text}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteTarget({ type: 'anonymous', id: item.id })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No anonymous feedback for this month.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Named Feedback</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {data && data.named_feedback.length > 0 ? (
+                    <div className="space-y-2">
+                      {data.named_feedback.map((item) => (
+                        <NamedFeedbackCard
+                          key={item.report_id}
+                          item={item}
+                          onDelete={() => setDeleteTarget({ type: 'named', reportId: item.report_id, userName: item.user_name })}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No named feedback for this month.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="trend" className="mt-4">
+          <MoodTrend />
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
