@@ -20,6 +20,8 @@ export interface Report {
   estimated: boolean;
   user_name: string | null;
   user_email: string | null;
+  mood: number | null;
+  feedback_text: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +37,8 @@ export interface ReportCreate {
 
 export interface ReportUpdate {
   estimated?: boolean;
+  mood?: number | null;
+  feedback_text?: string | null;
 }
 
 export interface ReportPart {
@@ -287,5 +291,26 @@ export interface NonStaffCostUpdate {
   cost?: number;
   cost_type?: NonStaffCostType;
   details?: string | null;
+}
+
+export interface AnonymousFeedbackCreate {
+  month: number;
+  year: number;
+  text: string;
+}
+
+export interface NamedFeedbackItem {
+  user_name: string;
+  mood: number | null;
+  text: string | null;
+}
+
+export interface MoodsResponse {
+  mood_distribution: Record<string, number>;
+  total_reports: number;
+  total_responses: number;
+  average_mood: number | null;
+  anonymous_feedback: string[];
+  named_feedback: NamedFeedbackItem[];
 }
 
