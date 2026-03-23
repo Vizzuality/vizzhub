@@ -294,25 +294,130 @@ class TestReportPartsCRUD:
         assert resp.json()["cost"] == pytest.approx(expected_cost, rel=1e-4)
 
 
+class TestConfirmValidation:
+    """Confirm (estimated=false) requires parts totaling 100%."""
+
+    async def _create_report_with_full_allocation(
+        self, client: AsyncClient, setup_reporting: dict,
+    ) -> str:
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(setup_reporting["period"].id), "estimated": True},
+        )
+        assert resp.status_code == 201
+        report_id = resp.json()["id"]
+        await client.post(
+            "/api/tracker/report-parts",
+            json={
+                "report_id": report_id,
+                "project_id": str(setup_reporting["project"].id),
+                "percentage": 1.0,
+            },
+        )
+        return report_id
+
+    @pytest.mark.asyncio
+    async def test_confirm_rejected_when_not_100_percent(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(setup_reporting["period"].id), "estimated": True},
+        )
+        report_id = resp.json()["id"]
+        await client.post(
+            "/api/tracker/report-parts",
+            json={
+                "report_id": report_id,
+                "project_id": str(setup_reporting["project"].id),
+                "percentage": 0.5,
+            },
+        )
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False},
+        )
+        assert resp.status_code == 400
+        assert "100%" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_confirm_rejected_when_no_parts(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(setup_reporting["period"].id), "estimated": True},
+        )
+        report_id = resp.json()["id"]
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False},
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_confirm_accepted_when_100_percent(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report_with_full_allocation(client, setup_reporting)
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["estimated"] is False
+
+    @pytest.mark.asyncio
+    async def test_reopen_does_not_require_100_percent(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report_with_full_allocation(client, setup_reporting)
+        await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False},
+        )
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": True},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["estimated"] is True
+
+
 class TestMoodOnReport:
     """Test mood and feedback_text fields on report update."""
 
-    async def _create_report(self, client: AsyncClient, setup_reporting: dict) -> str:
+    async def _create_confirmed_report(
+        self, client: AsyncClient, setup_reporting: dict
+    ) -> str:
         resp = await client.post(
             "/api/tracker/reports",
-            json={"reporting_period_id": str(setup_reporting["period"].id)},
+            json={"reporting_period_id": str(setup_reporting["period"].id), "estimated": True},
         )
         assert resp.status_code == 201
-        return resp.json()["id"]
+        report_id = resp.json()["id"]
+        await client.post(
+            "/api/tracker/report-parts",
+            json={
+                "report_id": report_id,
+                "project_id": str(setup_reporting["project"].id),
+                "percentage": 1.0,
+            },
+        )
+        await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False},
+        )
+        return report_id
 
     @pytest.mark.asyncio
     async def test_update_report_with_mood(
         self, client: AsyncClient, setup_reporting: dict
     ):
-        report_id = await self._create_report(client, setup_reporting)
+        report_id = await self._create_confirmed_report(client, setup_reporting)
         resp = await client.put(
             f"/api/tracker/reports/{report_id}",
-            json={"estimated": False, "mood": 4},
+            json={"mood": 4},
         )
         assert resp.status_code == 200
         assert resp.json()["mood"] == 4
@@ -321,7 +426,7 @@ class TestMoodOnReport:
     async def test_update_report_mood_out_of_range(
         self, client: AsyncClient, setup_reporting: dict
     ):
-        report_id = await self._create_report(client, setup_reporting)
+        report_id = await self._create_confirmed_report(client, setup_reporting)
         resp = await client.put(
             f"/api/tracker/reports/{report_id}",
             json={"mood": 6},
@@ -332,7 +437,7 @@ class TestMoodOnReport:
     async def test_update_report_mood_zero_rejected(
         self, client: AsyncClient, setup_reporting: dict
     ):
-        report_id = await self._create_report(client, setup_reporting)
+        report_id = await self._create_confirmed_report(client, setup_reporting)
         resp = await client.put(
             f"/api/tracker/reports/{report_id}",
             json={"mood": 0},
@@ -343,10 +448,10 @@ class TestMoodOnReport:
     async def test_update_report_with_feedback_text(
         self, client: AsyncClient, setup_reporting: dict
     ):
-        report_id = await self._create_report(client, setup_reporting)
+        report_id = await self._create_confirmed_report(client, setup_reporting)
         resp = await client.put(
             f"/api/tracker/reports/{report_id}",
-            json={"estimated": False, "feedback_text": "Great month!"},
+            json={"feedback_text": "Great month!"},
         )
         assert resp.status_code == 200
         assert resp.json()["feedback_text"] == "Great month!"
@@ -355,7 +460,7 @@ class TestMoodOnReport:
     async def test_update_report_mood_null_clears(
         self, client: AsyncClient, setup_reporting: dict
     ):
-        report_id = await self._create_report(client, setup_reporting)
+        report_id = await self._create_confirmed_report(client, setup_reporting)
         await client.put(
             f"/api/tracker/reports/{report_id}",
             json={"mood": 3},

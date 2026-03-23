@@ -43,6 +43,7 @@ export default function ReportEditor({
     parts.reduce((sum, p) => sum + (p.percentage ?? 0) * 100, 0) * 100,
   ) / 100;
   const isOverAllocated = totalPercentage > 100;
+  const isExactly100 = totalPercentage === 100;
 
   const existingProjectIds = new Set(parts.map((p) => p.project_id));
   const availableProjects = projects?.filter((p) => !existingProjectIds.has(p.id)) ?? [];
@@ -146,7 +147,10 @@ export default function ReportEditor({
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4 text-foreground shrink-0" />
                 <p className="text-sm text-foreground">
-                  You can save partial data as you go. When your report is complete, click <strong>Confirm</strong> to mark it as final.
+                  {!isExactly100 && parts.length > 0
+                    ? <>Percentages must total <strong>100%</strong> to confirm (currently {totalPercentage.toFixed(1)}%).</>
+                    : <>You can save partial data as you go. When your report is complete, click <strong>Confirm</strong> to mark it as final.</>
+                  }
                 </p>
               </div>
               <Button
@@ -157,7 +161,7 @@ export default function ReportEditor({
                     { onSuccess: () => setShowMoodDialog(true) },
                   );
                 }}
-                disabled={updateReport.isPending || parts.length === 0}
+                disabled={updateReport.isPending || parts.length === 0 || !isExactly100}
                 className="shrink-0"
               >
                 <Send className="w-3.5 h-3.5 mr-1.5" />

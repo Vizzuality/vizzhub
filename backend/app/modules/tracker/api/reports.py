@@ -150,6 +150,23 @@ async def update_report(
 ) -> ReportResponse:
     report = await get_or_404(ReportDB, report_id, db, "Report")
     update_data = data.model_dump(exclude_unset=True)
+
+    is_confirming = (
+        update_data.get("estimated") is False and report.estimated is True
+    )
+    if is_confirming:
+        parts_result = await db.execute(
+            select(ReportPartDB.percentage).where(
+                ReportPartDB.report_id == report_id
+            )
+        )
+        total = sum(p or 0 for (p,) in parts_result.all())
+        if round(float(total) * 100, 2) != 100.0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Report percentages must total 100% to confirm. Current total: {round(float(total) * 100, 1)}%",
+            )
+
     for field, value in update_data.items():
         setattr(report, field, value)
     await db.commit()
