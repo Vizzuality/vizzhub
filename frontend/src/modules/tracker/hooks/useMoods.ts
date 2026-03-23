@@ -3,10 +3,11 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { trackerApi } from '../services/tracker';
 import type { AnonymousFeedbackCreate } from '../types/tracker';
 
-export function useMoods(month: number, year: number) {
+export function useMoods(month: number, year: number, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.tracker.moods(month, year),
     queryFn: () => trackerApi.getMoods(month, year),
+    enabled: options?.enabled ?? true,
   });
 }
 

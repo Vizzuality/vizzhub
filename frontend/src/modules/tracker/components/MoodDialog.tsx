@@ -12,15 +12,8 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useUpdateReport } from '../hooks/useReports';
 import { useCreateAnonymousFeedback } from '../hooks/useMoods';
+import { MOOD_ITEMS } from '../utils/constants';
 import type { ReportUpdate } from '../types/tracker';
-
-const MOODS = [
-  { value: 1, emoji: '\u{1F62B}', label: 'Very bad' },
-  { value: 2, emoji: '\u{1F61F}', label: 'Bad' },
-  { value: 3, emoji: '\u{1F610}', label: 'Neutral' },
-  { value: 4, emoji: '\u{1F642}', label: 'Good' },
-  { value: 5, emoji: '\u{1F604}', label: 'Very good' },
-] as const;
 
 interface MoodDialogProps {
   open: boolean;
@@ -85,7 +78,7 @@ export default function MoodDialog({
         <div className="space-y-4">
           <div>
             <div className="flex gap-2 mb-1">
-              {MOODS.map((m) => (
+              {MOOD_ITEMS.map((m) => (
                 <button
                   key={m.value}
                   type="button"

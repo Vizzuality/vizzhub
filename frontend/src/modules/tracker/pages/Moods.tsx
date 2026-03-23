@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
@@ -17,25 +17,9 @@ import {
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useMoods, useDeleteAnonymousFeedback, useDeleteReportMood } from '../hooks/useMoods';
 import { useReportingPeriods } from '../hooks/useReportingPeriods';
-import { formatPeriodDate } from '../utils/constants';
+import { formatPeriodDate, MOOD_EMOJIS, MOOD_BAR_COLORS } from '../utils/constants';
 import MoodTrend from '../components/MoodTrend';
 import type { NamedFeedbackItem } from '../types/tracker';
-
-const EMOJI_MAP: Record<number, string> = {
-  1: '\u{1F62B}',
-  2: '\u{1F61F}',
-  3: '\u{1F610}',
-  4: '\u{1F642}',
-  5: '\u{1F604}',
-};
-
-const BAR_COLORS: Record<number, string> = {
-  1: 'bg-red-500',
-  2: 'bg-orange-500',
-  3: 'bg-yellow-500',
-  4: 'bg-green-500',
-  5: 'bg-emerald-500',
-};
 
 const now = new Date();
 
@@ -53,11 +37,11 @@ function MoodBar({ moodKey, count, maxCount }: MoodBarProps): JSX.Element {
       <span className="text-sm font-medium text-foreground">{count}</span>
       <div className="w-full flex items-end" style={{ height: '80px' }}>
         <div
-          className={`w-full rounded-t ${BAR_COLORS[moodKey]}`}
+          className={`w-full rounded-t ${MOOD_BAR_COLORS[moodKey]}`}
           style={{ height: `${heightPct}%`, minHeight: count > 0 ? '4px' : '0' }}
         />
       </div>
-      <span className="text-xl">{EMOJI_MAP[moodKey]}</span>
+      <span className="text-xl">{MOOD_EMOJIS[moodKey]}</span>
       <span className="text-xs text-muted-foreground">{moodKey}</span>
     </div>
   );
@@ -75,7 +59,7 @@ function NamedFeedbackCard({ item, onDelete }: NamedFeedbackCardProps): JSX.Elem
         <div className="flex items-center gap-2 mb-1">
           <span className="font-medium text-foreground text-sm">{item.user_name}</span>
           {item.mood !== null && (
-            <span className="text-lg">{EMOJI_MAP[item.mood] ?? ''}</span>
+            <span className="text-lg">{MOOD_EMOJIS[item.mood] ?? ''}</span>
           )}
         </div>
         {item.text && (
@@ -102,7 +86,8 @@ export default function Moods(): JSX.Element {
   });
 
   const { data: periods } = useReportingPeriods();
-  const { data, isLoading } = useMoods(state.month, state.year);
+  const isMonthlyTab = state.tab === 'monthly';
+  const { data, isLoading } = useMoods(state.month, state.year, { enabled: isMonthlyTab });
   const deleteAnon = useDeleteAnonymousFeedback(state.month, state.year);
   const deleteMood = useDeleteReportMood(state.month, state.year);
 
@@ -110,8 +95,11 @@ export default function Moods(): JSX.Element {
     { type: 'anonymous'; id: string } | { type: 'named'; reportId: string; userName: string } | null
   >(null);
 
-  const sortedPeriods = [...(periods ?? [])].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  const sortedPeriods = useMemo(
+    () => [...(periods ?? [])].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    ),
+    [periods],
   );
 
   const selectedValue = `${state.year}-${String(state.month).padStart(2, '0')}`;
@@ -184,7 +172,7 @@ export default function Moods(): JSX.Element {
                       {data.average_mood !== null && (
                         <span>
                           Average: <span className="font-medium text-foreground">{data.average_mood.toFixed(1)}</span>
-                          {' '}{EMOJI_MAP[Math.round(data.average_mood)] ?? ''}
+                          {' '}{MOOD_EMOJIS[Math.round(data.average_mood)] ?? ''}
                         </span>
                       )}
                     </div>
