@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { ChevronRight, Send, RotateCcw, Info, CheckCircle2 } from 'lucide-react';
+import MoodDialog from './MoodDialog';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
@@ -18,6 +20,7 @@ interface ReportEditorProps {
   title: string;
   emptyMessage?: string;
   collapsible?: boolean;
+  periodDate?: string;
 }
 
 export default function ReportEditor({
@@ -25,7 +28,9 @@ export default function ReportEditor({
   title,
   emptyMessage = 'No report parts yet. Add a project below.',
   collapsible = false,
+  periodDate,
 }: ReportEditorProps): JSX.Element {
+  const [showMoodDialog, setShowMoodDialog] = useState(false);
   const { data: reportWithParts } = useReport(report.id);
   const createPart = useCreateReportPart(report.id);
   const updateReport = useUpdateReport(report.id, report.reporting_period_id);
@@ -146,7 +151,12 @@ export default function ReportEditor({
               </div>
               <Button
                 size="sm"
-                onClick={() => updateReport.mutate({ estimated: false })}
+                onClick={() => {
+                  updateReport.mutate(
+                    { estimated: false },
+                    { onSuccess: () => setShowMoodDialog(true) },
+                  );
+                }}
                 disabled={updateReport.isPending || parts.length === 0}
                 className="shrink-0"
               >
@@ -178,25 +188,42 @@ export default function ReportEditor({
       </CardContent>
     );
 
+  const moodDialog = showMoodDialog && periodDate ? (
+    <MoodDialog
+      open={showMoodDialog}
+      onClose={() => setShowMoodDialog(false)}
+      reportId={report.id}
+      periodId={report.reporting_period_id}
+      periodMonth={new Date(periodDate).getMonth() + 1}
+      periodYear={new Date(periodDate).getFullYear()}
+    />
+  ) : null;
+
   if (collapsible) {
     return (
-      <Collapsible className="group">
-        <Card>
-          <CollapsibleTrigger asChild className="cursor-pointer w-full text-left">
-            {header}
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            {content}
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+      <>
+        <Collapsible className="group">
+          <Card>
+            <CollapsibleTrigger asChild className="cursor-pointer w-full text-left">
+              {header}
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {content}
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+        {moodDialog}
+      </>
     );
   }
 
   return (
-    <Card>
-      {header}
-      {content}
-    </Card>
+    <>
+      <Card>
+        {header}
+        {content}
+      </Card>
+      {moodDialog}
+    </>
   );
 }
