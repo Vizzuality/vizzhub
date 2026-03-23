@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.modules.tracker.api import admin_invoices as admin_invoices_router
 from app.modules.tracker.api import anonymous_feedback as anonymous_feedback_router
+from app.modules.tracker.api import moods as moods_router
 from app.modules.tracker.api import budget_lines as budget_lines_router
 from app.modules.tracker.api import invoices as invoices_router
 from app.modules.tracker.api import postponements as postponements_router
@@ -72,4 +73,9 @@ router.include_router(
     anonymous_feedback_router.router,
     prefix="/anonymous-feedback",
     tags=["tracker:anonymous-feedback"],
+)
+router.include_router(
+    moods_router.router,
+    prefix="/moods",
+    tags=["tracker:moods"],
 )
