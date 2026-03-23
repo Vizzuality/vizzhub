@@ -170,6 +170,8 @@ export const queryKeys = {
       byProject: (projectId: string) =>
         ['tracker', 'non-staff-costs', projectId] as const,
     },
+    moods: (month: number, year: number) =>
+      ['tracker', 'moods', month, year] as const,
     projectCosts: {
       summary: (projectId: string) =>
         ['tracker', 'project-costs', projectId, 'summary'] as const,

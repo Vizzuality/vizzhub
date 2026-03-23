@@ -31,6 +31,8 @@ import type {
   NonStaffCost,
   NonStaffCostCreate,
   NonStaffCostUpdate,
+  AnonymousFeedbackCreate,
+  MoodsResponse,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -311,6 +313,18 @@ export const trackerApi = {
 
   deleteNonStaffCost: async (costId: string): Promise<void> => {
     await api.delete(`/tracker/non-staff-costs/${costId}`);
+  },
+
+  // Moods & Feedback
+  createAnonymousFeedback: async (data: AnonymousFeedbackCreate): Promise<void> => {
+    await api.post('/tracker/anonymous-feedback', data);
+  },
+
+  getMoods: async (month: number, year: number): Promise<MoodsResponse> => {
+    const { data } = await api.get<MoodsResponse>('/tracker/moods', {
+      params: { month, year },
+    });
+    return data;
   },
 
   // Functional Areas
