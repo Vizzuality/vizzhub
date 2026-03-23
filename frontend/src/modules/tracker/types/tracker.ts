@@ -299,7 +299,13 @@ export interface AnonymousFeedbackCreate {
   text: string;
 }
 
+export interface AnonymousFeedbackItem {
+  id: string;
+  text: string;
+}
+
 export interface NamedFeedbackItem {
+  report_id: string;
   user_name: string;
   mood: number | null;
   text: string | null;
@@ -310,7 +316,7 @@ export interface MoodsResponse {
   total_reports: number;
   total_responses: number;
   average_mood: number | null;
-  anonymous_feedback: string[];
+  anonymous_feedback: AnonymousFeedbackItem[];
   named_feedback: NamedFeedbackItem[];
 }
 

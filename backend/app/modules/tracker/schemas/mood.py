@@ -9,7 +9,13 @@ class AnonymousFeedbackCreate(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+class AnonymousFeedbackItem(BaseModel):
+    id: str
+    text: str
+
+
 class NamedFeedbackItem(BaseModel):
+    report_id: str
     user_name: str
     mood: int | None = None
     text: str | None = None
@@ -20,5 +26,5 @@ class MoodsResponse(BaseModel):
     total_reports: int
     total_responses: int
     average_mood: float | None = None
-    anonymous_feedback: list[str]
+    anonymous_feedback: list[AnonymousFeedbackItem]
     named_feedback: list[NamedFeedbackItem]
