@@ -24,7 +24,7 @@ app/
 │   │   ├── router.py      # Aggregates all scorecard sub-routers
 │   │   └── public.py      # Cross-module interface
 │   ├── capacity/          # Capacity insights (cross-module analytical views)
-│   │   ├── api/           # insights, fa_detail, _validation
+│   │   ├── api/           # insights, fa_detail, user_detail, _validation
 │   │   ├── router.py      # Aggregates capacity sub-routers
 │   │   └── public.py      # Cross-module interface
 │   └── iso/               # ISO compliance (snapshots, reviews, exports)
@@ -63,13 +63,13 @@ src/
 │   │   ├── services/      # tracker (API client)
 │   │   ├── types/         # tracker (all tracker types)
 │   │   └── utils/         # constants (formatCurrency, shortMonth, etc.)
-│   ├── capacity/          # Capacity insights & FA detail drill-down
-│   │   ├── components/    # InsightsChart, FADetailChart, ChartPagination, GroupSeparators, MonthRangePicker
-│   │   ├── hooks/         # useCapacityInsights, useCapacityFADetail
+│   ├── capacity/          # Capacity insights: overview → FA detail → user detail
+│   │   ├── components/    # InsightsChart, FADetailChart, UserDetailChart, ChartPagination, GroupSeparators, MonthRangePicker
+│   │   ├── hooks/         # useCapacityInsights, useCapacityFADetail, useCapacityUserDetail, useReportableUsers
 │   │   ├── pages/         # Insights
 │   │   ├── services/      # capacity (API client)
-│   │   ├── types/         # capacity (PeriodInsight, PeriodUserInsight)
-│   │   └── utils/         # constants (FA_COLORS, FA_ORDER)
+│   │   ├── types/         # capacity (PeriodInsight, PeriodUserInsight, PeriodProjectInsight, ChartDataPoint)
+│   │   └── utils/         # constants (FA_COLORS, FA_ORDER, ITEM_PALETTE)
 │   └── iso/               # ISO compliance UI
 │       ├── components/    # ISOConfig
 │       ├── hooks/         # useIso
@@ -122,7 +122,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 - **User active scope**: `GET /admin/users` filters inactive by default (`include_inactive=true` to see all). Inactive users cannot log in (403) or be impersonated (400). Deactivation requires confirmation dialog.
 - **Slack integration on users**: `slack_user_id` and `slack_display_name` on `UserDB`. Auto-linked on signup via `users.lookupByEmail`. Bulk sync via `POST /admin/users/sync-slack-all`. Display name extraction: `SlackService.extract_display_name(slack_user)`. Bot token requires `users:read.email` scope.
 - **Rates API**: `GET /api/rates` lists rate bands (A-D). Endpoint in `core/api/rates.py`.
-- **Capacity insights**: Analytical cross-module JOINs in `core/services/capacity_insights.py`. Overview endpoint `GET /api/capacity/insights` (FA-level averages). Detail endpoint `GET /api/capacity/insights/detail?fa=FE` (per-user breakdown). 6 target FAs: FE, BE, Design, PM, Sci, Coms (`TARGET_FA_MAPPING`). Excludes users with `requires_project_reporting=false`, inactive users, and on-leave users (total report = 0). Name formatting: first/last > `name` field > email prefix fallback. Charts paginated to max 6 months with `<>` navigation.
+- **Capacity insights**: Analytical cross-module JOINs in `core/services/capacity_insights.py`. Three drill-down levels: overview (`GET /api/capacity/insights`, FA-level averages) → FA detail (`GET /api/capacity/insights/detail?fa=FE`, per-user breakdown) → user detail (`GET /api/capacity/insights/user-detail?user_id=X`, per-project breakdown). Reportable users list: `GET /api/capacity/insights/user-detail/users`. 6 target FAs: FE, BE, Design, PM, Sci, Coms (`TARGET_FA_MAPPING`). Excludes users with `requires_project_reporting=false`, inactive users, and on-leave users (total report = 0). Name formatting: first/last > `name` field > email prefix fallback. Charts paginated to max 6 months with `<>` navigation. Shared `ITEM_PALETTE` (15 colors) and `ChartDataPoint` type across all chart components. User detail selector uses searchable Combobox (Command/Popover pattern).
 - **Project manager**: `project_manager_id` FK to `users.id` (SET NULL on delete). `project_manager_name` resolved via SQL join in list/detail responses. Use `_user_full_name_expr()` helper in `projects_v2.py` for the SQL name expression.
 
 ## Reference Docs
