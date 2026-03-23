@@ -56,13 +56,13 @@ src/
 │   │   ├── pages/         # Projects, ProjectDetail, GlobalDashboard
 │   │   ├── services/      # scores, metrics, global, exports
 │   │   └── types/         # scores, metrics, config, global
-│   ├── tracker/           # Budget tracking, time reports
-│   │   ├── components/    # BurnDashboard, TimeByAreaTable, DaysByPeopleChart, BudgetLinesEditor
-│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines, useInvoices
-│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail, AdminInvoices
+│   ├── tracker/           # Budget tracking, time reports, mood tracking
+│   │   ├── components/    # BurnDashboard, TimeByAreaTable, DaysByPeopleChart, BudgetLinesEditor, MoodDialog, MoodTrend, ReportEditor
+│   │   ├── hooks/         # useReportingPeriods, useReports, useProjectCosts, useBudgetLines, useInvoices, useMoods
+│   │   ├── pages/         # ProjectTrackerDetail, ReportingPeriods, MyReport, PeriodDetail, AdminInvoices, Moods
 │   │   ├── services/      # tracker (API client)
 │   │   ├── types/         # tracker (all tracker types)
-│   │   └── utils/         # constants (formatCurrency, shortMonth, etc.)
+│   │   └── utils/         # constants (formatCurrency, shortMonth, MOOD_EMOJIS, MOOD_ITEMS, MOOD_BAR_COLORS, etc.)
 │   ├── capacity/          # Capacity insights: overview → FA detail → user detail
 │   │   ├── components/    # InsightsChart, FADetailChart, UserDetailChart, ChartPagination, GroupSeparators, MonthRangePicker
 │   │   ├── hooks/         # useCapacityInsights, useCapacityFADetail, useCapacityUserDetail, useReportableUsers
@@ -123,6 +123,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 - **Slack integration on users**: `slack_user_id` and `slack_display_name` on `UserDB`. Auto-linked on signup via `users.lookupByEmail`. Bulk sync via `POST /admin/users/sync-slack-all`. Display name extraction: `SlackService.extract_display_name(slack_user)`. Bot token requires `users:read.email` scope.
 - **Rates API**: `GET /api/rates` lists rate bands (A-D). Endpoint in `core/api/rates.py`.
 - **Capacity insights**: Analytical cross-module JOINs in `core/services/capacity_insights.py`. Three drill-down levels: overview (`GET /api/capacity/insights`, FA-level averages) → FA detail (`GET /api/capacity/insights/detail?fa=FE`, per-user breakdown) → user detail (`GET /api/capacity/insights/user-detail?user_id=X`, per-project breakdown). Reportable users list: `GET /api/capacity/insights/user-detail/users`. 6 target FAs: FE, BE, Design, PM, Sci, Coms (`TARGET_FA_MAPPING`). Excludes users with `requires_project_reporting=false`, inactive users, and on-leave users (total report = 0). Name formatting: first/last > `name` field > email prefix fallback. Charts paginated to max 6 months with `<>` navigation. Shared `ITEM_PALETTE` (15 colors) and `ChartDataPoint` type across all chart components. User detail selector uses searchable Combobox (Command/Popover pattern).
+- **Mood tracking**: `reports.mood` (int 1-5, nullable) linked to user. `reports.feedback_text` (text, nullable) for non-anonymous text. `anonymous_feedback` table has ONLY `id`, `month`, `year`, `text` — NO FK, NO timestamps, NO user reference (anonymity enforced by schema, audited by whitelist test). Mood dialog appears post-Confirm (write-once per confirm cycle). Anonymous checkbox off by default. Admin page at `/admin/tracker/moods` with Monthly (distribution + feedback with delete) and Trend (12-month averages) tabs. Endpoints: `POST /api/tracker/anonymous-feedback` (any user), `GET /api/tracker/moods` (admin), `GET /api/tracker/moods/trend` (admin), `DELETE /api/tracker/moods/anonymous/{id}` (admin), `DELETE /api/tracker/moods/report/{id}/mood` (admin).
 - **Project manager**: `project_manager_id` FK to `users.id` (SET NULL on delete). `project_manager_name` resolved via SQL join in list/detail responses. Use `_user_full_name_expr()` helper in `projects_v2.py` for the SQL name expression.
 
 ## Reference Docs
