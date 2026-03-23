@@ -1,6 +1,8 @@
 """Admin moods endpoint — aggregated mood data and feedback."""
 
-from fastapi import APIRouter, Query
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.core.api.deps import AdminUser, DBSession
@@ -8,7 +10,11 @@ from app.core.models.user import UserDB
 from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
-from app.modules.tracker.schemas.mood import MoodsResponse, NamedFeedbackItem
+from app.modules.tracker.schemas.mood import (
+    AnonymousFeedbackItem,
+    MoodsResponse,
+    NamedFeedbackItem,
+)
 
 router = APIRouter()
 
@@ -66,6 +72,7 @@ async def get_moods(
         if report.mood is not None or report.feedback_text is not None:
             named_feedback.append(
                 NamedFeedbackItem(
+                    report_id=str(report.id),
                     user_name=_user_display_name(db_user),
                     mood=report.mood,
                     text=report.feedback_text,
@@ -75,12 +82,15 @@ async def get_moods(
     average_mood = sum(moods) / len(moods) if moods else None
 
     anon_result = await db.execute(
-        select(AnonymousFeedbackDB.text).where(
+        select(AnonymousFeedbackDB).where(
             AnonymousFeedbackDB.month == month,
             AnonymousFeedbackDB.year == year,
         )
     )
-    anonymous_feedback = [r[0] for r in anon_result.all()]
+    anonymous_feedback = [
+        AnonymousFeedbackItem(id=str(r.id), text=r.text)
+        for r in anon_result.scalars().all()
+    ]
 
     return MoodsResponse(
         mood_distribution=mood_distribution,
@@ -90,3 +100,36 @@ async def get_moods(
         anonymous_feedback=anonymous_feedback,
         named_feedback=named_feedback,
     )
+
+
+@router.delete("/anonymous/{feedback_id}", status_code=204)
+async def delete_anonymous_feedback(
+    feedback_id: UUID,
+    db: DBSession,
+    user: AdminUser,
+) -> None:
+    result = await db.execute(
+        select(AnonymousFeedbackDB).where(AnonymousFeedbackDB.id == feedback_id)
+    )
+    feedback = result.scalar_one_or_none()
+    if not feedback:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback not found")
+    await db.delete(feedback)
+    await db.commit()
+
+
+@router.delete("/report/{report_id}/mood", status_code=204)
+async def delete_report_mood(
+    report_id: UUID,
+    db: DBSession,
+    user: AdminUser,
+) -> None:
+    result = await db.execute(
+        select(ReportDB).where(ReportDB.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    report.mood = None
+    report.feedback_text = None
+    await db.commit()

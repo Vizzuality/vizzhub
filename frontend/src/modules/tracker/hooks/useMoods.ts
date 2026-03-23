@@ -1,18 +1,38 @@
-import { useMutation, useQuery, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { trackerApi } from '../services/tracker';
-import type { AnonymousFeedbackCreate, MoodsResponse } from '../types/tracker';
+import type { AnonymousFeedbackCreate } from '../types/tracker';
 
-export function useMoods(month: number, year: number): UseQueryResult<MoodsResponse> {
+export function useMoods(month: number, year: number) {
   return useQuery({
     queryKey: queryKeys.tracker.moods(month, year),
     queryFn: () => trackerApi.getMoods(month, year),
   });
 }
 
-export function useCreateAnonymousFeedback(): UseMutationResult<void, Error, AnonymousFeedbackCreate> {
+export function useCreateAnonymousFeedback() {
   return useMutation({
     mutationFn: (data: AnonymousFeedbackCreate) =>
       trackerApi.createAnonymousFeedback(data),
+  });
+}
+
+export function useDeleteAnonymousFeedback(month: number, year: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trackerApi.deleteAnonymousFeedback(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tracker.moods(month, year) });
+    },
+  });
+}
+
+export function useDeleteReportMood(month: number, year: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reportId: string) => trackerApi.deleteReportMood(reportId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tracker.moods(month, year) });
+    },
   });
 }

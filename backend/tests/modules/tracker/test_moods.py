@@ -122,7 +122,8 @@ class TestMoodsEndpoint:
         self, client: AsyncClient, mood_data: None
     ) -> None:
         resp = await client.get("/api/tracker/moods", params={"month": 3, "year": 2026})
-        assert "Anonymous note" in resp.json()["anonymous_feedback"]
+        anon = resp.json()["anonymous_feedback"]
+        assert any(item["text"] == "Anonymous note" for item in anon)
 
     async def test_get_moods_includes_named_feedback(
         self, client: AsyncClient, mood_data: None

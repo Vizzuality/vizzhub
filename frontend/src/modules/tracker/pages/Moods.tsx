@@ -1,17 +1,30 @@
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
 import { useUrlState } from '@/shared/hooks/useUrlState';
-import { useMoods } from '../hooks/useMoods';
+import { useMoods, useDeleteAnonymousFeedback, useDeleteReportMood } from '../hooks/useMoods';
 import { useReportingPeriods } from '../hooks/useReportingPeriods';
 import { formatPeriodDate } from '../utils/constants';
 import type { NamedFeedbackItem } from '../types/tracker';
 
 const EMOJI_MAP: Record<number, string> = {
-  1: '😫',
-  2: '😟',
-  3: '😐',
-  4: '🙂',
-  5: '😄',
+  1: '\u{1F62B}',
+  2: '\u{1F61F}',
+  3: '\u{1F610}',
+  4: '\u{1F642}',
+  5: '\u{1F604}',
 };
 
 const BAR_COLORS: Record<number, string> = {
@@ -50,20 +63,31 @@ function MoodBar({ moodKey, count, maxCount }: MoodBarProps): JSX.Element {
 
 interface NamedFeedbackCardProps {
   readonly item: NamedFeedbackItem;
+  readonly onDelete: () => void;
 }
 
-function NamedFeedbackCard({ item }: NamedFeedbackCardProps): JSX.Element {
+function NamedFeedbackCard({ item, onDelete }: NamedFeedbackCardProps): JSX.Element {
   return (
-    <div className="rounded-lg bg-muted/30 p-3">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-medium text-foreground text-sm">{item.user_name}</span>
-        {item.mood !== null && (
-          <span className="text-lg">{EMOJI_MAP[item.mood] ?? ''}</span>
+    <div className="rounded-lg bg-muted/30 p-3 flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-medium text-foreground text-sm">{item.user_name}</span>
+          {item.mood !== null && (
+            <span className="text-lg">{EMOJI_MAP[item.mood] ?? ''}</span>
+          )}
+        </div>
+        {item.text && (
+          <p className="text-sm text-muted-foreground">{item.text}</p>
         )}
       </div>
-      {item.text && (
-        <p className="text-sm text-muted-foreground">{item.text}</p>
-      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+        onClick={onDelete}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }
@@ -76,6 +100,12 @@ export default function Moods(): JSX.Element {
 
   const { data: periods } = useReportingPeriods();
   const { data, isLoading } = useMoods(state.month, state.year);
+  const deleteAnon = useDeleteAnonymousFeedback(state.month, state.year);
+  const deleteMood = useDeleteReportMood(state.month, state.year);
+
+  const [deleteTarget, setDeleteTarget] = useState<
+    { type: 'anonymous'; id: string } | { type: 'named'; reportId: string; userName: string } | null
+  >(null);
 
   const sortedPeriods = [...(periods ?? [])].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -86,6 +116,16 @@ export default function Moods(): JSX.Element {
   const handlePeriodChange = (value: string): void => {
     const d = new Date(value + '-01');
     setState({ month: d.getMonth() + 1, year: d.getFullYear() });
+  };
+
+  const handleConfirmDelete = (): void => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'anonymous') {
+      deleteAnon.mutate(deleteTarget.id);
+    } else {
+      deleteMood.mutate(deleteTarget.reportId);
+    }
+    setDeleteTarget(null);
   };
 
   const distribution = data?.mood_distribution ?? {};
@@ -161,9 +201,17 @@ export default function Moods(): JSX.Element {
             <CardContent>
               {data && data.anonymous_feedback.length > 0 ? (
                 <div className="space-y-2">
-                  {data.anonymous_feedback.map((text, i) => (
-                    <div key={i} className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-sm text-foreground">{text}</p>
+                  {data.anonymous_feedback.map((item) => (
+                    <div key={item.id} className="rounded-lg bg-muted/30 p-3 flex items-start justify-between gap-2">
+                      <p className="text-sm text-foreground min-w-0">{item.text}</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget({ type: 'anonymous', id: item.id })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -180,8 +228,12 @@ export default function Moods(): JSX.Element {
             <CardContent>
               {data && data.named_feedback.length > 0 ? (
                 <div className="space-y-2">
-                  {data.named_feedback.map((item, i) => (
-                    <NamedFeedbackCard key={i} item={item} />
+                  {data.named_feedback.map((item) => (
+                    <NamedFeedbackCard
+                      key={item.report_id}
+                      item={item}
+                      onDelete={() => setDeleteTarget({ type: 'named', reportId: item.report_id, userName: item.user_name })}
+                    />
                   ))}
                 </div>
               ) : (
@@ -191,6 +243,25 @@ export default function Moods(): JSX.Element {
           </Card>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete feedback</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.type === 'anonymous'
+                ? 'This will permanently delete this anonymous feedback entry.'
+                : `This will clear mood and feedback for ${deleteTarget?.type === 'named' ? deleteTarget.userName : ''}.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

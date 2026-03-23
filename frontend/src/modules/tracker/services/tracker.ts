@@ -327,6 +327,14 @@ export const trackerApi = {
     return data;
   },
 
+  deleteAnonymousFeedback: async (id: string): Promise<void> => {
+    await api.delete(`/tracker/moods/anonymous/${id}`);
+  },
+
+  deleteReportMood: async (reportId: string): Promise<void> => {
+    await api.delete(`/tracker/moods/report/${reportId}/mood`);
+  },
+
   // Functional Areas
   listFunctionalAreas: async (): Promise<FunctionalArea[]> => {
     const response = await api.get<FunctionalArea[]>('/functional-areas');
