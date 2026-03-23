@@ -34,9 +34,9 @@ async def get_moods(
             func.extract("year", ReportingPeriodDB.date) == year,
         )
     )
-    period_id = period_result.scalar_one_or_none()
+    period_ids = [r[0] for r in period_result.all()]
 
-    if not period_id:
+    if not period_ids:
         return MoodsResponse(
             mood_distribution={},
             total_reports=0,
@@ -49,7 +49,7 @@ async def get_moods(
     reports_result = await db.execute(
         select(ReportDB, UserDB)
         .join(UserDB, ReportDB.user_id == UserDB.id)
-        .where(ReportDB.reporting_period_id == period_id)
+        .where(ReportDB.reporting_period_id.in_(period_ids))
     )
     rows = reports_result.all()
 
