@@ -292,3 +292,77 @@ class TestReportPartsCRUD:
         expected_cost = base_cost * multiplier
 
         assert resp.json()["cost"] == pytest.approx(expected_cost, rel=1e-4)
+
+
+class TestMoodOnReport:
+    """Test mood and feedback_text fields on report update."""
+
+    async def _create_report(self, client: AsyncClient, setup_reporting: dict) -> str:
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(setup_reporting["period"].id)},
+        )
+        assert resp.status_code == 201
+        return resp.json()["id"]
+
+    @pytest.mark.asyncio
+    async def test_update_report_with_mood(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report(client, setup_reporting)
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False, "mood": 4},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["mood"] == 4
+
+    @pytest.mark.asyncio
+    async def test_update_report_mood_out_of_range(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report(client, setup_reporting)
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"mood": 6},
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_update_report_mood_zero_rejected(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report(client, setup_reporting)
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"mood": 0},
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_update_report_with_feedback_text(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report(client, setup_reporting)
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"estimated": False, "feedback_text": "Great month!"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["feedback_text"] == "Great month!"
+
+    @pytest.mark.asyncio
+    async def test_update_report_mood_null_clears(
+        self, client: AsyncClient, setup_reporting: dict
+    ):
+        report_id = await self._create_report(client, setup_reporting)
+        await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"mood": 3},
+        )
+        resp = await client.put(
+            f"/api/tracker/reports/{report_id}",
+            json={"mood": None},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["mood"] is None

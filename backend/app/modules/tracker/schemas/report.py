@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReportCreate(BaseModel):
@@ -13,6 +13,8 @@ class ReportCreate(BaseModel):
 
 class ReportUpdate(BaseModel):
     estimated: bool | None = None
+    mood: int | None = Field(None, ge=1, le=5)
+    feedback_text: str | None = Field(None, max_length=2000)
 
 
 class ReportResponse(BaseModel):
@@ -22,6 +24,8 @@ class ReportResponse(BaseModel):
     user_id: UUID
     reporting_period_id: UUID
     estimated: bool
+    mood: int | None = None
+    feedback_text: str | None = None
     user_name: str | None = None
     user_email: str | None = None
     created_at: datetime
