@@ -101,7 +101,7 @@ export default function MyReport(): JSX.Element {
       </div>
 
       {myReport ? (
-        <ReportEditor report={myReport} title="My Time Report" />
+        <ReportEditor report={myReport} title="My Time Report" periodDate={targetPeriod.date} />
       ) : (
         <Card>
           <CardContent className="pt-6">
