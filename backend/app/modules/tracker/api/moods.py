@@ -4,6 +4,8 @@ import datetime
 from collections import defaultdict
 from uuid import UUID
 
+from typing import Annotated
+
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select, tuple_
 
@@ -32,12 +34,36 @@ def _user_display_name(user: UserDB) -> str:
     return user.email.split("@")[0] if user.email else "Unknown"
 
 
+def _collect_mood_feedback(
+    rows: list[tuple],
+) -> tuple[dict[int, int], list[int], list[NamedFeedbackItem]]:
+    mood_distribution: dict[int, int] = {}
+    moods: list[int] = []
+    named_feedback: list[NamedFeedbackItem] = []
+
+    for report, db_user in rows:
+        if report.mood is not None:
+            mood_distribution[report.mood] = mood_distribution.get(report.mood, 0) + 1
+            moods.append(report.mood)
+        if report.mood is not None or report.feedback_text is not None:
+            named_feedback.append(
+                NamedFeedbackItem(
+                    report_id=str(report.id),
+                    user_name=_user_display_name(db_user),
+                    mood=report.mood,
+                    text=report.feedback_text,
+                )
+            )
+
+    return mood_distribution, moods, named_feedback
+
+
 @router.get("")
 async def get_moods(
     db: DBSession,
     user: AdminUser,
-    month: int = Query(ge=1, le=12),
-    year: int = Query(ge=2020, le=2100),
+    month: Annotated[int, Query(ge=1, le=12)],
+    year: Annotated[int, Query(ge=2020, le=2100)],
 ) -> MoodsResponse:
     period_result = await db.execute(
         select(ReportingPeriodDB.id).where(
@@ -65,25 +91,7 @@ async def get_moods(
     rows = reports_result.all()
 
     total_reports = len(rows)
-    mood_distribution: dict[int, int] = {}
-    moods: list[int] = []
-    named_feedback: list[NamedFeedbackItem] = []
-
-    for report, db_user in rows:
-        if report.mood is not None:
-            mood_distribution[report.mood] = mood_distribution.get(report.mood, 0) + 1
-            moods.append(report.mood)
-
-        if report.mood is not None or report.feedback_text is not None:
-            named_feedback.append(
-                NamedFeedbackItem(
-                    report_id=str(report.id),
-                    user_name=_user_display_name(db_user),
-                    mood=report.mood,
-                    text=report.feedback_text,
-                )
-            )
-
+    mood_distribution, moods, named_feedback = _collect_mood_feedback(rows)
     average_mood = sum(moods) / len(moods) if moods else None
 
     anon_result = await db.execute(
@@ -162,21 +170,7 @@ async def get_moods_trend(
     for m, y in target_months:
         label = datetime.date(y, m, 1).strftime("%b %Y")
         rows = reports_by_month.get((m, y), [])
-
-        moods: list[int] = []
-        named_feedback: list[NamedFeedbackItem] = []
-        for report, db_user in rows:
-            if report.mood is not None:
-                moods.append(report.mood)
-            if report.mood is not None or report.feedback_text is not None:
-                named_feedback.append(
-                    NamedFeedbackItem(
-                        report_id=str(report.id),
-                        user_name=_user_display_name(db_user),
-                        mood=report.mood,
-                        text=report.feedback_text,
-                    )
-                )
+        _, moods, named_feedback = _collect_mood_feedback(rows)
 
         anonymous_feedback = [
             AnonymousFeedbackItem(id=str(fb.id), text=fb.text)

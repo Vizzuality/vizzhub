@@ -1,5 +1,6 @@
 """Report CRUD endpoints."""
 
+import math
 from typing import Annotated
 from uuid import UUID
 
@@ -161,7 +162,7 @@ async def update_report(
             )
         )
         total = sum(p or 0 for (p,) in parts_result.all())
-        if round(float(total) * 100, 2) != 100.0:
+        if not math.isclose(float(total), 1.0, rel_tol=1e-4):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Report percentages must total 100% to confirm. Current total: {round(float(total) * 100, 1)}%",

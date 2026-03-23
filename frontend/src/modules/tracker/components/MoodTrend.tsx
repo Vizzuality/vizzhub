@@ -15,17 +15,19 @@ interface TrendBarProps {
 
 function TrendBar({ month }: TrendBarProps): JSX.Element {
   const avg = month.average_mood;
-  const heightPct = avg !== null ? (avg / 5) * 100 : 0;
+  const heightPct = avg === null ? 0 : (avg / 5) * 100;
 
   return (
     <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-      {avg !== null ? (
-        <span className="text-xs font-medium text-foreground">{avg.toFixed(1)}</span>
-      ) : (
+      {avg === null ? (
         <span className="text-xs text-muted-foreground">-</span>
+      ) : (
+        <span className="text-xs font-medium text-foreground">{avg.toFixed(1)}</span>
       )}
       <div className="w-full flex items-end" style={{ height: '100px' }}>
-        {avg !== null ? (
+        {avg === null ? (
+          <div className="w-full rounded-t bg-muted" style={{ height: '2px' }} />
+        ) : (
           <div
             className="w-full rounded-t"
             style={{
@@ -34,8 +36,6 @@ function TrendBar({ month }: TrendBarProps): JSX.Element {
               backgroundColor: getMoodColor(avg),
             }}
           />
-        ) : (
-          <div className="w-full rounded-t bg-muted" style={{ height: '2px' }} />
         )}
       </div>
       <span className="text-[10px] text-muted-foreground leading-tight text-center">
@@ -45,7 +45,7 @@ function TrendBar({ month }: TrendBarProps): JSX.Element {
   );
 }
 
-function FeedbackByMonth({ months }: { months: TrendMonth[] }): JSX.Element {
+function FeedbackByMonth({ months }: { readonly months: TrendMonth[] }): JSX.Element {
   const withFeedback = months.filter(
     (m) => m.anonymous_feedback.length > 0 || m.named_feedback.length > 0,
   );

@@ -16,12 +16,12 @@ import { MOOD_ITEMS } from '../utils/constants';
 import type { ReportUpdate } from '../types/tracker';
 
 interface MoodDialogProps {
-  open: boolean;
-  onClose: () => void;
-  reportId: string;
-  periodId: string;
-  periodMonth: number;
-  periodYear: number;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly reportId: string;
+  readonly periodId: string;
+  readonly periodMonth: number;
+  readonly periodYear: number;
 }
 
 export default function MoodDialog({
