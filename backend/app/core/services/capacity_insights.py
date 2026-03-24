@@ -121,6 +121,12 @@ async def get_capacity_fa_detail(
                     else_=0,
                 )
             ), 0).label("billable_pct"),
+            func.coalesce(func.sum(
+                case(
+                    (ProjectDB.is_absence.is_(True), ReportPartDB.percentage),
+                    else_=0,
+                )
+            ), 0).label("absence_pct"),
             func.count(func.distinct(
                 case(
                     (ProjectDB.is_billable.is_(True), ReportPartDB.project_id),
@@ -138,9 +144,9 @@ async def get_capacity_fa_detail(
         .group_by(ReportDB.user_id, ReportDB.reporting_period_id)
     )
 
-    report_lookup: dict[tuple, tuple[float, float, int]] = {}
-    for uid, pid, total, billable, proj_count in report_rows:
-        report_lookup[(uid, pid)] = (float(total), float(billable), int(proj_count))
+    report_lookup: dict[tuple, tuple[float, float, float, int]] = {}
+    for uid, pid, total, billable, absence, proj_count in report_rows:
+        report_lookup[(uid, pid)] = (float(total), float(billable), float(absence), int(proj_count))
 
     result = []
     for period_id, period_date in periods:
@@ -154,7 +160,8 @@ async def get_capacity_fa_detail(
                 "user_id": uid,
                 "name": _format_user_name(fn, ln, full, em),
                 "billable_pct": round(entry[1], 4),
-                "billable_project_count": entry[2],
+                "absence_pct": round(entry[2], 4),
+                "billable_project_count": entry[3],
             })
         users_list.sort(key=lambda u: u["name"])
         result.append({
