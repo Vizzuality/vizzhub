@@ -77,7 +77,7 @@ async def validate_depth(db: AsyncSession, parent_id: UUID | None) -> bool:
             break
         current_id = row[0]
         depth += 1
-        if depth >= MAX_DEPTH:
+        if depth > MAX_DEPTH:
             return False
     return True
 
