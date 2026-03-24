@@ -58,6 +58,10 @@ class ProjectDB(Base):
             "end_date IS NULL OR start_date IS NULL OR end_date >= start_date",
             name="ck_projects_end_after_start",
         ),
+        CheckConstraint(
+            "NOT (is_billable AND is_absence)",
+            name="ck_projects_not_billable_and_absence",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -71,6 +75,7 @@ class ProjectDB(Base):
     )
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_absence: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     has_scorecard: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     has_dependabot_alerts: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     has_budget_alerts: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -105,6 +110,7 @@ class ProjectBase(BaseModel):
     program_id: UUID | None = None
     code: str | None = Field(None, max_length=100)
     is_billable: bool = True
+    is_absence: bool = False
     has_scorecard: bool = True
     has_dependabot_alerts: bool = True
     has_budget_alerts: bool = True
@@ -167,6 +173,7 @@ class ProjectUpdate(BaseModel):
     program_id: UUID | None = None
     code: str | None = Field(None, max_length=100)
     is_billable: bool | None = None
+    is_absence: bool | None = None
     has_scorecard: bool | None = None
     has_dependabot_alerts: bool | None = None
     has_budget_alerts: bool | None = None
