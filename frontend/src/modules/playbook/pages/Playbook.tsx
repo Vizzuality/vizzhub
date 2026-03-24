@@ -1,7 +1,24 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BookOpen } from 'lucide-react';
+import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
 import { PlaybookTree } from '../components/PlaybookTree';
 import { PageViewer } from '../components/PageViewer';
 import { PageEditor } from '../components/PageEditor';
@@ -9,6 +26,8 @@ import { NodeForm } from '../components/NodeForm';
 import {
   usePlaybookTree,
   useCreateNode,
+  useUpdateNode,
+  useDeleteNode,
   useReorderNodes,
 } from '../hooks/usePlaybookTree';
 import { usePlaybookPage, useSavePage } from '../hooks/usePlaybookPage';
@@ -53,10 +72,13 @@ export default function Playbook(): JSX.Element {
   const selectedId = searchParams.get('node');
   const [editing, setEditing] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { data: tree = [], isLoading: treeLoading } = usePlaybookTree();
   const { data: page } = usePlaybookPage(selectedId);
   const createNode = useCreateNode();
+  const updateNode = useUpdateNode();
+  const deleteNode = useDeleteNode();
   const reorder = useReorderNodes();
   const savePage = useSavePage(selectedId ?? '');
 
@@ -132,6 +154,31 @@ export default function Playbook(): JSX.Element {
     [createNode, selectedId, selectedNode, setSearchParams],
   );
 
+  const handleDelete = useCallback(() => {
+    if (!selectedId) return;
+    deleteNode.mutate(selectedId, {
+      onSuccess: () => {
+        setDeleteConfirmOpen(false);
+        setSearchParams({}, { replace: true });
+      },
+    });
+  }, [selectedId, deleteNode, setSearchParams]);
+
+  const handleTogglePublic = useCallback(() => {
+    if (!selectedId || !page) return;
+    updateNode.mutate({
+      id: selectedId,
+      data: { is_public: !page.is_public },
+    });
+  }, [selectedId, page, updateNode]);
+
+  const descendantCount = useMemo(() => {
+    if (!selectedNode) return 0;
+    const countChildren = (node: TreeNode): number =>
+      node.children.reduce((sum, c) => sum + 1 + countChildren(c), 0);
+    return countChildren(selectedNode);
+  }, [selectedNode]);
+
   return (
     <div className="flex h-[calc(100vh-3rem)]">
       {/* Sidebar Tree */}
@@ -179,10 +226,6 @@ export default function Playbook(): JSX.Element {
           <div className="flex items-center justify-center h-full text-muted-foreground">
             Select a page from the tree
           </div>
-        ) : !isPage ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            Groups have no content. Select a page.
-          </div>
         ) : editing ? (
           <PageEditor
             initialContent={page?.content ?? ''}
@@ -195,17 +238,59 @@ export default function Playbook(): JSX.Element {
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
               <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => setEditing(true)}>
-                  Edit
-                </Button>
-                {page?.is_public && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-600">
-                    Public
-                  </span>
+                {isPage && (
+                  <>
+                    <Button size="sm" onClick={() => setEditing(true)}>
+                      Edit
+                    </Button>
+                    {page?.is_public && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-600">
+                        Public
+                      </span>
+                    )}
+                  </>
                 )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {isPage && (
+                      <DropdownMenuItem onClick={handleTogglePublic}>
+                        {page?.is_public ? (
+                          <>
+                            <Lock className="h-4 w-4 mr-2" />
+                            Make private
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="h-4 w-4 mr-2" />
+                            Make public
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    )}
+                    {isPage && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-            <PageViewer content={page?.content ?? ''} />
+            {isPage ? (
+              <PageViewer content={page?.content ?? ''} />
+            ) : (
+              <p className="text-muted-foreground">
+                This group contains {descendantCount} {descendantCount === 1 ? 'item' : 'items'}.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -217,6 +302,34 @@ export default function Playbook(): JSX.Element {
         isLoading={createNode.isPending}
         parentId={selectedNode?.type === 'group' ? selectedId : null}
       />
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete &ldquo;{selectedNode?.title}&rdquo;?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedNode?.type === 'group' && descendantCount > 0
+                ? `This will also delete ${descendantCount} ${descendantCount === 1 ? 'item' : 'items'} inside this group. `
+                : ''}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+            >
+              {deleteNode.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
