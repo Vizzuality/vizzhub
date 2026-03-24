@@ -22,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
+import { useProjectSettings, useUpdateProjectSettings } from '@/modules/tracker/hooks/useProjectCosts';
 import { trackerApi } from '@/modules/tracker/services/tracker';
 import BudgetLinesEditor from '@/modules/tracker/components/BudgetLinesEditor';
 import type { BudgetLineCreate } from '@/modules/tracker/types/tracker';
@@ -77,6 +78,7 @@ interface ProjectFormData {
   notes: string;
   summary: string;
   budget_total: string;
+  contract_rate: string;
   milestones: { name: string; planned_date: string; actual_date: string }[];
   links: { title: string; url: string; link_type: string }[];
 }
@@ -131,6 +133,7 @@ function buildFormDefaults(
   project: ProjectData,
   milestones: { name: string; planned_date: string; actual_date?: string }[] | undefined,
   links: { title: string; url: string; link_type: string }[] | null,
+  contractRate?: number,
 ): ProjectFormData {
   return {
     name: project.name,
@@ -146,6 +149,7 @@ function buildFormDefaults(
     notes: project.notes ?? '',
     summary: project.summary ?? '',
     budget_total: project.budget?.toString() ?? '',
+    contract_rate: contractRate?.toString() ?? '175',
     milestones: milestones?.length
       ? milestones.map((m) => ({
           name: m.name,
@@ -191,6 +195,8 @@ export default function ProjectForm(): JSX.Element {
   const budgetMutation = useUpdateProjectBudget(id ?? '');
   const { data: existingBudgetLines } = useBudgetLines(id ?? '');
   const budgetLinesMutation = useReplaceBudgetLines(id ?? '');
+  const { data: projectSettings } = useProjectSettings(id ?? '');
+  const settingsMutation = useUpdateProjectSettings(id ?? '');
 
   const { data: dbCurrencies } = useQuery({
     queryKey: queryKeys.currencies.all,
@@ -254,6 +260,7 @@ export default function ProjectForm(): JSX.Element {
       notes: '',
       summary: '',
       budget_total: '',
+      contract_rate: '175',
       milestones: [{ ...EMPTY_MILESTONE }],
       links: [{ ...EMPTY_LINK }],
     },
@@ -296,8 +303,10 @@ export default function ProjectForm(): JSX.Element {
 
   const linksReady = !isEditMode || initialLinks !== null;
 
-  if (isEditMode && project && !formInitialized && currentMetrics !== undefined && linksReady) {
-    reset(buildFormDefaults(project, currentMetrics?.milestones, initialLinks));
+  const settingsReady = !isEditMode || projectSettings !== undefined;
+
+  if (isEditMode && project && !formInitialized && currentMetrics !== undefined && linksReady && settingsReady) {
+    reset(buildFormDefaults(project, currentMetrics?.milestones, initialLinks, projectSettings?.contract_rate));
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
     setHasScorecard(project.has_scorecard);
@@ -310,7 +319,7 @@ export default function ProjectForm(): JSX.Element {
   const currentStatus = watch('status');
   const currentProgramId = watch('program_id');
 
-  const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending;
+  const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending || settingsMutation.isPending;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [extraDirty, setExtraDirty] = useState(false);
@@ -368,6 +377,7 @@ export default function ProjectForm(): JSX.Element {
     project: ProjectCreate;
     milestones: { milestones: { name: string; planned_date: string; actual_date?: string }[] } | null;
     links: { title: string; url: string; link_type: string }[];
+    contractRate: number | null;
   } => {
     const project: ProjectCreate = {
       name: data.name,
@@ -394,10 +404,13 @@ export default function ProjectForm(): JSX.Element {
       .filter((m) => m.name && m.planned_date)
       .map((m) => ({ name: m.name, planned_date: m.planned_date, actual_date: m.actual_date || undefined }));
 
+    const contractRate = data.contract_rate ? Number.parseFloat(data.contract_rate) : null;
+
     return {
       project,
       milestones: validMilestones.length > 0 ? { milestones: validMilestones } : null,
       links: data.links.filter((l) => l.title || l.url),
+      contractRate,
     };
   };
 
@@ -406,6 +419,9 @@ export default function ProjectForm(): JSX.Element {
     if (payloads.milestones) promises.push(budgetMutation.mutateAsync(payloads.milestones));
     promises.push(projectsApi.replaceLinks(id!, payloads.links));
     if (pendingBudgetLines.length > 0) promises.push(budgetLinesMutation.mutateAsync(pendingBudgetLines));
+    if (payloads.contractRate && payloads.contractRate > 0) {
+      promises.push(settingsMutation.mutateAsync({ contract_rate: payloads.contractRate }));
+    }
     await Promise.all(promises);
   };
 
@@ -416,6 +432,9 @@ export default function ProjectForm(): JSX.Element {
     if (payloads.milestones) extras.push(projectsApi.updateBudget(newProject.id, payloads.milestones));
     if (payloads.links.length > 0) extras.push(projectsApi.replaceLinks(newProject.id, payloads.links));
     if (pendingBudgetLines.length > 0) extras.push(trackerApi.replaceBudgetLines(newProject.id, pendingBudgetLines));
+    if (payloads.contractRate && payloads.contractRate > 0) {
+      extras.push(trackerApi.updateProjectSettings(newProject.id, { contract_rate: payloads.contractRate }));
+    }
     if (extras.length > 0) await Promise.all(extras);
   };
 
@@ -681,7 +700,7 @@ export default function ProjectForm(): JSX.Element {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
+                      <Label htmlFor="currency" className="h-5 flex items-center">Currency (invoices only, budget & rate in €) *</Label>
                       <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
                         {currencyOptions.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -690,7 +709,7 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  {/* Row 3: Project Manager */}
+                  {/* Row 3: Project Manager, Status */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="project_manager_id" className="h-5 flex items-center">Project Manager</Label>
@@ -703,10 +722,6 @@ export default function ProjectForm(): JSX.Element {
                         ))}
                       </NativeSelect>
                     </div>
-                  </div>
-
-                  {/* Row 4: Status, Budget */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
                       <NativeSelect id="status" className="w-full" {...register('status')}>
@@ -715,8 +730,12 @@ export default function ProjectForm(): JSX.Element {
                         ))}
                       </NativeSelect>
                     </div>
+                  </div>
+
+                  {/* Row 4: Budget, Contract Rate */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="budget_total" className="h-5 flex items-center">Budget *</Label>
+                      <Label htmlFor="budget_total" className="h-5 flex items-center">Budget (EUR) *</Label>
                       <Input
                         id="budget_total"
                         type="number"
@@ -730,6 +749,22 @@ export default function ProjectForm(): JSX.Element {
                       />
                       {errors.budget_total && (
                         <p className="text-sm text-destructive">{errors.budget_total.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contract_rate" className="h-5 flex items-center">Contract Rate (EUR)</Label>
+                      <Input
+                        id="contract_rate"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="175.00"
+                        {...register('contract_rate', {
+                          min: { value: 0.01, message: 'Must be positive' },
+                        })}
+                      />
+                      {errors.contract_rate && (
+                        <p className="text-sm text-destructive">{errors.contract_rate.message}</p>
                       )}
                     </div>
                   </div>

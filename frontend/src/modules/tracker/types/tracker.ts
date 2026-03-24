@@ -335,3 +335,12 @@ export interface MoodsTrendResponse {
   months: TrendMonth[];
 }
 
+export interface ProjectSettings {
+  project_id: string;
+  contract_rate: number;
+}
+
+export interface ProjectSettingsUpdate {
+  contract_rate: number;
+}
+
