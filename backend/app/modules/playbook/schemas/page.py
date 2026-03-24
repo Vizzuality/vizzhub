@@ -34,7 +34,10 @@ class VersionListItem(BaseModel):
 
     version: int
     created_by_id: UUID | None
+    created_by_name: str | None = None
     created_at: datetime
+    lines_added: int = 0
+    lines_removed: int = 0
 
 
 class VersionDetailResponse(BaseModel):

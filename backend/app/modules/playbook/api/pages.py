@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
+from app.core.models.user import UserDB
 from app.core.services.content_version_service import ContentVersionService
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
@@ -82,13 +83,57 @@ async def save_page(
     )
 
 
+def _compute_line_diff(old: str, new: str) -> tuple[int, int]:
+    """Return (lines_added, lines_removed) between two content strings."""
+    old_lines = set(old.splitlines())
+    new_lines = set(new.splitlines())
+    return len(new_lines - old_lines), len(old_lines - new_lines)
+
+
+async def _resolve_user_names(
+    db: DBSession, user_ids: set[UUID],
+) -> dict[UUID, str]:
+    """Batch-resolve user IDs to display names."""
+    if not user_ids:
+        return {}
+    result = await db.execute(
+        select(UserDB).where(UserDB.id.in_(user_ids))
+    )
+    users = result.scalars().all()
+    names: dict[UUID, str] = {}
+    for u in users:
+        if u.first_name or u.last_name:
+            names[u.id] = " ".join(filter(None, [u.first_name, u.last_name]))
+        elif u.name:
+            names[u.id] = u.name
+        else:
+            names[u.id] = u.email.split("@")[0] if u.email else str(u.id)
+    return names
+
+
 @router.get("/{node_id}/versions")
 async def list_versions(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> list[VersionListItem]:
     await _get_page_node(db, node_id)
     versions = await _versions.list_versions(db, entity_id=node_id)
-    return [VersionListItem.model_validate(v) for v in versions]
+
+    user_ids = {v.created_by_id for v in versions if v.created_by_id}
+    user_names = await _resolve_user_names(db, user_ids)
+
+    items = []
+    for i, v in enumerate(versions):
+        prev_content = versions[i + 1].content if i + 1 < len(versions) else ""
+        added, removed = _compute_line_diff(prev_content, v.content)
+        items.append(VersionListItem(
+            version=v.version,
+            created_by_id=v.created_by_id,
+            created_by_name=user_names.get(v.created_by_id) if v.created_by_id else None,
+            created_at=v.created_at,
+            lines_added=added,
+            lines_removed=removed,
+        ))
+    return items
 
 
 @router.get("/{node_id}/versions/{version}")
