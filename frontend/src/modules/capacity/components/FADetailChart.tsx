@@ -10,7 +10,7 @@ import {
   LabelList,
 } from 'recharts';
 import type { ChartDataPoint, PeriodUserInsight } from '@/modules/capacity/types/capacity';
-import { FA_ORDER, ITEM_PALETTE } from '@/modules/capacity/utils/constants';
+import { FA_ORDER, ITEM_PALETTE, ABSENCE_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
@@ -36,7 +36,8 @@ function transformDetailData(data: PeriodUserInsight[]): {
     const presentUsers = new Set(period.users.map((u) => u.name));
     for (const user of period.users) {
       point[`${user.name}_projects`] = Math.round(user.billable_pct * 100);
-      point[`${user.name}_others`] = Math.round((1 - user.billable_pct) * 100);
+      point[`${user.name}_absence`] = Math.round(user.absence_pct * 100);
+      point[`${user.name}_others`] = Math.max(0, Math.round((1 - user.billable_pct - user.absence_pct) * 100));
       point[`${user.name}_count`] = user.billable_project_count;
     }
     for (const name of userNames) {
@@ -155,6 +156,13 @@ export function FADetailChart({
             <span>{name}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
+            style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
+          />
+          <span>Absence</span>
+        </div>
       </div>
 
       <div className={`relative${onUserClick ? ' cursor-pointer' : ''}`}>
@@ -188,6 +196,20 @@ export function FADetailChart({
                 stackId={name}
                 fill={userColors[name]}
                 fillOpacity={1}
+                onMouseEnter={() => setHoveredUser(name)}
+                onMouseLeave={handleLeave}
+                onClick={() => {
+                  if (onUserClick && userIdByName[name]) {
+                    onUserClick(userIdByName[name]);
+                  }
+                }}
+              />,
+              <Bar
+                key={`${name}_absence`}
+                dataKey={`${name}_absence`}
+                stackId={name}
+                fill={ABSENCE_COLOR}
+                fillOpacity={0.6}
                 onMouseEnter={() => setHoveredUser(name)}
                 onMouseLeave={handleLeave}
                 onClick={() => {
