@@ -108,7 +108,7 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
                 stackId={fa}
                 fill={FA_COLORS[fa]}
                 fillOpacity={1}
-                onMouseEnter={(d) => setHoverInfo({ label: fa, value: Number(d?.[`${fa}_projects`] ?? 0) })}
+                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Projects`, value: Number(d?.[`${fa}_projects`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={(barData) => {
                   if (onBarClick && barData?.payload?.period) {
@@ -122,7 +122,7 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
                 stackId={fa}
                 fill={ABSENCE_COLOR}
                 fillOpacity={0.6}
-                onMouseEnter={(d) => setHoverInfo({ label: fa, value: Number(d?.[`${fa}_absence`] ?? 0) })}
+                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Absence`, value: Number(d?.[`${fa}_absence`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={(barData) => {
                   if (onBarClick && barData?.payload?.period) {
@@ -136,7 +136,7 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
                 stackId={fa}
                 fill={FA_COLORS[fa]}
                 fillOpacity={0.3}
-                onMouseEnter={(d) => setHoverInfo({ label: fa, value: Number(d?.[`${fa}_others`] ?? 0) })}
+                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Others`, value: Number(d?.[`${fa}_others`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={(barData) => {
                   if (onBarClick && barData?.payload?.period) {
