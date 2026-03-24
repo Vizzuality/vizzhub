@@ -25,8 +25,9 @@ export function useUpdateNode() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: NodeUpdateRequest }) =>
       playbookApi.updateNode(id, data),
-    onSuccess: () => {
+    onSuccess: (_result, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.playbook.tree });
+      queryClient.invalidateQueries({ queryKey: queryKeys.playbook.page(id) });
     },
   });
 }
