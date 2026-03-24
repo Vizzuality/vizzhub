@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock } from 'lucide-react';
+import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock, History } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import {
   DropdownMenu,
@@ -19,6 +19,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { PlaybookTree } from '../components/PlaybookTree';
 import { PageViewer } from '../components/PageViewer';
 import { PageEditor } from '../components/PageEditor';
@@ -31,6 +37,8 @@ import {
   useReorderNodes,
 } from '../hooks/usePlaybookTree';
 import { usePlaybookPage, useSavePage } from '../hooks/usePlaybookPage';
+import { usePlaybookVersions } from '../hooks/usePlaybookVersions';
+import { usePermission, Action } from '@/core/permissions';
 import type { TreeNode, ReorderItem } from '../types/playbook';
 
 function flattenTree(nodes: TreeNode[]): TreeNode[] {
@@ -73,6 +81,11 @@ export default function Playbook(): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+  const canAdmin = usePermission(Action.ADMIN_USERS);
+  const isAdmin = bypassAuth || canAdmin;
 
   const { data: tree = [], isLoading: treeLoading } = usePlaybookTree();
   const { data: page } = usePlaybookPage(selectedId);
@@ -88,6 +101,10 @@ export default function Playbook(): JSX.Element {
     [flat, selectedId],
   );
   const isPage = selectedNode?.type === 'page';
+
+  const { data: versions } = usePlaybookVersions(
+    historyOpen && isPage ? selectedId : null,
+  );
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -272,7 +289,13 @@ export default function Playbook(): JSX.Element {
                         )}
                       </DropdownMenuItem>
                     )}
-                    {isPage && <DropdownMenuSeparator />}
+                    {isPage && isAdmin && (
+                      <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                        <History className="h-4 w-4 mr-2" />
+                        Version history
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={() => setDeleteConfirmOpen(true)}
@@ -302,6 +325,37 @@ export default function Playbook(): JSX.Element {
         isLoading={createNode.isPending}
         parentId={selectedNode?.type === 'group' ? selectedId : null}
       />
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Version history</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-80 overflow-auto">
+            {versions && versions.length > 0 ? (
+              <div className="space-y-1">
+                {versions.map((v) => (
+                  <div
+                    key={v.version}
+                    className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted text-sm"
+                  >
+                    <div>
+                      <span className="font-medium">v{v.version}</span>
+                      <span className="text-muted-foreground ml-2">
+                        {new Date(v.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No versions yet
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
