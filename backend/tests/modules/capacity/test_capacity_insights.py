@@ -36,7 +36,8 @@ async def capacity_data(db_session: AsyncSession) -> dict:
 
     billable_project = ProjectDB(name="Client App", status="live", is_billable=True)
     internal_project = ProjectDB(name="Internal Tool", status="live", is_billable=False)
-    db_session.add_all([billable_project, internal_project])
+    absence_project = ProjectDB(name="Vacation / Absence", status="live", is_billable=False, is_absence=True)
+    db_session.add_all([billable_project, internal_project, absence_project])
     await db_session.flush()
 
     user_fe1 = UserDB(
@@ -67,7 +68,7 @@ async def capacity_data(db_session: AsyncSession) -> dict:
     db_session.add_all([period_jan, period_feb])
     await db_session.flush()
 
-    # fe1: 60% billable, 40% internal in Jan
+    # fe1: 60% billable, 20% internal, 20% absence in Jan
     report_fe1_jan = ReportDB(
         user_id=user_fe1.id, reporting_period_id=period_jan.id,
     )
@@ -80,7 +81,11 @@ async def capacity_data(db_session: AsyncSession) -> dict:
         ),
         ReportPartDB(
             report_id=report_fe1_jan.id, project_id=internal_project.id,
-            percentage=Decimal("0.4000"),
+            percentage=Decimal("0.2000"),
+        ),
+        ReportPartDB(
+            report_id=report_fe1_jan.id, project_id=absence_project.id,
+            percentage=Decimal("0.2000"),
         ),
     ])
 
@@ -117,6 +122,7 @@ async def capacity_data(db_session: AsyncSession) -> dict:
     return {
         "fa_fe": fa_fe, "fa_be": fa_be,
         "billable_project": billable_project, "internal_project": internal_project,
+        "absence_project": absence_project,
         "user_fe1": user_fe1, "user_fe2": user_fe2, "user_be1": user_be1,
         "period_jan": period_jan, "period_feb": period_feb,
     }
@@ -229,6 +235,23 @@ class TestGetCapacityInsights:
         shorts = {fa["short"] for fa in result[0]["functional_areas"]}
         # Only FE and BE have users; other 4 target FAs don't exist in DB
         assert shorts == {"FE", "BE"}
+
+    @pytest.mark.asyncio
+    async def test_absence_pct_separated_from_others(
+        self, db_session: AsyncSession, capacity_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_capacity_insights
+
+        result = await get_capacity_insights(
+            db=db_session,
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
+        )
+        fa_map = {fa["short"]: fa for fa in result[0]["functional_areas"]}
+        # FE: fe1 has 0.2 absence, fe2 has 0 absence → avg 0.1
+        assert fa_map["FE"]["absence_pct"] == pytest.approx(0.1, abs=0.01)
+        # BE: no absence
+        assert fa_map["BE"]["absence_pct"] == pytest.approx(0.0, abs=0.01)
 
     @pytest.mark.asyncio
     async def test_multiple_periods(
