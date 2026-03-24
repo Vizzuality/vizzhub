@@ -66,13 +66,13 @@ async def save_page(
 ) -> PageSaveResponse:
     await _get_page_node(db, node_id)
 
-    latest = await _versions.get_latest(db, entity_id=node_id)
-    current_version = latest.version if latest else 0
-    conflict = data.expected_version < current_version
-
     user_id = UUID(user.user_id)
-    new_version = await _versions.save_version(
-        db, entity_id=node_id, content=data.content, user_id=user_id
+    new_version, conflict = await _versions.save_version(
+        db,
+        entity_id=node_id,
+        content=data.content,
+        user_id=user_id,
+        expected_version=data.expected_version,
     )
 
     return PageSaveResponse(

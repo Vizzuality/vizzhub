@@ -28,14 +28,19 @@ class ContentVersionService:
         entity_id: UUID,
         content: str,
         user_id: UUID | None,
-    ) -> int:
-        """Create a new version. Returns the version number."""
+        expected_version: int | None = None,
+    ) -> tuple[int, bool]:
+        """Create a new version. Returns (version_number, conflict)."""
         result = await db.execute(
             select(sa_func.coalesce(sa_func.max(self._model.version), 0)).where(
                 self._fk_col() == entity_id
             )
         )
-        next_version = result.scalar_one() + 1
+        current_version = result.scalar_one()
+        next_version = current_version + 1
+        conflict = (
+            expected_version is not None and expected_version < current_version
+        )
 
         record = self._model(
             **{
@@ -47,7 +52,7 @@ class ContentVersionService:
         )
         db.add(record)
         await db.flush()
-        return next_version
+        return next_version, conflict
 
     async def get_latest(self, db: AsyncSession, entity_id: UUID):
         """Return the latest version record, or None."""

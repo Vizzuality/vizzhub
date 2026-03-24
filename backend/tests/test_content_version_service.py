@@ -33,19 +33,20 @@ async def _create_node(db_session, node_id=None):
 @pytest.mark.asyncio
 async def test_save_first_version(db_session, version_service):
     node_id = await _create_node(db_session)
-    version_num = await version_service.save_version(
+    version_num, conflict = await version_service.save_version(
         db_session, entity_id=node_id, content="# Hello", user_id=None
     )
     assert version_num == 1
+    assert conflict is False
 
 
 @pytest.mark.asyncio
 async def test_save_increments_version(db_session, version_service):
     node_id = await _create_node(db_session)
-    v1 = await version_service.save_version(
+    v1, _ = await version_service.save_version(
         db_session, entity_id=node_id, content="v1", user_id=None
     )
-    v2 = await version_service.save_version(
+    v2, _ = await version_service.save_version(
         db_session, entity_id=node_id, content="v2", user_id=None
     )
     assert v1 == 1

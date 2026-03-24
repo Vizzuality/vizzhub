@@ -153,11 +153,14 @@ async def delete_node(
 async def reorder_nodes(
     data: ReorderRequest, db: DBSession, user: CurrentUser
 ) -> dict:
+    node_ids = [item.id for item in data.items]
+    result = await db.execute(
+        select(PlaybookNodeDB).where(PlaybookNodeDB.id.in_(node_ids))
+    )
+    nodes_by_id = {n.id: n for n in result.scalars()}
+
     for item in data.items:
-        result = await db.execute(
-            select(PlaybookNodeDB).where(PlaybookNodeDB.id == item.id)
-        )
-        node = result.scalar_one_or_none()
+        node = nodes_by_id.get(item.id)
         if not node:
             raise HTTPException(
                 status_code=404, detail=f"Node {item.id} not found"
