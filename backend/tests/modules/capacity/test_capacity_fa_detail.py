@@ -26,7 +26,8 @@ async def fa_detail_data(db_session: AsyncSession) -> dict:
     billable1 = ProjectDB(name="Client A", status="live", is_billable=True)
     billable2 = ProjectDB(name="Client B", status="live", is_billable=True)
     internal = ProjectDB(name="Internal", status="live", is_billable=False)
-    db_session.add_all([billable1, billable2, internal])
+    absence = ProjectDB(name="Vacation / Absence", status="live", is_billable=False, is_absence=True)
+    db_session.add_all([billable1, billable2, internal, absence])
     await db_session.flush()
 
     user1 = UserDB(
@@ -46,14 +47,15 @@ async def fa_detail_data(db_session: AsyncSession) -> dict:
     db_session.add(period)
     await db_session.flush()
 
-    # Alice: 40% billable1, 30% billable2, 30% internal = 70% billable, 2 billable projects
+    # Alice: 40% billable1, 30% billable2, 10% internal, 20% absence = 70% billable, 2 billable projects
     report_alice = ReportDB(user_id=user1.id, reporting_period_id=period.id)
     db_session.add(report_alice)
     await db_session.flush()
     db_session.add_all([
         ReportPartDB(report_id=report_alice.id, project_id=billable1.id, percentage=Decimal("0.4000")),
         ReportPartDB(report_id=report_alice.id, project_id=billable2.id, percentage=Decimal("0.3000")),
-        ReportPartDB(report_id=report_alice.id, project_id=internal.id, percentage=Decimal("0.3000")),
+        ReportPartDB(report_id=report_alice.id, project_id=internal.id, percentage=Decimal("0.1000")),
+        ReportPartDB(report_id=report_alice.id, project_id=absence.id, percentage=Decimal("0.2000")),
     ])
 
     # Bob: 100% internal = 0% billable, 0 billable projects
@@ -68,7 +70,7 @@ async def fa_detail_data(db_session: AsyncSession) -> dict:
 
     return {
         "fa_fe": fa_fe, "billable1": billable1, "billable2": billable2,
-        "internal": internal, "user1": user1, "user2": user2, "period": period,
+        "internal": internal, "absence": absence, "user1": user1, "user2": user2, "period": period,
     }
 
 
@@ -230,6 +232,20 @@ class TestGetCapacityFADetail:
         )
         names = [u["name"] for u in result[0]["users"]]
         assert names == sorted(names)
+
+    @pytest.mark.asyncio
+    async def test_returns_absence_pct_per_user(
+        self, db_session: AsyncSession, fa_detail_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_capacity_fa_detail
+
+        result = await get_capacity_fa_detail(
+            db=db_session, fa_short="FE",
+            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+        )
+        users = {u["name"]: u for u in result[0]["users"]}
+        assert users["A. Smith"]["absence_pct"] == pytest.approx(0.2, abs=0.01)
+        assert users["B. Jones"]["absence_pct"] == pytest.approx(0.0, abs=0.01)
 
 
 class TestCapacityFADetailEndpoint:
