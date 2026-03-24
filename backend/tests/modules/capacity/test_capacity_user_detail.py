@@ -19,7 +19,7 @@ from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 
 @pytest_asyncio.fixture
 async def user_detail_data(db_session: AsyncSession) -> dict:
-    """Create test data: 1 user, 3 projects (2 billable, 1 internal), 1 period."""
+    """Create test data: 1 user, 4 projects (2 billable, 1 internal, 1 absence), 1 period."""
     fa_fe = FunctionalAreaDB(name="Frontend Developer")
     db_session.add(fa_fe)
     await db_session.flush()
@@ -27,7 +27,8 @@ async def user_detail_data(db_session: AsyncSession) -> dict:
     billable1 = ProjectDB(name="Client A", status="live", is_billable=True)
     billable2 = ProjectDB(name="Client B", status="live", is_billable=True)
     internal = ProjectDB(name="Internal", status="live", is_billable=False)
-    db_session.add_all([billable1, billable2, internal])
+    absence = ProjectDB(name="Vacation / Absence", status="live", is_billable=False, is_absence=True)
+    db_session.add_all([billable1, billable2, internal, absence])
     await db_session.flush()
 
     user = UserDB(
@@ -43,21 +44,22 @@ async def user_detail_data(db_session: AsyncSession) -> dict:
     db_session.add(period)
     await db_session.flush()
 
-    # Alice: 40% billable1, 30% billable2, 30% internal
+    # Alice: 40% billable1, 30% billable2, 10% internal, 20% absence
     report = ReportDB(user_id=user.id, reporting_period_id=period.id)
     db_session.add(report)
     await db_session.flush()
     db_session.add_all([
         ReportPartDB(report_id=report.id, project_id=billable1.id, percentage=Decimal("0.4000")),
         ReportPartDB(report_id=report.id, project_id=billable2.id, percentage=Decimal("0.3000")),
-        ReportPartDB(report_id=report.id, project_id=internal.id, percentage=Decimal("0.3000")),
+        ReportPartDB(report_id=report.id, project_id=internal.id, percentage=Decimal("0.1000")),
+        ReportPartDB(report_id=report.id, project_id=absence.id, percentage=Decimal("0.2000")),
     ])
 
     await db_session.commit()
 
     return {
         "user": user, "billable1": billable1, "billable2": billable2,
-        "internal": internal, "period": period, "fa_fe": fa_fe,
+        "internal": internal, "absence": absence, "period": period, "fa_fe": fa_fe,
     }
 
 
@@ -121,6 +123,20 @@ class TestGetCapacityUserDetail:
         )
         assert len(result) == 1
         assert result[0]["projects"] == []
+
+    @pytest.mark.asyncio
+    async def test_returns_absence_pct_per_period(
+        self, db_session: AsyncSession, user_detail_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_capacity_user_detail
+
+        user = user_detail_data["user"]
+        result = await get_capacity_user_detail(
+            db=db_session, user_id=str(user.id),
+            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+        )
+        period = result[0]
+        assert period["absence_pct"] == pytest.approx(0.2, abs=0.01)
 
     @pytest.mark.asyncio
     async def test_empty_period_returns_no_projects(
