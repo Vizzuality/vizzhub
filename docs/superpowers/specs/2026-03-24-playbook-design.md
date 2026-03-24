@@ -212,7 +212,39 @@ Both are well-maintained, lightweight, and compatible with React 18.
 
 ## Permissions
 
-No new RBAC permissions for phase 1 — any authenticated user can read and edit. The existing `ProtectedRoute` wrapper is sufficient. Admin-only features (if any) can be added later.
+No new RBAC permissions for phase 1 — any authenticated user can read and edit. Endpoints use `CurrentUser` dependency (same pattern as `/tracker/my-report`). The existing `ProtectedRoute` wrapper is sufficient for frontend. Admin-only features (if any) can be added later.
+
+## PATCH /nodes/:id — Updatable Fields
+
+- `title`: yes (slug remains unchanged to preserve URLs)
+- `is_public`: yes (toggle)
+- `parent_id`: yes (move node to different group)
+- `slug`: no (immutable after creation)
+- `type`: no (cannot convert page to group or vice versa)
+- `position`: no (use `PUT /nodes/reorder` for batch position updates)
+
+## Concurrent Edits
+
+Last-write-wins. Each `PUT /pages/:id` creates a new version regardless. The `PUT` request includes `expected_version` (the version the editor loaded). If `expected_version` < current version, backend still saves but returns `{ conflict: true, current_version: N }` so the frontend can warn: "This page was edited by someone else. Your changes have been saved as the latest version."
+
+## Tree Constraints
+
+- Max depth: 10 levels (backend validates on create/move, returns 400 if exceeded)
+- Circular reference prevention: backend validates that new `parent_id` is not a descendant of the node being moved
+- Empty state: when tree has no nodes, content area shows "Create your first page" prompt
+
+## Query Keys
+
+Frontend hooks use `queryKeys` from `core/hooks/queryKeys.ts`:
+
+```typescript
+playbook: {
+  tree: ['playbook', 'tree'] as const,
+  page: (id: string) => ['playbook', 'page', id] as const,
+  versions: (id: string) => ['playbook', 'versions', id] as const,
+  version: (id: string, v: number) => ['playbook', 'version', id, v] as const,
+}
+```
 
 ## Slug Generation
 
@@ -224,7 +256,7 @@ The `PUT /nodes/reorder` endpoint receives the full list of affected nodes with 
 
 ## Delete Behavior
 
-Deleting a group cascades to all children (DB cascade). Frontend shows confirmation dialog with count of affected pages: "Delete 'Processes' and its 5 pages?"
+Deleting a group cascades to all children (DB cascade). `DELETE /nodes/:id` returns `{ deleted_count: N }` (node + all descendants). Frontend shows confirmation dialog: "Delete 'Processes' and its 5 pages?" — count fetched from `GET /tree` (frontend already has the full tree in cache).
 
 ## Image Upload Flow
 
@@ -235,4 +267,13 @@ Deleting a group cascades to all children (DB cascade). Frontend shows confirmat
 5. Returns the S3 URL
 6. Editor inserts `![](url)` into markdown
 
-Until the S3 bucket is provisioned, the upload endpoint returns 503. Frontend disables the image button if upload is unavailable (health check on mount).
+Constraints:
+- Max file size: 5MB
+- Allowed formats: jpg, png, gif, webp
+- Backend validates both before uploading to S3
+
+Until the S3 bucket is provisioned, the upload endpoint returns 503 with `{ detail: "Image uploads are not yet available" }`. Frontend checks upload availability on mount via `GET /assets/status` and hides the image button in the toolbar if unavailable.
+
+## Public/Private Scope
+
+In phase 1, `is_public` is a metadata flag stored on the page — it has no effect on access control. All pages require authentication. In phase 2, public pages will be exported as static HTML to S3 for unauthenticated access. The flag exists from day 1 so editors can mark pages as they create them.
