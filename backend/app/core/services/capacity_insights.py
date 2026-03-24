@@ -319,6 +319,12 @@ async def get_capacity_insights(
                     else_=0,
                 )
             ), 0).label("billable_pct"),
+            func.coalesce(func.sum(
+                case(
+                    (ProjectDB.is_absence.is_(True), ReportPartDB.percentage),
+                    else_=0,
+                )
+            ), 0).label("absence_pct"),
         )
         .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
         .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
@@ -334,13 +340,14 @@ async def get_capacity_insights(
             report_subq.c.reporting_period_id,
             report_subq.c.total_pct,
             report_subq.c.billable_pct,
+            report_subq.c.absence_pct,
         ).where(report_subq.c.reporting_period_id.in_(period_ids))
     )
 
-    # (user_id, period_id) -> (total_pct, billable_pct)
-    report_lookup: dict[tuple, tuple[float, float]] = {}
-    for user_id, period_id, total, billable in report_rows:
-        report_lookup[(user_id, period_id)] = (float(total), float(billable))
+    # (user_id, period_id) -> (total_pct, billable_pct, absence_pct)
+    report_lookup: dict[tuple, tuple[float, float, float]] = {}
+    for user_id, period_id, total, billable, absence in report_rows:
+        report_lookup[(user_id, period_id)] = (float(total), float(billable), float(absence))
 
     result = []
     for period_id, period_date in periods:
@@ -355,25 +362,27 @@ async def get_capacity_insights(
 
 def _aggregate_fa_period(
     users_by_fa: dict[str, list],
-    report_lookup: dict[tuple, tuple[float, float]],
+    report_lookup: dict[tuple, tuple[float, float, float]],
     period_id: object,
 ) -> list[dict]:
-    """Aggregate billable % per FA for a single period."""
+    """Aggregate billable and absence % per FA for a single period."""
     fas = []
     for short, user_ids in sorted(users_by_fa.items()):
         if not user_ids:
             continue
-        active_billable = [
-            report_lookup[(uid, period_id)][1]
+        active_data = [
+            (report_lookup[(uid, period_id)][1], report_lookup[(uid, period_id)][2])
             for uid in user_ids
             if (uid, period_id) in report_lookup and report_lookup[(uid, period_id)][0] > 0
         ]
-        if not active_billable:
+        if not active_data:
             continue
-        avg_billable = sum(active_billable) / len(active_billable)
+        avg_billable = sum(b for b, _ in active_data) / len(active_data)
+        avg_absence = sum(a for _, a in active_data) / len(active_data)
         fas.append({
             "short": short,
             "billable_pct": round(avg_billable, 4),
-            "user_count": len(active_billable),
+            "absence_pct": round(avg_absence, 4),
+            "user_count": len(active_data),
         })
     return fas
