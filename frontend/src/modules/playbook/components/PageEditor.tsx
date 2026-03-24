@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import MDEditor from '@uiw/react-md-editor';
+import remarkBreaks from 'remark-breaks';
 import { Button } from '@/shared/components/ui/button';
 
 interface PageEditorProps {
@@ -33,6 +34,7 @@ export function PageEditor({
           onChange={(val) => setContent(val ?? '')}
           height={500}
           preview="edit"
+          previewOptions={{ remarkPlugins: [remarkBreaks] }}
         />
       </div>
     </div>
