@@ -34,6 +34,8 @@ import type {
   AnonymousFeedbackCreate,
   MoodsResponse,
   MoodsTrendResponse,
+  ProjectSettings,
+  ProjectSettingsUpdate,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -338,6 +340,25 @@ export const trackerApi = {
 
   getMoodsTrend: async (): Promise<MoodsTrendResponse> => {
     const { data } = await api.get<MoodsTrendResponse>('/tracker/moods/trend');
+    return data;
+  },
+
+  // Project Settings
+  getProjectSettings: async (projectId: string): Promise<ProjectSettings> => {
+    const { data } = await api.get<ProjectSettings>(
+      `/tracker/projects/${projectId}/settings`,
+    );
+    return data;
+  },
+
+  updateProjectSettings: async (
+    projectId: string,
+    body: ProjectSettingsUpdate,
+  ): Promise<ProjectSettings> => {
+    const { data } = await api.put<ProjectSettings>(
+      `/tracker/projects/${projectId}/settings`,
+      body,
+    );
     return data;
   },
 

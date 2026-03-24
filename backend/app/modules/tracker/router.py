@@ -11,6 +11,7 @@ from app.modules.tracker.api import postponements as postponements_router
 from app.modules.tracker.api import non_staff_costs as non_staff_costs_router
 from app.modules.tracker.api import progress_reports as progress_reports_router
 from app.modules.tracker.api import project_costs as project_costs_router
+from app.modules.tracker.api import project_settings as project_settings_router
 from app.modules.tracker.api import report_parts as report_parts_router
 from app.modules.tracker.api import reports as reports_router
 from app.modules.tracker.api import reporting_periods as reporting_periods_router
@@ -48,6 +49,11 @@ router.include_router(
     budget_lines_router.router,
     prefix=_PROJECTS_PREFIX,
     tags=["tracker:budget-lines"],
+)
+router.include_router(
+    project_settings_router.router,
+    prefix=_PROJECTS_PREFIX,
+    tags=["tracker:project-settings"],
 )
 router.include_router(
     progress_reports_router.router,

@@ -804,6 +804,19 @@ export const handlers = [
   }),
 
   // Tracker — Project Costs
+  http.get(`${BASE}/tracker/projects/:projectId/settings`, ({ params }) => {
+    return HttpResponse.json({
+      project_id: params.projectId,
+      contract_rate: 175,
+    });
+  }),
+  http.put(`${BASE}/tracker/projects/:projectId/settings`, async ({ params, request }) => {
+    const body = await request.json() as { contract_rate: number };
+    return HttpResponse.json({
+      project_id: params.projectId,
+      contract_rate: body.contract_rate,
+    });
+  }),
   http.get(`${BASE}/tracker/projects/:projectId/cost-summary`, () => {
     return HttpResponse.json(defaultProjectCostSummary);
   }),
