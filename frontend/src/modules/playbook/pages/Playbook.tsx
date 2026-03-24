@@ -327,23 +327,39 @@ export default function Playbook(): JSX.Element {
       />
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Version history</DialogTitle>
           </DialogHeader>
-          <div className="max-h-80 overflow-auto">
+          <div className="max-h-96 overflow-auto">
             {versions && versions.length > 0 ? (
               <div className="space-y-1">
                 {versions.map((v) => (
                   <div
                     key={v.version}
-                    className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted text-sm"
+                    className="flex items-center justify-between py-2.5 px-3 rounded hover:bg-muted text-sm"
                   >
-                    <div>
-                      <span className="font-medium">v{v.version}</span>
-                      <span className="text-muted-foreground ml-2">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">v{v.version}</span>
+                        {v.created_by_name && (
+                          <span className="text-muted-foreground">{v.created_by_name}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
                         {new Date(v.created_at).toLocaleString()}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                      {v.lines_added > 0 && (
+                        <span className="text-green-600">+{v.lines_added}</span>
+                      )}
+                      {v.lines_removed > 0 && (
+                        <span className="text-red-500">-{v.lines_removed}</span>
+                      )}
+                      {v.lines_added === 0 && v.lines_removed === 0 && v.version > 1 && (
+                        <span className="text-muted-foreground">no changes</span>
+                      )}
                     </div>
                   </div>
                 ))}

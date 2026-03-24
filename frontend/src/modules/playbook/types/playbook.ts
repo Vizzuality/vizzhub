@@ -58,7 +58,10 @@ export interface ReorderItem {
 export interface VersionListItem {
   version: number;
   created_by_id: string | null;
+  created_by_name: string | null;
   created_at: string;
+  lines_added: number;
+  lines_removed: number;
 }
 
 export interface VersionDetail {
