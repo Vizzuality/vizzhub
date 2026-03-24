@@ -110,7 +110,7 @@ export function UserDetailChart({
   const controls = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <h2 className="text-lg font-medium">Project time by project</h2>
+        <h2 className="text-lg font-medium">Allocation by project</h2>
         <Popover open={comboOpen} onOpenChange={setComboOpen}>
           <PopoverTrigger asChild>
             <Button

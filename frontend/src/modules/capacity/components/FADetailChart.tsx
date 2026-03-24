@@ -196,7 +196,7 @@ export function FADetailChart({
                 stackId={name}
                 fill={userColors[name]}
                 fillOpacity={1}
-                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[`${name}_projects`] ?? 0) })}
+                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Projects`, value: Number(d?.[`${name}_projects`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
@@ -210,7 +210,7 @@ export function FADetailChart({
                 stackId={name}
                 fill={ABSENCE_COLOR}
                 fillOpacity={0.6}
-                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[`${name}_absence`] ?? 0) })}
+                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Absence`, value: Number(d?.[`${name}_absence`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
@@ -224,7 +224,7 @@ export function FADetailChart({
                 stackId={name}
                 fill={userColors[name]}
                 fillOpacity={0.3}
-                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[`${name}_others`] ?? 0) })}
+                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Others`, value: Number(d?.[`${name}_others`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
