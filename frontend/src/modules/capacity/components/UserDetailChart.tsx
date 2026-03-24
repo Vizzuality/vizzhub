@@ -84,8 +84,8 @@ export function UserDetailChart({
   onRangeChange,
 }: UserDetailChartProps): JSX.Element {
   const { chartData, projectNames } = useMemo(() => transformUserDetailData(data), [data]);
-  const [hoveredProject, setHoveredProject] = useState<string | null>(null);
-  const handleLeave = useCallback(() => setHoveredProject(null), []);
+  const [hoverInfo, setHoverInfo] = useState<{ label: string; value: number } | null>(null);
+  const handleLeave = useCallback(() => setHoverInfo(null), []);
   const [page, setPage] = useState(0);
 
   useEffect(() => setPage(0), [userId]);
@@ -217,9 +217,9 @@ export function UserDetailChart({
       </div>
 
       <div className="relative">
-        {hoveredProject && (
+        {hoverInfo && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-3 py-1.5 text-sm font-medium text-foreground shadow">
-            {hoveredProject}
+            {hoverInfo.label}: {hoverInfo.value}%
           </div>
         )}
 
@@ -240,7 +240,7 @@ export function UserDetailChart({
                 stackId="user"
                 fill={projectColors[name]}
                 fillOpacity={1}
-                onMouseEnter={() => setHoveredProject(name)}
+                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[name] ?? 0) })}
                 onMouseLeave={handleLeave}
               />
             ))}
@@ -249,7 +249,7 @@ export function UserDetailChart({
               stackId="user"
               fill={ABSENCE_COLOR}
               fillOpacity={0.6}
-              onMouseEnter={() => setHoveredProject(ABSENCE_LABEL)}
+              onMouseEnter={(d) => setHoverInfo({ label: ABSENCE_LABEL, value: Number(d?.[ABSENCE_KEY] ?? 0) })}
               onMouseLeave={handleLeave}
             />
             <Bar
@@ -257,7 +257,7 @@ export function UserDetailChart({
               stackId="user"
               fill="#6b7280"
               fillOpacity={0.3}
-              onMouseEnter={() => setHoveredProject(OTHERS_LABEL)}
+              onMouseEnter={(d) => setHoverInfo({ label: OTHERS_LABEL, value: Number(d?.[OTHERS_KEY] ?? 0) })}
               onMouseLeave={handleLeave}
             />
           </BarChart>

@@ -94,8 +94,8 @@ export function FADetailChart({
   onUserClick,
 }: FADetailChartProps): JSX.Element {
   const { chartData, userNames, userIdByName } = useMemo(() => transformDetailData(data), [data]);
-  const [hoveredUser, setHoveredUser] = useState<string | null>(null);
-  const handleLeave = useCallback(() => setHoveredUser(null), []);
+  const [hoverInfo, setHoverInfo] = useState<{ label: string; value: number } | null>(null);
+  const handleLeave = useCallback(() => setHoverInfo(null), []);
   const [page, setPage] = useState(0);
 
   const { visible } = useChartPagination(chartData, page);
@@ -166,9 +166,9 @@ export function FADetailChart({
       </div>
 
       <div className={`relative${onUserClick ? ' cursor-pointer' : ''}`}>
-        {hoveredUser && (
+        {hoverInfo && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded bg-muted px-3 py-1.5 text-sm font-medium text-foreground shadow">
-            {hoveredUser}
+            {hoverInfo.label}: {hoverInfo.value}%
           </div>
         )}
 
@@ -196,7 +196,7 @@ export function FADetailChart({
                 stackId={name}
                 fill={userColors[name]}
                 fillOpacity={1}
-                onMouseEnter={() => setHoveredUser(name)}
+                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[`${name}_projects`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
@@ -210,7 +210,7 @@ export function FADetailChart({
                 stackId={name}
                 fill={ABSENCE_COLOR}
                 fillOpacity={0.6}
-                onMouseEnter={() => setHoveredUser(name)}
+                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[`${name}_absence`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
@@ -224,7 +224,7 @@ export function FADetailChart({
                 stackId={name}
                 fill={userColors[name]}
                 fillOpacity={0.3}
-                onMouseEnter={() => setHoveredUser(name)}
+                onMouseEnter={(d) => setHoverInfo({ label: name, value: Number(d?.[`${name}_others`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
