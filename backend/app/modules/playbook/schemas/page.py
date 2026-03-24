@@ -1,0 +1,47 @@
+"""Pydantic schemas for playbook page content and versions."""
+
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class PageContentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    node_id: UUID
+    title: str
+    content: str
+    version: int
+    is_public: bool
+    created_by_id: UUID | None
+    created_at: datetime
+
+
+class PageSave(BaseModel):
+    content: str
+    expected_version: int = Field(ge=0)
+
+
+class PageSaveResponse(BaseModel):
+    node_id: UUID
+    version: int
+    conflict: bool = False
+
+
+class VersionListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    version: int
+    created_by_id: UUID | None
+    created_at: datetime
+
+
+class VersionDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    node_id: UUID
+    content: str
+    version: int
+    created_by_id: UUID | None
+    created_at: datetime
