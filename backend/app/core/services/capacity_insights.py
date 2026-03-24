@@ -225,6 +225,7 @@ async def get_capacity_user_detail(
             ProjectDB.id,
             ProjectDB.name,
             ProjectDB.is_billable,
+            ProjectDB.is_absence,
             ReportPartDB.percentage,
         )
         .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
@@ -236,19 +237,22 @@ async def get_capacity_user_detail(
         )
     )
 
-    # {period_id: [(project_id, name, is_billable, pct), ...]}
+    # {period_id: [(project_id, name, is_billable, is_absence, pct), ...]}
     period_projects: dict[object, list[tuple]] = {}
-    for pid, proj_id, proj_name, is_billable, pct in report_rows:
+    for pid, proj_id, proj_name, is_billable, is_absence, pct in report_rows:
         period_projects.setdefault(pid, []).append(
-            (str(proj_id), proj_name, bool(is_billable), float(pct))
+            (str(proj_id), proj_name, bool(is_billable), bool(is_absence), float(pct))
         )
 
     result = []
     for period_id, period_date in periods:
         entries = period_projects.get(period_id, [])
         projects = []
-        for proj_id, proj_name, is_billable, pct in entries:
-            if is_billable and pct > 0:
+        absence_pct = 0.0
+        for proj_id, proj_name, is_billable, is_absence, pct in entries:
+            if is_absence:
+                absence_pct += pct
+            elif is_billable and pct > 0:
                 projects.append({
                     "project_id": proj_id,
                     "name": proj_name,
@@ -258,6 +262,7 @@ async def get_capacity_user_detail(
         result.append({
             "period": period_date.strftime("%Y-%m"),
             "projects": projects,
+            "absence_pct": round(absence_pct, 4),
         })
 
     return result
