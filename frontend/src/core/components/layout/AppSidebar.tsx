@@ -3,6 +3,7 @@ import type { To } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import {
   BarChart3,
+  BookOpen,
   ClipboardList,
   FolderKanban,
   Shield,
@@ -253,6 +254,19 @@ export function AppSidebar(): JSX.Element {
                 isActive={isActive('/capacity')}
                 items={CAPACITY_TABS}
               />
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive('/playbook')}
+                  tooltip="Playbook"
+                >
+                  <GuardedLink to="/playbook">
+                    <BookOpen />
+                    <span>Playbook</span>
+                  </GuardedLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {isAdmin && (
                 <SidebarMenuItem>
