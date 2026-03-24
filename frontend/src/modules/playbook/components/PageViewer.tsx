@@ -1,8 +1,11 @@
 import MDEditor from '@uiw/react-md-editor';
+import remarkBreaks from 'remark-breaks';
 
 interface PageViewerProps {
   content: string;
 }
+
+const remarkPlugins = [remarkBreaks];
 
 export function PageViewer({ content }: PageViewerProps): JSX.Element {
   if (!content) {
@@ -15,7 +18,7 @@ export function PageViewer({ content }: PageViewerProps): JSX.Element {
 
   return (
     <div data-color-mode="auto">
-      <MDEditor.Markdown source={content} />
+      <MDEditor.Markdown source={content} remarkPlugins={remarkPlugins} />
     </div>
   );
 }
