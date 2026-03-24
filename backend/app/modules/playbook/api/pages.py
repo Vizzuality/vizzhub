@@ -85,9 +85,12 @@ async def save_page(
 
 def _compute_line_diff(old: str, new: str) -> tuple[int, int]:
     """Return (lines_added, lines_removed) between two content strings."""
-    old_lines = set(old.splitlines())
-    new_lines = set(new.splitlines())
-    return len(new_lines - old_lines), len(old_lines - new_lines)
+    from collections import Counter
+    old_counts = Counter(old.splitlines())
+    new_counts = Counter(new.splitlines())
+    added = sum((new_counts - old_counts).values())
+    removed = sum((old_counts - new_counts).values())
+    return added, removed
 
 
 async def _resolve_user_names(
