@@ -25,7 +25,7 @@ import {
   PopoverTrigger,
 } from '@/shared/components/ui/popover';
 import type { ChartDataPoint, PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
-import { ITEM_PALETTE } from '@/modules/capacity/utils/constants';
+import { ITEM_PALETTE, ABSENCE_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
@@ -33,6 +33,8 @@ import { shortMonth } from '@/shared/constants/dates';
 
 const OTHERS_KEY = '_others';
 const OTHERS_LABEL = 'Others';
+const ABSENCE_KEY = '_absence';
+const ABSENCE_LABEL = 'Absence';
 
 function transformUserDetailData(data: PeriodProjectInsight[]): {
   chartData: ChartDataPoint[];
@@ -54,7 +56,9 @@ function transformUserDetailData(data: PeriodProjectInsight[]): {
       point[project.name] = pct;
       billableTotal += pct;
     }
-    point[OTHERS_KEY] = Math.max(0, 100 - billableTotal);
+    const absencePct = Math.round(period.absence_pct * 100);
+    point[ABSENCE_KEY] = absencePct;
+    point[OTHERS_KEY] = Math.max(0, 100 - billableTotal - absencePct);
     return point;
   });
   return { chartData, projectNames };
@@ -199,6 +203,13 @@ export function UserDetailChart({
         <div className="flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm"
+            style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
+          />
+          <span>{ABSENCE_LABEL}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
             style={{ backgroundColor: '#6b7280', opacity: 0.3 }}
           />
           <span>{OTHERS_LABEL}</span>
@@ -233,6 +244,14 @@ export function UserDetailChart({
                 onMouseLeave={handleLeave}
               />
             ))}
+            <Bar
+              dataKey={ABSENCE_KEY}
+              stackId="user"
+              fill={ABSENCE_COLOR}
+              fillOpacity={0.6}
+              onMouseEnter={() => setHoveredProject(ABSENCE_LABEL)}
+              onMouseLeave={handleLeave}
+            />
             <Bar
               dataKey={OTHERS_KEY}
               stackId="user"
