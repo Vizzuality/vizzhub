@@ -382,19 +382,23 @@ def _aggregate_fa_period(
     for short, user_ids in sorted(users_by_fa.items()):
         if not user_ids:
             continue
-        active_data = [
-            (report_lookup[(uid, period_id)][1], report_lookup[(uid, period_id)][2])
-            for uid in user_ids
-            if (uid, period_id) in report_lookup and report_lookup[(uid, period_id)][0] > 0
-        ]
-        if not active_data:
+        total_billable = 0.0
+        total_absence = 0.0
+        count = 0
+        for uid in user_ids:
+            entry = report_lookup.get((uid, period_id))
+            if entry and entry[0] > 0:
+                total_billable += entry[1]
+                total_absence += entry[2]
+                count += 1
+        if not count:
             continue
-        avg_billable = sum(b for b, _ in active_data) / len(active_data)
-        avg_absence = sum(a for _, a in active_data) / len(active_data)
+        avg_billable = total_billable / count
+        avg_absence = total_absence / count
         fas.append({
             "short": short,
             "billable_pct": round(avg_billable, 4),
             "absence_pct": round(avg_absence, 4),
-            "user_count": len(active_data),
+            "user_count": count,
         })
     return fas
