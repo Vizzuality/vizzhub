@@ -81,6 +81,8 @@ backend/.venv/
 backend/__pycache__/
 backend/*.egg-info/
 
+temp/
+
 # Docker
 *.log
 
@@ -111,6 +113,9 @@ CLAUDE.md
 
 # Playwright MCP
 .playwright-mcp/
+
+# Superpowers brainstorm sessions
+.superpowers/
 
 # OpenTofu/Terraform
 *.tfstate
