@@ -9,15 +9,10 @@ import {
   Customized,
 } from 'recharts';
 import type { ChartDataPoint, PeriodInsight } from '@/modules/capacity/types/capacity';
-import { FA_COLORS, FA_ORDER } from '@/modules/capacity/utils/constants';
+import { FA_COLORS, FA_ORDER, ABSENCE_COLOR } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
-
-const BAR_TYPES = [
-  { suffix: 'projects', opacity: 1 },
-  { suffix: 'others', opacity: 0.3 },
-] as const;
 
 function transformData(data: PeriodInsight[]): ChartDataPoint[] {
   return data.map((period) => {
@@ -27,7 +22,8 @@ function transformData(data: PeriodInsight[]): ChartDataPoint[] {
     };
     for (const fa of period.functional_areas) {
       point[`${fa.short}_projects`] = Math.round(fa.billable_pct * 100);
-      point[`${fa.short}_others`] = Math.round((1 - fa.billable_pct) * 100);
+      point[`${fa.short}_absence`] = Math.round(fa.absence_pct * 100);
+      point[`${fa.short}_others`] = Math.max(0, Math.round((1 - fa.billable_pct - fa.absence_pct) * 100));
     }
     return point;
   });
@@ -79,6 +75,13 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
             <span>{fa}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5 ml-4 text-muted-foreground">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
+            style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
+          />
+          <span>Absence</span>
+        </div>
       </div>
 
       <div className="relative cursor-pointer">
@@ -98,24 +101,50 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
               tickFormatter={(v: number) => `${v}%`}
               tick={{ fontSize: 12 }}
             />
-            {BAR_TYPES.flatMap(({ suffix, opacity }) =>
-              activeFAs.map((fa) => (
-                <Bar
-                  key={`${fa}_${suffix}`}
-                  dataKey={`${fa}_${suffix}`}
-                  stackId={fa}
-                  fill={FA_COLORS[fa]}
-                  fillOpacity={opacity}
-                  onMouseEnter={() => setHoveredFA(fa)}
-                  onMouseLeave={handleLeave}
-                  onClick={(barData) => {
-                    if (onBarClick && barData?.payload?.period) {
-                      onBarClick(fa, String(barData.payload.period));
-                    }
-                  }}
-                />
-              )),
-            )}
+            {activeFAs.flatMap((fa) => [
+              <Bar
+                key={`${fa}_projects`}
+                dataKey={`${fa}_projects`}
+                stackId={fa}
+                fill={FA_COLORS[fa]}
+                fillOpacity={1}
+                onMouseEnter={() => setHoveredFA(fa)}
+                onMouseLeave={handleLeave}
+                onClick={(barData) => {
+                  if (onBarClick && barData?.payload?.period) {
+                    onBarClick(fa, String(barData.payload.period));
+                  }
+                }}
+              />,
+              <Bar
+                key={`${fa}_absence`}
+                dataKey={`${fa}_absence`}
+                stackId={fa}
+                fill={ABSENCE_COLOR}
+                fillOpacity={0.6}
+                onMouseEnter={() => setHoveredFA(fa)}
+                onMouseLeave={handleLeave}
+                onClick={(barData) => {
+                  if (onBarClick && barData?.payload?.period) {
+                    onBarClick(fa, String(barData.payload.period));
+                  }
+                }}
+              />,
+              <Bar
+                key={`${fa}_others`}
+                dataKey={`${fa}_others`}
+                stackId={fa}
+                fill={FA_COLORS[fa]}
+                fillOpacity={0.3}
+                onMouseEnter={() => setHoveredFA(fa)}
+                onMouseLeave={handleLeave}
+                onClick={(barData) => {
+                  if (onBarClick && barData?.payload?.period) {
+                    onBarClick(fa, String(barData.payload.period));
+                  }
+                }}
+              />,
+            ])}
           </BarChart>
         </ResponsiveContainer>
       </div>
