@@ -186,4 +186,11 @@ export const queryKeys = {
         ['tracker', 'project-costs', projectId, 'aggregations', groupBy] as const,
     },
   },
+  playbook: {
+    tree: ['playbook', 'tree'] as const,
+    page: (id: string) => ['playbook', 'page', id] as const,
+    versions: (id: string) => ['playbook', 'versions', id] as const,
+    version: (id: string, v: number) => ['playbook', 'version', id, v] as const,
+    assetStatus: ['playbook', 'asset-status'] as const,
+  },
 } as const;
