@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import remarkBreaks from 'remark-breaks';
+import { useTheme } from 'next-themes';
 import { Button } from '@/shared/components/ui/button';
 
 interface PageEditorProps {
@@ -17,6 +18,8 @@ export function PageEditor({
   isSaving,
 }: PageEditorProps): JSX.Element {
   const [content, setContent] = useState(initialContent);
+  const { resolvedTheme } = useTheme();
+  const colorMode = resolvedTheme === 'dark' ? 'dark' : 'light';
 
   return (
     <div className="flex flex-col gap-4">
@@ -28,7 +31,7 @@ export function PageEditor({
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </div>
-      <div data-color-mode="auto" className="[&_.w-md-editor-toolbar_svg]:!w-4 [&_.w-md-editor-toolbar_svg]:!h-4">
+      <div data-color-mode={colorMode} className="[&_.w-md-editor-toolbar_svg]:!w-4 [&_.w-md-editor-toolbar_svg]:!h-4">
         <MDEditor
           value={content}
           onChange={(val) => setContent(val ?? '')}

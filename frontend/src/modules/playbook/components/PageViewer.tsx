@@ -1,5 +1,6 @@
 import MDEditor from '@uiw/react-md-editor';
 import remarkBreaks from 'remark-breaks';
+import { useTheme } from 'next-themes';
 
 interface PageViewerProps {
   content: string;
@@ -8,6 +9,8 @@ interface PageViewerProps {
 const remarkPlugins = [remarkBreaks];
 
 export function PageViewer({ content }: PageViewerProps): JSX.Element {
+  const { resolvedTheme } = useTheme();
+
   if (!content) {
     return (
       <p className="text-muted-foreground italic">
@@ -17,7 +20,7 @@ export function PageViewer({ content }: PageViewerProps): JSX.Element {
   }
 
   return (
-    <div data-color-mode="auto">
+    <div data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}>
       <MDEditor.Markdown source={content} remarkPlugins={remarkPlugins} />
     </div>
   );
