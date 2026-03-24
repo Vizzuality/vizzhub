@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,11 +28,17 @@ export function NodeForm({
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'page' | 'group'>('page');
 
+  useEffect(() => {
+    if (open) {
+      setTitle('');
+      setType('page');
+    }
+  }, [open]);
+
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     if (title.trim()) {
       onSubmit(title.trim(), type);
-      setTitle('');
     }
   };
 

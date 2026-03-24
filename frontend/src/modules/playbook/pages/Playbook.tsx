@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, BookOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -60,8 +60,11 @@ export default function Playbook(): JSX.Element {
   const reorder = useReorderNodes();
   const savePage = useSavePage(selectedId ?? '');
 
-  const flat = flattenTree(tree);
-  const selectedNode = flat.find((n) => n.id === selectedId);
+  const flat = useMemo(() => flattenTree(tree), [tree]);
+  const selectedNode = useMemo(
+    () => flat.find((n) => n.id === selectedId),
+    [flat, selectedId],
+  );
   const isPage = selectedNode?.type === 'page';
 
   const handleSelect = useCallback(

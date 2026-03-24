@@ -5,7 +5,7 @@ import type { TreeNode } from '../types/playbook';
 interface PlaybookTreeProps {
   data: TreeNode[];
   selectedId: string | null;
-  onSelect: (id: string, type: 'page' | 'group') => void;
+  onSelect: (id: string) => void;
   onMove: (args: {
     dragIds: string[];
     parentId: string | null;
@@ -69,7 +69,7 @@ export function PlaybookTree({
       onSelect={(nodes) => {
         const first = nodes[0];
         if (first) {
-          onSelect(first.id, first.data.type);
+          onSelect(first.id);
         }
       }}
       onMove={({ dragIds, parentId, index }) => {
