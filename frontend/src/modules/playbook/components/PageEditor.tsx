@@ -28,7 +28,7 @@ export function PageEditor({
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </div>
-      <div data-color-mode="auto">
+      <div data-color-mode="auto" className="[&_.w-md-editor-toolbar_svg]:!w-4 [&_.w-md-editor-toolbar_svg]:!h-4">
         <MDEditor
           value={content}
           onChange={(val) => setContent(val ?? '')}
