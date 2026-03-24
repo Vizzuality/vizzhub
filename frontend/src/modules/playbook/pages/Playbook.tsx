@@ -37,7 +37,7 @@ import {
   useReorderNodes,
 } from '../hooks/usePlaybookTree';
 import { usePlaybookPage, useSavePage } from '../hooks/usePlaybookPage';
-import { usePlaybookVersions } from '../hooks/usePlaybookVersions';
+import { usePlaybookVersions, usePlaybookVersion } from '../hooks/usePlaybookVersions';
 import { usePermission, Action } from '@/core/permissions';
 import type { TreeNode, ReorderItem } from '../types/playbook';
 
@@ -82,6 +82,7 @@ export default function Playbook(): JSX.Element {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState<number | null>(null);
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -104,6 +105,10 @@ export default function Playbook(): JSX.Element {
 
   const { data: versions } = usePlaybookVersions(
     historyOpen && isPage ? selectedId : null,
+  );
+  const { data: versionDetail } = usePlaybookVersion(
+    previewVersion !== null ? selectedId : null,
+    previewVersion,
   );
 
   const handleSelect = useCallback(
@@ -188,6 +193,22 @@ export default function Playbook(): JSX.Element {
       data: { is_public: !page.is_public },
     });
   }, [selectedId, page, updateNode]);
+
+  const handleRestore = useCallback(
+    (content: string) => {
+      if (!page || !selectedId) return;
+      savePage.mutate(
+        { content, expected_version: page.version },
+        {
+          onSuccess: () => {
+            setHistoryOpen(false);
+            setPreviewVersion(null);
+          },
+        },
+      );
+    },
+    [page, selectedId, savePage],
+  );
 
   const descendantCount = useMemo(() => {
     if (!selectedNode) return 0;
@@ -326,50 +347,97 @@ export default function Playbook(): JSX.Element {
         parentId={selectedNode?.type === 'group' ? selectedId : null}
       />
 
-      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={historyOpen} onOpenChange={(open) => {
+        setHistoryOpen(open);
+        if (!open) setPreviewVersion(null);
+      }}>
+        <DialogContent className={previewVersion !== null ? 'max-w-4xl' : 'max-w-lg'}>
           <DialogHeader>
-            <DialogTitle>Version history</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-96 overflow-auto">
-            {versions && versions.length > 0 ? (
-              <div className="space-y-1">
-                {versions.map((v) => (
-                  <div
-                    key={v.version}
-                    className="flex items-center justify-between py-2.5 px-3 rounded hover:bg-muted text-sm"
+            <DialogTitle>
+              {previewVersion !== null ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setPreviewVersion(null)}
                   >
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">v{v.version}</span>
-                        {v.created_by_name && (
-                          <span className="text-muted-foreground">{v.created_by_name}</span>
+                    &larr;
+                  </button>
+                  Version {previewVersion} preview
+                </div>
+              ) : (
+                'Version history'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {previewVersion !== null ? (
+            <div className="flex flex-col gap-4">
+              <div className="max-h-[60vh] overflow-auto border rounded p-4">
+                {versionDetail ? (
+                  <PageViewer content={versionDetail.content} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                )}
+              </div>
+              {versionDetail && page && versionDetail.version !== page.version && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => handleRestore(versionDetail.content)}
+                    disabled={savePage.isPending}
+                  >
+                    {savePage.isPending ? 'Restoring...' : `Restore v${previewVersion}`}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="max-h-96 overflow-auto">
+              {versions && versions.length > 0 ? (
+                <div className="space-y-1">
+                  {versions.map((v) => (
+                    <div
+                      key={v.version}
+                      className="flex items-center justify-between py-2.5 px-3 rounded hover:bg-muted text-sm cursor-pointer"
+                      onClick={() => setPreviewVersion(v.version)}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">v{v.version}</span>
+                          {v.created_by_name && (
+                            <span className="text-muted-foreground">{v.created_by_name}</span>
+                          )}
+                          {v.version === page?.version && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
+                              current
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(v.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-mono">
+                        {v.lines_added > 0 && (
+                          <span className="text-green-600">+{v.lines_added}</span>
+                        )}
+                        {v.lines_removed > 0 && (
+                          <span className="text-red-500">-{v.lines_removed}</span>
+                        )}
+                        {v.lines_added === 0 && v.lines_removed === 0 && v.version > 1 && (
+                          <span className="text-muted-foreground">no changes</span>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(v.created_at).toLocaleString()}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-mono">
-                      {v.lines_added > 0 && (
-                        <span className="text-green-600">+{v.lines_added}</span>
-                      )}
-                      {v.lines_removed > 0 && (
-                        <span className="text-red-500">-{v.lines_removed}</span>
-                      )}
-                      {v.lines_added === 0 && v.lines_removed === 0 && v.version > 1 && (
-                        <span className="text-muted-foreground">no changes</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No versions yet
-              </p>
-            )}
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No versions yet
+                </p>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
