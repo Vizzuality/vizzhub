@@ -73,6 +73,17 @@ output "secrets_arns" {
   }
 }
 
+# S3
+output "assets_bucket_name" {
+  description = "S3 assets bucket name"
+  value       = aws_s3_bucket.assets.bucket
+}
+
+output "assets_bucket_url" {
+  description = "S3 assets bucket regional URL (for image references)"
+  value       = "https://${aws_s3_bucket.assets.bucket}.s3.${var.aws_region}.amazonaws.com"
+}
+
 # Commands
 output "ssm_connect_command" {
   description = "Command to connect to EC2 via SSM"
