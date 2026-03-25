@@ -88,15 +88,15 @@ function buildReorderItems(
 }
 
 function GroupChildren({
-  children,
+  nodes,
   onSelect,
 }: Readonly<{
-  children: TreeNode[];
+  nodes: TreeNode[];
   onSelect: (id: string) => void;
 }>): JSX.Element {
   return (
     <div className="space-y-1">
-      {children.map((child) => (
+      {nodes.map((child) => (
         <button
           key={child.id}
           className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
@@ -398,7 +398,7 @@ export default function Playbook(): JSX.Element {
                 {page?.is_public && (
                   <span className="flex items-center gap-1.5 text-xs">
                     <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                    Public
+                    <span>Public</span>
                   </span>
                 )}
               </>
@@ -440,7 +440,7 @@ export default function Playbook(): JSX.Element {
         {isPage ? (
           <PageViewer content={page?.content ?? ''} />
         ) : selectedNode ? (
-          <GroupChildren children={selectedNode.children} onSelect={handleSelect} />
+          <GroupChildren nodes={selectedNode.children} onSelect={handleSelect} />
         ) : null}
       </div>
     );
