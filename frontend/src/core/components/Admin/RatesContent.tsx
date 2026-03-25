@@ -54,8 +54,8 @@ export function RatesContent(): JSX.Element {
   };
 
   const handleSubmit = (): void => {
-    const value = parseFloat(form.value);
-    if (!form.code.trim() || isNaN(value)) return;
+    const value = Number.parseFloat(form.value);
+    if (!form.code.trim() || Number.isNaN(value)) return;
 
     if (isEditing) {
       updateRate.mutate(
