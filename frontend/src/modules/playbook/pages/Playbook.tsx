@@ -20,16 +20,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/components/ui/dialog';
 import { PlaybookTree } from '../components/PlaybookTree';
 import { PageViewer } from '../components/PageViewer';
 import { PageEditor } from '../components/PageEditor';
 import { NodeForm } from '../components/NodeForm';
+import { VersionHistoryDialog } from '../components/VersionHistoryDialog';
 import {
   usePlaybookTree,
   useCreateNode,
@@ -38,7 +33,6 @@ import {
   useReorderNodes,
 } from '../hooks/usePlaybookTree';
 import { usePlaybookPage, useSavePage } from '../hooks/usePlaybookPage';
-import { usePlaybookVersions, usePlaybookVersion } from '../hooks/usePlaybookVersions';
 import { usePermission, Action } from '@/core/permissions';
 import type { TreeNode, ReorderItem } from '../types/playbook';
 
@@ -93,6 +87,83 @@ function buildReorderItems(
   }));
 }
 
+function GroupChildren({
+  children,
+  onSelect,
+}: Readonly<{
+  children: TreeNode[];
+  onSelect: (id: string) => void;
+}>): JSX.Element {
+  return (
+    <div className="space-y-1">
+      {children.map((child) => (
+        <button
+          key={child.id}
+          className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
+          onClick={() => onSelect(child.id)}
+        >
+          {child.type === 'group' ? (
+            <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <File className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <span>{child.title}</span>
+          {child.is_public && (
+            <Globe className="h-3 w-3 shrink-0 text-green-500 ml-auto" />
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TreeSidebar({
+  tree,
+  treeLoading,
+  selectedId,
+  onSelect,
+  onMove,
+  onAdd,
+}: Readonly<{
+  tree: TreeNode[];
+  treeLoading: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onMove: (args: { dragIds: string[]; parentId: string | null; index: number }) => void;
+  onAdd: () => void;
+}>): JSX.Element {
+  const sidebarContent = treeLoading ? (
+    <p className="text-sm text-muted-foreground p-2">Loading...</p>
+  ) : tree.length > 0 ? (
+    <PlaybookTree
+      data={tree}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      onMove={onMove}
+    />
+  ) : (
+    <div className="text-center py-8 px-4">
+      <p className="text-sm text-muted-foreground mb-3">No pages yet</p>
+      <Button size="sm" onClick={onAdd}>Create your first page</Button>
+    </div>
+  );
+
+  return (
+    <div className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
+      <div className="flex items-center justify-between p-3 border-b">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <BookOpen className="h-4 w-4" />
+          Playbook
+        </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex-1 overflow-auto p-2">{sidebarContent}</div>
+    </div>
+  );
+}
+
 export default function Playbook(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const { setOpen } = useSidebar();
@@ -101,7 +172,6 @@ export default function Playbook(): JSX.Element {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [previewVersion, setPreviewVersion] = useState<number | null>(null);
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -127,14 +197,6 @@ export default function Playbook(): JSX.Element {
   );
   const isPage = selectedNode?.type === 'page';
 
-  const { data: versions } = usePlaybookVersions(
-    historyOpen && isPage ? selectedId : null,
-  );
-  const { data: versionDetail } = usePlaybookVersion(
-    previewVersion !== null ? selectedId : null,
-    previewVersion,
-  );
-
   const handleSelect = useCallback(
     (id: string) => {
       const path = idToSlug.get(id);
@@ -145,15 +207,7 @@ export default function Playbook(): JSX.Element {
   );
 
   const handleMove = useCallback(
-    ({
-      dragIds,
-      parentId,
-      index,
-    }: {
-      dragIds: string[];
-      parentId: string | null;
-      index: number;
-    }) => {
+    ({ dragIds, parentId, index }: { dragIds: string[]; parentId: string | null; index: number }) => {
       const items = buildReorderItems(tree, dragIds, parentId, index);
       reorder.mutate(items);
     },
@@ -169,9 +223,7 @@ export default function Playbook(): JSX.Element {
           onSuccess: (result) => {
             setEditing(false);
             if (result.conflict) {
-              alert(
-                'This page was edited by someone else. Your changes have been saved as the latest version.',
-              );
+              alert('This page was edited by someone else. Your changes have been saved as the latest version.');
             }
           },
         },
@@ -228,12 +280,7 @@ export default function Playbook(): JSX.Element {
       if (!page || !selectedId) return;
       savePage.mutate(
         { content, expected_version: page.version },
-        {
-          onSuccess: () => {
-            setHistoryOpen(false);
-            setPreviewVersion(null);
-          },
-        },
+        { onSuccess: () => { setHistoryOpen(false); } },
       );
     },
     [page, selectedId, savePage],
@@ -246,152 +293,23 @@ export default function Playbook(): JSX.Element {
     return countChildren(selectedNode);
   }, [selectedNode]);
 
+  const deleteDescription = selectedNode?.type === 'group' && descendantCount > 0
+    ? `This will also delete ${descendantCount} ${descendantCount === 1 ? 'item' : 'items'} inside this group. This action cannot be undone.`
+    : 'This action cannot be undone.';
+
   return (
     <div className="flex h-[calc(100vh-3rem)]">
-      <div className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
-        <div className="flex items-center justify-between p-3 border-b">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <BookOpen className="h-4 w-4" />
-            Playbook
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setFormOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex-1 overflow-auto p-2">
-          {treeLoading ? (
-            <p className="text-sm text-muted-foreground p-2">Loading...</p>
-          ) : tree.length === 0 ? (
-            <div className="text-center py-8 px-4">
-              <p className="text-sm text-muted-foreground mb-3">
-                No pages yet
-              </p>
-              <Button size="sm" onClick={() => setFormOpen(true)}>
-                Create your first page
-              </Button>
-            </div>
-          ) : (
-            <PlaybookTree
-              data={tree}
-              selectedId={selectedId}
-              onSelect={handleSelect}
-              onMove={handleMove}
-            />
-          )}
-        </div>
-      </div>
+      <TreeSidebar
+        tree={tree}
+        treeLoading={treeLoading}
+        selectedId={selectedId}
+        onSelect={handleSelect}
+        onMove={handleMove}
+        onAdd={() => setFormOpen(true)}
+      />
 
-      <div className={`flex-1 overflow-auto p-6 ${!selectedId ? 'hidden md:block' : ''}`}>
-        {!selectedId ? (
-          <div className="flex flex-col items-center pt-[20vh] gap-2">
-            <h1 className="text-2xl font-semibold">Vizzuality Playbook</h1>
-            <p className="text-muted-foreground">Select a page from the tree to start</p>
-          </div>
-        ) : editing ? (
-          <PageEditor
-            initialContent={page?.content ?? ''}
-            onSave={handleSave}
-            onCancel={() => setEditing(false)}
-            isSaving={savePage.isPending}
-          />
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 md:hidden"
-                  onClick={() => setSearchParams({}, { replace: true })}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
-              </div>
-              <div className="flex items-center gap-2">
-                {isPage && (
-                  <>
-                    <Button size="sm" onClick={() => setEditing(true)}>
-                      Edit
-                    </Button>
-                    {page?.is_public && (
-                      <span className="flex items-center gap-1.5 text-xs">
-                        <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                        Public
-                      </span>
-                    )}
-                  </>
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {isPage && (
-                      <DropdownMenuItem onClick={handleTogglePublic}>
-                        {page?.is_public ? (
-                          <>
-                            <Lock className="h-4 w-4 mr-2" />
-                            Make private
-                          </>
-                        ) : (
-                          <>
-                            <Globe className="h-4 w-4 mr-2" />
-                            Make public
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                    )}
-                    {isPage && isAdmin && (
-                      <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
-                        <History className="h-4 w-4 mr-2" />
-                        Version history
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => setDeleteConfirmOpen(true)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            {isPage ? (
-              <PageViewer content={page?.content ?? ''} />
-            ) : selectedNode ? (
-              <div className="space-y-1">
-                {selectedNode.children.map((child) => (
-                  <button
-                    key={child.id}
-                    className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
-                    onClick={() => handleSelect(child.id)}
-                  >
-                    {child.type === 'group' ? (
-                      <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    ) : (
-                      <File className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <span>{child.title}</span>
-                    {child.is_public && (
-                      <Globe className="h-3 w-3 shrink-0 text-green-500 ml-auto" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        )}
+      <div className={`flex-1 overflow-auto p-6 ${selectedId ? '' : 'hidden md:block'}`}>
+        {renderContent()}
       </div>
 
       <NodeForm
@@ -402,99 +320,14 @@ export default function Playbook(): JSX.Element {
         parentId={selectedNode?.type === 'group' ? selectedId : null}
       />
 
-      <Dialog open={historyOpen} onOpenChange={(open) => {
-        setHistoryOpen(open);
-        if (!open) setPreviewVersion(null);
-      }}>
-        <DialogContent className={previewVersion !== null ? 'max-w-4xl' : 'max-w-lg'}>
-          <DialogHeader>
-            <DialogTitle>
-              {previewVersion !== null ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => setPreviewVersion(null)}
-                  >
-                    &larr;
-                  </button>
-                  Version {previewVersion} preview
-                </div>
-              ) : (
-                'Version history'
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          {previewVersion !== null ? (
-            <div className="flex flex-col gap-4">
-              <div className="max-h-[60vh] overflow-auto border rounded p-4">
-                {versionDetail ? (
-                  <PageViewer content={versionDetail.content} />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Loading...</p>
-                )}
-              </div>
-              {versionDetail && page && versionDetail.version !== page.version && (
-                <div className="flex justify-end">
-                  <Button
-                    size="sm"
-                    onClick={() => handleRestore(versionDetail.content)}
-                    disabled={savePage.isPending}
-                  >
-                    {savePage.isPending ? 'Restoring...' : `Restore v${previewVersion}`}
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="max-h-96 overflow-auto">
-              {versions && versions.length > 0 ? (
-                <div className="space-y-1">
-                  {versions.map((v) => (
-                    <div
-                      key={v.version}
-                      className="flex items-center justify-between py-2.5 px-3 rounded hover:bg-muted text-sm cursor-pointer"
-                      onClick={() => setPreviewVersion(v.version)}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">v{v.version}</span>
-                          {v.created_by_name && (
-                            <span className="text-muted-foreground">{v.created_by_name}</span>
-                          )}
-                          {v.version === page?.version && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
-                              current
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(v.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-mono">
-                        {v.lines_added > 0 && (
-                          <span className="text-green-600">+{v.lines_added}</span>
-                        )}
-                        {v.lines_removed > 0 && (
-                          <span className="text-red-500">-{v.lines_removed}</span>
-                        )}
-                        {v.lines_added === 0 && v.lines_removed === 0 && v.version > 1 && (
-                          <span className="text-muted-foreground">no changes</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No versions yet
-                </p>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <VersionHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        nodeId={selectedId}
+        currentVersion={page?.version ?? 0}
+        onRestore={handleRestore}
+        isRestoring={savePage.isPending}
+      />
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
@@ -502,12 +335,7 @@ export default function Playbook(): JSX.Element {
             <AlertDialogTitle>
               Delete &ldquo;{selectedNode?.title}&rdquo;?
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {selectedNode?.type === 'group' && descendantCount > 0
-                ? `This will also delete ${descendantCount} ${descendantCount === 1 ? 'item' : 'items'} inside this group. `
-                : ''}
-              This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>{deleteDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -525,4 +353,96 @@ export default function Playbook(): JSX.Element {
       </AlertDialog>
     </div>
   );
+
+  function renderContent(): JSX.Element {
+    if (!selectedId) {
+      return (
+        <div className="flex flex-col items-center pt-[20vh] gap-2">
+          <h1 className="text-2xl font-semibold">Vizzuality Playbook</h1>
+          <p className="text-muted-foreground">Select a page from the tree to start</p>
+        </div>
+      );
+    }
+
+    if (editing) {
+      return (
+        <PageEditor
+          initialContent={page?.content ?? ''}
+          onSave={handleSave}
+          onCancel={() => setEditing(false)}
+          isSaving={savePage.isPending}
+        />
+      );
+    }
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 md:hidden"
+              onClick={() => setSearchParams({}, { replace: true })}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {isPage && (
+              <>
+                <Button size="sm" onClick={() => setEditing(true)}>
+                  Edit
+                </Button>
+                {page?.is_public && (
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                    Public
+                  </span>
+                )}
+              </>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isPage && (
+                  <DropdownMenuItem onClick={handleTogglePublic}>
+                    {page?.is_public ? (
+                      <><Lock className="h-4 w-4 mr-2" /> Make private</>
+                    ) : (
+                      <><Globe className="h-4 w-4 mr-2" /> Make public</>
+                    )}
+                  </DropdownMenuItem>
+                )}
+                {isPage && isAdmin && (
+                  <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                    <History className="h-4 w-4 mr-2" />
+                    Version history
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        {isPage ? (
+          <PageViewer content={page?.content ?? ''} />
+        ) : selectedNode ? (
+          <GroupChildren children={selectedNode.children} onSelect={handleSelect} />
+        ) : null}
+      </div>
+    );
+  }
 }

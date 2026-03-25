@@ -43,7 +43,7 @@ async def _get_page_node(db: DBSession, node_id: UUID) -> PlaybookNodeDB:
     return node
 
 
-@router.get("/{node_id}")
+@router.get("/{node_id}", responses={404: {"description": "Page not found"}})
 async def get_page(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> PageContentResponse:
@@ -139,7 +139,7 @@ async def list_versions(
     return items
 
 
-@router.get("/{node_id}/versions/{version}")
+@router.get("/{node_id}/versions/{version}", responses={404: {"description": "Version not found"}})
 async def get_version(
     node_id: UUID, version: int, db: DBSession, user: CurrentUser
 ) -> VersionDetailResponse:

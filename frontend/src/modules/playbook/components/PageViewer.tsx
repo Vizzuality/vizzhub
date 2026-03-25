@@ -3,7 +3,7 @@ import remarkBreaks from 'remark-breaks';
 import { useTheme } from 'next-themes';
 
 interface PageViewerProps {
-  content: string;
+  readonly content: string;
 }
 
 const remarkPlugins = [remarkBreaks];

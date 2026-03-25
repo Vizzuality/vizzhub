@@ -30,10 +30,10 @@ IGNORED_FILES = {"README.md", ".DS_Store", ".gitignore"}
 IGNORED_DIRS = {".git", "images", "__pycache__"}
 
 GITHUB_LINK_RE = re.compile(
-    r"https?://github\.com/Vizzuality/playbook/blob/[^/]+/(.+?)(?:#[^\s)]*)?(?=\))"
+    r"https?://github\.com/Vizzuality/playbook/blob/[^/]+/([^#)\s]+)(?:#[^\s)]*)?(?=\))"
 )
 VIZZUALITY_LINK_RE = re.compile(
-    r"https?://playbook\.vizzuality\.com/view-md/(.+?)(?:#[^\s)]*)?(?=\))"
+    r"https?://playbook\.vizzuality\.com/view-md/([^#)\s]+)(?:#[^\s)]*)?(?=\))"
 )
 
 
