@@ -33,6 +33,7 @@ import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
 import CustomNotificationTab from './core/components/NotificationsAdmin/CustomNotificationTab';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
+import { RatesContent } from './core/components/Admin/RatesContent';
 import UserDetail from './core/pages/UserDetail';
 import Landing from './core/pages/Landing';
 import CapacityInsights from './modules/capacity/pages/Insights';
@@ -58,6 +59,7 @@ function AdminRoutes(): JSX.Element {
         <Route path="periods/:periodId" element={<PeriodDetail />} />
         <Route path="invoices" element={<AdminInvoices />} />
         <Route path="moods" element={<Moods />} />
+        <Route path="rates" element={<RatesContent />} />
       </Route>
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />

@@ -141,6 +141,59 @@ export function useRates(): ReturnType<typeof useQuery<Rate[], Error>> {
 }
 
 /**
+ * Create a rate (admin only).
+ */
+export function useCreateRate(): ReturnType<
+  typeof useMutation<Rate, Error, { code: string; value: number }>
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data): Promise<Rate> => {
+      const response = await api.post<Rate>('/rates', data);
+      return response.data;
+    },
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rates.all });
+    },
+  });
+}
+
+/**
+ * Update a rate (admin only).
+ */
+export function useUpdateRate(): ReturnType<
+  typeof useMutation<Rate, Error, { id: string; data: { code?: string; value?: number } }>
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }): Promise<Rate> => {
+      const response = await api.patch<Rate>(`/rates/${id}`, data);
+      return response.data;
+    },
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rates.all });
+    },
+  });
+}
+
+/**
+ * Delete a rate (admin only).
+ */
+export function useDeleteRate(): ReturnType<
+  typeof useMutation<void, Error, string>
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id): Promise<void> => {
+      await api.delete(`/rates/${id}`);
+    },
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rates.all });
+    },
+  });
+}
+
+/**
  * Fetch available roles (admin only).
  */
 export function useAvailableRoles(): ReturnType<typeof useQuery<RoleInfo[], Error>> {

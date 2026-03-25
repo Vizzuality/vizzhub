@@ -70,6 +70,7 @@ const TRACKER_TABS = [
   { to: '/admin/tracker/periods', label: 'Reporting Periods' },
   { to: '/admin/tracker/invoices', label: 'Invoices' },
   { to: '/admin/tracker/moods', label: 'Moods' },
+  { to: '/admin/tracker/rates', label: 'Rates' },
 ] as const;
 
 const ISO_TABS = [

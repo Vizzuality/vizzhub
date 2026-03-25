@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronRight } from 'lucide-react';
-import { useUsers, useUpdateUser, useSyncSlackAll, useFunctionalAreas } from '../../hooks/useUsers';
+import { useUsers, useUpdateUser, useSyncSlackAll, useFunctionalAreas, useRates } from '../../hooks/useUsers';
 import { useAuth } from '../../hooks/useAuth';
 import { User } from '../../types/auth';
 import { getFullName } from '@/utils/formatters';
@@ -100,6 +100,7 @@ export function UsersContent(): JSX.Element {
   const [showInactive, setShowInactive] = useState(false);
   const { data: users, isLoading, error } = useUsers(showInactive);
   const { data: functionalAreas } = useFunctionalAreas();
+  const { data: rates } = useRates();
   const updateUser = useUpdateUser();
   const syncSlackAll = useSyncSlackAll();
   const { user: currentUser } = useAuth();
@@ -250,7 +251,7 @@ export function UsersContent(): JSX.Element {
               <th className="text-left p-3 font-medium">Roles</th>
               <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium hidden md:table-cell">Dedication</th>
-              <th className="text-left p-3 font-medium hidden md:table-cell">Reports</th>
+              <th className="text-left p-3 font-medium hidden md:table-cell">Rate</th>
               <th className="text-left p-3 font-medium hidden sm:table-cell">Last Login</th>
               <th className="w-[80px] p-3"></th>
             </tr>
@@ -304,20 +305,8 @@ export function UsersContent(): JSX.Element {
                   <td className="p-3 text-muted-foreground text-sm tabular-nums hidden md:table-cell">
                     {user.dedication != null ? Number(user.dedication).toFixed(2) : '-'}
                   </td>
-                  <td className="p-3 hidden md:table-cell">
-                    <Switch
-                      checked={user.requires_project_reporting}
-                      onCheckedChange={(checked) => {
-                        updateUser.mutateAsync({
-                          userId: user.id,
-                          data: { requires_project_reporting: checked },
-                        })
-                          .then(() => showMessage('success', 'User updated'))
-                          .catch((err) =>
-                            showMessage('error', err instanceof Error ? err.message : 'Failed to update'),
-                          );
-                      }}
-                    />
+                  <td className="p-3 text-muted-foreground text-sm hidden md:table-cell">
+                    {rates?.find((r) => r.id === user.rate_id)?.code ?? '-'}
                   </td>
                   <td className="p-3 text-muted-foreground text-sm hidden sm:table-cell">
                     {formatDate(user.last_login_at)}
