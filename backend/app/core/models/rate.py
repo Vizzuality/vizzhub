@@ -48,3 +48,10 @@ class RateCreate(BaseModel):
 
     code: str = Field(..., min_length=1, max_length=50)
     value: Decimal = Field(..., ge=0)
+
+
+class RateUpdate(BaseModel):
+    """Schema for updating a rate."""
+
+    code: str | None = Field(None, min_length=1, max_length=50)
+    value: Decimal | None = Field(None, ge=0)
