@@ -181,7 +181,7 @@ export default function Playbook(): JSX.Element {
   const canAdmin = usePermission(Action.ADMIN_USERS);
   const canEditPlaybook = usePermission(Action.PLAYBOOK_EDIT);
   const isAdmin = bypassAuth || canAdmin;
-  const isEditor = bypassAuth || canEditPlaybook || isAdmin;
+  const isEditor = canEditPlaybook || isAdmin;
 
   const { data: tree = [], isLoading: treeLoading } = usePlaybookTree();
 

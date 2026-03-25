@@ -7,18 +7,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from typing import Annotated
-
-from fastapi import Depends
-
 from app.core.api.deps import CurrentUser, DBSession
-from app.core.auth import TokenData
 from app.core.models.user import UserDB
-from app.core.permissions.actions import Action
-from app.core.permissions.dependencies import require_permission
-
-PlaybookEditor = Annotated[TokenData, Depends(require_permission(Action.PLAYBOOK_EDIT))]
 from app.core.services.content_version_service import ContentVersionService
+from app.modules.playbook.api.deps import PlaybookEditor
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
 from app.modules.playbook.schemas.page import (

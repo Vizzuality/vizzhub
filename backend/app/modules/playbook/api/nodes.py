@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.core.auth import TokenData
-from app.core.permissions.actions import Action
-from app.core.permissions.dependencies import require_permission
+from app.modules.playbook.api.deps import PlaybookEditor
 from app.modules.playbook.models.node import PlaybookNodeDB
-
-PlaybookEditor = Annotated[TokenData, Depends(require_permission(Action.PLAYBOOK_EDIT))]
 from app.modules.playbook.schemas.node import (
     NodeCreate,
     NodeResponse,
