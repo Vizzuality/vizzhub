@@ -31,6 +31,7 @@ function Node({
           : 'hover:bg-muted'
       }`}
       role="treeitem"
+      aria-selected={node.isSelected}
       tabIndex={0}
       onClick={() => node.toggle()}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') node.toggle(); }}
