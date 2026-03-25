@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
+from app.core.auth import TokenData
+from app.core.permissions.actions import Action
+from app.core.permissions.dependencies import require_permission
 from app.modules.playbook.models.node import PlaybookNodeDB
+
+PlaybookEditor = Annotated[TokenData, Depends(require_permission(Action.PLAYBOOK_EDIT))]
 from app.modules.playbook.schemas.node import (
     NodeCreate,
     NodeResponse,
@@ -70,7 +76,7 @@ async def get_tree(db: DBSession, user: CurrentUser) -> list[dict]:
 
 @router.post("/nodes", status_code=201)
 async def create_node(
-    data: NodeCreate, db: DBSession, user: CurrentUser
+    data: NodeCreate, db: DBSession, user: PlaybookEditor
 ) -> NodeResponse:
     if not await validate_depth(db, data.parent_id):
         raise HTTPException(
@@ -100,7 +106,7 @@ async def create_node(
 
 @router.patch("/nodes/{node_id}", responses={404: {"description": "Node not found"}})
 async def update_node(
-    node_id: UUID, data: NodeUpdate, db: DBSession, user: CurrentUser
+    node_id: UUID, data: NodeUpdate, db: DBSession, user: PlaybookEditor
 ) -> NodeResponse:
     result = await db.execute(
         select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id)
@@ -134,7 +140,7 @@ async def update_node(
 
 @router.delete("/nodes/{node_id}", responses={404: {"description": "Node not found"}})
 async def delete_node(
-    node_id: UUID, db: DBSession, user: CurrentUser
+    node_id: UUID, db: DBSession, user: PlaybookEditor
 ) -> dict:
     result = await db.execute(
         select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id)
@@ -151,7 +157,7 @@ async def delete_node(
 
 @router.put("/nodes/reorder", responses={404: {"description": "Node not found"}})
 async def reorder_nodes(
-    data: ReorderRequest, db: DBSession, user: CurrentUser
+    data: ReorderRequest, db: DBSession, user: PlaybookEditor
 ) -> dict:
     node_ids = [item.id for item in data.items]
     result = await db.execute(

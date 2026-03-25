@@ -121,6 +121,7 @@ function TreeSidebar({
   tree,
   treeLoading,
   selectedId,
+  isEditor,
   onSelect,
   onMove,
   onAdd,
@@ -128,6 +129,7 @@ function TreeSidebar({
   tree: TreeNode[];
   treeLoading: boolean;
   selectedId: string | null;
+  isEditor: boolean;
   onSelect: (id: string) => void;
   onMove: (args: { dragIds: string[]; parentId: string | null; index: number }) => void;
   onAdd: () => void;
@@ -139,12 +141,12 @@ function TreeSidebar({
       data={tree}
       selectedId={selectedId}
       onSelect={onSelect}
-      onMove={onMove}
+      onMove={isEditor ? onMove : undefined}
     />
   ) : (
     <div className="text-center py-8 px-4">
       <p className="text-sm text-muted-foreground mb-3">No pages yet</p>
-      <Button size="sm" onClick={onAdd}>Create your first page</Button>
+      {isEditor && <Button size="sm" onClick={onAdd}>Create your first page</Button>}
     </div>
   );
 
@@ -155,9 +157,11 @@ function TreeSidebar({
           <BookOpen className="h-4 w-4" />
           Playbook
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
-          <Plus className="h-4 w-4" />
-        </Button>
+        {isEditor && (
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       <div className="flex-1 overflow-auto p-2">{sidebarContent}</div>
     </div>
@@ -175,7 +179,9 @@ export default function Playbook(): JSX.Element {
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
+  const canEditPlaybook = usePermission(Action.PLAYBOOK_EDIT);
   const isAdmin = bypassAuth || canAdmin;
+  const isEditor = bypassAuth || canEditPlaybook || isAdmin;
 
   const { data: tree = [], isLoading: treeLoading } = usePlaybookTree();
 
@@ -303,6 +309,7 @@ export default function Playbook(): JSX.Element {
         tree={tree}
         treeLoading={treeLoading}
         selectedId={selectedId}
+        isEditor={isEditor}
         onSelect={handleSelect}
         onMove={handleMove}
         onAdd={() => setFormOpen(true)}
@@ -390,51 +397,51 @@ export default function Playbook(): JSX.Element {
             <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
           </div>
           <div className="flex items-center gap-2">
-            {isPage && (
-              <>
-                <Button size="sm" onClick={() => setEditing(true)}>
-                  Edit
-                </Button>
-                {page?.is_public && (
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                    <span>Public</span>
-                  </span>
-                )}
-              </>
+            {isPage && page?.is_public && (
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                <span>Public</span>
+              </span>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {isPage && (
-                  <DropdownMenuItem onClick={handleTogglePublic}>
-                    {page?.is_public ? (
-                      <><Lock className="h-4 w-4 mr-2" /> Make private</>
-                    ) : (
-                      <><Globe className="h-4 w-4 mr-2" /> Make public</>
-                    )}
+            {isPage && isEditor && (
+              <Button size="sm" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            )}
+            {isEditor && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {isPage && (
+                    <DropdownMenuItem onClick={handleTogglePublic}>
+                      {page?.is_public ? (
+                        <><Lock className="h-4 w-4 mr-2" /> Make private</>
+                      ) : (
+                        <><Globe className="h-4 w-4 mr-2" /> Make public</>
+                      )}
+                    </DropdownMenuItem>
+                  )}
+                  {isPage && isAdmin && (
+                    <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                      <History className="h-4 w-4 mr-2" />
+                      Version history
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
                   </DropdownMenuItem>
-                )}
-                {isPage && isAdmin && (
-                  <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
-                    <History className="h-4 w-4 mr-2" />
-                    Version history
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
         {isPage ? (

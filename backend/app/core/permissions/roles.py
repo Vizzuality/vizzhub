@@ -18,6 +18,9 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.TRACKER_MANAGE_ALL_REPORTS,
         Action.TRACKER_MANAGE_OWN_REPORTS,
     },
+    "playbook_editor": {
+        Action.PLAYBOOK_EDIT,
+    },
     "admin": {
         Action.ALL,
     },

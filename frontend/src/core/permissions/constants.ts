@@ -15,6 +15,8 @@ export const Action = {
   PROJECTS_VIEW: 'projects:view',
   PROJECTS_MANAGE: 'projects:manage',
 
+  PLAYBOOK_EDIT: 'playbook:edit',
+
   ADMIN_USERS: 'admin:users',
   ADMIN_JOBS: 'admin:jobs',
   ADMIN_INTEGRATIONS: 'admin:integrations',

@@ -6,7 +6,7 @@ interface PlaybookTreeProps {
   readonly data: TreeNode[];
   readonly selectedId: string | null;
   readonly onSelect: (id: string) => void;
-  readonly onMove: (args: {
+  readonly onMove?: (args: {
     dragIds: string[];
     parentId: string | null;
     index: number;
@@ -70,9 +70,11 @@ export function PlaybookTree({
           onSelect(first.id);
         }
       }}
-      onMove={({ dragIds, parentId, index }) => {
+      disableDrag={!onMove}
+      disableDrop={!onMove}
+      onMove={onMove ? ({ dragIds, parentId, index }) => {
         onMove({ dragIds, parentId, index });
-      }}
+      } : undefined}
       openByDefault={false}
       width="100%"
       rowHeight={32}
