@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock, History } from 'lucide-react';
+import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock, History, File, Folder, ArrowLeft } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +53,23 @@ function flattenTree(nodes: TreeNode[]): TreeNode[] {
   return result;
 }
 
+function buildSlugPaths(
+  nodes: TreeNode[],
+  parentPath = '',
+  slugToId = new Map<string, string>(),
+  idToSlug = new Map<string, string>(),
+): { slugToId: Map<string, string>; idToSlug: Map<string, string> } {
+  for (const node of nodes) {
+    const path = parentPath ? `${parentPath}/${node.slug}` : node.slug;
+    slugToId.set(path, node.id);
+    idToSlug.set(node.id, path);
+    if (node.children.length > 0) {
+      buildSlugPaths(node.children, path, slugToId, idToSlug);
+    }
+  }
+  return { slugToId, idToSlug };
+}
+
 function buildReorderItems(
   tree: TreeNode[],
   dragIds: string[],
@@ -77,7 +95,8 @@ function buildReorderItems(
 
 export default function Playbook(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedId = searchParams.get('node');
+  const { setOpen } = useSidebar();
+  useEffect(() => { setOpen(false); }, [setOpen]);
   const [editing, setEditing] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -89,14 +108,19 @@ export default function Playbook(): JSX.Element {
   const isAdmin = bypassAuth || canAdmin;
 
   const { data: tree = [], isLoading: treeLoading } = usePlaybookTree();
+
+  const flat = useMemo(() => flattenTree(tree), [tree]);
+  const { slugToId, idToSlug } = useMemo(() => buildSlugPaths(tree), [tree]);
+
+  const pagePath = searchParams.get('page');
+  const selectedId = pagePath ? (slugToId.get(pagePath) ?? null) : null;
+
   const { data: page } = usePlaybookPage(selectedId);
   const createNode = useCreateNode();
   const updateNode = useUpdateNode();
   const deleteNode = useDeleteNode();
   const reorder = useReorderNodes();
   const savePage = useSavePage(selectedId ?? '');
-
-  const flat = useMemo(() => flattenTree(tree), [tree]);
   const selectedNode = useMemo(
     () => flat.find((n) => n.id === selectedId),
     [flat, selectedId],
@@ -113,10 +137,11 @@ export default function Playbook(): JSX.Element {
 
   const handleSelect = useCallback(
     (id: string) => {
-      setSearchParams({ node: id }, { replace: true });
+      const path = idToSlug.get(id);
+      if (path) setSearchParams({ page: path }, { replace: true });
       setEditing(false);
     },
-    [setSearchParams],
+    [setSearchParams, idToSlug],
   );
 
   const handleMove = useCallback(
@@ -167,13 +192,17 @@ export default function Playbook(): JSX.Element {
           onSuccess: (node) => {
             setFormOpen(false);
             if (node.type === 'page') {
-              setSearchParams({ node: node.id }, { replace: true });
+              const parentPath = selectedNode?.type === 'group' && selectedId
+                ? idToSlug.get(selectedId)
+                : undefined;
+              const newPath = parentPath ? `${parentPath}/${node.slug}` : node.slug;
+              setSearchParams({ page: newPath }, { replace: true });
             }
           },
         },
       );
     },
-    [createNode, selectedId, selectedNode, setSearchParams],
+    [createNode, selectedId, selectedNode, setSearchParams, idToSlug],
   );
 
   const handleDelete = useCallback(() => {
@@ -219,8 +248,7 @@ export default function Playbook(): JSX.Element {
 
   return (
     <div className="flex h-[calc(100vh-3rem)]">
-      {/* Sidebar Tree */}
-      <div className="w-72 shrink-0 border-r flex flex-col">
+      <div className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
         <div className="flex items-center justify-between p-3 border-b">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <BookOpen className="h-4 w-4" />
@@ -258,11 +286,11 @@ export default function Playbook(): JSX.Element {
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className={`flex-1 overflow-auto p-6 ${!selectedId ? 'hidden md:block' : ''}`}>
         {!selectedId ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            Select a page from the tree
+          <div className="flex flex-col items-center pt-[20vh] gap-2">
+            <h1 className="text-2xl font-semibold">Vizzuality Playbook</h1>
+            <p className="text-muted-foreground">Select a page from the tree to start</p>
           </div>
         ) : editing ? (
           <PageEditor
@@ -274,7 +302,17 @@ export default function Playbook(): JSX.Element {
         ) : (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 md:hidden"
+                  onClick={() => setSearchParams({}, { replace: true })}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
+              </div>
               <div className="flex items-center gap-2">
                 {isPage && (
                   <>
@@ -282,7 +320,8 @@ export default function Playbook(): JSX.Element {
                       Edit
                     </Button>
                     {page?.is_public && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-600">
+                      <span className="flex items-center gap-1.5 text-xs">
+                        <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
                         Public
                       </span>
                     )}
@@ -330,11 +369,27 @@ export default function Playbook(): JSX.Element {
             </div>
             {isPage ? (
               <PageViewer content={page?.content ?? ''} />
-            ) : (
-              <p className="text-muted-foreground">
-                This group contains {descendantCount} {descendantCount === 1 ? 'item' : 'items'}.
-              </p>
-            )}
+            ) : selectedNode ? (
+              <div className="space-y-1">
+                {selectedNode.children.map((child) => (
+                  <button
+                    key={child.id}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
+                    onClick={() => handleSelect(child.id)}
+                  >
+                    {child.type === 'group' ? (
+                      <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <File className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span>{child.title}</span>
+                    {child.is_public && (
+                      <Globe className="h-3 w-3 shrink-0 text-green-500 ml-auto" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </div>

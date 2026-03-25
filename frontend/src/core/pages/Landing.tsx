@@ -45,7 +45,7 @@ const MODULES: ModuleCard[] = [
     number: '04',
     symbol: 'Pb',
     label: 'PLAYBOOK',
-    path: '/tracker/how-to-report',
+    path: '/playbook',
     iconType: 'playbook',
   },
   {
