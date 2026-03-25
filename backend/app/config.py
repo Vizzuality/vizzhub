@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     google_workspace_client_id: str = ""
     google_workspace_client_secret: str = ""
 
+    # S3 assets
+    assets_bucket_name: str = ""
+    assets_bucket_url: str = ""
+
     # Redis (for async job queue)
     redis_host: str = ""
     redis_port: int = 6379
