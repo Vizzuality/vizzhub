@@ -38,6 +38,46 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "assets" {
   }
 }
 
+# Access logging
+resource "aws_s3_bucket" "assets_logs" {
+  bucket = "${var.project_name}-vizzuality-assets-logs"
+
+  tags = {
+    Name = "${var.project_name}-assets-logs"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "assets_logs" {
+  bucket = aws_s3_bucket.assets_logs.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "assets_logs" {
+  bucket = aws_s3_bucket.assets_logs.id
+
+  rule {
+    id     = "expire-logs"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      days = 90
+    }
+  }
+}
+
+resource "aws_s3_bucket_logging" "assets" {
+  bucket = aws_s3_bucket.assets.id
+
+  target_bucket = aws_s3_bucket.assets_logs.id
+  target_prefix = "access-logs/"
+}
+
 # CORS — allow browser requests from hub.vizzuality.com
 resource "aws_s3_bucket_cors_configuration" "assets" {
   bucket = aws_s3_bucket.assets.id
@@ -53,7 +93,10 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
   }
 }
 
-# Public read access for playbook images and static export
+# Bucket policy: HTTPS-only + public read for playbook assets
+#
+# Public read on playbook/* is intentional — these are wiki images and
+# static HTML pages meant to be accessible without authentication.
 resource "aws_s3_bucket_policy" "assets_public_read" {
   bucket = aws_s3_bucket.assets.id
 
@@ -63,9 +106,24 @@ resource "aws_s3_bucket_policy" "assets_public_read" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.assets.arn,
+          "${aws_s3_bucket.assets.arn}/*",
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      },
+      {
         Sid       = "PublicReadPlaybookAssets"
         Effect    = "Allow"
-        Principal = "*"
+        Principal = "*" # intentional: playbook images and static pages are public
         Action    = "s3:GetObject"
         Resource = [
           "${aws_s3_bucket.assets.arn}/playbook/images/*",
