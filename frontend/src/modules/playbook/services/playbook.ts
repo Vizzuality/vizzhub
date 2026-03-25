@@ -62,4 +62,11 @@ export const playbookApi = {
     const { data } = await api.get<AssetStatus>('/playbook/assets/status');
     return data;
   },
+
+  uploadImage: async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post<{ url: string }>('/playbook/assets/upload', form);
+    return data.url;
+  },
 };
