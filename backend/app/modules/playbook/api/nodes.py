@@ -98,7 +98,7 @@ async def create_node(
     return NodeResponse.model_validate(node)
 
 
-@router.patch("/nodes/{node_id}")
+@router.patch("/nodes/{node_id}", responses={404: {"description": "Node not found"}})
 async def update_node(
     node_id: UUID, data: NodeUpdate, db: DBSession, user: CurrentUser
 ) -> NodeResponse:
@@ -132,7 +132,7 @@ async def update_node(
     return NodeResponse.model_validate(node)
 
 
-@router.delete("/nodes/{node_id}")
+@router.delete("/nodes/{node_id}", responses={404: {"description": "Node not found"}})
 async def delete_node(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> dict:
@@ -149,7 +149,7 @@ async def delete_node(
     return {"deleted_count": descendant_count + 1}
 
 
-@router.put("/nodes/reorder")
+@router.put("/nodes/reorder", responses={404: {"description": "Node not found"}})
 async def reorder_nodes(
     data: ReorderRequest, db: DBSession, user: CurrentUser
 ) -> dict:

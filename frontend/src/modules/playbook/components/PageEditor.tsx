@@ -5,10 +5,10 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/shared/components/ui/button';
 
 interface PageEditorProps {
-  initialContent: string;
-  onSave: (content: string) => void;
-  onCancel: () => void;
-  isSaving: boolean;
+  readonly initialContent: string;
+  readonly onSave: (content: string) => void;
+  readonly onCancel: () => void;
+  readonly isSaving: boolean;
 }
 
 export function PageEditor({

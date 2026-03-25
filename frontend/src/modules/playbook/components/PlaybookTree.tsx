@@ -3,10 +3,10 @@ import { ChevronRight, ChevronDown, File, Folder, Globe } from 'lucide-react';
 import type { TreeNode } from '../types/playbook';
 
 interface PlaybookTreeProps {
-  data: TreeNode[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onMove: (args: {
+  readonly data: TreeNode[];
+  readonly selectedId: string | null;
+  readonly onSelect: (id: string) => void;
+  readonly onMove: (args: {
     dragIds: string[];
     parentId: string | null;
     index: number;
@@ -30,17 +30,14 @@ function Node({
           ? 'bg-accent text-accent-foreground'
           : 'hover:bg-muted'
       }`}
+      role="treeitem"
+      tabIndex={0}
       onClick={() => node.toggle()}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') node.toggle(); }}
     >
-      {isGroup ? (
-        node.isOpen ? (
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        )
-      ) : (
-        <span className="w-3.5 shrink-0" />
-      )}
+      {!isGroup && <span className="w-3.5 shrink-0" />}
+      {isGroup && node.isOpen && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+      {isGroup && !node.isOpen && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
       {isGroup ? (
         <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
       ) : (

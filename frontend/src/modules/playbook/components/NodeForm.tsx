@@ -11,11 +11,11 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 
 interface NodeFormProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (title: string, type: 'page' | 'group') => void;
-  isLoading: boolean;
-  parentId: string | null;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onSubmit: (title: string, type: 'page' | 'group') => void;
+  readonly isLoading: boolean;
+  readonly parentId: string | null;
 }
 
 export function NodeForm({
