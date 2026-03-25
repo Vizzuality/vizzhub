@@ -26,7 +26,7 @@ from app.core.models.user import UserDB  # noqa: F401 -- registers 'users' table
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
 
-IGNORED_FILES = {"README.md", ".DS_Store", ".gitignore"}
+IGNORED_FILES = {"README.md", ".DS_Store", ".gitignore", ".gitmodules"}
 IGNORED_DIRS = {".git", "images", "__pycache__"}
 
 GITHUB_LINK_RE = re.compile(
@@ -67,7 +67,9 @@ def _build_file_to_slug_map(
     dirs = [e for e in entries if e.is_dir() and e.name not in IGNORED_DIRS]
     files = [
         e for e in entries
-        if e.is_file() and e.suffix == ".md" and e.name not in IGNORED_FILES
+        if e.is_file() and e.suffix == ".md"
+        and e.name not in IGNORED_FILES
+        and not e.name.startswith("._")
     ]
 
     for d in dirs:
@@ -132,7 +134,9 @@ def scan_directory(
     files = [
         e
         for e in entries
-        if e.is_file() and e.suffix == ".md" and e.name not in IGNORED_FILES
+        if e.is_file() and e.suffix == ".md"
+        and e.name not in IGNORED_FILES
+        and not e.name.startswith("._")
     ]
 
     for d in dirs:
@@ -173,7 +177,10 @@ def scan_directory(
         })
         position += 1
 
-        content = f.read_text(encoding="utf-8")
+        try:
+            content = f.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            content = f.read_text(encoding="latin-1")
         if file_slug_map:
             content = _convert_links(content, file_slug_map)
         versions.append({
