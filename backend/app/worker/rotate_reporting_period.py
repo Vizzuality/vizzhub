@@ -22,20 +22,11 @@ from app.modules.tracker.services.period_service import (
     activate_period,
     create_period,
     finish_period,
+    get_active_period,
 )
 from app.worker.utils import complete_with_error
 
 logger = logging.getLogger(__name__)
-
-
-async def _get_active_period(db: AsyncSession) -> ReportingPeriodDB | None:
-    """Get the currently active reporting period."""
-    result = await db.execute(
-        select(ReportingPeriodDB).where(
-            ReportingPeriodDB.status == ReportingPeriodStatus.ACTIVE.value
-        )
-    )
-    return result.scalar_one_or_none()
 
 
 async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
@@ -45,7 +36,8 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
     - No active period: creates and activates new one without error
     - Period for current month already exists: activates it instead of creating
     """
-    if date.today().day != 15:
+    today = date.today()
+    if today.day != 15:
         return {"status": "skipped", "alerts_sent": 0}
 
     db: AsyncSession = ctx["db"]
@@ -61,13 +53,12 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
     await db.refresh(job_run)
 
     try:
-        active = await _get_active_period(db)
+        active = await get_active_period(db)
         if active:
             await finish_period(active.id, db)
             await db.commit()
             logger.info("Finished reporting period: %s", active.date)
 
-        today = date.today()
         new_date = today.replace(day=1)
 
         existing = await db.execute(
@@ -85,7 +76,6 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
         else:
             data = ReportingPeriodCreate(date=today)
             new_period = await create_period(data, db)
-            await db.commit()
             await activate_period(new_period.id, db)
             await db.commit()
             logger.info("Created and activated new period: %s", new_date)
