@@ -16,7 +16,6 @@ export interface AllIntegrationsStatus {
   slack: ProviderStatus;
   slack_settings: {
     leadership_channel_id: string | null;
-    tracker_reminder_channel_id: string | null;
   };
 }
 
@@ -53,8 +52,7 @@ export const integrationsApi = {
 
   updateSlackSettings: async (data: {
     leadership_channel_id?: string;
-    tracker_reminder_channel_id?: string;
-  }): Promise<{ leadership_channel_id: string | null; tracker_reminder_channel_id: string | null }> => {
+  }): Promise<{ leadership_channel_id: string | null }> => {
     const response = await api.put('/admin/integrations/slack/settings', data);
     return response.data;
   },

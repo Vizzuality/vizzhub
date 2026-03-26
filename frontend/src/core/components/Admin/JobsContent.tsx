@@ -1,6 +1,11 @@
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAllJobs, useCancelJob, useDeleteJob } from '../../hooks/useJobs';
-import { useScheduledJobs, useTriggerScheduledJob } from '../../hooks/useAlertDefinitions';
+import {
+  useScheduledJobs,
+  useTriggerScheduledJob,
+  useUpdateScheduledJobChannel,
+} from '../../hooks/useAlertDefinitions';
 import { useProjectSummaries } from '@/core/hooks/useProjects';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
@@ -8,6 +13,8 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Progress } from '@/shared/components/ui/progress';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { Label } from '@/shared/components/ui/label';
+import { SlackChannelCombobox } from '@/shared/components/ui/SlackChannelCombobox';
 import {
   XCircle,
   Trash2,
@@ -18,8 +25,12 @@ import {
   ChevronRight,
   AlertCircle,
   CheckCircle,
+  Loader2,
 } from 'lucide-react';
+import { integrationsApi } from '@/core/services/integrations';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import type { JobStatus as JobStatusType, ScheduledJobInfo } from '@/types';
+import type { SlackChannel } from '@/core/types/project';
 
 function getJobStatusBadge(status: JobStatusType): JSX.Element {
   const config: Record<
@@ -61,6 +72,81 @@ function getScheduledJobStatusBadge(status: string): JSX.Element {
   );
 }
 
+interface ChannelConfigProps {
+  jobName: string;
+  channelId: string | null;
+  channelLabel: string;
+}
+
+function ChannelConfig({ jobName, channelId, channelLabel }: ChannelConfigProps): JSX.Element {
+  const queryClient = useQueryClient();
+  const [selectedChannel, setSelectedChannel] = useState<string>('');
+  const updateChannel = useUpdateScheduledJobChannel();
+
+  const { data: slackStatus } = useQuery({
+    queryKey: queryKeys.integrations.status,
+    queryFn: integrationsApi.getStatus,
+  });
+
+  const { data: channels, isLoading: channelsLoading } = useQuery<SlackChannel[]>({
+    queryKey: queryKeys.integrations.slackChannels,
+    queryFn: integrationsApi.getSlackChannels,
+    enabled: slackStatus?.slack?.connected ?? false,
+  });
+
+  const handleSave = (): void => {
+    if (selectedChannel) {
+      updateChannel.mutate(
+        { jobName, channelId: selectedChannel },
+        {
+          onSuccess: () => {
+            setSelectedChannel('');
+            queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
+          },
+        },
+      );
+    }
+  };
+
+  const channelName = channels?.find((c) => c.id === channelId)?.name;
+
+  return (
+    <div className="mt-3 space-y-2">
+      <Label className="text-sm font-medium">{channelLabel}</Label>
+      <div className="flex items-center gap-2">
+        <Label className="text-sm text-muted-foreground">Current:</Label>
+        {channelId ? (
+          <Badge variant="secondary">
+            #{channelName || channelId}
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">Not set</span>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <SlackChannelCombobox
+          value={selectedChannel}
+          onValueChange={setSelectedChannel}
+          channels={channels ?? []}
+          disabled={channelsLoading || !(slackStatus?.slack?.connected)}
+          placeholder={channelsLoading ? 'Loading...' : 'Select channel'}
+          className="w-[300px]"
+        />
+        <Button
+          onClick={handleSave}
+          disabled={!selectedChannel || updateChannel.isPending}
+        >
+          {updateChannel.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            'Save'
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface ScheduledJobRowProps {
   job: ScheduledJobInfo;
   onTrigger: (jobName: string) => void;
@@ -71,9 +157,10 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
   const [isExpanded, setIsExpanded] = useState(false);
   const lastRun = job.last_run;
   const hasLastRun = lastRun !== null;
+  const canExpand = hasLastRun || job.channel_label !== null;
 
   const handleRowClick = (): void => {
-    if (hasLastRun) {
+    if (canExpand) {
       setIsExpanded((prev) => !prev);
     }
   };
@@ -86,11 +173,11 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
       >
         <td className="py-3 pr-4">
           <div className="flex items-center gap-2">
-            {!hasLastRun && <span className="w-4" />}
-            {hasLastRun && isExpanded && (
+            {!canExpand && <span className="w-4" />}
+            {canExpand && isExpanded && (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
-            {hasLastRun && !isExpanded && (
+            {canExpand && !isExpanded && (
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             )}
             <div>
@@ -128,39 +215,50 @@ function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps)
           </Button>
         </td>
       </tr>
-      {lastRun && isExpanded && (
+      {canExpand && isExpanded && (
         <tr className="bg-muted/50">
           <td colSpan={5} className="p-0">
             <div className="bg-muted/30 px-6 py-4 border-b">
-              <h4 className="font-medium text-sm mb-3">Last Run Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Projects Checked:</span>{' '}
-                  <span className="font-medium">{lastRun.projects_checked}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Alerts Sent:</span>{' '}
-                  <span className="font-medium">{lastRun.alerts_sent}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Completed:</span>{' '}
-                  <span className="font-medium">
-                    {lastRun.completed_at
-                      ? formatRelativeTime(lastRun.completed_at)
-                      : 'In Progress'}
-                  </span>
-                </div>
-              </div>
-              {lastRun.error_message && (
-                <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+              {lastRun && (
+                <>
+                  <h4 className="font-medium text-sm mb-3">Last Run Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="font-medium text-sm text-destructive">Error Message</p>
-                      <p className="text-sm text-muted-foreground">{lastRun.error_message}</p>
+                      <span className="text-muted-foreground">Projects Checked:</span>{' '}
+                      <span className="font-medium">{lastRun.projects_checked}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Alerts Sent:</span>{' '}
+                      <span className="font-medium">{lastRun.alerts_sent}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Completed:</span>{' '}
+                      <span className="font-medium">
+                        {lastRun.completed_at
+                          ? formatRelativeTime(lastRun.completed_at)
+                          : 'In Progress'}
+                      </span>
                     </div>
                   </div>
-                </div>
+                  {lastRun.error_message && (
+                    <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                        <div>
+                          <p className="font-medium text-sm text-destructive">Error Message</p>
+                          <p className="text-sm text-muted-foreground">{lastRun.error_message}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {job.channel_label && (
+                <ChannelConfig
+                  jobName={job.name}
+                  channelId={job.channel_id}
+                  channelLabel={job.channel_label}
+                />
               )}
             </div>
           </td>
