@@ -23,8 +23,8 @@ import {
   useDeleteInvoice,
 } from '../hooks/useInvoices';
 import { trackerApi } from '../services/tracker';
-import { formatCurrency } from '../utils/constants';
-import type { InvoiceStatus, Postponement } from '../types/tracker';
+import { formatCurrency } from '@/shared/utils/evmCalculations';
+import type { Invoice, InvoiceStatus, Postponement } from '../types/tracker';
 
 export const STATUS_LABELS: Record<InvoiceStatus, string> = {
   scheduled: 'Scheduled',
@@ -66,13 +66,9 @@ export const ALLOWED_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
   paid: ['waiting_for_payment'],
 };
 
-// -- Shared helpers --
-
 export function getDisplayDate(invoice: { status: string; postponed_to?: string | null; due_date: string }): string {
   return invoice.status === 'postponed' && invoice.postponed_to ? invoice.postponed_to : invoice.due_date;
 }
-
-// -- EditableCell --
 
 export function EditableCell({
   value: initial,
@@ -134,26 +130,14 @@ export function EditableCell({
   );
 }
 
-// -- StatusCell with confirmation dialog --
-
-interface BaseInvoice {
-  id: string;
-  project_id: string;
-  code: string | null;
-  amount: number;
-  milestone: string;
-  due_date: string;
-  status: InvoiceStatus;
-  postpone_count?: number;
-  postponed_to?: string | null;
-}
-
 export function StatusCell({
   invoice,
+  currency = 'euro',
   onError,
   onSuccess,
 }: {
-  readonly invoice: BaseInvoice;
+  readonly invoice: Invoice;
+  readonly currency?: string;
   readonly onError: (msg: string) => void;
   readonly onSuccess?: () => void;
 }): JSX.Element {
@@ -199,7 +183,7 @@ export function StatusCell({
           <AlertDialogHeader>
             <AlertDialogTitle>Change invoice status?</AlertDialogTitle>
             <AlertDialogDescription>
-              Move &quot;{invoice.milestone}&quot; ({formatCurrency(invoice.amount)})
+              Move &quot;{invoice.milestone}&quot; ({formatCurrency(invoice.amount, currency, 2)})
               {' '}from {STATUS_LABELS[invoice.status]} to {next ? STATUS_LABELS[next] : ''}?
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -215,14 +199,14 @@ export function StatusCell({
   );
 }
 
-// -- PostponeButton --
-
 export function PostponeButton({
   invoice,
+  currency = 'euro',
   onError,
   onSuccess,
 }: {
-  readonly invoice: BaseInvoice;
+  readonly invoice: Invoice;
+  readonly currency?: string;
   readonly onError: (msg: string) => void;
   readonly onSuccess?: () => void;
 }): JSX.Element | null {
@@ -285,7 +269,7 @@ export function PostponeButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Postpone invoice</AlertDialogTitle>
           <AlertDialogDescription>
-            {invoice.milestone} ({formatCurrency(invoice.amount)})
+            {invoice.milestone} ({formatCurrency(invoice.amount, currency, 2)})
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="space-y-3 py-2">
@@ -320,8 +304,6 @@ export function PostponeButton({
     </AlertDialog>
   );
 }
-
-// -- PostponementHistory (expandable) --
 
 export function PostponementHistory({
   projectId,
@@ -385,8 +367,6 @@ export function PostponementHistory({
   );
 }
 
-// -- HistoryToggle icon --
-
 export function HistoryToggle({
   count,
   expanded,
@@ -412,13 +392,11 @@ export function HistoryToggle({
   );
 }
 
-// -- RevertButton with confirmation --
-
 export function RevertButton({
   invoice,
   onSuccess,
 }: {
-  readonly invoice: BaseInvoice;
+  readonly invoice: Invoice;
   readonly onSuccess?: () => void;
 }): JSX.Element | null {
   const transitions = ALLOWED_TRANSITIONS[invoice.status];
@@ -457,15 +435,15 @@ export function RevertButton({
   );
 }
 
-// -- DeleteButton with confirmation --
-
 export function DeleteButton({
   invoice,
   projectId,
+  currency = 'euro',
   onSuccess,
 }: {
-  readonly invoice: BaseInvoice;
+  readonly invoice: Invoice;
   readonly projectId: string;
+  readonly currency?: string;
   readonly onSuccess?: () => void;
 }): JSX.Element {
   const deleteMutation = useDeleteInvoice(projectId);
@@ -486,7 +464,7 @@ export function DeleteButton({
           <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
           <AlertDialogDescription>
             This will permanently delete &quot;{invoice.milestone}&quot;
-            ({formatCurrency(invoice.amount)}). This action cannot be undone.
+            ({formatCurrency(invoice.amount, currency, 2)}). This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -502,8 +480,6 @@ export function DeleteButton({
     </AlertDialog>
   );
 }
-
-// -- Shared field save helper --
 
 export function useInvoiceFieldSave(
   projectId: string,
