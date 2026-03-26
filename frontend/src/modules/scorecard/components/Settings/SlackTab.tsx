@@ -31,7 +31,10 @@ import type { SlackChannel } from '@/core/types/project';
 
 interface SlackTabProps {
   readonly status?: ProviderStatus;
-  readonly slackSettings?: { leadership_channel_id: string | null };
+  readonly slackSettings?: {
+    leadership_channel_id: string | null;
+    tracker_reminder_channel_id: string | null;
+  };
 }
 
 export default function SlackTab({ status, slackSettings }: SlackTabProps): JSX.Element {
@@ -39,6 +42,7 @@ export default function SlackTab({ status, slackSettings }: SlackTabProps): JSX.
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string>('');
+  const [selectedReminderChannel, setSelectedReminderChannel] = useState<string>('');
   const [testResult, setTestResult] = useState<SlackTestResult | null>(null);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
@@ -65,6 +69,20 @@ export default function SlackTab({ status, slackSettings }: SlackTabProps): JSX.
       queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
     },
   });
+
+  const saveReminderChannel = useMutation({
+    mutationFn: (channelId: string) =>
+      integrationsApi.updateSlackSettings({ tracker_reminder_channel_id: channelId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+    },
+  });
+
+  const handleSaveReminderChannel = (): void => {
+    if (selectedReminderChannel) {
+      saveReminderChannel.mutate(selectedReminderChannel);
+    }
+  };
 
   const testConnection = useMutation({
     mutationFn: integrationsApi.testSlackConnection,
@@ -241,6 +259,49 @@ export default function SlackTab({ status, slackSettings }: SlackTabProps): JSX.
                   <code>/invite @Peek</code>
                 </p>
               )}
+            </div>
+
+            {/* Tracker Report Reminder Channel */}
+            <div className="space-y-2">
+              <Label>Tracker Report Reminder Channel</Label>
+              <p className="text-sm text-muted-foreground">
+                A monthly reminder to fill in tracker reports will be sent to this
+                channel on the last business day of each month.
+              </p>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Current:</Label>
+                {slackSettings?.tracker_reminder_channel_id ? (
+                  <Badge variant="secondary">
+                    #
+                    {channels?.find(
+                      (c) => c.id === slackSettings.tracker_reminder_channel_id,
+                    )?.name || slackSettings.tracker_reminder_channel_id}
+                  </Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <SlackChannelCombobox
+                  value={selectedReminderChannel}
+                  onValueChange={setSelectedReminderChannel}
+                  channels={channels ?? []}
+                  disabled={channelsLoading}
+                  placeholder={channelsLoading ? 'Loading...' : 'Select channel'}
+                  className="w-[300px]"
+                />
+                <Button
+                  onClick={handleSaveReminderChannel}
+                  disabled={!selectedReminderChannel || saveReminderChannel.isPending}
+                >
+                  {saveReminderChannel.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* Disconnect */}
