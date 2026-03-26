@@ -87,14 +87,19 @@ async def delete_period(period_id: UUID, db: AsyncSession) -> None:
     await db.flush()
 
 
-async def _deactivate_current_active(db: AsyncSession) -> None:
-    """Set any currently active period to finished."""
+async def get_active_period(db: AsyncSession) -> ReportingPeriodDB | None:
+    """Get the currently active reporting period, if any."""
     result = await db.execute(
         select(ReportingPeriodDB).where(
             ReportingPeriodDB.status == ReportingPeriodStatus.ACTIVE.value
         )
     )
-    active_period = result.scalar_one_or_none()
+    return result.scalar_one_or_none()
+
+
+async def _deactivate_current_active(db: AsyncSession) -> None:
+    """Set any currently active period to finished."""
+    active_period = await get_active_period(db)
     if active_period:
         active_period.status = ReportingPeriodStatus.FINISHED.value
 
