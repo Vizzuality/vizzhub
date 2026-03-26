@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Eye,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
@@ -110,6 +111,16 @@ function InvoiceRow({
               expanded={historyOpen}
               onToggle={() => setHistoryOpen(!historyOpen)}
             />
+            <Link to={`/admin/tracker/invoices/${invoice.id}`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                title="View detail"
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
+            </Link>
           </div>
         </td>
         <td className="py-2 text-right hidden sm:table-cell">

@@ -17,6 +17,7 @@ class PostponementResponse(BaseModel):
     postponed_to: date
     reason: str
     created_by: UUID | None
+    created_by_name: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

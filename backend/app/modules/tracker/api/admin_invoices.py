@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, case, literal
 
 from app.core.api.deps import DBSession
@@ -116,6 +116,31 @@ class AdminInvoiceResponse(BaseModel):
     status: str
     postpone_count: int
     postponed_to: dt.date | None
+
+
+def _to_admin_invoice_response(
+    inv: InvoiceDB,
+    project_name: str,
+    project_currency: str,
+    eff_status: str,
+    pp_count: int,
+    pp_date,
+) -> AdminInvoiceResponse:
+    return AdminInvoiceResponse(
+        id=inv.id,
+        project_id=inv.project_id,
+        project_name=project_name,
+        code=inv.code,
+        amount=float(inv.amount),
+        currency=project_currency,
+        due_date=inv.due_date,
+        invoiced_on=inv.invoiced_on,
+        milestone=inv.milestone,
+        observations=inv.observations,
+        status=eff_status,
+        postpone_count=pp_count,
+        postponed_to=pp_date if eff_status == "postponed" else None,
+    )
 
 
 class PaginatedInvoicesResponse(BaseModel):
@@ -295,24 +320,47 @@ async def list_all_invoices(
     rows = result.all()
 
     items = [
-        AdminInvoiceResponse(
-            id=inv.id,
-            project_id=inv.project_id,
-            project_name=project_name,
-            code=inv.code,
-            amount=float(inv.amount),
-            currency=project_currency,
-            due_date=inv.due_date,
-            invoiced_on=inv.invoiced_on,
-            milestone=inv.milestone,
-            observations=inv.observations,
-            status=eff_status,
-            postpone_count=pp_count,
-            postponed_to=pp_date if eff_status == "postponed" else None,
-        )
+        _to_admin_invoice_response(inv, project_name, project_currency, eff_status, pp_count, pp_date)
         for inv, project_name, project_currency, eff_status, pp_count, pp_date in rows
     ]
 
     pages = max(1, (total + page_size - 1) // page_size)
 
     return PaginatedInvoicesResponse(items=items, total=total, page=page, pages=pages)
+
+
+@router.get("/{invoice_id}")
+async def get_admin_invoice(
+    invoice_id: UUID,
+    db: DBSession,
+    user: TrackerManager,
+) -> AdminInvoiceResponse:
+    """Fetch a single invoice by ID with project info and effective status."""
+    today = dt.date.today()
+    pp_sub = _postponement_subquery()
+    effective_status = _effective_status_expr(today, pp_sub)
+
+    stmt = (
+        select(
+            InvoiceDB,
+            ProjectDB.name.label("project_name"),
+            ProjectDB.currency.label("project_currency"),
+            effective_status.label("eff_status"),
+            func.coalesce(pp_sub.c.postpone_count, 0).label("pp_count"),
+            pp_sub.c.postponed_to.label("pp_date"),
+        )
+        .join(ProjectDB, InvoiceDB.project_id == ProjectDB.id)
+        .outerjoin(pp_sub, pp_sub.c.invoice_id == InvoiceDB.id)
+        .where(InvoiceDB.id == invoice_id)
+    )
+
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    inv, project_name, project_currency, eff_status, pp_count, pp_date = row
+
+    return _to_admin_invoice_response(
+        inv, project_name, project_currency, eff_status, pp_count, pp_date
+    )

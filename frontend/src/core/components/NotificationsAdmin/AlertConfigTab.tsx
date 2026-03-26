@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useAlertDefinitions,
   useUpdateAlertDefinition,
@@ -6,6 +6,7 @@ import {
   useUpdateMessageTemplate,
   useTestAlert,
 } from '../../hooks/useAlertDefinitions';
+import { useUsers } from '../../hooks/useUsers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
@@ -15,6 +16,19 @@ import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { Switch } from '@/shared/components/ui/switch';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -22,8 +36,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/shared/components/ui/dialog';
-import { FileText, Settings, Play, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Settings, Play, CheckCircle, XCircle, User, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { getFullName } from '@/utils/formatters';
 import type { AlertDefinition, MessageTemplate } from '@/types';
+import type { User as UserType } from '@/core/types/auth';
 
 interface ThresholdEntry {
   key: string;
@@ -38,14 +55,25 @@ function getCategoryBadge(category: string): JSX.Element {
   );
 }
 
+const SCHEDULE_LABELS: Record<string, string> = {
+  event: 'Event',
+  daily: 'Daily',
+  daily_check_monthly_report: 'Daily Check / Monthly Report',
+};
+
 function getScheduleBadge(schedule: string): JSX.Element {
-  const label = schedule === 'daily' ? 'Daily' : 'Daily Check / Monthly Report';
+  const label = SCHEDULE_LABELS[schedule] ?? schedule;
   return <Badge variant="outline">{label}</Badge>;
 }
 
-function hasConfigEntries(configJson: Record<string, unknown>): boolean {
-  return Object.keys(configJson).length > 0;
+function hasRecipientConfig(configJson: Record<string, unknown>): boolean {
+  return 'recipient_slack_user_id' in configJson;
 }
+
+function hasThresholdEntries(configJson: Record<string, unknown>): boolean {
+  return Object.keys(configJson).some((k) => k !== 'recipient_slack_user_id');
+}
+
 
 function configToEntries(configJson: Record<string, unknown>): ThresholdEntry[] {
   return Object.entries(configJson).map(([key, value]) => ({
@@ -83,6 +111,10 @@ export default function AlertConfigTab(): JSX.Element {
   const [thresholdsDialogAlert, setThresholdsDialogAlert] = useState<AlertDefinition | null>(null);
   const [thresholdEntries, setThresholdEntries] = useState<ThresholdEntry[]>([]);
 
+  const [recipientDialogAlert, setRecipientDialogAlert] = useState<AlertDefinition | null>(null);
+  const [selectedRecipient, setSelectedRecipient] = useState<string>('');
+  const [recipientComboOpen, setRecipientComboOpen] = useState(false);
+
   const [testResult, setTestResult] = useState<{
     alertId: number;
     ok: boolean;
@@ -90,6 +122,7 @@ export default function AlertConfigTab(): JSX.Element {
   } | null>(null);
 
   const { data: alertDefinitions, isLoading } = useAlertDefinitions();
+  const { data: allUsers } = useUsers();
   const updateAlert = useUpdateAlertDefinition();
   const { data: templates, isLoading: templatesLoading } = useAlertTemplates(
     templateDialogAlert?.id ?? null
@@ -160,6 +193,49 @@ export default function AlertConfigTab(): JSX.Element {
       data: { config_json: newConfig },
     });
     handleCloseThresholdsDialog();
+  };
+
+  const slackUsers = useMemo(
+    () => (allUsers ?? [])
+      .filter((u: UserType) => u.slack_user_id && u.active)
+      .sort((a, b) =>
+        getFullName(a.first_name, a.last_name, a.email)
+          .localeCompare(getFullName(b.first_name, b.last_name, b.email)),
+      ),
+    [allUsers],
+  );
+
+  const handleOpenRecipientDialog = (alert: AlertDefinition): void => {
+    setRecipientDialogAlert(alert);
+    setSelectedRecipient(
+      (alert.config_json as Record<string, string>).recipient_slack_user_id ?? '',
+    );
+  };
+
+  const handleCloseRecipientDialog = (): void => {
+    setRecipientDialogAlert(null);
+    setSelectedRecipient('');
+  };
+
+  const handleSaveRecipient = async (): Promise<void> => {
+    if (!recipientDialogAlert) return;
+    await updateAlert.mutateAsync({
+      id: recipientDialogAlert.id,
+      data: {
+        config_json: {
+          ...recipientDialogAlert.config_json,
+          recipient_slack_user_id: selectedRecipient,
+        },
+      },
+    });
+    handleCloseRecipientDialog();
+  };
+
+  const getRecipientName = (alert: AlertDefinition): string | null => {
+    const slackId = (alert.config_json as Record<string, string>).recipient_slack_user_id;
+    if (!slackId) return null;
+    const user = (allUsers ?? []).find((u: UserType) => u.slack_user_id === slackId);
+    return user ? getFullName(user.first_name, user.last_name, user.email) : slackId;
   };
 
   const handleTestAlert = async (alert: AlertDefinition): Promise<void> => {
@@ -236,7 +312,18 @@ export default function AlertConfigTab(): JSX.Element {
                       </span>
                     </div>
 
-                    {hasConfigEntries(alert.config_json) && (
+                    {hasRecipientConfig(alert.config_json) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenRecipientDialog(alert)}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        {getRecipientName(alert) ?? 'Recipient'}
+                      </Button>
+                    )}
+
+                    {hasThresholdEntries(alert.config_json) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -387,6 +474,94 @@ export default function AlertConfigTab(): JSX.Element {
               Cancel
             </Button>
             <Button onClick={handleSaveThresholds} disabled={updateAlert.isPending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recipient Dialog */}
+      <Dialog
+        open={recipientDialogAlert !== null}
+        onOpenChange={(open) => !open && handleCloseRecipientDialog()}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Recipient</DialogTitle>
+            <DialogDescription>
+              Choose which user receives Slack notifications for this alert.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <Label className="font-medium mb-2 block">User</Label>
+            <Popover open={recipientComboOpen} onOpenChange={setRecipientComboOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={recipientComboOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  <span className="truncate">
+                    {selectedRecipient
+                      ? (() => {
+                          const u = slackUsers.find((u: UserType) => u.slack_user_id === selectedRecipient);
+                          return u ? getFullName(u.first_name, u.last_name, u.email) : selectedRecipient;
+                        })()
+                      : 'Select a user...'}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search users..." />
+                  <CommandList>
+                    <CommandEmpty>No user found.</CommandEmpty>
+                    <CommandGroup>
+                      {slackUsers.map((u: UserType) => {
+                        const name = getFullName(u.first_name, u.last_name, u.email);
+                        return (
+                          <CommandItem
+                            key={u.id}
+                            value={name}
+                            onSelect={() => {
+                              setSelectedRecipient(u.slack_user_id!);
+                              setRecipientComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                selectedRecipient === u.slack_user_id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            {name}
+                            {u.slack_display_name ? ` (@${u.slack_display_name})` : ''}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {slackUsers.length === 0 && (
+              <p className="text-muted-foreground text-sm mt-2">
+                No active users with Slack linked.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseRecipientDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveRecipient}
+              disabled={updateAlert.isPending || !selectedRecipient}
+            >
               Save
             </Button>
           </DialogFooter>

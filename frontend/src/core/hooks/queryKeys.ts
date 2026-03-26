@@ -162,6 +162,8 @@ export const queryKeys = {
         ['tracker', 'invoices', projectId] as const,
       all: (params: Record<string, unknown>) =>
         ['tracker', 'invoices', 'all', params] as const,
+      detail: (invoiceId: string) =>
+        ['tracker', 'invoices', 'detail', invoiceId] as const,
       totals: ['tracker', 'invoices', 'totals'] as const,
       postponements: (projectId: string, invoiceId: string) =>
         ['tracker', 'invoices', projectId, invoiceId, 'postponements'] as const,
