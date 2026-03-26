@@ -39,3 +39,4 @@ class SlackSettingsUpdate(BaseModel):
     """Update Slack integration settings."""
 
     leadership_channel_id: str | None = Field(None, max_length=50)
+    tracker_reminder_channel_id: str | None = Field(None, max_length=50)
