@@ -6,7 +6,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Plus } from 'lucide-react';
 import { useInvoices, useCreateInvoice } from '../hooks/useInvoices';
-import { formatCurrency } from '../utils/constants';
+import { formatCurrency } from '@/shared/utils/evmCalculations';
 import {
   EditableCell,
   StatusCell,
@@ -22,6 +22,7 @@ import type { Invoice } from '../types/tracker';
 
 interface InvoicesCardProps {
   readonly projectId: string;
+  readonly currency: string;
 }
 
 const COL_COUNT = 6;
@@ -29,10 +30,12 @@ const COL_COUNT = 6;
 function InvoiceRow({
   invoice,
   projectId,
+  currency,
   onError,
 }: {
   readonly invoice: Invoice;
   readonly projectId: string;
+  readonly currency: string;
   readonly onError: (msg: string) => void;
 }): JSX.Element {
   const qc = useQueryClient();
@@ -68,7 +71,7 @@ function InvoiceRow({
         <td className="py-2 text-sm text-right tabular-nums pr-4">
           <EditableCell
             value={invoice.amount.toString()}
-            display={formatCurrency(invoice.amount)}
+            display={formatCurrency(invoice.amount, currency, 2)}
             inputType="number"
             onSave={(v) => save('amount', v)}
             inputClass="h-6 w-24 text-sm px-1 text-right"
@@ -84,8 +87,8 @@ function InvoiceRow({
         </td>
         <td className="py-2">
           <div className="flex items-center gap-2">
-            <StatusCell invoice={invoice} onError={onError} />
-            <PostponeButton invoice={invoice} onError={onError} onSuccess={invalidate} />
+            <StatusCell invoice={invoice} currency={currency} onError={onError} />
+            <PostponeButton invoice={invoice} currency={currency} onError={onError} onSuccess={invalidate} />
             <HistoryToggle
               count={invoice.postpone_count}
               expanded={historyOpen}
@@ -96,7 +99,7 @@ function InvoiceRow({
         <td className="py-2 text-right hidden sm:table-cell">
           <div className="flex items-center gap-1 justify-end">
             <RevertButton invoice={invoice} />
-            <DeleteButton invoice={invoice} projectId={projectId} />
+            <DeleteButton invoice={invoice} projectId={projectId} currency={currency} />
           </div>
         </td>
       </tr>
@@ -111,7 +114,7 @@ function InvoiceRow({
   );
 }
 
-export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Element {
+export default function InvoicesCard({ projectId, currency }: InvoicesCardProps): JSX.Element {
   const { data: invoices } = useInvoices(projectId);
   const createMutation = useCreateInvoice(projectId);
   const [adding, setAdding] = useState(false);
@@ -155,7 +158,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
           </div>
           {invoices && invoices.length > 0 && (
             <div className="text-sm tabular-nums text-muted-foreground">
-              {formatCurrency(paidAmount)} / {formatCurrency(totalAmount)}
+              {formatCurrency(paidAmount, currency, 2)} / {formatCurrency(totalAmount, currency, 2)}
             </div>
           )}
         </div>
@@ -181,7 +184,7 @@ export default function InvoicesCard({ projectId }: InvoicesCardProps): JSX.Elem
               </thead>
               <tbody>
                 {invoices.map((inv) => (
-                  <InvoiceRow key={inv.id} invoice={inv} projectId={projectId} onError={showError} />
+                  <InvoiceRow key={inv.id} invoice={inv} projectId={projectId} currency={currency} onError={showError} />
                 ))}
               </tbody>
             </table>

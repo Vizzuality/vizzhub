@@ -318,7 +318,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
       <TimeByAreaTable rows={areaAgg?.rows ?? []} budgetLines={budgetLines} />
 
       <Can do={Action.TRACKER_MANAGE}>
-        <InvoicesCard projectId={projectId || ''} />
+        <InvoicesCard projectId={projectId || ''} currency={project?.currency ?? 'euro'} />
       </Can>
 
       <NonStaffCostsCard
