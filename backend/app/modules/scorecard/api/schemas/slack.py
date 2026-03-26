@@ -154,6 +154,8 @@ class ScheduledJobInfo(BaseModel):
     schedule: str
     description: str
     last_run: ScheduledJobLastRun | None = None
+    channel_id: str | None = None
+    channel_label: str | None = None
 
 
 class JobTriggerResponse(BaseModel):
@@ -162,6 +164,12 @@ class JobTriggerResponse(BaseModel):
     success: bool
     message: str
     job_id: str | None = None
+
+
+class ScheduledJobChannelUpdate(BaseModel):
+    """Request to update a scheduled job's Slack channel."""
+
+    channel_id: str = Field(..., min_length=1, max_length=50)
 
 
 class AlertTestResponse(BaseModel):
