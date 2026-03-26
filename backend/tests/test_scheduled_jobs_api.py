@@ -18,7 +18,7 @@ class TestListScheduledJobs:
         response = await client.get("/api/admin/jobs/scheduled")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 6
+        assert len(data) == 7
 
         job_names = {job["name"] for job in data}
         assert "check_dependabot_alerts" in job_names
@@ -27,6 +27,7 @@ class TestListScheduledJobs:
         assert "monthly_scorecard_capture" in job_names
         assert "fetch_exchange_rates" in job_names
         assert "send_monthly_report_reminder" in job_names
+        assert "send_report_confirmation_reminder" in job_names
 
         for job in data:
             assert "name" in job
