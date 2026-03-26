@@ -96,5 +96,5 @@ WorkerSettings.cron_jobs = [
     cron(monthly_scorecard_capture, day=5, hour=2, minute=0),  # Monthly 5th at 2 AM UTC
     cron(fetch_exchange_rates, hour=14, minute=30),  # Daily — ECB publishes ~14:00 UTC
     cron(send_monthly_report_reminder, hour=10, minute=0),  # Daily — sends only on last business day
-    cron(send_report_confirmation_reminder, hour=10, minute=0),  # Daily — sends only on business days 2nd-12th
+    cron(send_report_confirmation_reminder, hour=12, minute=0),  # Daily — sends only on business days 2nd-12th
 ]
