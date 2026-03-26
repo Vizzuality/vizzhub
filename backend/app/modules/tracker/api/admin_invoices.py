@@ -58,6 +58,29 @@ def _effective_status_expr(today, pp_sub):
     )
 
 
+def _status_filter(status: str, today, pp_sub):
+    """Return a WHERE clause for the given effective status."""
+    if status == "pending_to_issue":
+        return (
+            ((InvoiceDB.status == "pending_to_issue") |
+             ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today)))
+            & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
+        )
+    if status == "postponed":
+        return (
+            InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
+            & pp_sub.c.postponed_to.isnot(None)
+            & (pp_sub.c.postponed_to > today)
+        )
+    if status == "scheduled":
+        return (
+            (InvoiceDB.status == "scheduled")
+            & (InvoiceDB.due_date > today)
+            & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
+        )
+    return InvoiceDB.status == status
+
+
 def _apply_filters(
     stmt,
     status: str | None,
@@ -69,27 +92,7 @@ def _apply_filters(
     pp_sub,
 ):
     if status:
-        if status == "pending_to_issue":
-            stmt = stmt.where(
-                ((InvoiceDB.status == "pending_to_issue") |
-                 ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today)))
-                & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
-            )
-        elif status == "postponed":
-            stmt = stmt.where(
-                InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
-                & pp_sub.c.postponed_to.isnot(None)
-                & (pp_sub.c.postponed_to > today)
-            )
-        elif status == "scheduled":
-            stmt = stmt.where(
-                (InvoiceDB.status == "scheduled")
-                & (InvoiceDB.due_date > today)
-                & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
-            )
-        else:
-            stmt = stmt.where(InvoiceDB.status == status)
-
+        stmt = stmt.where(_status_filter(status, today, pp_sub))
     if project_id:
         stmt = stmt.where(InvoiceDB.project_id == project_id)
     if search:
