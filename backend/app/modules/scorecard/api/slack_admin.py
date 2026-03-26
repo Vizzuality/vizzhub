@@ -106,21 +106,25 @@ async def test_alert(
             error="No Slack bot token configured",
         )
 
-    channel_id = await IntegrationTokenService.get_setting(
-        db, "slack", "leadership_channel_id"
-    )
-    if not channel_id:
-        return AlertTestResponse(
-            ok=False,
-            message="Cannot send test alert",
-            error="No leadership channel configured",
+    recipient = (alert.config_json or {}).get("recipient_slack_user_id", "")
+    if recipient:
+        channel_id = recipient
+    else:
+        channel_id = await IntegrationTokenService.get_setting(
+            db, "slack", "leadership_channel_id"
         )
+        if not channel_id:
+            return AlertTestResponse(
+                ok=False,
+                message="Cannot send test alert",
+                error="No leadership channel configured",
+            )
 
     test_message = (
         f":test_tube: *Test Alert*\n"
         f"Alert type: {alert.name}\n"
         f"Category: {alert.category}\n"
-        f"This is a test message from Project Scorecard."
+        f"This is a test message from Vizzhub."
     )
 
     try:
