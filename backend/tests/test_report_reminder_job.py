@@ -11,7 +11,7 @@ from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
 from app.core.token_encryption import encrypt_token
 from app.modules.scorecard.models.slack import ScheduledJobRunDB
-from app.worker.report_reminder import _is_last_business_day, send_report_reminder, REPORT_REMINDER_MESSAGE
+from app.worker.report_reminder import _is_last_business_day, send_monthly_report_reminder, REPORT_REMINDER_MESSAGE
 
 
 class TestIsLastBusinessDay:
@@ -44,7 +44,7 @@ class TestIsLastBusinessDay:
 
 
 class TestSendReportReminder:
-    """Integration tests for send_report_reminder job."""
+    """Integration tests for send_monthly_report_reminder job."""
 
     @pytest_asyncio.fixture
     async def setup_slack(self, db_session: AsyncSession) -> None:
@@ -71,7 +71,7 @@ class TestSendReportReminder:
         with patch(
             "app.worker.report_reminder._is_last_business_day", return_value=False
         ):
-            result = await send_report_reminder(ctx)
+            result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "completed"
         assert result["alerts_sent"] == 0
@@ -93,7 +93,7 @@ class TestSendReportReminder:
                 return_value=mock_response,
             ) as mock_send,
         ):
-            result = await send_report_reminder(ctx)
+            result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "completed"
         assert result["alerts_sent"] == 1
@@ -109,7 +109,7 @@ class TestSendReportReminder:
         with patch(
             "app.worker.report_reminder._is_last_business_day", return_value=True
         ):
-            result = await send_report_reminder(ctx)
+            result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "error"
         assert "bot token" in result["error"].lower()
@@ -130,7 +130,7 @@ class TestSendReportReminder:
         with patch(
             "app.worker.report_reminder._is_last_business_day", return_value=True
         ):
-            result = await send_report_reminder(ctx)
+            result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "error"
         assert "channel" in result["error"].lower()
@@ -152,7 +152,7 @@ class TestSendReportReminder:
                 return_value=mock_response,
             ),
         ):
-            result = await send_report_reminder(ctx)
+            result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "completed"
         assert result["alerts_sent"] == 0
@@ -165,14 +165,14 @@ class TestSendReportReminder:
         with patch(
             "app.worker.report_reminder._is_last_business_day", return_value=False
         ):
-            result = await send_report_reminder(ctx)
+            result = await send_monthly_report_reminder(ctx)
 
         from sqlalchemy import select
 
         rows = (
             await db_session.execute(
                 select(ScheduledJobRunDB).where(
-                    ScheduledJobRunDB.job_name == "send_report_reminder"
+                    ScheduledJobRunDB.job_name == "send_monthly_report_reminder"
                 )
             )
         ).scalars().all()

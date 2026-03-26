@@ -36,7 +36,7 @@ def _is_last_business_day(today: date) -> bool:
     return today == d
 
 
-async def send_report_reminder(ctx: dict) -> dict[str, Any]:
+async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
     """Send monthly report reminder to Slack on the last business day.
 
     Runs daily via ARQ cron. On non-target days, exits with alerts_sent=0.
@@ -44,7 +44,7 @@ async def send_report_reminder(ctx: dict) -> dict[str, Any]:
     db: AsyncSession = ctx["db"]
 
     job_run = ScheduledJobRunDB(
-        job_name="send_report_reminder",
+        job_name="send_monthly_report_reminder",
         status="running",
         projects_checked=0,
         alerts_sent=0,
