@@ -57,13 +57,19 @@ async def get_all_integrations_status(
     leadership_channel_id = await IntegrationTokenService.get_setting(
         db, "slack", "leadership_channel_id"
     )
+    tracker_reminder_channel_id = await IntegrationTokenService.get_setting(
+        db, "slack", "tracker_reminder_channel_id"
+    )
 
     return AllIntegrationsStatus(
         jira=_format_provider_status(jira_raw),
         google_workspace=_format_provider_status(google_raw),
         github=_format_provider_status(github_raw),
         slack=_format_provider_status(slack_raw),
-        slack_settings={"leadership_channel_id": leadership_channel_id},
+        slack_settings={
+            "leadership_channel_id": leadership_channel_id,
+            "tracker_reminder_channel_id": tracker_reminder_channel_id,
+        },
     )
 
 
@@ -170,12 +176,22 @@ async def update_slack_settings(
         await IntegrationTokenService.set_setting(
             db, "slack", "leadership_channel_id", body.leadership_channel_id
         )
+    if body.tracker_reminder_channel_id is not None:
+        await IntegrationTokenService.set_setting(
+            db, "slack", "tracker_reminder_channel_id", body.tracker_reminder_channel_id
+        )
     await db.commit()
 
     leadership_channel_id = await IntegrationTokenService.get_setting(
         db, "slack", "leadership_channel_id"
     )
-    return {"leadership_channel_id": leadership_channel_id}
+    tracker_reminder_channel_id = await IntegrationTokenService.get_setting(
+        db, "slack", "tracker_reminder_channel_id"
+    )
+    return {
+        "leadership_channel_id": leadership_channel_id,
+        "tracker_reminder_channel_id": tracker_reminder_channel_id,
+    }
 
 
 @router.get("/slack/channels")
