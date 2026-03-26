@@ -49,6 +49,11 @@ SCHEDULED_JOBS = {
         "schedule": "Daily at 2:30 PM UTC",
         "description": "Fetches ECB daily exchange rates for EUR-based currency conversion",
     },
+    "send_report_reminder": {
+        "name": "send_report_reminder",
+        "schedule": "Daily at 10:00 AM UTC",
+        "description": "Sends monthly report reminder on the last business day of each month",
+    },
 }
 
 
