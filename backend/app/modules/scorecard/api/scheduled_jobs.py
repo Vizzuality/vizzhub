@@ -11,8 +11,10 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.scorecard.api.schemas.slack import (
     JobTriggerResponse,
+    ScheduledJobChannelUpdate,
     ScheduledJobInfo,
     ScheduledJobLastRun,
 )
@@ -33,6 +35,8 @@ SCHEDULED_JOBS = {
         "name": "check_business_alerts",
         "schedule": "Daily at 9:00 AM",
         "description": "Checks projects for budget, timeline, and overdue alerts",
+        "channel_setting_key": "leadership_channel_id",
+        "channel_label": "Leadership Channel",
     },
     "collect_iso_snapshot": {
         "name": "collect_iso_snapshot",
@@ -53,6 +57,8 @@ SCHEDULED_JOBS = {
         "name": "send_report_reminder",
         "schedule": "Daily at 10:00 AM UTC",
         "description": "Sends monthly report reminder on the last business day of each month",
+        "channel_setting_key": "tracker_reminder_channel_id",
+        "channel_label": "Tracker Reminder Channel",
     },
 }
 
@@ -96,12 +102,23 @@ async def list_scheduled_jobs(
                 error_message=last_run_record.error_message,
             )
 
+        channel_id = None
+        channel_label = None
+        channel_setting_key = job_info.get("channel_setting_key")
+        if channel_setting_key:
+            channel_id = await IntegrationTokenService.get_setting(
+                db, "slack", channel_setting_key
+            )
+            channel_label = job_info.get("channel_label")
+
         result.append(
             ScheduledJobInfo(
                 name=job_info["name"],
                 schedule=job_info["schedule"],
                 description=job_info["description"],
                 last_run=last_run,
+                channel_id=channel_id,
+                channel_label=channel_label,
             )
         )
 
@@ -155,3 +172,35 @@ async def trigger_scheduled_job(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enqueue job: {e}. Is Redis running?",
         )
+
+
+@router.put("/scheduled/{job_name}/channel")
+@limiter.limit("10/minute")
+async def update_scheduled_job_channel(
+    request: Request,
+    current_user: JobAdmin,
+    db: DBSession,
+    job_name: str,
+    body: ScheduledJobChannelUpdate,
+) -> dict[str, str]:
+    """Update the Slack channel for a scheduled job."""
+    job_info = SCHEDULED_JOBS.get(job_name)
+    if not job_info:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown scheduled job: {job_name}",
+        )
+
+    channel_setting_key = job_info.get("channel_setting_key")
+    if not channel_setting_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Job '{job_name}' does not have a configurable channel",
+        )
+
+    await IntegrationTokenService.set_setting(
+        db, "slack", channel_setting_key, body.channel_id
+    )
+    await db.commit()
+
+    return {"channel_id": body.channel_id}
