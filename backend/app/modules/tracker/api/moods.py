@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select, tuple_
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import AdminUser, DBSession
 from app.core.models.user import UserDB
@@ -115,81 +116,93 @@ async def get_moods(
     )
 
 
+def _last_12_months() -> list[tuple[int, int]]:
+    today = datetime.date.today()
+    d = datetime.date(today.year, today.month, 1)
+    months: list[tuple[int, int]] = []
+    for _ in range(12):
+        d = datetime.date(d.year - 1, 12, 1) if d.month == 1 else datetime.date(d.year, d.month - 1, 1)
+        months.append((d.month, d.year))
+    months.reverse()
+    return months
+
+
+async def _reports_by_month(
+    db: AsyncSession,
+    target_months: list[tuple[int, int]],
+) -> dict[tuple[int, int], list[tuple]]:
+    target_set = set(target_months)
+    period_result = await db.execute(
+        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+    )
+    period_to_month: dict[UUID, tuple[int, int]] = {
+        pid: (pdate.month, pdate.year)
+        for pid, pdate in period_result.all()
+        if (pdate.month, pdate.year) in target_set
+    }
+    if not period_to_month:
+        return defaultdict(list)
+
+    reports_result = await db.execute(
+        select(ReportDB, UserDB)
+        .join(UserDB, ReportDB.user_id == UserDB.id)
+        .where(ReportDB.reporting_period_id.in_(list(period_to_month.keys())))
+    )
+    result: dict[tuple[int, int], list[tuple]] = defaultdict(list)
+    for report, db_user in reports_result.all():
+        result[period_to_month[report.reporting_period_id]].append((report, db_user))
+    return result
+
+
+async def _anon_by_month(
+    db: AsyncSession,
+    target_months: list[tuple[int, int]],
+) -> dict[tuple[int, int], list[AnonymousFeedbackDB]]:
+    anon_result = await db.execute(
+        select(AnonymousFeedbackDB).where(
+            tuple_(AnonymousFeedbackDB.month, AnonymousFeedbackDB.year).in_(target_months)
+        )
+    )
+    result: dict[tuple[int, int], list[AnonymousFeedbackDB]] = defaultdict(list)
+    for fb in anon_result.scalars().all():
+        result[(fb.month, fb.year)].append(fb)
+    return result
+
+
+def _build_trend_month(
+    m: int,
+    y: int,
+    reports: list[tuple],
+    anon_feedback: list[AnonymousFeedbackDB],
+) -> TrendMonth:
+    _, moods, named_feedback = _collect_mood_feedback(reports)
+    return TrendMonth(
+        month=m,
+        year=y,
+        label=datetime.date(y, m, 1).strftime("%b %Y"),
+        average_mood=round(sum(moods) / len(moods), 1) if moods else None,
+        total_responses=len(moods),
+        total_reports=len(reports),
+        anonymous_feedback=[
+            AnonymousFeedbackItem(id=str(fb.id), text=fb.text) for fb in anon_feedback
+        ],
+        named_feedback=named_feedback,
+    )
+
+
 @router.get("/trend")
 async def get_moods_trend(
     db: DBSession,
     user: AdminUser,
 ) -> MoodsTrendResponse:
-    today = datetime.date.today()
-    target_months: list[tuple[int, int]] = []
-    d = datetime.date(today.year, today.month, 1)
-    for _ in range(12):
-        if d.month == 1:
-            d = datetime.date(d.year - 1, 12, 1)
-        else:
-            d = datetime.date(d.year, d.month - 1, 1)
-        target_months.append((d.month, d.year))
-    target_months.reverse()
-    target_set = set(target_months)
+    target_months = _last_12_months()
+    reports = await _reports_by_month(db, target_months)
+    anon = await _anon_by_month(db, target_months)
 
-    period_result = await db.execute(
-        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
-    )
-    period_to_month: dict[UUID, tuple[int, int]] = {}
-    for pid, pdate in period_result.all():
-        key = (pdate.month, pdate.year)
-        if key in target_set:
-            period_to_month[pid] = key
-
-    all_period_ids = list(period_to_month.keys())
-
-    reports_by_month: dict[tuple[int, int], list[tuple]] = defaultdict(list)
-    if all_period_ids:
-        reports_result = await db.execute(
-            select(ReportDB, UserDB)
-            .join(UserDB, ReportDB.user_id == UserDB.id)
-            .where(ReportDB.reporting_period_id.in_(all_period_ids))
-        )
-        for report, db_user in reports_result.all():
-            key = period_to_month[report.reporting_period_id]
-            reports_by_month[key].append((report, db_user))
-
-    anon_by_month: dict[tuple[int, int], list[AnonymousFeedbackDB]] = defaultdict(list)
-    if target_months:
-        anon_result = await db.execute(
-            select(AnonymousFeedbackDB).where(
-                tuple_(AnonymousFeedbackDB.month, AnonymousFeedbackDB.year).in_(
-                    target_months
-                )
-            )
-        )
-        for fb in anon_result.scalars().all():
-            anon_by_month[(fb.month, fb.year)].append(fb)
-
-    months: list[TrendMonth] = []
-    for m, y in target_months:
-        label = datetime.date(y, m, 1).strftime("%b %Y")
-        rows = reports_by_month.get((m, y), [])
-        _, moods, named_feedback = _collect_mood_feedback(rows)
-
-        anonymous_feedback = [
-            AnonymousFeedbackItem(id=str(fb.id), text=fb.text)
-            for fb in anon_by_month.get((m, y), [])
-        ]
-
-        avg = round(sum(moods) / len(moods), 1) if moods else None
-
-        months.append(TrendMonth(
-            month=m,
-            year=y,
-            label=label,
-            average_mood=avg,
-            total_responses=len(moods),
-            total_reports=len(rows),
-            anonymous_feedback=anonymous_feedback,
-            named_feedback=named_feedback,
-        ))
-
+    months = [
+        _build_trend_month(m, y, reports.get((m, y), []), anon.get((m, y), []))
+        for m, y in target_months
+    ]
     return MoodsTrendResponse(months=months)
 
 

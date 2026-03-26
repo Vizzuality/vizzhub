@@ -22,47 +22,45 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   stats: 'Statistics',
 };
 
+interface RouteRule {
+  match: string | RegExp;
+  crumbs: BreadcrumbSegment[] | ((pathname: string) => BreadcrumbSegment[]);
+}
+
+const ROUTE_RULES: RouteRule[] = [
+  { match: '/scorecard', crumbs: [{ label: 'Projects' }] },
+  { match: '/projects', crumbs: [{ label: 'Projects' }] },
+  { match: '/tracker/how-to-report', crumbs: [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'How to Report' }] },
+  { match: /^\/iso\/snapshots\//, crumbs: [{ label: 'Access Control', to: '/iso/snapshots' }, { label: 'Snapshot Detail' }] },
+  { match: /^\/iso/, crumbs: [{ label: 'Access Control' }] },
+  { match: /^\/admin\/notifications/, crumbs: (p) => {
+    const sub = p.split('/admin/notifications/')[1];
+    return [{ label: 'Notifications', to: '/admin/notifications/log' }, { label: NOTIFICATION_LABELS[sub] ?? sub }];
+  }},
+  { match: /^\/admin\/tracker\/periods\//, crumbs: [{ label: 'Reporting Periods', to: '/admin/tracker/periods' }, { label: 'Period Detail' }] },
+  { match: /^\/admin\/tracker\/invoices/, crumbs: [{ label: 'Invoices' }] },
+  { match: /^\/admin\/tracker\/moods/, crumbs: [{ label: 'Moods' }] },
+  { match: /^\/admin\/tracker\/periods/, crumbs: [{ label: 'Reporting Periods' }] },
+  { match: /^\/admin\/tracker/, crumbs: [{ label: 'Tracker' }] },
+  { match: /^\/playbook/, crumbs: [{ label: 'Playbook' }] },
+  { match: /^\/admin/, crumbs: (p) => {
+    const sub = p.split('/admin/')[1];
+    return [{ label: ADMIN_LABELS[sub] ?? 'Admin' }];
+  }},
+  { match: /^\/tracker\/projects\/[^/]+$/, crumbs: [{ label: 'Projects', to: '/projects' }, { label: 'Tracker Detail' }] },
+  { match: /^\/tracker\/my-reports/, crumbs: [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'Report History' }] },
+  { match: /^\/tracker\/my-report/, crumbs: [{ label: 'My Report' }] },
+];
+
 function resolvePathBreadcrumbs(pathname: string): BreadcrumbSegment[] | null {
-  if (pathname === '/scorecard') return [{ label: 'Projects' }];
-  if (pathname === '/projects') return [{ label: 'Projects' }];
-  if (pathname === '/tracker/how-to-report') {
-    return [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'How to Report' }];
+  for (const rule of ROUTE_RULES) {
+    const matched = typeof rule.match === 'string'
+      ? pathname === rule.match
+      : rule.match.test(pathname);
+    if (matched) {
+      return typeof rule.crumbs === 'function' ? rule.crumbs(pathname) : rule.crumbs;
+    }
   }
-
-  if (pathname.startsWith('/iso/snapshots/')) {
-    return [{ label: 'Access Control', to: '/iso/snapshots' }, { label: 'Snapshot Detail' }];
-  }
-  if (pathname.startsWith('/iso')) return [{ label: 'Access Control' }];
-
-  if (pathname.startsWith('/admin/notifications')) {
-    const subPath = pathname.split('/admin/notifications/')[1];
-    return [
-      { label: 'Notifications', to: '/admin/notifications/log' },
-      { label: NOTIFICATION_LABELS[subPath] ?? subPath },
-    ];
-  }
-  if (pathname.startsWith('/admin/tracker/periods/')) {
-    return [{ label: 'Reporting Periods', to: '/admin/tracker/periods' }, { label: 'Period Detail' }];
-  }
-  if (pathname.startsWith('/admin/tracker/invoices')) return [{ label: 'Invoices' }];
-  if (pathname.startsWith('/admin/tracker/moods')) return [{ label: 'Moods' }];
-  if (pathname.startsWith('/admin/tracker/periods')) return [{ label: 'Reporting Periods' }];
-  if (pathname.startsWith('/admin/tracker')) return [{ label: 'Tracker' }];
-  if (pathname.startsWith('/playbook')) return [{ label: 'Playbook' }];
-
-  if (pathname.startsWith('/admin')) {
-    const subPath = pathname.split('/admin/')[1];
-    return [{ label: ADMIN_LABELS[subPath] ?? 'Admin' }];
-  }
-
-  if (pathname.match(/^\/tracker\/projects\/[^/]+$/)) {
-    return [{ label: 'Projects', to: '/projects' }, { label: 'Tracker Detail' }];
-  }
-  if (pathname.startsWith('/tracker/my-reports')) {
-    return [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'Report History' }];
-  }
-  if (pathname.startsWith('/tracker/my-report')) return [{ label: 'My Report' }];
-
   return null;
 }
 
