@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -11,13 +11,17 @@ import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 export function LoginPage(): JSX.Element {
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = useState<string | null>(null);
+
+  const from = (location.state as { from?: { pathname: string; search: string } })?.from;
+  const redirectTo = from ? `${from.pathname}${from.search}` : '/';
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, redirectTo]);
 
   const handleSuccess = async (response: CredentialResponse): Promise<void> => {
     if (!response.credential) {
@@ -28,7 +32,7 @@ export function LoginPage(): JSX.Element {
     try {
       setError(null);
       await login(response.credential);
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
     }
