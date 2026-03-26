@@ -65,6 +65,11 @@ SCHEDULED_JOBS = {
         "channel_setting_key": "tracker_reminder_channel_id",
         "channel_label": "Tracker Reminder Channel",
     },
+    "rotate_reporting_period": {
+        "name": "rotate_reporting_period",
+        "schedule": "Monthly on 15th at 12:00 AM UTC",
+        "description": "Finishes the active reporting period and creates a new one for the current month",
+    },
 }
 
 

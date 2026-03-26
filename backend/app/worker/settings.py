@@ -76,6 +76,7 @@ from app.worker.monthly_scorecard_capture import monthly_scorecard_capture  # no
 from app.worker.fetch_exchange_rates import fetch_exchange_rates  # noqa: E402
 from app.worker.report_reminder import send_monthly_report_reminder  # noqa: E402
 from app.worker.report_confirmation_reminder import send_report_confirmation_reminder  # noqa: E402
+from app.worker.rotate_reporting_period import rotate_reporting_period  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
@@ -86,6 +87,7 @@ WorkerSettings.functions = [
     fetch_exchange_rates,
     send_monthly_report_reminder,
     send_report_confirmation_reminder,
+    rotate_reporting_period,
 ]
 
 # Register cron jobs for scheduled execution
@@ -97,4 +99,5 @@ WorkerSettings.cron_jobs = [
     cron(fetch_exchange_rates, hour=14, minute=30),  # Daily — ECB publishes ~14:00 UTC
     cron(send_monthly_report_reminder, hour=10, minute=0),  # Daily — sends only on last business day
     cron(send_report_confirmation_reminder, hour=12, minute=0),  # Daily — sends only on business days 2nd-12th
+    cron(rotate_reporting_period, day=15, hour=0, minute=0),  # Monthly 15th at midnight UTC
 ]
