@@ -55,7 +55,7 @@ SCHEDULED_JOBS = {
     },
     "send_report_confirmation_reminder": {
         "name": "send_report_confirmation_reminder",
-        "schedule": "Daily at 10:00 AM UTC",
+        "schedule": "Daily at 12:00 PM UTC",
         "description": "Sends DM reminders to users who haven't confirmed their monthly report (2nd-12th)",
     },
     "send_monthly_report_reminder": {
