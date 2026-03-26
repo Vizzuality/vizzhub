@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAllJobs, useCancelJob, useDeleteJob } from '../../hooks/useJobs';
 import {
   useScheduledJobs,
@@ -79,7 +79,6 @@ interface ChannelConfigProps {
 }
 
 function ChannelConfig({ jobName, channelId, channelLabel }: ChannelConfigProps): JSX.Element {
-  const queryClient = useQueryClient();
   const [selectedChannel, setSelectedChannel] = useState<string>('');
   const updateChannel = useUpdateScheduledJobChannel();
 
@@ -101,7 +100,6 @@ function ChannelConfig({ jobName, channelId, channelLabel }: ChannelConfigProps)
         {
           onSuccess: () => {
             setSelectedChannel('');
-            queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
           },
         },
       );
