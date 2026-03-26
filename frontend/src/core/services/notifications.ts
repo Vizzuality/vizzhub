@@ -106,4 +106,12 @@ export const scheduledJobsApi = {
     const response = await api.post<JobTriggerResponse>(`/admin/jobs/scheduled/${jobName}/run`);
     return response.data;
   },
+
+  updateChannel: async (jobName: string, channelId: string): Promise<{ channel_id: string }> => {
+    const response = await api.put<{ channel_id: string }>(
+      `/admin/jobs/scheduled/${jobName}/channel`,
+      { channel_id: channelId },
+    );
+    return response.data;
+  },
 };

@@ -116,3 +116,20 @@ export function useTriggerScheduledJob(): ReturnType<
     },
   });
 }
+
+/**
+ * Hook for updating a scheduled job's Slack channel.
+ */
+export function useUpdateScheduledJobChannel(): ReturnType<
+  typeof useMutation<{ channel_id: string }, Error, { jobName: string; channelId: string }>
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ jobName, channelId }: { jobName: string; channelId: string }): Promise<{ channel_id: string }> =>
+      scheduledJobsApi.updateChannel(jobName, channelId),
+    onSuccess: (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.scheduledJobs.all });
+    },
+  });
+}

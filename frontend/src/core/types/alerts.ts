@@ -108,6 +108,8 @@ export interface ScheduledJobInfo {
   schedule: string;
   description: string;
   last_run: ScheduledJobLastRun | null;
+  channel_id: string | null;
+  channel_label: string | null;
 }
 
 export interface JobTriggerResponse {

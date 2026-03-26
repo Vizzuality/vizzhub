@@ -22,10 +22,7 @@ export default function IntegrationsTab(): JSX.Element {
       <JiraCard status={status?.jira} />
       <GoogleWorkspaceCard />
       <GitHubCard status={status?.github} />
-      <SlackTab
-        status={status?.slack}
-        slackSettings={status?.slack_settings}
-      />
+      <SlackTab status={status?.slack} />
     </div>
   );
 }
