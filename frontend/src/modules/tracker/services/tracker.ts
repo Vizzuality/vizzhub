@@ -24,6 +24,7 @@ import type {
   InvoiceCreate,
   InvoiceUpdate,
   InvoiceStatus,
+  AdminInvoice,
   PaginatedInvoices,
   AdminInvoiceParams,
   InvoiceTotals,
@@ -266,6 +267,11 @@ export const trackerApi = {
   listAllInvoices: async (params: AdminInvoiceParams): Promise<PaginatedInvoices> => {
     const response = await api.get<PaginatedInvoices>('/tracker/invoices', { params });
     return response.data;
+  },
+
+  getAdminInvoice: async (invoiceId: string): Promise<AdminInvoice> => {
+    const { data } = await api.get<AdminInvoice>(`/tracker/invoices/${invoiceId}`);
+    return data;
   },
 
   getInvoiceTotals: async (): Promise<InvoiceTotals> => {

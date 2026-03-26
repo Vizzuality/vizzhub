@@ -242,6 +242,7 @@ export interface Postponement {
   postponed_to: string;
   reason: string;
   created_by: string | null;
+  created_by_name: string | null;
   created_at: string;
 }
 

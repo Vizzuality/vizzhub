@@ -35,6 +35,7 @@ class AlertSchedule(str, Enum):
 
     DAILY_CHECK_MONTHLY_REPORT = "daily_check_monthly_report"
     DAILY = "daily"
+    EVENT = "event"
 
 
 class TemplateType(str, Enum):

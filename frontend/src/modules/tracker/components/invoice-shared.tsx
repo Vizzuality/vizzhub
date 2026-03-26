@@ -340,18 +340,16 @@ export function PostponementHistory({
 
   return (
     <tr className="bg-muted/30">
-      <td colSpan={colSpan} className="px-4 py-2">
-        <div className="space-y-1.5">
+      <td colSpan={colSpan} className="px-4 py-3">
+        <div className="space-y-2">
           {data.map((p: Postponement, idx: number) => (
-            <div key={p.id} className="flex items-center gap-3 text-xs">
-              <span className="text-muted-foreground shrink-0 tabular-nums">{p.postponed_to}</span>
-              <span className="text-foreground flex-1">{p.reason}</span>
-              <span className="text-muted-foreground/60 shrink-0">
-                {new Date(p.created_at).toLocaleDateString()}
-              </span>
+            <div key={p.id} className="flex items-start gap-3 text-xs">
+              <div className="flex-1">
+                <PostponementItem postponement={p} />
+              </div>
               {idx === 0 && (
                 <button
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-0.5 disabled:opacity-50"
+                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-0.5 disabled:opacity-50 mt-0.5"
                   title="Remove last postponement"
                   onClick={handleDelete}
                   disabled={deleting}
@@ -364,6 +362,35 @@ export function PostponementHistory({
         </div>
       </td>
     </tr>
+  );
+}
+
+export function PostponementItem({
+  postponement,
+}: {
+  readonly postponement: Postponement;
+}): JSX.Element {
+  return (
+    <div className="text-xs space-y-0.5">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">New date:</span>
+        <span className="text-foreground font-medium tabular-nums text-sm">{postponement.postponed_to}</span>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-muted-foreground">Reason:</span>
+        <span className="text-foreground">{postponement.reason}</span>
+      </div>
+      {postponement.created_by_name && (
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Postponed by:</span>
+          <span className="text-foreground">{postponement.created_by_name}</span>
+          <span className="text-muted-foreground">on</span>
+          <span className="text-muted-foreground/60 tabular-nums">
+            {new Date(postponement.created_at).toLocaleDateString()}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -439,11 +466,13 @@ export function DeleteButton({
   invoice,
   projectId,
   currency = 'euro',
+  label,
   onSuccess,
 }: {
   readonly invoice: Invoice;
   readonly projectId: string;
   readonly currency?: string;
+  readonly label?: string;
   readonly onSuccess?: () => void;
 }): JSX.Element {
   const deleteMutation = useDeleteInvoice(projectId);
@@ -451,13 +480,23 @@ export function DeleteButton({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-destructive"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        {label ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            {label}
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
