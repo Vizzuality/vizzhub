@@ -27,7 +27,10 @@ class TestIntegrationsStatus:
             assert data[provider]["site_url"] is None
             assert data[provider]["created_at"] is None
 
-        assert data["slack_settings"] == {"leadership_channel_id": None}
+        assert data["slack_settings"] == {
+            "leadership_channel_id": None,
+            "tracker_reminder_channel_id": None,
+        }
 
 
 class TestGitHubIntegration:
@@ -112,7 +115,10 @@ class TestSlackIntegration:
             json={"leadership_channel_id": "C12345678"},
         )
         assert response.status_code == 200
-        assert response.json() == {"leadership_channel_id": "C12345678"}
+        assert response.json() == {
+            "leadership_channel_id": "C12345678",
+            "tracker_reminder_channel_id": None,
+        }
 
     @pytest.mark.asyncio
     async def test_slack_channels(
