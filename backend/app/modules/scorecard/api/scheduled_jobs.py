@@ -9,8 +9,6 @@ from sqlalchemy import select
 from app.core.api.deps import DBSession, limiter
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
-
-JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.scorecard.api.schemas.slack import (
     JobTriggerResponse,
@@ -22,6 +20,8 @@ from app.modules.scorecard.models.slack import ScheduledJobRunDB
 from app.utils.redis import get_redis_pool
 
 logger = logging.getLogger(__name__)
+
+JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
 
 router = APIRouter(prefix="/admin/jobs", tags=["scheduled-jobs"])
 

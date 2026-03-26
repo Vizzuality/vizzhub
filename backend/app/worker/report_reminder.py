@@ -39,8 +39,11 @@ def _is_last_business_day(today: date) -> bool:
 async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
     """Send monthly report reminder to Slack on the last business day.
 
-    Runs daily via ARQ cron. On non-target days, exits with alerts_sent=0.
+    Runs daily via ARQ cron. On non-target days, returns immediately.
     """
+    if not _is_last_business_day(date.today()):
+        return {"status": "skipped", "alerts_sent": 0}
+
     db: AsyncSession = ctx["db"]
 
     job_run = ScheduledJobRunDB(
@@ -54,16 +57,6 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
     await db.refresh(job_run)
 
     try:
-        if not _is_last_business_day(date.today()):
-            job_run.status = "completed"
-            job_run.completed_at = datetime.now(timezone.utc)
-            await db.commit()
-            return {
-                "status": "completed",
-                "job_run_id": job_run.id,
-                "alerts_sent": 0,
-            }
-
         bot_token = await get_slack_bot_token(db)
         if not bot_token:
             return await complete_with_error(
@@ -80,8 +73,9 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
             bot_token, channel_id, REPORT_REMINDER_MESSAGE
         )
 
-        alerts_sent = 1 if response.get("ok") else 0
-        if not response.get("ok"):
+        ok = response.get("ok")
+        alerts_sent = 1 if ok else 0
+        if not ok:
             logger.error(
                 f"Failed to send report reminder: {response.get('error')}"
             )

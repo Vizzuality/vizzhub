@@ -73,7 +73,7 @@ class TestSendReportReminder:
         ):
             result = await send_monthly_report_reminder(ctx)
 
-        assert result["status"] == "completed"
+        assert result["status"] == "skipped"
         assert result["alerts_sent"] == 0
 
     @pytest.mark.asyncio
@@ -162,8 +162,17 @@ class TestSendReportReminder:
         self, db_session: AsyncSession, setup_slack: None
     ) -> None:
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.report_reminder._is_last_business_day", return_value=False
+        mock_response = {"ok": True, "ts": "1234567890.123456"}
+
+        with (
+            patch(
+                "app.worker.report_reminder._is_last_business_day", return_value=True
+            ),
+            patch(
+                "app.worker.report_reminder.SlackService.send_message",
+                new_callable=AsyncMock,
+                return_value=mock_response,
+            ),
         ):
             result = await send_monthly_report_reminder(ctx)
 
