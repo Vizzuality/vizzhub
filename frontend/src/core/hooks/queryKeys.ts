@@ -134,6 +134,10 @@ export const queryKeys = {
       ['capacity', 'allocation-users', startDate, endDate] as const,
     allocationProjects: (startDate?: string, endDate?: string) =>
       ['capacity', 'allocation-projects', startDate, endDate] as const,
+    planner: (start: string, end: string, groupBy: string) =>
+      ['capacity', 'planner', start, end, groupBy] as const,
+    plannerUpdatedAt: (start: string, end: string) =>
+      ['capacity', 'planner', 'updated-at', start, end] as const,
   },
   tracker: {
     periods: {
