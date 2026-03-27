@@ -320,13 +320,49 @@ export function PlannerGrid({
           {table.getRowModel().rows.map((row) => {
             const isHeader = row.original._type === 'header';
             const isAdd = row.original._type === 'add';
+            const weekCells = row.getVisibleCells().slice(3);
+
+            if (isHeader) {
+              return (
+                <tr key={row.id} className="group/row border-b bg-muted/20">
+                  <td
+                    colSpan={3}
+                    className="sticky left-0 z-10 bg-muted/20 px-2 py-1 whitespace-nowrap"
+                    style={{ left: 0 }}
+                  >
+                    <span className="font-semibold text-sm">{row.original.groupName}</span>
+                  </td>
+                  {weekCells.map((cell) => (
+                    <td key={cell.id} className="border-l" style={{ height: 28 }} />
+                  ))}
+                </tr>
+              );
+            }
+
+            if (isAdd) {
+              return (
+                <tr key={row.id} className="group/row border-b">
+                  <td
+                    colSpan={3}
+                    className="sticky left-0 z-10 bg-background px-2 py-0"
+                    style={{ left: 0, height: 28 }}
+                  >
+                    <PlannerAddRow
+                      options={addRowOptions}
+                      existingIds={existingIdsByGroup.get(row.original.groupId) ?? new Set()}
+                      onSelect={(id) => onAddRow(row.original.groupId, id)}
+                      label={groupBy === 'project' ? 'Add person' : 'Add project'}
+                    />
+                  </td>
+                  {weekCells.map((cell) => (
+                    <td key={cell.id} className="border-l" style={{ height: 28 }} />
+                  ))}
+                </tr>
+              );
+            }
+
             return (
-              <tr
-                key={row.id}
-                className={`group/row border-b ${
-                  isHeader ? 'bg-muted/20' : isAdd ? '' : 'hover:bg-muted/10'
-                }`}
-              >
+              <tr key={row.id} className="group/row border-b hover:bg-muted/10">
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
@@ -337,7 +373,7 @@ export function PlannerGrid({
                     }`}
                     style={{
                       width: cell.column.getSize(),
-                      height: isHeader || isAdd ? 28 : 32,
+                      height: 32,
                       left: cell.column.getIndex() < 3
                         ? cell.column.getIndex() === 0 ? 0
                         : cell.column.getIndex() === 1 ? 120 : 170
