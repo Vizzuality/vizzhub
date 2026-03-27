@@ -5,6 +5,14 @@ import { useAllocationUsers } from '@/modules/capacity/hooks/useAllocationUsers'
 import { UserAllocationList } from '@/modules/capacity/components/UserAllocationList';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { Button } from '@/shared/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
+import { FA_ORDER } from '@/modules/capacity/utils/constants';
 
 const fmtMonth = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -41,15 +49,20 @@ export default function Allocation(): JSX.Element {
     start: { defaultValue: defaults.start },
     end: { defaultValue: defaults.end },
     sort: { defaultValue: 'desc' },
+    fa: { defaultValue: 'all' },
   });
 
   const { data, isLoading, error } = useAllocationUsers(state.start, state.end);
   const isAsc = state.sort === 'asc';
 
-  const sortedUsers = useMemo(() => {
+  const filteredUsers = useMemo(() => {
     if (!data) return [];
-    return isAsc ? [...data.users].reverse() : data.users;
-  }, [data, isAsc]);
+    let users = data.users;
+    if (state.fa !== 'all') {
+      users = users.filter((u) => u.functional_area === state.fa);
+    }
+    return isAsc ? [...users].reverse() : users;
+  }, [data, isAsc, state.fa]);
 
   return (
     <div className="space-y-6 p-6">
@@ -63,6 +76,19 @@ export default function Allocation(): JSX.Element {
           )}
         </div>
         <div className="flex items-end gap-4">
+          <Select value={state.fa} onValueChange={(fa) => setState({ fa })}>
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All FAs</SelectItem>
+              {FA_ORDER.map((fa) => (
+                <SelectItem key={fa} value={fa}>
+                  {fa}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="ghost"
             size="icon"
@@ -97,7 +123,7 @@ export default function Allocation(): JSX.Element {
         </div>
       )}
 
-      {data && <UserAllocationList users={sortedUsers} />}
+      {data && <UserAllocationList users={filteredUsers} />}
     </div>
   );
 }
