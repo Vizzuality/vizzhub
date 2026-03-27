@@ -101,7 +101,7 @@ export function UserAllocationList({ users }: UserAllocationListProps): JSX.Elem
     <div className="space-y-3">
       {visibleUsers.map((user) => (
         <div key={user.user_id} className="space-y-1">
-          <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
             <span className="text-sm font-medium">{user.name}</span>
             <span className="text-muted-foreground text-xs">
               avg {user.avg_billable_projects} projects &middot;{' '}
