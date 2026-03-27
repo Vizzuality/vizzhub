@@ -245,12 +245,11 @@ async def get_project_report_parts(
         .where(ReportPartDB.percentage > 0)
         .order_by(ReportingPeriodDB.date.desc(), UserDB.name.asc())
     )
-    query = base_query
 
     if period_id is not None:
-        query = query.where(ReportDB.reporting_period_id == period_id)
+        base_query = base_query.where(ReportDB.reporting_period_id == period_id)
 
-    result = await db.execute(query)
+    result = await db.execute(base_query)
     rows = result.all()
 
     return [
@@ -269,7 +268,97 @@ async def get_project_report_parts(
     ]
 
 
-ALLOWED_GROUP_BY = {"functional_area", "user"}
+ALLOWED_GROUP_BY = {"functional_area", "user", "functional_area_user"}
+
+
+async def _aggregate_fa_user(
+    db: AsyncSession,
+    project_id: UUID,
+) -> AggregationResponse:
+    """Aggregate report_parts by functional_area with per-user children."""
+    query = _valid_parts_filter(
+        select(
+            FunctionalAreaDB.name.label("fa_name"),
+            UserDB.name.label("user_name"),
+            UserDB.email.label("user_email"),
+            ReportingPeriodDB.date.label("period_date"),
+            func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
+            func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+        )
+        .select_from(ReportPartDB)
+        .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
+        .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
+        .join(FunctionalAreaDB, ReportPartDB.functional_area_id == FunctionalAreaDB.id)
+        .join(UserDB, ReportDB.user_id == UserDB.id)
+        .where(ReportPartDB.project_id == project_id)
+    ).group_by(
+        "fa_name", "user_name", "user_email", ReportingPeriodDB.date,
+    ).order_by("fa_name", "user_name", ReportingPeriodDB.date)
+
+    result = await db.execute(query)
+    raw_rows = result.all()
+
+    fa_map: dict[str, dict] = {}
+    for row in raw_rows:
+        fa_key = row.fa_name or "Unknown"
+        if fa_key not in fa_map:
+            fa_map[fa_key] = {
+                "total_days": 0.0,
+                "total_cost": 0.0,
+                "periods_map": defaultdict(lambda: {"days": 0.0, "cost": 0.0}),
+                "users": {},
+            }
+        fa = fa_map[fa_key]
+        days = float(row.days)
+        cost = float(row.cost)
+        fa["total_days"] += days
+        fa["total_cost"] += cost
+        period_date = row.period_date
+        fa["periods_map"][period_date]["days"] += days
+        fa["periods_map"][period_date]["cost"] += cost
+
+        user_key = row.user_email or row.user_name or "Unknown"
+        if user_key not in fa["users"]:
+            fa["users"][user_key] = {
+                "name": row.user_name or "Unknown",
+                "email": row.user_email,
+                "total_days": 0.0,
+                "total_cost": 0.0,
+                "periods": [],
+            }
+        user = fa["users"][user_key]
+        user["total_days"] += days
+        user["total_cost"] += cost
+        user["periods"].append(AggregationPeriod(date=period_date, days=days, cost=cost))
+
+    rows = []
+    for fa_name, fa in fa_map.items():
+        children = [
+            AggregationRow(
+                name=u["name"],
+                email=u["email"],
+                total_days=round(u["total_days"], 2),
+                total_cost=round(u["total_cost"], 2),
+                periods=u["periods"],
+            )
+            for u in fa["users"].values()
+        ]
+        children.sort(key=lambda r: r.total_days, reverse=True)
+        periods = [
+            AggregationPeriod(date=d, days=round(v["days"], 2), cost=round(v["cost"], 2))
+            for d, v in sorted(fa["periods_map"].items())
+        ]
+        rows.append(
+            AggregationRow(
+                name=fa_name,
+                total_days=round(fa["total_days"], 2),
+                total_cost=round(fa["total_cost"], 2),
+                periods=periods,
+                children=children,
+            )
+        )
+    rows.sort(key=lambda r: r.total_days, reverse=True)
+    return AggregationResponse(group_by="functional_area_user", rows=rows)
 
 
 async def get_project_aggregations(
@@ -278,6 +367,9 @@ async def get_project_aggregations(
     group_by: str,
 ) -> AggregationResponse:
     """Aggregate report_parts by functional_area or user."""
+    if group_by == "functional_area_user":
+        return await _aggregate_fa_user(db, project_id)
+
     if group_by == "functional_area":
         name_col = FunctionalAreaDB.name.label("name")
         email_col = func.cast(None, UserDB.email.type).label("email")

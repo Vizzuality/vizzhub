@@ -224,7 +224,7 @@ export function UserDetailChart({
         )}
 
         <ResponsiveContainer width="100%" height={450}>
-          <BarChart data={visible} barCategoryGap="25%" margin={{ top: 16 }}>
+          <BarChart data={visible} barCategoryGap="25%" maxBarSize={60} margin={{ top: 16 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <Customized component={GroupSeparators} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
