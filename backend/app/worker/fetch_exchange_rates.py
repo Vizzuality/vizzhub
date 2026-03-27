@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.exchange_rate_service import fetch_and_store_rates
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 
 logger = logging.getLogger(__name__)
 

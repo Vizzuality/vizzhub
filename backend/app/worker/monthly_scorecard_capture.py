@@ -20,7 +20,7 @@ from app.modules.scorecard.api.capture import (
     _last_day_of_month,
 )
 from app.modules.scorecard.models.metrics import SnapshotType
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.tracker.public import inject_evm_into_preserved
 

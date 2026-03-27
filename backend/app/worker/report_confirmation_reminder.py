@@ -13,8 +13,8 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.models.slack import ScheduledJobRunDB
+from app.modules.notifications.services.slack_service import SlackService
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.services.period_service import get_active_period
 from app.utils.slack import get_slack_bot_token
