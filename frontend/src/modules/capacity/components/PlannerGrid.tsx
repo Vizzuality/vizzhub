@@ -258,12 +258,12 @@ export function PlannerGrid({
   });
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="overflow-auto rounded-md border" style={{ maxHeight: 'calc(100vh - 120px)' }}>
       <table className="w-full border-collapse">
         {/* Month header row */}
-        <thead>
-          <tr className="border-b bg-muted/50">
-            <th colSpan={2} className="sticky left-0 z-10 bg-muted/50" />
+        <thead className="sticky top-0 z-20">
+          <tr className="border-b bg-muted">
+            <th colSpan={2} className="sticky left-0 z-20 bg-muted" />
             {Array.from(monthGroups.entries()).map(([month, monthWeeks]) => (
               <th
                 key={month}
@@ -275,12 +275,12 @@ export function PlannerGrid({
             ))}
           </tr>
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="border-b bg-muted/30">
+            <tr key={headerGroup.id} className="border-b bg-muted">
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
                   className={`px-2 py-1 text-left text-xs font-medium ${
-                    header.index < 2 ? 'sticky left-0 z-10 bg-muted/30' : ''
+                    header.index < 2 ? 'sticky left-0 z-20 bg-muted' : ''
                   }`}
                   style={{
                     width: header.getSize(),
@@ -303,16 +303,16 @@ export function PlannerGrid({
 
             if (isHeader) {
               return (
-                <tr key={row.id} className="group/row border-b bg-muted/20">
+                <tr key={row.id} className="group/row border-b bg-muted/40">
                   <td
                     colSpan={2}
-                    className="sticky left-0 z-10 bg-muted/20 px-2 py-1 whitespace-nowrap"
+                    className="sticky left-0 z-10 bg-muted/40 px-2 py-1 whitespace-nowrap"
                     style={{ left: 0 }}
                   >
                     <span className="font-semibold text-sm">{row.original.groupName}</span>
                   </td>
                   {weekCells.map((cell) => (
-                    <td key={cell.id} className="border-l" style={{ height: 28 }} />
+                    <td key={cell.id} className="border-l bg-muted/40" style={{ height: 28 }} />
                   ))}
                 </tr>
               );
