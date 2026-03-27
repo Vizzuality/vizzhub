@@ -38,6 +38,7 @@ import { RatesContent } from './core/components/Admin/RatesContent';
 import UserDetail from './core/pages/UserDetail';
 import Landing from './core/pages/Landing';
 import CapacityInsights from './modules/capacity/pages/Insights';
+import CapacityAllocation from './modules/capacity/pages/Allocation';
 import Playbook from './modules/playbook/pages/Playbook';
 import NotFound from './core/pages/NotFound';
 
@@ -95,6 +96,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
           <Route path="/capacity/insights" element={<CapacityInsights />} />
+          <Route path="/capacity/allocation" element={<CapacityAllocation />} />
           <Route path="/playbook" element={<Playbook />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -120,6 +122,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
           <Route path="/capacity/insights" element={<CapacityInsights />} />
+          <Route path="/capacity/allocation" element={<CapacityAllocation />} />
           <Route path="/playbook" element={<Playbook />} />
           <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
             <Route path="/admin" element={<Admin />}>

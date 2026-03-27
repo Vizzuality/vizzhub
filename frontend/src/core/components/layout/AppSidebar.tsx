@@ -79,6 +79,7 @@ const ISO_TABS = [
 
 const CAPACITY_TABS = [
   { to: '/capacity/insights', label: 'Insights' },
+  { to: '/capacity/allocation', label: 'Allocation' },
 ] as const;
 
 
