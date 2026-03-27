@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTheme } from 'next-themes';
-import { getPlannerCellColor } from '@/modules/capacity/utils/plannerColors';
+import { getPlannerCellColors } from '@/modules/capacity/utils/plannerColors';
 
 interface PlannerCellProps {
   readonly value: number | undefined;
@@ -19,7 +19,7 @@ export function PlannerCell({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const bgColor = getPlannerCellColor(value, isDark);
+  const cellColors = getPlannerCellColors(value, isDark);
 
   const startEditing = (): void => {
     setDraft(value?.toString() ?? '');
@@ -70,7 +70,7 @@ export function PlannerCell({
       className={`flex h-full w-full cursor-pointer items-center justify-center text-xs ${
         !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
       }`}
-      style={{ backgroundColor: bgColor }}
+      style={{ backgroundColor: cellColors?.bg, color: cellColors?.text }}
       onClick={startEditing}
       role="gridcell"
       tabIndex={0}
