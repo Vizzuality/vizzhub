@@ -1,0 +1,222 @@
+"""Capacity planner CRUD endpoints."""
+
+from datetime import date, datetime
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from app.core.api.deps import CurrentUser, DBSession
+from app.core.models.functional_area import FunctionalAreaDB
+from app.core.models.project import ProjectDB
+from app.core.models.user import UserDB
+from app.core.services.capacity_insights import TARGET_FA_MAPPING
+from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CapacityPlanDB
+
+router = APIRouter()
+
+
+def _fa_short_name(fa_name: str | None) -> str:
+    """Map full FA name to short code: 'Frontend Developer' → 'FE'."""
+    if not fa_name:
+        return ""
+    return TARGET_FA_MAPPING.get(fa_name, fa_name)
+
+
+def _user_name_expr():
+    """SQL expression for user display name: first+last > name > email prefix."""
+    return func.coalesce(
+        func.nullif(
+            func.concat_ws(" ", func.nullif(UserDB.first_name, ""), func.nullif(UserDB.last_name, "")),
+            "",
+        ),
+        UserDB.name,
+        func.split_part(UserDB.email, "@", 1),
+    )
+
+
+def _mondays_between(start: date, end: date) -> list[str]:
+    """Return list of Monday ISO date strings in range [start, end]."""
+    from datetime import timedelta
+
+    current = start - timedelta(days=start.weekday())
+    weeks = []
+    while current <= end:
+        weeks.append(current.isoformat())
+        current += timedelta(weeks=1)
+    return weeks
+
+
+def _parse_date(value: str, name: str) -> date:
+    """Parse YYYY-MM-DD string to date."""
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid date format for {name}: {value}")
+
+
+@router.get("")
+async def get_planner(
+    db: DBSession,
+    user: CurrentUser,
+    start: str = Query(description="Start date (YYYY-MM-DD, Monday)"),
+    end: str = Query(description="End date (YYYY-MM-DD, Monday)"),
+    group_by: str = Query(default="project", description="Group by: project | user"),
+) -> dict:
+    start_date = _parse_date(start, "start")
+    end_date = _parse_date(end, "end")
+
+    if start_date > end_date:
+        raise HTTPException(status_code=422, detail="start must be <= end")
+
+    if group_by not in ("project", "user"):
+        raise HTTPException(status_code=422, detail="group_by must be 'project' or 'user'")
+
+    weeks = _mondays_between(start_date, end_date)
+
+    stmt = (
+        select(
+            CapacityPlanDB.project_id,
+            ProjectDB.name.label("project_name"),
+            CapacityPlanDB.user_id,
+            _user_name_expr().label("user_name"),
+            FunctionalAreaDB.name.label("functional_area"),
+            CapacityPlanDB.week_start,
+            CapacityPlanDB.percentage,
+        )
+        .join(ProjectDB, CapacityPlanDB.project_id == ProjectDB.id)
+        .join(UserDB, CapacityPlanDB.user_id == UserDB.id)
+        .outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
+        .where(CapacityPlanDB.week_start >= start_date)
+        .where(CapacityPlanDB.week_start <= end_date)
+        .order_by(ProjectDB.name, UserDB.name, CapacityPlanDB.week_start)
+    )
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    groups_map: dict[str, dict] = {}
+    rows_map: dict[str, dict] = {}
+
+    for row in rows:
+        if group_by == "project":
+            group_key = str(row.project_id)
+            group_name = row.project_name
+            row_key = f"{row.project_id}:{row.user_id}"
+        else:
+            group_key = str(row.user_id)
+            group_name = row.user_name
+            row_key = f"{row.user_id}:{row.project_id}"
+
+        if group_key not in groups_map:
+            groups_map[group_key] = {"id": group_key, "name": group_name, "rows": []}
+
+        if row_key not in rows_map:
+            row_data = {
+                "user_id": str(row.user_id),
+                "user_name": row.user_name,
+                "functional_area": _fa_short_name(row.functional_area),
+                "project_id": str(row.project_id),
+                "project_name": row.project_name,
+                "cells": {},
+            }
+            rows_map[row_key] = row_data
+            groups_map[group_key]["rows"].append(row_data)
+
+        rows_map[row_key]["cells"][row.week_start.isoformat()] = row.percentage
+
+    return {"groups": list(groups_map.values()), "weeks": weeks}
+
+
+@router.patch("/cells")
+async def update_cells(
+    db: DBSession,
+    user: CurrentUser,
+    body: BulkCellUpdate,
+) -> dict:
+    if not body.updates:
+        return {"updated": 0}
+
+    deletes = []
+    upserts = []
+
+    for cell in body.updates:
+        if cell.percentage is None or cell.percentage == 0:
+            deletes.append(cell)
+        else:
+            upserts.append(cell)
+
+    deleted_count = 0
+    for cell in deletes:
+        stmt = delete(CapacityPlanDB).where(
+            CapacityPlanDB.project_id == cell.project_id,
+            CapacityPlanDB.user_id == cell.user_id,
+            CapacityPlanDB.week_start == cell.week_start,
+        )
+        result = await db.execute(stmt)
+        deleted_count += result.rowcount
+
+    upserted_count = 0
+    if upserts:
+        values = [
+            {
+                "project_id": cell.project_id,
+                "user_id": cell.user_id,
+                "week_start": cell.week_start,
+                "percentage": cell.percentage,
+                "created_by": user.user_id,
+                "updated_by": user.user_id,
+            }
+            for cell in upserts
+        ]
+        stmt = pg_insert(CapacityPlanDB).values(values)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_capacity_plan_cell",
+            set_={
+                "percentage": stmt.excluded.percentage,
+                "updated_by": stmt.excluded.updated_by,
+                "updated_at": func.now(),
+            },
+        )
+        await db.execute(stmt)
+        upserted_count = len(upserts)
+
+    await db.commit()
+    return {"updated": upserted_count + deleted_count}
+
+
+@router.delete("/rows/{project_id}/{user_id}")
+async def delete_row(
+    db: DBSession,
+    user: CurrentUser,
+    project_id: UUID,
+    user_id: UUID,
+) -> dict:
+    stmt = delete(CapacityPlanDB).where(
+        CapacityPlanDB.project_id == project_id,
+        CapacityPlanDB.user_id == user_id,
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    return {"deleted": result.rowcount}
+
+
+@router.get("/updated-at")
+async def get_updated_at(
+    db: DBSession,
+    user: CurrentUser,
+    start: str = Query(description="Start date (YYYY-MM-DD)"),
+    end: str = Query(description="End date (YYYY-MM-DD)"),
+) -> dict:
+    start_date = _parse_date(start, "start")
+    end_date = _parse_date(end, "end")
+
+    stmt = select(func.max(CapacityPlanDB.updated_at)).where(
+        CapacityPlanDB.week_start >= start_date,
+        CapacityPlanDB.week_start <= end_date,
+    )
+    result = await db.execute(stmt)
+    max_updated = result.scalar_one_or_none()
+
+    return {"updated_at": max_updated.isoformat() if max_updated else None}
