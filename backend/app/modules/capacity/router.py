@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.modules.capacity.api import allocation as allocation_router
 from app.modules.capacity.api import fa_detail as fa_detail_router
 from app.modules.capacity.api import insights as insights_router
+from app.modules.capacity.api import planner as planner_router
 from app.modules.capacity.api import user_detail as user_detail_router
 
 router = APIRouter()
@@ -17,4 +18,7 @@ router.include_router(
 )
 router.include_router(
     allocation_router.router, prefix="/allocation", tags=["capacity:allocation"]
+)
+router.include_router(
+    planner_router.router, prefix="/planner", tags=["capacity:planner"]
 )
