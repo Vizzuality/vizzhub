@@ -1,5 +1,10 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -36,6 +41,27 @@ export function PlannerToolbar({
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold">Capacity Planner</h1>
         <PlannerSaveIndicator isSaving={isSaving} pendingCount={pendingCount} />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 text-sm" align="start">
+            <p className="mb-2 font-medium">Keyboard shortcuts</p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              <li><kbd className="rounded bg-muted px-1">Double-click</kbd> Edit cell</li>
+              <li><kbd className="rounded bg-muted px-1">Click</kbd> Select cell</li>
+              <li><kbd className="rounded bg-muted px-1">Shift+Click</kbd> Select range</li>
+              <li><kbd className="rounded bg-muted px-1">Drag</kbd> Select range</li>
+              <li><kbd className="rounded bg-muted px-1">Delete</kbd> Clear selected</li>
+              <li><kbd className="rounded bg-muted px-1">0-9</kbd> Set value on selection</li>
+              <li><kbd className="rounded bg-muted px-1">Ctrl+C</kbd> Copy cell value</li>
+              <li><kbd className="rounded bg-muted px-1">Ctrl+V</kbd> Paste to selection</li>
+              <li><kbd className="rounded bg-muted px-1">Esc</kbd> Clear selection</li>
+            </ul>
+          </PopoverContent>
+        </Popover>
       </div>
       <div className="flex items-center gap-2">
         <Select value={fa} onValueChange={onFaChange}>

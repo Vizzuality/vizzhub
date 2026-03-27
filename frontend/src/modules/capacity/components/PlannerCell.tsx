@@ -6,12 +6,18 @@ interface PlannerCellProps {
   readonly value: number | undefined;
   readonly onChange: (value: number | null) => void;
   readonly isOwnRow: boolean;
+  readonly selected?: boolean;
+  readonly onMouseDown?: (e: React.MouseEvent) => void;
+  readonly onMouseEnter?: () => void;
 }
 
 export function PlannerCell({
   value,
   onChange,
   isOwnRow,
+  selected,
+  onMouseDown,
+  onMouseEnter,
 }: PlannerCellProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -67,11 +73,13 @@ export function PlannerCell({
 
   return (
     <div
-      className={`flex h-full w-full cursor-pointer items-center justify-center text-xs ${
+      className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none ${
         !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
-      }`}
+      } ${selected ? 'ring-2 ring-inset ring-primary' : ''}`}
       style={{ backgroundColor: cellColors?.bg, color: cellColors?.text }}
-      onClick={startEditing}
+      onDoubleClick={startEditing}
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
       role="gridcell"
       tabIndex={0}
       onKeyDown={(e) => {

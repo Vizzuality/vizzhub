@@ -1,6 +1,6 @@
 """Tests for capacity planner endpoints."""
 
-from datetime import date, datetime, timezone
+from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -67,16 +67,19 @@ async def planner_data(db_session: AsyncSession):
     }
 
 
+class FakeUser:
+    """Minimal auth user stub for direct endpoint calls."""
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+
 class TestGetPlanner:
     @pytest.mark.asyncio
     async def test_returns_grouped_by_project(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_planner
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await get_planner(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             start="2026-01-05", end="2026-01-19", group_by="project",
         )
 
@@ -91,11 +94,8 @@ class TestGetPlanner:
     async def test_returns_grouped_by_user(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_planner
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await get_planner(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             start="2026-01-05", end="2026-01-19", group_by="user",
         )
 
@@ -106,11 +106,8 @@ class TestGetPlanner:
     async def test_sparse_cells(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_planner
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await get_planner(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             start="2026-01-05", end="2026-01-19", group_by="project",
         )
 
@@ -124,11 +121,8 @@ class TestGetPlanner:
     async def test_fa_short_name_mapping(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_planner
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await get_planner(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             start="2026-01-05", end="2026-01-19", group_by="project",
         )
 
@@ -143,9 +137,6 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         body = BulkCellUpdate(updates=[{
             "project_id": str(planner_data["project2"].id),
             "user_id": str(planner_data["user2"].id),
@@ -153,7 +144,9 @@ class TestUpdateCells:
             "percentage": 40,
         }])
 
-        result = await update_cells(db=db_session, user=FakeUser(), body=body)
+        result = await update_cells(
+            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+        )
         assert result["updated"] == 1
 
         stmt = select(CapacityPlanDB).where(
@@ -169,9 +162,6 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         body = BulkCellUpdate(updates=[{
             "project_id": str(planner_data["project1"].id),
             "user_id": str(planner_data["user1"].id),
@@ -179,7 +169,9 @@ class TestUpdateCells:
             "percentage": 99,
         }])
 
-        result = await update_cells(db=db_session, user=FakeUser(), body=body)
+        result = await update_cells(
+            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+        )
         assert result["updated"] == 1
 
         stmt = select(CapacityPlanDB).where(
@@ -195,9 +187,6 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         body = BulkCellUpdate(updates=[{
             "project_id": str(planner_data["project1"].id),
             "user_id": str(planner_data["user1"].id),
@@ -205,7 +194,9 @@ class TestUpdateCells:
             "percentage": None,
         }])
 
-        result = await update_cells(db=db_session, user=FakeUser(), body=body)
+        result = await update_cells(
+            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+        )
         assert result["updated"] == 1
 
         stmt = select(CapacityPlanDB).where(
@@ -221,9 +212,6 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         body = BulkCellUpdate(updates=[{
             "project_id": str(planner_data["project1"].id),
             "user_id": str(planner_data["user1"].id),
@@ -231,7 +219,9 @@ class TestUpdateCells:
             "percentage": 0,
         }])
 
-        result = await update_cells(db=db_session, user=FakeUser(), body=body)
+        result = await update_cells(
+            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+        )
         assert result["updated"] == 1
 
 
@@ -240,15 +230,90 @@ class TestDeleteRow:
     async def test_deletes_all_cells_for_combination(self, db_session, planner_data):
         from app.modules.capacity.api.planner import delete_row
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await delete_row(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             project_id=planner_data["project1"].id,
             user_id=planner_data["user1"].id,
         )
         assert result["deleted"] == 2
+
+
+class TestGetPlannerFiltering:
+    @pytest.mark.asyncio
+    async def test_excludes_finished_projects(self, db_session, planner_data):
+        from app.modules.capacity.api.planner import get_planner
+
+        planner_data["project1"].status = "finished"
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        group_names = [g["name"] for g in result["groups"]]
+        assert "Alpha" not in group_names
+
+    @pytest.mark.asyncio
+    async def test_excludes_inactive_users(self, db_session, planner_data):
+        from app.modules.capacity.api.planner import get_planner
+
+        planner_data["user2"].active = False
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        alpha = next(g for g in result["groups"] if g["name"] == "Alpha")
+        user_names = [r["user_name"] for r in alpha["rows"]]
+        assert "Bob Test" not in user_names
+
+    @pytest.mark.asyncio
+    async def test_includes_empty_billable_project_groups(self, db_session):
+        """Live billable projects with no planner data appear as empty groups."""
+        from app.modules.capacity.api.planner import get_planner
+
+        empty_proj = ProjectDB(id=uuid4(), name="Zeta New", status="live", is_billable=True)
+        db_session.add(empty_proj)
+        await db_session.flush()
+
+        user = UserDB(id=uuid4(), email="solo@test.com", name="Solo")
+        db_session.add(user)
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(user.id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        zeta = next((g for g in result["groups"] if g["name"] == "Zeta New"), None)
+        assert zeta is not None
+        assert len(zeta["rows"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_empty_groups_sorted_after_groups_with_data(self, db_session, planner_data):
+        """Groups with data come first, empty groups at the end."""
+        from app.modules.capacity.api.planner import get_planner
+
+        empty_proj = ProjectDB(id=uuid4(), name="AAA First", status="live", is_billable=True)
+        db_session.add(empty_proj)
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        groups = result["groups"]
+        has_data = [g for g in groups if len(g["rows"]) > 0]
+        empty = [g for g in groups if len(g["rows"]) == 0]
+        # All data groups come before empty groups
+        data_indices = [groups.index(g) for g in has_data]
+        empty_indices = [groups.index(g) for g in empty]
+        if data_indices and empty_indices:
+            assert max(data_indices) < min(empty_indices)
 
 
 class TestUpdatedAt:
@@ -256,11 +321,8 @@ class TestUpdatedAt:
     async def test_returns_max_updated_at(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_updated_at
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await get_updated_at(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             start="2026-01-05", end="2026-01-19",
         )
         assert result["updated_at"] is not None
@@ -269,11 +331,8 @@ class TestUpdatedAt:
     async def test_returns_null_for_empty_range(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_updated_at
 
-        class FakeUser:
-            user_id = planner_data["user1"].id
-
         result = await get_updated_at(
-            db=db_session, user=FakeUser(),
+            db=db_session, user=FakeUser(planner_data["user1"].id),
             start="2030-01-05", end="2030-01-19",
         )
         assert result["updated_at"] is None
