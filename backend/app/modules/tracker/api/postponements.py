@@ -15,9 +15,9 @@ from app.core.auth import TokenData
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.core.permissions import Action, require_permission
-from app.modules.scorecard.models.slack import AlertDefinitionDB
-from app.modules.scorecard.services.alert_service import AlertService
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.models.slack import AlertDefinitionDB
+from app.modules.notifications.services.alert_service import AlertService
+from app.modules.notifications.services.slack_service import SlackService
 from app.modules.tracker.api.invoices import _invoice_status_info
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
