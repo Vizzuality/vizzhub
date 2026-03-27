@@ -35,6 +35,20 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Switch } from '@/shared/components/ui/switch';
 import { NativeSelect } from '@/shared/components/ui/native-select';
 import { SlackChannelCombobox } from '@/shared/components/ui/SlackChannelCombobox';
+import { cn } from '@/lib/utils';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +76,8 @@ import {
   Plus,
   Info,
   X,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react';
 
 interface ProjectFormData {
@@ -318,6 +334,8 @@ export default function ProjectForm(): JSX.Element {
   const startDate = watch('start_date');
   const currentStatus = watch('status');
   const currentProgramId = watch('program_id');
+  const currentManagerId = watch('project_manager_id');
+  const [pmOpen, setPmOpen] = useState(false);
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending || settingsMutation.isPending;
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -713,14 +731,61 @@ export default function ProjectForm(): JSX.Element {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="project_manager_id" className="h-5 flex items-center">Project Manager</Label>
-                      <NativeSelect id="project_manager_id" className="w-full" {...register('project_manager_id')}>
-                        <option value="">None</option>
-                        {activeUsersSorted.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {getFullName(u.first_name, u.last_name, u.email)}
-                          </option>
-                        ))}
-                      </NativeSelect>
+                      <Popover open={pmOpen} onOpenChange={setPmOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="project_manager_id"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={pmOpen}
+                            className="w-full justify-between font-normal"
+                          >
+                            <span className="truncate">
+                              {currentManagerId
+                                ? getFullName(
+                                    activeUsersSorted.find((u) => u.id === currentManagerId)?.first_name,
+                                    activeUsersSorted.find((u) => u.id === currentManagerId)?.last_name,
+                                    activeUsersSorted.find((u) => u.id === currentManagerId)?.email,
+                                  )
+                                : 'None'}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search users..." />
+                            <CommandList>
+                              <CommandEmpty>No user found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="__none__"
+                                  onSelect={() => {
+                                    setValue('project_manager_id', '');
+                                    setPmOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn('mr-2 h-4 w-4', !currentManagerId ? 'opacity-100' : 'opacity-0')} />
+                                  <span className="text-muted-foreground">None</span>
+                                </CommandItem>
+                                {activeUsersSorted.map((u) => (
+                                  <CommandItem
+                                    key={u.id}
+                                    value={getFullName(u.first_name, u.last_name, u.email)}
+                                    onSelect={() => {
+                                      setValue('project_manager_id', u.id);
+                                      setPmOpen(false);
+                                    }}
+                                  >
+                                    <Check className={cn('mr-2 h-4 w-4', currentManagerId === u.id ? 'opacity-100' : 'opacity-0')} />
+                                    {getFullName(u.first_name, u.last_name, u.email)}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="status" className="h-5 flex items-center">Status</Label>
