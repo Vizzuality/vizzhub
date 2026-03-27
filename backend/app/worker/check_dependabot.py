@@ -12,15 +12,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
-from app.modules.scorecard.models.slack import (
+from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     DependabotAlertTrackedDB,
     ScheduledJobRunDB,
 )
-from app.modules.scorecard.services.alert_service import AlertService
+from app.modules.notifications.services.alert_service import AlertService
 from app.modules.scorecard.services.collectors.dependabot import DependabotCollector
 from app.core.services.integration_token_service import IntegrationTokenService
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 from app.worker.utils import complete_with_error
 

@@ -23,12 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.core.models.project import ProjectDB
-from app.modules.scorecard.models.slack import (
+from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     ScheduledJobRunDB,
 )
-from app.modules.scorecard.services.alert_service import AlertService
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.services.alert_service import AlertService
+from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
 

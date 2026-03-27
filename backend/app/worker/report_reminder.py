@@ -13,8 +13,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.models.slack import ScheduledJobRunDB
+from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_tracker_reminder_channel
 from app.worker.utils import complete_with_error
 

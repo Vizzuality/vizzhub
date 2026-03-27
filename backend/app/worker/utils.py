@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 
 logger = logging.getLogger(__name__)
 
