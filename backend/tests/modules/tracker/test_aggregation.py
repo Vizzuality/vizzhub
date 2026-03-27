@@ -383,6 +383,122 @@ class TestProjectAggregations:
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
+    async def test_aggregate_by_functional_area_user(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        project_id = cost_data["project"].id
+        resp = await client.get(
+            f"/api/tracker/projects/{project_id}/aggregations",
+            params={"group_by": "functional_area_user"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["group_by"] == "functional_area_user"
+        assert len(data["rows"]) == 1
+
+        row = data["rows"][0]
+        assert row["name"] == "Backend Developer"
+        assert row["total_days"] == pytest.approx(4.44, rel=1e-2)
+        assert row["total_cost"] == pytest.approx(3411.03, rel=1e-4)
+        assert len(row["periods"]) == 2
+
+        children = row["children"]
+        assert len(children) == 1
+        assert children[0]["name"] == "Cost User"
+        assert children[0]["email"] == "cost-test@example.com"
+        assert children[0]["total_days"] == pytest.approx(4.44, rel=1e-2)
+
+    @pytest.mark.asyncio
+    async def test_fa_user_multiple_users_same_area(
+        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+    ):
+        user2 = UserDB(
+            email="dev2@example.com",
+            name="Dev Two",
+            rate_id=cost_data["rate"].id,
+            dedication=Decimal("1.0"),
+        )
+        db_session.add(user2)
+        await db_session.flush()
+
+        report = ReportDB(
+            user_id=user2.id,
+            reporting_period_id=cost_data["period1"].id,
+            estimated=False,
+        )
+        db_session.add(report)
+        await db_session.flush()
+
+        part = ReportPartDB(
+            report_id=report.id,
+            project_id=cost_data["project"].id,
+            functional_area_id=cost_data["func_area"].id,
+            percentage=Decimal("0.30"),
+            cost=Decimal("3000.00"),
+            days=Decimal("6.0"),
+        )
+        db_session.add(part)
+        await db_session.commit()
+
+        project_id = cost_data["project"].id
+        resp = await client.get(
+            f"/api/tracker/projects/{project_id}/aggregations",
+            params={"group_by": "functional_area_user"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["rows"]) == 1
+
+        row = data["rows"][0]
+        assert row["name"] == "Backend Developer"
+        assert row["total_days"] == pytest.approx(10.44, rel=1e-2)
+
+        children = row["children"]
+        assert len(children) == 2
+        # Sorted by total_days desc: Dev Two (6.0) > Cost User (4.44)
+        assert children[0]["name"] == "Dev Two"
+        assert children[0]["total_days"] == pytest.approx(6.0)
+        assert children[1]["name"] == "Cost User"
+        assert children[1]["total_days"] == pytest.approx(4.44, rel=1e-2)
+
+    @pytest.mark.asyncio
+    async def test_fa_user_multiple_areas(
+        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+    ):
+        fa2 = FunctionalAreaDB(name="Frontend Developer")
+        db_session.add(fa2)
+        await db_session.flush()
+
+        part = ReportPartDB(
+            report_id=cost_data["report1"].id,
+            project_id=cost_data["project"].id,
+            functional_area_id=fa2.id,
+            percentage=Decimal("0.15"),
+            cost=Decimal("1500.00"),
+            days=Decimal("3.0"),
+        )
+        db_session.add(part)
+        await db_session.commit()
+
+        project_id = cost_data["project"].id
+        resp = await client.get(
+            f"/api/tracker/projects/{project_id}/aggregations",
+            params={"group_by": "functional_area_user"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["rows"]) == 2
+
+        names = [r["name"] for r in data["rows"]]
+        assert "Backend Developer" in names
+        assert "Frontend Developer" in names
+
+        fe_row = next(r for r in data["rows"] if r["name"] == "Frontend Developer")
+        assert fe_row["total_days"] == pytest.approx(3.0)
+        assert len(fe_row["children"]) == 1
+        assert fe_row["children"][0]["name"] == "Cost User"
+
+    @pytest.mark.asyncio
     async def test_aggregate_empty_project(
         self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
     ):
