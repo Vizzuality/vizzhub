@@ -222,13 +222,15 @@ class TestGetAllocationUsers:
         assert len(segments["Beta"]["months_active"]) == 2
         assert segments["Beta"]["months_active"] == ["2026-03", "2026-02"]
 
-        # Absence (Vacation): (0.20+0.20+0.20)/3 = 0.20
-        assert segments["Vacation"]["avg_percentage"] == pytest.approx(0.20, abs=0.01)
-        assert segments["Vacation"]["type"] == "absence"
+        # Absence grouped: (0.20+0.20+0.20)/3 = 0.20
+        assert segments["Absence"]["avg_percentage"] == pytest.approx(0.20, abs=0.01)
+        assert segments["Absence"]["type"] == "absence"
+        assert segments["Absence"]["project_id"] == "__absence__"
 
-        # Other (Internal): (0.30+0.30+0.30)/3 = 0.30
-        assert segments["Internal"]["avg_percentage"] == pytest.approx(0.30, abs=0.01)
-        assert segments["Internal"]["type"] == "other"
+        # Other grouped: (0.30+0.30+0.30)/3 = 0.30
+        assert segments["Other"]["avg_percentage"] == pytest.approx(0.30, abs=0.01)
+        assert segments["Other"]["type"] == "other"
+        assert segments["Other"]["project_id"] == "__other__"
 
     @pytest.mark.asyncio
     async def test_allocation_users_excludes_inactive_and_exempt(
