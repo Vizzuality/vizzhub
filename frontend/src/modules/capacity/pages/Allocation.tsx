@@ -11,9 +11,9 @@ const fmtMonth = (d: Date): string =>
 
 function defaultRange(): { start: string; end: string } {
   const now = new Date();
-  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);
-  return { start: fmtMonth(startDate), end: fmtMonth(endDate) };
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const month = fmtMonth(lastMonth);
+  return { start: month, end: month };
 }
 
 const defaults = defaultRange();
