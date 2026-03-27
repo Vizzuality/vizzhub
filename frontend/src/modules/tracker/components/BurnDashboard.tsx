@@ -73,6 +73,32 @@ function weightedMonthlyAvg(monthlyCosts: number[]): number {
   return weightedSum / totalWeight;
 }
 
+function buildForecastPoints(
+  lastDate: Date,
+  totalBurn: number,
+  weightedAvg: number,
+  remainingMonths: number,
+): { forecastFinal: number; points: CumulativePoint[] } {
+  const forecastFinal = Math.round((totalBurn + weightedAvg * remainingMonths) * 100) / 100;
+  const points: CumulativePoint[] = [];
+  let fcum = totalBurn;
+  const maxMonths = Math.min(remainingMonths, 24);
+
+  for (let i = 1; i <= maxMonths; i++) {
+    const fDate = new Date(lastDate);
+    fDate.setMonth(fDate.getMonth() + i);
+    fcum += weightedAvg;
+    points.push({
+      date: fDate.toISOString().slice(0, 10),
+      label: shortMonth(fDate.toISOString().slice(0, 10)),
+      cumulative: 0,
+      forecast: Math.round(fcum * 100) / 100,
+    });
+  }
+
+  return { forecastFinal, points };
+}
+
 export function useChartData(
   periods: PeriodCostBreakdown[],
   projectEndDate: string | null,
@@ -119,31 +145,21 @@ export function useChartData(
 
     if (projectEndDate && monthCount > 0) {
       const lastDate = new Date(sorted[sorted.length - 1].date + 'T00:00:00');
-      const endDate = new Date(projectEndDate + 'T00:00:00');
-      const remainingMonths = monthsBetween(lastDate, endDate);
+      const remainingMonths = monthsBetween(
+        lastDate,
+        new Date(projectEndDate + 'T00:00:00'),
+      );
 
       if (remainingMonths > 0) {
-        forecastFinal = Math.round((totalBurn + weightedAvg * remainingMonths) * 100) / 100;
+        const forecast = buildForecastPoints(lastDate, totalBurn, weightedAvg, remainingMonths);
+        forecastFinal = forecast.forecastFinal;
 
         const lastActual = cumulativeActual[cumulativeActual.length - 1];
         cumWithForecast[cumWithForecast.length - 1] = {
           ...lastActual,
           forecast: lastActual.cumulative,
         };
-
-        let fcum = totalBurn;
-        const maxForecastMonths = Math.min(remainingMonths, 24);
-        for (let i = 1; i <= maxForecastMonths; i++) {
-          const fDate = new Date(lastDate);
-          fDate.setMonth(fDate.getMonth() + i);
-          fcum += weightedAvg;
-          cumWithForecast.push({
-            date: fDate.toISOString().slice(0, 10),
-            label: shortMonth(fDate.toISOString().slice(0, 10)),
-            cumulative: 0,
-            forecast: Math.round(fcum * 100) / 100,
-          });
-        }
+        cumWithForecast.push(...forecast.points);
       } else {
         forecastFinal = totalBurn;
       }
