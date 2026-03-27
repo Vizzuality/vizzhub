@@ -18,10 +18,16 @@ app/
 │   └── services/          # oauth_service, job_service, integration_token_service, exchange_rate_service
 ├── modules/
 │   ├── scorecard/         # Scoring, metrics, collectors, calculators
-│   │   ├── api/           # 13 sub-routers (scores, metrics, capture, config, etc.)
+│   │   ├── api/           # 8 sub-routers (scores, metrics, capture, config, etc.)
 │   │   ├── models/        # Metrics, Scores, Config, GlobalMetrics, Indicators
 │   │   ├── services/      # calculators/, collectors/, normalizers/, export, cache
 │   │   ├── router.py      # Aggregates all scorecard sub-routers
+│   │   └── public.py      # Cross-module interface
+│   ├── notifications/     # Slack, alerts, templates, scheduled jobs
+│   │   ├── api/           # notifications, slack_admin, silences, scheduled_jobs
+│   │   ├── models/        # AlertDefinition, MessageTemplate, AlertSilence, AlertNotification, etc.
+│   │   ├── services/      # slack_service, alert_service
+│   │   ├── router.py      # Aggregates notification sub-routers
 │   │   └── public.py      # Cross-module interface
 │   ├── capacity/          # Capacity insights (cross-module analytical views)
 │   │   ├── api/           # insights, fa_detail, user_detail, _validation
