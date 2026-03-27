@@ -14,7 +14,7 @@ from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, ge
 from app.core.models.role import RoleDB, UserRoleDB
 from app.core.models.user import User, UserDB, UserPublic, UserUpdate
 from app.core.permissions.resolver import get_user_roles, resolve_permissions
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
 logger = logging.getLogger(__name__)
