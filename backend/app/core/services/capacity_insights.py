@@ -454,6 +454,74 @@ async def _get_finished_periods(
     return list(result)
 
 
+def _build_user_segments(
+    proj_map: dict[object, dict],
+    num_periods: int,
+    period_dates: dict,
+) -> tuple[list[dict], int, set]:
+    """Build segments for a single user's project allocation.
+
+    Returns (segments, billable_appearances, billable_project_ids).
+    """
+    billable_segments: list[dict] = []
+    billable_project_ids: set = set()
+    billable_appearances = 0
+    absence_pct_sum = 0.0
+    absence_periods: set = set()
+    other_pct_sum = 0.0
+    other_periods: set = set()
+
+    for proj_id, info in proj_map.items():
+        if info["is_billable"]:
+            active_months = sorted(
+                [period_dates[pid].strftime("%Y-%m") for pid in info["periods"]],
+                reverse=True,
+            )
+            billable_segments.append({
+                "project_id": str(proj_id),
+                "project_name": info["name"],
+                "avg_percentage": round(info["pct_sum"] / num_periods, 4),
+                "months_active": active_months,
+                "type": "billable",
+            })
+            billable_project_ids.add(proj_id)
+            billable_appearances += len(active_months)
+        elif info["is_absence"]:
+            absence_pct_sum += info["pct_sum"]
+            absence_periods.update(info["periods"])
+        else:
+            other_pct_sum += info["pct_sum"]
+            other_periods.update(info["periods"])
+
+    billable_segments.sort(key=lambda s: -s["avg_percentage"])
+    segments = list(billable_segments)
+
+    if absence_pct_sum > 0:
+        segments.append({
+            "project_id": "__absence__",
+            "project_name": "Absence",
+            "avg_percentage": round(absence_pct_sum / num_periods, 4),
+            "months_active": sorted(
+                [period_dates[pid].strftime("%Y-%m") for pid in absence_periods],
+                reverse=True,
+            ),
+            "type": "absence",
+        })
+    if other_pct_sum > 0:
+        segments.append({
+            "project_id": "__other__",
+            "project_name": "Other",
+            "avg_percentage": round(other_pct_sum / num_periods, 4),
+            "months_active": sorted(
+                [period_dates[pid].strftime("%Y-%m") for pid in other_periods],
+                reverse=True,
+            ),
+            "type": "other",
+        })
+
+    return segments, billable_appearances, billable_project_ids
+
+
 async def get_allocation_users(
     db: AsyncSession,
     start_date: date | None = None,
@@ -472,7 +540,7 @@ async def get_allocation_users(
 
     num_periods = len(periods)
     period_ids = [p_id for p_id, _ in periods]
-    period_dates = {p_id: p_date for p_id, p_date in periods}
+    period_dates = dict(periods)
     periods_used = [p_date.strftime("%Y-%m") for _, p_date in periods]
 
     # Eligible users (with FA short code)
@@ -518,8 +586,6 @@ async def get_allocation_users(
         )
     )
 
-    # Aggregate: per user → per project → pct_sum and period set
-    # user_projects[user_id][project_id] = {pct_sum, periods, name, is_billable, is_absence}
     user_projects: dict[object, dict[object, dict]] = defaultdict(dict)
     for uid, pid, proj_id, proj_name, is_billable, is_absence, pct in rows:
         proj_map = user_projects[uid]
@@ -540,72 +606,16 @@ async def get_allocation_users(
         if not proj_map:
             continue
 
-        billable_segments = []
-        billable_project_ids: set = set()
-        billable_appearances = 0
-        absence_pct_sum = 0.0
-        absence_periods: set = set()
-        other_pct_sum = 0.0
-        other_periods: set = set()
+        segments, billable_appearances, billable_project_ids = _build_user_segments(
+            proj_map, num_periods, period_dates,
+        )
 
-        for proj_id, info in proj_map.items():
-            avg_pct = info["pct_sum"] / num_periods
-            active_months = sorted(
-                [period_dates[pid].strftime("%Y-%m") for pid in info["periods"]],
-                reverse=True,
-            )
-
-            if info["is_billable"]:
-                billable_segments.append({
-                    "project_id": str(proj_id),
-                    "project_name": info["name"],
-                    "avg_percentage": round(avg_pct, 4),
-                    "months_active": active_months,
-                    "type": "billable",
-                })
-                billable_project_ids.add(proj_id)
-                billable_appearances += len(active_months)
-            elif info["is_absence"]:
-                absence_pct_sum += info["pct_sum"]
-                absence_periods.update(info["periods"])
-            else:
-                other_pct_sum += info["pct_sum"]
-                other_periods.update(info["periods"])
-
-        billable_segments.sort(key=lambda s: -s["avg_percentage"])
-
-        segments = list(billable_segments)
-        if absence_pct_sum > 0:
-            segments.append({
-                "project_id": "__absence__",
-                "project_name": "Absence",
-                "avg_percentage": round(absence_pct_sum / num_periods, 4),
-                "months_active": sorted(
-                    [period_dates[pid].strftime("%Y-%m") for pid in absence_periods],
-                    reverse=True,
-                ),
-                "type": "absence",
-            })
-        if other_pct_sum > 0:
-            segments.append({
-                "project_id": "__other__",
-                "project_name": "Other",
-                "avg_percentage": round(other_pct_sum / num_periods, 4),
-                "months_active": sorted(
-                    [period_dates[pid].strftime("%Y-%m") for pid in other_periods],
-                    reverse=True,
-                ),
-                "type": "other",
-            })
-
-        avg_billable_projects = billable_appearances / num_periods
         fn, ln, full, em, fa_short = user_info[uid]
-
         users_list.append({
             "user_id": str(uid),
             "name": _format_full_name(fn, ln, full, em),
             "functional_area": fa_short,
-            "avg_billable_projects": round(avg_billable_projects, 4),
+            "avg_billable_projects": round(billable_appearances / num_periods, 4),
             "total_distinct_projects": len(billable_project_ids),
             "segments": segments,
         })
@@ -634,7 +644,7 @@ async def get_allocation_projects(
 
     num_periods = len(periods)
     period_ids = [p_id for p_id, _ in periods]
-    period_dates = {p_id: p_date for p_id, p_date in periods}
+    period_dates = dict(periods)
     periods_used = [p_date.strftime("%Y-%m") for _, p_date in periods]
 
     # Query report parts for active projects in these periods
@@ -661,11 +671,8 @@ async def get_allocation_projects(
         )
     )
 
-    # Aggregate: per project → per user → pct_sum and period set
-    # proj_users[project_id][user_id] = {pct_sum, periods, name}
     proj_users: dict[object, dict[object, dict]] = defaultdict(dict)
     proj_names: dict[object, str] = {}
-    # proj_period_users[project_id][period_id] = set(user_ids)
     proj_period_users: dict[object, dict[object, set]] = defaultdict(
         lambda: defaultdict(set),
     )

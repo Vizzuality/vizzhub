@@ -35,7 +35,7 @@ export function AllocationBar({ segments }: AllocationBarProps): JSX.Element {
                   style={{
                     width: `${widthPct}%`,
                     backgroundColor: seg.color,
-                    opacity: seg.opacity ?? 1.0,
+                    opacity: seg.opacity ?? 1,
                   }}
                 />
               </TooltipTrigger>
