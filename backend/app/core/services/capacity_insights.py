@@ -461,12 +461,13 @@ async def get_allocation_users(
     period_dates = {p_id: p_date for p_id, p_date in periods}
     periods_used = [p_date.strftime("%Y-%m") for _, p_date in periods]
 
-    # Eligible users
+    # Eligible users (with FA short code)
     eligible_rows = await db.execute(
         select(
             UserDB.id, UserDB.first_name, UserDB.last_name,
-            UserDB.name, UserDB.email,
+            UserDB.name, UserDB.email, FunctionalAreaDB.name.label("fa_name"),
         )
+        .outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
         .where(
             UserDB.active.is_(True),
             UserDB.requires_project_reporting.is_(True),
@@ -477,10 +478,10 @@ async def get_allocation_users(
     if not eligible_users:
         return {"periods_used": periods_used, "users": []}
 
-    user_ids = [uid for uid, _, _, _, _ in eligible_users]
+    user_ids = [uid for uid, _, _, _, _, _ in eligible_users]
     user_info = {
-        uid: (fn, ln, full, em)
-        for uid, fn, ln, full, em in eligible_users
+        uid: (fn, ln, full, em, TARGET_FA_MAPPING.get(fa_name, ""))
+        for uid, fn, ln, full, em, fa_name in eligible_users
     }
 
     # Query all report parts for these users and periods
@@ -584,11 +585,12 @@ async def get_allocation_users(
             })
 
         avg_billable_projects = billable_appearances / num_periods
-        fn, ln, full, em = user_info[uid]
+        fn, ln, full, em, fa_short = user_info[uid]
 
         users_list.append({
             "user_id": str(uid),
             "name": _format_full_name(fn, ln, full, em),
+            "functional_area": fa_short,
             "avg_billable_projects": round(avg_billable_projects, 4),
             "total_distinct_projects": len(billable_project_ids),
             "segments": segments,
