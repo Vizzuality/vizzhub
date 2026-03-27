@@ -426,20 +426,31 @@ def _aggregate_fa_period(
     return fas
 
 
-async def get_allocation_users(db: AsyncSession) -> dict:
-    """Per-user project allocation averaged over last 3 finished periods.
+async def get_allocation_users(
+    db: AsyncSession,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
+    """Per-user project allocation averaged over finished periods.
 
+    If start_date/end_date provided, uses finished periods in that range.
+    Otherwise defaults to last 3 finished periods.
     Returns dict with 'periods_used' (desc order) and 'users' list.
-    Each user has segments (billable projects sorted desc by avg_pct,
-    then absence, then other).
     """
-    # Find last 3 finished periods
-    periods_result = await db.execute(
+    query = (
         select(ReportingPeriodDB.id, ReportingPeriodDB.date)
         .where(ReportingPeriodDB.status == "finished")
-        .order_by(desc(ReportingPeriodDB.date))
-        .limit(3)
+        .order_by(ReportingPeriodDB.date.desc())
     )
+    if start_date and end_date:
+        query = query.where(
+            ReportingPeriodDB.date >= start_date,
+            ReportingPeriodDB.date <= end_date,
+        )
+    else:
+        query = query.limit(3)
+
+    periods_result = await db.execute(query)
     periods = list(periods_result)
 
     if not periods:

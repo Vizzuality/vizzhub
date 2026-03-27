@@ -38,8 +38,17 @@ export const capacityApi = {
     const response = await api.get<ReportableUser[]>('/capacity/insights/user-detail/users');
     return response.data;
   },
-  getAllocationUsers: async (): Promise<AllocationUsersResponse> => {
-    const response = await api.get<AllocationUsersResponse>('/capacity/allocation/users');
+  getAllocationUsers: async (
+    startDate?: string,
+    endDate?: string,
+  ): Promise<AllocationUsersResponse> => {
+    const params: Record<string, string> = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    const response = await api.get<AllocationUsersResponse>(
+      '/capacity/allocation/users',
+      { params },
+    );
     return response.data;
   },
 };

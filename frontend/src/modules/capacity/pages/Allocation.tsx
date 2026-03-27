@@ -1,5 +1,22 @@
+import { useMemo } from 'react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useAllocationUsers } from '@/modules/capacity/hooks/useAllocationUsers';
 import { UserAllocationList } from '@/modules/capacity/components/UserAllocationList';
+import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
+import { Button } from '@/shared/components/ui/button';
+
+const fmtMonth = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+function defaultRange(): { start: string; end: string } {
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);
+  return { start: fmtMonth(startDate), end: fmtMonth(endDate) };
+}
+
+const defaults = defaultRange();
 
 function formatPeriodsHeader(periods: string[]): string {
   if (periods.length === 0) return '';
@@ -20,17 +37,51 @@ function formatPeriodsHeader(periods: string[]): string {
 }
 
 export default function Allocation(): JSX.Element {
-  const { data, isLoading, error } = useAllocationUsers();
+  const { state, setState } = useUrlState({
+    start: { defaultValue: defaults.start },
+    end: { defaultValue: defaults.end },
+    sort: { defaultValue: 'desc' },
+  });
+
+  const { data, isLoading, error } = useAllocationUsers(state.start, state.end);
+  const isAsc = state.sort === 'asc';
+
+  const sortedUsers = useMemo(() => {
+    if (!data) return [];
+    return isAsc ? [...data.users].reverse() : data.users;
+  }, [data, isAsc]);
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-baseline gap-3">
-        <h1 className="text-2xl font-semibold">Team Allocation</h1>
-        {data && data.periods_used.length > 0 && (
-          <span className="text-muted-foreground text-sm">
-            {formatPeriodsHeader(data.periods_used)}
-          </span>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-2xl font-semibold">Team Allocation</h1>
+          {data && data.periods_used.length > 0 && (
+            <span className="text-muted-foreground text-sm">
+              {formatPeriodsHeader(data.periods_used)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-end gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setState({ sort: isAsc ? 'desc' : 'asc' })}
+            title={isAsc ? 'Sort descending' : 'Sort ascending'}
+          >
+            {isAsc ? (
+              <ArrowUpNarrowWide className="h-4 w-4" />
+            ) : (
+              <ArrowDownWideNarrow className="h-4 w-4" />
+            )}
+          </Button>
+          <MonthRangePicker
+            startDate={state.start}
+            endDate={state.end}
+            onChange={(start, end) => setState({ start, end })}
+            idPrefix="allocation-"
+          />
+        </div>
       </div>
 
       {isLoading && (
@@ -45,7 +96,7 @@ export default function Allocation(): JSX.Element {
         </div>
       )}
 
-      {data && <UserAllocationList users={data.users} />}
+      {data && <UserAllocationList users={sortedUsers} />}
     </div>
   );
 }

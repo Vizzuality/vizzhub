@@ -130,7 +130,8 @@ export const queryKeys = {
     userDetail: (userId: string, startDate: string, endDate: string) =>
       ['capacity', 'user-detail', userId, startDate, endDate] as const,
     reportableUsers: ['capacity', 'reportable-users'] as const,
-    allocationUsers: ['capacity', 'allocation-users'] as const,
+    allocationUsers: (startDate?: string, endDate?: string) =>
+      ['capacity', 'allocation-users', startDate, endDate] as const,
   },
   tracker: {
     periods: {
