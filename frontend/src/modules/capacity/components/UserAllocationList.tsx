@@ -72,10 +72,10 @@ function SegmentBar({ segments, colorMap }: SegmentBarProps): JSX.Element {
               </TooltipTrigger>
               <TooltipContent>
                 <p className="font-medium">{seg.project_name}</p>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs opacity-70">
                   {Math.round(seg.avg_percentage * 100)}%
                 </p>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs opacity-70">
                   {formatMonths(seg.months_active)}
                 </p>
               </TooltipContent>
