@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useAllocationUsers } from '@/modules/capacity/hooks/useAllocationUsers';
+import { useAllocationProjects } from '@/modules/capacity/hooks/useAllocationProjects';
 import { UserAllocationList } from '@/modules/capacity/components/UserAllocationList';
+import { ProjectAllocationList } from '@/modules/capacity/components/ProjectAllocationList';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -53,6 +55,11 @@ export default function Allocation(): JSX.Element {
   });
 
   const { data, isLoading, error } = useAllocationUsers(state.start, state.end);
+  const {
+    data: projectsData,
+    isLoading: projectsLoading,
+    error: projectsError,
+  } = useAllocationProjects(state.start, state.end);
   const isAsc = state.sort === 'asc';
 
   const filteredUsers = useMemo(() => {
@@ -63,6 +70,11 @@ export default function Allocation(): JSX.Element {
     }
     return isAsc ? [...users].reverse() : users;
   }, [data, isAsc, state.fa]);
+
+  const sortedProjects = useMemo(() => {
+    if (!projectsData) return [];
+    return isAsc ? [...projectsData.projects].reverse() : projectsData.projects;
+  }, [projectsData, isAsc]);
 
   return (
     <div className="space-y-6 p-6">
@@ -124,6 +136,29 @@ export default function Allocation(): JSX.Element {
       )}
 
       {data && <UserAllocationList users={filteredUsers} />}
+
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className="text-xl font-semibold">Project Distribution</h2>
+        {projectsData && projectsData.periods_used.length > 0 && (
+          <span className="text-muted-foreground text-sm">
+            {formatPeriodsHeader(projectsData.periods_used)}
+          </span>
+        )}
+      </div>
+
+      {projectsLoading && (
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          Loading...
+        </div>
+      )}
+
+      {projectsError && (
+        <div className="flex h-64 items-center justify-center text-destructive">
+          Failed to load project data
+        </div>
+      )}
+
+      {projectsData && <ProjectAllocationList projects={sortedProjects} />}
     </div>
   );
 }
