@@ -113,13 +113,22 @@ export function UserAllocationList({ users }: UserAllocationListProps): JSX.Elem
       ))}
 
       {hasMore && (
-        <button
-          type="button"
-          onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-          className="text-muted-foreground hover:text-foreground text-sm underline"
-        >
-          Show more ({users.length - visibleCount} remaining)
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="text-muted-foreground hover:text-foreground text-sm underline"
+          >
+            Show more ({users.length - visibleCount} remaining)
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleCount(users.length)}
+            className="text-muted-foreground hover:text-foreground text-sm underline"
+          >
+            Show all
+          </button>
+        </div>
       )}
 
       {users.length === 0 && (
