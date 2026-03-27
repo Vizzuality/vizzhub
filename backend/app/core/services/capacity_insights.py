@@ -447,6 +447,7 @@ async def get_allocation_users(db: AsyncSession) -> dict:
 
     num_periods = len(periods)
     period_ids = [p_id for p_id, _ in periods]
+    period_dates = {p_id: p_date for p_id, p_date in periods}
     periods_used = [p_date.strftime("%Y-%m") for _, p_date in periods]
 
     # Eligible users
@@ -521,28 +522,32 @@ async def get_allocation_users(db: AsyncSession) -> dict:
 
         for proj_id, info in proj_map.items():
             avg_pct = info["pct_sum"] / num_periods
-            months_active = len(info["periods"])
+            active_months = sorted(
+                [period_dates[pid].strftime("%Y-%m") for pid in info["periods"]],
+                reverse=True,
+            )
             segment = {
                 "project_id": str(proj_id),
-                "label": info["name"],
-                "avg_pct": round(avg_pct, 4),
-                "months_active": months_active,
+                "project_name": info["name"],
+                "avg_percentage": round(avg_pct, 4),
+                "months_active": active_months,
             }
 
             if info["is_billable"]:
-                segment["segment_type"] = "billable"
+                segment["type"] = "billable"
                 billable_segments.append(segment)
                 billable_project_ids.add(proj_id)
-                billable_appearances += months_active
+                billable_appearances += len(active_months)
             elif info["is_absence"]:
-                segment["segment_type"] = "absence"
+                segment["type"] = "absence"
                 absence_segments.append(segment)
             else:
-                segment["segment_type"] = "other"
+                segment["type"] = "other"
                 other_segments.append(segment)
 
-        billable_segments.sort(key=lambda s: s["avg_pct"], reverse=True)
+        type_order = {"billable": 0, "absence": 1, "other": 2}
         segments = billable_segments + absence_segments + other_segments
+        segments.sort(key=lambda s: (type_order[s["type"]], -s["avg_percentage"]))
 
         avg_billable_projects = billable_appearances / num_periods
         fn, ln, full, em = user_info[uid]

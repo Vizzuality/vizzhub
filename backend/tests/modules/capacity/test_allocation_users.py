@@ -208,23 +208,27 @@ class TestGetAllocationUsers:
 
         result = await get_allocation_users(db=db_session)
         alice = result["users"][0]
-        segments = {s["label"]: s for s in alice["segments"]}
+        segments = {s["project_name"]: s for s in alice["segments"]}
 
         # Alpha: (0.50+0.30+0.30)/3 = 0.3667
-        assert segments["Alpha"]["avg_pct"] == pytest.approx(0.3667, abs=0.01)
-        assert segments["Alpha"]["months_active"] == 3
+        assert segments["Alpha"]["avg_percentage"] == pytest.approx(0.3667, abs=0.01)
+        assert isinstance(segments["Alpha"]["months_active"], list)
+        assert len(segments["Alpha"]["months_active"]) == 3
+        assert segments["Alpha"]["months_active"] == ["2026-03", "2026-02", "2026-01"]
 
         # Beta: (0+0.20+0.20)/3 = 0.1333
-        assert segments["Beta"]["avg_pct"] == pytest.approx(0.1333, abs=0.01)
-        assert segments["Beta"]["months_active"] == 2
+        assert segments["Beta"]["avg_percentage"] == pytest.approx(0.1333, abs=0.01)
+        assert isinstance(segments["Beta"]["months_active"], list)
+        assert len(segments["Beta"]["months_active"]) == 2
+        assert segments["Beta"]["months_active"] == ["2026-03", "2026-02"]
 
         # Absence (Vacation): (0.20+0.20+0.20)/3 = 0.20
-        assert segments["Vacation"]["avg_pct"] == pytest.approx(0.20, abs=0.01)
-        assert segments["Vacation"]["segment_type"] == "absence"
+        assert segments["Vacation"]["avg_percentage"] == pytest.approx(0.20, abs=0.01)
+        assert segments["Vacation"]["type"] == "absence"
 
         # Other (Internal): (0.30+0.30+0.30)/3 = 0.30
-        assert segments["Internal"]["avg_pct"] == pytest.approx(0.30, abs=0.01)
-        assert segments["Internal"]["segment_type"] == "other"
+        assert segments["Internal"]["avg_percentage"] == pytest.approx(0.30, abs=0.01)
+        assert segments["Internal"]["type"] == "other"
 
     @pytest.mark.asyncio
     async def test_allocation_users_excludes_inactive_and_exempt(
