@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
-import { useAllProjectSummaries } from '@/core/hooks/useProjects';
+import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import { useReportableUsers } from '@/modules/capacity/hooks/useReportableUsers';
 import { usePlannerData } from '@/modules/capacity/hooks/usePlannerData';
 import { usePlannerMutations } from '@/modules/capacity/hooks/usePlannerMutations';
@@ -48,7 +48,7 @@ export default function Planner(): JSX.Element {
     state.start, state.end, state.group, flushUpdates,
   );
 
-  const { data: projects } = useAllProjectSummaries();
+  const { data: projects } = useActiveProjectSummaries();
   const { data: reportableUsers } = useReportableUsers();
 
   // Local-only rows not yet persisted (no cells saved yet)
@@ -84,13 +84,6 @@ export default function Planner(): JSX.Element {
       });
     },
     [queueCellUpdate],
-  );
-
-  const handleDeleteRow = useCallback(
-    (projectId: string, userId: string): void => {
-      deleteRow(projectId, userId);
-    },
-    [deleteRow],
   );
 
   // Merge server data with local phantom rows
@@ -202,7 +195,7 @@ export default function Planner(): JSX.Element {
           groupBy={state.group}
           fa={state.fa}
           onCellChange={handleCellChange}
-          onDeleteRow={handleDeleteRow}
+          onDeleteRow={deleteRow}
           onAddRow={handleAddRow}
           addRowOptions={addRowOptions}
         />
