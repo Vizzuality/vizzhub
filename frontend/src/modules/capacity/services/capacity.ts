@@ -5,6 +5,7 @@ import type {
   PeriodUserInsight,
   ReportableUser,
 } from '@/modules/capacity/types/capacity';
+import type { AllocationUsersResponse } from '@/modules/capacity/types/allocation';
 
 export const capacityApi = {
   getInsights: async (startDate: string, endDate: string): Promise<PeriodInsight[]> => {
@@ -35,6 +36,10 @@ export const capacityApi = {
   },
   getReportableUsers: async (): Promise<ReportableUser[]> => {
     const response = await api.get<ReportableUser[]>('/capacity/insights/user-detail/users');
+    return response.data;
+  },
+  getAllocationUsers: async (): Promise<AllocationUsersResponse> => {
+    const response = await api.get<AllocationUsersResponse>('/capacity/allocation/users');
     return response.data;
   },
 };
