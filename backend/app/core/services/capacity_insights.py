@@ -657,6 +657,7 @@ async def get_allocation_projects(
             ReportPartDB.percentage.isnot(None),
             ReportDB.reporting_period_id.in_(period_ids),
             ProjectDB.status == "live",
+            ProjectDB.is_billable.is_(True),
         )
     )
 
