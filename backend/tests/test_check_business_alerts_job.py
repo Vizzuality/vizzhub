@@ -23,7 +23,7 @@ from app.core.models.integration_setting import IntegrationSettingDB
 from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.core.models.oauth import OAuthTokenDB
 from app.core.models.project import ProjectDB
-from app.modules.scorecard.models.slack import (
+from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
     AlertSilenceDB,

@@ -8,7 +8,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.tracker.models.reporting_period import (
     ReportingPeriodDB,
     ReportingPeriodStatus,
