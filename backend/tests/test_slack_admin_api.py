@@ -216,7 +216,7 @@ class TestAlertTestEndpoint:
         await db_session.refresh(alert)
 
         with patch(
-            "app.modules.scorecard.api.slack_admin.SlackService.send_message",
+            "app.modules.notifications.api.slack_admin.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ):
