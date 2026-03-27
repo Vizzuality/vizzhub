@@ -1,15 +1,15 @@
 """Capacity planner CRUD endpoints."""
 
-from datetime import date, datetime
+from datetime import date, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.models.functional_area import FunctionalAreaDB
-from app.core.models.project import ProjectDB
+from app.core.models.project import ProjectDB, ProjectStatus
 from app.core.models.user import UserDB
 from app.core.services.capacity_insights import TARGET_FA_MAPPING
 from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CapacityPlanDB
@@ -38,8 +38,6 @@ def _user_name_expr():
 
 def _mondays_between(start: date, end: date) -> list[str]:
     """Return list of Monday ISO date strings in range [start, end]."""
-    from datetime import timedelta
-
     current = start - timedelta(days=start.weekday())
     weeks = []
     while current <= end:
@@ -90,6 +88,8 @@ async def get_planner(
         .outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
         .where(CapacityPlanDB.week_start >= start_date)
         .where(CapacityPlanDB.week_start <= end_date)
+        .where(ProjectDB.status != ProjectStatus.FINISHED)
+        .where(UserDB.active.is_(True))
         .order_by(ProjectDB.name, UserDB.name, CapacityPlanDB.week_start)
     )
 
@@ -126,7 +126,33 @@ async def get_planner(
 
         rows_map[row_key]["cells"][row.week_start.isoformat()] = row.percentage
 
-    return {"groups": list(groups_map.values()), "weeks": weeks}
+    # Add empty groups for all live projects / active reportable users
+    if group_by == "project":
+        empty_stmt = (
+            select(ProjectDB.id, ProjectDB.name)
+            .where(ProjectDB.status != ProjectStatus.FINISHED)
+            .where(ProjectDB.is_billable.is_(True))
+            .order_by(ProjectDB.name)
+        )
+    else:
+        empty_stmt = (
+            select(UserDB.id, _user_name_expr().label("name"))
+            .where(UserDB.active.is_(True))
+            .where(UserDB.requires_project_reporting.is_(True))
+            .order_by(UserDB.name)
+        )
+
+    for g in (await db.execute(empty_stmt)).all():
+        key = str(g.id)
+        if key not in groups_map:
+            groups_map[key] = {"id": key, "name": g.name, "rows": []}
+
+    # Sort: groups with data first (alphabetically), then empty groups (alphabetically)
+    sorted_groups = sorted(
+        groups_map.values(),
+        key=lambda g: (len(g["rows"]) == 0, g["name"].lower()),
+    )
+    return {"groups": sorted_groups, "weeks": weeks}
 
 
 @router.patch("/cells")
@@ -148,14 +174,16 @@ async def update_cells(
             upserts.append(cell)
 
     deleted_count = 0
-    for cell in deletes:
+    if deletes:
         stmt = delete(CapacityPlanDB).where(
-            CapacityPlanDB.project_id == cell.project_id,
-            CapacityPlanDB.user_id == cell.user_id,
-            CapacityPlanDB.week_start == cell.week_start,
+            tuple_(
+                CapacityPlanDB.project_id,
+                CapacityPlanDB.user_id,
+                CapacityPlanDB.week_start,
+            ).in_([(c.project_id, c.user_id, c.week_start) for c in deletes])
         )
         result = await db.execute(stmt)
-        deleted_count += result.rowcount
+        deleted_count = result.rowcount
 
     upserted_count = 0
     if upserts:

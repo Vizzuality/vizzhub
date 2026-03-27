@@ -1,16 +1,20 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
-  type RowData,
 } from '@tanstack/react-table';
 import { Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
 import { PlannerAddRow } from '@/modules/capacity/components/PlannerAddRow';
 import type { PlannerGroup } from '@/modules/capacity/types/planner';
+import {
+  useCellSelection,
+  type CellCoord,
+} from '@/modules/capacity/hooks/useCellSelection';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,18 +26,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
-
-declare module '@tanstack/react-table' {
-  interface TableMeta<TData extends RowData> {
-    updateCell: (
-      projectId: string,
-      userId: string,
-      week: string,
-      value: number | null,
-    ) => void;
-    currentUserId: string;
-  }
-}
 
 interface FlatRow {
   _type: 'header' | 'data' | 'add';
@@ -87,6 +79,12 @@ export function PlannerGrid({
   addRowOptions,
 }: PlannerGridProps): JSX.Element {
   const { user: authUser } = useAuth();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selection = useCellSelection();
+  const [batchDraft, setBatchDraft] = useState('');
+  const [showBatchInput, setShowBatchInput] = useState(false);
+  const batchInputRef = useRef<HTMLInputElement>(null);
+  const copiedValueRef = useRef<number | null>(null);
 
   // Filter by FA if set
   const filteredGroups = useMemo(() => {
@@ -131,6 +129,125 @@ export function PlannerGrid({
     }
     return result;
   }, [filteredGroups]);
+
+  // Build allCoords for selection range calculation
+  useEffect(() => {
+    const coords: CellCoord[] = [];
+    for (const row of flatRows) {
+      if (row._type !== 'data') continue;
+      for (const week of weeks) {
+        coords.push({
+          projectId: row.project_id!,
+          userId: row.user_id!,
+          week,
+        });
+      }
+    }
+    selection.allCoordsRef.current = coords;
+  }, [flatRows, weeks, selection.allCoordsRef]);
+
+  // Global mouseup to end drag
+  useEffect(() => {
+    const handler = (): void => selection.handleMouseUp();
+    window.addEventListener('mouseup', handler);
+    return () => window.removeEventListener('mouseup', handler);
+  }, [selection.handleMouseUp]);
+
+  // Apply batch value to selected cells
+  const applyBatchValue = useCallback(
+    (value: number | null): void => {
+      for (const key of selection.selected) {
+        const [projectId, userId, week] = key.split(':');
+        onCellChange(projectId, userId, week, value);
+      }
+      selection.clearSelection();
+      setShowBatchInput(false);
+      setBatchDraft('');
+    },
+    [selection, onCellChange],
+  );
+
+  // Lookup cell value by key
+  const cellValueMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of flatRows) {
+      if (row._type !== 'data') continue;
+      for (const [week, val] of Object.entries(row.cells)) {
+        map.set(`${row.project_id}:${row.user_id}:${week}`, val);
+      }
+    }
+    return map;
+  }, [flatRows]);
+
+  // Keyboard handler for grid
+  const handleGridKeyDown = useCallback(
+    (e: React.KeyboardEvent): void => {
+      if (selection.selected.size === 0) return;
+      if (showBatchInput) return;
+
+      const isMod = e.metaKey || e.ctrlKey;
+
+      if (isMod && e.key === 'c') {
+        e.preventDefault();
+        if (selection.selected.size === 1) {
+          const key = [...selection.selected][0];
+          copiedValueRef.current = cellValueMap.get(key) ?? null;
+        }
+        return;
+      }
+
+      if (isMod && e.key === 'v') {
+        e.preventDefault();
+        if (copiedValueRef.current !== null) {
+          applyBatchValue(copiedValueRef.current);
+        }
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        applyBatchValue(null);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        selection.clearSelection();
+        return;
+      }
+
+      // Typing a digit opens batch input
+      if (/^[0-9]$/.test(e.key) && selection.selected.size > 1) {
+        e.preventDefault();
+        setBatchDraft(e.key);
+        setShowBatchInput(true);
+      }
+    },
+    [selection, showBatchInput, applyBatchValue, cellValueMap],
+  );
+
+  // Focus batch input when it appears
+  useEffect(() => {
+    if (showBatchInput) batchInputRef.current?.focus();
+  }, [showBatchInput]);
+
+  const handleBatchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>): void => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const num = parseInt(batchDraft, 10);
+        if (!isNaN(num) && num > 0) {
+          applyBatchValue(Math.min(num, 200));
+        } else {
+          setShowBatchInput(false);
+          setBatchDraft('');
+        }
+      } else if (e.key === 'Escape') {
+        setShowBatchInput(false);
+        setBatchDraft('');
+      }
+    },
+    [batchDraft, applyBatchValue],
+  );
 
   // Group weeks by month for headers
   const monthGroups = useMemo(() => {
@@ -183,7 +300,16 @@ export function PlannerGrid({
               groupBy === 'project' ? original.user_name : original.project_name;
             return (
               <div className="flex items-center justify-between gap-1">
-                <span className="truncate text-sm">{label}</span>
+                {groupBy === 'user' ? (
+                  <Link
+                    to={`/tracker/projects/${original.project_id}`}
+                    className="truncate text-sm hover:underline"
+                  >
+                    {label}
+                  </Link>
+                ) : (
+                  <span className="truncate text-sm">{label}</span>
+                )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button
@@ -223,42 +349,44 @@ export function PlannerGrid({
       id: `week_${week}`,
       header: () => <span className="text-xs">W{getISOWeekNumber(week)}</span>,
       size: 42,
-      cell: ({ row: { original }, table }) => {
-        if (original._type !== 'data') return null;
-        const value = original.cells[week];
-        const isOwnRow = original.user_id === table.options.meta?.currentUserId;
-        return (
-          <PlannerCell
-            value={value}
-            isOwnRow={isOwnRow}
-            onChange={(v) =>
-              table.options.meta?.updateCell(
-                original.project_id!,
-                original.user_id!,
-                week,
-                v,
-              )
-            }
-          />
-        );
-      },
+      cell: () => null,
     }));
 
     return [...fixed, ...weekCols];
-  }, [weeks, groupBy, onDeleteRow, onAddRow, addRowOptions, existingIdsByGroup]);
+  }, [weeks, groupBy, onDeleteRow]);
 
   const table = useReactTable({
     data: flatRows,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    meta: {
-      updateCell: onCellChange,
-      currentUserId: authUser?.id ?? '',
-    },
   });
 
   return (
-    <div className="overflow-auto rounded-md border" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+    <div
+      ref={containerRef}
+      className="relative overflow-auto rounded-md border"
+      style={{ maxHeight: 'calc(100vh - 120px)' }}
+      tabIndex={0}
+      onKeyDown={handleGridKeyDown}
+    >
+      {showBatchInput && (
+        <div className="absolute left-1/2 top-12 z-50 -translate-x-1/2 rounded-md border bg-background p-2 shadow-lg">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Set {selection.selected.size} cells to:
+          </label>
+          <input
+            ref={batchInputRef}
+            className="w-20 rounded border px-2 py-1 text-center text-sm outline-none"
+            value={batchDraft}
+            onChange={(e) => setBatchDraft(e.target.value)}
+            onKeyDown={handleBatchKeyDown}
+            onBlur={() => { setShowBatchInput(false); setBatchDraft(''); }}
+            type="number"
+            min={1}
+            max={200}
+          />
+        </div>
+      )}
       <table className="w-full border-collapse">
         {/* Month header row */}
         <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
@@ -306,10 +434,20 @@ export function PlannerGrid({
                 <tr key={row.id} className="group/row border-b bg-muted">
                   <td
                     colSpan={2}
-                    className="sticky left-0 z-10 bg-muted px-2 py-1 whitespace-nowrap"
-                    style={{ left: 0 }}
+                    className="sticky left-0 z-10 bg-muted px-2 py-1 max-w-0 truncate"
+                    style={{ left: 0, maxWidth: 250 }}
                   >
-                    <span className="font-semibold text-sm">{row.original.groupName}</span>
+                    {groupBy === 'project' ? (
+                      <Link
+                        to={`/tracker/projects/${row.original.groupId}`}
+                        className="font-semibold text-sm hover:underline"
+                        title={row.original.groupName}
+                      >
+                        {row.original.groupName}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-sm">{row.original.groupName}</span>
+                    )}
                   </td>
                   {weekCells.map((cell) => (
                     <td key={cell.id} className="border-l bg-muted" style={{ height: 28 }} />
@@ -340,27 +478,62 @@ export function PlannerGrid({
               );
             }
 
+            const orig = row.original;
             return (
               <tr key={row.id} className="group/row border-b hover:bg-muted/10">
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className={`px-0 py-0 ${
-                      cell.column.getIndex() < 2
-                        ? 'sticky left-0 z-10 bg-background px-2'
-                        : 'border-l'
-                    }`}
-                    style={{
-                      width: cell.column.getSize(),
-                      height: 32,
-                      left: cell.column.getIndex() < 2
-                        ? cell.column.getIndex() === 0 ? 0 : 50
-                        : undefined,
-                    }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const colIdx = cell.column.getIndex();
+                  const isWeekCol = colIdx >= 2;
+                  const weekIdx = colIdx - 2;
+                  const week = isWeekCol ? weeks[weekIdx] : undefined;
+                  const coord: CellCoord | undefined =
+                    isWeekCol && orig.project_id && orig.user_id && week
+                      ? { projectId: orig.project_id, userId: orig.user_id, week }
+                      : undefined;
+                  const isSelected = coord ? selection.isSelected(coord) : false;
+
+                  return (
+                    <td
+                      key={cell.id}
+                      className={`px-0 py-0 ${
+                        colIdx < 2
+                          ? 'sticky left-0 z-10 bg-background px-2'
+                          : 'border-l'
+                      }`}
+                      style={{
+                        width: cell.column.getSize(),
+                        height: 32,
+                        left: colIdx < 2
+                          ? colIdx === 0 ? 0 : 50
+                          : undefined,
+                      }}
+                    >
+                      {isWeekCol && orig._type === 'data' && coord ? (
+                        <PlannerCell
+                          value={orig.cells[week!]}
+                          isOwnRow={orig.user_id === authUser?.id}
+                          selected={isSelected}
+                          onChange={(v) =>
+                            onCellChange(
+                              orig.project_id!,
+                              orig.user_id!,
+                              week!,
+                              v,
+                            )
+                          }
+                          onMouseDown={(e) => {
+                            selection.handleCellMouseDown(coord, e.shiftKey);
+                          }}
+                          onMouseEnter={() => {
+                            selection.handleCellMouseEnter(coord);
+                          }}
+                        />
+                      ) : (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}
