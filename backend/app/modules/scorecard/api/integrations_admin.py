@@ -17,9 +17,8 @@ from app.modules.scorecard.api.schemas.integrations import (
     SlackSettingsUpdate,
     SlackTokenInput,
 )
-from app.modules.scorecard.api.schemas.slack import SlackChannel, SlackTestResult
 from app.core.services.integration_token_service import IntegrationTokenService
-from app.modules.scorecard.services.slack_service import SlackService
+from app.modules.notifications.public import SlackChannel, SlackService, SlackTestResult
 
 logger = logging.getLogger(__name__)
 
