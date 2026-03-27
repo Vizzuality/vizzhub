@@ -1,0 +1,292 @@
+/* 404 — Unknown Element
+   Continues the Landing's periodic-table / data-terminal aesthetic.
+   An unresolved entry in the Vizzhub catalog. */
+
+.notfound {
+  --nf-bg: var(--background);
+  --nf-card: var(--card);
+  --nf-border: var(--muted-foreground);
+  --nf-green: var(--aux-deep-teal);
+  --nf-dust: var(--foreground);
+  --nf-muted: var(--muted-foreground);
+
+  min-height: calc(100vh - 3rem);
+  margin: -1.5rem;
+  background-color: var(--nf-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem 4rem;
+  font-family: var(--font-mono);
+  overflow: hidden;
+  position: relative;
+}
+
+.dark .notfound {
+  --nf-green: var(--aux-neon-grass);
+}
+
+/* ── Scanline overlay (matches Landing) ── */
+
+.notfound::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── The card — a single oversized periodic-table cell ── */
+
+.notfound__card {
+  position: relative;
+  background: var(--nf-card);
+  border: 1px solid var(--nf-border);
+  width: 280px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: nf-materialize 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes nf-materialize {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.notfound__card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.015) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* ── Card metadata (matches Landing card-number position) ── */
+
+.notfound__number {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  font-size: 0.6rem;
+  color: var(--nf-muted);
+  letter-spacing: 0.04em;
+}
+
+.notfound__mass {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-size: 0.6rem;
+  color: var(--nf-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ── The symbol — glitched ── */
+
+.notfound__symbol {
+  font-family: var(--font-sans);
+  font-size: 6rem;
+  font-weight: 300;
+  color: var(--nf-dust);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  position: relative;
+  animation: nf-glitch-subtle 4s ease-in-out infinite;
+}
+
+@keyframes nf-glitch-subtle {
+  0%, 92%, 100% {
+    text-shadow: none;
+    transform: none;
+  }
+  93% {
+    text-shadow:
+      -2px 0 var(--nf-green),
+      2px 0 var(--aux-red);
+    transform: translateX(-1px);
+  }
+  94% {
+    text-shadow:
+      2px 0 var(--nf-green),
+      -2px 0 var(--aux-red);
+    transform: translateX(1px);
+  }
+  95% {
+    text-shadow: none;
+    transform: none;
+  }
+  96% {
+    text-shadow:
+      -1px 0 var(--nf-green),
+      1px 0 var(--aux-red);
+    transform: translateX(-0.5px) skewX(-0.5deg);
+  }
+  97% {
+    text-shadow: none;
+    transform: none;
+  }
+}
+
+/* ── Label (bottom of card, like Landing) ── */
+
+.notfound__label {
+  position: absolute;
+  bottom: 0.75rem;
+  font-size: 0.6rem;
+  color: var(--nf-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Readout below the card ── */
+
+.notfound__readout {
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: nf-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+@keyframes nf-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notfound__message {
+  font-size: 0.75rem;
+  color: var(--nf-muted);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  text-align: center;
+  max-width: 320px;
+}
+
+.notfound__path {
+  font-size: 0.6rem;
+  color: var(--nf-muted);
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── CTA (matches Landing cta) ── */
+
+.notfound__cta {
+  margin-top: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  padding: 0 1rem;
+  background: transparent;
+  color: var(--nf-dust);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid var(--nf-border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, box-shadow 0.25s;
+  animation: nf-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+.notfound__cta:hover {
+  border-color: var(--nf-green);
+  color: var(--nf-green);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.dark .notfound__cta:hover {
+  box-shadow:
+    0 0 30px rgba(90, 255, 21, 0.15),
+    inset 0 0 60px rgba(90, 255, 21, 0.05);
+}
+
+/* ── Ambient noise grid (background texture) ── */
+
+.notfound__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image:
+    linear-gradient(var(--nf-dust) 1px, transparent 1px),
+    linear-gradient(90deg, var(--nf-dust) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.dark .notfound__grid {
+  opacity: 0.04;
+}
+
+/* ── Corner coordinates (terminal aesthetic) ── */
+
+.notfound__coord {
+  position: absolute;
+  font-size: 0.5rem;
+  color: var(--nf-muted);
+  letter-spacing: 0.06em;
+  opacity: 0.4;
+}
+
+.notfound__coord--tl {
+  top: 1.5rem;
+  left: 1.5rem;
+}
+
+.notfound__coord--br {
+  bottom: 1.5rem;
+  right: 1.5rem;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 480px) {
+  .notfound__card {
+    width: 220px;
+    height: 220px;
+  }
+
+  .notfound__symbol {
+    font-size: 4.5rem;
+  }
+
+  .notfound__coord {
+    display: none;
+  }
+}
