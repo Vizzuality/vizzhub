@@ -261,8 +261,8 @@ export function PlannerGrid({
     <div className="overflow-auto rounded-md border" style={{ maxHeight: 'calc(100vh - 120px)' }}>
       <table className="w-full border-collapse">
         {/* Month header row */}
-        <thead className="sticky top-0 z-20">
-          <tr className="border-b border-border bg-background">
+        <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
+          <tr className="bg-background">
             <th colSpan={2} className="sticky left-0 z-20 bg-background" />
             {Array.from(monthGroups.entries()).map(([month, monthWeeks]) => (
               <th
@@ -275,7 +275,7 @@ export function PlannerGrid({
             ))}
           </tr>
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="border-b border-border bg-background">
+            <tr key={headerGroup.id} className="bg-background">
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
