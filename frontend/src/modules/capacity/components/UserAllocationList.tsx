@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ITEM_PALETTE } from '@/modules/capacity/utils/constants';
+import { ABSENCE_COLOR, ITEM_PALETTE } from '@/modules/capacity/utils/constants';
 import type { AllocationSegment, UserAllocation } from '@/modules/capacity/types/allocation';
 import {
   Tooltip,
@@ -10,18 +10,20 @@ import {
 
 const PAGE_SIZE = 10;
 
+const OTHER_COLOR = '#6b7280';
+
 function buildColorMap(users: UserAllocation[]): Map<string, string> {
-  const projectIds = new Set<string>();
+  const map = new Map<string, string>();
+  map.set('__absence__', ABSENCE_COLOR);
+  map.set('__other__', OTHER_COLOR);
+  let i = 0;
   for (const user of users) {
     for (const seg of user.segments) {
-      projectIds.add(seg.project_id);
+      if (!map.has(seg.project_id)) {
+        map.set(seg.project_id, ITEM_PALETTE[i % ITEM_PALETTE.length]);
+        i++;
+      }
     }
-  }
-  const map = new Map<string, string>();
-  let i = 0;
-  for (const id of projectIds) {
-    map.set(id, ITEM_PALETTE[i % ITEM_PALETTE.length]);
-    i++;
   }
   return map;
 }
