@@ -7,7 +7,7 @@ import type { BarSegment } from '@/modules/capacity/components/AllocationBar';
 const PAGE_SIZE = 10;
 
 const OPACITY_BY_TYPE: Record<AllocationSegment['type'], number> = {
-  billable: 1.0,
+  billable: 1,
   absence: 0.5,
   other: 0.3,
 };

@@ -34,11 +34,11 @@ function formatPeriodsHeader(periods: string[]): string {
     const [year, month] = p.split('-');
     const date = new Date(Number(year), Number(month) - 1);
     const monthName = date.toLocaleDateString('en', { month: 'short' });
-    if (year !== lastYear) {
+    if (year === lastYear) {
+      parts.push(monthName);
+    } else {
       parts.push(`${monthName} ${year}`);
       lastYear = year;
-    } else {
-      parts.push(monthName);
     }
   }
   return `Based on ${parts.join(', ')}`;
