@@ -16,3 +16,15 @@ export const ITEM_PALETTE = [
   '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
   '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
 ];
+
+export const OTHER_COLOR = '#6b7280';
+
+export function formatMonths(months: string[]): string {
+  return months
+    .map((m) => {
+      const [year, month] = m.split('-');
+      const d = new Date(Number(year), Number(month) - 1);
+      return d.toLocaleDateString('en', { month: 'short', year: 'numeric' });
+    })
+    .join(', ');
+}

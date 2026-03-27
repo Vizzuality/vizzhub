@@ -426,16 +426,16 @@ def _aggregate_fa_period(
     return fas
 
 
-async def get_allocation_users(
+async def _get_finished_periods(
     db: AsyncSession,
     start_date: date | None = None,
     end_date: date | None = None,
-) -> dict:
-    """Per-user project allocation averaged over finished periods.
+    default_limit: int = 3,
+) -> list[tuple]:
+    """Fetch finished reporting periods, newest first.
 
-    If start_date/end_date provided, uses finished periods in that range.
-    Otherwise defaults to last 3 finished periods.
-    Returns dict with 'periods_used' (desc order) and 'users' list.
+    If start_date/end_date provided, filters to that range.
+    Otherwise returns the most recent `default_limit` periods.
     """
     query = (
         select(ReportingPeriodDB.id, ReportingPeriodDB.date)
@@ -448,10 +448,24 @@ async def get_allocation_users(
             ReportingPeriodDB.date <= end_date,
         )
     else:
-        query = query.limit(3)
+        query = query.limit(default_limit)
 
-    periods_result = await db.execute(query)
-    periods = list(periods_result)
+    result = await db.execute(query)
+    return list(result)
+
+
+async def get_allocation_users(
+    db: AsyncSession,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
+    """Per-user project allocation averaged over finished periods.
+
+    If start_date/end_date provided, uses finished periods in that range.
+    Otherwise defaults to last 3 finished periods.
+    Returns dict with 'periods_used' (desc order) and 'users' list.
+    """
+    periods = await _get_finished_periods(db, start_date, end_date)
 
     if not periods:
         return {"periods_used": [], "users": []}
@@ -613,21 +627,7 @@ async def get_allocation_projects(
     Shows active (status='live') projects ranked by avg number of people.
     Each project has segments for individual users.
     """
-    query = (
-        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
-        .where(ReportingPeriodDB.status == "finished")
-        .order_by(ReportingPeriodDB.date.desc())
-    )
-    if start_date and end_date:
-        query = query.where(
-            ReportingPeriodDB.date >= start_date,
-            ReportingPeriodDB.date <= end_date,
-        )
-    else:
-        query = query.limit(3)
-
-    periods_result = await db.execute(query)
-    periods = list(periods_result)
+    periods = await _get_finished_periods(db, start_date, end_date)
 
     if not periods:
         return {"periods_used": [], "projects": []}
