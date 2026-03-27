@@ -9,14 +9,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.slack import (
+from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
     AlertSilenceDB,
     MessageTemplateDB,
 )
 from app.core.models.project import ProjectDB
-from app.modules.scorecard.services.alert_service import AlertService
+from app.modules.notifications.services.alert_service import AlertService
 
 
 class TestRenderTemplate:

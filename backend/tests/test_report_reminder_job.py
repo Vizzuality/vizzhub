@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
 from app.core.token_encryption import encrypt_token
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.worker.report_reminder import _is_last_business_day, send_monthly_report_reminder, REPORT_REMINDER_MESSAGE
 
 

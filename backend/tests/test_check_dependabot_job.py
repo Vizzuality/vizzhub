@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.token_encryption import encrypt_token
 from app.core.models.oauth import OAuthTokenDB
 from app.core.models.project import ProjectDB
-from app.modules.scorecard.models.slack import (
+from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     DependabotAlertTrackedDB,
     MessageTemplateDB,
@@ -461,7 +461,7 @@ class TestCheckDependabotJob:
         """Job should not send notifications for silenced projects."""
         from datetime import timedelta
 
-        from app.modules.scorecard.models.slack import AlertSilenceDB
+        from app.modules.notifications.models.slack import AlertSilenceDB
 
         _add_slack_token(db_session)
         _add_github_token(db_session)

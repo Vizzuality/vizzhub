@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.oauth import OAuthTokenDB
 from app.core.models.user import UserDB
 from app.core.token_encryption import encrypt_token
-from app.modules.scorecard.models.slack import ScheduledJobRunDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 from app.worker.report_confirmation_reminder import (
