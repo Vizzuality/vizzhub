@@ -9,6 +9,7 @@ export interface AllocationSegment {
 export interface UserAllocation {
   user_id: string;
   name: string;
+  functional_area: string;
   avg_billable_projects: number;
   total_distinct_projects: number;
   segments: AllocationSegment[];
