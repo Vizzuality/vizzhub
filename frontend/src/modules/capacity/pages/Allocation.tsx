@@ -19,14 +19,12 @@ import { FA_ORDER } from '@/modules/capacity/utils/constants';
 const fmtMonth = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-function defaultRange(): { start: string; end: string } {
+function defaultMonth(): string {
   const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const month = fmtMonth(lastMonth);
-  return { start: month, end: month };
+  return fmtMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 }
 
-const defaults = defaultRange();
+const defaultMo = defaultMonth();
 
 function formatPeriodsHeader(periods: string[]): string {
   if (periods.length === 0) return '';
@@ -46,12 +44,38 @@ function formatPeriodsHeader(periods: string[]): string {
   return `Based on ${parts.join(', ')}`;
 }
 
+interface SortButtonProps {
+  readonly isAsc: boolean;
+  readonly onToggle: () => void;
+}
+
+function SortButton({ isAsc, onToggle }: SortButtonProps): JSX.Element {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="shrink-0"
+      onClick={onToggle}
+      title={isAsc ? 'Sort descending' : 'Sort ascending'}
+    >
+      {isAsc ? (
+        <ArrowUpNarrowWide className="h-4 w-4" />
+      ) : (
+        <ArrowDownWideNarrow className="h-4 w-4" />
+      )}
+    </Button>
+  );
+}
+
 export default function Allocation(): JSX.Element {
   const { state, setState } = useUrlState({
-    start: { defaultValue: defaults.start },
-    end: { defaultValue: defaults.end },
+    start: { defaultValue: defaultMo },
+    end: { defaultValue: defaultMo },
     sort: { defaultValue: 'desc' },
     fa: { defaultValue: 'all' },
+    p_start: { defaultValue: defaultMo },
+    p_end: { defaultValue: defaultMo },
+    p_sort: { defaultValue: 'desc' },
   });
 
   const { data, isLoading, error } = useAllocationUsers(state.start, state.end);
@@ -59,8 +83,10 @@ export default function Allocation(): JSX.Element {
     data: projectsData,
     isLoading: projectsLoading,
     error: projectsError,
-  } = useAllocationProjects(state.start, state.end);
+  } = useAllocationProjects(state.p_start, state.p_end);
+
   const isAsc = state.sort === 'asc';
+  const isPAsc = state.p_sort === 'asc';
 
   const filteredUsers = useMemo(() => {
     if (!data) return [];
@@ -73,11 +99,12 @@ export default function Allocation(): JSX.Element {
 
   const sortedProjects = useMemo(() => {
     if (!projectsData) return [];
-    return isAsc ? [...projectsData.projects].reverse() : projectsData.projects;
-  }, [projectsData, isAsc]);
+    return isPAsc ? [...projectsData.projects].reverse() : projectsData.projects;
+  }, [projectsData, isPAsc]);
 
   return (
     <div className="space-y-6 p-6">
+      {/* Team Allocation */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-2xl font-semibold">Team Allocation</h1>
@@ -101,24 +128,15 @@ export default function Allocation(): JSX.Element {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={() => setState({ sort: isAsc ? 'desc' : 'asc' })}
-            title={isAsc ? 'Sort descending' : 'Sort ascending'}
-          >
-            {isAsc ? (
-              <ArrowUpNarrowWide className="h-4 w-4" />
-            ) : (
-              <ArrowDownWideNarrow className="h-4 w-4" />
-            )}
-          </Button>
+          <SortButton
+            isAsc={isAsc}
+            onToggle={() => setState({ sort: isAsc ? 'desc' : 'asc' })}
+          />
           <MonthRangePicker
             startDate={state.start}
             endDate={state.end}
             onChange={(start, end) => setState({ start, end })}
-            idPrefix="allocation-"
+            idPrefix="team-"
           />
         </div>
       </div>
@@ -137,13 +155,28 @@ export default function Allocation(): JSX.Element {
 
       {data && <UserAllocationList users={filteredUsers} />}
 
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-xl font-semibold">Project Distribution</h2>
-        {projectsData && projectsData.periods_used.length > 0 && (
-          <span className="text-muted-foreground text-sm">
-            {formatPeriodsHeader(projectsData.periods_used)}
-          </span>
-        )}
+      {/* Project Distribution */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="text-xl font-semibold">Project Distribution</h2>
+          {projectsData && projectsData.periods_used.length > 0 && (
+            <span className="text-muted-foreground text-sm">
+              {formatPeriodsHeader(projectsData.periods_used)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-end gap-4">
+          <SortButton
+            isAsc={isPAsc}
+            onToggle={() => setState({ p_sort: isPAsc ? 'desc' : 'asc' })}
+          />
+          <MonthRangePicker
+            startDate={state.p_start}
+            endDate={state.p_end}
+            onChange={(p_start, p_end) => setState({ p_start, p_end })}
+            idPrefix="project-"
+          />
+        </div>
       </div>
 
       {projectsLoading && (
