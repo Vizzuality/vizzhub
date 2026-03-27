@@ -303,7 +303,7 @@ export default function EditableMetricCard<T>({
             <Line type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} dot={{ r: 3, fill: chartColor }} connectNulls />
           </LineChart>
         ) : (
-          <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }} maxBarSize={60}>
             {referenceAreas}
             <XAxis dataKey="period" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis domain={[domainMin, domainMax]} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v.toFixed(1)}`} />

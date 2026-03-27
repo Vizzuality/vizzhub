@@ -124,6 +124,7 @@ export interface AggregationRow {
   total_days: number;
   total_cost: number;
   periods: AggregationPeriod[];
+  children?: AggregationRow[] | null;
 }
 
 export interface AggregationResponse {

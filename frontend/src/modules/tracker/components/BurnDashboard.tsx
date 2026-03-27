@@ -387,7 +387,7 @@ export function MonthlyCostsChart({
           Monthly Costs Breakdown
         </div>
       <ResponsiveContainer width="100%" height={300}>
-        <ComposedChart data={data} margin={{ top: 5, right: 15, bottom: 5, left: 10 }}>
+        <ComposedChart data={data} margin={{ top: 5, right: 15, bottom: 5, left: 10 }} barCategoryGap="15%" maxBarSize={60}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} vertical={false} />
           <XAxis
             dataKey="label"

@@ -195,7 +195,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
   );
   const { data: areaAgg, isLoading: areaLoading } = useProjectAggregations(
     projectId || '',
-    'functional_area',
+    'functional_area_user',
   );
   const { data: userAgg, isLoading: userLoading } = useProjectAggregations(
     projectId || '',

@@ -17,6 +17,7 @@ class AggregationRow(BaseModel):
     total_days: float
     total_cost: float
     periods: list[AggregationPeriod]
+    children: list["AggregationRow"] | None = None
 
 
 class AggregationResponse(BaseModel):
