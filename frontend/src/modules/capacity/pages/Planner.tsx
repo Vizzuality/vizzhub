@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useAllProjectSummaries } from '@/core/hooks/useProjects';
 import { useReportableUsers } from '@/modules/capacity/hooks/useReportableUsers';
@@ -146,7 +146,7 @@ export default function Planner(): JSX.Element {
   );
 
   // Clear local rows that now exist in server data
-  useMemo(() => {
+  useEffect(() => {
     if (!data) return;
     setLocalRows((prev) =>
       prev.filter((lr) => {

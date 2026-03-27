@@ -1,10 +1,10 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { plannerApi } from '@/modules/capacity/services/planner';
 import type { CellUpdate } from '@/modules/capacity/types/planner';
 
-const DEBOUNCE_MS = 1500;
+const DEBOUNCE_MS = 800;
 
 interface UsePlannerMutationsReturn {
   queueCellUpdate: (update: CellUpdate) => void;
@@ -22,6 +22,7 @@ export function usePlannerMutations(
   const queryClient = useQueryClient();
   const pendingRef = useRef<Map<string, CellUpdate>>(new Map());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const cellMutation = useMutation({
     mutationFn: (updates: CellUpdate[]) => plannerApi.updateCells(updates),
@@ -50,6 +51,7 @@ export function usePlannerMutations(
     const updates = Array.from(pendingRef.current.values());
     if (updates.length === 0) return;
     pendingRef.current.clear();
+    setPendingCount(0);
     await cellMutation.mutateAsync(updates);
   }, [cellMutation]);
 
@@ -57,6 +59,7 @@ export function usePlannerMutations(
     (update: CellUpdate): void => {
       const key = `${update.project_id}:${update.user_id}:${update.week_start}`;
       pendingRef.current.set(key, update);
+      setPendingCount(pendingRef.current.size);
 
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
@@ -79,6 +82,6 @@ export function usePlannerMutations(
     flushUpdates,
     deleteRow,
     isSaving: cellMutation.isPending || deleteMutation.isPending,
-    pendingCount: pendingRef.current.size,
+    pendingCount,
   };
 }
