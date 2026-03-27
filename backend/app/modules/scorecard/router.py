@@ -9,11 +9,7 @@ from app.modules.scorecard.api import exports as exports_router
 from app.modules.scorecard.api import global_metrics as global_metrics_router
 from app.modules.scorecard.api import integrations_admin as integrations_admin_router
 from app.modules.scorecard.api import metrics as metrics_router
-from app.modules.scorecard.api import notifications as notifications_router
-from app.modules.scorecard.api import scheduled_jobs as scheduled_jobs_router
 from app.modules.scorecard.api import scores as scores_router
-from app.modules.scorecard.api import silences as silences_router
-from app.modules.scorecard.api import slack_admin as slack_admin_router
 
 router = APIRouter()
 
@@ -26,10 +22,4 @@ router.include_router(exports_router.router, prefix="/exports", tags=["exports"]
 
 # These routers define their own prefixes internally
 router.include_router(global_metrics_router.router)
-router.include_router(slack_admin_router.alerts_router)
-router.include_router(slack_admin_router.templates_router)
-router.include_router(slack_admin_router.custom_router)
 router.include_router(integrations_admin_router.router)
-router.include_router(silences_router.router)
-router.include_router(notifications_router.router)
-router.include_router(scheduled_jobs_router.router)
