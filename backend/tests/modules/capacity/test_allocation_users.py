@@ -262,3 +262,74 @@ class TestGetAllocationUsers:
         result = await get_allocation_users(db=db_session)
         assert result["periods_used"] == []
         assert result["users"] == []
+
+    @pytest.mark.asyncio
+    async def test_allocation_users_includes_functional_area(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_allocation_users
+
+        result = await get_allocation_users(db=db_session)
+        alice = next(u for u in result["users"] if u["name"] == "Alice Smith")
+        # "Frontend Developer" maps to "FE" via TARGET_FA_MAPPING
+        assert alice["functional_area"] == "FE"
+
+
+class TestGetAllocationProjects:
+    @pytest.mark.asyncio
+    async def test_allocation_projects_returns_ranked_list(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_allocation_projects
+
+        result = await get_allocation_projects(db=db_session)
+
+        assert "periods_used" in result
+        assert "projects" in result
+
+        projects = result["projects"]
+        # Only billable+live projects: Alpha and Beta
+        assert len(projects) == 2
+
+        # Alpha: 2 users in p1, 1 in p2, 1 in p3 → avg = (2+1+1)/3 ≈ 1.33
+        # Beta: 0 in p1, 1 in p2, 1 in p3 → avg = (0+1+1)/3 ≈ 0.67
+        # Alpha ranks first (higher avg_people)
+        assert projects[0]["name"] == "Alpha"
+        assert projects[0]["avg_people"] == pytest.approx(1.33, abs=0.01)
+        assert projects[0]["total_distinct_people"] == 2
+
+        assert projects[1]["name"] == "Beta"
+        assert projects[1]["avg_people"] == pytest.approx(0.67, abs=0.01)
+        assert projects[1]["total_distinct_people"] == 1
+
+    @pytest.mark.asyncio
+    async def test_allocation_projects_segments(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_allocation_projects
+
+        result = await get_allocation_projects(db=db_session)
+        alpha = next(p for p in result["projects"] if p["name"] == "Alpha")
+        segments = {s["user_name"]: s for s in alpha["segments"]}
+
+        # Alice on Alpha: (0.50+0.30+0.30)/3 = 0.3667
+        assert "Alice Smith" in segments
+        assert segments["Alice Smith"]["avg_percentage"] == pytest.approx(0.3667, abs=0.01)
+        assert isinstance(segments["Alice Smith"]["months_active"], list)
+        assert len(segments["Alice Smith"]["months_active"]) == 3
+
+        # Bob on Alpha: (0.80+0+0)/3 = 0.2667
+        assert "Bob Jones" in segments
+        assert segments["Bob Jones"]["avg_percentage"] == pytest.approx(0.2667, abs=0.01)
+        assert len(segments["Bob Jones"]["months_active"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_allocation_projects_excludes_non_billable(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        from app.core.services.capacity_insights import get_allocation_projects
+
+        result = await get_allocation_projects(db=db_session)
+        project_names = [p["name"] for p in result["projects"]]
+        assert "Internal" not in project_names
+        assert "Vacation" not in project_names
