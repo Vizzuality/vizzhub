@@ -275,7 +275,7 @@ class TestManualTrigger:
         mock_pool.close = AsyncMock()
 
         with patch(
-            "app.modules.scorecard.api.scheduled_jobs.get_redis_pool",
+            "app.modules.notifications.api.scheduled_jobs.get_redis_pool",
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
