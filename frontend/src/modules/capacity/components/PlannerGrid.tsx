@@ -159,17 +159,6 @@ export function PlannerGrid({
   const columns = useMemo((): ColumnDef<FlatRow>[] => {
     const fixed: ColumnDef<FlatRow>[] = [
       {
-        id: 'group',
-        header: groupBy === 'project' ? 'Project' : 'Person',
-        size: 120,
-        cell: ({ row: { original } }) => {
-          if (original._type === 'header') {
-            return <span className="font-semibold">{original.groupName}</span>;
-          }
-          return null;
-        },
-      },
-      {
         id: 'fa',
         header: 'FA',
         size: 50,
@@ -187,7 +176,7 @@ export function PlannerGrid({
       {
         id: 'name',
         header: groupBy === 'project' ? 'Name' : 'Project',
-        size: 140,
+        size: 200,
         cell: ({ row: { original } }) => {
           if (original._type === 'data') {
             const label =
@@ -223,16 +212,6 @@ export function PlannerGrid({
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-            );
-          }
-          if (original._type === 'add') {
-            return (
-              <PlannerAddRow
-                options={addRowOptions}
-                existingIds={existingIdsByGroup.get(original.groupId) ?? new Set()}
-                onSelect={(id) => onAddRow(original.groupId, id)}
-                label={groupBy === 'project' ? 'Add person' : 'Add project'}
-              />
             );
           }
           return null;
@@ -284,7 +263,7 @@ export function PlannerGrid({
         {/* Month header row */}
         <thead>
           <tr className="border-b bg-muted/50">
-            <th colSpan={3} className="sticky left-0 z-10 bg-muted/50" />
+            <th colSpan={2} className="sticky left-0 z-10 bg-muted/50" />
             {Array.from(monthGroups.entries()).map(([month, monthWeeks]) => (
               <th
                 key={month}
@@ -301,12 +280,12 @@ export function PlannerGrid({
                 <th
                   key={header.id}
                   className={`px-2 py-1 text-left text-xs font-medium ${
-                    header.index < 3 ? 'sticky left-0 z-10 bg-muted/30' : ''
+                    header.index < 2 ? 'sticky left-0 z-10 bg-muted/30' : ''
                   }`}
                   style={{
                     width: header.getSize(),
-                    left: header.index < 3
-                      ? header.index === 0 ? 0 : header.index === 1 ? 120 : 170
+                    left: header.index < 2
+                      ? header.index === 0 ? 0 : 50
                       : undefined,
                   }}
                 >
@@ -320,13 +299,13 @@ export function PlannerGrid({
           {table.getRowModel().rows.map((row) => {
             const isHeader = row.original._type === 'header';
             const isAdd = row.original._type === 'add';
-            const weekCells = row.getVisibleCells().slice(3);
+            const weekCells = row.getVisibleCells().slice(2);
 
             if (isHeader) {
               return (
                 <tr key={row.id} className="group/row border-b bg-muted/20">
                   <td
-                    colSpan={3}
+                    colSpan={2}
                     className="sticky left-0 z-10 bg-muted/20 px-2 py-1 whitespace-nowrap"
                     style={{ left: 0 }}
                   >
@@ -343,7 +322,7 @@ export function PlannerGrid({
               return (
                 <tr key={row.id} className="group/row border-b">
                   <td
-                    colSpan={3}
+                    colSpan={2}
                     className="sticky left-0 z-10 bg-background px-2 py-0"
                     style={{ left: 0, height: 28 }}
                   >
@@ -367,16 +346,15 @@ export function PlannerGrid({
                   <td
                     key={cell.id}
                     className={`px-0 py-0 ${
-                      cell.column.getIndex() < 3
+                      cell.column.getIndex() < 2
                         ? 'sticky left-0 z-10 bg-background px-2'
                         : 'border-l'
                     }`}
                     style={{
                       width: cell.column.getSize(),
                       height: 32,
-                      left: cell.column.getIndex() < 3
-                        ? cell.column.getIndex() === 0 ? 0
-                        : cell.column.getIndex() === 1 ? 120 : 170
+                      left: cell.column.getIndex() < 2
+                        ? cell.column.getIndex() === 0 ? 0 : 50
                         : undefined,
                     }}
                   >
