@@ -123,14 +123,14 @@ export default function TimeByAreaTable({ rows, budgetLines }: TimeByAreaTablePr
                           </span>
                         </td>
                         <td className="py-2 px-2 text-right tabular-nums">
-                          {row.contract !== null ? row.contract : <span className="text-muted-foreground/50">&mdash;</span>}
+                          {row.contract === null ? <span className="text-muted-foreground/50">&mdash;</span> : row.contract}
                         </td>
                         <td className="py-2 px-2 text-right tabular-nums">{row.spent.toFixed(1)}</td>
                         <td className={cn(
                           'py-2 px-2 text-right tabular-nums rounded-r',
                           row.remaining !== null && row.remaining < 0 && 'text-aux-red',
                         )}>
-                          {row.remaining !== null ? row.remaining.toFixed(1) : <span className="text-muted-foreground/50">&mdash;</span>}
+                          {row.remaining === null ? <span className="text-muted-foreground/50">&mdash;</span> : row.remaining.toFixed(1)}
                         </td>
                       </tr>
                       {isExpanded && row.children?.map((child) => (
