@@ -16,7 +16,7 @@ from app.core.permissions import Action, require_permission
 
 IsoViewer = Annotated[TokenData, Depends(require_permission(Action.ISO_VIEW))]
 IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
-from app.modules.scorecard.api.schemas.common import PaginatedResponse
+from app.core.schemas.common import PaginatedResponse
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB

@@ -1,17 +1,5 @@
-"""Common API schemas shared across modules."""
+"""Common API schemas — re-exported from core for backwards compatibility."""
 
-from typing import Generic, TypeVar
+from app.core.schemas.common import PaginatedResponse
 
-from pydantic import BaseModel
-
-T = TypeVar("T")
-
-
-class PaginatedResponse(BaseModel, Generic[T]):
-    """Generic paginated response envelope."""
-
-    items: list[T]
-    total: int
-    page: int
-    page_size: int
-    pages: int
+__all__ = ["PaginatedResponse"]
