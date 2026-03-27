@@ -53,8 +53,8 @@ export default function Allocation(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-baseline gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-2xl font-semibold">Team Allocation</h1>
           {data && data.periods_used.length > 0 && (
             <span className="text-muted-foreground text-sm">
@@ -66,6 +66,7 @@ export default function Allocation(): JSX.Element {
           <Button
             variant="ghost"
             size="icon"
+            className="shrink-0"
             onClick={() => setState({ sort: isAsc ? 'desc' : 'asc' })}
             title={isAsc ? 'Sort descending' : 'Sort ascending'}
           >
