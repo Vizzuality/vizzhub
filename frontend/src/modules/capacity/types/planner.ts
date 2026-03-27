@@ -1,0 +1,30 @@
+export interface PlannerRow {
+  user_id: string;
+  user_name: string;
+  functional_area: string;
+  project_id: string;
+  project_name: string;
+  cells: Record<string, number>;
+}
+
+export interface PlannerGroup {
+  id: string;
+  name: string;
+  rows: PlannerRow[];
+}
+
+export interface PlannerResponse {
+  groups: PlannerGroup[];
+  weeks: string[];
+}
+
+export interface CellUpdate {
+  project_id: string;
+  user_id: string;
+  week_start: string;
+  percentage: number | null;
+}
+
+export interface UpdatedAtResponse {
+  updated_at: string | null;
+}
