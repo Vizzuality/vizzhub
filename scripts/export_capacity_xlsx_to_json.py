@@ -51,6 +51,30 @@ NAME_TO_EMAIL: dict[str, str] = {
     "Susana Romao": "susana.romao@vizzuality.com",
 }
 
+# Spreadsheet project names → DB project names (where they differ)
+PROJECT_NAME_MAPPING: dict[str, str] = {
+    "Amazonia 360": "Amazonia360 - MVP",
+    "CCSA": "Climate Smart Map",
+    "Catalyse": "CATALYSE",
+    "Climate Watch": "Climate Watch 2026 Maintenance Contract",
+    "ECCC": "ECCC HJBL",
+    "ESA-GDA": "ESA GDA Comms 2023 - 2027",
+    "FHWPC": "FHWPC Implementation phase",
+    "Global Rangelands": "Global Rangelands Data Platform (GRASS) - MVP",
+    "ICIMOD": "ICIMOD web discovery",
+    "IDB": "IDB ESGeoHub",
+    "IIASA": "IIASA Scenario Compass Platform ",
+    "Landscape Capital Explorer": "Landscape Capital Explorer - Implementation Phase",
+    "MIRACA": "HE MIRACA",
+    "Mars": "Mars MGIS Maintenance 2025",
+    "Marxan": "Marxan maintenance 2025-2028",
+    "Open Earth Monitor (OEM)": "Open Earth Monitor ",
+    "South Sudán": "South Sudan Visualization Pilot",
+    "Unesco": "UNESCO WHOMP",
+    "WB Country Workspace": "World bank country workspace MVP design",
+    "Wetlands - Gap Map": "Wetlands gap map",
+}
+
 DATA_START_ROW = 16
 PROJECT_COL = 1
 ROLE_COL = 2
@@ -133,6 +157,7 @@ def main(xlsx_path: str) -> None:
         project_name = str(project_name).strip() if project_name else None
         if not project_name:
             continue
+        project_name = PROJECT_NAME_MAPPING.get(project_name, project_name)
 
         for col, info in week_info.items():
             val = ws.cell(row=row, column=col).value
