@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import async_session_maker
-from app.modules.scorecard.models.slack import AlertDefinitionDB, MessageTemplateDB
+from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
 
 
 def _read_csv(filename: str) -> list[dict]:
