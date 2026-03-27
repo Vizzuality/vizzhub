@@ -9,16 +9,21 @@ Defaults to capacity_seed.json in current directory.
 import asyncio
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
-# Add backend to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
+# Add backend to path and load its .env
+backend_dir = Path(__file__).resolve().parent.parent / "backend"
+sys.path.insert(0, str(backend_dir))
+
+import os
+from dotenv import load_dotenv
+load_dotenv(backend_dir / ".env")
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.config import settings  # noqa: F401 — initialises config before DB import
-from app.database import AsyncSessionLocal
+from app.database import async_session_maker as AsyncSessionLocal
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.modules.capacity.models.capacity_plan import CapacityPlanDB
@@ -63,7 +68,7 @@ async def main(json_path: str) -> None:
             values.append({
                 "project_id": project_id,
                 "user_id": user_id,
-                "week_start": rec["week_start"],
+                "week_start": date.fromisoformat(rec["week_start"]),
                 "percentage": rec["percentage"],
                 "created_by": seed_user_id,
                 "updated_by": seed_user_id,

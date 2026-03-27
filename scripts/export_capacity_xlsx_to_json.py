@@ -15,9 +15,32 @@ import openpyxl
 # Manual mapping: spreadsheet name → user email.
 # Fill in before running. Names not in this dict are skipped with a warning.
 NAME_TO_EMAIL: dict[str, str] = {
-    # "Clara Linos": "clara@vizzuality.com",
-    # "Santiago Ferrer": "santiago@vizzuality.com",
-    # Add all team members here
+    "Adam Trincas": "adam.trincas@vizzuality.com",
+    "Adélaïde Cadioux": "adelaide.cadioux@vizzuality.com",
+    "Alex Larrañaga": "alex.larranaga@vizzuality.com",
+    "Alicia Arenzana": "alicia.arenzana@vizzuality.com",
+    "Angel Arcones": "angel.arcones@vizzuality.com",
+    "Clara Linos": "clara.linos@vizzuality.com",
+    "Clement Prodhomme": "clement.prodhomme@vizzuality.com",
+    "Cristina Jaramago": "cristina.jaramago@vizzuality.com",
+    "Daniel Caso": "daniel.caso@vizzuality.com",
+    "Edgar Espinoza": "edgar.espinoza@vizzuality.com",
+    "Elena Palao": "elena.palao@vizzuality.com",
+    "Iker Sanchez": "iker.sanchez@vizzuality.com",
+    "Irene Rodriguez": "irene.rodriguez@vizzuality.com",
+    "Jacinta Hamley": "jacinta.hamley@vizzuality.com",
+    "Javi Lois": "javier.lois@vizzuality.com",
+    "Kevin Sánchez": "kevin.sanchez@vizzuality.com",
+    "Laura Riera": "laura.riera@vizzuality.com",
+    "Lyubov Pencheva": "lyubov.pencheva@vizzuality.com",
+    "María Luena": "maria.luena@vizzuality.com",
+    "María Relea": "maria.relea@vizzuality.com",
+    "Miguel Barrenechea": "miguel.barrenechea@vizzuality.com",
+    "Miguel Mendoza": "miguel.mendoza@vizzuality.com",
+    "Mike Harfoot": "mike.harfoot@vizzuality.com",
+    "Sergio Estella": "sergio.estella@vizzuality.com",
+    "Sofia Aldabet": "sofia.aldabet@vizzuality.com",
+    "Susana Romao": "susana.romao@vizzuality.com",
 }
 
 DATA_START_ROW = 16
