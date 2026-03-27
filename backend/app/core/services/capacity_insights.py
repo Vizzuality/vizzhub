@@ -9,7 +9,9 @@ import logging
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from collections import defaultdict
+
+from sqlalchemy import case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.functional_area import FunctionalAreaDB
@@ -372,6 +374,26 @@ async def get_capacity_insights(
     return result
 
 
+def _format_full_name(
+    first_name: str | None,
+    last_name: str | None,
+    full_name: str | None = None,
+    email: str | None = None,
+) -> str:
+    """Format as 'Firstname Lastname' with fallbacks."""
+    if first_name and last_name:
+        return f"{first_name} {last_name}"
+    if first_name:
+        return first_name
+    if last_name:
+        return last_name
+    if full_name:
+        return full_name
+    if email:
+        return email.split("@")[0]
+    return "Unknown"
+
+
 def _aggregate_fa_period(
     users_by_fa: dict[str, list],
     report_lookup: dict[tuple, tuple[float, float, float]],
@@ -402,3 +424,139 @@ def _aggregate_fa_period(
             "user_count": count,
         })
     return fas
+
+
+async def get_allocation_users(db: AsyncSession) -> dict:
+    """Per-user project allocation averaged over last 3 finished periods.
+
+    Returns dict with 'periods_used' (desc order) and 'users' list.
+    Each user has segments (billable projects sorted desc by avg_pct,
+    then absence, then other).
+    """
+    # Find last 3 finished periods
+    periods_result = await db.execute(
+        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+        .where(ReportingPeriodDB.status == "finished")
+        .order_by(desc(ReportingPeriodDB.date))
+        .limit(3)
+    )
+    periods = list(periods_result)
+
+    if not periods:
+        return {"periods_used": [], "users": []}
+
+    num_periods = len(periods)
+    period_ids = [p_id for p_id, _ in periods]
+    periods_used = [p_date.strftime("%Y-%m") for _, p_date in periods]
+
+    # Eligible users
+    eligible_rows = await db.execute(
+        select(
+            UserDB.id, UserDB.first_name, UserDB.last_name,
+            UserDB.name, UserDB.email,
+        )
+        .where(
+            UserDB.active.is_(True),
+            UserDB.requires_project_reporting.is_(True),
+        )
+    )
+    eligible_users = list(eligible_rows)
+
+    if not eligible_users:
+        return {"periods_used": periods_used, "users": []}
+
+    user_ids = [uid for uid, _, _, _, _ in eligible_users]
+    user_info = {
+        uid: (fn, ln, full, em)
+        for uid, fn, ln, full, em in eligible_users
+    }
+
+    # Query all report parts for these users and periods
+    rows = await db.execute(
+        select(
+            ReportDB.user_id,
+            ReportDB.reporting_period_id,
+            ReportPartDB.project_id,
+            ProjectDB.name,
+            ProjectDB.is_billable,
+            ProjectDB.is_absence,
+            ReportPartDB.percentage,
+        )
+        .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
+        .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
+        .where(
+            ReportPartDB.percentage.isnot(None),
+            ReportDB.user_id.in_(user_ids),
+            ReportDB.reporting_period_id.in_(period_ids),
+        )
+    )
+
+    # Aggregate: per user → per project → pct_sum and period set
+    # user_projects[user_id][project_id] = {pct_sum, periods, name, is_billable, is_absence}
+    user_projects: dict[object, dict[object, dict]] = defaultdict(dict)
+    for uid, pid, proj_id, proj_name, is_billable, is_absence, pct in rows:
+        proj_map = user_projects[uid]
+        if proj_id not in proj_map:
+            proj_map[proj_id] = {
+                "pct_sum": 0.0,
+                "periods": set(),
+                "name": proj_name,
+                "is_billable": bool(is_billable),
+                "is_absence": bool(is_absence),
+            }
+        proj_map[proj_id]["pct_sum"] += float(pct)
+        proj_map[proj_id]["periods"].add(pid)
+
+    users_list = []
+    for uid in user_ids:
+        proj_map = user_projects.get(uid)
+        if not proj_map:
+            continue
+
+        billable_segments = []
+        absence_segments = []
+        other_segments = []
+        billable_project_ids: set = set()
+        billable_appearances = 0
+
+        for proj_id, info in proj_map.items():
+            avg_pct = info["pct_sum"] / num_periods
+            months_active = len(info["periods"])
+            segment = {
+                "project_id": str(proj_id),
+                "label": info["name"],
+                "avg_pct": round(avg_pct, 4),
+                "months_active": months_active,
+            }
+
+            if info["is_billable"]:
+                segment["segment_type"] = "billable"
+                billable_segments.append(segment)
+                billable_project_ids.add(proj_id)
+                billable_appearances += months_active
+            elif info["is_absence"]:
+                segment["segment_type"] = "absence"
+                absence_segments.append(segment)
+            else:
+                segment["segment_type"] = "other"
+                other_segments.append(segment)
+
+        billable_segments.sort(key=lambda s: s["avg_pct"], reverse=True)
+        segments = billable_segments + absence_segments + other_segments
+
+        avg_billable_projects = billable_appearances / num_periods
+        fn, ln, full, em = user_info[uid]
+
+        users_list.append({
+            "user_id": str(uid),
+            "name": _format_full_name(fn, ln, full, em),
+            "avg_billable_projects": round(avg_billable_projects, 4),
+            "total_distinct_projects": len(billable_project_ids),
+            "segments": segments,
+        })
+
+    users_list.sort(
+        key=lambda u: (-u["avg_billable_projects"], u["name"]),
+    )
+
+    return {"periods_used": periods_used, "users": users_list}
