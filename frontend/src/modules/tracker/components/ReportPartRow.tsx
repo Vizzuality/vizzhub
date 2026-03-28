@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -21,6 +21,11 @@ export default function ReportPartRow({
   const [percentage, setPercentage] = useState(
     part.percentage !== null ? (part.percentage * 100).toFixed(1) : '',
   );
+
+  useEffect(() => {
+    setPercentage(part.percentage !== null ? (part.percentage * 100).toFixed(1) : '');
+  }, [part.percentage]);
+
   const updatePart = useUpdateReportPart(reportId);
   const deletePart = useDeleteReportPart(reportId);
 
