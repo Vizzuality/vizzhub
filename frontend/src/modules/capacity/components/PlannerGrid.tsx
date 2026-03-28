@@ -234,8 +234,8 @@ export function PlannerGrid({
     (e: React.KeyboardEvent<HTMLInputElement>): void => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        const num = parseInt(batchDraft, 10);
-        if (!isNaN(num) && num > 0) {
+        const num = Number.parseInt(batchDraft, 10);
+        if (!Number.isNaN(num) && num > 0) {
           applyBatchValue(Math.min(num, 200));
         } else {
           setShowBatchInput(false);
@@ -366,6 +366,7 @@ export function PlannerGrid({
       ref={containerRef}
       className="relative overflow-auto rounded-md border"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
+      role="grid"
       tabIndex={0}
       onKeyDown={handleGridKeyDown}
     >

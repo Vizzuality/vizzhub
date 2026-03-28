@@ -38,8 +38,8 @@ export function PlannerCell({
 
   const commit = (): void => {
     setEditing(false);
-    const num = parseInt(draft, 10);
-    if (draft === '' || isNaN(num) || num <= 0) {
+    const num = Number.parseInt(draft, 10);
+    if (draft === '' || Number.isNaN(num) || num <= 0) {
       if (value !== undefined) onChange(null);
     } else if (num !== value) {
       onChange(Math.min(num, 200));
