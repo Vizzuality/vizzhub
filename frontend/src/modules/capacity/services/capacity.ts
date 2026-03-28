@@ -9,6 +9,7 @@ import type {
   AllocationProjectsResponse,
   AllocationUsersResponse,
 } from '@/modules/capacity/types/allocation';
+import type { PlannerSuggestionsResponse } from '@/modules/capacity/types/planner';
 
 export const capacityApi = {
   getInsights: async (startDate: string, endDate: string): Promise<PeriodInsight[]> => {
@@ -64,6 +65,13 @@ export const capacityApi = {
     const response = await api.get<AllocationProjectsResponse>(
       '/capacity/allocation/projects',
       { params },
+    );
+    return response.data;
+  },
+  getPlannerSuggestions: async (month: string): Promise<PlannerSuggestionsResponse> => {
+    const response = await api.get<PlannerSuggestionsResponse>(
+      '/capacity/planner/suggestions',
+      { params: { month } },
     );
     return response.data;
   },

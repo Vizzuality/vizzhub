@@ -460,6 +460,128 @@ class TestWarnings:
         assert str(user.id) not in result["warnings"]
 
 
+class TestSuggestions:
+    @pytest.mark.asyncio
+    async def test_normalizes_to_100(self, db_session):
+        """Suggestions sum to ~100% (minus Others if present)."""
+        from app.modules.capacity.api.planner import get_planner_suggestions
+
+        user = UserDB(id=uuid4(), email="s@t.com", name="Sugg")
+        p1 = ProjectDB(id=uuid4(), name="Alpha", status="active", is_billable=True)
+        p2 = ProjectDB(id=uuid4(), name="Beta", status="active", is_billable=True)
+        db_session.add_all([user, p1, p2])
+        await db_session.flush()
+
+        # 3 Mondays in Jan 2026: 5, 12, 19, 26
+        for monday in [date(2026, 1, 5), date(2026, 1, 12), date(2026, 1, 19), date(2026, 1, 26)]:
+            db_session.add_all([
+                CapacityPlanDB(
+                    project_id=p1.id, user_id=user.id,
+                    week_start=monday, percentage=60,
+                    created_by=user.id, updated_by=user.id,
+                ),
+                CapacityPlanDB(
+                    project_id=p2.id, user_id=user.id,
+                    week_start=monday, percentage=40,
+                    created_by=user.id, updated_by=user.id,
+                ),
+            ])
+        await db_session.flush()
+
+        result = await get_planner_suggestions(
+            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+        )
+
+        total = sum(s["percentage"] for s in result["suggestions"])
+        assert abs(total - 100.0) < 0.2
+        alpha = next(s for s in result["suggestions"] if s["project_name"] == "Alpha")
+        assert alpha["percentage"] == 60.0
+        assert result["others_percentage"] is None
+
+    @pytest.mark.asyncio
+    async def test_others_separated(self, db_session):
+        """Operations project appears as others_percentage, not in suggestions."""
+        from app.modules.capacity.api.planner import get_planner_suggestions
+
+        user = UserDB(id=uuid4(), email="o@t.com", name="Oth")
+        billable = ProjectDB(id=uuid4(), name="Proj", status="active", is_billable=True)
+        operations = ProjectDB(id=uuid4(), name="Operations", status="active", is_billable=False)
+        db_session.add_all([user, billable, operations])
+        await db_session.flush()
+
+        db_session.add_all([
+            CapacityPlanDB(
+                project_id=billable.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=80,
+                created_by=user.id, updated_by=user.id,
+            ),
+            CapacityPlanDB(
+                project_id=operations.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=20,
+                created_by=user.id, updated_by=user.id,
+            ),
+        ])
+        await db_session.flush()
+
+        result = await get_planner_suggestions(
+            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+        )
+
+        assert result["others_percentage"] == 20.0
+        project_names = [s["project_name"] for s in result["suggestions"]]
+        assert "Operations" not in project_names
+        assert "Proj" in project_names
+
+    @pytest.mark.asyncio
+    async def test_absence_included_in_suggestions(self, db_session):
+        """Absence projects appear in suggestions with is_absence=True."""
+        from app.modules.capacity.api.planner import get_planner_suggestions
+
+        user = UserDB(id=uuid4(), email="a@t.com", name="Abs")
+        billable = ProjectDB(id=uuid4(), name="Work", status="active", is_billable=True)
+        absence = ProjectDB(id=uuid4(), name="Vacation", status="active", is_absence=True, is_billable=False)
+        db_session.add_all([user, billable, absence])
+        await db_session.flush()
+
+        db_session.add_all([
+            CapacityPlanDB(
+                project_id=billable.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=80,
+                created_by=user.id, updated_by=user.id,
+            ),
+            CapacityPlanDB(
+                project_id=absence.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=20,
+                created_by=user.id, updated_by=user.id,
+            ),
+        ])
+        await db_session.flush()
+
+        result = await get_planner_suggestions(
+            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+        )
+
+        vacation = next(s for s in result["suggestions"] if s["project_name"] == "Vacation")
+        assert vacation["is_absence"] is True
+        assert vacation["percentage"] == 20.0
+
+    @pytest.mark.asyncio
+    async def test_empty_planning_returns_empty(self, db_session):
+        """No planning data returns empty suggestions."""
+        from app.modules.capacity.api.planner import get_planner_suggestions
+
+        user = UserDB(id=uuid4(), email="e@t.com", name="Empty")
+        db_session.add(user)
+        await db_session.flush()
+
+        result = await get_planner_suggestions(
+            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+        )
+
+        assert result["suggestions"] == []
+        assert result["others_percentage"] is None
+
+
 class TestUpdatedAt:
     @pytest.mark.asyncio
     async def test_returns_max_updated_at(self, db_session, planner_data):

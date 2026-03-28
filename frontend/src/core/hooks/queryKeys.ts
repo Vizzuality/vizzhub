@@ -138,6 +138,8 @@ export const queryKeys = {
       ['capacity', 'planner', start, end, groupBy] as const,
     plannerUpdatedAt: (start: string, end: string) =>
       ['capacity', 'planner', 'updated-at', start, end] as const,
+    plannerSuggestions: (month: string) =>
+      ['capacity', 'planner', 'suggestions', month] as const,
   },
   tracker: {
     periods: {

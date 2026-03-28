@@ -31,3 +31,15 @@ export interface CellUpdate {
 export interface UpdatedAtResponse {
   updated_at: string | null;
 }
+
+export interface PlannerSuggestion {
+  project_id: string;
+  project_name: string;
+  percentage: number;
+  is_absence: boolean;
+}
+
+export interface PlannerSuggestionsResponse {
+  suggestions: PlannerSuggestion[];
+  others_percentage: number | null;
+}
