@@ -7,15 +7,22 @@ interface PlannerCellProps {
   readonly onChange: (value: number | null) => void;
   readonly isOwnRow: boolean;
   readonly selected?: boolean;
+  readonly absence?: boolean;
   readonly onMouseDown?: (e: React.MouseEvent) => void;
   readonly onMouseEnter?: () => void;
 }
+
+const STRIPED_BG = {
+  dark: 'repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 6px)',
+  light: 'repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 6px)',
+} as const;
 
 export function PlannerCell({
   value,
   onChange,
   isOwnRow,
   selected,
+  absence,
   onMouseDown,
   onMouseEnter,
 }: PlannerCellProps): JSX.Element {
@@ -71,12 +78,16 @@ export function PlannerCell({
     );
   }
 
+  const cellStyle = absence
+    ? { background: STRIPED_BG[isDark ? 'dark' : 'light'], color: cellColors?.text }
+    : { backgroundColor: cellColors?.bg, color: cellColors?.text };
+
   return (
     <div
       className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none ${
         !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
       } ${selected ? 'ring-2 ring-inset ring-primary' : ''}`}
-      style={{ backgroundColor: cellColors?.bg, color: cellColors?.text }}
+      style={cellStyle}
       onDoubleClick={startEditing}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
