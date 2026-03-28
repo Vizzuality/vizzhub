@@ -91,7 +91,6 @@ export function PlannerCell({
       onDoubleClick={startEditing}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
-      role="gridcell"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') startEditing();
