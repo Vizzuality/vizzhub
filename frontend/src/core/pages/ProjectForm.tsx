@@ -321,10 +321,9 @@ export default function ProjectForm(): JSX.Element {
 
   const settingsReady = !isEditMode || projectSettings !== undefined;
 
-  const canInitForm = isEditMode && !!project && !formInitialized
-    && currentMetrics !== undefined && linksReady && settingsReady;
-
-  if (canInitForm) {
+  useEffect(() => {
+    if (!isEditMode || !project || formInitialized) return;
+    if (currentMetrics === undefined || !linksReady || !settingsReady) return;
     reset(buildFormDefaults(project, currentMetrics?.milestones, initialLinks, projectSettings?.contract_rate));
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
@@ -332,7 +331,7 @@ export default function ProjectForm(): JSX.Element {
     setHasDependabotAlerts(project.has_dependabot_alerts);
     setHasBudgetAlerts(project.has_budget_alerts);
     setFormInitialized(true);
-  }
+  }, [isEditMode, project, formInitialized, currentMetrics, linksReady, settingsReady, initialLinks, projectSettings, reset]);
 
   const startDate = watch('start_date');
   const currentStatus = watch('status');
