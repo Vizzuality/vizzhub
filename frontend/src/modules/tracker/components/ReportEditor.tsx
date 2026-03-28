@@ -10,7 +10,7 @@ import {
   CollapsibleTrigger,
 } from '@/shared/components/ui/collapsible';
 import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
-import { usePlannerSuggestions } from '@/modules/capacity/hooks/usePlannerSuggestions';
+import { usePlannerSuggestions } from '@/core/hooks/usePlannerSuggestions';
 import { useReport, useCreateReportPart, useUpdateReportPart, useUpdateReport } from '../hooks/useReports';
 import ReportPartRow from './ReportPartRow';
 import JiraIssuesPanel from './JiraIssuesPanel';
