@@ -44,7 +44,13 @@ async def _get_page_node(db: DBSession, node_id: UUID) -> PlaybookNodeDB:
     return node
 
 
-@router.get("/{node_id}", responses={404: {"description": "Page not found"}})
+@router.get(
+    "/{node_id}",
+    responses={
+        400: {"description": "Node is a group, not a page"},
+        404: {"description": "Page not found"},
+    },
+)
 async def get_page(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> PageContentResponse:
@@ -62,7 +68,13 @@ async def get_page(
     )
 
 
-@router.put("/{node_id}")
+@router.put(
+    "/{node_id}",
+    responses={
+        400: {"description": "Node is a group, not a page"},
+        404: {"description": "Page not found"},
+    },
+)
 async def save_page(
     node_id: UUID, data: PageSave, db: DBSession, user: PlaybookEditor
 ) -> PageSaveResponse:
@@ -115,7 +127,13 @@ async def _resolve_user_names(
     return names
 
 
-@router.get("/{node_id}/versions")
+@router.get(
+    "/{node_id}/versions",
+    responses={
+        400: {"description": "Node is a group, not a page"},
+        404: {"description": "Page not found"},
+    },
+)
 async def list_versions(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> list[VersionListItem]:

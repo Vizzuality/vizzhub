@@ -49,7 +49,11 @@ async def list_periods(
     return responses
 
 
-@router.post("", status_code=201)
+@router.post(
+    "",
+    status_code=201,
+    responses={409: {"description": "Reporting period for this month already exists"}},
+)
 async def create_period(
     data: ReportingPeriodCreate,
     db: DBSession,

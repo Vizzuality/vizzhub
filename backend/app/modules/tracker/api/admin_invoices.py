@@ -332,7 +332,7 @@ async def list_all_invoices(
     return PaginatedInvoicesResponse(items=items, total=total, page=page, pages=pages)
 
 
-@router.get("/{invoice_id}")
+@router.get("/{invoice_id}", responses={404: {"description": "Invoice not found"}})
 async def get_admin_invoice(
     invoice_id: UUID,
     db: DBSession,

@@ -14,15 +14,16 @@ down_revision = "036_invoice_postponed_alert"
 
 
 def upgrade() -> None:
+    users_id = "users.id"
     op.create_table(
         "capacity_plans",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey(users_id, ondelete="CASCADE"), nullable=False),
         sa.Column("week_start", sa.Date, nullable=False),
         sa.Column("percentage", sa.SmallInteger, nullable=False),
-        sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="RESTRICT"), nullable=False),
-        sa.Column("updated_by", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey(users_id, ondelete="RESTRICT"), nullable=False),
+        sa.Column("updated_by", UUID(as_uuid=True), sa.ForeignKey(users_id, ondelete="RESTRICT"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.UniqueConstraint("project_id", "user_id", "week_start", name="uq_capacity_plan_cell"),
