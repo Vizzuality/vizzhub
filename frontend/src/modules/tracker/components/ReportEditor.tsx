@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronRight, Send, RotateCcw, Info, CheckCircle2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, Send, RotateCcw, Info, CheckCircle2, CalendarClock } from 'lucide-react';
 import MoodDialog from './MoodDialog';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from '@/shared/components/ui/collapsible';
 import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
+import { usePlannerSuggestions } from '@/modules/capacity/hooks/usePlannerSuggestions';
 import { useReport, useCreateReportPart, useUpdateReport } from '../hooks/useReports';
 import ReportPartRow from './ReportPartRow';
 import { SELECT_CLASS } from '../utils/constants';
@@ -35,6 +36,7 @@ export default function ReportEditor({
   const createPart = useCreateReportPart(report.id);
   const updateReport = useUpdateReport(report.id, report.reporting_period_id);
   const { data: projects } = useActiveProjectSummaries();
+  const { data: suggestions } = usePlannerSuggestions(periodDate ?? '');
 
   const parts = reportWithParts?.parts ?? [];
   const isEstimated = reportWithParts?.estimated ?? report.estimated;
@@ -47,6 +49,34 @@ export default function ReportEditor({
 
   const existingProjectIds = new Set(parts.map((p) => p.project_id));
   const availableProjects = projects?.filter((p) => !existingProjectIds.has(p.id)) ?? [];
+
+  // Map project_id → suggested percentage for quick lookup
+  const suggestionMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (suggestions?.suggestions) {
+      for (const s of suggestions.suggestions) {
+        map.set(s.project_id, s.percentage);
+      }
+    }
+    return map;
+  }, [suggestions]);
+
+  // Auto-create report parts for planning projects not yet in the report
+  const autoCreatedRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (!suggestions?.suggestions || !reportWithParts) return;
+    for (const s of suggestions.suggestions) {
+      if (!existingProjectIds.has(s.project_id) && !autoCreatedRef.current.has(s.project_id)) {
+        autoCreatedRef.current.add(s.project_id);
+        createPart.mutate({
+          report_id: report.id,
+          project_id: s.project_id,
+          percentage: 0,
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions, reportWithParts]);
 
   const handleAddProject = (projectId: string): void => {
     if (!projectId) return;
@@ -85,14 +115,33 @@ export default function ReportEditor({
 
   const content = (
     <CardContent>
+        {suggestions?.others_percentage != null && (
+          <div
+            className="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-muted text-sm"
+            style={{ color: 'var(--accent-green)' }}
+          >
+            <CalendarClock className="h-4 w-4 shrink-0" />
+            <span>
+              Others (from planning): <strong>{suggestions.others_percentage.toFixed(1)}%</strong>
+            </span>
+          </div>
+        )}
         {parts.length > 0 && (
-          <table className="w-full mb-3">
+          <table className="w-3/5 mb-3">
+            <colgroup>
+              <col />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-16" />
+              <col className="w-8" />
+            </colgroup>
             <thead>
               <tr className="text-left text-xs text-muted-foreground">
-                <th className="py-1 px-3">Project</th>
-                <th className="py-1 px-3">Percentage</th>
-                <th className="py-1 px-3 text-right">Days</th>
-                <th className="py-1 px-3"></th>
+                <th className="py-1 px-2">Project</th>
+                <th className="py-1 px-2 text-right whitespace-nowrap">From planning</th>
+                <th className="py-1 px-2">Percentage</th>
+                <th className="py-1 px-2 text-right">Days</th>
+                <th className="py-1 px-1"></th>
               </tr>
             </thead>
             <tbody>
@@ -101,11 +150,13 @@ export default function ReportEditor({
                   key={part.id}
                   part={part}
                   reportId={report.id}
+                  suggestedPercentage={suggestionMap.get(part.project_id)}
                 />
               ))}
               <tr className="border-t font-medium">
-                <td className="py-2 px-3 text-sm">Total</td>
-                <td className="py-2 px-3">
+                <td className="py-1 px-2 text-sm">Total</td>
+                <td></td>
+                <td className="py-1 px-2">
                   <span className={`text-sm ${isOverAllocated ? 'text-destructive font-bold' : ''}`}>
                     {totalPercentage.toFixed(1)}%
                   </span>
@@ -115,7 +166,7 @@ export default function ReportEditor({
                     </span>
                   )}
                 </td>
-                <td className="py-2 px-3 text-right text-sm">
+                <td className="py-1 px-2 text-right text-sm">
                   {parts.reduce((sum, p) => sum + (p.days ?? 0), 0).toFixed(2)}
                 </td>
                 <td></td>
@@ -192,19 +243,18 @@ export default function ReportEditor({
       </CardContent>
     );
 
-  const moodDialog = showMoodDialog && periodDate ? (() => {
-    const d = new Date(periodDate);
-    return (
-      <MoodDialog
-        open={showMoodDialog}
-        onClose={() => setShowMoodDialog(false)}
-        reportId={report.id}
-        periodId={report.reporting_period_id}
-        periodMonth={d.getMonth() + 1}
-        periodYear={d.getFullYear()}
-      />
-    );
-  })() : null;
+  const periodDateObj = periodDate ? new Date(periodDate) : null;
+
+  const moodDialog = showMoodDialog && periodDateObj ? (
+    <MoodDialog
+      open={showMoodDialog}
+      onClose={() => setShowMoodDialog(false)}
+      reportId={report.id}
+      periodId={report.reporting_period_id}
+      periodMonth={periodDateObj.getMonth() + 1}
+      periodYear={periodDateObj.getFullYear()}
+    />
+  ) : null;
 
   if (collapsible) {
     return (
