@@ -141,15 +141,13 @@ export default function Planner(): JSX.Element {
   // Clear local rows that now exist in server data
   useEffect(() => {
     if (!data) return;
+    const serverKeys = new Set(
+      data.groups.flatMap((g) =>
+        g.rows.map((r) => `${r.project_id}:${r.user_id}`),
+      ),
+    );
     setLocalRows((prev) =>
-      prev.filter((lr) => {
-        const serverGroup = data.groups.find((g) =>
-          g.rows.some(
-            (r) => r.project_id === lr.project_id && r.user_id === lr.user_id,
-          ),
-        );
-        return !serverGroup;
-      }),
+      prev.filter((lr) => !serverKeys.has(`${lr.project_id}:${lr.user_id}`)),
     );
   }, [data]);
 
