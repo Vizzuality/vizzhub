@@ -13,7 +13,7 @@ router = APIRouter()
 _VALID_FA_CODES = set(SHORT_TO_FA_NAME.keys())
 
 
-@router.get("")
+@router.get("", responses={422: {"description": "Invalid FA code or date format"}})
 async def capacity_fa_detail(
     db: DBSession,
     user: CurrentUser,

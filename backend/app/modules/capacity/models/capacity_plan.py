@@ -11,6 +11,8 @@ from sqlalchemy.sql import func
 
 from app.database import Base
 
+_USERS_ID_FK = "users.id"
+
 
 class CapacityPlanDB(Base):
     __tablename__ = "capacity_plans"
@@ -28,15 +30,15 @@ class CapacityPlanDB(Base):
         PG_UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     user_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        PG_UUID(as_uuid=True), ForeignKey(_USERS_ID_FK, ondelete="CASCADE"), nullable=False
     )
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     percentage: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     created_by: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        PG_UUID(as_uuid=True), ForeignKey(_USERS_ID_FK, ondelete="RESTRICT"), nullable=False
     )
     updated_by: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        PG_UUID(as_uuid=True), ForeignKey(_USERS_ID_FK, ondelete="RESTRICT"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
