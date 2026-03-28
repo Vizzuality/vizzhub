@@ -1,6 +1,7 @@
 """Capacity planner CRUD endpoints."""
 
 from datetime import date, timedelta
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -54,13 +55,13 @@ def _parse_date(value: str, name: str) -> date:
         raise HTTPException(status_code=422, detail=f"Invalid date format for {name}: {value}")
 
 
-@router.get("")
+@router.get("", responses={422: {"description": "Invalid date or group_by parameter"}})
 async def get_planner(
     db: DBSession,
     user: CurrentUser,
-    start: str = Query(description="Start date (YYYY-MM-DD, Monday)"),
-    end: str = Query(description="End date (YYYY-MM-DD, Monday)"),
-    group_by: str = Query(default="project", description="Group by: project | user"),
+    start: Annotated[str, Query(description="Start date (YYYY-MM-DD, Monday)")],
+    end: Annotated[str, Query(description="End date (YYYY-MM-DD, Monday)")],
+    group_by: Annotated[str, Query(description="Group by: project | user")] = "project",
 ) -> dict:
     start_date = _parse_date(start, "start")
     end_date = _parse_date(end, "end")
@@ -234,8 +235,8 @@ async def delete_row(
 async def get_updated_at(
     db: DBSession,
     user: CurrentUser,
-    start: str = Query(description="Start date (YYYY-MM-DD)"),
-    end: str = Query(description="End date (YYYY-MM-DD)"),
+    start: Annotated[str, Query(description="Start date (YYYY-MM-DD)")],
+    end: Annotated[str, Query(description="End date (YYYY-MM-DD)")],
 ) -> dict:
     start_date = _parse_date(start, "start")
     end_date = _parse_date(end, "end")
