@@ -346,3 +346,18 @@ export interface ProjectSettingsUpdate {
   contract_rate: number;
 }
 
+export interface JiraIssue {
+  key: string;
+  summary: string;
+  status: string;
+  status_category: string;
+  project_key: string;
+  project_name: string;
+  issue_type: string;
+}
+
+export interface JiraIssuesResponse {
+  issues: JiraIssue[];
+  site_url?: string;
+  error?: string;
+}

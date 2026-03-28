@@ -189,6 +189,8 @@ export const queryKeys = {
       byProject: (projectId: string) =>
         ['tracker', 'settings', projectId] as const,
     },
+    jiraIssues: (periodDate: string) =>
+      ['tracker', 'jira-issues', periodDate] as const,
     projectCosts: {
       summary: (projectId: string) =>
         ['tracker', 'project-costs', projectId, 'summary'] as const,
