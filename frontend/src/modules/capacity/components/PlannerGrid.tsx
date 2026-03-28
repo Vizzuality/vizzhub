@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTheme } from 'next-themes';
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
+import { shortMonth } from '@/shared/constants/dates';
 import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
 import { PlannerAddRow } from '@/modules/capacity/components/PlannerAddRow';
 import type { PlannerGroup } from '@/modules/capacity/types/planner';
@@ -31,17 +33,21 @@ interface FlatRow {
   _type: 'header' | 'data' | 'add';
   groupId: string;
   groupName: string;
+  hasWarning?: boolean;
   user_id?: string;
   user_name?: string;
   functional_area?: string;
   project_id?: string;
   project_name?: string;
+  is_absence?: boolean;
+  is_other?: boolean;
   cells: Record<string, number>;
 }
 
 interface PlannerGridProps {
   readonly groups: PlannerGroup[];
   readonly weeks: string[];
+  readonly warnings: string[];
   readonly groupBy: string;
   readonly fa: string;
   readonly onCellChange: (
@@ -55,11 +61,6 @@ interface PlannerGridProps {
   readonly addRowOptions: { id: string; name: string; extra?: string }[];
 }
 
-function getMonthLabel(weekStr: string): string {
-  const d = new Date(weekStr + 'T00:00:00');
-  return d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
-}
-
 function getISOWeekNumber(weekStr: string): number {
   const d = new Date(weekStr + 'T00:00:00');
   const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -71,6 +72,7 @@ function getISOWeekNumber(weekStr: string): number {
 export function PlannerGrid({
   groups,
   weeks,
+  warnings,
   groupBy,
   fa,
   onCellChange,
@@ -79,6 +81,13 @@ export function PlannerGrid({
   addRowOptions,
 }: PlannerGridProps): JSX.Element {
   const { user: authUser } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const oddMonthBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+  const oddMonthBgMuted = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+  const warningSet = useMemo(() => new Set(warnings), [warnings]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const selection = useCellSelection();
   const [batchDraft, setBatchDraft] = useState('');
@@ -101,10 +110,14 @@ export function PlannerGrid({
   const flatRows = useMemo((): FlatRow[] => {
     const result: FlatRow[] = [];
     for (const group of filteredGroups) {
+      const groupHasWarning = groupBy === 'user'
+        ? warningSet.has(group.id)
+        : group.rows.some((r) => warningSet.has(r.user_id));
       result.push({
         _type: 'header',
         groupId: group.id,
         groupName: group.name,
+        hasWarning: groupHasWarning,
         cells: {},
       });
       for (const row of group.rows) {
@@ -117,6 +130,8 @@ export function PlannerGrid({
           functional_area: row.functional_area,
           project_id: row.project_id,
           project_name: row.project_name,
+          is_absence: row.is_absence,
+          is_other: row.is_other,
           cells: row.cells,
         });
       }
@@ -128,7 +143,7 @@ export function PlannerGrid({
       });
     }
     return result;
-  }, [filteredGroups]);
+  }, [filteredGroups, groupBy, warningSet]);
 
   // Build allCoords for selection range calculation
   useEffect(() => {
@@ -249,15 +264,23 @@ export function PlannerGrid({
     [batchDraft, applyBatchValue],
   );
 
-  // Group weeks by month for headers
-  const monthGroups = useMemo(() => {
-    const map = new Map<string, string[]>();
+  // Group weeks by month + track month index for alternating backgrounds
+  const { monthGroups, weekMonthInfo } = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    const info = new Map<string, { isOddMonth: boolean }>();
+    let prevMonth = '';
+    let monthIdx = 0;
     for (const w of weeks) {
-      const label = getMonthLabel(w);
-      if (!map.has(label)) map.set(label, []);
-      map.get(label)!.push(w);
+      const month = shortMonth(w);
+      if (!groups.has(month)) groups.set(month, []);
+      groups.get(month)!.push(w);
+      if (month !== prevMonth) {
+        if (prevMonth !== '') monthIdx++;
+        prevMonth = month;
+      }
+      info.set(w, { isOddMonth: monthIdx % 2 === 1 });
     }
-    return map;
+    return { monthGroups: groups, weekMonthInfo: info };
   }, [weeks]);
 
   // Existing IDs in each group (for add-row filtering)
@@ -296,47 +319,59 @@ export function PlannerGrid({
         size: 200,
         cell: ({ row: { original } }) => {
           if (original._type === 'data') {
-            const label =
-              groupBy === 'project' ? original.user_name : original.project_name;
+            const isPinned = original.is_absence || original.is_other;
+            const label = isPinned && original.is_other
+              ? 'Others'
+              : groupBy === 'project' ? original.user_name : original.project_name;
+            const userHasWarning = original.user_id ? warningSet.has(original.user_id) : false;
             return (
               <div className="flex items-center justify-between gap-1">
-                {groupBy === 'user' ? (
-                  <Link
-                    to={`/tracker/projects/${original.project_id}`}
-                    className="truncate text-sm hover:underline"
-                  >
-                    {label}
-                  </Link>
-                ) : (
-                  <span className="truncate text-sm">{label}</span>
-                )}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button
-                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                <span className="flex items-center gap-1 truncate">
+                  {groupBy === 'project' && userHasWarning && (
+                    <span title="Allocations exceed 100%"><AlertTriangle className="h-3 w-3 shrink-0 text-yellow-500" /></span>
+                  )}
+                  {groupBy === 'user' && !isPinned ? (
+                    <Link
+                      to={`/tracker/projects/${original.project_id}`}
+                      className="truncate text-sm hover:underline"
                     >
-                      <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remove row?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will delete all planned allocations for this combination.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() =>
-                          onDeleteRow(original.project_id!, original.user_id!)
-                        }
+                      {label}
+                    </Link>
+                  ) : (
+                    <span className={`truncate text-sm ${isPinned ? 'italic text-muted-foreground' : ''}`}>
+                      {label}
+                    </span>
+                  )}
+                </span>
+                {!isPinned && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
                       >
-                        Remove
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove row?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will delete all planned allocations for this combination.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() =>
+                            onDeleteRow(original.project_id!, original.user_id!)
+                          }
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             );
           }
@@ -353,7 +388,7 @@ export function PlannerGrid({
     }));
 
     return [...fixed, ...weekCols];
-  }, [weeks, groupBy, onDeleteRow]);
+  }, [weeks, groupBy, onDeleteRow, warningSet]);
 
   const table = useReactTable({
     data: flatRows,
@@ -393,11 +428,12 @@ export function PlannerGrid({
         <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
           <tr className="bg-background">
             <th colSpan={2} className="sticky left-0 z-20 bg-background" />
-            {Array.from(monthGroups.entries()).map(([month, monthWeeks]) => (
+            {Array.from(monthGroups.entries()).map(([month, monthWeeks], idx) => (
               <th
                 key={month}
                 colSpan={monthWeeks.length}
                 className="border-l px-1 py-1 text-center text-xs font-medium text-muted-foreground"
+                style={idx % 2 === 1 ? { backgroundColor: oddMonthBg } : undefined}
               >
                 {month}
               </th>
@@ -405,22 +441,31 @@ export function PlannerGrid({
           </tr>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className="bg-background">
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className={`px-2 py-1 text-left text-xs font-medium ${
-                    header.index < 2 ? 'sticky left-0 z-20 bg-background' : ''
-                  }`}
-                  style={{
-                    width: header.getSize(),
-                    left: header.index < 2
-                      ? header.index === 0 ? 0 : 50
-                      : undefined,
-                  }}
-                >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
+              {headerGroup.headers.map((header) => {
+                const weekIdx = header.index - 2;
+                const isWeekHeader = header.index >= 2;
+                const weekKey = isWeekHeader ? weeks[weekIdx] : undefined;
+                const info = weekKey ? weekMonthInfo.get(weekKey) : undefined;
+                return (
+                  <th
+                    key={header.id}
+                    className={`px-2 py-1 text-left text-xs font-medium ${
+                      header.index < 2
+                        ? 'sticky left-0 z-20 bg-background'
+                        : 'border-l'
+                    }`}
+                    style={{
+                      width: header.getSize(),
+                      left: header.index < 2
+                        ? header.index === 0 ? 0 : 50
+                        : undefined,
+                      backgroundColor: info?.isOddMonth ? oddMonthBg : undefined,
+                    }}
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                );
+              })}
             </tr>
           ))}
         </thead>
@@ -438,21 +483,34 @@ export function PlannerGrid({
                     className="sticky left-0 z-10 bg-muted px-2 py-1 max-w-0 truncate"
                     style={{ left: 0, maxWidth: 250 }}
                   >
-                    {groupBy === 'project' ? (
-                      <Link
-                        to={`/tracker/projects/${row.original.groupId}`}
-                        className="font-semibold text-sm hover:underline"
-                        title={row.original.groupName}
-                      >
-                        {row.original.groupName}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold text-sm">{row.original.groupName}</span>
-                    )}
+                    <span className="flex items-center gap-1">
+                      {row.original.hasWarning && (
+                        <span title="Allocations exceed 100%"><AlertTriangle className="h-3.5 w-3.5 shrink-0 text-yellow-500" /></span>
+                      )}
+                      {groupBy === 'project' ? (
+                        <Link
+                          to={`/tracker/projects/${row.original.groupId}`}
+                          className="truncate font-semibold text-sm hover:underline"
+                          title={row.original.groupName}
+                        >
+                          {row.original.groupName}
+                        </Link>
+                      ) : (
+                        <span className="truncate font-semibold text-sm">{row.original.groupName}</span>
+                      )}
+                    </span>
                   </td>
-                  {weekCells.map((cell) => (
-                    <td key={cell.id} className="border-l bg-muted" style={{ height: 28 }} />
-                  ))}
+                  {weekCells.map((cell) => {
+                    const weekKey = weeks[cell.column.getIndex() - 2];
+                    const info = weekMonthInfo.get(weekKey);
+                    return (
+                      <td
+                        key={cell.id}
+                        className="border-l bg-muted"
+                        style={{ height: 28, backgroundColor: info?.isOddMonth ? oddMonthBgMuted : undefined }}
+                      />
+                    );
+                  })}
                 </tr>
               );
             }
@@ -472,9 +530,17 @@ export function PlannerGrid({
                       label={groupBy === 'project' ? 'Add person' : 'Add project'}
                     />
                   </td>
-                  {weekCells.map((cell) => (
-                    <td key={cell.id} className="border-l" style={{ height: 28 }} />
-                  ))}
+                  {weekCells.map((cell) => {
+                    const weekKey = weeks[cell.column.getIndex() - 2];
+                    const info = weekMonthInfo.get(weekKey);
+                    return (
+                      <td
+                        key={cell.id}
+                        className="border-l"
+                        style={{ height: 28, backgroundColor: info?.isOddMonth ? oddMonthBg : undefined }}
+                      />
+                    );
+                  })}
                 </tr>
               );
             }
@@ -507,6 +573,8 @@ export function PlannerGrid({
                         left: colIdx < 2
                           ? colIdx === 0 ? 0 : 50
                           : undefined,
+                        backgroundColor: isWeekCol && week && weekMonthInfo.get(week)?.isOddMonth
+                          ? oddMonthBg : undefined,
                       }}
                     >
                       {isWeekCol && orig._type === 'data' && coord ? (
@@ -514,6 +582,7 @@ export function PlannerGrid({
                           value={orig.cells[week!]}
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
+                          absence={orig.is_absence}
                           onChange={(v) =>
                             onCellChange(
                               orig.project_id!,

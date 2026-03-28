@@ -78,6 +78,8 @@ async def get_planner(
         select(
             CapacityPlanDB.project_id,
             ProjectDB.name.label("project_name"),
+            ProjectDB.is_absence,
+            ProjectDB.is_billable,
             CapacityPlanDB.user_id,
             _user_name_expr().label("user_name"),
             FunctionalAreaDB.name.label("functional_area"),
@@ -93,6 +95,9 @@ async def get_planner(
         .where(UserDB.active.is_(True))
         .order_by(ProjectDB.name, UserDB.name, CapacityPlanDB.week_start)
     )
+
+    if group_by == "project":
+        stmt = stmt.where(ProjectDB.is_billable.is_(True))
 
     result = await db.execute(stmt)
     rows = result.all()
@@ -120,6 +125,8 @@ async def get_planner(
                 "functional_area": _fa_short_name(row.functional_area),
                 "project_id": str(row.project_id),
                 "project_name": row.project_name,
+                "is_absence": row.is_absence,
+                "is_other": not row.is_absence and not row.is_billable,
                 "cells": {},
             }
             rows_map[row_key] = row_data
@@ -148,12 +155,52 @@ async def get_planner(
         if key not in groups_map:
             groups_map[key] = {"id": key, "name": g.name, "rows": []}
 
-    # Sort: groups with data first (alphabetically), then empty groups (alphabetically)
+    # In user view, ensure every user group has pinned rows (absence + non-billable)
+    if group_by == "user":
+        pinned_stmt = (
+            select(ProjectDB.id, ProjectDB.name, ProjectDB.is_absence)
+            .where(ProjectDB.status != ProjectStatus.FINISHED)
+            .where(
+                (ProjectDB.is_absence.is_(True))
+                | (ProjectDB.name == "Operations")
+            )
+        )
+        pinned_projects = (await db.execute(pinned_stmt)).all()
+        for user_key, group in groups_map.items():
+            existing_project_ids = {r["project_id"] for r in group["rows"]}
+            for pp in pinned_projects:
+                pp_id = str(pp.id)
+                if pp_id not in existing_project_ids:
+                    group["rows"].append({
+                        "user_id": user_key,
+                        "user_name": group["name"],
+                        "functional_area": "",
+                        "project_id": pp_id,
+                        "project_name": pp.name,
+                        "is_absence": pp.is_absence,
+                        "is_other": not pp.is_absence,
+                        "cells": {},
+                    })
+
     sorted_groups = sorted(
         groups_map.values(),
         key=lambda g: (len(g["rows"]) == 0, g["name"].lower()),
     )
-    return {"groups": sorted_groups, "weeks": weeks}
+
+    # Users with weeks where allocations don't sum to 100
+    warn_stmt = (
+        select(CapacityPlanDB.user_id)
+        .join(UserDB, CapacityPlanDB.user_id == UserDB.id)
+        .where(CapacityPlanDB.week_start >= start_date)
+        .where(CapacityPlanDB.week_start <= end_date)
+        .where(UserDB.active.is_(True))
+        .group_by(CapacityPlanDB.user_id, CapacityPlanDB.week_start)
+        .having(func.sum(CapacityPlanDB.percentage) > 100)
+    )
+    warn_rows = (await db.execute(warn_stmt)).all()
+    warnings = list({str(r.user_id) for r in warn_rows})
+
+    return {"groups": sorted_groups, "weeks": weeks, "warnings": warnings}
 
 
 @router.patch("/cells")

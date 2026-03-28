@@ -54,21 +54,24 @@ export default function Planner(): JSX.Element {
   // Local-only rows not yet persisted (no cells saved yet)
   const [localRows, setLocalRows] = useState<PlannerRow[]>([]);
 
-  const handlePrev = useCallback((): void => {
-    flushUpdates();
+  const handlePrev = useCallback(async (): Promise<void> => {
+    await flushUpdates();
+    setLocalRows([]);
     const newStart = addMonths(state.start, -1);
     setState({ start: newStart, end: addMonths(newStart, 6) });
   }, [state.start, setState, flushUpdates]);
 
-  const handleNext = useCallback((): void => {
-    flushUpdates();
+  const handleNext = useCallback(async (): Promise<void> => {
+    await flushUpdates();
+    setLocalRows([]);
     const newStart = addMonths(state.start, 1);
     setState({ start: newStart, end: addMonths(newStart, 6) });
   }, [state.start, setState, flushUpdates]);
 
   const handleGroupByChange = useCallback(
-    (group: string): void => {
-      flushUpdates();
+    async (group: string): Promise<void> => {
+      await flushUpdates();
+      setLocalRows([]);
       setState({ group });
     },
     [setState, flushUpdates],
@@ -155,11 +158,18 @@ export default function Planner(): JSX.Element {
     if (state.group === 'project' && reportableUsers) {
       return reportableUsers.map((u) => ({ id: u.id, name: u.name }));
     }
-    if (state.group === 'user' && projects) {
-      return projects.map((p) => ({ id: p.id, name: p.name }));
+    if (state.group === 'user' && projects && data) {
+      const pinned = new Set(
+        data.groups.flatMap((g) =>
+          g.rows.filter((r) => r.is_absence || r.is_other).map((r) => r.project_id),
+        ),
+      );
+      return projects
+        .filter((p) => !pinned.has(p.id))
+        .map((p) => ({ id: p.id, name: p.name }));
     }
     return [];
-  }, [state.group, reportableUsers, projects]);
+  }, [state.group, reportableUsers, projects, data]);
 
   return (
     <div className="space-y-4 p-6">
@@ -190,6 +200,7 @@ export default function Planner(): JSX.Element {
         <PlannerGrid
           groups={mergedGroups}
           weeks={data.weeks}
+          warnings={data.warnings}
           groupBy={state.group}
           fa={state.fa}
           onCellChange={handleCellChange}

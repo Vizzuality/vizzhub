@@ -316,6 +316,150 @@ class TestGetPlannerFiltering:
             assert max(data_indices) < min(empty_indices)
 
 
+class TestAbsenceAndOthers:
+    @pytest.mark.asyncio
+    async def test_absence_excluded_from_project_view(self, db_session, planner_data):
+        """Absence project rows don't appear in project view."""
+        from app.modules.capacity.api.planner import get_planner
+
+        absence = ProjectDB(id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False)
+        db_session.add(absence)
+        await db_session.flush()
+
+        db_session.add(CapacityPlanDB(
+            project_id=absence.id, user_id=planner_data["user1"].id,
+            week_start=date(2026, 1, 5), percentage=20,
+            created_by=planner_data["user1"].id, updated_by=planner_data["user1"].id,
+        ))
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        group_names = [g["name"] for g in result["groups"]]
+        assert "Vacation" not in group_names
+
+    @pytest.mark.asyncio
+    async def test_absence_injected_in_user_view(self, db_session):
+        """Every user group in user view gets a pinned absence row."""
+        from app.modules.capacity.api.planner import get_planner
+
+        absence = ProjectDB(id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False)
+        user = UserDB(id=uuid4(), email="test@t.com", name="Test", requires_project_reporting=True)
+        proj = ProjectDB(id=uuid4(), name="Proj", status="live", is_billable=True)
+        db_session.add_all([absence, user, proj])
+        await db_session.flush()
+
+        db_session.add(CapacityPlanDB(
+            project_id=proj.id, user_id=user.id,
+            week_start=date(2026, 1, 5), percentage=50,
+            created_by=user.id, updated_by=user.id,
+        ))
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(user.id),
+            start="2026-01-05", end="2026-01-19", group_by="user",
+        )
+
+        test_group = next(g for g in result["groups"] if "Test" in g["name"])
+        absence_rows = [r for r in test_group["rows"] if r["is_absence"]]
+        assert len(absence_rows) == 1
+        assert absence_rows[0]["project_name"] == "Vacation"
+
+    @pytest.mark.asyncio
+    async def test_non_billable_excluded_from_project_view(self, db_session, planner_data):
+        """Non-billable project rows don't appear in project view."""
+        from app.modules.capacity.api.planner import get_planner
+
+        internal = ProjectDB(id=uuid4(), name="Internal", status="live", is_billable=False)
+        db_session.add(internal)
+        await db_session.flush()
+
+        db_session.add(CapacityPlanDB(
+            project_id=internal.id, user_id=planner_data["user1"].id,
+            week_start=date(2026, 1, 5), percentage=10,
+            created_by=planner_data["user1"].id, updated_by=planner_data["user1"].id,
+        ))
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        group_names = [g["name"] for g in result["groups"]]
+        assert "Internal" not in group_names
+
+
+class TestWarnings:
+    @pytest.mark.asyncio
+    async def test_warns_when_allocations_exceed_100(self, db_session):
+        """Users whose weekly allocations exceed 100% appear in warnings."""
+        from app.modules.capacity.api.planner import get_planner
+
+        user = UserDB(id=uuid4(), email="over@t.com", name="Over")
+        p1 = ProjectDB(id=uuid4(), name="P1", status="live", is_billable=True)
+        p2 = ProjectDB(id=uuid4(), name="P2", status="live", is_billable=True)
+        db_session.add_all([user, p1, p2])
+        await db_session.flush()
+
+        db_session.add_all([
+            CapacityPlanDB(
+                project_id=p1.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=60,
+                created_by=user.id, updated_by=user.id,
+            ),
+            CapacityPlanDB(
+                project_id=p2.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=50,
+                created_by=user.id, updated_by=user.id,
+            ),
+        ])
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(user.id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        assert str(user.id) in result["warnings"]
+
+    @pytest.mark.asyncio
+    async def test_no_warning_at_100(self, db_session):
+        """Users at exactly 100% don't appear in warnings."""
+        from app.modules.capacity.api.planner import get_planner
+
+        user = UserDB(id=uuid4(), email="exact@t.com", name="Exact")
+        p1 = ProjectDB(id=uuid4(), name="P1", status="live", is_billable=True)
+        p2 = ProjectDB(id=uuid4(), name="P2", status="live", is_billable=True)
+        db_session.add_all([user, p1, p2])
+        await db_session.flush()
+
+        db_session.add_all([
+            CapacityPlanDB(
+                project_id=p1.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=60,
+                created_by=user.id, updated_by=user.id,
+            ),
+            CapacityPlanDB(
+                project_id=p2.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=40,
+                created_by=user.id, updated_by=user.id,
+            ),
+        ])
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(user.id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        assert str(user.id) not in result["warnings"]
+
+
 class TestUpdatedAt:
     @pytest.mark.asyncio
     async def test_returns_max_updated_at(self, db_session, planner_data):
