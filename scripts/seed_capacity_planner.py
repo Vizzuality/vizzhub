@@ -29,10 +29,13 @@ from app.core.models.user import UserDB
 from app.modules.capacity.models.capacity_plan import CapacityPlanDB
 
 
-async def main(json_path: str) -> None:
+def load_records(json_path: str) -> list[dict]:
     with open(json_path) as f:
-        records = json.load(f)
+        return json.load(f)
 
+
+async def main(json_path: str) -> None:
+    records = load_records(json_path)
     print(f"Loaded {len(records)} records from {json_path}")
 
     async with AsyncSessionLocal() as db:

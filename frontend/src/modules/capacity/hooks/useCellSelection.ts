@@ -15,7 +15,7 @@ function buildRange(
   b: CellCoord,
   allCoords: CellCoord[],
 ): Set<string> {
-  const weeks = [...new Set(allCoords.map((c) => c.week))].sort();
+  const weeks = [...new Set(allCoords.map((c) => c.week))].sort((a, b) => a.localeCompare(b));
   const rowKeys = [...new Set(allCoords.map((c) => `${c.projectId}:${c.userId}`))];
 
   const w1 = weeks.indexOf(a.week);
