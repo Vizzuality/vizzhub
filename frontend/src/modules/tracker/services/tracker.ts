@@ -37,6 +37,7 @@ import type {
   MoodsTrendResponse,
   ProjectSettings,
   ProjectSettingsUpdate,
+  JiraIssuesResponse,
 } from '../types/tracker';
 
 export const trackerApi = {
@@ -377,6 +378,14 @@ export const trackerApi = {
   // Currencies
   listCurrencies: async (): Promise<string[]> => {
     const { data } = await api.get<string[]>('/currencies');
+    return data;
+  },
+
+  // Jira issues for report
+  getJiraIssues: async (periodDate: string): Promise<JiraIssuesResponse> => {
+    const { data } = await api.get<JiraIssuesResponse>('/tracker/jira-issues', {
+      params: { period_date: periodDate },
+    });
     return data;
   },
 };

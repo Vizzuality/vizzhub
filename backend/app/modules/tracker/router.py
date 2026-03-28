@@ -4,17 +4,18 @@ from fastapi import APIRouter
 
 from app.modules.tracker.api import admin_invoices as admin_invoices_router
 from app.modules.tracker.api import anonymous_feedback as anonymous_feedback_router
-from app.modules.tracker.api import moods as moods_router
 from app.modules.tracker.api import budget_lines as budget_lines_router
 from app.modules.tracker.api import invoices as invoices_router
-from app.modules.tracker.api import postponements as postponements_router
+from app.modules.tracker.api import jira_issues as jira_issues_router
+from app.modules.tracker.api import moods as moods_router
 from app.modules.tracker.api import non_staff_costs as non_staff_costs_router
+from app.modules.tracker.api import postponements as postponements_router
 from app.modules.tracker.api import progress_reports as progress_reports_router
 from app.modules.tracker.api import project_costs as project_costs_router
 from app.modules.tracker.api import project_settings as project_settings_router
 from app.modules.tracker.api import report_parts as report_parts_router
-from app.modules.tracker.api import reports as reports_router
 from app.modules.tracker.api import reporting_periods as reporting_periods_router
+from app.modules.tracker.api import reports as reports_router
 
 router = APIRouter()
 
@@ -84,4 +85,9 @@ router.include_router(
     moods_router.router,
     prefix="/moods",
     tags=["tracker:moods"],
+)
+router.include_router(
+    jira_issues_router.router,
+    prefix="/jira-issues",
+    tags=["tracker:jira-issues"],
 )
