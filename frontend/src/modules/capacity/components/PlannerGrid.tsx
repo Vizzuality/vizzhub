@@ -69,6 +69,11 @@ function getISOWeekNumber(weekStr: string): number {
   return Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
 }
 
+const STICKY_LEFT: Record<number, number> = { 0: 0, 1: 50 };
+function stickyLeft(colIdx: number): number | undefined {
+  return STICKY_LEFT[colIdx];
+}
+
 export function PlannerGrid({
   groups,
   weeks,
@@ -164,8 +169,8 @@ export function PlannerGrid({
   // Global mouseup to end drag
   useEffect(() => {
     const handler = (): void => selection.handleMouseUp();
-    window.addEventListener('mouseup', handler);
-    return () => window.removeEventListener('mouseup', handler);
+    globalThis.addEventListener('mouseup', handler);
+    return () => globalThis.removeEventListener('mouseup', handler);
   }, [selection.handleMouseUp]);
 
   // Apply batch value to selected cells
@@ -231,7 +236,7 @@ export function PlannerGrid({
       }
 
       // Typing a digit opens batch input
-      if (/^[0-9]$/.test(e.key) && selection.selected.size > 1) {
+      if (/^\d$/.test(e.key) && selection.selected.size > 1) {
         e.preventDefault();
         setBatchDraft(e.key);
         setShowBatchInput(true);
@@ -320,9 +325,8 @@ export function PlannerGrid({
         cell: ({ row: { original } }) => {
           if (original._type === 'data') {
             const isPinned = original.is_absence || original.is_other;
-            const label = isPinned && original.is_other
-              ? 'Others'
-              : groupBy === 'project' ? original.user_name : original.project_name;
+            const defaultLabel = groupBy === 'project' ? original.user_name : original.project_name;
+            const label = isPinned && original.is_other ? 'Others' : defaultLabel;
             const userHasWarning = original.user_id ? warningSet.has(original.user_id) : false;
             return (
               <div className="flex items-center justify-between gap-1">
@@ -362,9 +366,11 @@ export function PlannerGrid({
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() =>
-                            onDeleteRow(original.project_id!, original.user_id!)
-                          }
+                          onClick={() => {
+                            if (original.project_id && original.user_id) {
+                              onDeleteRow(original.project_id, original.user_id);
+                            }
+                          }}
                         >
                           Remove
                         </AlertDialogAction>
@@ -402,6 +408,7 @@ export function PlannerGrid({
       className="relative overflow-auto rounded-md border"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
       role="grid"
+      aria-label="Capacity planner"
       tabIndex={0}
       onKeyDown={handleGridKeyDown}
     >
@@ -456,9 +463,7 @@ export function PlannerGrid({
                     }`}
                     style={{
                       width: header.getSize(),
-                      left: header.index < 2
-                        ? header.index === 0 ? 0 : 50
-                        : undefined,
+                      left: stickyLeft(header.index),
                       backgroundColor: info?.isOddMonth ? oddMonthBg : undefined,
                     }}
                   >
@@ -570,24 +575,22 @@ export function PlannerGrid({
                       style={{
                         width: cell.column.getSize(),
                         height: 32,
-                        left: colIdx < 2
-                          ? colIdx === 0 ? 0 : 50
-                          : undefined,
+                        left: stickyLeft(colIdx),
                         backgroundColor: isWeekCol && week && weekMonthInfo.get(week)?.isOddMonth
                           ? oddMonthBg : undefined,
                       }}
                     >
                       {isWeekCol && orig._type === 'data' && coord ? (
                         <PlannerCell
-                          value={orig.cells[week!]}
+                          value={orig.cells[coord.week]}
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
                           absence={orig.is_absence}
                           onChange={(v) =>
                             onCellChange(
-                              orig.project_id!,
-                              orig.user_id!,
-                              week!,
+                              coord.projectId,
+                              coord.userId,
+                              coord.week,
                               v,
                             )
                           }
