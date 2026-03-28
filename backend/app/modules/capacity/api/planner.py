@@ -233,7 +233,25 @@ async def get_planner(
     return {"groups": sorted_groups, "weeks": weeks, "warnings": warnings}
 
 
-@router.get("/suggestions")
+def _mondays_in_month(month_date: date) -> list[date]:
+    """Return all Mondays that fall within the given month."""
+    first_day = month_date.replace(day=1)
+    if month_date.month == 12:
+        last_day = first_day.replace(year=first_day.year + 1, month=1) - timedelta(days=1)
+    else:
+        last_day = first_day.replace(month=first_day.month + 1) - timedelta(days=1)
+
+    mondays: list[date] = []
+    current = first_day - timedelta(days=first_day.weekday())
+    if current < first_day:
+        current += timedelta(weeks=1)
+    while current <= last_day:
+        mondays.append(current)
+        current += timedelta(weeks=1)
+    return mondays
+
+
+@router.get("/suggestions", responses={422: {"description": "Invalid date format"}})
 async def get_planner_suggestions(
     db: DBSession,
     user: CurrentUser,
@@ -248,19 +266,7 @@ async def get_planner_suggestions(
     empty_response = {"suggestions": [], "others_percentage": None}
 
     month_date = _parse_date(month, "month")
-    first_day = month_date.replace(day=1)
-    if month_date.month == 12:
-        last_day = first_day.replace(year=first_day.year + 1, month=1) - timedelta(days=1)
-    else:
-        last_day = first_day.replace(month=first_day.month + 1) - timedelta(days=1)
-
-    mondays: list[date] = []
-    current = first_day - timedelta(days=first_day.weekday())
-    if current < first_day:
-        current += timedelta(weeks=1)
-    while current <= last_day:
-        mondays.append(current)
-        current += timedelta(weeks=1)
+    mondays = _mondays_in_month(month_date)
 
     if not mondays:
         return empty_response
