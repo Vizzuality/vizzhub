@@ -84,6 +84,7 @@ export function PlannerCell({
 
   return (
     <div
+      role="button"
       className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none ${
         !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
       } ${selected ? 'ring-2 ring-inset ring-primary' : ''}`}
