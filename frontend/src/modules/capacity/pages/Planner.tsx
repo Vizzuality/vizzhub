@@ -154,22 +154,28 @@ export default function Planner(): JSX.Element {
     );
   }, [data]);
 
+  const pinnedProjectIds = useMemo(() => {
+    if (!data) return new Set<string>();
+    const ids: string[] = [];
+    for (const g of data.groups) {
+      for (const r of g.rows) {
+        if (r.is_absence || r.is_other) ids.push(r.project_id);
+      }
+    }
+    return new Set(ids);
+  }, [data]);
+
   const addRowOptions = useMemo(() => {
     if (state.group === 'project' && reportableUsers) {
       return reportableUsers.map((u) => ({ id: u.id, name: u.name }));
     }
-    if (state.group === 'user' && projects && data) {
-      const pinned = new Set(
-        data.groups.flatMap((g) =>
-          g.rows.filter((r) => r.is_absence || r.is_other).map((r) => r.project_id),
-        ),
-      );
+    if (state.group === 'user' && projects) {
       return projects
-        .filter((p) => !pinned.has(p.id))
+        .filter((p) => !pinnedProjectIds.has(p.id))
         .map((p) => ({ id: p.id, name: p.name }));
     }
     return [];
-  }, [state.group, reportableUsers, projects, data]);
+  }, [state.group, reportableUsers, projects, pinnedProjectIds]);
 
   return (
     <div className="space-y-4 p-6">

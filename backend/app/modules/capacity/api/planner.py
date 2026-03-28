@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.models.functional_area import FunctionalAreaDB
@@ -55,6 +56,121 @@ def _parse_date(value: str, name: str) -> date:
         raise HTTPException(status_code=422, detail=f"Invalid date format for {name}: {value}")
 
 
+def _build_row_data(row) -> dict:
+    """Build a single row dict from a query result row."""
+    return {
+        "user_id": str(row.user_id),
+        "user_name": row.user_name,
+        "functional_area": _fa_short_name(row.functional_area),
+        "project_id": str(row.project_id),
+        "project_name": row.project_name,
+        "is_absence": row.is_absence,
+        "is_other": not row.is_absence and not row.is_billable,
+        "cells": {},
+    }
+
+
+def _process_rows(rows, group_by: str) -> dict[str, dict]:
+    """Group query rows into groups_map keyed by group id."""
+    groups_map: dict[str, dict] = {}
+    rows_map: dict[str, dict] = {}
+
+    for row in rows:
+        if group_by == "project":
+            group_key = str(row.project_id)
+            group_name = row.project_name
+            row_key = f"{row.project_id}:{row.user_id}"
+        else:
+            group_key = str(row.user_id)
+            group_name = row.user_name
+            row_key = f"{row.user_id}:{row.project_id}"
+
+        if group_key not in groups_map:
+            groups_map[group_key] = {"id": group_key, "name": group_name, "rows": []}
+
+        if row_key not in rows_map:
+            row_data = _build_row_data(row)
+            rows_map[row_key] = row_data
+            groups_map[group_key]["rows"].append(row_data)
+
+        rows_map[row_key]["cells"][row.week_start.isoformat()] = row.percentage
+
+    return groups_map
+
+
+async def _inject_empty_groups(
+    db: AsyncSession, groups_map: dict[str, dict], group_by: str,
+) -> None:
+    """Add empty groups for all live projects / active reportable users."""
+    if group_by == "project":
+        stmt = (
+            select(ProjectDB.id, ProjectDB.name)
+            .where(ProjectDB.status != ProjectStatus.FINISHED)
+            .where(ProjectDB.is_billable.is_(True))
+            .order_by(ProjectDB.name)
+        )
+    else:
+        stmt = (
+            select(UserDB.id, _user_name_expr().label("name"))
+            .where(UserDB.active.is_(True))
+            .where(UserDB.requires_project_reporting.is_(True))
+            .order_by(UserDB.name)
+        )
+
+    for g in (await db.execute(stmt)).all():
+        key = str(g.id)
+        if key not in groups_map:
+            groups_map[key] = {"id": key, "name": g.name, "rows": []}
+
+
+async def _inject_pinned_rows(
+    db: AsyncSession, groups_map: dict[str, dict],
+) -> None:
+    """Ensure every user group has pinned rows for absence + Operations projects."""
+    pinned_stmt = (
+        select(ProjectDB.id, ProjectDB.name, ProjectDB.is_absence)
+        .where(ProjectDB.status != ProjectStatus.FINISHED)
+        .where(
+            (ProjectDB.is_absence.is_(True))
+            | (ProjectDB.name == "Operations")
+        )
+    )
+    pinned_projects = (await db.execute(pinned_stmt)).all()
+
+    for user_key, group in groups_map.items():
+        existing_project_ids = {r["project_id"] for r in group["rows"]}
+        for pp in pinned_projects:
+            pp_id = str(pp.id)
+            if pp_id not in existing_project_ids:
+                group["rows"].append({
+                    "user_id": user_key,
+                    "user_name": group["name"],
+                    "functional_area": "",
+                    "project_id": pp_id,
+                    "project_name": pp.name,
+                    "is_absence": pp.is_absence,
+                    "is_other": not pp.is_absence,
+                    "cells": {},
+                })
+
+
+async def _get_overallocation_warnings(
+    db: AsyncSession, start_date: date, end_date: date,
+) -> list[str]:
+    """Return user IDs with weeks where allocations exceed 100%."""
+    stmt = (
+        select(CapacityPlanDB.user_id)
+        .join(UserDB, CapacityPlanDB.user_id == UserDB.id)
+        .where(CapacityPlanDB.week_start >= start_date)
+        .where(CapacityPlanDB.week_start <= end_date)
+        .where(UserDB.active.is_(True))
+        .group_by(CapacityPlanDB.user_id, CapacityPlanDB.week_start)
+        .having(func.sum(CapacityPlanDB.percentage) > 100)
+    )
+    warn_rows = (await db.execute(stmt)).all()
+    return list({str(r.user_id) for r in warn_rows})
+
+
 @router.get("", responses={422: {"description": "Invalid date or group_by parameter"}})
 async def get_planner(
     db: DBSession,
@@ -99,111 +215,28 @@ async def get_planner(
     if group_by == "project":
         stmt = stmt.where(ProjectDB.is_billable.is_(True))
 
-    result = await db.execute(stmt)
-    rows = result.all()
+    rows = (await db.execute(stmt)).all()
+    groups_map = _process_rows(rows, group_by)
 
-    groups_map: dict[str, dict] = {}
-    rows_map: dict[str, dict] = {}
+    await _inject_empty_groups(db, groups_map, group_by)
 
-    for row in rows:
-        if group_by == "project":
-            group_key = str(row.project_id)
-            group_name = row.project_name
-            row_key = f"{row.project_id}:{row.user_id}"
-        else:
-            group_key = str(row.user_id)
-            group_name = row.user_name
-            row_key = f"{row.user_id}:{row.project_id}"
-
-        if group_key not in groups_map:
-            groups_map[group_key] = {"id": group_key, "name": group_name, "rows": []}
-
-        if row_key not in rows_map:
-            row_data = {
-                "user_id": str(row.user_id),
-                "user_name": row.user_name,
-                "functional_area": _fa_short_name(row.functional_area),
-                "project_id": str(row.project_id),
-                "project_name": row.project_name,
-                "is_absence": row.is_absence,
-                "is_other": not row.is_absence and not row.is_billable,
-                "cells": {},
-            }
-            rows_map[row_key] = row_data
-            groups_map[group_key]["rows"].append(row_data)
-
-        rows_map[row_key]["cells"][row.week_start.isoformat()] = row.percentage
-
-    # Add empty groups for all live projects / active reportable users
-    if group_by == "project":
-        empty_stmt = (
-            select(ProjectDB.id, ProjectDB.name)
-            .where(ProjectDB.status != ProjectStatus.FINISHED)
-            .where(ProjectDB.is_billable.is_(True))
-            .order_by(ProjectDB.name)
-        )
-    else:
-        empty_stmt = (
-            select(UserDB.id, _user_name_expr().label("name"))
-            .where(UserDB.active.is_(True))
-            .where(UserDB.requires_project_reporting.is_(True))
-            .order_by(UserDB.name)
-        )
-
-    for g in (await db.execute(empty_stmt)).all():
-        key = str(g.id)
-        if key not in groups_map:
-            groups_map[key] = {"id": key, "name": g.name, "rows": []}
-
-    # In user view, ensure every user group has pinned rows (absence + non-billable)
     if group_by == "user":
-        pinned_stmt = (
-            select(ProjectDB.id, ProjectDB.name, ProjectDB.is_absence)
-            .where(ProjectDB.status != ProjectStatus.FINISHED)
-            .where(
-                (ProjectDB.is_absence.is_(True))
-                | (ProjectDB.name == "Operations")
-            )
-        )
-        pinned_projects = (await db.execute(pinned_stmt)).all()
-        for user_key, group in groups_map.items():
-            existing_project_ids = {r["project_id"] for r in group["rows"]}
-            for pp in pinned_projects:
-                pp_id = str(pp.id)
-                if pp_id not in existing_project_ids:
-                    group["rows"].append({
-                        "user_id": user_key,
-                        "user_name": group["name"],
-                        "functional_area": "",
-                        "project_id": pp_id,
-                        "project_name": pp.name,
-                        "is_absence": pp.is_absence,
-                        "is_other": not pp.is_absence,
-                        "cells": {},
-                    })
+        await _inject_pinned_rows(db, groups_map)
 
     sorted_groups = sorted(
         groups_map.values(),
         key=lambda g: (len(g["rows"]) == 0, g["name"].lower()),
     )
 
-    # Users with weeks where allocations don't sum to 100
-    warn_stmt = (
-        select(CapacityPlanDB.user_id)
-        .join(UserDB, CapacityPlanDB.user_id == UserDB.id)
-        .where(CapacityPlanDB.week_start >= start_date)
-        .where(CapacityPlanDB.week_start <= end_date)
-        .where(UserDB.active.is_(True))
-        .group_by(CapacityPlanDB.user_id, CapacityPlanDB.week_start)
-        .having(func.sum(CapacityPlanDB.percentage) > 100)
-    )
-    warn_rows = (await db.execute(warn_stmt)).all()
-    warnings = list({str(r.user_id) for r in warn_rows})
+    warnings = await _get_overallocation_warnings(db, start_date, end_date)
 
     return {"groups": sorted_groups, "weeks": weeks, "warnings": warnings}
 
 
-@router.patch("/cells")
+@router.patch(
+    "/cells",
+    responses={422: {"description": "Validation error"}},
+)
 async def update_cells(
     db: DBSession,
     user: CurrentUser,
@@ -262,7 +295,10 @@ async def update_cells(
     return {"updated": upserted_count + deleted_count}
 
 
-@router.delete("/rows/{project_id}/{user_id}")
+@router.delete(
+    "/rows/{project_id}/{user_id}",
+    responses={422: {"description": "Validation error"}},
+)
 async def delete_row(
     db: DBSession,
     user: CurrentUser,
