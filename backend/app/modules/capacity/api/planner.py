@@ -233,6 +233,80 @@ async def get_planner(
     return {"groups": sorted_groups, "weeks": weeks, "warnings": warnings}
 
 
+@router.get("/suggestions")
+async def get_planner_suggestions(
+    db: DBSession,
+    user: CurrentUser,
+    month: Annotated[str, Query(description="Month (YYYY-MM-DD, first of month)")],
+) -> dict:
+    """Return planning-based allocation suggestions for a user's monthly report.
+
+    Averages weekly planning data for the given month per project,
+    then normalizes so all percentages sum to 100%.
+    Others (Operations) is returned separately.
+    """
+    empty_response = {"suggestions": [], "others_percentage": None}
+
+    month_date = _parse_date(month, "month")
+    first_day = month_date.replace(day=1)
+    if month_date.month == 12:
+        last_day = first_day.replace(year=first_day.year + 1, month=1) - timedelta(days=1)
+    else:
+        last_day = first_day.replace(month=first_day.month + 1) - timedelta(days=1)
+
+    mondays: list[date] = []
+    current = first_day - timedelta(days=first_day.weekday())
+    if current < first_day:
+        current += timedelta(weeks=1)
+    while current <= last_day:
+        mondays.append(current)
+        current += timedelta(weeks=1)
+
+    if not mondays:
+        return empty_response
+
+    stmt = (
+        select(
+            CapacityPlanDB.project_id,
+            ProjectDB.name.label("project_name"),
+            ProjectDB.is_absence,
+            ProjectDB.is_billable,
+            func.sum(CapacityPlanDB.percentage).label("total_pct"),
+        )
+        .join(ProjectDB, CapacityPlanDB.project_id == ProjectDB.id)
+        .where(CapacityPlanDB.user_id == user.user_id)
+        .where(CapacityPlanDB.week_start.in_(mondays))
+        .group_by(CapacityPlanDB.project_id, ProjectDB.name, ProjectDB.is_absence, ProjectDB.is_billable)
+    )
+
+    rows = (await db.execute(stmt)).all()
+
+    grand_total = sum(r.total_pct for r in rows) if rows else 0
+    if not grand_total:
+        return empty_response
+
+    others_pct: float | None = None
+    suggestions: list[dict] = []
+
+    for row in rows:
+        normalized = round(row.total_pct / grand_total * 100, 1)
+        is_others = not row.is_absence and not row.is_billable and row.project_name == "Operations"
+
+        if is_others:
+            others_pct = normalized
+        else:
+            suggestions.append({
+                "project_id": str(row.project_id),
+                "project_name": row.project_name,
+                "percentage": normalized,
+                "is_absence": row.is_absence,
+            })
+
+    suggestions.sort(key=lambda s: s["project_name"].lower())
+
+    return {"suggestions": suggestions, "others_percentage": others_pct}
+
+
 @router.patch(
     "/cells",
     responses={422: {"description": "Validation error"}},
