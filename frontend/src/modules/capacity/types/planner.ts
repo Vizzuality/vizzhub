@@ -4,6 +4,8 @@ export interface PlannerRow {
   functional_area: string;
   project_id: string;
   project_name: string;
+  is_absence?: boolean;
+  is_other?: boolean;
   cells: Record<string, number>;
 }
 
@@ -16,6 +18,7 @@ export interface PlannerGroup {
 export interface PlannerResponse {
   groups: PlannerGroup[];
   weeks: string[];
+  warnings: string[];
 }
 
 export interface CellUpdate {
