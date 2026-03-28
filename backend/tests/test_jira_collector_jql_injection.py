@@ -7,7 +7,7 @@ where malicious input could modify JQL queries to access unauthorized data.
 import pytest
 
 from app.modules.scorecard.services.collectors.jira import JiraCollector
-from app.modules.scorecard.services.collectors.jira.client import JiraClient
+from app.core.services.jira_client import JiraClient
 
 
 class TestJiraClientValidateProjectKey:

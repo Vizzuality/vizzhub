@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.services.oauth_service import OAuthService
-from app.modules.scorecard.services.collectors.jira.client import JiraClient
+from app.core.services.jira_client import JiraClient
 
 logger = logging.getLogger(__name__)
 
