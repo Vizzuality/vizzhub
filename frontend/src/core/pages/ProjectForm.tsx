@@ -321,7 +321,10 @@ export default function ProjectForm(): JSX.Element {
 
   const settingsReady = !isEditMode || projectSettings !== undefined;
 
-  if (isEditMode && project && !formInitialized && currentMetrics !== undefined && linksReady && settingsReady) {
+  const canInitForm = isEditMode && !!project && !formInitialized
+    && currentMetrics !== undefined && linksReady && settingsReady;
+
+  if (canInitForm) {
     reset(buildFormDefaults(project, currentMetrics?.milestones, initialLinks, projectSettings?.contract_rate));
     setSlackChannelId(project.slack_channel_id ?? '');
     setIsBillable(project.is_billable);
@@ -374,10 +377,12 @@ export default function ProjectForm(): JSX.Element {
     }
   };
 
+  const needsSlackChannel = hasDependabotAlerts && !slackChannelId;
+
   const handleFormSubmit = (data: ProjectFormData): void => {
     setApiError(null);
 
-    if (hasDependabotAlerts && !slackChannelId) {
+    if (needsSlackChannel) {
       setApiError('A Slack channel is required when Dependabot Alerts are enabled.');
       return;
     }

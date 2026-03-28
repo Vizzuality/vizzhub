@@ -97,6 +97,10 @@ async def _notify_postponement(
 @router.post(
     "/{project_id}/invoices/{invoice_id}/postpone",
     status_code=status.HTTP_201_CREATED,
+    responses={
+        400: {"description": "Invoice not eligible or date out of range"},
+        404: {"description": "Invoice not found"},
+    },
 )
 async def postpone_invoice(
     project_id: UUID,
@@ -153,7 +157,10 @@ async def postpone_invoice(
     return PostponementResponse.model_validate(postponement)
 
 
-@router.get("/{project_id}/invoices/{invoice_id}/postponements")
+@router.get(
+    "/{project_id}/invoices/{invoice_id}/postponements",
+    responses={404: {"description": "Invoice not found"}},
+)
 async def list_postponements(
     project_id: UUID,
     invoice_id: UUID,
@@ -194,6 +201,7 @@ async def list_postponements(
 @router.delete(
     "/{project_id}/invoices/{invoice_id}/postponements/latest",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"description": "Invoice or postponement not found"}},
 )
 async def delete_latest_postponement(
     project_id: UUID,

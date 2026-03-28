@@ -212,7 +212,13 @@ async def get_user(
     return user_resp
 
 
-@router.put("/{user_id}/roles")
+@router.put(
+    "/{user_id}/roles",
+    responses={
+        400: {"description": "Missing required role or unknown roles"},
+        404: {"description": "User not found"},
+    },
+)
 async def assign_roles(
     user_id: UUID,
     body: RoleAssignment,

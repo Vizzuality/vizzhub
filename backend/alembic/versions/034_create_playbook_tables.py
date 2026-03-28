@@ -11,6 +11,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    users_id = "users.id"
+    set_null = "SET NULL"
     op.create_table(
         "playbook_nodes",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
@@ -34,13 +36,13 @@ def upgrade() -> None:
         sa.Column(
             "created_by_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(users_id, ondelete=set_null),
             nullable=True,
         ),
         sa.Column(
             "updated_by_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(users_id, ondelete=set_null),
             nullable=True,
         ),
         sa.Column(
@@ -70,7 +72,7 @@ def upgrade() -> None:
         sa.Column(
             "created_by_id",
             UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(users_id, ondelete=set_null),
             nullable=True,
         ),
         sa.Column(

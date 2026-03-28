@@ -23,7 +23,7 @@ async def reportable_users(
     return await get_reportable_users(db)
 
 
-@router.get("")
+@router.get("", responses={422: {"description": "Invalid user_id or date format"}})
 async def capacity_user_detail(
     db: DBSession,
     user: CurrentUser,

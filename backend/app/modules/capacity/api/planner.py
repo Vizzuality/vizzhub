@@ -231,7 +231,7 @@ async def delete_row(
     return {"deleted": result.rowcount}
 
 
-@router.get("/updated-at")
+@router.get("/updated-at", responses={422: {"description": "Invalid date format"}})
 async def get_updated_at(
     db: DBSession,
     user: CurrentUser,
