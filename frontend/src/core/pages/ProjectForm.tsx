@@ -369,11 +369,7 @@ export default function ProjectForm(): JSX.Element {
   };
 
   const handleLeave = (): void => {
-    if (hasUnsavedChanges) {
-      setLeaveDialogOpen(true);
-    } else {
-      navigateToProjects();
-    }
+    hasUnsavedChanges ? setLeaveDialogOpen(true) : navigateToProjects();
   };
 
   const needsSlackChannel = hasDependabotAlerts && !slackChannelId;
