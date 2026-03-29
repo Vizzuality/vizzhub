@@ -1,0 +1,409 @@
+"""Publish service — tree query, navigation, rendering, and S3 upload."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
+from uuid import UUID
+
+import boto3
+import structlog
+from jinja2 import Environment, FileSystemLoader
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import get_settings
+from app.modules.playbook.models.node import PlaybookNodeDB
+from app.modules.playbook.models.page_version import PlaybookPageVersionDB
+from app.modules.playbook.services.publish_renderer import render_markdown
+
+logger = structlog.get_logger()
+
+TEMPLATES_DIR = Path(__file__).parent / "publish_templates"
+S3_PREFIX = "playbook/public/"
+
+CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css",
+    ".js": "application/javascript",
+    ".json": "application/json",
+}
+
+
+@lru_cache
+def _get_s3_client():  # type: ignore[no-untyped-def]
+    settings = get_settings()
+    region = (
+        settings.assets_bucket_url.split(".s3.")[1].split(".")[0]
+        if ".s3." in settings.assets_bucket_url
+        else "eu-west-3"
+    )
+    return boto3.Session(region_name=region).client("s3")
+
+
+def _get_jinja_env() -> Environment:
+    return Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=False)
+
+
+@dataclass
+class PublicNode:
+    id: str
+    title: str
+    slug: str
+    type: str  # "page" | "group"
+    is_public: bool
+    parent_id: str | None
+    position: int
+    content: str | None = None
+
+
+@dataclass
+class NavNode:
+    id: str
+    title: str
+    slug: str
+    type: str
+    is_public: bool
+    path: str
+    children: list[NavNode] = field(default_factory=list)
+    prev_page: NavNode | None = field(default=None, repr=False)
+    next_page: NavNode | None = field(default=None, repr=False)
+    breadcrumb: list[dict] = field(default_factory=list)
+    content_html: str = ""
+
+
+@dataclass
+class NavTree:
+    roots: list[NavNode]
+    all_pages: list[NavNode]
+
+
+class PublishService:
+    async def publish(self, db: AsyncSession, publish_log_id: str) -> None:
+        from app.modules.playbook.models.publish_log import PlaybookPublishLogDB
+
+        log_uuid = UUID(publish_log_id)
+        log = await db.get(PlaybookPublishLogDB, log_uuid)
+
+        try:
+            logger.info("publish_started", publish_log_id=publish_log_id)
+            files = await self._generate_site(db)
+            await self._cleanup_orphans(set(files.keys()))
+            await self._upload_site(files)
+
+            log.status = "completed"
+            log.page_count = len([
+                k for k in files
+                if k.endswith(".html")
+                and k not in ("index.html", "404.html")
+                and "/index.html" not in k
+            ])
+            log.completed_at = datetime.now(timezone.utc)
+            await db.flush()
+            logger.info(
+                "publish_completed",
+                publish_log_id=publish_log_id,
+                page_count=log.page_count,
+            )
+
+        except Exception as e:
+            log.status = "failed"
+            log.error_message = str(e)
+            log.completed_at = datetime.now(timezone.utc)
+            await db.flush()
+            logger.error("publish_failed", publish_log_id=publish_log_id, error=str(e))
+
+    async def _query_public_tree(self, db: AsyncSession) -> list[PublicNode]:
+        """Fetch ALL nodes (pages + groups) with latest version content for pages."""
+        latest_version = (
+            select(
+                PlaybookPageVersionDB.node_id,
+                func.max(PlaybookPageVersionDB.version).label("max_ver"),
+            )
+            .group_by(PlaybookPageVersionDB.node_id)
+            .subquery()
+        )
+
+        content_sub = (
+            select(PlaybookPageVersionDB.node_id, PlaybookPageVersionDB.content)
+            .join(
+                latest_version,
+                (PlaybookPageVersionDB.node_id == latest_version.c.node_id)
+                & (PlaybookPageVersionDB.version == latest_version.c.max_ver),
+            )
+            .subquery()
+        )
+
+        stmt = (
+            select(
+                PlaybookNodeDB.id,
+                PlaybookNodeDB.title,
+                PlaybookNodeDB.slug,
+                PlaybookNodeDB.type,
+                PlaybookNodeDB.is_public,
+                PlaybookNodeDB.parent_id,
+                PlaybookNodeDB.position,
+                content_sub.c.content,
+            )
+            .outerjoin(content_sub, PlaybookNodeDB.id == content_sub.c.node_id)
+            .order_by(PlaybookNodeDB.position)
+        )
+
+        rows = (await db.execute(stmt)).all()
+        return [
+            PublicNode(
+                id=str(r.id),
+                title=r.title,
+                slug=r.slug,
+                type=r.type,
+                is_public=r.is_public,
+                parent_id=str(r.parent_id) if r.parent_id else None,
+                position=r.position,
+                content=r.content,
+            )
+            for r in rows
+        ]
+
+    def _build_nav_tree(self, nodes: list[PublicNode]) -> NavTree:
+        """Build hierarchical navigation from flat node list.
+
+        Rules:
+        - Public pages are included
+        - Non-public groups are included IF they have public descendants
+        - Groups without public descendants are excluded
+        - Private pages are excluded
+        - Prev/next links connect all public pages in tree order
+        - Paths built from slug hierarchy (e.g., "culture/values.html")
+        - Breadcrumbs built from ancestor chain
+        """
+        node_map = {n.id: n for n in nodes}
+
+        def has_public_descendant(node_id: str) -> bool:
+            n = node_map[node_id]
+            if n.type == "page" and n.is_public:
+                return True
+            children = [c for c in nodes if c.parent_id == node_id]
+            return any(has_public_descendant(c.id) for c in children)
+
+        included_ids = {n.id for n in nodes if has_public_descendant(n.id)}
+
+        def build_path(node: PublicNode) -> str:
+            parts: list[str] = []
+            current: PublicNode | None = node
+            while current:
+                parts.append(current.slug)
+                current = node_map.get(current.parent_id) if current.parent_id else None
+            parts.reverse()
+            path = "/".join(parts)
+            if node.type == "page":
+                path += ".html"
+            return path
+
+        def build_breadcrumb(node: PublicNode) -> list[dict]:
+            parts: list[dict] = []
+            current = node_map.get(node.parent_id) if node.parent_id else None
+            while current:
+                parts.append({
+                    "title": current.title,
+                    "url": build_path(current) + "/index.html",
+                })
+                current = node_map.get(current.parent_id) if current.parent_id else None
+            parts.reverse()
+            return parts
+
+        def build_subtree(parent_id: str | None) -> list[NavNode]:
+            children = sorted(
+                [n for n in nodes if n.parent_id == parent_id and n.id in included_ids],
+                key=lambda n: n.position,
+            )
+            result: list[NavNode] = []
+            for n in children:
+                nav = NavNode(
+                    id=n.id,
+                    title=n.title,
+                    slug=n.slug,
+                    type=n.type,
+                    is_public=n.is_public,
+                    path=build_path(n),
+                    breadcrumb=build_breadcrumb(n),
+                )
+                if n.type == "group":
+                    nav.children = build_subtree(n.id)
+                result.append(nav)
+            return result
+
+        roots = build_subtree(None)
+
+        all_pages: list[NavNode] = []
+
+        def collect_pages(nav_nodes: list[NavNode]) -> None:
+            for n in nav_nodes:
+                if n.type == "page" and n.is_public:
+                    all_pages.append(n)
+                collect_pages(n.children)
+
+        collect_pages(roots)
+
+        for i, page in enumerate(all_pages):
+            page.prev_page = all_pages[i - 1] if i > 0 else None
+            page.next_page = all_pages[i + 1] if i < len(all_pages) - 1 else None
+
+        return NavTree(roots=roots, all_pages=all_pages)
+
+    async def _generate_site(self, db: AsyncSession) -> dict[str, bytes]:
+        """Render all public pages into a static site file map (key -> bytes)."""
+        nodes = await self._query_public_tree(db)
+        nav = self._build_nav_tree(nodes)
+
+        if not nav.all_pages:
+            raise ValueError("No public pages to publish")
+
+        node_map = {n.id: n for n in nodes}
+        env = _get_jinja_env()
+        page_tpl = env.get_template("page.html")
+        group_tpl = env.get_template("group.html")
+        index_tpl = env.get_template("index.html")
+        not_found_tpl = env.get_template("404.html")
+
+        year = datetime.now(timezone.utc).year
+        files: dict[str, bytes] = {}
+
+        def _base_url(path: str) -> str:
+            depth = path.count("/")
+            return "../" * depth if depth > 0 else ""
+
+        for page_nav in nav.all_pages:
+            source_node = node_map.get(page_nav.id)
+            raw_content = source_node.content if source_node else None
+            content_html = render_markdown(raw_content)
+
+            html = page_tpl.render(
+                title=page_nav.title,
+                content=content_html,
+                nav_tree=nav.roots,
+                current_path=page_nav.path,
+                base_url=_base_url(page_nav.path),
+                breadcrumb=page_nav.breadcrumb,
+                prev_page=page_nav.prev_page,
+                next_page=page_nav.next_page,
+                year=year,
+            )
+            files[page_nav.path] = html.encode()
+
+        def _render_group_indexes(nav_nodes: list[NavNode], parent_path: str) -> None:
+            for node in nav_nodes:
+                if node.type != "group":
+                    continue
+                group_path = f"{parent_path}/{node.slug}" if parent_path else node.slug
+                index_path = f"{group_path}/index.html"
+
+                children_links = []
+                for child in node.children:
+                    if child.type == "page" and child.is_public:
+                        children_links.append({"title": child.title, "url": child.path})
+                    elif child.type == "group":
+                        children_links.append({
+                            "title": child.title,
+                            "url": child.path + "/index.html",
+                        })
+
+                first_child_page = None
+                for child in node.children:
+                    if child.type == "page" and child.is_public:
+                        first_child_page = child
+                        break
+
+                html = group_tpl.render(
+                    title=node.title,
+                    children=children_links,
+                    nav_tree=nav.roots,
+                    current_path=node.path,
+                    base_url=_base_url(index_path),
+                    breadcrumb=node.breadcrumb,
+                    prev_page=first_child_page.prev_page if first_child_page else None,
+                    next_page=first_child_page,
+                    year=year,
+                )
+                files[index_path] = html.encode()
+
+                _render_group_indexes(node.children, group_path)
+
+        _render_group_indexes(nav.roots, "")
+
+        first_page = nav.all_pages[0]
+        files["index.html"] = index_tpl.render(
+            first_page_url=first_page.path,
+            first_page_title=first_page.title,
+        ).encode()
+
+        files["404.html"] = not_found_tpl.render(
+            base_url="",
+            year=year,
+        ).encode()
+
+        style_path = TEMPLATES_DIR / "style.css"
+        files["assets/style.css"] = style_path.read_bytes()
+
+        js_path = TEMPLATES_DIR / "navigation.js"
+        files["assets/navigation.js"] = js_path.read_bytes()
+
+        manifest = {
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            "page_count": len(nav.all_pages),
+            "files": sorted(files.keys()),
+        }
+        files["manifest.json"] = json.dumps(manifest, indent=2).encode()
+
+        return files
+
+    async def _upload_site(self, files: dict[str, bytes]) -> None:
+        """Upload all generated files to S3."""
+        settings = get_settings()
+        s3 = _get_s3_client()
+
+        for key, body in files.items():
+            ext = Path(key).suffix
+            content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
+            await asyncio.to_thread(
+                s3.put_object,
+                Bucket=settings.assets_bucket_name,
+                Key=f"{S3_PREFIX}{key}",
+                Body=body,
+                ContentType=content_type,
+            )
+
+    async def _cleanup_orphans(self, current_files: set[str]) -> int:
+        """Delete S3 files from previous publish that are no longer in current set."""
+        settings = get_settings()
+        s3 = _get_s3_client()
+
+        try:
+            response = await asyncio.to_thread(
+                s3.get_object,
+                Bucket=settings.assets_bucket_name,
+                Key=f"{S3_PREFIX}manifest.json",
+            )
+            old_manifest = json.loads(response["Body"].read())
+        except s3.exceptions.NoSuchKey:
+            return 0
+
+        old_files = set(old_manifest.get("files", []))
+        orphans = old_files - current_files
+        deleted = 0
+
+        for orphan_key in orphans:
+            await asyncio.to_thread(
+                s3.delete_object,
+                Bucket=settings.assets_bucket_name,
+                Key=f"{S3_PREFIX}{orphan_key}",
+            )
+            deleted += 1
+
+        if deleted:
+            logger.info("publish_orphans_cleaned", count=deleted)
+
+        return deleted
