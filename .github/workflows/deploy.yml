@@ -88,6 +88,9 @@ jobs:
           build-args: |
             VITE_API_URL=https://hub.vizzuality.com
             VITE_GOOGLE_CLIENT_ID=${{ steps.google-oauth.outputs.client_id }}
+            VITE_SENTRY_DSN=https://662c5ba925f28e9fc78657feb645a648@o4511123590086656.ingest.de.sentry.io/4511127174447184
+            VITE_APP_ENV=production
+            VITE_RELEASE=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -139,6 +142,7 @@ jobs:
         env:
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
           DOMAIN_NAME: hub.vizzuality.com
+          TAG: ${{ github.sha }}
         run: |
           # Build the script to create .env
           ENV_SCRIPT=$(cat << 'SCRIPT'
@@ -166,6 +170,11 @@ jobs:
           REDIS_PORT=6379
           ASSETS_BUCKET_NAME=hub-vizzuality-assets
           ASSETS_BUCKET_URL=https://hub-vizzuality-assets.s3.eu-west-3.amazonaws.com
+          SENTRY_DSN=https://0c204d934b8b93da862f16922f647e94@o4511123590086656.ingest.de.sentry.io/4511127154327632
+          LOG_FORMAT=json
+          LOG_LEVEL=INFO
+          APP_ENV=production
+          RELEASE=TAG_PLACEHOLDER
           EOF
           chmod 600 .env
           SCRIPT
@@ -174,6 +183,7 @@ jobs:
           # Replace placeholders
           ENV_SCRIPT="${ENV_SCRIPT//AWS_REGION_PLACEHOLDER/${AWS_REGION}}"
           ENV_SCRIPT="${ENV_SCRIPT//DOMAIN_PLACEHOLDER/${DOMAIN_NAME}}"
+          ENV_SCRIPT="${ENV_SCRIPT//TAG_PLACEHOLDER/${TAG}}"
 
           # Encode and send
           ENV_SCRIPT_B64=$(echo "$ENV_SCRIPT" | base64 -w0)
@@ -214,7 +224,7 @@ jobs:
 
           echo "=== Health check ==="
           for i in 1 2 3 4 5; do
-            if curl -sf http://localhost:8000/health; then
+            if curl -sf http://localhost:8000/health/live; then
               echo "Backend healthy!"
               break
             fi
