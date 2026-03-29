@@ -206,5 +206,6 @@ export const queryKeys = {
     versions: (id: string) => ['playbook', 'versions', id] as const,
     version: (id: string, v: number) => ['playbook', 'version', id, v] as const,
     assetStatus: ['playbook', 'asset-status'] as const,
+    publishStatus: ['playbook', 'publish', 'status'] as const,
   },
 } as const;

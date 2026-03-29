@@ -75,3 +75,11 @@ export interface VersionDetail {
 export interface AssetStatus {
   available: boolean;
 }
+
+export interface PublishStatus {
+  status: 'running' | 'completed' | 'failed';
+  page_count: number | null;
+  started_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+}
