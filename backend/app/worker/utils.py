@@ -1,6 +1,6 @@
 """Shared utilities for worker modules."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.notifications.models.slack import ScheduledJobRunDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def complete_with_error(
@@ -29,7 +29,7 @@ async def complete_with_error(
     job_run.completed_at = datetime.now(timezone.utc)
     await db.commit()
 
-    logger.error(f"Scheduled job '{job_run.job_name}' failed: {error_message}")
+    logger.error("job_failed", job_name=job_run.job_name, error=error_message)
 
     return {
         "status": "error",

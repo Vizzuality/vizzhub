@@ -5,13 +5,13 @@ This module contains common functions and constants used across multiple
 GitHub collector modules to avoid duplication.
 """
 
-import logging
+import structlog
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.modules.scorecard.services.collectors.utils import parse_iso_datetime
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.github.client import GitHubClient
@@ -107,9 +107,7 @@ async def _fetch_prs_page(
             return None
         return response.json()
     except Exception as e:
-        logger.warning(
-            "Failed to fetch PRs for %s/%s page %d: %s", owner, repo, page, e
-        )
+        logger.warning("prs_fetch_failed", owner=owner, repo=repo, page=page, error=str(e))
         return None
 
 
@@ -221,9 +219,7 @@ async def _fetch_releases_page(
             return None
         return response.json()
     except Exception as e:
-        logger.warning(
-            "Failed to fetch releases for %s/%s page %d: %s", owner, repo, page, e
-        )
+        logger.warning("releases_fetch_failed", owner=owner, repo=repo, page=page, error=str(e))
         return None
 
 

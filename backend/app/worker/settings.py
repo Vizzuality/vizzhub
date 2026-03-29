@@ -1,19 +1,31 @@
 """ARQ worker configuration."""
 
+import os
+import uuid
+
+import structlog
 from arq.connections import RedisSettings
 from arq.cron import cron
 
 from app.config import get_settings
+from app.core.logging_config import configure_logging
 from app.database import async_session_maker
 
 settings = get_settings()
+
+configure_logging(log_format=settings.log_format, log_level=settings.log_level)
+os.environ.setdefault("SERVICE_NAME", "vizzhub-worker")
+os.environ.setdefault("APP_ENV", settings.app_env)
+if settings.release:
+    os.environ.setdefault("RELEASE", settings.release)
+
+logger = structlog.get_logger()
 
 
 async def startup(ctx: dict) -> None:
     """Initialize worker context on startup."""
     ctx["db_session_maker"] = async_session_maker
 
-    # Initialize score cache for invalidation during batch capture
     ctx["score_cache"] = None
     ctx["redis_client"] = None
     if settings.redis_host:
@@ -27,23 +39,33 @@ async def startup(ctx: dict) -> None:
         ctx["redis_client"] = redis_client
         ctx["score_cache"] = score_cache
 
+    from app.worker.heartbeat import write_heartbeat
+    await write_heartbeat(ctx)
+
+    logger.info("worker_started")
+
 
 async def shutdown(ctx: dict) -> None:
     """Cleanup on worker shutdown."""
     redis_client = ctx.get("redis_client")
     if redis_client:
         await redis_client.aclose()
+    logger.info("worker_stopped")
 
 
 async def on_job_start(ctx: dict) -> None:
-    """Create DB session before each job."""
+    """Create DB session and bind job context to structlog."""
     ctx["db"] = ctx["db_session_maker"]()
+    job_id = ctx.get("job_id", str(uuid.uuid4()))
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(job_id=job_id)
 
 
 async def on_job_end(ctx: dict) -> None:
     """Close DB session after each job."""
     if "db" in ctx:
         await ctx["db"].close()
+    structlog.contextvars.clear_contextvars()
 
 
 class WorkerSettings:
@@ -77,6 +99,7 @@ from app.worker.fetch_exchange_rates import fetch_exchange_rates  # noqa: E402
 from app.worker.report_reminder import send_monthly_report_reminder  # noqa: E402
 from app.worker.report_confirmation_reminder import send_report_confirmation_reminder  # noqa: E402
 from app.worker.rotate_reporting_period import rotate_reporting_period  # noqa: E402
+from app.worker.heartbeat import write_heartbeat  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
@@ -100,4 +123,5 @@ WorkerSettings.cron_jobs = [
     cron(send_monthly_report_reminder, hour=10, minute=0),  # Daily — sends only on last business day
     cron(send_report_confirmation_reminder, hour=12, minute=0),  # Daily — sends only on business days 2nd-12th
     cron(rotate_reporting_period, day=15, hour=0, minute=0),  # Monthly 15th at midnight UTC
+    cron(write_heartbeat, minute=set(range(60)), run_at_startup=True),
 ]

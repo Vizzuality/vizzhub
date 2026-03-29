@@ -5,8 +5,9 @@ Handles authentication (OAuth 2.0 or legacy API token) and provides
 common methods for querying Jira APIs.
 """
 
-import logging
 import re
+
+import structlog
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.exceptions import ConfigurationError
 from app.core.services.oauth_service import OAuthService
+
+logger = structlog.get_logger()
 
 HTTP_CLIENT_TIMEOUT = 30.0
 
@@ -130,12 +133,13 @@ class JiraClient:
                 result = response.json()
                 return result.get("count", 0) if isinstance(result, dict) else result
             else:
-                logging.warning(
-                    f"JQL query failed (status {response.status_code}): {jql}\n"
-                    f"Response: {response.text[:500]}"
+                logger.warning(
+                    "jira_query_failed",
+                    status_code=response.status_code,
+                    jql=jql,
                 )
         except Exception as e:
-            logging.warning(f"JQL query exception: {jql}\nError: {e}")
+            logger.warning("jira_query_failed", jql=jql, error=str(e))
 
         return 0
 
@@ -203,7 +207,7 @@ class JiraClient:
                     break
 
         except Exception as e:
-            logging.warning(f"Search issues exception: {jql}\nError: {e}")
+            logger.warning("jira_search_failed", jql=jql, error=str(e))
 
         return all_issues
 

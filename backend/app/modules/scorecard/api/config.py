@@ -1,6 +1,6 @@
 """Configuration endpoints."""
 
-import logging
+import structlog
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -24,7 +24,7 @@ from app.modules.scorecard.models.config import (
 from app.config import load_scoring_config_from_db
 from app.modules.scorecard.services.config_service import ConfigService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter()
 

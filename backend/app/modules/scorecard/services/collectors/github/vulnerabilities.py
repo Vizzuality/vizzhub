@@ -29,7 +29,7 @@ Edge Cases:
 == END SPEC ==
 """
 
-import logging
+import structlog
 import re
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.github.client import GitHubClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 DAYS_THRESHOLD = 30
 _CURSOR_PATTERN = re.compile(r'after=([^&>]+)')
@@ -129,7 +129,7 @@ async def _get_dependabot_alerts(
                 break
 
         except Exception as e:
-            logger.warning("Failed to fetch Dependabot alerts for %s/%s: %s", owner, repo, e)
+            logger.warning("dependabot_alerts_fetch_failed", owner=owner, repo=repo, error=str(e))
             return None
 
     return all_alerts

@@ -1,6 +1,6 @@
 """Notifications log API endpoints."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
@@ -21,7 +21,7 @@ from app.modules.notifications.api.schemas.slack import (
 from app.core.models.project import ProjectDB
 from app.modules.notifications.models.slack import AlertDefinitionDB, AlertNotificationDB, DependabotAlertTrackedDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 

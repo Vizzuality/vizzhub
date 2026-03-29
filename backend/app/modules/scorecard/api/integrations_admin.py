@@ -1,6 +1,6 @@
 """Admin API endpoints for managing integration tokens."""
 
-import logging
+import structlog
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -20,7 +20,7 @@ from app.modules.scorecard.api.schemas.integrations import (
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.notifications.public import SlackChannel, SlackService, SlackTestResult
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/admin/integrations", tags=["integrations-admin"])
 
@@ -203,7 +203,7 @@ async def list_slack_channels(
             for ch in channels
         ]
     except Exception as e:
-        logger.exception("Failed to list Slack channels")
+        logger.exception("slack_channels_list_failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list channels: {e}",
@@ -233,5 +233,5 @@ async def test_slack_connection(
         else:
             return SlackTestResult(ok=False, error=result.get("error", "Unknown error"))
     except Exception as e:
-        logger.exception("Failed to test Slack connection")
+        logger.exception("slack_connection_test_failed")
         return SlackTestResult(ok=False, error=str(e))

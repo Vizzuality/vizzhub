@@ -1,6 +1,6 @@
 """Google Workspace collector for ISO access snapshots."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -15,7 +15,7 @@ from app.modules.iso.services.google_workspace_oauth import (
     SCOPES,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 BASE_URL = "https://admin.googleapis.com/admin/directory/v1"
 COLLECTOR_VERSION = "1"

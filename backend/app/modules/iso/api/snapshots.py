@@ -1,6 +1,6 @@
 """ISO snapshot API endpoints."""
 
-import logging
+import structlog
 import math
 from typing import Annotated
 from uuid import UUID
@@ -38,7 +38,7 @@ from app.modules.iso.services.diff_engine import (
 )
 from app.modules.iso.api.helpers import load_review_with_actions
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -94,12 +94,12 @@ async def capture_snapshot(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except httpx.HTTPStatusError as e:
-        logger.warning("%s API error: %s", provider, e.response.status_code)
+        logger.warning("provider_api_error", provider=provider, status_code=e.response.status_code)
         raise HTTPException(
             status_code=502, detail=f"{provider} API error"
         ) from e
     except httpx.RequestError:
-        logger.exception("%s connection error", provider)
+        logger.exception("provider_connection_error", provider=provider)
         raise HTTPException(
             status_code=502, detail=f"Failed to connect to {provider}"
         )
@@ -130,7 +130,7 @@ async def capture_snapshot(
         await create_review_actions(db, review.id, changes)
         await db.flush()
 
-    logger.info("Snapshot captured, review %s created in draft", review.id)
+    logger.info("snapshot_captured", review_id=str(review.id))
     return snapshot
 
 

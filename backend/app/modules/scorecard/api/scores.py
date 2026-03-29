@@ -1,6 +1,6 @@
 """Score computation endpoints."""
 
-import logging
+import structlog
 from uuid import UUID
 
 from fastapi import APIRouter, Request
@@ -22,7 +22,7 @@ from app.modules.scorecard.models.scores import FinalScore
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.scorecard.services.score_computation import ScoreComputationService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -255,7 +255,7 @@ async def get_batch_scores(
             if cache:
                 await cache.set(pid, resp.model_dump(), snapshot_type.value)
         except Exception as e:
-            logger.warning("batch score computation failed for %s: %s", pid, e)
+            logger.warning("batch_score_computation_failed", project_id=pid, error=str(e))
             errors[pid] = str(e)
 
     return BatchScoresResponse(scores=results, errors=errors)

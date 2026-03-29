@@ -1,6 +1,6 @@
 """Shared API helpers for tracker module."""
 
-import logging
+import structlog
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import Base
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def get_or_404(
@@ -37,4 +37,4 @@ async def refresh_scorecard_evm(
         from app.modules.scorecard.public import refresh_tracker_evm
         await refresh_tracker_evm(db, project_id, score_cache=score_cache)
     except Exception:
-        logger.warning("Failed to refresh scorecard EVM", exc_info=True)
+        logger.warning("scorecard_evm_refresh_failed", exc_info=True)

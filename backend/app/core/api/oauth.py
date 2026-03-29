@@ -1,6 +1,6 @@
 """OAuth endpoints for external service authentication."""
 
-import logging
+import structlog
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -24,7 +24,7 @@ from app.core.services.integration_token_service import IntegrationTokenService
 from app.core.services.oauth_service import OAuthService
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 TOKEN_REFRESH_FAILED = "Token refresh failed"
 
@@ -107,13 +107,13 @@ async def jira_callback(
     except HTTPException:
         raise
     except SQLAlchemyError:
-        logger.exception("Database error during OAuth callback")
+        logger.exception("oauth_callback_db_error")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authorization failed",
         )
     except Exception as e:
-        logger.exception("OAuth callback failed")
+        logger.exception("oauth_callback_failed")
         log_suspicious_activity(f"OAuth callback error: {type(e).__name__}", client_ip)
 
         # In development, show actual error for debugging
@@ -183,13 +183,13 @@ async def refresh_jira_token(
     except HTTPException:
         raise
     except SQLAlchemyError:
-        logger.exception("Database error during token refresh")
+        logger.exception("token_refresh_db_error")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=TOKEN_REFRESH_FAILED,
         )
     except Exception:
-        logger.exception(TOKEN_REFRESH_FAILED)
+        logger.exception("token_refresh_failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=TOKEN_REFRESH_FAILED,

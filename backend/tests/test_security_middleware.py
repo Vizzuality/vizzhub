@@ -16,7 +16,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """X-Content-Type-Options: nosniff header should be added."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         assert response.status_code == 200
         assert "X-Content-Type-Options" in response.headers
@@ -27,7 +27,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """X-Frame-Options: DENY header should be added."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         assert response.status_code == 200
         assert "X-Frame-Options" in response.headers
@@ -38,7 +38,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """X-XSS-Protection header should be added."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         assert response.status_code == 200
         assert "X-XSS-Protection" in response.headers
@@ -49,7 +49,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """Content-Security-Policy header should be added."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         assert response.status_code == 200
         assert "Content-Security-Policy" in response.headers
@@ -65,7 +65,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """Referrer-Policy header should be added."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         assert response.status_code == 200
         assert "Referrer-Policy" in response.headers
@@ -78,7 +78,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """Permissions-Policy header should be added."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         assert response.status_code == 200
         assert "Permissions-Policy" in response.headers
@@ -94,7 +94,7 @@ class TestSecurityHeadersMiddleware:
         self, client: AsyncClient
     ) -> None:
         """HSTS header should be added when DEBUG=false (production mode)."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         # In test environment with DEBUG=true, HSTS should NOT be present
         # This test documents the expected production behavior
@@ -125,7 +125,7 @@ class TestSecurityHeadersMiddleware:
 
         # This test assumes we're running in debug mode
         if settings.debug:
-            response = await client.get("/health")
+            response = await client.get("/health/live")
 
             assert response.status_code == 200
             # HSTS should not be present in development
@@ -138,7 +138,7 @@ class TestSecurityHeadersMiddleware:
         """Security headers should be on every endpoint response."""
         # Test multiple endpoints
         endpoints = [
-            "/health",
+            "/health/live",
             "/api/projects",
             "/api/config",
         ]
@@ -158,7 +158,7 @@ class TestSecurityHeadersContent:
     @pytest.mark.asyncio
     async def test_csp_prevents_inline_scripts(self, client: AsyncClient) -> None:
         """CSP should prevent inline script execution."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         csp = response.headers.get("Content-Security-Policy", "")
 
@@ -169,7 +169,7 @@ class TestSecurityHeadersContent:
     @pytest.mark.asyncio
     async def test_csp_allows_inline_styles(self, client: AsyncClient) -> None:
         """CSP should allow inline styles for compatibility."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         csp = response.headers.get("Content-Security-Policy", "")
 
@@ -179,7 +179,7 @@ class TestSecurityHeadersContent:
     @pytest.mark.asyncio
     async def test_csp_prevents_framing(self, client: AsyncClient) -> None:
         """CSP should prevent framing via frame-ancestors."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         csp = response.headers.get("Content-Security-Policy", "")
 
@@ -191,7 +191,7 @@ class TestSecurityHeadersContent:
         self, client: AsyncClient
     ) -> None:
         """Permissions-Policy should disable dangerous browser features."""
-        response = await client.get("/health")
+        response = await client.get("/health/live")
 
         permissions = response.headers.get("Permissions-Policy", "")
 

@@ -4,7 +4,7 @@ Sends individual Slack DMs to users who haven't confirmed their monthly
 report during business days from the 2nd to the 12th of each month.
 """
 
-import logging
+import structlog
 from datetime import date, datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -20,7 +20,7 @@ from app.modules.tracker.services.period_service import get_active_period
 from app.utils.slack import get_slack_bot_token
 from app.worker.utils import complete_with_error
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 CONFIRMATION_REMINDER_MESSAGE = (
     ":memo: Reminder: Your monthly report for {month} hasn't been confirmed yet. "
@@ -112,12 +112,12 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
                     alerts_sent += 1
                 else:
                     logger.warning(
-                        "Failed to DM user %s: %s",
-                        user.slack_user_id,
-                        response.get("error"),
+                        "dm_send_failed",
+                        slack_user_id=user.slack_user_id,
+                        error=response.get("error"),
                     )
             except Exception as e:
-                logger.error("Error sending DM to %s: %s", user.slack_user_id, e)
+                logger.error("dm_send_error", slack_user_id=user.slack_user_id, error=str(e))
 
         job_run.status = "completed"
         job_run.alerts_sent = alerts_sent
@@ -125,9 +125,9 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
         await db.commit()
 
         logger.info(
-            "Report confirmation reminders: %d/%d DMs sent",
-            alerts_sent,
-            len(users),
+            "reminders_sent",
+            sent=alerts_sent,
+            total=len(users),
         )
 
         return {
@@ -137,5 +137,5 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.exception("Report confirmation reminder job failed")
+        logger.exception("job_failed")
         return await complete_with_error(db, job_run, str(e))

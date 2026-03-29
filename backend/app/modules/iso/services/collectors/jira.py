@@ -1,6 +1,6 @@
 """Jira collector for ISO access snapshots."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.services.oauth_service import OAuthService
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 COLLECTOR_VERSION = "2"
 PROVIDER = "jira"
@@ -139,9 +139,9 @@ class JiraCollector:
             )
             if response.status_code != 200:
                 logger.warning(
-                    "Jira %s on /user/groups for %s — skipping",
-                    response.status_code,
-                    user["account_id"],
+                    "jira_user_groups_fetch_failed",
+                    status_code=response.status_code,
+                    account_id=user["account_id"],
                 )
                 continue
 

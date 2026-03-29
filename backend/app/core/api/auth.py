@@ -1,6 +1,6 @@
 """Authentication API endpoints for Google SSO."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
@@ -17,7 +17,7 @@ from app.core.permissions.resolver import resolve_permissions
 from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 settings = get_settings()
 
 
@@ -38,7 +38,7 @@ async def _create_new_user(db, email: str, idinfo: dict, app_settings) -> UserDB
                 user.slack_user_id = slack_user["id"]
                 user.slack_display_name = SlackService.extract_display_name(slack_user)
     except Exception:
-        logger.warning(f"Failed to auto-link Slack for {email}", exc_info=True)
+        logger.warning("slack_auto_link_failed", email=email, exc_info=True)
 
     db.add(user)
     await db.flush()
@@ -53,7 +53,7 @@ async def _create_new_user(db, email: str, idinfo: dict, app_settings) -> UserDB
             select(RoleDB).where(RoleDB.name == "admin")
         )).scalar_one()
         db.add(UserRoleDB(user_id=user.id, role_id=admin_role_obj.id))
-        logger.info(f"Creating initial admin user: {email}")
+        logger.info("initial_admin_created", email=email)
 
     await db.commit()
     await db.refresh(user)
@@ -128,7 +128,7 @@ async def google_auth(
         if settings.allowed_google_domain:
             domain = email.split("@")[-1]
             if domain != settings.allowed_google_domain:
-                logger.warning(f"Unauthorized domain attempt: {email}")
+                logger.warning("auth_domain_rejected", email=email)
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Unauthorized domain",
@@ -162,7 +162,7 @@ async def google_auth(
         return AuthLoginResponse(user=user_public)
 
     except ValueError:
-        logger.warning("Google token validation failed")
+        logger.warning("google_token_validation_failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Google token",
@@ -201,5 +201,5 @@ async def logout(current_user: CurrentUser, response: Response) -> dict:
     """Logout: clear the httpOnly cookie."""
     delete_auth_cookie(response)
     delete_auth_cookie(response, key="admin_token")
-    logger.info(f"User logged out: {current_user.user_id}")
+    logger.info("user_logged_out", user_id=current_user.user_id)
     return {"message": "Logged out successfully"}

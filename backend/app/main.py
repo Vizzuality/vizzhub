@@ -1,7 +1,8 @@
-import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Any
 
+import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,7 @@ from app.core.api import functional_areas as functional_areas_router
 from app.core.api import rates as rates_router
 from app.core.api import programs as programs_router
 from app.core.api import projects_v2 as projects_v2_router
+from app.core.api import health as health_router
 from app.modules.iso.router import router as iso_router
 from app.modules.scorecard.router import router as scorecard_router
 from app.modules.capacity.router import router as capacity_router
@@ -28,32 +30,30 @@ from app.modules.tracker.router import router as tracker_router
 from app.core.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
+from app.core.logging_config import configure_logging
+from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import init_db, get_db
 from scripts.seed_alert_definitions import seed_alert_definitions
 from scripts.seed_config_parameters import seed_config_parameters
 from sqlalchemy import select
 
-# Configure detailed logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
-
 settings = get_settings()
+
+configure_logging(log_format=settings.log_format, log_level=settings.log_level)
+
+# Set env vars for structlog processors (service context)
+os.environ.setdefault("APP_ENV", settings.app_env)
+if settings.release:
+    os.environ.setdefault("RELEASE", settings.release)
+
+logger = structlog.get_logger()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
-    # Security warning for development mode
     if settings.debug:
-        logger.warning("=" * 80)
-        logger.warning("SECURITY WARNING: Running in DEBUG mode")
-        logger.warning("Authentication is BYPASSED for requests without tokens")
-        logger.warning("This is ONLY for development - DO NOT use in production")
-        logger.warning("Production will use Google OAuth (Google Sign-In)")
-        logger.warning("=" * 80)
+        logger.warning("app_debug_mode_enabled")
 
     await init_db()
 
@@ -72,13 +72,13 @@ async def lifespan(app: FastAPI) -> Any:
         missing_in_db = code_roles - db_roles
         extra_in_db = db_roles - code_roles
         if missing_in_db:
-            logger.warning(f"Roles defined in code but missing from DB: {missing_in_db}")
+            logger.warning("roles_missing_in_db", roles=missing_in_db)
         if extra_in_db:
-            logger.warning(f"Roles in DB but not defined in code: {extra_in_db}")
+            logger.warning("roles_extra_in_db", roles=extra_in_db)
 
     # Load scoring config from database into memory
     await load_scoring_config_from_db()
-    logger.info("Scoring configuration loaded from database")
+    logger.info("scoring_config_loaded")
 
     # Initialize Redis score cache (optional — graceful degradation if unavailable)
     redis_client = None
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI) -> Any:
             settings.redis_password,
         )
         if score_cache:
-            logger.info("Redis score cache initialized")
+            logger.info("redis_score_cache_initialized")
 
     app.state.score_cache = score_cache
 
@@ -116,6 +116,9 @@ app = FastAPI(
 # Add rate limiter to app state
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add request ID middleware (outermost — runs first)
+app.add_middleware(RequestIDMiddleware)
 
 # Add security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
@@ -144,9 +147,12 @@ async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handle validation errors with user-friendly messages."""
-    # Log full details server-side
-    logger.error(f"Validation error on {request.method} {request.url}")
-    logger.error(f"Errors: {exc.errors()}")
+    logger.error(
+        "request_validation_failed",
+        method=request.method,
+        path=str(request.url.path),
+        errors=exc.errors(),
+    )
 
     # Use centralized error handler to format message
     message = ValidationErrorHandler.format_pydantic_error(exc)
@@ -167,8 +173,12 @@ async def validation_exception_handler(
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected errors with sanitized responses."""
-    # Log full exception server-side
-    logger.exception(f"Unexpected error on {request.method} {request.url}")
+    logger.exception(
+        "request_failed",
+        method=request.method,
+        path=str(request.url.path),
+        error_type=type(exc).__name__,
+    )
 
     # Return generic error to client
     if settings.debug:
@@ -214,7 +224,4 @@ app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
 
 
-@app.get("/health")
-async def health_check() -> dict[str, str]:
-    """Health check endpoint - no authentication required."""
-    return {"status": "healthy"}
+app.include_router(health_router.router)
