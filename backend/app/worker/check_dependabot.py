@@ -4,7 +4,7 @@ This cron job runs daily to check all active projects for new Dependabot
 alerts and sends Slack notifications for high/critical severity vulnerabilities.
 """
 
-import logging
+import structlog
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -24,7 +24,7 @@ from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 from app.worker.utils import complete_with_error
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 ALERT_NAME = "dependabot_high_critical"
 NO_CVE = "No CVE"
@@ -87,7 +87,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
             )
 
         projects = await _get_eligible_projects(db)
-        logger.info(f"Found {len(projects)} eligible projects to check")
+        logger.info("projects_found", count=len(projects))
 
         projects_checked = 0
         alerts_sent = 0
@@ -98,7 +98,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                     db, project.id, alert_definition.id
                 )
                 if is_silenced:
-                    logger.debug(f"Skipping silenced project: {project.name}")
+                    logger.debug("project_silenced", project=project.name)
                     continue
 
                 sent = await _process_project(
@@ -112,7 +112,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                 alerts_sent += sent
 
             except Exception as e:
-                logger.error(f"Error processing project {project.name}: {e}")
+                logger.error("project_processing_failed", project=project.name, error=str(e))
                 continue
 
         job_run.status = "completed"
@@ -122,8 +122,9 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
         await db.commit()
 
         logger.info(
-            f"Dependabot check completed: {projects_checked} projects checked, "
-            f"{alerts_sent} alerts sent"
+            "job_completed",
+            projects_checked=projects_checked,
+            alerts_sent=alerts_sent,
         )
 
         return {
@@ -134,7 +135,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.exception("Dependabot check job failed")
+        logger.exception("job_failed")
         return await complete_with_error(db, job_run, str(e))
 
 
@@ -442,8 +443,11 @@ async def _send_reminders(
             await db.commit()
             reminders_sent += 1
             logger.info(
-                f"Sent reminder for {tracked.severity} alert #{tracked.github_alert_id} "
-                f"in {project.name} (open {context['days_open']} days)"
+                "reminder_sent",
+                severity=tracked.severity,
+                alert_id=tracked.github_alert_id,
+                project=project.name,
+                days_open=context["days_open"],
             )
 
     return reminders_sent

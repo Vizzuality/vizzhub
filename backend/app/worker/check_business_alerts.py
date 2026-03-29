@@ -12,7 +12,7 @@ The job uses monthly throttling - only one notification per project per month
 for each alert type.
 """
 
-import logging
+import structlog
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
@@ -32,7 +32,7 @@ from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 ALERT_NAMES = {
     "budget_exceeded": "budget_exceeded",
@@ -100,7 +100,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
             )
 
         projects = await _get_active_projects(db)
-        logger.info(f"Found {len(projects)} active projects to check")
+        logger.info("projects_found", count=len(projects))
 
         projects_checked = 0
         alerts_sent = 0
@@ -118,7 +118,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
                 alerts_sent += sent
 
             except Exception as e:
-                logger.error(f"Error processing project {project.name}: {e}")
+                logger.error("project_processing_failed", project=project.name, error=str(e))
                 projects_checked += 1
                 continue
 
@@ -129,8 +129,9 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
         await db.commit()
 
         logger.info(
-            f"Business alerts check completed: {projects_checked} projects checked, "
-            f"{alerts_sent} alerts sent"
+            "job_completed",
+            projects_checked=projects_checked,
+            alerts_sent=alerts_sent,
         )
 
         return {
@@ -141,7 +142,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.exception("Business alerts check job failed")
+        logger.exception("job_failed")
         return await complete_with_error(db, job_run, str(e))
 
 
@@ -272,14 +273,14 @@ async def _check_budget_exceeded(
 
     is_silenced = await AlertService.is_silenced(db, project.id, alert_def.id)
     if is_silenced:
-        logger.debug(f"Skipping silenced project for budget alert: {project.name}")
+        logger.debug("alert_silenced", alert_type="budget_exceeded", project=project.name)
         return False
 
     was_notified = await AlertService.was_notified_this_month(
         db, project.id, alert_def.id
     )
     if was_notified:
-        logger.debug(f"Already notified this month for budget alert: {project.name}")
+        logger.debug("alert_already_notified", alert_type="budget_exceeded", project=project.name)
         return False
 
     template = await AlertService.get_template(db, alert_def.id, "initial")
@@ -395,14 +396,14 @@ async def _check_timeline_at_risk(
 
     is_silenced = await AlertService.is_silenced(db, project.id, alert_def.id)
     if is_silenced:
-        logger.debug(f"Skipping silenced project for timeline alert: {project.name}")
+        logger.debug("alert_silenced", alert_type="timeline_at_risk", project=project.name)
         return False
 
     was_notified = await AlertService.was_notified_this_month(
         db, project.id, alert_def.id
     )
     if was_notified:
-        logger.debug(f"Already notified this month for timeline alert: {project.name}")
+        logger.debug("alert_already_notified", alert_type="timeline_at_risk", project=project.name)
         return False
 
     today = date.today()
@@ -472,14 +473,14 @@ async def _check_project_overdue(
 
     is_silenced = await AlertService.is_silenced(db, project.id, alert_def.id)
     if is_silenced:
-        logger.debug(f"Skipping silenced project for overdue alert: {project.name}")
+        logger.debug("alert_silenced", alert_type="project_overdue", project=project.name)
         return False
 
     was_notified = await AlertService.was_notified_this_month(
         db, project.id, alert_def.id
     )
     if was_notified:
-        logger.debug(f"Already notified this month for overdue alert: {project.name}")
+        logger.debug("alert_already_notified", alert_type="project_overdue", project=project.name)
         return False
 
     template = await AlertService.get_template(db, alert_def.id, "initial")
@@ -548,11 +549,13 @@ async def _send_and_log_alert(
     )
 
     if response.get("ok"):
-        logger.info(f"Sent {alert_def.name} alert for project: {project.name}")
+        logger.info("alert_sent", alert_type=alert_def.name, project=project.name)
         return True
 
     logger.error(
-        f"Failed to send {alert_def.name} alert for project {project.name}: "
-        f"{error_message}"
+        "alert_send_failed",
+        alert_type=alert_def.name,
+        project=project.name,
+        error=error_message,
     )
     return False

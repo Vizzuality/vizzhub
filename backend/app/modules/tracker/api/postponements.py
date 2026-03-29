@@ -1,6 +1,6 @@
 """Invoice postponement endpoints."""
 
-import logging
+import structlog
 from datetime import date, timedelta
 from typing import Annotated
 from uuid import UUID
@@ -26,7 +26,7 @@ from app.utils.slack import get_slack_bot_token
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 _INVOICE_NOT_FOUND = "Invoice not found"
 
@@ -91,7 +91,7 @@ async def _notify_postponement(
             metadata={"new_date": str(new_date), "due_date": str(invoice.due_date)},
         )
     except Exception:
-        logger.exception("Failed to send invoice postponement notification")
+        logger.exception("invoice_postponement_notification_failed")
 
 
 @router.post(

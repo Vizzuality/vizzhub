@@ -7,7 +7,7 @@ Runs daily via ARQ cron; exits early on non-target days.
 """
 
 import calendar
-import logging
+import structlog
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -18,7 +18,7 @@ from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_tracker_reminder_channel
 from app.worker.utils import complete_with_error
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 REPORT_REMINDER_MESSAGE = (
     ":memo: It's time to fill in your monthly report! "
@@ -76,9 +76,7 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
         ok = response.get("ok")
         alerts_sent = 1 if ok else 0
         if not ok:
-            logger.error(
-                f"Failed to send report reminder: {response.get('error')}"
-            )
+            logger.error("reminder_send_failed", error=response.get("error"))
 
         job_run.status = "completed"
         job_run.alerts_sent = alerts_sent
@@ -92,5 +90,5 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.exception("Report reminder job failed")
+        logger.exception("job_failed")
         return await complete_with_error(db, job_run, str(e))

@@ -3,7 +3,7 @@
 Other modules should import from here, never from scorecard internals.
 """
 
-import logging
+import structlog
 from datetime import date
 from uuid import UUID
 
@@ -15,7 +15,7 @@ from app.modules.scorecard.services.metrics_service import MetricsService
 
 __all__ = ["MetricsService", "Milestone", "SnapshotType", "refresh_tracker_evm"]
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def _resolve_budget(budget: float | None, project) -> float | None:

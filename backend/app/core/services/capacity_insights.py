@@ -5,7 +5,7 @@ Cross-module JOIN: core tables (users, functional_areas, projects)
 Placed in core/services/ per architecture Rule 4.
 """
 
-import logging
+import structlog
 from datetime import date
 from uuid import UUID
 
@@ -21,7 +21,7 @@ from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 TARGET_FA_MAPPING: dict[str, str] = {
     "Frontend Developer": "FE",
@@ -291,7 +291,7 @@ async def get_capacity_insights(
         found_names.add(fa_name)
 
     for name in set(TARGET_FA_MAPPING.keys()) - found_names:
-        logger.warning("Capacity insights: FA '%s' not found in database", name)
+        logger.warning("functional_area_not_found", fa_name=name)
 
     if not fa_id_to_short:
         return []

@@ -1,6 +1,6 @@
 """Slack alert and template admin API endpoints."""
 
-import logging
+import structlog
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -24,7 +24,7 @@ from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTem
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.notifications.services.slack_service import SlackService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 ALERT_DEFINITION_NOT_FOUND = "Alert definition not found"
 FAILED_TO_SEND_TEST_ALERT = "Failed to send test alert"
@@ -147,7 +147,7 @@ async def test_alert(
                 error=slack_result.get("error", "Unknown Slack error"),
             )
     except Exception as e:
-        logger.exception(FAILED_TO_SEND_TEST_ALERT)
+        logger.exception("alert_test_send_failed")
         return AlertTestResponse(
             ok=False,
             message=FAILED_TO_SEND_TEST_ALERT,
@@ -258,7 +258,7 @@ async def send_custom_notification(
                 error=result.get("error", "Unknown Slack error"),
             )
     except Exception as e:
-        logger.exception("Failed to send custom notification")
+        logger.exception("custom_notification_send_failed")
         return CustomNotificationResponse(
             ok=False,
             message="Failed to send message",

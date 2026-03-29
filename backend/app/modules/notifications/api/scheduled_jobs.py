@@ -1,6 +1,6 @@
 """Scheduled jobs API endpoints."""
 
-import logging
+import structlog
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -19,7 +19,7 @@ from app.modules.notifications.api.schemas.slack import (
 from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.utils.redis import get_redis_pool
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
 
@@ -160,11 +160,7 @@ async def trigger_scheduled_job(
         await pool.close()
 
         if arq_job:
-            logger.info(
-                "Manually triggered job %s with ARQ job ID: %s",
-                job_name,
-                arq_job.job_id,
-            )
+            logger.info("job_triggered", job_name=job_name, arq_job_id=arq_job.job_id)
             return JobTriggerResponse(
                 success=True,
                 message=f"Job '{job_name}' has been enqueued",
@@ -177,7 +173,7 @@ async def trigger_scheduled_job(
             )
 
     except Exception as e:
-        logger.exception("Failed to enqueue job %s", job_name)
+        logger.exception("job_enqueue_failed", job_name=job_name)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enqueue job: {e}. Is Redis running?",

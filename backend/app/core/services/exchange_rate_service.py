@@ -1,6 +1,6 @@
 """ECB exchange rate fetching and lookup."""
 
-import logging
+import structlog
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from xml.etree import ElementTree
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.exchange_rate import ExchangeRateDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 ECB_DAILY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 # XML namespace identifiers (not network URLs — must match ECB's XML declaration)
@@ -71,7 +71,7 @@ async def fetch_and_store_rates(db: AsyncSession) -> dict:
     await db.execute(stmt)
     await db.commit()
 
-    logger.info("Stored %d ECB rates for %s", len(rows), rate_date)
+    logger.info("ecb_rates_stored", count=len(rows), rate_date=str(rate_date))
     return {"rate_date": str(rate_date), "currencies_stored": len(rows)}
 
 

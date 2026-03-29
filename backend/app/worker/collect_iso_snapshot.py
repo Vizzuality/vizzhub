@@ -1,6 +1,6 @@
 """ISO access snapshot cron job."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def collect_iso_snapshot(ctx: dict) -> dict:
@@ -51,10 +51,10 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
             snapshot = await collector.capture(run_mode="cron")
             await db.commit()
             results["google_workspace"] = {"snapshot_id": str(snapshot.id)}
-            logger.info("ISO GW snapshot captured: %s", snapshot.id)
+            logger.info("snapshot_captured", provider="google_workspace", snapshot_id=str(snapshot.id))
         except Exception as e:
             error_msg = f"google_workspace: {e}"
-            logger.error("ISO GW snapshot failed: %s", e, exc_info=True)
+            logger.error("snapshot_failed", provider="google_workspace", error=str(e), exc_info=True)
             errors.append(error_msg)
 
     # GitHub
@@ -64,10 +64,10 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
             snapshot = await collector.capture(run_mode="cron")
             await db.commit()
             results["github"] = {"snapshot_id": str(snapshot.id)}
-            logger.info("ISO GitHub snapshot captured: %s", snapshot.id)
+            logger.info("snapshot_captured", provider="github", snapshot_id=str(snapshot.id))
         except Exception as e:
             error_msg = f"github: {e}"
-            logger.error("ISO GitHub snapshot failed: %s", e, exc_info=True)
+            logger.error("snapshot_failed", provider="github", error=str(e), exc_info=True)
             errors.append(error_msg)
 
     # Jira
@@ -77,10 +77,10 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
             snapshot = await collector.capture(run_mode="cron")
             await db.commit()
             results["jira"] = {"snapshot_id": str(snapshot.id)}
-            logger.info("ISO Jira snapshot captured: %s", snapshot.id)
+            logger.info("snapshot_captured", provider="jira", snapshot_id=str(snapshot.id))
         except Exception as e:
             error_msg = f"jira: {e}"
-            logger.error("ISO Jira snapshot failed: %s", e, exc_info=True)
+            logger.error("snapshot_failed", provider="jira", error=str(e), exc_info=True)
             errors.append(error_msg)
 
     if errors:
@@ -128,11 +128,11 @@ async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
     try:
         bot_token = await get_slack_bot_token(db)
         if not bot_token:
-            logger.warning("Slack not configured, cannot send ISO failure alert")
+            logger.warning("slack_not_configured")
             return
         channel_id = await get_slack_leadership_channel(db)
         if not channel_id:
-            logger.warning("No leadership channel configured for ISO failure alert")
+            logger.warning("leadership_channel_not_configured")
             return
 
         message = (
@@ -147,6 +147,6 @@ async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
             channel_id,
             message,
         )
-        logger.info("ISO failure alert sent to Slack")
+        logger.info("iso_failure_alert_sent")
     except Exception:
-        logger.exception("Failed to send ISO failure Slack alert")
+        logger.exception("iso_failure_alert_send_failed")

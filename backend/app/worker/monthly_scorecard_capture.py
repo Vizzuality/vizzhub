@@ -5,7 +5,7 @@ metrics for all live projects with has_scorecard enabled.
 """
 
 import asyncio
-import logging
+import structlog
 from datetime import date, datetime, timezone
 
 from sqlalchemy import select
@@ -24,7 +24,7 @@ from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.tracker.public import inject_evm_into_preserved
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def _get_scorecard_projects(db: AsyncSession) -> list[ProjectDB]:
@@ -71,7 +71,10 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
 
         projects = await _get_scorecard_projects(db)
         logger.info(
-            f"Monthly scorecard capture: {len(projects)} projects for {year}-{month:02d}"
+            "capture_started",
+            project_count=len(projects),
+            year=year,
+            month=month,
         )
 
         captured = 0
@@ -115,16 +118,18 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
                     await score_cache.invalidate(str(project.id))
 
                 captured += 1
-                logger.info(f"  OK: {project.name}")
+                logger.info("project_captured", project=project.name)
 
             except Exception as e:
                 errors.append({"project": project.name, "error": str(e)})
-                logger.error(f"  FAIL: {project.name} - {e}")
+                logger.error("project_capture_failed", project=project.name, error=str(e))
 
             await asyncio.sleep(5)
 
         logger.info(
-            f"Monthly scorecard capture completed: {captured} ok, {len(errors)} errors"
+            "capture_completed",
+            captured=captured,
+            errors=len(errors),
         )
 
         job_run.status = "completed"
@@ -144,7 +149,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
         }
 
     except Exception as e:
-        logger.exception("Monthly scorecard capture failed")
+        logger.exception("job_failed")
         job_run.status = "error"
         job_run.completed_at = datetime.now(timezone.utc)
         job_run.error_message = str(e)

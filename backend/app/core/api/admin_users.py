@@ -1,6 +1,6 @@
 """Admin user management API endpoints."""
 
-import logging
+import structlog
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -17,7 +17,7 @@ from app.core.permissions.resolver import get_user_roles, resolve_permissions
 from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 _USER_NOT_FOUND = "User not found"
 
@@ -125,7 +125,7 @@ async def sync_slack_all(
             updated.append(user)
 
     await db.commit()
-    logger.info(f"Synced Slack for {len(updated)}/{len(users)} users by {current_user.email}")
+    logger.info("slack_sync_all_completed", synced=len(updated), total=len(users), admin=current_user.email)
     return [User.model_validate(u) for u in updated]
 
 
@@ -176,10 +176,7 @@ async def stop_impersonate(
             detail="Admin user not found",
         )
 
-    logger.info(
-        f"Admin {admin.email} stopped impersonating "
-        f"(was {current_user.email})"
-    )
+    logger.info("impersonation_stopped", admin=admin.email, was=current_user.email)
 
     result = UserPublic.model_validate(admin)
     result.roles = payload.get("roles", [])
@@ -292,7 +289,7 @@ async def sync_slack(
     await db.commit()
     await db.refresh(user)
 
-    logger.info(f"Synced Slack for {user.email}: {user.slack_display_name}")
+    logger.info("slack_sync_completed", email=user.email, display_name=user.slack_display_name)
     return User.model_validate(user)
 
 
@@ -324,7 +321,7 @@ async def update_user(
         setattr(user, field, value)
 
     if "active" in update_data:
-        logger.info(f"User {user.email} active={update.active} by {current_user.email}")
+        logger.info("user_active_changed", email=user.email, active=update.active, admin=current_user.email)
 
     await db.commit()
     await db.refresh(user)
@@ -356,7 +353,7 @@ async def delete_user(
             detail=_USER_NOT_FOUND,
         )
 
-    logger.info(f"User {user.email} deleted by {current_user.email}")
+    logger.info("user_deleted", email=user.email, admin=current_user.email)
     await db.delete(user)
     await db.commit()
 
@@ -412,7 +409,7 @@ async def impersonate_user(
     )
     response.set_cookie(value=target_token, **cookie_settings)
 
-    logger.info(f"Admin {current_user.email} started impersonating {target.email}")
+    logger.info("impersonation_started", admin=current_user.email, target=target.email)
     result = UserPublic.model_validate(target)
     result.roles = target_roles
     result.permissions = target_permissions

@@ -1,6 +1,6 @@
 """Google Workspace OAuth service for ISO module."""
 
-import logging
+import structlog
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.oauth import OAuthTokenDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 PROVIDER = "google_workspace"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -110,7 +110,7 @@ class GoogleWorkspaceOAuth:
         await db.flush()
         await db.refresh(oauth_token)
 
-        logger.info("Google Workspace OAuth token stored for domain %s", domain)
+        logger.info("google_workspace_token_stored", domain=domain)
         return oauth_token
 
     @staticmethod
@@ -146,7 +146,7 @@ class GoogleWorkspaceOAuth:
         await db.flush()
         await db.refresh(token)
 
-        logger.info("Google Workspace OAuth token refreshed")
+        logger.info("google_workspace_token_refreshed")
         return token
 
     @staticmethod
@@ -171,7 +171,7 @@ class GoogleWorkspaceOAuth:
         if token:
             await db.delete(token)
             await db.flush()
-            logger.info("Google Workspace OAuth disconnected")
+            logger.info("google_workspace_disconnected")
 
     @staticmethod
     async def get_status(db: AsyncSession) -> dict[str, Any]:

@@ -1,6 +1,6 @@
 """Jira issues endpoint for MyReport enrichment."""
 
-import logging
+import structlog
 from calendar import monthrange
 from datetime import date
 from typing import Annotated
@@ -11,7 +11,7 @@ from app.core.api.deps import CurrentUser, DBSession
 from app.core.services.oauth_service import OAuthService
 from app.core.services.jira_client import JiraClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -58,8 +58,10 @@ async def get_jira_issues_for_period(
         if response.status_code != 200:
             detail = response.text[:500]
             logger.warning(
-                "Jira issues query failed (status %d): %s\nJQL: %s",
-                response.status_code, detail, jql,
+                "jira_issues_query_failed",
+                status_code=response.status_code,
+                detail=detail,
+                jql=jql,
             )
             return {"issues": [], "error": "Jira query failed"}
 
@@ -86,7 +88,7 @@ async def get_jira_issues_for_period(
         return {"issues": issues, "site_url": site_url}
 
     except Exception as e:
-        logger.warning("Jira issues exception: %s", e)
+        logger.warning("jira_issues_fetch_failed", error=str(e))
         return {"issues": [], "error": "Jira connection failed"}
     finally:
         await client.close()

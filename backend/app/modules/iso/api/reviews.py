@@ -1,6 +1,6 @@
 """ISO access review API endpoints."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated
@@ -34,7 +34,7 @@ from app.modules.iso.schemas import (
     SignReviewRequest,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter()
 

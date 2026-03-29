@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     redis_password: str = ""
 
+    # Observability
+    log_format: str = "console"
+    log_level: str = "INFO"
+    app_env: str = "development"
+    release: str = ""
+    sentry_dsn: str = ""
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
