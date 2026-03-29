@@ -1,13 +1,37 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import {
+  BrowserRouter,
+  useLocation,
+  useNavigationType,
+  createRoutesFromChildren,
+  matchRoutes,
+} from 'react-router-dom';
 import { ThemeProvider } from './shared/components/theme-provider';
 import App from './App';
 import { NavigationGuardProvider } from './core/contexts/NavigationGuardContext';
 import { TIMING } from './shared/constants/timing';
 import './index.css';
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.VITE_APP_ENV || 'development',
+  release: import.meta.env.VITE_RELEASE,
+  integrations: [
+    Sentry.reactRouterV6BrowserTracingIntegration({
+      useEffect: React.useEffect,
+      useLocation,
+      useNavigationType,
+      createRoutesFromChildren,
+      matchRoutes,
+    }),
+  ],
+  tracesSampleRate: 0.2,
+  enabled: !!import.meta.env.VITE_SENTRY_DSN,
+});
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
