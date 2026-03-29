@@ -1,10 +1,28 @@
-# CloudWatch Log Group
+# CloudWatch Log Groups
 resource "aws_cloudwatch_log_group" "main" {
   name              = "/${var.project_name}/${var.environment}"
   retention_in_days = 30
 
   tags = {
     Name = "${var.project_name}-logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "backend" {
+  name              = "/${var.project_name}/backend"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.project_name}-backend-logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "worker" {
+  name              = "/${var.project_name}/worker"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.project_name}-worker-logs"
   }
 }
 
