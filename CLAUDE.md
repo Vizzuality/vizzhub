@@ -107,6 +107,16 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 9. **URL = source of truth**: All view state in URL params. Use `useUrlState` hook, not bare `useState`. Tabs use nested routes.
 10. **Frontend imports**: Use direct module paths (`@/core/services/jobs`, `@/modules/scorecard/types/scores`). The `@/types` barrel is acceptable for cross-module type imports. No barrel files for services.
 
+## Observability
+
+- Use `structlog` for all logging (`import structlog; logger = structlog.get_logger()`). Never use stdlib `logging`.
+- Log events follow `{entity}_{action}` naming: `job_started`, `auth_login_failed`, `report_confirmed`.
+- Log the WHY, not the WHAT: don't log "calling function X", log meaningful business events with context (`user_id`, `project_id`, etc.).
+- New API endpoints get meaningful log events for key actions (create, update, delete, errors).
+- New worker jobs log `job_started` / `job_completed` / `job_failed` with relevant context.
+- Frontend errors are captured by Sentry automatically — no manual error logging needed.
+- See `docs/observability.md` for architecture details.
+
 ## Constraints
 
 - **Targets vs Ideals**: Target = minimum acceptable (color coding). Ideal = perfect score (100 pts). SPI 0.85 → green (above target) but 85 points (not 100). Only SPI/CPI have explicit ideals.
