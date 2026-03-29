@@ -25,6 +25,7 @@ import { PageViewer } from '../components/PageViewer';
 import { PageEditor } from '../components/PageEditor';
 import { NodeForm } from '../components/NodeForm';
 import { VersionHistoryDialog } from '../components/VersionHistoryDialog';
+import { PublishButton } from '../components/PublishButton';
 import {
   usePlaybookTree,
   useCreateNode,
@@ -403,6 +404,7 @@ export default function Playbook(): JSX.Element {
             <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && <PublishButton />}
             {isPage && page?.is_public && (
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
