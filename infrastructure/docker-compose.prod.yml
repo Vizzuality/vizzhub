@@ -5,7 +5,7 @@
 # Application secrets in .env file (created by deploy pipeline from Secrets Manager)
 #
 # ALB routing:
-#   - /api/*, /health → backend:8000
+#   - /api/*, /health/*, /metrics → backend:8000
 #   - /* → frontend:5173
 
 services:
@@ -32,8 +32,16 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /vizzhub/backend
+        awslogs-region: eu-west-3
+        awslogs-stream-prefix: backend
+        mode: non-blocking
+        max-buffer-size: 4m
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -48,6 +56,14 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /vizzhub/worker
+        awslogs-region: eu-west-3
+        awslogs-stream-prefix: worker
+        mode: non-blocking
+        max-buffer-size: 4m
     healthcheck:
       disable: true
 
