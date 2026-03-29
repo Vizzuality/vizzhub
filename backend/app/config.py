@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     redis_password: str = ""
 
+    # Grafana Cloud
+    grafana_admin_token: str = ""
+
     # Observability
     log_format: str = "console"
     log_level: str = "INFO"
