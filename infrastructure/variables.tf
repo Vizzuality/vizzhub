@@ -153,3 +153,23 @@ variable "slack_bot_token" {
   sensitive   = true
   default     = ""
 }
+
+# Grafana Cloud
+variable "grafana_cloud_api_token" {
+  description = "Grafana Cloud API token for metrics and logs"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "grafana_cloud_prometheus_username" {
+  description = "Grafana Cloud Prometheus remote_write username"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_cloud_loki_username" {
+  description = "Grafana Cloud Loki push username"
+  type        = string
+  default     = ""
+}
