@@ -35,11 +35,8 @@ services:
     logging:
       driver: awslogs
       options:
-        awslogs-group: /vizzhub/backend
+        awslogs-group: /hub/backend
         awslogs-region: eu-west-3
-        awslogs-stream-prefix: backend
-        mode: non-blocking
-        max-buffer-size: 4m
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
       interval: 30s
@@ -59,11 +56,8 @@ services:
     logging:
       driver: awslogs
       options:
-        awslogs-group: /vizzhub/worker
+        awslogs-group: /hub/worker
         awslogs-region: eu-west-3
-        awslogs-stream-prefix: worker
-        mode: non-blocking
-        max-buffer-size: 4m
     healthcheck:
       disable: true
 
