@@ -11,6 +11,7 @@ import type {
   VersionListItem,
   VersionDetail,
   AssetStatus,
+  PublishStatus,
 } from '../types/playbook';
 
 export const playbookApi = {
@@ -70,5 +71,15 @@ export const playbookApi = {
       headers: { 'Content-Type': undefined },
     });
     return data.url;
+  },
+
+  publishPlaybook: async (): Promise<{ publish_log_id: string }> => {
+    const { data } = await api.post<{ publish_log_id: string }>('/playbook/publish');
+    return data;
+  },
+
+  getPublishStatus: async (): Promise<PublishStatus | null> => {
+    const { data } = await api.get<PublishStatus | null>('/playbook/publish/status');
+    return data;
   },
 };
