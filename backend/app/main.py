@@ -1,4 +1,3 @@
-import os
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -41,7 +40,12 @@ from sqlalchemy import select
 
 settings = get_settings()
 
-configure_logging(log_format=settings.log_format, log_level=settings.log_level)
+configure_logging(
+    log_format=settings.log_format,
+    log_level=settings.log_level,
+    environment=settings.app_env,
+    release=settings.release or None,
+)
 
 
 def _sentry_before_send(
@@ -64,11 +68,6 @@ if settings.sentry_dsn:
         before_send=_sentry_before_send,
         send_default_pii=False,
     )
-
-# Set env vars for structlog processors (service context)
-os.environ.setdefault("APP_ENV", settings.app_env)
-if settings.release:
-    os.environ.setdefault("RELEASE", settings.release)
 
 logger = structlog.get_logger()
 

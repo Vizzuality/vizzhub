@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.database import async_session_maker
+from app.worker.heartbeat import HEARTBEAT_KEY
 
 logger = structlog.get_logger()
 
@@ -17,7 +18,6 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 DB_TIMEOUT_S = 5
 REDIS_TIMEOUT_S = 2
-HEARTBEAT_KEY = "vizzhub:worker:heartbeat"
 
 
 async def _check_database() -> dict[str, Any]:
@@ -36,13 +36,17 @@ async def _check_database() -> dict[str, Any]:
         return {"status": "unhealthy", "error": str(exc)}
 
 
-async def _check_redis(request: Request) -> dict[str, Any]:
-    """Check Redis connectivity with PING."""
+def _get_redis_client(request: Request):
+    """Extract Redis client from app state, or None if unavailable."""
     score_cache = getattr(request.app.state, "score_cache", None)
     if score_cache is None:
-        return {"status": "unavailable"}
+        return None
+    return getattr(score_cache, "_redis", None)
 
-    redis_client = getattr(score_cache, "_redis", None)
+
+async def _check_redis(request: Request) -> dict[str, Any]:
+    """Check Redis connectivity with PING."""
+    redis_client = _get_redis_client(request)
     if redis_client is None:
         return {"status": "unavailable"}
 
@@ -58,11 +62,7 @@ async def _check_redis(request: Request) -> dict[str, Any]:
 
 async def _check_worker(request: Request) -> dict[str, Any]:
     """Check worker heartbeat key in Redis."""
-    score_cache = getattr(request.app.state, "score_cache", None)
-    if score_cache is None:
-        return {"status": "unavailable"}
-
-    redis_client = getattr(score_cache, "_redis", None)
+    redis_client = _get_redis_client(request)
     if redis_client is None:
         return {"status": "unavailable"}
 

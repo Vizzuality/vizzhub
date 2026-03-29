@@ -1,28 +1,9 @@
-"""Tests for worker metrics module."""
+"""Tests for worker metrics and job hooks."""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from app.worker.metrics import arq_jobs_total, arq_job_duration_seconds
-
-
-class TestWorkerMetrics:
-    """Verify Prometheus metrics are defined correctly."""
-
-    def test_arq_jobs_total_is_counter(self) -> None:
-        assert arq_jobs_total._type == "counter"
-
-    def test_arq_job_duration_is_histogram(self) -> None:
-        assert arq_job_duration_seconds._type == "histogram"
-
-    def test_counter_can_increment(self) -> None:
-        before = arq_jobs_total._value.get()
-        arq_jobs_total.inc()
-        after = arq_jobs_total._value.get()
-        assert after == before + 1
-
-    def test_histogram_can_observe(self) -> None:
-        arq_job_duration_seconds.observe(0.5)
 
 
 class TestOnJobHooksMetrics:

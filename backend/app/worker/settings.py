@@ -1,6 +1,5 @@
 """ARQ worker configuration."""
 
-import os
 import time
 import uuid
 
@@ -15,11 +14,13 @@ from app.worker.metrics import arq_jobs_total, arq_job_duration_seconds
 
 settings = get_settings()
 
-configure_logging(log_format=settings.log_format, log_level=settings.log_level)
-os.environ.setdefault("SERVICE_NAME", "vizzhub-worker")
-os.environ.setdefault("APP_ENV", settings.app_env)
-if settings.release:
-    os.environ.setdefault("RELEASE", settings.release)
+configure_logging(
+    log_format=settings.log_format,
+    log_level=settings.log_level,
+    service_name="vizzhub-worker",
+    environment=settings.app_env,
+    release=settings.release or None,
+)
 
 logger = structlog.get_logger()
 

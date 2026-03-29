@@ -1,7 +1,6 @@
 """Structured logging configuration using structlog."""
 
 import logging
-import os
 import sys
 
 import structlog
@@ -31,56 +30,64 @@ def _drop_color_message(
     return event_dict
 
 
-def _add_service_context(
-    logger: logging.Logger,
-    method_name: str,
-    event_dict: dict,
-) -> dict:
-    """Add service-level context fields."""
-    event_dict.setdefault("service", os.environ.get("SERVICE_NAME", "vizzhub-backend"))
-    event_dict.setdefault("environment", os.environ.get("APP_ENV", "development"))
-    release = os.environ.get("RELEASE")
-    if release:
-        event_dict.setdefault("release", release)
-    return event_dict
+def _make_service_context_processor(
+    service: str,
+    environment: str,
+    release: str | None,
+) -> structlog.types.Processor:
+    """Build a processor that stamps service-level context on every log entry."""
+    def processor(
+        logger: logging.Logger,
+        method_name: str,
+        event_dict: dict,
+    ) -> dict:
+        event_dict.setdefault("service", service)
+        event_dict.setdefault("environment", environment)
+        if release:
+            event_dict.setdefault("release", release)
+        return event_dict
+    return processor
 
 
 def configure_logging(
     log_format: str = "console",
     log_level: str = "INFO",
+    service_name: str = "vizzhub-backend",
+    environment: str = "development",
+    release: str | None = None,
 ) -> None:
     """Configure structured logging for the application.
 
     Args:
         log_format: 'json' for production, 'console' for development.
         log_level: Minimum log level (DEBUG, INFO, WARNING, ERROR).
+        service_name: Service identifier stamped on every log entry.
+        environment: Deployment environment (development, staging, production).
+        release: Optional release/version tag.
     """
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso"),
-        _add_service_context,
+        _make_service_context_processor(service_name, environment, release),
         _drop_color_message,
         structlog.stdlib.ExtraAdder(),
         _add_caller_info,
         structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
     ]
 
-    if log_format == "json":
-        formatter = structlog.stdlib.ProcessorFormatter(
-            processors=[
-                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                structlog.processors.JSONRenderer(),
-            ],
-        )
-    else:
-        formatter = structlog.stdlib.ProcessorFormatter(
-            processors=[
-                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                structlog.dev.ConsoleRenderer(),
-            ],
-        )
+    renderer = (
+        structlog.processors.JSONRenderer()
+        if log_format == "json"
+        else structlog.dev.ConsoleRenderer()
+    )
+    formatter = structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            renderer,
+        ],
+    )
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
