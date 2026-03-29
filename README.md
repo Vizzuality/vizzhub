@@ -51,6 +51,7 @@ docker-compose up -d
 - **Backend:** FastAPI, PostgreSQL 16, SQLAlchemy 2.0 (async), ARQ, Redis
 - **Frontend:** React 18, TypeScript, Vite, Tailwind, shadcn/ui, React Query, Recharts
 - **Infra:** AWS (EC2, RDS, ALB, ECR), Terraform, GitHub Actions
+- **Observability:** structlog, Sentry, Prometheus metrics, CloudWatch Logs — [details](docs/observability.md)
 
 ## Branches
 
