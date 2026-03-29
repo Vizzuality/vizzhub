@@ -1,0 +1,67 @@
+// Grafana Alloy configuration for VizzHub
+// Scrapes Prometheus metrics from backend and ships logs to Grafana Cloud
+
+// ============================================================================
+// Prometheus: scrape backend /metrics → remote_write to Grafana Cloud
+// ============================================================================
+
+prometheus.scrape "backend" {
+  targets = [{
+    __address__ = "backend:8000",
+  }]
+  metrics_path = "/metrics"
+  scrape_interval = "30s"
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_PROMETHEUS_ENDPOINT")
+    basic_auth {
+      username = env("GRAFANA_PROMETHEUS_USERNAME")
+      password = env("GRAFANA_API_TOKEN")
+    }
+  }
+}
+
+// ============================================================================
+// Loki: collect Docker container logs → push to Grafana Cloud
+// ============================================================================
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  filter {
+    name   = "name"
+    values = ["hub-backend", "hub-worker"]
+  }
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/hub-(.*)"
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_LOKI_ENDPOINT")
+    basic_auth {
+      username = env("GRAFANA_LOKI_USERNAME")
+      password = env("GRAFANA_API_TOKEN")
+    }
+  }
+}
