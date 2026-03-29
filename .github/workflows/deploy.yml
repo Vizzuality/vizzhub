@@ -138,6 +138,19 @@ jobs:
             --output text
           sleep 5
 
+      - name: Upload Alloy config
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          ALLOY_B64=$(base64 -w0 infrastructure/alloy-config.alloy)
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[\"echo '$ALLOY_B64' | base64 -d > /opt/hub/alloy-config.alloy\"]" \
+            --query 'Command.CommandId' \
+            --output text
+          sleep 5
+
       - name: Create .env from Secrets Manager
         env:
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
@@ -151,6 +164,15 @@ jobs:
           JWT=$(aws secretsmanager get-secret-value --secret-id /hub/prod/jwt-secrets --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
           GOOGLE=$(aws secretsmanager get-secret-value --secret-id /hub/prod/google-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
           JIRA=$(aws secretsmanager get-secret-value --secret-id /hub/prod/jira-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          GRAFANA=$(aws secretsmanager get-secret-value --secret-id /hub/prod/grafana-cloud --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          cat > .env.alloy << EOF
+          GRAFANA_API_TOKEN=$(echo $GRAFANA | jq -r '.api_token')
+          GRAFANA_PROMETHEUS_USERNAME=$(echo $GRAFANA | jq -r '.prometheus_username')
+          GRAFANA_PROMETHEUS_ENDPOINT=$(echo $GRAFANA | jq -r '.prometheus_endpoint')
+          GRAFANA_LOKI_USERNAME=$(echo $GRAFANA | jq -r '.loki_username')
+          GRAFANA_LOKI_ENDPOINT=$(echo $GRAFANA | jq -r '.loki_endpoint')
+          EOF
+          chmod 600 .env.alloy
           cat > .env << EOF
           DATABASE_URL=postgresql+asyncpg://$(echo $DB | jq -r '.username'):$(echo $DB | jq -r '.password')@$(echo $DB | jq -r '.host'):5432/$(echo $DB | jq -r '.dbname')
           JWT_SECRET_KEY=$(echo $JWT | jq -r '.jwt_secret_key')

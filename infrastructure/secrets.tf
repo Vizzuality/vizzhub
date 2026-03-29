@@ -108,3 +108,20 @@ resource "aws_secretsmanager_secret_version" "slack" {
     bot_token = var.slack_bot_token
   })
 }
+
+# Secret - Grafana Cloud (from tfvars)
+resource "aws_secretsmanager_secret" "grafana_cloud" {
+  name        = "/${var.project_name}/${var.environment}/grafana-cloud"
+  description = "Grafana Cloud credentials for ${var.project_name}"
+}
+
+resource "aws_secretsmanager_secret_version" "grafana_cloud" {
+  secret_id = aws_secretsmanager_secret.grafana_cloud.id
+  secret_string = jsonencode({
+    api_token           = var.grafana_cloud_api_token
+    prometheus_username  = var.grafana_cloud_prometheus_username
+    prometheus_endpoint  = "https://prometheus-prod-58-prod-eu-central-0.grafana.net/api/prom/push"
+    loki_username        = var.grafana_cloud_loki_username
+    loki_endpoint        = "https://logs-prod-039.grafana.net/loki/api/v1/push"
+  })
+}
