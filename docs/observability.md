@@ -4,9 +4,9 @@
 
 ```
 App / Worker
-├─ Logs (JSON) ─────────────▶ CloudWatch Logs
-├─ Metrics ─────────────────▶ /metrics (Prometheus format)
-├─ Errors & Performance ───▶ Sentry
+├─ Logs (JSON) ──▶ Grafana Alloy ──▶ Grafana Cloud Loki
+├─ Metrics ──────▶ Grafana Alloy ──▶ Grafana Cloud Prometheus
+├─ Errors ───────▶ Sentry
 └─ Health (/health/live, /health/ready)
 ```
 
@@ -19,8 +19,10 @@ App / Worker
 | **Sentry (backend)** | Errors, performance traces (20% sample) | [sentry.io](https://sentry.io) — project `vizzhub-backend` |
 | **Sentry (frontend)** | Errors, Web Vitals, route-level tracing | [sentry.io](https://sentry.io) — project `vizzhub-frontend` |
 | **Prometheus metrics** | HTTP request count/latency/size, worker job count/duration | `GET /metrics` |
+| **Grafana Alloy** | Scrapes `/metrics` → Prometheus, collects Docker logs → Loki | Container `hub-alloy` on EC2 |
+| **Grafana Cloud** | Dashboards, metrics (Prometheus), logs (Loki) | [vizzhub.grafana.net](https://vizzhub.grafana.net) |
 | **Health checks** | Liveness + readiness (DB, Redis, worker heartbeat) | `GET /health/live`, `GET /health/ready` |
-| **CloudWatch Logs** | Backend → `/hub/backend`, Worker → `/hub/worker` | AWS Console > CloudWatch > Log groups |
+| **CloudWatch Logs** | Backend → `/hub/backend`, Worker → `/hub/worker` (backup) | AWS Console > CloudWatch > Log groups |
 
 ## Health Checks
 
@@ -73,11 +75,22 @@ fields @timestamp, event, @message
 | sort @timestamp asc
 ```
 
+## Grafana Dashboard
+
+**URL:** [vizzhub.grafana.net](https://vizzhub.grafana.net) → Dashboards → "VizzHub Overview"
+
+Sections:
+- **Application (HTTP)** — request rate, latency P95/P50, error rate (5xx), status codes
+- **Worker** — jobs completed (last 1h), job duration P95/P50, backend up/down
+- **Logs** — error log stream, log volume by level
+
+Dashboard JSON is version-controlled at `infrastructure/grafana-dashboard.json`.
+
 ## Incident Flow
 
-1. **Error** → Sentry alert → investigate stack trace → use `request_id` to find full logs in CloudWatch
-2. **Performance** → `/metrics` shows latency spike → identify endpoint → CloudWatch logs for details → Sentry for traces
-3. **System** → `/health/ready` returns 503 → check which dependency is unhealthy → CloudWatch for context
+1. **Error** → Sentry alert → stack trace → use `request_id` to find full logs in Grafana (Loki)
+2. **Performance** → Grafana dashboard shows latency spike → identify endpoint → Loki logs for details → Sentry for traces
+3. **System** → `/health/ready` returns 503 → check which dependency is unhealthy → Grafana logs for context
 
 ## Environment Variables
 
@@ -99,11 +112,15 @@ fields @timestamp, event, @message
 | `VITE_APP_ENV` | `development` | Environment tag |
 | `VITE_RELEASE` | *(empty)* | Git SHA for source map correlation |
 
+## Grafana Alloy
+
+Alloy runs as a Docker container (`hub-alloy`) on EC2. Config at `infrastructure/alloy-config.alloy`.
+
+- Scrapes `backend:8000/metrics` every 30s → remote_write to Grafana Cloud Prometheus
+- Collects Docker logs from `hub-backend` and `hub-worker` → push to Grafana Cloud Loki
+- Credentials in AWS Secrets Manager (`/hub/prod/grafana-cloud`), injected via `.env.alloy`
+
 ## Pending
 
-- Grafana Cloud dashboard (metrics visualization)
-- Grafana Alloy (metrics scraping + remote_write)
 - Sentry alerts → Slack
 - Grafana alert rules (error rate, latency, queue depth)
-
-See [observability_plan.md](observability_plan.md) for the full implementation plan.
