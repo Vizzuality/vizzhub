@@ -1,15 +1,26 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import path from 'node:path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    ...(process.env.SENTRY_AUTH_TOKEN ? [
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT || 'vizzhub-frontend',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+      }),
+    ] : []),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
   build: {
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
         manualChunks: {

@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { AuthProvider } from './core/contexts/AuthContext';
-import { ErrorBoundary } from './core/components/ErrorBoundary';
 import { ProtectedRoute } from './core/components/ProtectedRoute';
 import { PermissionRoute, Action } from './core/permissions';
 import { AppLayout } from './core/components/layout/AppLayout';
@@ -43,6 +43,8 @@ import CapacityPlanner from './modules/capacity/pages/Planner';
 import Playbook from './modules/playbook/pages/Playbook';
 import NotFound from './core/pages/NotFound';
 
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
+
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
 
 function AdminRoutes(): JSX.Element {
@@ -76,7 +78,7 @@ function AdminRoutes(): JSX.Element {
 function AppRoutes(): JSX.Element {
   if (BYPASS_AUTH) {
     return (
-      <Routes>
+      <SentryRoutes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Landing />} />
           <Route path="/projects" element={<CoreProjects />} />
@@ -103,12 +105,12 @@ function AppRoutes(): JSX.Element {
           <Route path="*" element={<NotFound />} />
         </Route>
         <Route path="/login" element={<Navigate to="/projects" replace />} />
-      </Routes>
+      </SentryRoutes>
     );
   }
 
   return (
-    <Routes>
+    <SentryRoutes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
@@ -141,17 +143,42 @@ function AppRoutes(): JSX.Element {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
-    </Routes>
+    </SentryRoutes>
+  );
+}
+
+function ErrorFallback({ error }: { error: unknown }): JSX.Element {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-8">
+      <div className="max-w-md w-full text-center space-y-4">
+        <h1 className="text-2xl font-semibold text-foreground">Something went wrong</h1>
+        <p className="text-muted-foreground">
+          An unexpected error occurred. Please try refreshing the page.
+        </p>
+        {message && (
+          <pre className="text-xs text-left bg-muted p-4 rounded-md overflow-auto max-h-40">
+            {message}
+          </pre>
+        )}
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Try again
+        </button>
+      </div>
+    </div>
   );
 }
 
 function App(): JSX.Element {
   return (
-    <ErrorBoundary>
+    <Sentry.ErrorBoundary fallback={({ error }) => <ErrorFallback error={error} />}>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
-    </ErrorBoundary>
+    </Sentry.ErrorBoundary>
   );
 }
 
