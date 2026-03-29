@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-03-29] - Observability
+
+### Added
+
+#### Backend
+- Structured logging with structlog (JSON in prod, console in dev)
+- Request ID middleware (X-Request-ID header, bound to all logs)
+- Health endpoints: `/health/live` (liveness), `/health/ready` (readiness)
+- Worker heartbeat via Redis key with 120s TTL
+- Sentry integration with `before_send` filter (401/403/404 excluded)
+- Prometheus HTTP metrics via `/metrics` endpoint
+- Worker metrics: `arq_jobs_total`, `arq_job_duration_seconds`
+
+#### Frontend
+- Sentry integration with React Router v6 browser tracing
+- `Sentry.ErrorBoundary` replaces manual ErrorBoundary
+- Source maps upload via `@sentry/vite-plugin` (conditional on SENTRY_AUTH_TOKEN)
+
+### Changed
+- All 44 backend modules migrated from stdlib logging to structlog
+- Log events follow `{entity}_{action}` naming convention
+- Security logger rewritten to use structlog
+
 ## [2026-01-19] - Code Simplification & Test Fixes
 
 ### Changed

@@ -1,6 +1,7 @@
 """ARQ worker configuration."""
 
 import os
+import time
 import uuid
 
 import structlog
@@ -10,6 +11,7 @@ from arq.cron import cron
 from app.config import get_settings
 from app.core.logging_config import configure_logging
 from app.database import async_session_maker
+from app.worker.metrics import arq_jobs_total, arq_job_duration_seconds
 
 settings = get_settings()
 
@@ -59,12 +61,19 @@ async def on_job_start(ctx: dict) -> None:
     job_id = ctx.get("job_id", str(uuid.uuid4()))
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(job_id=job_id)
+    ctx["_job_start_time"] = time.monotonic()
 
 
 async def on_job_end(ctx: dict) -> None:
     """Close DB session after each job."""
     if "db" in ctx:
         await ctx["db"].close()
+
+    start = ctx.pop("_job_start_time", None)
+    if start is not None:
+        arq_job_duration_seconds.observe(time.monotonic() - start)
+    arq_jobs_total.inc()
+
     structlog.contextvars.clear_contextvars()
 
 

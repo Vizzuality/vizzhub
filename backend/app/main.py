@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -41,6 +42,28 @@ from sqlalchemy import select
 settings = get_settings()
 
 configure_logging(log_format=settings.log_format, log_level=settings.log_level)
+
+
+def _sentry_before_send(
+    event: dict, hint: dict,
+) -> dict | None:
+    """Filter out expected HTTP errors from Sentry."""
+    if "exc_info" in hint:
+        exc = hint["exc_info"][1]
+        if hasattr(exc, "status_code") and exc.status_code in (401, 403, 404):
+            return None
+    return event
+
+
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.app_env,
+        release=settings.release or None,
+        traces_sample_rate=0.2,
+        before_send=_sentry_before_send,
+        send_default_pii=False,
+    )
 
 # Set env vars for structlog processors (service context)
 os.environ.setdefault("APP_ENV", settings.app_env)
@@ -225,3 +248,10 @@ app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
 
 
 app.include_router(health_router.router)
+
+# Prometheus HTTP metrics — auto-instruments all routes
+from prometheus_fastapi_instrumentator import Instrumentator  # noqa: E402
+
+Instrumentator(
+    excluded_handlers=["/health/live", "/health/ready", "/metrics"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
