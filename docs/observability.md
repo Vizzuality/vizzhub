@@ -120,7 +120,20 @@ Alloy runs as a Docker container (`hub-alloy`) on EC2. Config at `infrastructure
 - Collects Docker logs from `hub-backend` and `hub-worker` → push to Grafana Cloud Loki
 - Credentials in AWS Secrets Manager (`/hub/prod/grafana-cloud`), injected via `.env.alloy`
 
-## Pending
+## Alerting
 
-- Sentry alerts → Slack
-- Grafana alert rules (error rate, latency, queue depth)
+### Grafana Cloud Alert Rules
+
+Three alert rules configured in Grafana Cloud (folder "VizzHub"):
+
+| Rule | Condition | Severity |
+|------|-----------|----------|
+| **Backend Down** | No metrics scraped for 2+ min | Critical |
+| **High Error Rate** | 5xx rate exceeds threshold | Warning |
+| **High Latency P95** | P95 latency exceeds threshold | Warning |
+
+Contact point: Slack `#vizzhub` channel (bot token).
+
+### Sentry Alerts
+
+Sentry alerts route to Slack via Sentry's native Slack integration (configured in Sentry UI, not in code).
