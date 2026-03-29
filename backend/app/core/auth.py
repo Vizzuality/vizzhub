@@ -1,6 +1,6 @@
 """Authentication and authorization for the API."""
 
-import logging
+import structlog
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app.config import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 settings = get_settings()
 
 # Security constants
@@ -106,10 +106,7 @@ async def get_current_user(
 
     # Development mode: bypass authentication if no token found
     if settings.debug and token is None:
-        logger.warning(
-            "SECURITY: Development mode authentication bypass used. "
-            "No authentication token provided - using mock development user."
-        )
+        logger.warning("auth_bypass_dev_mode")
         return TokenData(
             user_id="00000000-0000-0000-0000-000000000001",
             roles=["user", "admin"],

@@ -38,7 +38,7 @@ Industry Benchmarks:
 """
 
 import asyncio
-import logging
+import structlog
 import statistics
 from datetime import date
 from typing import TYPE_CHECKING
@@ -53,7 +53,7 @@ from app.modules.scorecard.services.collectors.github.utils import (
 if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.github.client import GitHubClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def collect_review_turnaround(
@@ -152,5 +152,5 @@ async def _get_pr_turnaround_hours(
         return hours
 
     except Exception as e:
-        logger.warning("Failed to get review turnaround for PR #%s in %s/%s: %s", pr_number, owner, repo, e)
+        logger.warning("review_turnaround_fetch_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e))
         return None

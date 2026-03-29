@@ -1,6 +1,6 @@
 """Daily ECB exchange rate fetch — cron task."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.services.exchange_rate_service import fetch_and_store_rates
 from app.modules.notifications.models.slack import ScheduledJobRunDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 JOB_NAME = "fetch_exchange_rates"
 
@@ -37,10 +37,10 @@ async def fetch_exchange_rates(ctx: dict) -> dict[str, Any]:
         job_run.completed_at = datetime.now(timezone.utc)
         job_run.projects_checked = result.get("currencies_stored", 0)
         await db.commit()
-        logger.info("ECB rates fetched: %s", result)
+        logger.info("rates_fetched", **result)
         return {"status": "completed", "job_run_id": job_run.id, **result}
     except Exception as e:
-        logger.exception("ECB rate fetch failed")
+        logger.exception("job_failed")
         job_run.status = "error"
         job_run.completed_at = datetime.now(timezone.utc)
         job_run.error_message = str(e)

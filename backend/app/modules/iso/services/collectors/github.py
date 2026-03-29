@@ -1,6 +1,6 @@
 """GitHub collector for ISO access snapshots."""
 
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 BASE_URL = "https://api.github.com"
 COLLECTOR_VERSION = "2"
@@ -42,14 +42,14 @@ class GitHubCollector:
             response = await self._client.get(url, params=params if url == path else None)
 
             if optional and response.status_code == 403:
-                logger.warning("GitHub 403 on %s — skipping (insufficient permissions)", path)
+                logger.warning("github_access_denied", path=path)
                 return []
 
             response.raise_for_status()
 
             remaining = response.headers.get("X-RateLimit-Remaining")
             if remaining is not None:
-                logger.debug("GitHub rate limit remaining: %s", remaining)
+                logger.debug("github_rate_limit", remaining=remaining)
 
             data = response.json()
             if isinstance(data, list):

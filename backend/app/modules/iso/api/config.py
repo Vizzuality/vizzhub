@@ -1,6 +1,6 @@
 """ISO module configuration endpoints -- Google Workspace OAuth + GitHub + Jira."""
 
-import logging
+import structlog
 import re
 from typing import Annotated
 
@@ -20,7 +20,7 @@ from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -75,11 +75,11 @@ async def google_workspace_callback(
     # flows, auth may need to be removed and rely solely on the state param.
     session_state = request.session.get("oauth_state")
     if not session_state or session_state != state:
-        logger.warning("OAuth state mismatch in Google Workspace callback")
+        logger.warning("oauth_state_mismatch")
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     if not await OAuthStateManager.validate_state(state, db):
-        logger.warning("OAuth state expired or already used")
+        logger.warning("oauth_state_expired")
         raise HTTPException(status_code=400, detail="State expired or already used")
 
     domain = request.session.get("gw_domain", "")

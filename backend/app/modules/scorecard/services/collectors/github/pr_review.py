@@ -32,7 +32,7 @@ Edge Cases:
 """
 
 import asyncio
-import logging
+import structlog
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -45,7 +45,7 @@ from app.modules.scorecard.services.collectors.github.utils import (
 if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.github.client import GitHubClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def collect_pr_review(
@@ -127,6 +127,6 @@ async def _pr_has_review(
             return len(reviews) > 0
 
     except Exception as e:
-        logger.warning("Failed to check review for PR #%d in %s/%s: %s", pr_number, owner, repo, e)
+        logger.warning("pr_review_check_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e))
 
     return False

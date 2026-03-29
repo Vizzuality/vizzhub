@@ -1,11 +1,11 @@
 """Redis-backed score cache with graceful degradation."""
 
 import json
-import logging
+import structlog
 
 from redis.asyncio import Redis
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 CACHE_PREFIX = "scores:latest"
 CACHE_TTL = 3600  # 1 hour safety net
@@ -26,7 +26,7 @@ async def create_score_cache(
         await redis_client.ping()
         return redis_client, ScoreCacheService(redis_client)
     except Exception:
-        logger.warning("Redis unavailable — score cache disabled", exc_info=True)
+        logger.warning("redis_unavailable", exc_info=True)
         if redis_client:
             await redis_client.aclose()
         return None, None
@@ -51,7 +51,7 @@ class ScoreCacheService:
                 return None
             return json.loads(raw)
         except Exception:
-            logger.warning("score_cache.get failed for %s", project_id, exc_info=True)
+            logger.warning("score_cache_get_failed", project_id=project_id, exc_info=True)
             return None
 
     async def mget(
@@ -67,7 +67,7 @@ class ScoreCacheService:
                 result[pid] = json.loads(raw) if raw else None
             return result
         except Exception:
-            logger.warning("score_cache.mget failed", exc_info=True)
+            logger.warning("score_cache_mget_failed", exc_info=True)
             return dict.fromkeys(project_ids)
 
     async def set(
@@ -80,7 +80,7 @@ class ScoreCacheService:
                 ex=CACHE_TTL,
             )
         except Exception:
-            logger.warning("score_cache.set failed for %s", project_id, exc_info=True)
+            logger.warning("score_cache_set_failed", project_id=project_id, exc_info=True)
 
     async def invalidate(self, project_id: str) -> None:
         try:
@@ -90,9 +90,7 @@ class ScoreCacheService:
             ]
             await self._redis.delete(*keys)
         except Exception:
-            logger.warning(
-                "score_cache.invalidate failed for %s", project_id, exc_info=True
-            )
+            logger.warning("score_cache_invalidate_failed", project_id=project_id, exc_info=True)
 
     async def invalidate_all(self) -> None:
         try:
@@ -106,4 +104,4 @@ class ScoreCacheService:
                 if cursor == 0:
                     break
         except Exception:
-            logger.warning("score_cache.invalidate_all failed", exc_info=True)
+            logger.warning("score_cache_invalidate_all_failed", exc_info=True)

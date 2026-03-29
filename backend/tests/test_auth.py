@@ -91,7 +91,7 @@ async def test_development_mode_bypass_allows_access_without_token(
 @pytest.mark.asyncio
 async def test_health_endpoint_does_not_require_auth(client: AsyncClient) -> None:
     """Test that health check endpoint works without authentication."""
-    response = await client.get("/health")
+    response = await client.get("/health/live")
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
@@ -385,6 +385,8 @@ class TestPermissionAuthorization:
             with caplog.at_level(logging.WARNING):
                 user = await get_current_user(_make_request(), None)
 
-            assert any("SECURITY" in record.message for record in caplog.records)
-            assert any("Development mode" in record.message for record in caplog.records)
+            assert any(
+                "auth_bypass_dev_mode" in str(record.message)
+                for record in caplog.records
+            )
             assert user.user_id == "00000000-0000-0000-0000-000000000001"

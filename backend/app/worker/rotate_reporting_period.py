@@ -5,7 +5,7 @@ Finishes the currently active reporting period and creates + activates
 a new one for the current month.
 """
 
-import logging
+import structlog
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -26,7 +26,7 @@ from app.modules.tracker.services.period_service import (
 )
 from app.worker.utils import complete_with_error
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
@@ -57,7 +57,7 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
         if active:
             await finish_period(active.id, db)
             await db.commit()
-            logger.info("Finished reporting period: %s", active.date)
+            logger.info("period_finished", period_date=str(active.date))
 
         new_date = today.replace(day=1)
 
@@ -72,13 +72,13 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
             if existing_period.status != ReportingPeriodStatus.ACTIVE.value:
                 await activate_period(existing_period.id, db)
                 await db.commit()
-                logger.info("Activated existing period: %s", new_date)
+                logger.info("period_activated", period_date=str(new_date))
         else:
             data = ReportingPeriodCreate(date=today)
             new_period = await create_period(data, db)
             await activate_period(new_period.id, db)
             await db.commit()
-            logger.info("Created and activated new period: %s", new_date)
+            logger.info("period_created_and_activated", period_date=str(new_date))
 
         job_run.status = "completed"
         job_run.completed_at = datetime.now(timezone.utc)
@@ -91,5 +91,5 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.exception("Reporting period rotation failed")
+        logger.exception("job_failed")
         return await complete_with_error(db, job_run, str(e))
