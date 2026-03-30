@@ -97,6 +97,7 @@ class PublishService:
             files = await self._generate_site(db)
             await self._cleanup_orphans(set(files.keys()))
             await self._upload_site(files)
+            await self._invalidate_cache()
 
             log.status = STATUS_COMPLETED
             log.page_count = len([
@@ -459,3 +460,24 @@ class PublishService:
             logger.info("publish_orphans_cleaned", count=deleted)
 
         return deleted
+
+    async def _invalidate_cache(self) -> None:
+        """Create CloudFront invalidation for all playbook paths."""
+        settings = get_settings()
+        distribution_id = settings.playbook_cloudfront_distribution_id
+        if not distribution_id:
+            return
+
+        import boto3
+        cf = boto3.client("cloudfront")
+        caller_ref = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+
+        await asyncio.to_thread(
+            cf.create_invalidation,
+            DistributionId=distribution_id,
+            InvalidationBatch={
+                "Paths": {"Quantity": 1, "Items": ["/*"]},
+                "CallerReference": caller_ref,
+            },
+        )
+        logger.info("cloudfront_cache_invalidated", distribution_id=distribution_id)
