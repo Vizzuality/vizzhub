@@ -8,6 +8,7 @@ from sqlalchemy import select, desc
 
 from app.core.api.deps import AdminUser, DBSession
 from app.modules.playbook.models.publish_log import PlaybookPublishLogDB
+from app.modules.playbook.services.publish_service import STATUS_RUNNING
 from app.utils.redis import get_redis_pool
 
 router = APIRouter()
@@ -34,7 +35,7 @@ async def trigger_publish(
     """Trigger a playbook static-site publish."""
     result = await db.execute(
         select(PlaybookPublishLogDB).where(
-            PlaybookPublishLogDB.status == "running",
+            PlaybookPublishLogDB.status == STATUS_RUNNING,
         )
     )
     if result.scalar_one_or_none() is not None:
@@ -44,7 +45,7 @@ async def trigger_publish(
         )
 
     log = PlaybookPublishLogDB(
-        status="running",
+        status=STATUS_RUNNING,
         published_by_id=user.user_id,
     )
     db.add(log)
