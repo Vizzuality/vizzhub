@@ -26,8 +26,13 @@ logger = structlog.get_logger()
 TEMPLATES_DIR = Path(__file__).parent / "publish_templates"
 S3_PREFIX = "playbook/public/"
 
+INDEX_HTML = "index.html"
+NOT_FOUND_HTML = "404.html"
+HTML_EXT = ".html"
+INDEX_SUFFIX = "/index.html"
+
 CONTENT_TYPES = {
-    ".html": "text/html; charset=utf-8",
+    HTML_EXT: "text/html; charset=utf-8",
     ".css": "text/css",
     ".js": "application/javascript",
     ".json": "application/json",
@@ -47,6 +52,11 @@ def _get_s3_client():  # type: ignore[no-untyped-def]
 
 def _get_jinja_env() -> Environment:
     return Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=False)
+
+
+def _base_url(path: str) -> str:
+    depth = path.count("/")
+    return "../" * depth if depth > 0 else ""
 
 
 @dataclass
@@ -98,9 +108,9 @@ class PublishService:
             log.status = "completed"
             log.page_count = len([
                 k for k in files
-                if k.endswith(".html")
-                and k not in ("index.html", "404.html")
-                and "/index.html" not in k
+                if k.endswith(HTML_EXT)
+                and k not in (INDEX_HTML, NOT_FOUND_HTML)
+                and INDEX_SUFFIX not in k
             ])
             log.completed_at = datetime.now(timezone.utc)
             await db.flush()
@@ -168,6 +178,79 @@ class PublishService:
             for r in rows
         ]
 
+    def _has_public_descendant(
+        self,
+        node_id: str,
+        node_map: dict[str, PublicNode],
+        nodes: list[PublicNode],
+    ) -> bool:
+        n = node_map[node_id]
+        if n.type == "page" and n.is_public:
+            return True
+        children = [c for c in nodes if c.parent_id == node_id]
+        return any(self._has_public_descendant(c.id, node_map, nodes) for c in children)
+
+    def _build_path(self, node: PublicNode, node_map: dict[str, PublicNode]) -> str:
+        parts: list[str] = []
+        current: PublicNode | None = node
+        while current:
+            parts.append(current.slug)
+            current = node_map.get(current.parent_id) if current.parent_id else None
+        parts.reverse()
+        path = "/".join(parts)
+        if node.type == "page":
+            path += HTML_EXT
+        return path
+
+    def _build_breadcrumb(
+        self, node: PublicNode, node_map: dict[str, PublicNode],
+    ) -> list[dict]:
+        parts: list[dict] = []
+        current = node_map.get(node.parent_id) if node.parent_id else None
+        while current:
+            parts.append({
+                "title": current.title,
+                "url": self._build_path(current, node_map) + INDEX_SUFFIX,
+            })
+            current = node_map.get(current.parent_id) if current.parent_id else None
+        parts.reverse()
+        return parts
+
+    def _build_subtree(
+        self,
+        parent_id: str | None,
+        nodes: list[PublicNode],
+        included_ids: set[str],
+        node_map: dict[str, PublicNode],
+    ) -> list[NavNode]:
+        children = sorted(
+            [n for n in nodes if n.parent_id == parent_id and n.id in included_ids],
+            key=lambda n: n.position,
+        )
+        result: list[NavNode] = []
+        for n in children:
+            nav = NavNode(
+                id=n.id,
+                title=n.title,
+                slug=n.slug,
+                type=n.type,
+                is_public=n.is_public,
+                path=self._build_path(n, node_map),
+                breadcrumb=self._build_breadcrumb(n, node_map),
+            )
+            if n.type == "group":
+                nav.children = self._build_subtree(n.id, nodes, included_ids, node_map)
+            result.append(nav)
+        return result
+
+    def _collect_pages(self, nav_nodes: list[NavNode]) -> list[NavNode]:
+        pages: list[NavNode] = []
+        for n in nav_nodes:
+            if n.type == "page" and n.is_public:
+                pages.append(n)
+            pages.extend(self._collect_pages(n.children))
+        return pages
+
     def _build_nav_tree(self, nodes: list[PublicNode]) -> NavTree:
         """Build hierarchical navigation from flat node list.
 
@@ -181,72 +264,13 @@ class PublishService:
         - Breadcrumbs built from ancestor chain
         """
         node_map = {n.id: n for n in nodes}
+        included_ids = {
+            n.id for n in nodes
+            if self._has_public_descendant(n.id, node_map, nodes)
+        }
 
-        def has_public_descendant(node_id: str) -> bool:
-            n = node_map[node_id]
-            if n.type == "page" and n.is_public:
-                return True
-            children = [c for c in nodes if c.parent_id == node_id]
-            return any(has_public_descendant(c.id) for c in children)
-
-        included_ids = {n.id for n in nodes if has_public_descendant(n.id)}
-
-        def build_path(node: PublicNode) -> str:
-            parts: list[str] = []
-            current: PublicNode | None = node
-            while current:
-                parts.append(current.slug)
-                current = node_map.get(current.parent_id) if current.parent_id else None
-            parts.reverse()
-            path = "/".join(parts)
-            if node.type == "page":
-                path += ".html"
-            return path
-
-        def build_breadcrumb(node: PublicNode) -> list[dict]:
-            parts: list[dict] = []
-            current = node_map.get(node.parent_id) if node.parent_id else None
-            while current:
-                parts.append({
-                    "title": current.title,
-                    "url": build_path(current) + "/index.html",
-                })
-                current = node_map.get(current.parent_id) if current.parent_id else None
-            parts.reverse()
-            return parts
-
-        def build_subtree(parent_id: str | None) -> list[NavNode]:
-            children = sorted(
-                [n for n in nodes if n.parent_id == parent_id and n.id in included_ids],
-                key=lambda n: n.position,
-            )
-            result: list[NavNode] = []
-            for n in children:
-                nav = NavNode(
-                    id=n.id,
-                    title=n.title,
-                    slug=n.slug,
-                    type=n.type,
-                    is_public=n.is_public,
-                    path=build_path(n),
-                    breadcrumb=build_breadcrumb(n),
-                )
-                if n.type == "group":
-                    nav.children = build_subtree(n.id)
-                result.append(nav)
-            return result
-
-        roots = build_subtree(None)
-
-        all_pages: list[NavNode] = []
-
-        def collect_pages(nav_nodes: list[NavNode]) -> None:
-            for n in nav_nodes:
-                if n.type == "page" and n.is_public:
-                    all_pages.append(n)
-                collect_pages(n.children)
-
-        collect_pages(roots)
+        roots = self._build_subtree(None, nodes, included_ids, node_map)
+        all_pages = self._collect_pages(roots)
 
         for i, page in enumerate(all_pages):
             page.prev_page = all_pages[i - 1] if i > 0 else None
@@ -254,27 +278,15 @@ class PublishService:
 
         return NavTree(roots=roots, all_pages=all_pages)
 
-    async def _generate_site(self, db: AsyncSession) -> dict[str, bytes]:
-        """Render all public pages into a static site file map (key -> bytes)."""
-        nodes = await self._query_public_tree(db)
-        nav = self._build_nav_tree(nodes)
-
-        if not nav.all_pages:
-            raise ValueError("No public pages to publish")
-
-        node_map = {n.id: n for n in nodes}
-        env = _get_jinja_env()
+    def _render_pages(
+        self,
+        nav: NavTree,
+        node_map: dict[str, PublicNode],
+        env: Environment,
+        year: int,
+    ) -> dict[str, bytes]:
         page_tpl = env.get_template("page.html")
-        group_tpl = env.get_template("group.html")
-        index_tpl = env.get_template("index.html")
-        not_found_tpl = env.get_template("404.html")
-
-        year = datetime.now(timezone.utc).year
         files: dict[str, bytes] = {}
-
-        def _base_url(path: str) -> str:
-            depth = path.count("/")
-            return "../" * depth if depth > 0 else ""
 
         for page_nav in nav.all_pages:
             source_node = node_map.get(page_nav.id)
@@ -294,12 +306,23 @@ class PublishService:
             )
             files[page_nav.path] = html.encode()
 
-        def _render_group_indexes(nav_nodes: list[NavNode], parent_path: str) -> None:
+        return files
+
+    def _render_group_indexes(
+        self,
+        nav: NavTree,
+        env: Environment,
+        year: int,
+    ) -> dict[str, bytes]:
+        group_tpl = env.get_template("group.html")
+        files: dict[str, bytes] = {}
+
+        def _recurse(nav_nodes: list[NavNode], parent_path: str) -> None:
             for node in nav_nodes:
                 if node.type != "group":
                     continue
                 group_path = f"{parent_path}/{node.slug}" if parent_path else node.slug
-                index_path = f"{group_path}/index.html"
+                index_path = f"{group_path}{INDEX_SUFFIX}"
 
                 children_links = []
                 for child in node.children:
@@ -308,7 +331,7 @@ class PublishService:
                     elif child.type == "group":
                         children_links.append({
                             "title": child.title,
-                            "url": child.path + "/index.html",
+                            "url": child.path + INDEX_SUFFIX,
                         })
 
                 first_child_page = None
@@ -330,33 +353,57 @@ class PublishService:
                 )
                 files[index_path] = html.encode()
 
-                _render_group_indexes(node.children, group_path)
+                _recurse(node.children, group_path)
 
-        _render_group_indexes(nav.roots, "")
+        _recurse(nav.roots, "")
+        return files
+
+    def _render_static_files(self) -> dict[str, bytes]:
+        return {
+            "assets/style.css": (TEMPLATES_DIR / "style.css").read_bytes(),
+            "assets/navigation.js": (TEMPLATES_DIR / "navigation.js").read_bytes(),
+        }
+
+    def _build_manifest(self, files: dict[str, bytes], page_count: int) -> bytes:
+        manifest = {
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            "page_count": page_count,
+            "files": sorted(files.keys()),
+        }
+        return json.dumps(manifest, indent=2).encode()
+
+    async def _generate_site(self, db: AsyncSession) -> dict[str, bytes]:
+        """Render all public pages into a static site file map (key -> bytes)."""
+        nodes = await self._query_public_tree(db)
+        nav = self._build_nav_tree(nodes)
+
+        if not nav.all_pages:
+            raise ValueError("No public pages to publish")
+
+        node_map = {n.id: n for n in nodes}
+        env = _get_jinja_env()
+        year = datetime.now(timezone.utc).year
+
+        files: dict[str, bytes] = {}
+        files.update(self._render_pages(nav, node_map, env, year))
+        files.update(self._render_group_indexes(nav, env, year))
+
+        index_tpl = env.get_template(INDEX_HTML)
+        not_found_tpl = env.get_template(NOT_FOUND_HTML)
 
         first_page = nav.all_pages[0]
-        files["index.html"] = index_tpl.render(
+        files[INDEX_HTML] = index_tpl.render(
             first_page_url=first_page.path,
             first_page_title=first_page.title,
         ).encode()
 
-        files["404.html"] = not_found_tpl.render(
+        files[NOT_FOUND_HTML] = not_found_tpl.render(
             base_url="",
             year=year,
         ).encode()
 
-        style_path = TEMPLATES_DIR / "style.css"
-        files["assets/style.css"] = style_path.read_bytes()
-
-        js_path = TEMPLATES_DIR / "navigation.js"
-        files["assets/navigation.js"] = js_path.read_bytes()
-
-        manifest = {
-            "published_at": datetime.now(timezone.utc).isoformat(),
-            "page_count": len(nav.all_pages),
-            "files": sorted(files.keys()),
-        }
-        files["manifest.json"] = json.dumps(manifest, indent=2).encode()
+        files.update(self._render_static_files())
+        files["manifest.json"] = self._build_manifest(files, len(nav.all_pages))
 
         return files
 
