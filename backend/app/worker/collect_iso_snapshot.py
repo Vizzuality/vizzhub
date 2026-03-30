@@ -6,17 +6,14 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.integration_token_service import IntegrationTokenService
-from app.modules.iso.services.collectors.google_workspace import (
-    GoogleWorkspaceCollector,
-)
-from app.modules.iso.services.collectors.github import (
-    GitHubCollector,
-)
-from app.modules.iso.services.collectors.jira import JiraCollector
 from app.core.services.oauth_service import OAuthService
-from app.modules.iso.services.google_workspace_oauth import GoogleWorkspaceOAuth
-from app.modules.notifications.models.slack import ScheduledJobRunDB
-from app.modules.notifications.services.slack_service import SlackService
+from app.modules.iso.public import (
+    GitHubCollector,
+    GoogleWorkspaceCollector,
+    GoogleWorkspaceOAuth,
+    JiraCollector,
+)
+from app.modules.notifications.public import ScheduledJobRunDB, SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
 
