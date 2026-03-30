@@ -1,15 +1,14 @@
-export interface PlaybookNode {
-  id: string;
-  title: string;
-  slug: string;
-  type: 'page' | 'group';
-  parent_id: string | null;
-  position: number;
+import type {
+  DocNode,
+  ReorderItem,
+  VersionListItem,
+  VersionDetail,
+} from '@/shared/types/doc';
+
+export type { ReorderItem, VersionListItem, VersionDetail };
+
+export interface PlaybookNode extends DocNode {
   is_public: boolean;
-  created_by_id: string | null;
-  updated_by_id: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface TreeNode extends PlaybookNode {
@@ -47,29 +46,6 @@ export interface NodeUpdateRequest {
   title?: string;
   is_public?: boolean;
   parent_id?: string | null;
-}
-
-export interface ReorderItem {
-  id: string;
-  parent_id: string | null;
-  position: number;
-}
-
-export interface VersionListItem {
-  version: number;
-  created_by_id: string | null;
-  created_by_name: string | null;
-  created_at: string;
-  lines_added: number;
-  lines_removed: number;
-}
-
-export interface VersionDetail {
-  node_id: string;
-  content: string;
-  version: number;
-  created_by_id: string | null;
-  created_at: string;
 }
 
 export interface AssetStatus {

@@ -17,6 +17,8 @@ export const Action = {
 
   PLAYBOOK_EDIT: 'playbook:edit',
 
+  ISO_DOCS_EDIT: 'iso_docs:edit',
+
   ADMIN_USERS: 'admin:users',
   ADMIN_JOBS: 'admin:jobs',
   ADMIN_INTEGRATIONS: 'admin:integrations',

@@ -26,6 +26,7 @@ from app.modules.scorecard.router import router as scorecard_router
 from app.modules.capacity.router import router as capacity_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.playbook.router import router as playbook_router
+from app.modules.iso_docs.router import router as iso_docs_router
 from app.modules.tracker.router import router as tracker_router
 from app.core.api.deps import limiter
 from app.config import get_settings, load_scoring_config_from_db
@@ -244,6 +245,7 @@ app.include_router(tracker_router, prefix="/api/tracker", tags=["tracker"])
 app.include_router(capacity_router, prefix="/api/capacity", tags=["capacity"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
+app.include_router(iso_docs_router, prefix="/api/iso-docs", tags=["iso-docs"])
 
 
 app.include_router(health_router.router)

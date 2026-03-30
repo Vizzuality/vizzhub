@@ -21,6 +21,9 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
     "playbook_editor": {
         Action.PLAYBOOK_EDIT,
     },
+    "iso_docs_editor": {
+        Action.ISO_DOCS_EDIT,
+    },
     "admin": {
         Action.ALL,
     },
