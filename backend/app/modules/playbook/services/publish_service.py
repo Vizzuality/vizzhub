@@ -270,8 +270,8 @@ class PublishService:
         return NavTree(roots=roots, all_pages=all_pages, node_map=node_map)
 
     @staticmethod
-    def _rewrite_image_urls(html: str, s3_image_prefix: str) -> str:
-        """Replace S3 image URLs with CloudFront-relative /images/ paths."""
+    def _rewrite_image_urls_relative(html: str, s3_image_prefix: str) -> str:
+        """Replace S3 image URLs with site-relative /images/ paths."""
         if not s3_image_prefix:
             return html
         return html.replace(s3_image_prefix, "/images/")
@@ -292,7 +292,7 @@ class PublishService:
             source_node = node_map.get(page_nav.id)
             raw_content = source_node.content if source_node else None
             content_html = render_markdown(raw_content, strip_leading_h1=True)
-            content_html = self._rewrite_image_urls(content_html, s3_image_prefix)
+            content_html = self._rewrite_image_urls_relative(content_html, s3_image_prefix)
 
             html = page_tpl.render(
                 title=page_nav.title,
