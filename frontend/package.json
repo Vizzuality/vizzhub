@@ -54,7 +54,9 @@
   "overrides": {
     "minimatch": "^10.2.4",
     "rollup": "^4.59.0",
-    "flatted": ">=3.4.0"
+    "flatted": ">=3.4.0",
+    "path-to-regexp": "^8.4.0",
+    "picomatch": "^4.0.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
