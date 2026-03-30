@@ -143,6 +143,22 @@ resource "aws_iam_role_policy" "ec2_s3_assets" {
   })
 }
 
+resource "aws_iam_role_policy" "ec2_cloudfront" {
+  name = "${var.project_name}-ec2-cloudfront"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "cloudfront:CreateInvalidation"
+        Resource = aws_cloudfront_distribution.playbook.arn
+      }
+    ]
+  })
+}
+
 # Instance Profile
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.project_name}-ec2-profile"
