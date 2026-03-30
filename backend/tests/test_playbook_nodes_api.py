@@ -111,7 +111,7 @@ async def test_update_node_title(client: AsyncClient):
     )
     assert response.status_code == 200
     assert response.json()["title"] == "New Title"
-    assert response.json()["slug"] == "old-title"
+    assert response.json()["slug"] == "new-title"
 
 
 @pytest.mark.asyncio
