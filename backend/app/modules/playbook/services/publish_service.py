@@ -279,7 +279,7 @@ class PublishService:
         for page_nav in nav.all_pages:
             source_node = node_map.get(page_nav.id)
             raw_content = source_node.content if source_node else None
-            content_html = render_markdown(raw_content)
+            content_html = render_markdown(raw_content, strip_leading_h1=True)
 
             html = page_tpl.render(
                 title=page_nav.title,
