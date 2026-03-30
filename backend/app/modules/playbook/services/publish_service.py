@@ -10,7 +10,7 @@ from pathlib import Path
 from uuid import UUID
 
 import structlog
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, Template
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -318,47 +318,61 @@ class PublishService:
     ) -> dict[str, bytes]:
         group_tpl = env.get_template("group.html")
         files: dict[str, bytes] = {}
-
-        def _recurse(nav_nodes: list[NavNode], parent_path: str) -> None:
-            for node in nav_nodes:
-                if node.type != "group":
-                    continue
-                group_path = f"{parent_path}/{node.slug}" if parent_path else node.slug
-                index_path = f"{group_path}{INDEX_SUFFIX}"
-
-                children_links = []
-                for child in node.children:
-                    if child.type == "page" and child.is_public:
-                        children_links.append({"title": child.title, "url": child.path})
-                    elif child.type == "group":
-                        children_links.append({
-                            "title": child.title,
-                            "url": child.path + INDEX_SUFFIX,
-                        })
-
-                first_child_page = None
-                for child in node.children:
-                    if child.type == "page" and child.is_public:
-                        first_child_page = child
-                        break
-
-                html = group_tpl.render(
-                    title=node.title,
-                    children=children_links,
-                    nav_tree=nav.roots,
-                    current_path=node.path,
-                    base_url=_base_url(index_path),
-                    breadcrumb=node.breadcrumb,
-                    prev_page=first_child_page.prev_page if first_child_page else None,
-                    next_page=first_child_page,
-                    year=year,
-                )
-                files[index_path] = html.encode()
-
-                _recurse(node.children, group_path)
-
-        _recurse(nav.roots, "")
+        self._collect_group_indexes(nav.roots, "", group_tpl, nav, year, files)
         return files
+
+    def _collect_group_indexes(
+        self,
+        nav_nodes: list[NavNode],
+        parent_path: str,
+        group_tpl: Template,
+        nav: NavTree,
+        year: int,
+        files: dict[str, bytes],
+    ) -> None:
+        for node in nav_nodes:
+            if node.type != "group":
+                continue
+            group_path = f"{parent_path}/{node.slug}" if parent_path else node.slug
+            index_path = f"{group_path}{INDEX_SUFFIX}"
+            first_child_page = self._first_public_child(node.children)
+
+            html = group_tpl.render(
+                title=node.title,
+                children=self._build_children_links(node.children),
+                nav_tree=nav.roots,
+                current_path=node.path,
+                base_url=_base_url(index_path),
+                breadcrumb=node.breadcrumb,
+                prev_page=first_child_page.prev_page if first_child_page else None,
+                next_page=first_child_page,
+                year=year,
+            )
+            files[index_path] = html.encode()
+
+            self._collect_group_indexes(
+                node.children, group_path, group_tpl, nav, year, files,
+            )
+
+    @staticmethod
+    def _build_children_links(children: list[NavNode]) -> list[dict]:
+        links: list[dict] = []
+        for child in children:
+            if child.type == "page" and child.is_public:
+                links.append({"title": child.title, "url": child.path})
+            elif child.type == "group":
+                links.append({
+                    "title": child.title,
+                    "url": child.path + INDEX_SUFFIX,
+                })
+        return links
+
+    @staticmethod
+    def _first_public_child(children: list[NavNode]) -> NavNode | None:
+        for child in children:
+            if child.type == "page" and child.is_public:
+                return child
+        return None
 
     def _render_static_files(self) -> dict[str, bytes]:
         return {

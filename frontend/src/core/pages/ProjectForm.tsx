@@ -191,6 +191,45 @@ function getApiErrorMessage(error: unknown): string {
   return 'An unexpected error occurred. Please try again.';
 }
 
+function HeaderActions({
+  currentStatus,
+  isPending,
+  onMarkFinished,
+  onReopen,
+}: {
+  currentStatus: string;
+  isPending: boolean;
+  onMarkFinished: () => void;
+  onReopen: () => void;
+}): JSX.Element | null {
+  if (currentStatus === 'finished') {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onReopen}
+        disabled={isPending}
+        className="border border-input"
+      >
+        <RotateCcw className="w-4 h-4 mr-2 text-score-green" />
+        {isPending ? 'Updating...' : 'Reopen Project'}
+      </Button>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={onMarkFinished}
+      disabled={isPending}
+      className="border border-input"
+    >
+      <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
+      {isPending ? 'Updating...' : 'Mark as Finished'}
+    </Button>
+  );
+}
+
 export default function ProjectForm(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -553,30 +592,12 @@ export default function ProjectForm(): JSX.Element {
         </div>
         {isEditMode && (
           <div className="flex gap-2">
-            {currentStatus !== 'finished' && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleMarkFinished}
-                disabled={statusMutation.isPending}
-                className="border border-input"
-              >
-                <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
-                {statusMutation.isPending ? 'Updating...' : 'Mark as Finished'}
-              </Button>
-            )}
-            {currentStatus === 'finished' && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleReopen}
-                disabled={statusMutation.isPending}
-                className="border border-input"
-              >
-                <RotateCcw className="w-4 h-4 mr-2 text-score-green" />
-                {statusMutation.isPending ? 'Updating...' : 'Reopen Project'}
-              </Button>
-            )}
+            <HeaderActions
+              currentStatus={currentStatus}
+              isPending={statusMutation.isPending}
+              onMarkFinished={handleMarkFinished}
+              onReopen={handleReopen}
+            />
           </div>
         )}
       </div>
