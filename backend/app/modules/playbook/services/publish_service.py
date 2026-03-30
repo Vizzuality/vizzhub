@@ -106,7 +106,7 @@ class PublishService:
                 and INDEX_SUFFIX not in k
             ])
             log.completed_at = datetime.now(timezone.utc)
-            await db.flush()
+            await db.commit()
             logger.info(
                 "publish_completed",
                 publish_log_id=publish_log_id,
@@ -117,7 +117,7 @@ class PublishService:
             log.status = STATUS_FAILED
             log.error_message = str(e)
             log.completed_at = datetime.now(timezone.utc)
-            await db.flush()
+            await db.commit()
             logger.error("publish_failed", publish_log_id=publish_log_id, error=str(e))
 
     async def _query_public_tree(self, db: AsyncSession) -> list[PublicNode]:
