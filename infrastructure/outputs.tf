@@ -84,6 +84,28 @@ output "assets_bucket_url" {
   value       = "https://${aws_s3_bucket.assets.bucket}.s3.${var.aws_region}.amazonaws.com"
 }
 
+# CloudFront (Playbook)
+output "playbook_cloudfront_domain" {
+  description = "CloudFront domain for playbook (add CNAME: playbook.vizzuality.com → this value)"
+  value       = aws_cloudfront_distribution.playbook.domain_name
+}
+
+output "playbook_cloudfront_distribution_id" {
+  description = "CloudFront distribution ID (for cache invalidation)"
+  value       = aws_cloudfront_distribution.playbook.id
+}
+
+output "playbook_acm_validation_record" {
+  description = "ACM certificate validation CNAME for playbook.vizzuality.com (add to DNS)"
+  value = {
+    for dvo in aws_acm_certificate.playbook.domain_validation_options : dvo.domain_name => {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  }
+}
+
 # Commands
 output "ssm_connect_command" {
   description = "Command to connect to EC2 via SSM"
@@ -108,15 +130,15 @@ output "dns_setup_instructions" {
   value       = <<-EOT
     DNS Configuration Steps:
 
-    1. Add ACM validation CNAME (see acm_validation_record output):
-       Name:  <from acm_validation_record>
-       Value: <from acm_validation_record>
+    1. Add ACM validation CNAMEs (see acm_validation_record + playbook_acm_validation_record):
+       - hub.vizzuality.com validation CNAME
+       - playbook.vizzuality.com validation CNAME
 
     2. Wait ~5 minutes for certificate validation
 
-    3. Add application CNAME:
-       Name:  hub.vizzuality.com
-       Value: ${aws_lb.main.dns_name}
+    3. Add application CNAMEs:
+       Name:  hub.vizzuality.com      → ${aws_lb.main.dns_name}
+       Name:  playbook.vizzuality.com → ${aws_cloudfront_distribution.playbook.domain_name}
 
     4. Run 'tofu apply' again after DNS is configured
   EOT

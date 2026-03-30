@@ -10,14 +10,14 @@ resource "aws_s3_bucket" "assets" {
   }
 }
 
-# Block all public access at the bucket level — we use a bucket policy instead
+# Block all public access — playbook content served via CloudFront OAC
 resource "aws_s3_bucket_public_access_block" "assets" {
   bucket = aws_s3_bucket.assets.id
 
   block_public_acls       = true
   ignore_public_acls      = true
-  block_public_policy     = false # allow bucket policy to grant public read
-  restrict_public_buckets = false # allow bucket policy to grant public read
+  block_public_policy     = false # bucket policy grants CloudFront access (not public)
+  restrict_public_buckets = false # bucket policy grants CloudFront access (not public)
 }
 
 resource "aws_s3_bucket_versioning" "assets" {
@@ -144,11 +144,11 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
   }
 }
 
-# Bucket policy: HTTPS-only + public read for playbook assets
+# Bucket policy: HTTPS-only + CloudFront access for playbook assets
 #
-# Public read on playbook/* is intentional — these are wiki images and
-# static HTML pages meant to be accessible without authentication.
-resource "aws_s3_bucket_policy" "assets_public_read" {
+# Playbook content (images + static HTML) is private in S3 and served
+# exclusively through CloudFront via Origin Access Control.
+resource "aws_s3_bucket_policy" "assets_cloudfront" {
   bucket = aws_s3_bucket.assets.id
 
   depends_on = [aws_s3_bucket_public_access_block.assets]
@@ -172,14 +172,18 @@ resource "aws_s3_bucket_policy" "assets_public_read" {
         }
       },
       {
-        Sid       = "PublicReadPlaybookAssets"
-        Effect    = "Allow"
-        Principal = "*" # intentional: playbook images and static pages are public
-        Action    = "s3:GetObject"
-        Resource = [
-          "${aws_s3_bucket.assets.arn}/playbook/images/*",
-          "${aws_s3_bucket.assets.arn}/playbook/public/*",
-        ]
+        Sid    = "AllowCloudFrontRead"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.assets.arn}/playbook/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.playbook.arn
+          }
+        }
       }
     ]
   })

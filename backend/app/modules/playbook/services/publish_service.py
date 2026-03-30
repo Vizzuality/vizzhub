@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
-from app.modules.playbook.services.asset_service import _get_s3_client
+from app.modules.playbook.services.asset_service import S3_PREFIX as IMAGES_S3_PREFIX, _get_s3_client
 from app.modules.playbook.services.publish_renderer import render_markdown
 
 logger = structlog.get_logger()
@@ -269,6 +269,13 @@ class PublishService:
 
         return NavTree(roots=roots, all_pages=all_pages, node_map=node_map)
 
+    @staticmethod
+    def _rewrite_image_urls(html: str, s3_image_prefix: str) -> str:
+        """Replace S3 image URLs with CloudFront-relative /images/ paths."""
+        if not s3_image_prefix:
+            return html
+        return html.replace(s3_image_prefix, "/images/")
+
     def _render_pages(
         self,
         nav: NavTree,
@@ -278,11 +285,14 @@ class PublishService:
     ) -> dict[str, bytes]:
         page_tpl = env.get_template("page.html")
         files: dict[str, bytes] = {}
+        bucket_url = get_settings().assets_bucket_url
+        s3_image_prefix = f"{bucket_url}/{IMAGES_S3_PREFIX}" if bucket_url else ""
 
         for page_nav in nav.all_pages:
             source_node = node_map.get(page_nav.id)
             raw_content = source_node.content if source_node else None
             content_html = render_markdown(raw_content, strip_leading_h1=True)
+            content_html = self._rewrite_image_urls(content_html, s3_image_prefix)
 
             html = page_tpl.render(
                 title=page_nav.title,
