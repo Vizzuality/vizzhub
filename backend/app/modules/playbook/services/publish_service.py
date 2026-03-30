@@ -6,11 +6,9 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from functools import lru_cache
 from pathlib import Path
 from uuid import UUID
 
-import boto3
 import structlog
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select, func
@@ -19,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
+from app.modules.playbook.services.asset_service import _get_s3_client
 from app.modules.playbook.services.publish_renderer import render_markdown
 
 logger = structlog.get_logger()
@@ -31,23 +30,16 @@ NOT_FOUND_HTML = "404.html"
 HTML_EXT = ".html"
 INDEX_SUFFIX = "/index.html"
 
+STATUS_RUNNING = "running"
+STATUS_COMPLETED = "completed"
+STATUS_FAILED = "failed"
+
 CONTENT_TYPES = {
     HTML_EXT: "text/html; charset=utf-8",
     ".css": "text/css",
     ".js": "application/javascript",
     ".json": "application/json",
 }
-
-
-@lru_cache
-def _get_s3_client():  # type: ignore[no-untyped-def]
-    settings = get_settings()
-    region = (
-        settings.assets_bucket_url.split(".s3.")[1].split(".")[0]
-        if ".s3." in settings.assets_bucket_url
-        else "eu-west-3"
-    )
-    return boto3.Session(region_name=region).client("s3")
 
 
 def _get_jinja_env() -> Environment:
@@ -90,6 +82,7 @@ class NavNode:
 class NavTree:
     roots: list[NavNode]
     all_pages: list[NavNode]
+    node_map: dict[str, PublicNode] = field(default_factory=dict)
 
 
 class PublishService:
@@ -105,7 +98,7 @@ class PublishService:
             await self._cleanup_orphans(set(files.keys()))
             await self._upload_site(files)
 
-            log.status = "completed"
+            log.status = STATUS_COMPLETED
             log.page_count = len([
                 k for k in files
                 if k.endswith(HTML_EXT)
@@ -121,7 +114,7 @@ class PublishService:
             )
 
         except Exception as e:
-            log.status = "failed"
+            log.status = STATUS_FAILED
             log.error_message = str(e)
             log.completed_at = datetime.now(timezone.utc)
             await db.flush()
@@ -182,13 +175,15 @@ class PublishService:
         self,
         node_id: str,
         node_map: dict[str, PublicNode],
-        nodes: list[PublicNode],
+        children_by_parent: dict[str | None, list[PublicNode]],
     ) -> bool:
         n = node_map[node_id]
         if n.type == "page" and n.is_public:
             return True
-        children = [c for c in nodes if c.parent_id == node_id]
-        return any(self._has_public_descendant(c.id, node_map, nodes) for c in children)
+        return any(
+            self._has_public_descendant(c.id, node_map, children_by_parent)
+            for c in children_by_parent.get(node_id, [])
+        )
 
     def _build_path(self, node: PublicNode, node_map: dict[str, PublicNode]) -> str:
         parts: list[str] = []
@@ -219,12 +214,12 @@ class PublishService:
     def _build_subtree(
         self,
         parent_id: str | None,
-        nodes: list[PublicNode],
         included_ids: set[str],
         node_map: dict[str, PublicNode],
+        children_by_parent: dict[str | None, list[PublicNode]],
     ) -> list[NavNode]:
         children = sorted(
-            [n for n in nodes if n.parent_id == parent_id and n.id in included_ids],
+            [n for n in children_by_parent.get(parent_id, []) if n.id in included_ids],
             key=lambda n: n.position,
         )
         result: list[NavNode] = []
@@ -239,7 +234,9 @@ class PublishService:
                 breadcrumb=self._build_breadcrumb(n, node_map),
             )
             if n.type == "group":
-                nav.children = self._build_subtree(n.id, nodes, included_ids, node_map)
+                nav.children = self._build_subtree(
+                    n.id, included_ids, node_map, children_by_parent,
+                )
             result.append(nav)
         return result
 
@@ -252,31 +249,25 @@ class PublishService:
         return pages
 
     def _build_nav_tree(self, nodes: list[PublicNode]) -> NavTree:
-        """Build hierarchical navigation from flat node list.
-
-        Rules:
-        - Public pages are included
-        - Non-public groups are included IF they have public descendants
-        - Groups without public descendants are excluded
-        - Private pages are excluded
-        - Prev/next links connect all public pages in tree order
-        - Paths built from slug hierarchy (e.g., "culture/values.html")
-        - Breadcrumbs built from ancestor chain
-        """
+        """Build hierarchical navigation from flat node list."""
         node_map = {n.id: n for n in nodes}
+        children_by_parent: dict[str | None, list[PublicNode]] = {}
+        for n in nodes:
+            children_by_parent.setdefault(n.parent_id, []).append(n)
+
         included_ids = {
             n.id for n in nodes
-            if self._has_public_descendant(n.id, node_map, nodes)
+            if self._has_public_descendant(n.id, node_map, children_by_parent)
         }
 
-        roots = self._build_subtree(None, nodes, included_ids, node_map)
+        roots = self._build_subtree(None, included_ids, node_map, children_by_parent)
         all_pages = self._collect_pages(roots)
 
         for i, page in enumerate(all_pages):
             page.prev_page = all_pages[i - 1] if i > 0 else None
             page.next_page = all_pages[i + 1] if i < len(all_pages) - 1 else None
 
-        return NavTree(roots=roots, all_pages=all_pages)
+        return NavTree(roots=roots, all_pages=all_pages, node_map=node_map)
 
     def _render_pages(
         self,
@@ -380,12 +371,11 @@ class PublishService:
         if not nav.all_pages:
             raise ValueError("No public pages to publish")
 
-        node_map = {n.id: n for n in nodes}
         env = _get_jinja_env()
         year = datetime.now(timezone.utc).year
 
         files: dict[str, bytes] = {}
-        files.update(self._render_pages(nav, node_map, env, year))
+        files.update(self._render_pages(nav, nav.node_map, env, year))
         files.update(self._render_group_indexes(nav, env, year))
 
         index_tpl = env.get_template(INDEX_HTML)
