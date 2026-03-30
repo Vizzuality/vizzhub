@@ -391,10 +391,15 @@ class PublishService:
         index_tpl = env.get_template(INDEX_HTML)
         not_found_tpl = env.get_template(NOT_FOUND_HTML)
 
-        first_page = nav.all_pages[0]
         files[INDEX_HTML] = index_tpl.render(
-            first_page_url=first_page.path,
-            first_page_title=first_page.title,
+            title="Vizzuality Playbook",
+            nav_tree=nav.roots,
+            current_path="",
+            base_url="",
+            breadcrumb=[],
+            prev_page=None,
+            next_page=None,
+            year=year,
         ).encode()
 
         files[NOT_FOUND_HTML] = not_found_tpl.render(

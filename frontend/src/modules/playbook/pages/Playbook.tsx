@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock, History, File, Folder, ArrowLeft } from 'lucide-react';
+import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock, History, File, Folder, ArrowLeft, Pencil } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
@@ -20,6 +20,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
+import { Input } from '@/shared/components/ui/input';
 import { PlaybookTree } from '../components/PlaybookTree';
 import { PageViewer } from '../components/PageViewer';
 import { PageEditor } from '../components/PageEditor';
@@ -183,6 +191,8 @@ export default function Playbook(): JSX.Element {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -288,6 +298,25 @@ export default function Playbook(): JSX.Element {
     });
   }, [selectedId, page, updateNode]);
 
+  const handleRenameOpen = useCallback(() => {
+    if (selectedNode) {
+      setRenameValue(selectedNode.title);
+      setRenameOpen(true);
+    }
+  }, [selectedNode]);
+
+  const handleRename = useCallback(() => {
+    const trimmed = renameValue.trim();
+    if (!selectedId || !trimmed || trimmed === selectedNode?.title) {
+      setRenameOpen(false);
+      return;
+    }
+    updateNode.mutate(
+      { id: selectedId, data: { title: trimmed } },
+      { onSuccess: () => setRenameOpen(false) },
+    );
+  }, [selectedId, selectedNode, renameValue, updateNode]);
+
   const handleRestore = useCallback(
     (content: string) => {
       if (!page || !selectedId) return;
@@ -365,6 +394,29 @@ export default function Playbook(): JSX.Element {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleRename}
+              disabled={!renameValue.trim() || updateNode.isPending}
+            >
+              {updateNode.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -424,6 +476,10 @@ export default function Playbook(): JSX.Element {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleRenameOpen}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Rename
+                  </DropdownMenuItem>
                   {isPage && (
                     <DropdownMenuItem onClick={handleTogglePublic}>
                       {page?.is_public ? (

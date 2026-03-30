@@ -14,6 +14,7 @@ from app.modules.playbook.api.deps import PlaybookEditor
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
 from app.modules.playbook.services.asset_service import rewrite_image_urls
+from app.modules.playbook.services.tree_service import ensure_unique_slug, generate_slug
 from app.modules.playbook.schemas.page import (
     PageContentResponse,
     PageSave,
@@ -79,7 +80,7 @@ async def get_page(
 async def save_page(
     node_id: UUID, data: PageSave, db: DBSession, user: PlaybookEditor
 ) -> PageSaveResponse:
-    await _get_page_node(db, node_id)
+    node = await _get_page_node(db, node_id)
 
     user_id = UUID(user.user_id)
     new_version, conflict = await _versions.save_version(
@@ -90,11 +91,30 @@ async def save_page(
         expected_version=data.expected_version,
     )
 
+    h1_title = _extract_h1(data.content)
+    if h1_title and h1_title != node.title:
+        node.title = h1_title
+        node.slug = await ensure_unique_slug(
+            db, generate_slug(h1_title), node.parent_id, exclude_id=node_id,
+        )
+        node.updated_by_id = user_id
+        await db.flush()
+
     return PageSaveResponse(
         node_id=node_id,
         version=new_version,
         conflict=conflict,
     )
+
+
+def _extract_h1(content: str) -> str | None:
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+        if stripped and not stripped.startswith("#"):
+            break
+    return None
 
 
 def _compute_line_diff(old: str, new: str) -> tuple[int, int]:

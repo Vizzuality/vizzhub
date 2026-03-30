@@ -125,6 +125,11 @@ async def update_node(
                 detail="Maximum tree depth exceeded (10 levels)",
             )
 
+    if "title" in update and update["title"] != node.title:
+        new_slug = generate_slug(update["title"])
+        parent_for_slug = update.get("parent_id", node.parent_id)
+        update["slug"] = await ensure_unique_slug(db, new_slug, parent_for_slug, exclude_id=node_id)
+
     for field, value in update.items():
         setattr(node, field, value)
     node.updated_by_id = UUID(user.user_id)
