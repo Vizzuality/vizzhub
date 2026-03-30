@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     # S3 assets
     assets_bucket_name: str = ""
     assets_bucket_url: str = ""
+    playbook_public_url: str = ""
 
     # Redis (for async job queue)
     redis_host: str = ""
