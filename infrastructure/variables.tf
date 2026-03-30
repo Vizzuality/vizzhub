@@ -91,6 +91,12 @@ variable "domain_name" {
   default     = "hub.vizzuality.com"
 }
 
+variable "playbook_domain_name" {
+  description = "Domain name for the playbook static site (served via CloudFront)"
+  type        = string
+  default     = "playbook.vizzuality.com"
+}
+
 # GitHub OIDC
 variable "github_org" {
   description = "GitHub organization name"
