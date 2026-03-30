@@ -41,6 +41,7 @@ import CapacityInsights from './modules/capacity/pages/Insights';
 import CapacityAllocation from './modules/capacity/pages/Allocation';
 import CapacityPlanner from './modules/capacity/pages/Planner';
 import Playbook from './modules/playbook/pages/Playbook';
+import IsoDocs from './modules/iso-docs/pages/IsoDocs';
 import NotFound from './core/pages/NotFound';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
@@ -102,6 +103,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/capacity/allocation" element={<CapacityAllocation />} />
           <Route path="/capacity/planner" element={<CapacityPlanner />} />
           <Route path="/playbook" element={<Playbook />} />
+          <Route path="/iso/docs" element={<IsoDocs />} />
           <Route path="*" element={<NotFound />} />
         </Route>
         <Route path="/login" element={<Navigate to="/projects" replace />} />
@@ -139,6 +141,7 @@ function AppRoutes(): JSX.Element {
               <Route path="snapshots" element={<ISOSnapshots />} />
               <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
             </Route>
+            <Route path="/iso/docs" element={<IsoDocs />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Route>

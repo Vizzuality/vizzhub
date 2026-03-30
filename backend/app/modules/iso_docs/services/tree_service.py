@@ -1,12 +1,9 @@
-"""Tree operations for playbook nodes.
-
-Delegates to core TreeService, re-exports for backward compatibility.
-"""
+"""Tree operations for ISO doc nodes."""
 
 from app.core.services.tree_service import TreeService, generate_slug, MAX_DEPTH
-from app.modules.playbook.models.node import PlaybookNodeDB
+from app.modules.iso_docs.models.node import IsoDocNodeDB
 
-_tree = TreeService(PlaybookNodeDB)
+_tree = TreeService(IsoDocNodeDB)
 
 ensure_unique_slug = _tree.ensure_unique_slug
 get_next_position = _tree.get_next_position
