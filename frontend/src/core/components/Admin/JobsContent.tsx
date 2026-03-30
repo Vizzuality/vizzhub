@@ -26,8 +26,10 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
+  Globe,
 } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
+import { playbookApi } from '@/modules/playbook/services/playbook';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import type { JobStatus as JobStatusType, ScheduledJobInfo } from '@/types';
 import type { SlackChannel } from '@/core/types/project';
@@ -456,11 +458,96 @@ function ScheduledJobsSection(): JSX.Element {
   );
 }
 
+function PlaybookPublishSection(): JSX.Element {
+  const { data: history, isLoading } = useQuery({
+    queryKey: queryKeys.playbook.publishHistory,
+    queryFn: () => playbookApi.getPublishHistory(),
+  });
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          Playbook Publish
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!history || history.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No publishes yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-muted-foreground border-b">
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Pages</th>
+                  <th className="pb-3 font-medium">Started</th>
+                  <th className="pb-3 font-medium">Duration</th>
+                  <th className="pb-3 font-medium">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((entry, i) => {
+                  const duration = entry.completed_at && entry.started_at
+                    ? Math.round((new Date(entry.completed_at).getTime() - new Date(entry.started_at).getTime()) / 1000)
+                    : null;
+                  return (
+                    <tr key={i} className="border-b last:border-b-0">
+                      <td className="py-3 pr-4">
+                        {entry.status === 'completed' && (
+                          <span className="flex items-center gap-1.5 text-sm">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            Completed
+                          </span>
+                        )}
+                        {entry.status === 'running' && (
+                          <span className="flex items-center gap-1.5 text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                            Running
+                          </span>
+                        )}
+                        {entry.status === 'failed' && (
+                          <span className="flex items-center gap-1.5 text-sm">
+                            <AlertCircle className="h-4 w-4 text-destructive" />
+                            Failed
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">
+                        {entry.page_count ?? '-'}
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">
+                        {formatRelativeTime(entry.started_at)}
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">
+                        {duration !== null ? `${duration}s` : '-'}
+                      </td>
+                      <td className="py-3 text-sm text-muted-foreground truncate max-w-[200px]" title={entry.error_message ?? undefined}>
+                        {entry.error_message ?? '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function JobsContent(): JSX.Element {
   return (
     <div className="space-y-6 mt-4">
       <ScheduledJobsSection />
       <BackgroundJobsSection />
+      <PlaybookPublishSection />
     </div>
   );
 }

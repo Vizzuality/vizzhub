@@ -82,4 +82,9 @@ export const playbookApi = {
     const { data } = await api.get<PublishStatus | null>('/playbook/publish/status');
     return data;
   },
+
+  getPublishHistory: async (limit = 10): Promise<PublishStatus[]> => {
+    const { data } = await api.get<PublishStatus[]>('/playbook/publish/history', { params: { limit } });
+    return data;
+  },
 };

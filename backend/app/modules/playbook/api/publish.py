@@ -75,3 +75,18 @@ async def publish_status(
     if log is None:
         return None
     return PublishStatusResponse.model_validate(log)
+
+
+@router.get("/publish/history")
+async def publish_history(
+    db: DBSession,
+    user: AdminUser,
+    limit: int = 10,
+) -> list[PublishStatusResponse]:
+    """Get recent publish log entries."""
+    result = await db.execute(
+        select(PlaybookPublishLogDB).order_by(
+            desc(PlaybookPublishLogDB.started_at),
+        ).limit(limit)
+    )
+    return [PublishStatusResponse.model_validate(log) for log in result.scalars().all()]
