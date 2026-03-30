@@ -13,6 +13,7 @@ from app.core.services.content_version_service import ContentVersionService
 from app.modules.playbook.api.deps import PlaybookEditor
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
+from app.modules.playbook.services.asset_service import rewrite_image_urls
 from app.modules.playbook.schemas.page import (
     PageContentResponse,
     PageSave,
@@ -60,7 +61,7 @@ async def get_page(
     return PageContentResponse(
         node_id=node.id,
         title=node.title,
-        content=latest.content if latest else "",
+        content=rewrite_image_urls(latest.content) if latest else "",
         version=latest.version if latest else 0,
         is_public=node.is_public,
         created_by_id=latest.created_by_id if latest else None,
@@ -168,7 +169,7 @@ async def get_version(
         raise HTTPException(status_code=404, detail="Version not found")
     return VersionDetailResponse(
         node_id=node_id,
-        content=record.content,
+        content=rewrite_image_urls(record.content),
         version=record.version,
         created_by_id=record.created_by_id,
         created_at=record.created_at,
