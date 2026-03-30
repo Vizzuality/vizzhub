@@ -53,6 +53,7 @@ class Settings(BaseSettings):
 
     # Grafana Cloud
     grafana_admin_token: str = ""
+    grafana_admin_alerts_token: str = ""
 
     # Observability
     log_format: str = "console"
