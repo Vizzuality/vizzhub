@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     assets_bucket_name: str = ""
     assets_bucket_url: str = ""
     playbook_public_url: str = ""
+    playbook_cloudfront_distribution_id: str = ""
 
     # Redis (for async job queue)
     redis_host: str = ""

@@ -193,6 +193,7 @@ jobs:
           ASSETS_BUCKET_NAME=hub-vizzuality-assets
           ASSETS_BUCKET_URL=https://hub-vizzuality-assets.s3.eu-west-3.amazonaws.com
           PLAYBOOK_PUBLIC_URL=https://playbook.vizzuality.com
+          PLAYBOOK_CLOUDFRONT_DISTRIBUTION_ID=E2B2DSEQB8J1K8
           SENTRY_DSN=https://0c204d934b8b93da862f16922f647e94@o4511123590086656.ingest.de.sentry.io/4511127154327632
           LOG_FORMAT=json
           LOG_LEVEL=INFO
