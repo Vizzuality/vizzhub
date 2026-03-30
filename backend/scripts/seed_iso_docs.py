@@ -90,61 +90,91 @@ def resolve_cross_links(content: str, slug_by_filename: dict[str, str]) -> str:
     return content
 
 
+def _read_docs_by_category(
+    source: Path,
+) -> dict[str, list[tuple[dict, str, str]]]:
+    """Read all .md files and group by category."""
+    docs_by_category: dict[str, list[tuple[dict, str, str]]] = {}
+    for f in sorted(source.glob("*.md"), key=lambda p: p.name.lower()):
+        if f.name.startswith("."):
+            continue
+        text = f.read_text(encoding="utf-8")
+        meta, content = parse_frontmatter(text)
+        if not meta.get("title"):
+            print(f"  Skipping {f.name}: no title in frontmatter")
+            continue
+        category = meta.get("category", "record")
+        docs_by_category.setdefault(category, []).append((meta, content, f.name))
+    return docs_by_category
+
+
+def _build_slug_map(
+    docs_by_category: dict[str, list[tuple[dict, str, str]]],
+) -> dict[str, str]:
+    """Build filename -> full slug path map for cross-link resolution."""
+    slug_by_filename: dict[str, str] = {}
+    for category, cat_docs in docs_by_category.items():
+        group_slug = generate_slug(CATEGORY_LABELS.get(category, category.title()))
+        for meta, _, filename in cat_docs:
+            slug_by_filename[filename] = f"{group_slug}/{generate_slug(meta['title'])}"
+    return slug_by_filename
+
+
+def _to_str_list(values: list | None) -> list[str] | None:
+    """Ensure all array elements are strings (YAML may parse numbers as float)."""
+    return [str(v) for v in values] if values else values
+
+
+def _build_metadata(meta: dict, page_id) -> dict:
+    """Build metadata record from frontmatter."""
+    changelog = meta.get("changelog")
+    if changelog:
+        changelog = [
+            {
+                "version": str(e.get("version", "")),
+                "date": str(e.get("date", "")),
+                "author": str(e.get("author", "")),
+                "description": str(e.get("description", "")),
+            }
+            for e in changelog
+        ]
+    return {
+        "id": uuid4(),
+        "node_id": page_id,
+        "code": meta.get("code") or None,
+        "standard": _to_str_list(meta.get("standard")),
+        "clauses": _to_str_list(meta.get("clauses")),
+        "category": meta.get("category"),
+        "doc_version": str(meta.get("version", "")) or None,
+        "status": meta.get("status"),
+        "original_filename": meta.get("original_filename"),
+        "changelog": changelog,
+    }
+
+
 def scan_docs(source: Path) -> tuple[list[dict], list[dict], list[dict]]:
     """Parse all .md files, return (nodes, versions, metadata_records)."""
     nodes: list[dict] = []
     versions: list[dict] = []
     metadata_records: list[dict] = []
 
-    docs_by_category: dict[str, list[tuple[dict, str, str]]] = {}
+    docs_by_category = _read_docs_by_category(source)
+    slug_by_filename = _build_slug_map(docs_by_category)
 
-    for f in sorted(source.glob("*.md"), key=lambda p: p.name.lower()):
-        if f.name.startswith("."):
-            continue
-
-        text = f.read_text(encoding="utf-8")
-        meta, content = parse_frontmatter(text)
-
-        if not meta.get("title"):
-            print(f"  Skipping {f.name}: no title in frontmatter")
-            continue
-
-        category = meta.get("category", "record")
-        if category not in docs_by_category:
-            docs_by_category[category] = []
-        docs_by_category[category].append((meta, content, f.name))
-
-    # Build filename -> full slug path (group/page) for cross-link resolution
-    slug_by_filename: dict[str, str] = {}
-    for category, cat_docs in docs_by_category.items():
-        group_label = CATEGORY_LABELS.get(category, category.title())
-        group_slug = generate_slug(group_label)
-        for meta, _, filename in cat_docs:
-            page_slug = generate_slug(meta["title"])
-            slug_by_filename[filename] = f"{group_slug}/{page_slug}"
-
-    def _add_category_group(
-        category: str,
-        cat_docs: list[tuple[dict, str, str]],
-        group_position: int,
-    ) -> int:
-        """Create a group node and its child pages. Returns next group_position."""
+    def _add_category_group(category: str, cat_docs: list, pos: int) -> int:
         group_label = CATEGORY_LABELS.get(category, category.title())
         group_id = uuid4()
-
         nodes.append({
             "id": group_id,
             "title": group_label,
             "slug": generate_slug(group_label),
             "type": "group",
             "parent_id": None,
-            "position": group_position,
+            "position": pos,
         })
-
-        for page_pos, (meta, content, filename) in enumerate(cat_docs):
+        for page_pos, (meta, content, _) in enumerate(cat_docs):
             content = resolve_cross_links(content, slug_by_filename)
             page_id = uuid4()
-
             nodes.append({
                 "id": page_id,
                 "title": meta["title"],
@@ -153,57 +183,19 @@ def scan_docs(source: Path) -> tuple[list[dict], list[dict], list[dict]]:
                 "parent_id": group_id,
                 "position": page_pos,
             })
-
             versions.append({
-                "id": uuid4(),
-                "node_id": page_id,
-                "content": content,
-                "version": 1,
-                "created_by_id": None,
+                "id": uuid4(), "node_id": page_id,
+                "content": content, "version": 1, "created_by_id": None,
             })
+            metadata_records.append(_build_metadata(meta, page_id))
+        return pos + 1
 
-            changelog = meta.get("changelog")
-            if changelog:
-                changelog = [
-                    {
-                        "version": str(entry.get("version", "")),
-                        "date": str(entry.get("date", "")),
-                        "author": str(entry.get("author", "")),
-                        "description": str(entry.get("description", "")),
-                    }
-                    for entry in changelog
-                ]
-
-            clauses = meta.get("clauses")
-            if clauses:
-                clauses = [str(c) for c in clauses]
-            standard = meta.get("standard")
-            if standard:
-                standard = [str(s) for s in standard]
-
-            metadata_records.append({
-                "id": uuid4(),
-                "node_id": page_id,
-                "code": meta.get("code") or None,
-                "standard": standard,
-                "clauses": clauses,
-                "category": meta.get("category"),
-                "doc_version": str(meta.get("version", "")) or None,
-                "status": meta.get("status"),
-                "original_filename": meta.get("original_filename"),
-                "changelog": changelog,
-            })
-
-        return group_position + 1
-
-    # Create groups and pages in defined order, then any remaining categories
     group_position = 0
     for category in CATEGORY_ORDER:
         cat_docs = docs_by_category.pop(category, [])
         if not cat_docs:
             continue
         group_position = _add_category_group(category, cat_docs, group_position)
-
     for category, cat_docs in docs_by_category.items():
         group_position = _add_category_group(category, cat_docs, group_position)
 

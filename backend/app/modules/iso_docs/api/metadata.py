@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -74,10 +75,10 @@ async def update_metadata(
 async def search_metadata(
     db: DBSession,
     user: CurrentUser,
-    standard: str | None = Query(None),
-    category: str | None = Query(None),
-    clause: str | None = Query(None),
-    status: str | None = Query(None),
+    standard: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
+    clause: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
 ) -> list[MetadataSearchResult]:
     query = (
         select(
