@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var STORAGE_KEY = 'playbook-nav-state';
+  const STORAGE_KEY = 'playbook-nav-state';
 
   function getToggle() {
     return document.querySelector('.sidebar-toggle');
@@ -20,27 +20,27 @@
   }
 
   function closeSidebar() {
-    var site = getSite();
+    const site = getSite();
     if (site) {
       site.classList.remove('sidebar-open');
     }
   }
 
   function toggleSidebar() {
-    var site = getSite();
+    const site = getSite();
     if (site) {
       site.classList.toggle('sidebar-open');
     }
   }
 
   function getGroupKey(details) {
-    var summary = details.querySelector('summary');
+    const summary = details.querySelector('summary');
     return summary ? summary.textContent.trim() : null;
   }
 
   function loadNavState() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch (e) {
       return {};
@@ -48,10 +48,10 @@
   }
 
   function saveNavState() {
-    var state = {};
-    var groups = document.querySelectorAll('.nav-group');
+    const state = {};
+    const groups = document.querySelectorAll('.nav-group');
     groups.forEach(function (details) {
-      var key = getGroupKey(details);
+      const key = getGroupKey(details);
       if (key) {
         state[key] = details.open;
       }
@@ -64,14 +64,14 @@
   }
 
   function restoreNavState() {
-    var state = loadNavState();
-    var groups = document.querySelectorAll('.nav-group');
+    const state = loadNavState();
+    const groups = document.querySelectorAll('.nav-group');
 
     groups.forEach(function (details) {
-      var key = getGroupKey(details);
+      const key = getGroupKey(details);
       if (!key) return;
 
-      var hasActive = details.querySelector('.nav-item.active');
+      const hasActive = details.querySelector('.nav-item.active');
       if (hasActive) {
         details.open = true;
         return;
@@ -84,8 +84,8 @@
   }
 
   function init() {
-    var toggle = getToggle();
-    var overlay = getOverlay();
+    const toggle = getToggle();
+    const overlay = getOverlay();
 
     if (toggle) {
       toggle.addEventListener('click', function (e) {
