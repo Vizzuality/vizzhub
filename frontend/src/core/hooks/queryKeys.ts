@@ -209,4 +209,13 @@ export const queryKeys = {
     publishStatus: ['playbook', 'publish', 'status'] as const,
     publishHistory: ['playbook', 'publish', 'history'] as const,
   },
+  isoDocs: {
+    tree: ['iso-docs', 'tree'] as const,
+    page: (id: string) => ['iso-docs', 'page', id] as const,
+    versions: (id: string) => ['iso-docs', 'versions', id] as const,
+    version: (id: string, v: number) => ['iso-docs', 'version', id, v] as const,
+    metadata: (id: string) => ['iso-docs', 'metadata', id] as const,
+    metadataSearch: (params: Record<string, string | undefined>) =>
+      ['iso-docs', 'metadata', 'search', params] as const,
+  },
 } as const;

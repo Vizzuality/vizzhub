@@ -74,6 +74,7 @@ const TRACKER_TABS = [
 ] as const;
 
 const ISO_TABS = [
+  { to: '/iso/docs', label: 'Documentation' },
   { to: '/iso/snapshots', label: 'Access Control' },
 ] as const;
 

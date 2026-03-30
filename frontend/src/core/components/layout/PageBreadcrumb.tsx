@@ -43,6 +43,7 @@ const ROUTE_RULES: RouteRule[] = [
   { match: /^\/admin\/tracker\/periods/, crumbs: [{ label: 'Reporting Periods' }] },
   { match: /^\/admin\/tracker/, crumbs: [{ label: 'Tracker' }] },
   { match: /^\/playbook/, crumbs: [{ label: 'Playbook' }] },
+  { match: /^\/iso\/docs/, crumbs: [{ label: 'ISO', to: '/iso/docs' }, { label: 'Documentation' }] },
   { match: /^\/admin/, crumbs: (p) => {
     const sub = p.split('/admin/')[1];
     return [{ label: ADMIN_LABELS[sub] ?? 'Admin' }];
