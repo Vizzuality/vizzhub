@@ -26,20 +26,25 @@ def generate_slug(title: str) -> str:
 
 
 async def ensure_unique_slug(
-    db: AsyncSession, slug: str, parent_id: UUID | None
+    db: AsyncSession,
+    slug: str,
+    parent_id: UUID | None,
+    exclude_id: UUID | None = None,
 ) -> str:
     """Append -2, -3, etc. if slug already exists under the same parent."""
     base_slug = slug
     counter = 1
     while True:
-        condition = (
+        conditions = [
             PlaybookNodeDB.slug == slug,
             PlaybookNodeDB.parent_id == parent_id
             if parent_id
             else PlaybookNodeDB.parent_id.is_(None),
-        )
+        ]
+        if exclude_id is not None:
+            conditions.append(PlaybookNodeDB.id != exclude_id)
         result = await db.execute(
-            select(sa_func.count()).select_from(PlaybookNodeDB).where(*condition)
+            select(sa_func.count()).select_from(PlaybookNodeDB).where(*conditions)
         )
         if result.scalar_one() == 0:
             return slug

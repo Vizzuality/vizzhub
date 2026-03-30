@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0;url={{ first_page_url }}">
-  <title>Vizzuality Playbook</title>
-</head>
-<body>
-  <p>Redirecting to <a href="{{ first_page_url }}">{{ first_page_title }}</a>...</p>
-</body>
-</html>
+{% extends "_base.html" %}
+{% block content %}
+      <p class="landing-hint">Select a page from the sidebar to start reading.</p>
+{% endblock %}
