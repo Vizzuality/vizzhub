@@ -1,6 +1,6 @@
 import type { CaptureReport } from '@/modules/scorecard/types/metrics';
 
-export type JobType = 'capture_history';
+export type JobType = 'capture_history' | 'export_gdrive';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
