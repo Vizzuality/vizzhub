@@ -230,7 +230,7 @@ class DriveExportService:
     ) -> str:
         if existing_drive_id and await self._drive_file_exists(http, token, existing_drive_id):
             await self._update_file_metadata(
-                http, token, existing_drive_id, name, parent_drive_id
+                http, token, existing_drive_id, name
             )
             return existing_drive_id
         return await self._create_folder(http, token, name, parent_drive_id)
@@ -246,7 +246,7 @@ class DriveExportService:
     ) -> str:
         if existing_drive_id and await self._drive_file_exists(http, token, existing_drive_id):
             await self._update_file_metadata(
-                http, token, existing_drive_id, title, parent_drive_id
+                http, token, existing_drive_id, title
             )
             await self._update_file_content(http, token, existing_drive_id, html)
             return existing_drive_id
@@ -423,7 +423,7 @@ class DriveExportService:
 
     async def _update_file_metadata(
         self, http: httpx.AsyncClient, token: str,
-        file_id: str, name: str, parent_id: str,
+        file_id: str, name: str,
     ) -> None:
         resp = await http.patch(
             f"{DRIVE_API}/{file_id}",
