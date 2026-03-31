@@ -17,10 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { CATEGORY_LABELS, CLASSIFICATION_LABELS, STATUS_LABELS } from '../types/isoDocs';
+import { CLASSIFICATION_LABELS, STATUS_LABELS } from '../types/isoDocs';
 import type { IsoDocMetadata, MetadataUpdate, ChangelogEntry } from '../types/isoDocs';
 
-const CATEGORIES = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
 const CLASSIFICATIONS = Object.entries(CLASSIFICATION_LABELS).map(([value, label]) => ({ value, label }));
 const STATUSES = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
@@ -174,7 +173,6 @@ export function MetadataEditDialog({
         code: metadata.code ?? '',
         standard: metadata.standard ?? [],
         clauses: metadata.clauses ?? [],
-        category: metadata.category ?? '',
         classification: metadata.classification ?? 'internal_use',
         doc_version: metadata.doc_version ?? '',
         status: metadata.status ?? '',
@@ -188,7 +186,6 @@ export function MetadataEditDialog({
       code: form.code || null,
       standard: form.standard?.length ? form.standard : null,
       clauses: form.clauses?.length ? form.clauses : null,
-      category: form.category || null,
       classification: form.classification || 'internal_use',
       doc_version: form.doc_version || null,
       status: form.status || null,
@@ -226,23 +223,7 @@ export function MetadataEditDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select
-                value={form.category ?? ''}
-                onValueChange={(v) => setForm({ ...form, category: v })}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Status</Label>
               <Select

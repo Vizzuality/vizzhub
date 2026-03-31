@@ -11,7 +11,7 @@ import {
 } from '@/shared/components/ui/select';
 import { Label } from '@/shared/components/ui/label';
 import { useMetadataSearch, useTextSearch } from '../hooks/useIsoDocMetadata';
-import { CATEGORY_LABELS, STATUS_LABELS } from '../types/isoDocs';
+import { STATUS_LABELS } from '../types/isoDocs';
 import type { MetadataFilterParams, MetadataSearchResult } from '../types/isoDocs';
 
 interface MetadataFiltersProps {
@@ -52,7 +52,7 @@ function useFilterOptions(allResults: MetadataSearchResult[] | undefined): {
 
     return {
       categories: [...cats]
-        .map((v) => ({ value: v, label: CATEGORY_LABELS[v] ?? v }))
+        .map((v) => ({ value: v, label: v }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       statuses: [...stats]
         .map((v) => ({ value: v, label: STATUS_LABELS[v] ?? v }))

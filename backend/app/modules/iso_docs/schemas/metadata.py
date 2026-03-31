@@ -37,10 +37,6 @@ class MetadataUpdate(BaseModel):
     code: str | None = Field(None, max_length=50)
     standard: list[str] | None = None
     clauses: list[str] | None = None
-    category: str | None = Field(
-        None,
-        pattern=r"^(manual|policy|procedure|plan|record|report)$",
-    )
     classification: str | None = Field(
         None,
         pattern=r"^(internal_use|confidential)$",
