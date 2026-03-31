@@ -4,9 +4,6 @@ Revision ID: 039_iso_docs
 Revises: 038_pb_publish_log
 """
 
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-
 from alembic import op
 
 revision = "039_iso_docs"
@@ -17,135 +14,66 @@ def upgrade() -> None:
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE iso_doc_node_type AS ENUM ('page', 'group');
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$
-    """)
-    op.execute("""
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
         DO $$ BEGIN
             CREATE TYPE iso_doc_category AS ENUM (
                 'manual', 'policy', 'procedure', 'plan', 'record', 'report'
             );
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$
-    """)
-    op.execute("""
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
         DO $$ BEGIN
             CREATE TYPE iso_doc_status AS ENUM ('draft', 'approved', 'under_review');
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+        CREATE TABLE IF NOT EXISTS iso_doc_nodes (
+            id UUID PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            slug VARCHAR(255) NOT NULL,
+            type iso_doc_node_type NOT NULL,
+            parent_id UUID REFERENCES iso_doc_nodes(id) ON DELETE CASCADE,
+            position INTEGER NOT NULL DEFAULT 0,
+            created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            updated_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_iso_doc_nodes_parent_slug UNIQUE (parent_id, slug)
+        );
+
+        CREATE TABLE IF NOT EXISTS iso_doc_versions (
+            id UUID PRIMARY KEY,
+            node_id UUID NOT NULL REFERENCES iso_doc_nodes(id) ON DELETE CASCADE,
+            content TEXT NOT NULL DEFAULT '',
+            version INTEGER NOT NULL,
+            created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_iso_doc_versions_node_version UNIQUE (node_id, version)
+        );
+
+        CREATE TABLE IF NOT EXISTS iso_doc_metadata (
+            id UUID PRIMARY KEY,
+            node_id UUID NOT NULL UNIQUE REFERENCES iso_doc_nodes(id) ON DELETE CASCADE,
+            code VARCHAR(50),
+            standard VARCHAR[] ,
+            clauses VARCHAR[],
+            category iso_doc_category,
+            doc_version VARCHAR(20),
+            status iso_doc_status,
+            original_filename VARCHAR(500),
+            changelog JSONB,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_iso_doc_metadata_node UNIQUE (node_id)
+        );
     """)
-
-    iso_doc_node_type = sa.Enum(
-        "page", "group", name="iso_doc_node_type", create_type=False,
-    )
-    iso_doc_category = sa.Enum(
-        "manual", "policy", "procedure", "plan", "record", "report",
-        name="iso_doc_category", create_type=False,
-    )
-    iso_doc_status = sa.Enum(
-        "draft", "approved", "under_review", name="iso_doc_status",
-        create_type=False,
-    )
-
-    op.create_table(
-        "iso_doc_nodes",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("title", sa.String(255), nullable=False),
-        sa.Column("slug", sa.String(255), nullable=False),
-        sa.Column("type", iso_doc_node_type, nullable=False),
-        sa.Column(
-            "parent_id",
-            UUID(as_uuid=True),
-            sa.ForeignKey("iso_doc_nodes.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column("position", sa.Integer, nullable=False, server_default="0"),
-        sa.Column(
-            "created_by_id",
-            UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-        sa.Column(
-            "updated_by_id",
-            UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-        ),
-        sa.UniqueConstraint("parent_id", "slug", name="uq_iso_doc_nodes_parent_slug"),
-    )
-
-    op.create_table(
-        "iso_doc_versions",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "node_id",
-            UUID(as_uuid=True),
-            sa.ForeignKey("iso_doc_nodes.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("content", sa.Text, nullable=False, server_default=""),
-        sa.Column("version", sa.Integer, nullable=False),
-        sa.Column(
-            "created_by_id",
-            UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-        ),
-        sa.UniqueConstraint(
-            "node_id", "version", name="uq_iso_doc_versions_node_version"
-        ),
-    )
-
-    op.create_table(
-        "iso_doc_metadata",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "node_id",
-            UUID(as_uuid=True),
-            sa.ForeignKey("iso_doc_nodes.id", ondelete="CASCADE"),
-            nullable=False,
-            unique=True,
-        ),
-        sa.Column("code", sa.String(50), nullable=True),
-        sa.Column("standard", ARRAY(sa.String), nullable=True),
-        sa.Column("clauses", ARRAY(sa.String), nullable=True),
-        sa.Column("category", iso_doc_category, nullable=True),
-        sa.Column("doc_version", sa.String(20), nullable=True),
-        sa.Column("status", iso_doc_status, nullable=True),
-        sa.Column("original_filename", sa.String(500), nullable=True),
-        sa.Column("changelog", JSONB, nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-        ),
-        sa.UniqueConstraint("node_id", name="uq_iso_doc_metadata_node"),
-    )
 
 
 def downgrade() -> None:
-    op.drop_table("iso_doc_metadata")
-    op.drop_table("iso_doc_versions")
-    op.drop_table("iso_doc_nodes")
-
-    sa.Enum(name="iso_doc_status").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="iso_doc_category").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="iso_doc_node_type").drop(op.get_bind(), checkfirst=True)
+    op.execute("""
+        DROP TABLE IF EXISTS iso_doc_metadata;
+        DROP TABLE IF EXISTS iso_doc_versions;
+        DROP TABLE IF EXISTS iso_doc_nodes;
+        DROP TYPE IF EXISTS iso_doc_status;
+        DROP TYPE IF EXISTS iso_doc_category;
+        DROP TYPE IF EXISTS iso_doc_node_type;
+    """)
