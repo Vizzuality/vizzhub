@@ -323,6 +323,7 @@ function BackgroundJobsSection(): JSX.Element {
   const deleteJob = useDeleteJob();
 
   const projectMap = new Map(projects?.map((p) => [p.id, p.name]) ?? []);
+  const filteredJobs = jobs?.filter((j) => j.type !== 'export_gdrive') ?? [];
 
   const handleCancel = (jobId: string): void => {
     cancelJob.mutate(jobId);
@@ -345,7 +346,7 @@ function BackgroundJobsSection(): JSX.Element {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!jobs || jobs.length === 0 ? (
+        {filteredJobs.length === 0 ? (
           <p className="text-muted-foreground text-sm">No background jobs have been created yet.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -361,7 +362,7 @@ function BackgroundJobsSection(): JSX.Element {
                 </tr>
               </thead>
               <tbody>
-                {jobs.map((job) => (
+                {filteredJobs.map((job) => (
                   <tr key={job.id} className="border-b last:border-b-0">
                     <td className="py-3 pr-4">
                       <span className="font-medium">{job.name}</span>
