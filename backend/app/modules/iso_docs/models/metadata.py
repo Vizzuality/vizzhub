@@ -40,13 +40,13 @@ class IsoDocMetadataDB(Base):
     category: Mapped[str | None] = mapped_column(
         Enum(
             "manual", "policy", "procedure", "plan", "record", "report",
-            name="iso_doc_category",
+            name="iso_doc_category", create_type=False,
         ),
         nullable=True,
     )
     doc_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     status: Mapped[str | None] = mapped_column(
-        Enum("draft", "approved", "under_review", name="iso_doc_status"),
+        Enum("draft", "approved", "under_review", name="iso_doc_status", create_type=False),
         nullable=True,
     )
     original_filename: Mapped[str | None] = mapped_column(
