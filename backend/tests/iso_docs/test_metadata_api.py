@@ -23,8 +23,15 @@ async def test_get_metadata_not_found(client: AsyncClient, page_node: dict):
 
 
 @pytest.mark.asyncio
-async def test_create_metadata(client: AsyncClient, page_node: dict):
-    node_id = page_node["id"]
+async def test_create_metadata(client: AsyncClient):
+    group = await client.post(
+        "/api/iso-docs/nodes", json={"title": "Policies", "type": "group"}
+    )
+    page = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "POL04 Access Control", "type": "page", "parent_id": group.json()["id"]},
+    )
+    node_id = page.json()["id"]
 
     response = await client.put(
         f"/api/iso-docs/pages/{node_id}/metadata",
@@ -32,7 +39,6 @@ async def test_create_metadata(client: AsyncClient, page_node: dict):
             "code": "POL04",
             "standard": ["ISO 27001:2022"],
             "clauses": ["A.5.15", "A.5.18"],
-            "category": "policy",
             "doc_version": "1.1",
             "status": "approved",
         },
@@ -42,7 +48,7 @@ async def test_create_metadata(client: AsyncClient, page_node: dict):
     assert data["code"] == "POL04"
     assert data["standard"] == ["ISO 27001:2022"]
     assert data["clauses"] == ["A.5.15", "A.5.18"]
-    assert data["category"] == "policy"
+    assert data["category"] == "Policies"
     assert data["status"] == "approved"
     assert data["doc_version"] == "1.1"
 
@@ -95,27 +101,36 @@ async def test_metadata_with_changelog(client: AsyncClient, page_node: dict):
 
 @pytest.mark.asyncio
 async def test_search_by_category(client: AsyncClient):
+    g1 = await client.post(
+        "/api/iso-docs/nodes", json={"title": "Policies", "type": "group"}
+    )
+    g2 = await client.post(
+        "/api/iso-docs/nodes", json={"title": "Procedures", "type": "group"}
+    )
     p1 = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Policy A", "type": "page"}
+        "/api/iso-docs/nodes",
+        json={"title": "Policy A", "type": "page", "parent_id": g1.json()["id"]},
     )
     p2 = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Procedure B", "type": "page"}
+        "/api/iso-docs/nodes",
+        json={"title": "Procedure B", "type": "page", "parent_id": g2.json()["id"]},
     )
 
     await client.put(
         f"/api/iso-docs/pages/{p1.json()['id']}/metadata",
-        json={"category": "policy"},
+        json={"code": "POL-A"},
     )
     await client.put(
         f"/api/iso-docs/pages/{p2.json()['id']}/metadata",
-        json={"category": "procedure"},
+        json={"code": "PRO-B"},
     )
 
-    response = await client.get("/api/iso-docs/metadata/search?category=policy")
+    response = await client.get("/api/iso-docs/metadata/search?category=Policies")
     assert response.status_code == 200
     results = response.json()
     assert len(results) == 1
     assert results[0]["title"] == "Policy A"
+    assert results[0]["category"] == "Policies"
 
 
 @pytest.mark.asyncio

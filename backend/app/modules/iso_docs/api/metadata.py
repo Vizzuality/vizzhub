@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.orm import aliased
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.iso_docs.api.deps import IsoDocsEditor, is_iso_docs_editor
@@ -19,6 +20,27 @@ from app.modules.iso_docs.schemas.metadata import (
 )
 
 router = APIRouter()
+
+
+async def _get_parent_group_title(db: DBSession, node_id: UUID) -> str | None:
+    """Get the title of the parent group for a page node."""
+    Parent = aliased(IsoDocNodeDB)
+    result = await db.execute(
+        select(Parent.title)
+        .join(IsoDocNodeDB, IsoDocNodeDB.parent_id == Parent.id)
+        .where(IsoDocNodeDB.id == node_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _build_metadata_response(
+    db: DBSession, meta: IsoDocMetadataDB, node_id: UUID
+) -> MetadataResponse:
+    """Build a MetadataResponse with the parent group title as category."""
+    category = await _get_parent_group_title(db, node_id)
+    resp = MetadataResponse.model_validate(meta)
+    resp.category = category
+    return resp
 
 
 @router.get(
@@ -36,7 +58,7 @@ async def get_metadata(
         raise HTTPException(status_code=404, detail="Metadata not found")
     if meta.classification == "confidential" and not is_iso_docs_editor(user):
         raise HTTPException(status_code=403, detail="Access denied")
-    return MetadataResponse.model_validate(meta)
+    return await _build_metadata_response(db, meta, node_id)
 
 
 @router.put(
@@ -68,7 +90,7 @@ async def update_metadata(
 
     await db.flush()
     await db.refresh(meta)
-    return MetadataResponse.model_validate(meta)
+    return await _build_metadata_response(db, meta, node_id)
 
 
 @router.get("/metadata/search")
@@ -80,6 +102,7 @@ async def search_metadata(
     clause: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
 ) -> list[MetadataSearchResult]:
+    ParentNode = aliased(IsoDocNodeDB)
     query = (
         select(
             IsoDocNodeDB.id.label("node_id"),
@@ -87,10 +110,11 @@ async def search_metadata(
             IsoDocMetadataDB.code,
             IsoDocMetadataDB.standard,
             IsoDocMetadataDB.clauses,
-            IsoDocMetadataDB.category,
+            ParentNode.title.label("category"),
             IsoDocMetadataDB.status,
         )
         .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
+        .outerjoin(ParentNode, ParentNode.id == IsoDocNodeDB.parent_id)
     )
 
     if not is_iso_docs_editor(user):
@@ -98,7 +122,7 @@ async def search_metadata(
     if standard:
         query = query.where(IsoDocMetadataDB.standard.any(standard))
     if category:
-        query = query.where(IsoDocMetadataDB.category == category)
+        query = query.where(ParentNode.title == category)
     if clause:
         query = query.where(IsoDocMetadataDB.clauses.any(clause))
     if status:

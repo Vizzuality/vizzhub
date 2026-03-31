@@ -62,7 +62,6 @@ export interface MetadataUpdate {
   code?: string | null;
   standard?: string[] | null;
   clauses?: string[] | null;
-  category?: string | null;
   classification?: string | null;
   doc_version?: string | null;
   status?: string | null;
@@ -105,14 +104,6 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
   confidential: 'Confidential',
 };
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  manual: 'Manual',
-  policy: 'Policy',
-  procedure: 'Procedure',
-  plan: 'Plan',
-  record: 'Record',
-  report: 'Report',
-};
 
 export interface DriveExportStatus {
   connected: boolean;
