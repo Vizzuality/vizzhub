@@ -122,3 +122,45 @@ async def test_get_page_rejects_group(client: AsyncClient):
     )
     response = await client.get(f"/api/iso-docs/pages/{group.json()['id']}")
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_search_pages_by_title(client: AsyncClient, page_node: dict):
+    await client.put(
+        f"/api/iso-docs/pages/{page_node['id']}",
+        json={"content": "Some content", "expected_version": 0},
+    )
+
+    response = await client.get("/api/iso-docs/pages/search", params={"q": "Test Page"})
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) >= 1
+    assert any(r["node_id"] == page_node["id"] for r in results)
+
+
+@pytest.mark.asyncio
+async def test_search_pages_by_content(client: AsyncClient, page_node: dict):
+    await client.put(
+        f"/api/iso-docs/pages/{page_node['id']}",
+        json={"content": "# Title\n\nUnique keyword xylophone here", "expected_version": 0},
+    )
+
+    response = await client.get("/api/iso-docs/pages/search", params={"q": "xylophone"})
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["node_id"] == page_node["id"]
+    assert "xylophone" in results[0]["snippet"]
+
+
+@pytest.mark.asyncio
+async def test_search_pages_min_length(client: AsyncClient):
+    response = await client.get("/api/iso-docs/pages/search", params={"q": "a"})
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_search_pages_no_results(client: AsyncClient):
+    response = await client.get("/api/iso-docs/pages/search", params={"q": "zznonexistent"})
+    assert response.status_code == 200
+    assert response.json() == []

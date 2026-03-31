@@ -1,21 +1,17 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import { STATUS_LABELS } from '../types/isoDocs';
 import type { IsoDocMetadata } from '../types/isoDocs';
 
 interface MetadataPanelProps {
   readonly metadata: IsoDocMetadata;
+  readonly onEdit?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
   approved: 'bg-green-500',
   draft: 'bg-yellow-500',
   under_review: 'bg-blue-500',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  approved: 'Approved',
-  draft: 'Draft',
-  under_review: 'Under Review',
 };
 
 function formatDate(dateStr: string): string {
@@ -28,7 +24,7 @@ function Separator(): JSX.Element {
   return <span className="text-border">|</span>;
 }
 
-export function MetadataPanel({ metadata }: MetadataPanelProps): JSX.Element {
+export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Element {
   const [changelogOpen, setChangelogOpen] = useState(false);
 
   const documentDate = useMemo(() => {
@@ -69,6 +65,17 @@ export function MetadataPanel({ metadata }: MetadataPanelProps): JSX.Element {
         )}
         <Separator />
         <span className="text-muted-foreground italic">Internal use</span>
+        {onEdit && (
+          <>
+            <Separator />
+            <button
+              className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          </>
+        )}
       </div>
 
       {metadata.clauses && metadata.clauses.length > 0 && (

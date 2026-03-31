@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil } from 'lucide-react';
+import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil, Filter } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
@@ -42,9 +42,12 @@ import {
 } from '../hooks/useIsoDocTree';
 import { useIsoDocPage, useSaveIsoDocPage } from '../hooks/useIsoDocPage';
 import { useIsoDocVersions, useIsoDocVersion } from '../hooks/useIsoDocVersions';
-import { useIsoDocMetadata } from '../hooks/useIsoDocMetadata';
+import { useIsoDocMetadata, useUpdateIsoDocMetadata } from '../hooks/useIsoDocMetadata';
 import { MetadataPanel } from '../components/MetadataPanel';
+import { MetadataEditDialog } from '../components/MetadataEditDialog';
+import { MetadataFilters } from '../components/MetadataFilters';
 import { usePermission, Action } from '@/core/permissions';
+import type { MetadataFilterParams } from '../types/isoDocs';
 import type { DocTreeNode, ReorderItem } from '@/shared/types/doc';
 
 function flattenTree(nodes: DocTreeNode[]): DocTreeNode[] {
@@ -130,19 +133,39 @@ function TreeSidebar({
   treeLoading,
   selectedId,
   isEditor,
+  filtersOpen,
+  filters,
   onSelect,
   onMove,
   onAdd,
+  onToggleFilters,
+  onFiltersChange,
 }: Readonly<{
   tree: DocTreeNode[];
   treeLoading: boolean;
   selectedId: string | null;
   isEditor: boolean;
+  filtersOpen: boolean;
+  filters: MetadataFilterParams;
   onSelect: (id: string) => void;
   onMove: (args: { dragIds: string[]; parentId: string | null; index: number }) => void;
   onAdd: () => void;
+  onToggleFilters: () => void;
+  onFiltersChange: (filters: MetadataFilterParams) => void;
 }>): JSX.Element {
+  const hasActiveFilters = !!(filters.category || filters.status || filters.standard || filters.clause);
+
   function renderSidebarContent(): JSX.Element {
+    if (filtersOpen) {
+      return (
+        <MetadataFilters
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          onSelect={onSelect}
+          onClose={onToggleFilters}
+        />
+      );
+    }
     if (treeLoading) {
       return <p className="text-sm text-muted-foreground p-2">Loading...</p>;
     }
@@ -171,11 +194,24 @@ function TreeSidebar({
           <FileText className="h-4 w-4" />
           ISO Documentation
         </div>
-        {isEditor && (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
-            <Plus className="h-4 w-4" />
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant={filtersOpen || hasActiveFilters ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-7 w-7 relative"
+            onClick={onToggleFilters}
+          >
+            <Filter className="h-4 w-4" />
+            {hasActiveFilters && !filtersOpen && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
+            )}
           </Button>
-        )}
+          {isEditor && !filtersOpen && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="flex-1 min-h-0 p-2">{renderSidebarContent()}</div>
     </div>
@@ -199,6 +235,9 @@ export default function IsoDocs(): JSX.Element {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [metadataEditOpen, setMetadataEditOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [metadataFilters, setMetadataFilters] = useState<MetadataFilterParams>({});
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -221,6 +260,7 @@ export default function IsoDocs(): JSX.Element {
   const deleteNode = useDeleteIsoDocNode();
   const reorder = useReorderIsoDocNodes();
   const savePage = useSaveIsoDocPage(selectedId ?? '');
+  const updateMetadata = useUpdateIsoDocMetadata(selectedId ?? '');
   const selectedNode = useMemo(
     () => flat.find((n) => n.id === selectedId),
     [flat, selectedId],
@@ -379,12 +419,16 @@ export default function IsoDocs(): JSX.Element {
         treeLoading={treeLoading}
         selectedId={selectedId}
         isEditor={isEditor}
+        filtersOpen={filtersOpen}
+        filters={metadataFilters}
         onSelect={handleSelect}
         onMove={handleMove}
         onAdd={() => setFormOpen(true)}
+        onToggleFilters={() => setFiltersOpen((v) => !v)}
+        onFiltersChange={setMetadataFilters}
       />
 
-      <div className={`flex-1 overflow-auto p-6 ${selectedId ? '' : 'hidden md:block'}`}>
+      <div className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
         {renderContent()}
       </div>
 
@@ -396,6 +440,20 @@ export default function IsoDocs(): JSX.Element {
         parentId={selectedNode?.type === 'group' ? selectedId : null}
         rootLabel="Add to ISO documentation"
       />
+
+      {metadata && (
+        <MetadataEditDialog
+          open={metadataEditOpen}
+          onOpenChange={setMetadataEditOpen}
+          metadata={metadata}
+          onSave={(data) => {
+            updateMetadata.mutate(data, {
+              onSuccess: () => setMetadataEditOpen(false),
+            });
+          }}
+          isSaving={updateMetadata.isPending}
+        />
+      )}
 
       <VersionHistoryDialog
         open={historyOpen}
@@ -529,7 +587,12 @@ export default function IsoDocs(): JSX.Element {
         </div>
         {isPage ? (
           <div className="space-y-6">
-            {metadata && <MetadataPanel metadata={metadata} />}
+            {metadata && (
+              <MetadataPanel
+                metadata={metadata}
+                onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
+              />
+            )}
             <DocViewer content={page?.content ?? ''} onInternalLink={handleInternalLink} />
           </div>
         ) : selectedNode ? (

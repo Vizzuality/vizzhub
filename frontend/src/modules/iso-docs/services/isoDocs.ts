@@ -13,6 +13,7 @@ import type {
   IsoDocMetadata,
   MetadataUpdate,
   MetadataSearchResult,
+  TextSearchResult,
 } from '../types/isoDocs';
 
 export const isoDocsApi = {
@@ -77,6 +78,11 @@ export const isoDocsApi = {
     status?: string;
   }): Promise<MetadataSearchResult[]> => {
     const { data } = await api.get<MetadataSearchResult[]>('/iso-docs/metadata/search', { params });
+    return data;
+  },
+
+  searchPages: async (q: string): Promise<TextSearchResult[]> => {
+    const { data } = await api.get<TextSearchResult[]>('/iso-docs/pages/search', { params: { q } });
     return data;
   },
 };

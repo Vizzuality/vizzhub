@@ -47,3 +47,10 @@ class VersionDetailResponse(BaseModel):
     version: int
     created_by_id: UUID | None
     created_at: datetime
+
+
+class SearchResultItem(BaseModel):
+    node_id: UUID
+    title: str
+    snippet: str
+    code: str | None = None

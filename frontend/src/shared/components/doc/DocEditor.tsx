@@ -115,7 +115,7 @@ export function DocEditor({
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col h-full">
       {uploadImage && (
         <input
           ref={fileInputRef}
@@ -125,7 +125,7 @@ export function DocEditor({
           onChange={onFileSelected}
         />
       )}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 shrink-0 pb-2">
         {uploading && <span className="text-sm text-muted-foreground">Uploading image...</span>}
         {uploadImage && (
           <Button
@@ -148,7 +148,7 @@ export function DocEditor({
       <div
         ref={wrapperRef}
         data-color-mode={colorMode}
-        className="[&_.w-md-editor-toolbar_svg]:!w-4 [&_.w-md-editor-toolbar_svg]:!h-4"
+        className="flex-1 min-h-0 [&_.w-md-editor-toolbar_svg]:!w-4 [&_.w-md-editor-toolbar_svg]:!h-4"
         onDropCapture={uploadImage ? onDrop : undefined}
         onPasteCapture={uploadImage ? onPaste : undefined}
       >
@@ -156,7 +156,7 @@ export function DocEditor({
           key={editorKey}
           value={content}
           onChange={(val) => setContent(val ?? '')}
-          height={500}
+          height="100%"
           preview="edit"
           commands={filteredCommands}
           previewOptions={{ remarkPlugins: [remarkBreaks] }}
