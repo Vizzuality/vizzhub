@@ -77,3 +77,32 @@ export interface MetadataSearchResult {
   category: string | null;
   status: string | null;
 }
+
+export interface TextSearchResult {
+  node_id: string;
+  title: string;
+  snippet: string;
+  code: string | null;
+}
+
+export interface MetadataFilterParams {
+  category?: string;
+  status?: string;
+  standard?: string;
+  clause?: string;
+}
+
+export const STATUS_LABELS: Record<string, string> = {
+  approved: 'Approved',
+  draft: 'Draft',
+  under_review: 'Under Review',
+};
+
+export const CATEGORY_LABELS: Record<string, string> = {
+  manual: 'Manual',
+  policy: 'Policy',
+  procedure: 'Procedure',
+  plan: 'Plan',
+  record: 'Record',
+  report: 'Report',
+};

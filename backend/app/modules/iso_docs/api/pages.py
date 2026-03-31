@@ -6,25 +6,28 @@ from collections import Counter
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
+from typing import Annotated
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.models.user import UserDB
 from app.core.services.content_version_service import ContentVersionService
 from app.modules.iso_docs.api.deps import IsoDocsEditor
+from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
-from app.modules.iso_docs.services.tree_service import ensure_unique_slug, generate_slug
-
-logger = structlog.get_logger()
 from app.modules.iso_docs.schemas.page import (
     PageContentResponse,
     PageSave,
     PageSaveResponse,
+    SearchResultItem,
     VersionDetailResponse,
     VersionListItem,
 )
+from app.modules.iso_docs.services.tree_service import ensure_unique_slug, generate_slug
+
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -47,6 +50,79 @@ async def _get_page_node(db: DBSession, node_id: UUID) -> IsoDocNodeDB:
             detail="Node is a group, not a page",
         )
     return node
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _build_snippet(content: str, query: str, max_len: int = 150) -> str:
+    """Extract a text snippet around the first match, stripping markdown."""
+    lower = content.lower()
+    pos = lower.find(query.lower())
+    if pos == -1:
+        plain = content[:max_len]
+    else:
+        start = max(0, pos - 60)
+        end = min(len(content), pos + len(query) + 90)
+        prefix = "..." if start > 0 else ""
+        suffix = "..." if end < len(content) else ""
+        plain = prefix + content[start:end] + suffix
+    plain = plain.replace("#", "").replace("*", "").replace("|", " ").replace("\n", " ")
+    return " ".join(plain.split())[:max_len]
+
+
+@router.get("/search")
+async def search_pages(
+    db: DBSession,
+    user: CurrentUser,
+    q: Annotated[str, Query(min_length=2, max_length=200)] = "",
+) -> list[SearchResultItem]:
+    q = q.strip()
+    if len(q) < 2:
+        return []
+
+    safe = _escape_like(q)
+
+    latest = (
+        select(
+            IsoDocVersionDB.node_id,
+            IsoDocVersionDB.content,
+        )
+        .distinct(IsoDocVersionDB.node_id)
+        .order_by(IsoDocVersionDB.node_id, IsoDocVersionDB.version.desc())
+    ).subquery()
+
+    query = (
+        select(
+            IsoDocNodeDB.id.label("node_id"),
+            IsoDocNodeDB.title,
+            latest.c.content,
+            IsoDocMetadataDB.code,
+        )
+        .join(latest, latest.c.node_id == IsoDocNodeDB.id)
+        .outerjoin(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
+        .where(
+            (IsoDocNodeDB.title.ilike(f"%{safe}%"))
+            | (latest.c.content.ilike(f"%{safe}%"))
+        )
+        .order_by(IsoDocNodeDB.title)
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    logger.info("iso_doc_search", query=q, result_count=len(rows))
+
+    return [
+        SearchResultItem(
+            node_id=row.node_id,
+            title=row.title,
+            snippet=_build_snippet(row.content or "", q),
+            code=row.code,
+        )
+        for row in rows
+    ]
 
 
 @router.get(

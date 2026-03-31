@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-03-31] - ISO Docs Enhancements
+
+### Added
+- Metadata edit dialog for ISO documents (code, version, category, status, standards, clauses, changelog)
+- Filter sidebar with select-based filters (category, status, standard, clause) and results list
+- Full-text search across document titles and content with snippet preview
+- Full-height markdown editor (fills viewport instead of fixed 500px)
+
+### Security
+- Pin axios to 1.13.5 to avoid supply chain attack in 1.14.1 and 0.30.4
+
 ## [2026-03-29] - Observability
 
 ### Added
