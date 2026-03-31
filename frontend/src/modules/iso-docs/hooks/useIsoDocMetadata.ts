@@ -8,6 +8,7 @@ export function useIsoDocMetadata(nodeId: string | null) {
     queryKey: queryKeys.isoDocs.metadata(nodeId ?? ''),
     queryFn: () => isoDocsApi.getMetadata(nodeId!),
     enabled: !!nodeId,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 }
@@ -33,6 +34,7 @@ export function useMetadataSearch(params: {
   return useQuery({
     queryKey: queryKeys.isoDocs.metadataSearch(params),
     queryFn: () => isoDocsApi.searchMetadata(params),
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -41,6 +43,7 @@ export function useTextSearch(query: string) {
     queryKey: queryKeys.isoDocs.textSearch(query),
     queryFn: () => isoDocsApi.searchPages(query),
     enabled: query.length >= 2,
+    refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
 }

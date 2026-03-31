@@ -7,6 +7,7 @@ export function usePlaybookVersions(nodeId: string | null) {
     queryKey: queryKeys.playbook.versions(nodeId ?? ''),
     queryFn: () => playbookApi.listVersions(nodeId!),
     enabled: !!nodeId,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -15,5 +16,6 @@ export function usePlaybookVersion(nodeId: string | null, version: number | null
     queryKey: queryKeys.playbook.version(nodeId ?? '', version ?? 0),
     queryFn: () => playbookApi.getVersion(nodeId!, version!),
     enabled: !!nodeId && version !== null,
+    refetchOnWindowFocus: false,
   });
 }

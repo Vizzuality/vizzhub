@@ -140,12 +140,12 @@ function AppRoutes(): JSX.Element {
               {AdminRoutes()}
             </Route>
           </Route>
+          <Route path="/iso/docs" element={<IsoDocs />} />
           <Route element={<PermissionRoute require={Action.ISO_VIEW} />}>
             <Route path="/iso" element={<ISO />}>
               <Route path="snapshots" element={<ISOSnapshots />} />
               <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
             </Route>
-            <Route path="/iso/docs" element={<IsoDocs />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Route>

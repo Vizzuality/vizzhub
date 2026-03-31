@@ -103,6 +103,7 @@ async def import_iso_docs(json_path: str, clear: bool = False, null_users: bool 
                 standard=m.get("standard"),
                 clauses=m.get("clauses"),
                 category=m.get("category"),
+                classification=m.get("classification", "internal_use"),
                 doc_version=m.get("doc_version"),
                 status=m.get("status"),
                 original_filename=m.get("original_filename"),

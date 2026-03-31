@@ -17,6 +17,7 @@ export function usePublishStatus() {
   return useQuery<PublishStatus | null>({
     queryKey: queryKeys.playbook.publishStatus,
     queryFn: playbookApi.getPublishStatus,
+    refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const data = query.state.data;
       return data?.status === 'running' ? 3000 : false;

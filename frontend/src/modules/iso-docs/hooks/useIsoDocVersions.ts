@@ -7,6 +7,7 @@ export function useIsoDocVersions(nodeId: string | null) {
     queryKey: queryKeys.isoDocs.versions(nodeId ?? ''),
     queryFn: () => isoDocsApi.listVersions(nodeId!),
     enabled: !!nodeId,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -15,5 +16,6 @@ export function useIsoDocVersion(nodeId: string | null, version: number | null) 
     queryKey: queryKeys.isoDocs.version(nodeId ?? '', version ?? 0),
     queryFn: () => isoDocsApi.getVersion(nodeId!, version!),
     enabled: !!nodeId && version !== null,
+    refetchOnWindowFocus: false,
   });
 }

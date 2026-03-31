@@ -49,6 +49,14 @@ class IsoDocMetadataDB(Base):
         Enum("draft", "approved", "under_review", name="iso_doc_status", create_type=False),
         nullable=True,
     )
+    classification: Mapped[str] = mapped_column(
+        Enum(
+            "internal_use", "confidential",
+            name="iso_doc_classification", create_type=False,
+        ),
+        nullable=False,
+        server_default="internal_use",
+    )
     original_filename: Mapped[str | None] = mapped_column(
         String(500), nullable=True
     )
