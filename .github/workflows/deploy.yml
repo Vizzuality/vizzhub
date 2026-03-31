@@ -15,15 +15,65 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
+  DB_USER: scorecard
+  DB_PASSWORD: scorecard-ci
+  DB_NAME: scorecard
 
 jobs:
-  test:
-    name: Run Tests
-    uses: ./.github/workflows/ci.yml
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: scorecard
+          POSTGRES_PASSWORD: scorecard-ci
+          POSTGRES_DB: scorecard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      - name: Install and test
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://scorecard:scorecard-ci@localhost:5432/scorecard
+          TEST_DATABASE_URL: postgresql+asyncpg://scorecard:scorecard-ci@localhost:5432/scorecard
+          DEBUG: "true"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pytest
+
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and test
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test -- --run
 
   build-and-push:
     name: Build and Push Images
-    needs: test
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # For OIDC
@@ -96,7 +146,7 @@ jobs:
 
   deploy:
     name: Deploy to EC2
-    needs: build-and-push
+    needs: [backend-test, frontend-test, build-and-push]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -123,7 +173,7 @@ jobs:
             --parameters 'commands=["mkdir -p /opt/hub", "mkdir -p /usr/local/lib/docker/cli-plugins", "test -f /usr/local/lib/docker/cli-plugins/docker-compose || curl -sL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose", "chmod +x /usr/local/lib/docker/cli-plugins/docker-compose"]' \
             --query 'Command.CommandId' \
             --output text
-          sleep 5
+          sleep 3
 
       - name: Upload docker-compose.prod.yml
         env:
@@ -136,7 +186,7 @@ jobs:
             --parameters "commands=[\"echo '$COMPOSE_B64' | base64 -d > /opt/hub/docker-compose.prod.yml\"]" \
             --query 'Command.CommandId' \
             --output text
-          sleep 5
+          sleep 3
 
       - name: Upload Alloy config
         env:
@@ -149,7 +199,7 @@ jobs:
             --parameters "commands=[\"echo '$ALLOY_B64' | base64 -d > /opt/hub/alloy-config.alloy\"]" \
             --query 'Command.CommandId' \
             --output text
-          sleep 5
+          sleep 3
 
       - name: Create .env from Secrets Manager
         env:
@@ -219,7 +269,7 @@ jobs:
             --query 'Command.CommandId' \
             --output text
 
-          sleep 5
+          sleep 3
 
       - name: Deploy containers
         env:
@@ -243,8 +293,8 @@ jobs:
           echo "=== Starting containers ==="
           docker compose -f docker-compose.prod.yml up -d --force-recreate
 
-          echo "=== Waiting for backend to start (30s) ==="
-          sleep 30
+          echo "=== Waiting for backend to start (15s) ==="
+          sleep 15
 
           echo "=== Health check ==="
           for i in 1 2 3 4 5; do
