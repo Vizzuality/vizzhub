@@ -89,6 +89,7 @@ export const queryKeys = {
       googleWorkspace: ['iso', 'config', 'googleWorkspace'] as const,
       github: ['iso', 'config', 'github'] as const,
       jira: ['iso', 'config', 'jira'] as const,
+      drive: ['iso', 'config', 'drive'] as const,
     },
     snapshots: {
       all: ['iso', 'snapshots'] as const,
@@ -218,5 +219,6 @@ export const queryKeys = {
     metadataSearch: (params: Record<string, string | undefined>) =>
       ['iso-docs', 'metadata', 'search', params] as const,
     textSearch: (q: string) => ['iso-docs', 'text-search', q] as const,
+    driveStatus: ['iso-docs', 'drive-status'] as const,
   },
 } as const;

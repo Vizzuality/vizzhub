@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil, Filter, Download, Printer } from 'lucide-react';
+import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
@@ -47,6 +47,8 @@ import { MetadataPanel } from '../components/MetadataPanel';
 import { MetadataEditDialog } from '../components/MetadataEditDialog';
 import { MetadataFilters } from '../components/MetadataFilters';
 import { usePermission, Action } from '@/core/permissions';
+import { useDriveExportStatus, useTriggerDriveExport } from '../hooks/useDriveExport';
+import { useJobStatus } from '@/core/hooks/useJobs';
 import type { MetadataFilterParams } from '../types/isoDocs';
 import type { DocTreeNode, ReorderItem } from '@/shared/types/doc';
 
@@ -135,11 +137,15 @@ function TreeSidebar({
   isEditor,
   filtersOpen,
   filters,
+  driveConnected,
+  driveExporting,
+  driveProgress,
   onSelect,
   onMove,
   onAdd,
   onToggleFilters,
   onFiltersChange,
+  onDriveExport,
 }: Readonly<{
   tree: DocTreeNode[];
   treeLoading: boolean;
@@ -147,11 +153,15 @@ function TreeSidebar({
   isEditor: boolean;
   filtersOpen: boolean;
   filters: MetadataFilterParams;
+  driveConnected: boolean;
+  driveExporting: boolean;
+  driveProgress: number | null;
   onSelect: (id: string) => void;
   onMove: (args: { dragIds: string[]; parentId: string | null; index: number }) => void;
   onAdd: () => void;
   onToggleFilters: () => void;
   onFiltersChange: (filters: MetadataFilterParams) => void;
+  onDriveExport: () => void;
 }>): JSX.Element {
   const hasActiveFilters = !!(filters.category || filters.status || filters.standard || filters.clause);
 
@@ -206,6 +216,22 @@ function TreeSidebar({
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
             )}
           </Button>
+          {isEditor && !filtersOpen && driveConnected && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onDriveExport}
+              disabled={driveExporting}
+              title={driveExporting ? `Exporting${driveProgress ? ` (${driveProgress}%)` : '...'}` : 'Export to Google Drive'}
+            >
+              {driveExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           {isEditor && !filtersOpen && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
               <Plus className="h-4 w-4" />
@@ -238,6 +264,7 @@ export default function IsoDocs(): JSX.Element {
   const [metadataEditOpen, setMetadataEditOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [metadataFilters, setMetadataFilters] = useState<MetadataFilterParams>({});
+  const [driveJobId, setDriveJobId] = useState<string | null>(null);
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -261,6 +288,23 @@ export default function IsoDocs(): JSX.Element {
   const reorder = useReorderIsoDocNodes();
   const savePage = useSaveIsoDocPage(selectedId ?? '');
   const updateMetadata = useUpdateIsoDocMetadata(selectedId ?? '');
+  const { data: driveStatus } = useDriveExportStatus();
+  const triggerDriveExport = useTriggerDriveExport();
+  const { data: driveJob } = useJobStatus(driveJobId);
+  const driveExporting = driveJob?.status === 'pending' || driveJob?.status === 'running';
+
+  useEffect(() => {
+    if (driveJob?.status === 'completed' || driveJob?.status === 'failed') {
+      setDriveJobId(null);
+    }
+  }, [driveJob?.status]);
+
+  const handleDriveExport = useCallback(() => {
+    triggerDriveExport.mutate(undefined, {
+      onSuccess: (data) => setDriveJobId(data.job_id),
+    });
+  }, [triggerDriveExport]);
+
   const selectedNode = useMemo(
     () => flat.find((n) => n.id === selectedId),
     [flat, selectedId],
@@ -459,11 +503,15 @@ button, [data-iso-actions] { display: none !important; }
         isEditor={isEditor}
         filtersOpen={filtersOpen}
         filters={metadataFilters}
+        driveConnected={!!driveStatus?.connected}
+        driveExporting={driveExporting}
+        driveProgress={driveJob?.progress ?? null}
         onSelect={handleSelect}
         onMove={handleMove}
         onAdd={() => setFormOpen(true)}
         onToggleFilters={() => setFiltersOpen((v) => !v)}
         onFiltersChange={setMetadataFilters}
+        onDriveExport={handleDriveExport}
       />
 
       <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>

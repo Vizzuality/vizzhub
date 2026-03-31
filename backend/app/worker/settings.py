@@ -111,6 +111,7 @@ from app.worker.report_confirmation_reminder import send_report_confirmation_rem
 from app.worker.rotate_reporting_period import rotate_reporting_period  # noqa: E402
 from app.worker.heartbeat import write_heartbeat  # noqa: E402
 from app.worker.publish_playbook import publish_playbook_task  # noqa: E402
+from app.worker.export_iso_docs_gdrive import export_iso_docs_gdrive_task  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
@@ -123,6 +124,7 @@ WorkerSettings.functions = [
     send_report_confirmation_reminder,
     rotate_reporting_period,
     publish_playbook_task,
+    export_iso_docs_gdrive_task,
 ]
 
 # Register cron jobs for scheduled execution

@@ -14,6 +14,8 @@ import type {
   MetadataUpdate,
   MetadataSearchResult,
   TextSearchResult,
+  DriveExportStatus,
+  DriveExportResponse,
 } from '../types/isoDocs';
 
 export const isoDocsApi = {
@@ -84,5 +86,19 @@ export const isoDocsApi = {
   searchPages: async (q: string): Promise<TextSearchResult[]> => {
     const { data } = await api.get<TextSearchResult[]>('/iso-docs/pages/search', { params: { q } });
     return data;
+  },
+
+  getDriveExportStatus: async (): Promise<DriveExportStatus> => {
+    const { data } = await api.get<DriveExportStatus>('/iso-docs/drive/status');
+    return data;
+  },
+
+  triggerDriveExport: async (): Promise<DriveExportResponse> => {
+    const { data } = await api.post<DriveExportResponse>('/iso-docs/drive/export');
+    return data;
+  },
+
+  saveDriveFolder: async (folderId: string): Promise<void> => {
+    await api.put('/iso-docs/drive/folder', { folder_id: folderId });
   },
 };

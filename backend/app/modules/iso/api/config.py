@@ -19,6 +19,7 @@ from app.core.services.oauth_service import OAuthService
 from app.modules.iso.services.google_workspace_oauth import (
     GoogleWorkspaceOAuth,
 )
+from app.modules.iso_docs.services.google_drive_oauth import GoogleDriveOAuth
 
 logger = structlog.get_logger()
 
@@ -164,6 +165,73 @@ async def clear_github_org(
     )
     await db.flush()
     return {"status": "success", "message": "GitHub organization cleared"}
+
+
+# --- Google Drive Config ---
+
+
+@router.get("/google-drive")
+@limiter.limit("30/minute")
+async def get_google_drive_status(
+    request: Request, current_user: IsoManager, db: DBSession
+) -> dict:
+    return await GoogleDriveOAuth.get_status(db)
+
+
+@router.get("/google-drive/authorize")
+@limiter.limit("10/minute")
+async def authorize_google_drive(
+    request: Request,
+    current_user: IsoManager,
+    db: DBSession,
+) -> RedirectResponse:
+    state = await OAuthStateManager.generate_state(db)
+    request.session["oauth_state"] = state
+
+    callback_url = str(request.url_for("google_drive_callback"))
+    url = GoogleDriveOAuth.get_authorization_url(
+        state=state, redirect_uri=callback_url
+    )
+    return RedirectResponse(url=url, status_code=307)
+
+
+@router.get(
+    "/google-drive/callback",
+    responses={400: {"description": "Invalid or expired OAuth state"}},
+)
+@limiter.limit("10/minute")
+async def google_drive_callback(
+    request: Request,
+    current_user: IsoManager,
+    db: DBSession,
+    code: Annotated[str, Query()],
+    state: Annotated[str, Query()] = "",
+) -> dict:
+    session_state = request.session.get("oauth_state")
+    if not session_state or session_state != state:
+        logger.warning("oauth_state_mismatch", provider="google_drive")
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+
+    if not await OAuthStateManager.validate_state(state, db):
+        logger.warning("oauth_state_expired", provider="google_drive")
+        raise HTTPException(status_code=400, detail="State expired or already used")
+
+    callback_url = str(request.url_for("google_drive_callback"))
+    await GoogleDriveOAuth.exchange_code_for_token(
+        code=code, redirect_uri=callback_url, db=db
+    )
+
+    request.session.pop("oauth_state", None)
+    return {"status": "success", "message": "Google Drive connected"}
+
+
+@router.delete("/google-drive/disconnect")
+@limiter.limit("10/minute")
+async def disconnect_google_drive(
+    request: Request, current_user: IsoManager, db: DBSession
+) -> dict:
+    await GoogleDriveOAuth.disconnect(db)
+    return {"status": "success", "message": "Google Drive disconnected"}
 
 
 # --- Jira Config ---

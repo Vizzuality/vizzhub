@@ -69,6 +69,27 @@ export function useClearGitHubOrg() {
   });
 }
 
+// --- Google Drive ---
+
+export function useDriveConfig() {
+  return useQuery({
+    queryKey: queryKeys.iso.config.drive,
+    queryFn: isoApi.getDriveConfigStatus,
+  });
+}
+
+export function useDisconnectDrive() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => isoApi.disconnectDrive(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.iso.config.drive });
+      queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.driveStatus });
+    },
+  });
+}
+
 // --- Snapshots ---
 
 export function useIsoSnapshots(params: SnapshotListParams = {}) {
