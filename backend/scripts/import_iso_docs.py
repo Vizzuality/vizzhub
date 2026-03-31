@@ -1,9 +1,10 @@
 """Import ISO docs data from JSON export into the database.
 
 Usage:
-    python scripts/import_iso_docs.py <json_file> [--clear]
+    python scripts/import_iso_docs.py <json_file> [--clear] [--null-users]
 
-    --clear  Delete existing ISO docs data before importing.
+    --clear       Delete existing ISO docs data before importing.
+    --null-users  Set all created_by_id/updated_by_id to NULL (for cross-env imports).
 
 Connects to the database configured in DATABASE_URL.
 Inserts in FK order: nodes (parents first), then versions + metadata.
@@ -37,7 +38,7 @@ def _dt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value)
 
 
-async def import_iso_docs(json_path: str, clear: bool = False) -> None:
+async def import_iso_docs(json_path: str, clear: bool = False, null_users: bool = False) -> None:
     path = Path(json_path)
     if not path.exists():
         print(f"Error: {json_path} not found")
@@ -74,8 +75,8 @@ async def import_iso_docs(json_path: str, clear: bool = False) -> None:
                 type=n["type"],
                 parent_id=_uuid(n["parent_id"]),
                 position=n["position"],
-                created_by_id=_uuid(n.get("created_by_id")),
-                updated_by_id=_uuid(n.get("updated_by_id")),
+                created_by_id=None if null_users else _uuid(n.get("created_by_id")),
+                updated_by_id=None if null_users else _uuid(n.get("updated_by_id")),
                 created_at=_dt(n.get("created_at")),
                 updated_at=_dt(n.get("updated_at")),
             ))
@@ -88,7 +89,7 @@ async def import_iso_docs(json_path: str, clear: bool = False) -> None:
                 node_id=UUID(v["node_id"]),
                 content=v["content"],
                 version=v["version"],
-                created_by_id=_uuid(v.get("created_by_id")),
+                created_by_id=None if null_users else _uuid(v.get("created_by_id")),
                 created_at=_dt(v.get("created_at")),
             ))
         await db.flush()
@@ -122,4 +123,5 @@ if __name__ == "__main__":
 
     json_file = sys.argv[1]
     clear_flag = "--clear" in sys.argv
-    asyncio.run(import_iso_docs(json_file, clear=clear_flag))
+    null_users_flag = "--null-users" in sys.argv
+    asyncio.run(import_iso_docs(json_file, clear=clear_flag, null_users=null_users_flag))
