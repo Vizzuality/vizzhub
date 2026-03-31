@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import remarkBreaks from 'remark-breaks';
 import { useTheme } from 'next-themes';
@@ -17,10 +17,12 @@ export function DocViewer({
   onInternalLink,
 }: DocViewerProps): JSX.Element {
   const { resolvedTheme } = useTheme();
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!onInternalLink) return;
+  useEffect(() => {
+    if (!onInternalLink || !containerRef.current) return;
+
+    const handler = (e: MouseEvent): void => {
       const target = (e.target as HTMLElement).closest('a');
       if (!target) return;
       const href = target.getAttribute('href');
@@ -28,9 +30,12 @@ export function DocViewer({
         e.preventDefault();
         onInternalLink(href);
       }
-    },
-    [onInternalLink],
-  );
+    };
+
+    const el = containerRef.current;
+    el.addEventListener('click', handler);
+    return () => el.removeEventListener('click', handler);
+  }, [onInternalLink]);
 
   if (!content) {
     return (
@@ -42,8 +47,8 @@ export function DocViewer({
 
   return (
     <div
+      ref={containerRef}
       data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}
-      onClick={handleClick}
     >
       <MDEditor.Markdown source={content} remarkPlugins={remarkPlugins} />
     </div>
