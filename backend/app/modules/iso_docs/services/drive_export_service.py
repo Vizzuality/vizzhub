@@ -28,14 +28,6 @@ DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 DRIVE_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 ROOT_FOLDER_KEY = "root_folder_id"
 
-CATEGORY_LABELS = {
-    "manual": "Manual",
-    "policy": "Policy",
-    "procedure": "Procedure",
-    "plan": "Plan",
-    "record": "Record",
-    "report": "Report",
-}
 STATUS_LABELS = {
     "approved": "Approved",
     "draft": "Draft",
@@ -112,7 +104,9 @@ class DriveExportService:
             async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
 
                 async def walk(
-                    children: list[IsoDocNodeDB], parent_drive_id: str
+                    children: list[IsoDocNodeDB],
+                    parent_drive_id: str,
+                    parent_title: str | None = None,
                 ) -> None:
                     nonlocal exported, access_token
                     for node in children:
@@ -133,11 +127,13 @@ class DriveExportService:
                                 n for n in nodes if n.parent_id == node.id
                             ]
                             sub_children.sort(key=lambda n: n.position)
-                            await walk(sub_children, drive_id)
+                            await walk(sub_children, drive_id, node.title)
                         else:
                             content = versions_map.get(node.id, "")
                             meta = metadata_map.get(node.id)
-                            html = self._to_html(node.title, content, meta)
+                            html = self._to_html(
+                                node.title, content, meta, parent_title
+                            )
                             drive_id = await self._upsert_doc(
                                 http, access_token, node.title, html,
                                 parent_drive_id, existing_drive_id,
@@ -318,6 +314,7 @@ class DriveExportService:
         title: str,
         markdown_content: str,
         metadata: IsoDocMetadataDB | None,
+        category: str | None = None,
     ) -> str:
         parts = [_STYLE, f'<h1 style="font-size:24pt;margin-bottom:4pt">{_escape(title)}</h1>']
 
@@ -333,9 +330,8 @@ class DriveExportService:
                 pills.append(f'<span style="{_PILL}">{_escape(label)}</span>')
             if metadata.doc_version:
                 pills.append(f'<span style="{_PILL}">v{_escape(metadata.doc_version)}</span>')
-            if metadata.category:
-                label = CATEGORY_LABELS.get(metadata.category, metadata.category)
-                pills.append(f'<span style="{_PILL}">{_escape(label)}</span>')
+            if category:
+                pills.append(f'<span style="{_PILL}">{_escape(category)}</span>')
 
             if pills:
                 parts.append(

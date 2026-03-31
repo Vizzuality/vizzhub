@@ -121,18 +121,17 @@ class TestDriveExportService:
         meta.code = "POL-001"
         meta.standard = ["ISO 27001"]
         meta.clauses = ["A.5.1"]
-        meta.category = "policy"
         meta.status = "approved"
         meta.doc_version = "2.0"
 
         meta.changelog = [{"version": "1.0", "date": "2024-01-01", "author": "Admin", "description": "Init"}]
 
-        html = svc._to_html("Test Doc", "# Hello\n\nWorld", meta)
+        html = svc._to_html("Test Doc", "# Hello\n\nWorld", meta, "Policies")
 
         assert "Test Doc</h1>" in html
         assert "POL-001" in html
         assert "ISO 27001" in html
-        assert "Policy" in html
+        assert "Policies" in html
         assert "Approved" in html
         assert "<h1>Hello</h1>" in html
         assert "<p>World</p>" in html
