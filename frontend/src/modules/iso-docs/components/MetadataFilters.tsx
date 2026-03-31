@@ -21,6 +21,24 @@ interface MetadataFiltersProps {
   readonly onClose: () => void;
 }
 
+function collectDistinctValues(results: MetadataSearchResult[]): {
+  cats: Set<string>; stats: Set<string>; stds: Set<string>; cls: Set<string>;
+} {
+  const cats = new Set<string>();
+  const stats = new Set<string>();
+  const stds = new Set<string>();
+  const cls = new Set<string>();
+
+  for (const r of results) {
+    if (r.category) cats.add(r.category);
+    if (r.status) stats.add(r.status);
+    r.standard?.forEach((s) => stds.add(s));
+    r.clauses?.forEach((c) => cls.add(c));
+  }
+
+  return { cats, stats, stds, cls };
+}
+
 function useFilterOptions(allResults: MetadataSearchResult[] | undefined): {
   categories: { value: string; label: string }[];
   statuses: { value: string; label: string }[];
@@ -30,17 +48,7 @@ function useFilterOptions(allResults: MetadataSearchResult[] | undefined): {
   return useMemo(() => {
     if (!allResults) return { categories: [], statuses: [], standards: [], clauses: [] };
 
-    const cats = new Set<string>();
-    const stats = new Set<string>();
-    const stds = new Set<string>();
-    const cls = new Set<string>();
-
-    for (const r of allResults) {
-      if (r.category) cats.add(r.category);
-      if (r.status) stats.add(r.status);
-      if (r.standard) for (const s of r.standard) stds.add(s);
-      if (r.clauses) for (const c of r.clauses) cls.add(c);
-    }
+    const { cats, stats, stds, cls } = collectDistinctValues(allResults);
 
     return {
       categories: [...cats]
