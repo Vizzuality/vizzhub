@@ -78,7 +78,8 @@ async def lifespan(app: FastAPI) -> Any:
     if settings.debug:
         logger.warning("app_debug_mode_enabled")
 
-    await init_db()
+    if settings.debug:
+        await init_db()
 
     # Seed config parameters and alert definitions from CSV if not already seeded
     await seed_config_parameters()
