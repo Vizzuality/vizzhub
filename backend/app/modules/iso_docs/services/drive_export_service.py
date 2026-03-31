@@ -158,6 +158,8 @@ class DriveExportService:
                     db, http, access_token, {n.id for n in nodes}, mappings
                 )
 
+            await JobService.update_progress(db, job_uuid, 100, "Export complete")
+
             result = {
                 "exported": exported,
                 "orphans_removed": orphan_count,
