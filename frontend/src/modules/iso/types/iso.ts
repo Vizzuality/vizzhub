@@ -118,3 +118,7 @@ export interface JiraIsoConfigStatus {
   connected: boolean;
   site_url: string | null;
 }
+
+export interface DriveConfigStatus {
+  connected: boolean;
+}

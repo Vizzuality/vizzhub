@@ -5,6 +5,7 @@ import type {
   AccessReviewUpdate,
   AccessSnapshot,
   AccessSnapshotSummary,
+  DriveConfigStatus,
   GitHubIsoConfigStatus,
   IsoConfigStatus,
   JiraIsoConfigStatus,
@@ -57,6 +58,16 @@ export const isoApi = {
   getJiraConfigStatus: async (): Promise<JiraIsoConfigStatus> => {
     const response = await api.get<JiraIsoConfigStatus>('/iso/config/jira');
     return response.data;
+  },
+
+  // Google Drive config
+  getDriveConfigStatus: async (): Promise<DriveConfigStatus> => {
+    const response = await api.get<DriveConfigStatus>('/iso/config/google-drive');
+    return response.data;
+  },
+
+  disconnectDrive: async (): Promise<void> => {
+    await api.delete('/iso/config/google-drive/disconnect');
   },
 
   captureSnapshot: async (
