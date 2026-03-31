@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -221,17 +221,17 @@ export default function AdminInvoices(): JSX.Element {
 
   const page = Number.parseInt(state.page, 10) || 1;
   const [localSearch, setLocalSearch] = useState(state.search);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { setLocalSearch(state.search); }, [state.search]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (localSearch !== state.search) {
-        setState({ search: localSearch, page: '1' });
-      }
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearch(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setState({ search: value, page: '1' });
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [localSearch, state.search, setState]);
+  }, [setState]);
 
   const params: AdminInvoiceParams = {
     page,
@@ -289,7 +289,7 @@ export default function AdminInvoices(): JSX.Element {
               type="text"
               placeholder="Search project..."
               value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9 h-8"
             />
           </div>
