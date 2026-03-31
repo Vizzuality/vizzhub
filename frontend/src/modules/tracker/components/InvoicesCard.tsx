@@ -1,10 +1,11 @@
 import { useState, Fragment, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
-import { Plus } from 'lucide-react';
+import { Plus, ExternalLink } from 'lucide-react';
 import { useInvoices, useCreateInvoice } from '../hooks/useInvoices';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import {
@@ -98,6 +99,11 @@ function InvoiceRow({
         </td>
         <td className="py-2 text-right hidden sm:table-cell">
           <div className="flex items-center gap-1 justify-end">
+            <Link to={`/tracker/invoices/${invoice.id}`}>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </Link>
             <RevertButton invoice={invoice} />
             <DeleteButton invoice={invoice} projectId={projectId} currency={currency} />
           </div>

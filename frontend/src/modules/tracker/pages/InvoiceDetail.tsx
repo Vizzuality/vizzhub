@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { queryKeys } from '@/core/hooks/queryKeys';
@@ -35,6 +35,8 @@ import type { Postponement } from '../types/tracker';
 
 export default function InvoiceDetail(): JSX.Element {
   const { invoiceId } = useParams<{ invoiceId: string }>();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
   const qc = useQueryClient();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -87,7 +89,7 @@ export default function InvoiceDetail(): JSX.Element {
   return (
     <div className="space-y-4 max-w-2xl">
       <div className="flex items-center gap-3">
-        <Link to="/admin/tracker/invoices">
+        <Link to={isAdminRoute ? '/admin/tracker/invoices' : `/tracker/projects/${invoice.project_id}`}>
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="w-4 h-4" />
           </Button>

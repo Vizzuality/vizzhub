@@ -99,6 +99,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
+          <Route path="/tracker/invoices/:invoiceId" element={<InvoiceDetail />} />
           <Route path="/capacity/insights" element={<CapacityInsights />} />
           <Route path="/capacity/allocation" element={<CapacityAllocation />} />
           <Route path="/capacity/planner" element={<CapacityPlanner />} />
@@ -127,6 +128,9 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
           <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
+          <Route element={<PermissionRoute require={Action.TRACKER_MANAGE} />}>
+            <Route path="/tracker/invoices/:invoiceId" element={<InvoiceDetail />} />
+          </Route>
           <Route path="/capacity/insights" element={<CapacityInsights />} />
           <Route path="/capacity/allocation" element={<CapacityAllocation />} />
           <Route path="/capacity/planner" element={<CapacityPlanner />} />
