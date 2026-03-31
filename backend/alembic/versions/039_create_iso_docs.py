@@ -14,21 +14,23 @@ down_revision = "038_pb_publish_log"
 
 
 def upgrade() -> None:
-    iso_doc_node_type = sa.Enum(
-        "page", "group", name="iso_doc_node_type", create_type=False,
-    )
-    iso_doc_category = sa.Enum(
-        "manual", "policy", "procedure", "plan", "record", "report",
-        name="iso_doc_category", create_type=False,
-    )
-    iso_doc_status = sa.Enum(
-        "draft", "approved", "under_review", name="iso_doc_status",
-        create_type=False,
-    )
-
-    bind = op.get_bind()
-    for enum in (iso_doc_node_type, iso_doc_category, iso_doc_status):
-        enum.create(bind, checkfirst=True)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE iso_doc_node_type AS ENUM ('page', 'group');
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE iso_doc_category AS ENUM (
+                'manual', 'policy', 'procedure', 'plan', 'record', 'report'
+            );
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE iso_doc_status AS ENUM ('draft', 'approved', 'under_review');
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+    """)
 
     iso_doc_node_type = sa.Enum(
         "page", "group", name="iso_doc_node_type", create_type=False,
