@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+  if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
