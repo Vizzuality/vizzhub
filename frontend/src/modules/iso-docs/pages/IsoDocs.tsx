@@ -269,7 +269,7 @@ export default function IsoDocs(): JSX.Element {
 
   const { data: versions } = useIsoDocVersions(historyOpen ? selectedId : null);
   const { data: versionDetail } = useIsoDocVersion(
-    selectedVersion !== null ? selectedId : null,
+    selectedVersion === null ? null : selectedId,
     selectedVersion,
   );
 
@@ -291,7 +291,7 @@ export default function IsoDocs(): JSX.Element {
 
   const handleInternalLink = useCallback(
     (href: string) => {
-      const url = new URL(href, window.location.origin);
+      const url = new URL(href, globalThis.location.origin);
       const pagePath = url.searchParams.get('page');
       if (pagePath) {
         setSearchParams({ page: pagePath }, { replace: true });

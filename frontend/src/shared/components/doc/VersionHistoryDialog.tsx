@@ -75,7 +75,7 @@ export function VersionHistoryDialog({
 }: VersionHistoryDialogProps): JSX.Element {
   const [previewVersion, setPreviewVersion] = useState<number | null>(null);
 
-  const versionDetail = previewVersion !== null ? fetchVersion(previewVersion) : undefined;
+  const versionDetail = previewVersion === null ? undefined : fetchVersion(previewVersion);
 
   const handleOpenChange = (v: boolean): void => {
     onOpenChange(v);
