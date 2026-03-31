@@ -3,6 +3,7 @@ import { integrationsApi } from '@/core/services/integrations';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import JiraCard from './JiraCard';
 import GoogleWorkspaceCard from './GoogleWorkspaceCard';
+import GoogleDriveCard from './GoogleDriveCard';
 import GitHubCard from './GitHubCard';
 import SlackTab from './SlackTab';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
@@ -21,6 +22,7 @@ export default function IntegrationsTab(): JSX.Element {
     <div className="space-y-6">
       <JiraCard status={status?.jira} />
       <GoogleWorkspaceCard />
+      <GoogleDriveCard />
       <GitHubCard status={status?.github} />
       <SlackTab status={status?.slack} />
     </div>

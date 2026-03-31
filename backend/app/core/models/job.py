@@ -16,6 +16,7 @@ class JobType(str, Enum):
     """Types of async jobs."""
 
     CAPTURE_HISTORY = "capture_history"
+    EXPORT_GDRIVE = "export_gdrive"
 
 
 class JobStatus(str, Enum):

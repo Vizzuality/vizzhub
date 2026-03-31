@@ -113,3 +113,14 @@ export const CATEGORY_LABELS: Record<string, string> = {
   record: 'Record',
   report: 'Report',
 };
+
+export interface DriveExportStatus {
+  connected: boolean;
+  last_export_at: string | null;
+  root_folder_id: string | null;
+  exported_doc_count: number;
+}
+
+export interface DriveExportResponse {
+  job_id: string;
+}
