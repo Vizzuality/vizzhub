@@ -10,7 +10,7 @@ Connects to the database configured in DATABASE_URL.
 import asyncio
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -51,7 +51,7 @@ async def export_iso_docs(output_path: str) -> None:
         metadata_records = metadata_result.scalars().all()
 
     data = {
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "counts": {
             "nodes": len(nodes),
             "versions": len(versions),
