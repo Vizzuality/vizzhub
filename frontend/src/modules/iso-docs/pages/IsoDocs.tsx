@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil, Filter } from 'lucide-react';
+import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil, Filter, Download, Printer } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
@@ -188,7 +188,7 @@ function TreeSidebar({
   }
 
   return (
-    <div className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
+    <div data-iso-tree-sidebar className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
       <div className="flex items-center justify-between p-3 border-b">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <FileText className="h-4 w-4" />
@@ -401,6 +401,43 @@ export default function IsoDocs(): JSX.Element {
     [page, selectedId, savePage],
   );
 
+  const handleExportMarkdown = useCallback(() => {
+    if (!page || !selectedNode) return;
+    const blob = new Blob([page.content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedNode.slug}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [page, selectedNode]);
+
+  const handlePrintPdf = useCallback(() => {
+    const contentEl = document.querySelector('[data-iso-content]');
+    if (!contentEl) return;
+    const iframe = document.createElement('iframe');
+    Object.assign(iframe.style, { position: 'fixed', left: '-9999px', width: '0', height: '0' });
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument;
+    if (!doc) { document.body.removeChild(iframe); return; }
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+    doc.open();
+    doc.write(`<!DOCTYPE html>
+<html><head><title>${selectedNode?.title ?? 'ISO Document'}</title>${styles}
+<style>body { padding: 1cm; background: white !important; color: black !important; }
+button, [data-iso-actions] { display: none !important; }
+@page { margin: 1.5cm; }</style>
+</head><body>${contentEl.innerHTML}</body></html>`);
+    doc.close();
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 500);
+  }, [selectedNode]);
+
   const descendantCount = useMemo(() => {
     if (!selectedNode) return 0;
     const countChildren = (node: DocTreeNode): number =>
@@ -414,7 +451,7 @@ export default function IsoDocs(): JSX.Element {
     : 'This action cannot be undone.';
 
   return (
-    <div className="flex h-[calc(100vh-3rem)]">
+    <div className="flex h-[calc(100vh-3rem)]" data-iso-root>
       <TreeSidebar
         tree={tree}
         treeLoading={treeLoading}
@@ -429,7 +466,7 @@ export default function IsoDocs(): JSX.Element {
         onFiltersChange={setMetadataFilters}
       />
 
-      <div className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
+      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
         {renderContent()}
       </div>
 
@@ -549,41 +586,58 @@ export default function IsoDocs(): JSX.Element {
             </Button>
             <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div data-iso-actions className="flex items-center gap-2">
             {isPage && isEditor && (
               <Button size="sm" onClick={() => setEditing(true)}>
                 Edit
               </Button>
             )}
-            {isEditor && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isEditor && (
                   <DropdownMenuItem onClick={handleRenameOpen}>
                     <Pencil className="h-4 w-4 mr-2" />
                     Rename
                   </DropdownMenuItem>
-                  {isPage && isAdmin && (
-                    <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
-                      <History className="h-4 w-4 mr-2" />
-                      Version history
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setDeleteConfirmOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
+                )}
+                {isPage && isAdmin && (
+                  <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                    <History className="h-4 w-4 mr-2" />
+                    Version history
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                )}
+                {isPage && (
+                  <>
+                    {isEditor && <DropdownMenuSeparator />}
+                    <DropdownMenuItem onClick={handleExportMarkdown}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Markdown
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handlePrintPdf}>
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print / Save as PDF
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isEditor && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         {isPage && (

@@ -49,6 +49,8 @@ export function DocViewer({
     <div
       ref={containerRef}
       data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      className="overflow-hidden [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full"
+      style={{ overflowWrap: 'anywhere' }}
     >
       <MDEditor.Markdown source={content} remarkPlugins={remarkPlugins} />
     </div>

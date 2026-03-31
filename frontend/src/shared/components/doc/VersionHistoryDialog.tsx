@@ -108,7 +108,7 @@ export function VersionHistoryDialog({
 
         {isPreview ? (
           <div className="flex flex-col gap-4">
-            <div className="max-h-[60vh] overflow-auto border rounded p-4">
+            <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden border rounded p-4">
               {versionDetail ? (
                 <DocViewer content={versionDetail.content} />
               ) : (
