@@ -217,5 +217,6 @@ export const queryKeys = {
     metadata: (id: string) => ['iso-docs', 'metadata', id] as const,
     metadataSearch: (params: Record<string, string | undefined>) =>
       ['iso-docs', 'metadata', 'search', params] as const,
+    textSearch: (q: string) => ['iso-docs', 'text-search', q] as const,
   },
 } as const;

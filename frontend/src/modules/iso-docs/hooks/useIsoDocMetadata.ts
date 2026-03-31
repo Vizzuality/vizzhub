@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { isoDocsApi } from '../services/isoDocs';
 import type { MetadataUpdate } from '../types/isoDocs';
@@ -33,5 +33,14 @@ export function useMetadataSearch(params: {
   return useQuery({
     queryKey: queryKeys.isoDocs.metadataSearch(params),
     queryFn: () => isoDocsApi.searchMetadata(params),
+  });
+}
+
+export function useTextSearch(query: string) {
+  return useQuery({
+    queryKey: queryKeys.isoDocs.textSearch(query),
+    queryFn: () => isoDocsApi.searchPages(query),
+    enabled: query.length >= 2,
+    placeholderData: keepPreviousData,
   });
 }
