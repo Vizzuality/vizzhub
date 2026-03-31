@@ -37,9 +37,8 @@ const MODULES: ModuleCard[] = [
     number: '03',
     symbol: 'Is',
     label: 'ISO',
-    path: '/iso/snapshots',
+    path: '/iso/docs',
     iconType: 'iso',
-    adminOnly: true,
   },
   {
     number: '04',

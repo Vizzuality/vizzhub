@@ -24,6 +24,7 @@ class MetadataResponse(BaseModel):
     standard: list[str] | None
     clauses: list[str] | None
     category: str | None
+    classification: str
     doc_version: str | None
     status: str | None
     original_filename: str | None
@@ -39,6 +40,10 @@ class MetadataUpdate(BaseModel):
     category: str | None = Field(
         None,
         pattern=r"^(manual|policy|procedure|plan|record|report)$",
+    )
+    classification: str | None = Field(
+        None,
+        pattern=r"^(internal_use|confidential)$",
     )
     doc_version: str | None = Field(None, max_length=20)
     status: str | None = Field(

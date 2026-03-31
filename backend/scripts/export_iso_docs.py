@@ -91,6 +91,7 @@ async def export_iso_docs(output_path: str) -> None:
                 "standard": m.standard,
                 "clauses": m.clauses,
                 "category": m.category,
+                "classification": m.classification,
                 "doc_version": m.doc_version,
                 "status": m.status,
                 "original_filename": m.original_filename,

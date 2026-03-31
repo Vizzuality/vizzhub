@@ -8,6 +8,7 @@ export function useIsoDocPage(nodeId: string | null) {
     queryKey: queryKeys.isoDocs.page(nodeId ?? ''),
     queryFn: () => isoDocsApi.getPage(nodeId!),
     enabled: !!nodeId,
+    refetchOnWindowFocus: false,
   });
 }
 

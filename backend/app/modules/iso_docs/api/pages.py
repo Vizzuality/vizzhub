@@ -13,7 +13,7 @@ from typing import Annotated
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.models.user import UserDB
 from app.core.services.content_version_service import ContentVersionService
-from app.modules.iso_docs.api.deps import IsoDocsEditor
+from app.modules.iso_docs.api.deps import IsoDocsEditor, is_iso_docs_editor
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
@@ -35,6 +35,20 @@ _versions = ContentVersionService(
     model_class=IsoDocVersionDB,
     entity_fk_field="node_id",
 )
+
+
+async def _check_confidential(db: DBSession, node_id: UUID, user: CurrentUser) -> None:
+    """Raise 403 if node is confidential and user is not an editor."""
+    if is_iso_docs_editor(user):
+        return
+    meta_result = await db.execute(
+        select(IsoDocMetadataDB.classification).where(
+            IsoDocMetadataDB.node_id == node_id
+        )
+    )
+    classification = meta_result.scalar_one_or_none()
+    if classification == "confidential":
+        raise HTTPException(status_code=403, detail="Access denied")
 
 
 async def _get_page_node(db: DBSession, node_id: UUID) -> IsoDocNodeDB:
@@ -109,6 +123,12 @@ async def search_pages(
         .order_by(IsoDocNodeDB.title)
     )
 
+    if not is_iso_docs_editor(user):
+        query = query.where(
+            (IsoDocMetadataDB.classification == None)  # noqa: E711
+            | (IsoDocMetadataDB.classification != "confidential")
+        )
+
     result = await db.execute(query)
     rows = result.all()
 
@@ -135,6 +155,7 @@ async def search_pages(
 async def get_page(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> PageContentResponse:
+    await _check_confidential(db, node_id, user)
     node = await _get_page_node(db, node_id)
     latest = await _versions.get_latest(db, entity_id=node_id)
 
@@ -236,6 +257,7 @@ async def _resolve_user_names(
 async def list_versions(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> list[VersionListItem]:
+    await _check_confidential(db, node_id, user)
     await _get_page_node(db, node_id)
     versions = await _versions.list_versions(db, entity_id=node_id)
 
@@ -261,6 +283,7 @@ async def list_versions(
 async def get_version(
     node_id: UUID, version: int, db: DBSession, user: CurrentUser
 ) -> VersionDetailResponse:
+    await _check_confidential(db, node_id, user)
     await _get_page_node(db, node_id)
     record = await _versions.get_version(db, entity_id=node_id, version=version)
     if not record:

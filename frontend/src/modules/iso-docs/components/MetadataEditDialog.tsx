@@ -17,10 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { CATEGORY_LABELS, STATUS_LABELS } from '../types/isoDocs';
+import { CATEGORY_LABELS, CLASSIFICATION_LABELS, STATUS_LABELS } from '../types/isoDocs';
 import type { IsoDocMetadata, MetadataUpdate, ChangelogEntry } from '../types/isoDocs';
 
 const CATEGORIES = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
+const CLASSIFICATIONS = Object.entries(CLASSIFICATION_LABELS).map(([value, label]) => ({ value, label }));
 const STATUSES = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
 interface MetadataEditDialogProps {
@@ -174,6 +175,7 @@ export function MetadataEditDialog({
         standard: metadata.standard ?? [],
         clauses: metadata.clauses ?? [],
         category: metadata.category ?? '',
+        classification: metadata.classification ?? 'internal_use',
         doc_version: metadata.doc_version ?? '',
         status: metadata.status ?? '',
         changelog: metadata.changelog?.map((e) => ({ ...e })) ?? [],
@@ -187,6 +189,7 @@ export function MetadataEditDialog({
       standard: form.standard?.length ? form.standard : null,
       clauses: form.clauses?.length ? form.clauses : null,
       category: form.category || null,
+      classification: form.classification || 'internal_use',
       doc_version: form.doc_version || null,
       status: form.status || null,
       changelog: form.changelog?.length ? form.changelog : null,
@@ -223,7 +226,7 @@ export function MetadataEditDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label>Category</Label>
               <Select
@@ -256,24 +259,40 @@ export function MetadataEditDialog({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label>Classification</Label>
+              <Select
+                value={form.classification ?? 'internal_use'}
+                onValueChange={(v) => setForm({ ...form, classification: v })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select classification" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <TagInput
             label="Standards"
-            values={(form.standard as string[]) ?? []}
+            values={form.standard ?? []}
             onChange={(v) => setForm({ ...form, standard: v })}
             placeholder="e.g. ISO 27001:2022"
           />
 
           <TagInput
             label="Clauses"
-            values={(form.clauses as string[]) ?? []}
+            values={form.clauses ?? []}
             onChange={(v) => setForm({ ...form, clauses: v })}
             placeholder="e.g. 5.2"
           />
 
           <ChangelogEditor
-            entries={(form.changelog as ChangelogEntry[]) ?? []}
+            entries={form.changelog ?? []}
             onChange={(v) => setForm({ ...form, changelog: v })}
           />
         </div>

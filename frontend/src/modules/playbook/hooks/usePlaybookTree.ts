@@ -7,6 +7,7 @@ export function usePlaybookTree() {
   return useQuery({
     queryKey: queryKeys.playbook.tree,
     queryFn: playbookApi.getTree,
+    refetchOnWindowFocus: false,
   });
 }
 

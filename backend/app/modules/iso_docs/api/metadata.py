@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.modules.iso_docs.api.deps import IsoDocsEditor
+from app.modules.iso_docs.api.deps import IsoDocsEditor, is_iso_docs_editor
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.schemas.metadata import (
@@ -34,6 +34,8 @@ async def get_metadata(
     meta = result.scalar_one_or_none()
     if not meta:
         raise HTTPException(status_code=404, detail="Metadata not found")
+    if meta.classification == "confidential" and not is_iso_docs_editor(user):
+        raise HTTPException(status_code=403, detail="Access denied")
     return MetadataResponse.model_validate(meta)
 
 
@@ -56,8 +58,6 @@ async def update_metadata(
     meta = result.scalar_one_or_none()
 
     update = data.model_dump(exclude_unset=True)
-    if "changelog" in update and update["changelog"] is not None:
-        update["changelog"] = [entry.model_dump() for entry in data.changelog]
 
     if meta:
         for field, value in update.items():
@@ -93,6 +93,8 @@ async def search_metadata(
         .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
     )
 
+    if not is_iso_docs_editor(user):
+        query = query.where(IsoDocMetadataDB.classification != "confidential")
     if standard:
         query = query.where(IsoDocMetadataDB.standard.any(standard))
     if category:
@@ -103,16 +105,7 @@ async def search_metadata(
         query = query.where(IsoDocMetadataDB.status == status)
 
     result = await db.execute(query.order_by(IsoDocNodeDB.title))
-    rows = result.all()
     return [
-        MetadataSearchResult(
-            node_id=row.node_id,
-            title=row.title,
-            code=row.code,
-            standard=row.standard,
-            clauses=row.clauses,
-            category=row.category,
-            status=row.status,
-        )
-        for row in rows
+        MetadataSearchResult(**row._mapping)
+        for row in result.all()
     ]

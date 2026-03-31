@@ -8,6 +8,7 @@ export function usePlaybookPage(nodeId: string | null) {
     queryKey: queryKeys.playbook.page(nodeId ?? ''),
     queryFn: () => playbookApi.getPage(nodeId!),
     enabled: !!nodeId,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -31,5 +32,6 @@ export function useAssetStatus() {
     queryKey: queryKeys.playbook.assetStatus,
     queryFn: playbookApi.getAssetStatus,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }

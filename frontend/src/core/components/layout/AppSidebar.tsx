@@ -73,7 +73,7 @@ const TRACKER_TABS = [
   { to: '/admin/tracker/rates', label: 'Rates' },
 ] as const;
 
-const ISO_TABS = [
+const ISO_TABS_ADMIN = [
   { to: '/iso/docs', label: 'Documentation' },
   { to: '/iso/snapshots', label: 'Access Control' },
 ] as const;
@@ -287,13 +287,26 @@ export function AppSidebar(): JSX.Element {
                 </SidebarMenuItem>
               )}
 
-              {isAdmin && (
+              {isAdmin ? (
                 <CollapsibleMenuItem
                   icon={Shield}
                   label="ISO"
                   isActive={isActive('/iso')}
-                  items={ISO_TABS}
+                  items={ISO_TABS_ADMIN}
                 />
+              ) : (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive('/iso/docs')}
+                    tooltip="ISO Docs"
+                  >
+                    <GuardedLink to="/iso/docs">
+                      <Shield />
+                      <span>ISO Docs</span>
+                    </GuardedLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
