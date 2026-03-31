@@ -113,8 +113,8 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
 
       {changelogOpen && metadata.changelog && (
         <div className="pt-1 border-t space-y-0.5">
-          {metadata.changelog.map((entry, i) => (
-            <div key={i} className="text-muted-foreground">
+          {metadata.changelog.map((entry) => (
+            <div key={`${entry.version}-${entry.date}`} className="text-muted-foreground">
               <span className="font-mono">v{entry.version}</span>
               {' — '}{entry.date}{' — '}{entry.description}
               {' '}<span className="opacity-60">({entry.author})</span>

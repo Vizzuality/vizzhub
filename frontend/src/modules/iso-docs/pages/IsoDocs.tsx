@@ -408,8 +408,9 @@ export default function IsoDocs(): JSX.Element {
     return countChildren(selectedNode);
   }, [selectedNode]);
 
+  const itemWord = descendantCount === 1 ? 'item' : 'items';
   const deleteDescription = selectedNode?.type === 'group' && descendantCount > 0
-    ? `This will also delete ${descendantCount} ${descendantCount === 1 ? 'item' : 'items'} inside this group. This action cannot be undone.`
+    ? `This will also delete ${descendantCount} ${itemWord} inside this group. This action cannot be undone.`
     : 'This action cannot be undone.';
 
   return (
@@ -585,7 +586,7 @@ export default function IsoDocs(): JSX.Element {
             )}
           </div>
         </div>
-        {isPage ? (
+        {isPage && (
           <div className="space-y-6">
             {metadata && (
               <MetadataPanel
@@ -595,9 +596,10 @@ export default function IsoDocs(): JSX.Element {
             )}
             <DocViewer content={page?.content ?? ''} onInternalLink={handleInternalLink} />
           </div>
-        ) : selectedNode ? (
+        )}
+        {!isPage && selectedNode && (
           <GroupChildren nodes={selectedNode.children} onSelect={handleSelect} />
-        ) : null}
+        )}
       </div>
     );
   }
