@@ -49,7 +49,7 @@ function useFilterOptions(allResults: MetadataSearchResult[] | undefined): {
       statuses: [...stats]
         .map((v) => ({ value: v, label: STATUS_LABELS[v] ?? v }))
         .sort((a, b) => a.label.localeCompare(b.label)),
-      standards: [...stds].sort(),
+      standards: [...stds].sort((a, b) => a.localeCompare(b)),
       clauses: [...cls].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     };
   }, [allResults]);
