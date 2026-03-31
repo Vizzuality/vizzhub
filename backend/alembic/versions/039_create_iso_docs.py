@@ -14,18 +14,21 @@ def upgrade() -> None:
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE iso_doc_node_type AS ENUM ('page', 'group');
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+    """)
+    op.execute("""
         DO $$ BEGIN
             CREATE TYPE iso_doc_category AS ENUM (
                 'manual', 'policy', 'procedure', 'plan', 'record', 'report'
             );
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+    """)
+    op.execute("""
         DO $$ BEGIN
             CREATE TYPE iso_doc_status AS ENUM ('draft', 'approved', 'under_review');
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$
+    """)
+    op.execute("""
         CREATE TABLE IF NOT EXISTS iso_doc_nodes (
             id UUID PRIMARY KEY,
             title VARCHAR(255) NOT NULL,
@@ -38,8 +41,9 @@ def upgrade() -> None:
             created_at TIMESTAMPTZ DEFAULT now(),
             updated_at TIMESTAMPTZ DEFAULT now(),
             CONSTRAINT uq_iso_doc_nodes_parent_slug UNIQUE (parent_id, slug)
-        );
-
+        )
+    """)
+    op.execute("""
         CREATE TABLE IF NOT EXISTS iso_doc_versions (
             id UUID PRIMARY KEY,
             node_id UUID NOT NULL REFERENCES iso_doc_nodes(id) ON DELETE CASCADE,
@@ -48,13 +52,14 @@ def upgrade() -> None:
             created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
             created_at TIMESTAMPTZ DEFAULT now(),
             CONSTRAINT uq_iso_doc_versions_node_version UNIQUE (node_id, version)
-        );
-
+        )
+    """)
+    op.execute("""
         CREATE TABLE IF NOT EXISTS iso_doc_metadata (
             id UUID PRIMARY KEY,
             node_id UUID NOT NULL UNIQUE REFERENCES iso_doc_nodes(id) ON DELETE CASCADE,
             code VARCHAR(50),
-            standard VARCHAR[] ,
+            standard VARCHAR[],
             clauses VARCHAR[],
             category iso_doc_category,
             doc_version VARCHAR(20),
@@ -64,16 +69,14 @@ def upgrade() -> None:
             created_at TIMESTAMPTZ DEFAULT now(),
             updated_at TIMESTAMPTZ DEFAULT now(),
             CONSTRAINT uq_iso_doc_metadata_node UNIQUE (node_id)
-        );
+        )
     """)
 
 
 def downgrade() -> None:
-    op.execute("""
-        DROP TABLE IF EXISTS iso_doc_metadata;
-        DROP TABLE IF EXISTS iso_doc_versions;
-        DROP TABLE IF EXISTS iso_doc_nodes;
-        DROP TYPE IF EXISTS iso_doc_status;
-        DROP TYPE IF EXISTS iso_doc_category;
-        DROP TYPE IF EXISTS iso_doc_node_type;
-    """)
+    op.execute("DROP TABLE IF EXISTS iso_doc_metadata")
+    op.execute("DROP TABLE IF EXISTS iso_doc_versions")
+    op.execute("DROP TABLE IF EXISTS iso_doc_nodes")
+    op.execute("DROP TYPE IF EXISTS iso_doc_status")
+    op.execute("DROP TYPE IF EXISTS iso_doc_category")
+    op.execute("DROP TYPE IF EXISTS iso_doc_node_type")
