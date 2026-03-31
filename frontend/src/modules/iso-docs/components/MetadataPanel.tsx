@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
-import { STATUS_LABELS } from '../types/isoDocs';
+import { CLASSIFICATION_LABELS, STATUS_LABELS } from '../types/isoDocs';
 import type { IsoDocMetadata } from '../types/isoDocs';
 
 interface MetadataPanelProps {
@@ -64,7 +64,9 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
           </>
         )}
         <Separator />
-        <span className="text-muted-foreground italic">Internal use</span>
+        <span className="text-muted-foreground italic">
+          {CLASSIFICATION_LABELS[metadata.classification] ?? 'Internal use'}
+        </span>
         {onEdit && (
           <>
             <Separator />
@@ -78,7 +80,7 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
         )}
       </div>
 
-      {metadata.clauses && metadata.clauses.length > 0 && (
+      {!!metadata.clauses?.length && (
         <div className="flex flex-wrap items-center gap-1">
           <span className="text-muted-foreground">Clauses:</span>
           <span className="font-mono text-muted-foreground">

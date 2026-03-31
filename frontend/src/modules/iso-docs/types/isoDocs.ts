@@ -49,6 +49,7 @@ export interface IsoDocMetadata {
   standard: string[] | null;
   clauses: string[] | null;
   category: string | null;
+  classification: string;
   doc_version: string | null;
   status: string | null;
   original_filename: string | null;
@@ -62,6 +63,7 @@ export interface MetadataUpdate {
   standard?: string[] | null;
   clauses?: string[] | null;
   category?: string | null;
+  classification?: string | null;
   doc_version?: string | null;
   status?: string | null;
   original_filename?: string | null;
@@ -96,6 +98,11 @@ export const STATUS_LABELS: Record<string, string> = {
   approved: 'Approved',
   draft: 'Draft',
   under_review: 'Under Review',
+};
+
+export const CLASSIFICATION_LABELS: Record<string, string> = {
+  internal_use: 'Internal use',
+  confidential: 'Confidential',
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {

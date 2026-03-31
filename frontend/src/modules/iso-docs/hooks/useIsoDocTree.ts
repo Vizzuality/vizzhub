@@ -7,6 +7,7 @@ export function useIsoDocTree() {
   return useQuery({
     queryKey: queryKeys.isoDocs.tree,
     queryFn: isoDocsApi.getTree,
+    refetchOnWindowFocus: false,
   });
 }
 
