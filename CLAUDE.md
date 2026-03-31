@@ -124,6 +124,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 - **Disabled governance tools** → score 0, not neutral.
 - **No trailing slashes**: Routes use `""` not `"/"`. `redirect_slashes=False` in main.py.
 - **DBSession manages transactions**: Do NOT use `async with db.begin()` inside endpoints — nested transaction error. Only use manual `db.begin()` outside request context.
+- **Alembic + asyncpg enums**: Migrations with PostgreSQL enums MUST use raw SQL (`op.execute()`). One statement per call — asyncpg rejects multiple. Use `DO $$ BEGIN CREATE TYPE ... EXCEPTION WHEN duplicate_object THEN NULL; END $$` for enums, `CREATE TABLE IF NOT EXISTS` for tables. Model Enum columns must always have `create_type=False`. `metadata.create_all()` only runs in debug mode.
 - **Weights must sum to 1.0** per group in `config_parameters`.
 - **React Query keys**: Always use `queryKeys` from `core/hooks/queryKeys.ts`. Never string literals.
 - **Invoice effective status**: Derived at query time, not stored. Uses SQL CASE with postponement subquery. `postponed` = has active postponement (postponed_to > today). `pending_to_issue` = scheduled past due OR postponement expired. Transitions blocked for postponed invoices. Postpone max date: `max(base_date, today) + 30 days`. Admin sort by due_date pushes paid invoices last.
