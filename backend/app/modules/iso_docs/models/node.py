@@ -27,7 +27,8 @@ class IsoDocNodeDB(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(
-        Enum("page", "group", name="iso_doc_node_type"), nullable=False
+        Enum("page", "group", name="iso_doc_node_type", create_type=False),
+        nullable=False,
     )
     parent_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
