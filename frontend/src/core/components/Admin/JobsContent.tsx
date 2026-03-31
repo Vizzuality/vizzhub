@@ -27,6 +27,7 @@ import {
   CheckCircle,
   Loader2,
   Globe,
+  FileUp,
 } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
 import { playbookApi } from '@/modules/playbook/services/playbook';
@@ -54,6 +55,53 @@ function getJobStatusBadge(status: JobStatusType): JSX.Element {
       {label}
     </Badge>
   );
+}
+
+function getStatusIcon(status: string): JSX.Element {
+  switch (status) {
+    case 'completed':
+      return (
+        <span className="flex items-center gap-1.5 text-sm">
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          Completed
+        </span>
+      );
+    case 'running':
+      return (
+        <span className="flex items-center gap-1.5 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+          Running
+        </span>
+      );
+    case 'failed':
+      return (
+        <span className="flex items-center gap-1.5 text-sm">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          Failed
+        </span>
+      );
+    case 'pending':
+      return (
+        <span className="flex items-center gap-1.5 text-sm">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          Pending
+        </span>
+      );
+    case 'cancelled':
+      return (
+        <span className="flex items-center gap-1.5 text-sm">
+          <XCircle className="h-4 w-4 text-muted-foreground" />
+          Cancelled
+        </span>
+      );
+    default:
+      return <span className="text-sm text-muted-foreground">{status}</span>;
+  }
+}
+
+function computeDurationSeconds(startIso: string, endIso: string | null): number | null {
+  if (!endIso) return null;
+  return Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 1000);
 }
 
 function getScheduledJobStatusBadge(status: string): JSX.Element {
@@ -493,30 +541,11 @@ function PlaybookPublishSection(): JSX.Element {
               </thead>
               <tbody>
                 {history.map((entry, i) => {
-                  const duration = entry.completed_at && entry.started_at
-                    ? Math.round((new Date(entry.completed_at).getTime() - new Date(entry.started_at).getTime()) / 1000)
-                    : null;
+                  const duration = computeDurationSeconds(entry.started_at, entry.completed_at);
                   return (
                     <tr key={i} className="border-b last:border-b-0">
                       <td className="py-3 pr-4">
-                        {entry.status === 'completed' && (
-                          <span className="flex items-center gap-1.5 text-sm">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            Completed
-                          </span>
-                        )}
-                        {entry.status === 'running' && (
-                          <span className="flex items-center gap-1.5 text-sm">
-                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                            Running
-                          </span>
-                        )}
-                        {entry.status === 'failed' && (
-                          <span className="flex items-center gap-1.5 text-sm">
-                            <AlertCircle className="h-4 w-4 text-destructive" />
-                            Failed
-                          </span>
-                        )}
+                        {getStatusIcon(entry.status)}
                       </td>
                       <td className="py-3 pr-4 text-sm text-muted-foreground">
                         {entry.page_count ?? '-'}
@@ -542,12 +571,72 @@ function PlaybookPublishSection(): JSX.Element {
   );
 }
 
+function IsoDocsExportSection(): JSX.Element {
+  const { data: jobs, isLoading } = useAllJobs();
+  const exportJobs = jobs?.filter((j) => j.type === 'export_gdrive') ?? [];
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileUp className="h-5 w-5" />
+          ISO Docs Export
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {exportJobs.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No exports yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-muted-foreground border-b">
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Progress</th>
+                  <th className="pb-3 font-medium">Started</th>
+                  <th className="pb-3 font-medium">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exportJobs.map((job) => {
+                  const duration = computeDurationSeconds(job.created_at, job.completed_at);
+                  return (
+                    <tr key={job.id} className="border-b last:border-b-0">
+                      <td className="py-3 pr-4">
+                        {getStatusIcon(job.status)}
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">
+                        {job.progress}%
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">
+                        {formatRelativeTime(job.created_at)}
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">
+                        {duration !== null ? `${duration}s` : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function JobsContent(): JSX.Element {
   return (
     <div className="space-y-6 mt-4">
       <ScheduledJobsSection />
       <BackgroundJobsSection />
       <PlaybookPublishSection />
+      <IsoDocsExportSection />
     </div>
   );
 }

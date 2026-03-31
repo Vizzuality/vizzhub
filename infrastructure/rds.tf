@@ -43,4 +43,8 @@ resource "aws_db_instance" "main" {
   tags = {
     Name = "${var.project_name}-db"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
