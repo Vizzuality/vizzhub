@@ -100,15 +100,14 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
 
   if (!editing) {
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        className={`min-h-[1.5rem] flex items-center ${isEditor ? 'cursor-text' : ''}`}
+      <button
+        type="button"
+        className={`min-h-[1.5rem] flex items-center bg-transparent border-0 p-0 text-left text-inherit font-inherit w-full ${isEditor ? 'cursor-text' : ''}`}
         onDoubleClick={startEditing}
         onKeyDown={(e) => { if (e.key === 'Enter') startEditing(e as unknown as React.MouseEvent); }}
       >
         <DisplayValue value={value} col={col} />
-      </div>
+      </button>
     );
   }
 

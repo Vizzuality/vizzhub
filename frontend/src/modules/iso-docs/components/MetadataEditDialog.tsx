@@ -118,7 +118,7 @@ function ChangelogEditor({
         </Button>
       </div>
       {entries.map((entry, i) => (
-        <div key={i} className="grid grid-cols-[1fr_1fr_1fr_2fr_auto] gap-1.5 items-start">
+        <div key={`${entry.version}-${entry.date}-${i}`} className="grid grid-cols-[1fr_1fr_1fr_2fr_auto] gap-1.5 items-start">
           <Input
             value={entry.version}
             onChange={(e) => handleEntryChange(i, 'version', e.target.value)}

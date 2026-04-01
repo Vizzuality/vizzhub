@@ -351,9 +351,10 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && (
         <p className="text-sm text-muted-foreground">Loading...</p>
-      ) : rows.length === 0 ? (
+      )}
+      {!isLoading && rows.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">No data yet</p>
           {isEditor && (
@@ -363,7 +364,8 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
             </Button>
           )}
         </div>
-      ) : (
+      )}
+      {!isLoading && rows.length > 0 && (
         <div className="border rounded-lg overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

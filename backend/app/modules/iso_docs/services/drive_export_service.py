@@ -322,64 +322,56 @@ class DriveExportService:
         parts = [_STYLE, f'<h1 style="font-size:24pt;margin-bottom:4pt">{_escape(title)}</h1>']
 
         if metadata:
-            pills = []
-            if metadata.code:
-                pills.append(f'<span style="{_PILL}">{_escape(metadata.code)}</span>')
-            if metadata.standard:
-                for s in metadata.standard:
-                    pills.append(f'<span style="{_PILL}">{_escape(s)}</span>')
-            if metadata.status:
-                label = STATUS_LABELS.get(metadata.status, metadata.status)
-                pills.append(f'<span style="{_PILL}">{_escape(label)}</span>')
-            if metadata.doc_version:
-                pills.append(f'<span style="{_PILL}">v{_escape(metadata.doc_version)}</span>')
-            if category:
-                pills.append(f'<span style="{_PILL}">{_escape(category)}</span>')
-
-            if pills:
-                parts.append(
-                    f'<p style="margin:8pt 0 4pt 0">{" &nbsp; ".join(pills)}</p>'
-                )
-
-            if metadata.clauses:
-                parts.append(
-                    f'<p style="color:#666;font-size:9pt;margin:2pt 0 12pt 0">'
-                    f'Clauses: {_escape(", ".join(metadata.clauses))}</p>'
-                )
-
-            if metadata.changelog:
-                parts.append(
-                    '<table style="border-collapse:collapse;font-size:9pt;'
-                    'margin:8pt 0 16pt 0;width:100%">'
-                    '<tr style="background:#f5f5f5">'
-                    '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Version</th>'
-                    '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Date</th>'
-                    '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Description</th>'
-                    '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Author</th>'
-                    '</tr>'
-                )
-                for entry in metadata.changelog:
-                    v = _escape(str(entry.get("version", "")))
-                    d = _escape(str(entry.get("date", "")))
-                    desc = _escape(str(entry.get("description", "")))
-                    a = _escape(str(entry.get("author", "")))
-                    parts.append(
-                        f'<tr>'
-                        f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">v{v}</td>'
-                        f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">{d}</td>'
-                        f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">{desc}</td>'
-                        f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee;color:#666">{a}</td>'
-                        f'</tr>'
-                    )
-                parts.append("</table>")
-
-            parts.append('<hr style="border:none;border-top:1pt solid #e0e0e0;margin:16pt 0">')
+            self._render_metadata_section(parts, metadata, category)
 
         content = _strip_leading_h1(markdown_content, title)
         body_html = _md.render(content) if content else ""
         parts.append(body_html)
 
         return "\n".join(parts)
+
+    def _render_metadata_section(
+        self,
+        parts: list[str],
+        metadata: IsoDocMetadataDB,
+        category: str | None,
+    ) -> None:
+        pills = self._build_metadata_pills(metadata, category)
+        if pills:
+            parts.append(
+                f'<p style="margin:8pt 0 4pt 0">{" &nbsp; ".join(pills)}</p>'
+            )
+
+        if metadata.clauses:
+            parts.append(
+                f'<p style="color:#666;font-size:9pt;margin:2pt 0 12pt 0">'
+                f'Clauses: {_escape(", ".join(metadata.clauses))}</p>'
+            )
+
+        if metadata.changelog:
+            parts.append(_render_changelog_table(metadata.changelog))
+
+        parts.append('<hr style="border:none;border-top:1pt solid #e0e0e0;margin:16pt 0">')
+
+    def _build_metadata_pills(
+        self,
+        metadata: IsoDocMetadataDB,
+        category: str | None,
+    ) -> list[str]:
+        pills: list[str] = []
+        if metadata.code:
+            pills.append(f'<span style="{_PILL}">{_escape(metadata.code)}</span>')
+        if metadata.standard:
+            for s in metadata.standard:
+                pills.append(f'<span style="{_PILL}">{_escape(s)}</span>')
+        if metadata.status:
+            label = STATUS_LABELS.get(metadata.status, metadata.status)
+            pills.append(f'<span style="{_PILL}">{_escape(label)}</span>')
+        if metadata.doc_version:
+            pills.append(f'<span style="{_PILL}">v{_escape(metadata.doc_version)}</span>')
+        if category:
+            pills.append(f'<span style="{_PILL}">{_escape(category)}</span>')
+        return pills
 
     # -- Google Drive API helpers --
 
@@ -471,6 +463,34 @@ class DriveExportService:
         )
         if resp.status_code != 404:
             resp.raise_for_status()
+
+
+def _render_changelog_table(changelog: list[dict]) -> str:
+    rows = [
+        '<table style="border-collapse:collapse;font-size:9pt;'
+        'margin:8pt 0 16pt 0;width:100%">'
+        '<tr style="background:#f5f5f5">'
+        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Version</th>'
+        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Date</th>'
+        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Description</th>'
+        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Author</th>'
+        '</tr>'
+    ]
+    for entry in changelog:
+        v = _escape(str(entry.get("version", "")))
+        d = _escape(str(entry.get("date", "")))
+        desc = _escape(str(entry.get("description", "")))
+        a = _escape(str(entry.get("author", "")))
+        rows.append(
+            f'<tr>'
+            f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">v{v}</td>'
+            f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">{d}</td>'
+            f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">{desc}</td>'
+            f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee;color:#666">{a}</td>'
+            f'</tr>'
+        )
+    rows.append("</table>")
+    return "\n".join(rows)
 
 
 def _auth(token: str) -> dict[str, str]:
