@@ -8,6 +8,29 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+def _validate_field_type(value: object, col: dict) -> str | None:
+    """Validate a single field value against its column definition."""
+    label = col["label"]
+    col_type = col["type"]
+
+    if col_type in ("string", "user") and not isinstance(value, str):
+        return f"Field '{label}' must be a string"
+    if col_type == "number" and not isinstance(value, (int, float)):
+        return f"Field '{label}' must be a number"
+    if col_type == "boolean" and not isinstance(value, bool):
+        return f"Field '{label}' must be a boolean"
+    if col_type == "date" and isinstance(value, str):
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            return f"Field '{label}' must be a valid date (YYYY-MM-DD)"
+    if col_type == "select":
+        options = col.get("options", [])
+        if value not in options:
+            return f"Field '{label}' must be one of: {', '.join(options)}"
+    return None
+
+
 def validate_row_data(
     schema: list[dict], data: dict, *, partial: bool = False
 ) -> list[str]:
@@ -26,24 +49,9 @@ def validate_row_data(
         if is_missing:
             continue
 
-        col_type = col["type"]
-        if col_type in ("string", "user") and not isinstance(value, str):
-            errors.append(f"Field '{col['label']}' must be a string")
-        elif col_type == "number" and not isinstance(value, (int, float)):
-            errors.append(f"Field '{col['label']}' must be a number")
-        elif col_type == "boolean" and not isinstance(value, bool):
-            errors.append(f"Field '{col['label']}' must be a boolean")
-        elif col_type == "date" and isinstance(value, str):
-            try:
-                date.fromisoformat(value)
-            except ValueError:
-                errors.append(f"Field '{col['label']}' must be a valid date (YYYY-MM-DD)")
-        elif col_type == "select":
-            options = col.get("options", [])
-            if value not in options:
-                errors.append(
-                    f"Field '{col['label']}' must be one of: {', '.join(options)}"
-                )
+        error = _validate_field_type(value, col)
+        if error:
+            errors.append(error)
 
     unknown_keys = set(data.keys()) - set(columns_by_key.keys())
     if unknown_keys:
