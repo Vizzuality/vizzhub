@@ -15,11 +15,14 @@ async def page_node(client: AsyncClient) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_get_metadata_not_found(client: AsyncClient, page_node: dict):
+async def test_get_metadata_default(client: AsyncClient, page_node: dict):
     response = await client.get(
         f"/api/iso-docs/pages/{page_node['id']}/metadata"
     )
-    assert response.status_code == 404
+    assert response.status_code == 200
+    data = response.json()
+    assert data["classification"] == "internal_use"
+    assert data["code"] is None
 
 
 @pytest.mark.asyncio

@@ -28,9 +28,9 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
   const [changelogOpen, setChangelogOpen] = useState(false);
 
   const documentDate = useMemo(() => {
-    if (!metadata.changelog?.length) return null;
-    return formatDate(metadata.changelog[0].date);
-  }, [metadata.changelog]);
+    if (metadata.changelog?.length) return formatDate(metadata.changelog[0].date);
+    return formatDate(metadata.created_at);
+  }, [metadata.changelog, metadata.created_at]);
 
   return (
     <div className="border rounded px-3 py-2.5 text-xs space-y-1.5 bg-muted/30">

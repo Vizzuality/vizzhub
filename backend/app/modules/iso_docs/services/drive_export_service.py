@@ -98,7 +98,7 @@ class DriveExportService:
                 [n for n in nodes if n.parent_id is None],
                 key=lambda n: n.position,
             )
-            total = len(nodes)
+            total = sum(1 for n in nodes if n.type != "registry")
             exported = 0
 
             async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
@@ -114,6 +114,9 @@ class DriveExportService:
                             db, access_token
                         )
                         existing_drive_id = mappings.get(node.id)
+
+                        if node.type == "registry":
+                            continue
 
                         if node.type == "group":
                             drive_id = await self._upsert_folder(

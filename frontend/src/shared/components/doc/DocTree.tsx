@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Tree, NodeRendererProps } from 'react-arborist';
-import { ChevronRight, ChevronDown, File, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, File, Folder, Table2 } from 'lucide-react';
 import type { DocTreeNode } from '@/shared/types/doc';
 
 interface DocTreeProps {
@@ -24,6 +24,7 @@ function Node({
   renderExtra?: (node: DocTreeNode) => React.ReactNode;
 }): JSX.Element {
   const isGroup = node.data.type === 'group';
+  const isRegistry = node.data.type === 'registry';
 
   return (
     <div
@@ -45,6 +46,8 @@ function Node({
       {isGroup && !node.isOpen && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
       {isGroup ? (
         <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+      ) : isRegistry ? (
+        <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
       ) : (
         <File className="h-4 w-4 shrink-0 text-muted-foreground" />
       )}

@@ -13,11 +13,12 @@ import { Label } from '@/shared/components/ui/label';
 interface NodeFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly onSubmit: (title: string, type: 'page' | 'group') => void;
+  readonly onSubmit: (title: string, type: 'page' | 'group' | 'registry', registryTypeId?: string) => void;
   readonly isLoading: boolean;
   readonly parentId: string | null;
   readonly dialogTitle?: string;
   readonly rootLabel?: string;
+  readonly renderRegistryPicker?: (value: string | null, onChange: (id: string) => void) => React.ReactNode;
 }
 
 export function NodeForm({
@@ -28,21 +29,26 @@ export function NodeForm({
   parentId,
   dialogTitle,
   rootLabel = 'Add to root',
+  renderRegistryPicker,
 }: NodeFormProps): JSX.Element {
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<'page' | 'group'>('page');
+  const [type, setType] = useState<'page' | 'group' | 'registry'>('page');
+  const [registryTypeId, setRegistryTypeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setTitle('');
       setType('page');
+      setRegistryTypeId(null);
     }
   }, [open]);
 
+  const canSubmit = title.trim() && (type !== 'registry' || registryTypeId);
+
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
-    if (title.trim()) {
-      onSubmit(title.trim(), type);
+    if (canSubmit) {
+      onSubmit(title.trim(), type, type === 'registry' ? registryTypeId! : undefined);
     }
   };
 
@@ -75,15 +81,31 @@ export function NodeForm({
                 >
                   Group
                 </Button>
+                {renderRegistryPicker && (
+                  <Button
+                    type="button"
+                    variant={type === 'registry' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setType('registry')}
+                  >
+                    Registry
+                  </Button>
+                )}
               </div>
             </div>
+            {type === 'registry' && renderRegistryPicker && (
+              <div className="space-y-2">
+                <Label>Registry Type</Label>
+                {renderRegistryPicker(registryTypeId, setRegistryTypeId)}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={type === 'page' ? 'Page title' : 'Group name'}
+                placeholder={type === 'registry' ? 'Registry name' : type === 'page' ? 'Page title' : 'Group name'}
                 autoFocus
               />
             </div>
@@ -92,7 +114,7 @@ export function NodeForm({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim() || isLoading}>
+            <Button type="submit" disabled={!canSubmit || isLoading}>
               {isLoading ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>
