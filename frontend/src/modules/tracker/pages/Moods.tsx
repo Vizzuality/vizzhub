@@ -77,11 +77,10 @@ function NamedFeedbackCard({ item, onDelete }: NamedFeedbackCardProps): JSX.Elem
 }
 
 export default function Moods(): JSX.Element {
-  const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const safeMonth = new Date(Date.now() - 45 * 86_400_000);
   const { state, setState } = useUrlState({
-    month: { defaultValue: prevMonth.getMonth() + 1 },
-    year: { defaultValue: prevMonth.getFullYear() },
+    month: { defaultValue: safeMonth.getMonth() + 1 },
+    year: { defaultValue: safeMonth.getFullYear() },
     tab: { defaultValue: 'monthly' },
   });
 

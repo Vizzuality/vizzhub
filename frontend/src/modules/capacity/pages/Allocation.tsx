@@ -20,8 +20,7 @@ const fmtMonth = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 function defaultMonth(): string {
-  const now = new Date();
-  return fmtMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  return fmtMonth(new Date(Date.now() - 45 * 86_400_000));
 }
 
 const defaultMo = defaultMonth();
