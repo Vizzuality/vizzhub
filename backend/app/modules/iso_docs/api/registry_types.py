@@ -20,6 +20,8 @@ from app.modules.iso_docs.schemas.registry import (
 
 logger = structlog.get_logger()
 
+_NOT_FOUND = "Registry type not found"
+
 router = APIRouter()
 
 
@@ -41,7 +43,7 @@ async def list_registry_types(
 
 @router.get(
     "/registry-types/{type_id}",
-    responses={404: {"description": "Registry type not found"}},
+    responses={404: {"description": _NOT_FOUND}},
 )
 async def get_registry_type(
     type_id: UUID, db: DBSession, user: CurrentUser
@@ -51,7 +53,7 @@ async def get_registry_type(
     )
     rt = result.scalar_one_or_none()
     if not rt:
-        raise HTTPException(status_code=404, detail="Registry type not found")
+        raise HTTPException(status_code=404, detail=_NOT_FOUND)
     return RegistryTypeResponse.model_validate(rt)
 
 
@@ -84,7 +86,7 @@ async def create_registry_type(
 
 @router.patch(
     "/registry-types/{type_id}",
-    responses={404: {"description": "Registry type not found"}},
+    responses={404: {"description": _NOT_FOUND}},
 )
 async def update_registry_type(
     type_id: UUID, data: RegistryTypeUpdate, db: DBSession, user: IsoDocsEditor
@@ -94,7 +96,7 @@ async def update_registry_type(
     )
     rt = result.scalar_one_or_none()
     if not rt:
-        raise HTTPException(status_code=404, detail="Registry type not found")
+        raise HTTPException(status_code=404, detail=_NOT_FOUND)
 
     update = data.model_dump(exclude_unset=True)
     if "schema_" in update:
@@ -113,7 +115,7 @@ async def update_registry_type(
 
 @router.delete(
     "/registry-types/{type_id}",
-    responses={404: {"description": "Registry type not found"}},
+    responses={404: {"description": _NOT_FOUND}},
 )
 async def delete_registry_type(
     type_id: UUID, db: DBSession, user: IsoDocsEditor
@@ -123,7 +125,7 @@ async def delete_registry_type(
     )
     rt = result.scalar_one_or_none()
     if not rt:
-        raise HTTPException(status_code=404, detail="Registry type not found")
+        raise HTTPException(status_code=404, detail=_NOT_FOUND)
 
     nodes_result = await db.execute(
         select(IsoDocNodeDB.id).where(IsoDocNodeDB.registry_type_id == type_id).limit(1)

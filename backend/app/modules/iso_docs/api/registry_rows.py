@@ -40,6 +40,10 @@ from app.modules.iso_docs.services.registry_service import (
 
 logger = structlog.get_logger()
 
+XLSX_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
 router = APIRouter()
 
 
@@ -246,7 +250,7 @@ async def export_registry(
     xlsx_buf = _build_xlsx(node.title, columns, rows)
     return StreamingResponse(
         xlsx_buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        media_type=XLSX_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{base_name}.xlsx"'},
     )
 
@@ -268,25 +272,9 @@ def _coerce_csv_value(raw: str, col_type: str) -> object:
     return raw
 
 
-@router.post("/registries/{node_id}/import")
-async def import_registry(
-    node_id: UUID,
-    file: UploadFile,
-    db: DBSession,
-    user: IsoDocsEditor,
-    year: Annotated[int | None, Query()] = None,
-) -> dict:
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are accepted")
-
-    node = await _get_registry_node(db, node_id)
-    rt = await _get_registry_type(db, node.registry_type_id)
-    columns = rt.schema
-
+def _parse_csv(text: str, columns: list[dict]) -> list[dict]:
+    """Parse CSV text into validated row dicts. Raises HTTPException on errors."""
     label_to_col = {col["label"]: col for col in columns}
-
-    content = await file.read()
-    text = content.decode("utf-8-sig")
     reader = csv.DictReader(StringIO(text))
 
     if not reader.fieldnames:
@@ -315,6 +303,26 @@ async def import_registry(
                 detail=f"Row {line_num}: {'; '.join(errors)}",
             )
         parsed_rows.append(data)
+    return parsed_rows
+
+
+@router.post("/registries/{node_id}/import")
+async def import_registry(
+    node_id: UUID,
+    file: UploadFile,
+    db: DBSession,
+    user: IsoDocsEditor,
+    year: Annotated[int | None, Query()] = None,
+) -> dict:
+    if not file.filename or not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are accepted")
+
+    node = await _get_registry_node(db, node_id)
+    rt = await _get_registry_type(db, node.registry_type_id)
+
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    parsed_rows = _parse_csv(text, rt.schema)
 
     await db.execute(
         select(RegistryRowDB)
@@ -502,7 +510,7 @@ async def export_registry_to_drive(
                     content=xlsx_buf.read(),
                     headers={
                         **auth_header,
-                        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "Content-Type": XLSX_CONTENT_TYPE,
                     },
                     params={"supportsAllDrives": "true"},
                 )
@@ -524,7 +532,7 @@ async def export_registry_to_drive(
                     "file": (
                         None,
                         xlsx_buf.read(),
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        XLSX_CONTENT_TYPE,
                     ),
                 },
                 params={"fields": "id", "supportsAllDrives": "true"},
