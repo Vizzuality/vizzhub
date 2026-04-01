@@ -13,8 +13,8 @@ const fmtMonth = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 function defaultRange(monthsBack: number): { start: string; end: string } {
-  const now = new Date();
-  const endDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const safeEnd = new Date(Date.now() - 45 * 86_400_000);
+  const endDate = new Date(safeEnd.getFullYear(), safeEnd.getMonth(), 1);
   const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - monthsBack, 1);
   return { start: fmtMonth(startDate), end: fmtMonth(endDate) };
 }
