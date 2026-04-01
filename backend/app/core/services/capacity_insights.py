@@ -432,23 +432,29 @@ async def _get_finished_periods(
     end_date: date | None = None,
     default_limit: int = 3,
 ) -> list[tuple]:
-    """Fetch finished reporting periods, newest first.
+    """Fetch reporting periods for allocation, newest first.
 
-    If start_date/end_date provided, filters to that range.
-    Otherwise returns the most recent `default_limit` periods.
+    If start_date/end_date provided, includes finished and active periods
+    in that range (so users see data for the period they selected).
+    Otherwise returns the most recent `default_limit` finished periods.
     """
-    query = (
-        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
-        .where(ReportingPeriodDB.status == "finished")
-        .order_by(ReportingPeriodDB.date.desc())
-    )
     if start_date and end_date:
-        query = query.where(
-            ReportingPeriodDB.date >= start_date,
-            ReportingPeriodDB.date <= end_date,
+        query = (
+            select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+            .where(
+                ReportingPeriodDB.status.in_(["finished", "active"]),
+                ReportingPeriodDB.date >= start_date,
+                ReportingPeriodDB.date <= end_date,
+            )
+            .order_by(ReportingPeriodDB.date.desc())
         )
     else:
-        query = query.limit(default_limit)
+        query = (
+            select(ReportingPeriodDB.id, ReportingPeriodDB.date)
+            .where(ReportingPeriodDB.status == "finished")
+            .order_by(ReportingPeriodDB.date.desc())
+            .limit(default_limit)
+        )
 
     result = await db.execute(query)
     return list(result)
