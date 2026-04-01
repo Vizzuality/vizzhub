@@ -69,7 +69,13 @@ async def save_drive_folder(
     return {"status": "success", "folder_id": body.folder_id.strip()}
 
 
-@router.post("/drive/export")
+@router.post(
+    "/drive/export",
+    responses={
+        409: {"description": "Export already in progress"},
+        400: {"description": "Google Drive not connected or root folder not configured"},
+    },
+)
 @limiter.limit("5/minute")
 async def trigger_drive_export(
     request: Request, user: IsoDocsEditor, db: DBSession

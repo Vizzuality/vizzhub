@@ -45,7 +45,10 @@ async def _build_metadata_response(
 
 @router.get(
     "/pages/{node_id}/metadata",
-    responses={404: {"description": "Metadata not found"}},
+    responses={
+        403: {"description": "Access denied for confidential document"},
+        404: {"description": "Metadata not found"},
+    },
 )
 async def get_metadata(
     node_id: UUID, db: DBSession, user: CurrentUser

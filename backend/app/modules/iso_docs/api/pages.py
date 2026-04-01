@@ -149,6 +149,7 @@ async def search_pages(
     "/{node_id}",
     responses={
         400: {"description": "Node is a group, not a page"},
+        403: {"description": "Access denied for confidential document"},
         404: {"description": "Page not found"},
     },
 )
