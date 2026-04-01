@@ -114,105 +114,103 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
   switch (col.type) {
     case 'boolean':
       return (
-        <div role="group" className="flex items-center" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <Switch
-            checked={!!draft}
-            onCheckedChange={(v) => {
-              setDraft(v);
-              setEditing(false);
-              onSave(col.key, v);
-            }}
-            autoFocus
-          />
-        </div>
+        <Switch
+          className="flex items-center"
+          checked={!!draft}
+          onCheckedChange={(v) => {
+            setDraft(v);
+            setEditing(false);
+            onSave(col.key, v);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          autoFocus
+        />
       );
 
     case 'select':
       return (
-        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <Select
-            value={(draft as string) ?? ''}
-            onValueChange={(v) => {
-              setDraft(v);
-              setEditing(false);
-              onSave(col.key, v);
-            }}
-            open
-            onOpenChange={(open) => { if (!open) cancel(); }}
+        <Select
+          value={(draft as string) ?? ''}
+          onValueChange={(v) => {
+            setDraft(v);
+            setEditing(false);
+            onSave(col.key, v);
+          }}
+          open
+          onOpenChange={(open) => { if (!open) cancel(); }}
+        >
+          <SelectTrigger
+            className="h-7 text-sm min-w-[100px]"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
-            <SelectTrigger className="h-7 text-sm min-w-[100px]">
-              <SelectValue placeholder="Select..." />
-            </SelectTrigger>
-            <SelectContent>
-              {(col.options ?? []).map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <SelectValue placeholder="Select..." />
+          </SelectTrigger>
+          <SelectContent>
+            {(col.options ?? []).map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
 
     case 'user':
       return (
-        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <UserPicker
-            value={(value as string) ?? null}
-            defaultOpen
-            onSelect={(name) => {
-              setEditing(false);
-              onSave(col.key, name);
-            }}
-            onCancel={cancel}
-            triggerClassName="h-7 text-sm justify-between min-w-[140px]"
-          />
-        </div>
+        <UserPicker
+          value={(value as string) ?? null}
+          defaultOpen
+          onSelect={(name) => {
+            setEditing(false);
+            onSave(col.key, name);
+          }}
+          onCancel={cancel}
+          triggerClassName="h-7 text-sm justify-between min-w-[140px]"
+        />
       );
 
     case 'date':
       return (
-        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <Input
-            ref={inputRef}
-            type="date"
-            className="h-7 text-sm w-36"
-            value={(draft as string) ?? ''}
-            onChange={(e) => setDraft(e.target.value || null)}
-            onBlur={commit}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
+        <Input
+          ref={inputRef}
+          type="date"
+          className="h-7 text-sm w-36"
+          value={(draft as string) ?? ''}
+          onChange={(e) => setDraft(e.target.value || null)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+        />
       );
 
     case 'number':
       return (
-        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <Input
-            ref={inputRef}
-            type="number"
-            className="h-7 text-sm w-24"
-            value={draft != null ? String(draft) : ''}
-            onChange={(e) => setDraft(e.target.value ? Number(e.target.value) : null)}
-            onBlur={commit}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
+        <Input
+          ref={inputRef}
+          type="number"
+          className="h-7 text-sm w-24"
+          value={draft != null ? String(draft) : ''}
+          onChange={(e) => setDraft(e.target.value ? Number(e.target.value) : null)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+        />
       );
 
     default:
       return (
-        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <Input
-            ref={inputRef}
-            type="text"
-            className="h-7 text-sm"
-            value={(draft as string) ?? ''}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
+        <Input
+          ref={inputRef}
+          type="text"
+          className="h-7 text-sm"
+          value={(draft as string) ?? ''}
+          onChange={(e) => setDraft(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+        />
       );
   }
 }
