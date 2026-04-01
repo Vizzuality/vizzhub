@@ -247,7 +247,7 @@ function TreeSidebar({
                   className="h-7 w-7"
                   onClick={onDriveExport}
                   disabled={driveExporting}
-                  title={driveExporting ? `Exporting${driveProgress ? ` (${driveProgress}%)` : '...'}` : 'Export to Google Drive'}
+                  title={driveExporting ? (driveProgress ? `Exporting (${driveProgress}%)` : 'Exporting...') : 'Export to Google Drive'}
                 >
                   {driveExporting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -504,7 +504,7 @@ export default function IsoDocs(): JSX.Element {
     Object.assign(iframe.style, { position: 'fixed', left: '-9999px', width: '0', height: '0' });
     document.body.appendChild(iframe);
     const doc = iframe.contentDocument;
-    if (!doc) { document.body.removeChild(iframe); return; }
+    if (!doc) { iframe.remove(); return; }
     const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
       .map((el) => el.outerHTML)
       .join('\n');
@@ -519,7 +519,7 @@ button, [data-iso-actions] { display: none !important; }
     setTimeout(() => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      setTimeout(() => document.body.removeChild(iframe), 1000);
+      setTimeout(() => iframe.remove(), 1000);
     }, 500);
   }, [selectedNode]);
 

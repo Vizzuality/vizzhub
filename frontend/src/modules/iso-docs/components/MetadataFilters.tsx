@@ -93,6 +93,11 @@ export function MetadataFilters({
     setSearchQuery('');
   };
 
+  const resultCount = textResults?.length ?? 0;
+  const searchStatusText = isSearching
+    ? 'Searching...'
+    : `${resultCount} ${resultCount === 1 ? 'result' : 'results'}`;
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-3 py-2 border-b">
@@ -192,7 +197,7 @@ export function MetadataFilters({
         {isTextSearch ? (
           <>
             <div className="px-3 py-1.5 text-xs text-muted-foreground">
-              {isSearching ? 'Searching...' : `${textResults?.length ?? 0} ${textResults?.length === 1 ? 'result' : 'results'}`}
+              {searchStatusText}
             </div>
             <div className="px-1 pb-2">
               {textResults?.map((r) => (
