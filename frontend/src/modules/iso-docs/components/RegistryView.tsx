@@ -72,7 +72,7 @@ function compareValues(a: unknown, b: unknown, dir: SortDir): number {
 
   const aNum = Number(a);
   const bNum = Number(b);
-  if (!isNaN(aNum) && !isNaN(bNum)) {
+  if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
     return dir === 'asc' ? aNum - bNum : bNum - aNum;
   }
 

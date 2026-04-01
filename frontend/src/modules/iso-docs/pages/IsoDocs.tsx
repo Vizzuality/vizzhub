@@ -120,11 +120,13 @@ function GroupChildren({
           className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
           onClick={() => onSelect(child.id)}
         >
-          {child.type === 'group' ? (
+          {child.type === 'group' && (
             <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-          ) : child.type === 'registry' ? (
+          )}
+          {child.type === 'registry' && (
             <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          ) : (
+          )}
+          {child.type !== 'group' && child.type !== 'registry' && (
             <File className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
           <span>{child.title}</span>
@@ -205,8 +207,14 @@ function TreeSidebar({
     );
   }
 
+  const sidebarVisibility = (() => {
+    if (selectedId && !collapsed) return 'hidden md:flex';
+    if (collapsed) return 'flex';
+    return '';
+  })();
+
   return (
-    <div data-iso-tree-sidebar className={`shrink-0 border-r flex flex-col transition-all ${collapsed ? 'w-10' : 'w-full md:w-72'} ${selectedId && !collapsed ? 'hidden md:flex' : collapsed ? 'flex' : ''}`}>
+    <div data-iso-tree-sidebar className={`shrink-0 border-r flex flex-col transition-all ${collapsed ? 'w-10' : 'w-full md:w-72'} ${sidebarVisibility}`}>
       {collapsed ? (
         <div className="flex flex-col items-center pt-3 gap-2">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleCollapse} title="Expand sidebar">
@@ -337,6 +345,11 @@ export default function IsoDocs(): JSX.Element {
   );
   const isPage = selectedNode?.type === 'page';
   const isRegistry = selectedNode?.type === 'registry';
+  const nodeTypeLabel = (() => {
+    if (isRegistry) return 'registry';
+    if (isPage) return 'page';
+    return 'group';
+  })();
 
   const { data: versions } = useIsoDocVersions(historyOpen ? selectedId : null);
   const { data: versionDetail } = useIsoDocVersion(
@@ -713,7 +726,7 @@ button, [data-iso-actions] { display: none !important; }
                       onClick={() => setDeleteConfirmOpen(true)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete {selectedNode?.type === 'group' ? 'group' : selectedNode?.type === 'registry' ? 'registry' : 'page'}
+                      Delete {nodeTypeLabel}
                     </DropdownMenuItem>
                   </>
                 )}

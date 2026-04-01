@@ -12,6 +12,8 @@ from sqlalchemy.sql import func
 
 from app.database import Base
 
+_ON_DELETE_SET_NULL = "SET NULL"
+
 
 class IsoDocNodeDB(Base):
     """Tree node: either a page (has content) or a group (container only)."""
@@ -41,17 +43,17 @@ class IsoDocNodeDB(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     registry_type_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("registry_types.id", ondelete="SET NULL"),
+        ForeignKey("registry_types.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
     updated_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
