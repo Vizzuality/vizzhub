@@ -27,7 +27,10 @@ class IsoDocNodeDB(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(
-        Enum("page", "group", name="iso_doc_node_type", create_type=False),
+        Enum(
+            "page", "group", "registry",
+            name="iso_doc_node_type", create_type=False,
+        ),
         nullable=False,
     )
     parent_id: Mapped[UUID | None] = mapped_column(
@@ -36,6 +39,11 @@ class IsoDocNodeDB(Base):
         nullable=True,
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    registry_type_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("registry_types.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),

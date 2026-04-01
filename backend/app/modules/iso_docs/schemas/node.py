@@ -10,8 +10,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class NodeCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    type: str = Field(pattern=r"^(page|group)$")
+    type: str = Field(pattern=r"^(page|group|registry)$")
     parent_id: UUID | None = None
+    registry_type_id: UUID | None = None
 
 
 class NodeUpdate(BaseModel):
@@ -38,6 +39,7 @@ class NodeResponse(BaseModel):
     type: str
     parent_id: UUID | None
     position: int
+    registry_type_id: UUID | None = None
     created_by_id: UUID | None
     updated_by_id: UUID | None
     created_at: datetime

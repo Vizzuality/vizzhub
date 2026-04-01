@@ -3,7 +3,7 @@ import { NodeForm as SharedNodeForm } from '@/shared/components/doc/NodeForm';
 interface PlaybookNodeFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly onSubmit: (title: string, type: 'page' | 'group') => void;
+  readonly onSubmit: (title: string, type: 'page' | 'group' | 'registry') => void;
   readonly isLoading: boolean;
   readonly parentId: string | null;
 }

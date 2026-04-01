@@ -3,11 +3,11 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { isoDocsApi } from '../services/isoDocs';
 import type { PageSaveRequest } from '../types/isoDocs';
 
-export function useIsoDocPage(nodeId: string | null) {
+export function useIsoDocPage(nodeId: string | null, enabled = true) {
   return useQuery({
     queryKey: queryKeys.isoDocs.page(nodeId ?? ''),
     queryFn: () => isoDocsApi.getPage(nodeId!),
-    enabled: !!nodeId,
+    enabled: !!nodeId && enabled,
     refetchOnWindowFocus: false,
   });
 }

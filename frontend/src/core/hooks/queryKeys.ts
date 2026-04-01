@@ -220,5 +220,9 @@ export const queryKeys = {
       ['iso-docs', 'metadata', 'search', params] as const,
     textSearch: (q: string) => ['iso-docs', 'text-search', q] as const,
     driveStatus: ['iso-docs', 'drive-status'] as const,
+    registryTypes: ['iso-docs', 'registry-types'] as const,
+    registryType: (id: string) => ['iso-docs', 'registry-types', id] as const,
+    registryRows: (nodeId: string, year?: number) =>
+      ['iso-docs', 'registry-rows', nodeId, year] as const,
   },
 } as const;

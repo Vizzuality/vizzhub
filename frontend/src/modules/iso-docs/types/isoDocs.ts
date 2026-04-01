@@ -26,8 +26,9 @@ export interface PageSaveResponse {
 
 export interface NodeCreateRequest {
   title: string;
-  type: 'page' | 'group';
+  type: 'page' | 'group' | 'registry';
   parent_id?: string | null;
+  registry_type_id?: string | null;
 }
 
 export interface NodeUpdateRequest {

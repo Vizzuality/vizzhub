@@ -13,6 +13,7 @@ from app.core.api.deps import CurrentUser, DBSession
 from app.modules.iso_docs.api.deps import IsoDocsEditor, is_iso_docs_editor
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
+from app.modules.iso_docs.models.registry_type import RegistryTypeDB
 from app.modules.iso_docs.schemas.node import (
     NodeCreate,
     NodeResponse,
@@ -45,6 +46,7 @@ def _build_tree(nodes: list[IsoDocNodeDB], parent_id: UUID | None = None) -> lis
             "type": node.type,
             "parent_id": node.parent_id,
             "position": node.position,
+            "registry_type_id": node.registry_type_id,
             "children": _build_tree(nodes, node.id),
         }
         result.append(item)
@@ -92,6 +94,26 @@ async def create_node(
             detail="Maximum tree depth exceeded (10 levels)",
         )
 
+    if data.type == "registry":
+        if not data.registry_type_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="registry_type_id is required for registry nodes",
+            )
+        rt_result = await db.execute(
+            select(RegistryTypeDB).where(RegistryTypeDB.id == data.registry_type_id)
+        )
+        if not rt_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registry type not found",
+            )
+    elif data.registry_type_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="registry_type_id is only valid for registry nodes",
+        )
+
     slug = generate_slug(data.title)
     slug = await ensure_unique_slug(db, slug, data.parent_id)
     position = await get_next_position(db, data.parent_id)
@@ -103,12 +125,18 @@ async def create_node(
         type=data.type,
         parent_id=data.parent_id,
         position=position,
+        registry_type_id=data.registry_type_id,
         created_by_id=user_id,
         updated_by_id=user_id,
     )
     db.add(node)
     await db.flush()
     await db.refresh(node)
+
+    if data.type in ("page", "registry"):
+        db.add(IsoDocMetadataDB(node_id=node.id))
+        await db.flush()
+
     logger.info("iso_doc_node_created", node_id=str(node.id), title=data.title, type=data.type)
     return NodeResponse.model_validate(node)
 

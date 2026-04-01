@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { isoDocsApi } from '../services/isoDocs';
 
-export function useDriveExportStatus() {
+export function useDriveExportStatus(enabled = true) {
   return useQuery({
     queryKey: queryKeys.isoDocs.driveStatus,
     queryFn: isoDocsApi.getDriveExportStatus,
     refetchOnWindowFocus: false,
+    enabled,
   });
 }
 

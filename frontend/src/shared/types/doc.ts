@@ -2,9 +2,10 @@ export interface DocNode {
   id: string;
   title: string;
   slug: string;
-  type: 'page' | 'group';
+  type: 'page' | 'group' | 'registry';
   parent_id: string | null;
   position: number;
+  registry_type_id?: string | null;
   created_by_id: string | null;
   updated_by_id: string | null;
   created_at: string;

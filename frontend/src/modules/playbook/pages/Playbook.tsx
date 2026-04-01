@@ -256,11 +256,11 @@ export default function Playbook(): JSX.Element {
   );
 
   const handleCreateNode = useCallback(
-    (title: string, type: 'page' | 'group') => {
+    (title: string, type: 'page' | 'group' | 'registry') => {
       createNode.mutate(
         {
           title,
-          type,
+          type: type as 'page' | 'group',
           parent_id: selectedNode?.type === 'group' ? selectedId : null,
         },
         {

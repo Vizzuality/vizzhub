@@ -1,0 +1,119 @@
+"""Tests for registry types API."""
+
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+
+SAMPLE_SCHEMA = [
+    {"key": "name", "label": "Name", "type": "string", "required": True},
+    {"key": "count", "label": "Count", "type": "number", "required": False},
+]
+
+
+@pytest_asyncio.fixture
+async def registry_type(client: AsyncClient) -> dict:
+    resp = await client.post(
+        "/api/iso-docs/registry-types",
+        json={
+            "name": "Test Register",
+            "description": "A test register",
+            "is_yearly": False,
+            "schema": SAMPLE_SCHEMA,
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()
+
+
+@pytest.mark.asyncio
+async def test_create_registry_type(client: AsyncClient):
+    resp = await client.post(
+        "/api/iso-docs/registry-types",
+        json={
+            "name": "Asset Inventory",
+            "schema": [{"key": "asset_id", "label": "Asset ID", "type": "string", "required": True}],
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Asset Inventory"
+    assert data["slug"] == "asset-inventory"
+    assert len(data["schema"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_registry_types(client: AsyncClient, registry_type: dict):
+    resp = await client.get("/api/iso-docs/registry-types")
+    assert resp.status_code == 200
+    assert len(resp.json()) >= 1
+
+
+@pytest.mark.asyncio
+async def test_get_registry_type(client: AsyncClient, registry_type: dict):
+    resp = await client.get(f"/api/iso-docs/registry-types/{registry_type['id']}")
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Test Register"
+
+
+@pytest.mark.asyncio
+async def test_get_registry_type_not_found(client: AsyncClient):
+    resp = await client.get(
+        "/api/iso-docs/registry-types/00000000-0000-0000-0000-000000000099"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_registry_type(client: AsyncClient, registry_type: dict):
+    resp = await client.patch(
+        f"/api/iso-docs/registry-types/{registry_type['id']}",
+        json={"name": "Updated Register"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Updated Register"
+    assert resp.json()["slug"] == "updated-register"
+
+
+@pytest.mark.asyncio
+async def test_delete_registry_type(client: AsyncClient, registry_type: dict):
+    resp = await client.delete(
+        f"/api/iso-docs/registry-types/{registry_type['id']}"
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_registry_type_in_use(client: AsyncClient, registry_type: dict):
+    await client.post(
+        "/api/iso-docs/nodes",
+        json={
+            "title": "My Registry",
+            "type": "registry",
+            "registry_type_id": registry_type["id"],
+        },
+    )
+    resp = await client.delete(
+        f"/api/iso-docs/registry-types/{registry_type['id']}"
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_duplicate_slug_rejected(client: AsyncClient, registry_type: dict):
+    resp = await client.post(
+        "/api/iso-docs/registry-types",
+        json={
+            "name": "Test Register",
+            "schema": SAMPLE_SCHEMA,
+        },
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_schema_required(client: AsyncClient):
+    resp = await client.post(
+        "/api/iso-docs/registry-types",
+        json={"name": "Empty Schema", "schema": []},
+    )
+    assert resp.status_code == 400
