@@ -69,6 +69,11 @@ export function RegistryTypeDialog({
     });
   };
 
+  const submitLabel = (() => {
+    if (isSaving) return 'Saving...';
+    return registryType ? 'Save Changes' : 'Create';
+  })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -114,7 +119,7 @@ export function RegistryTypeDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={!isValid || isSaving}>
-              {isSaving ? 'Saving...' : registryType ? 'Save Changes' : 'Create'}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>

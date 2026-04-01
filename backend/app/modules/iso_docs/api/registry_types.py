@@ -57,7 +57,11 @@ async def get_registry_type(
     return RegistryTypeResponse.model_validate(rt)
 
 
-@router.post("/registry-types", status_code=201)
+@router.post(
+    "/registry-types",
+    status_code=201,
+    responses={409: {"description": "Registry type with this name already exists"}},
+)
 async def create_registry_type(
     data: RegistryTypeCreate, db: DBSession, user: IsoDocsEditor
 ) -> RegistryTypeResponse:
@@ -115,7 +119,10 @@ async def update_registry_type(
 
 @router.delete(
     "/registry-types/{type_id}",
-    responses={404: {"description": _NOT_FOUND}},
+    responses={
+        404: {"description": _NOT_FOUND},
+        409: {"description": "Cannot delete registry type while nodes reference it"},
+    },
 )
 async def delete_registry_type(
     type_id: UUID, db: DBSession, user: IsoDocsEditor

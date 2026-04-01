@@ -30,6 +30,10 @@ router = APIRouter()
 @router.post(
     "/registries/{node_id}/rows/{row_id}/attachments",
     status_code=201,
+    responses={
+        404: {"description": "Row not found"},
+        400: {"description": "File type not allowed or file exceeds size limit"},
+    },
 )
 async def upload_row_attachment(
     node_id: UUID,

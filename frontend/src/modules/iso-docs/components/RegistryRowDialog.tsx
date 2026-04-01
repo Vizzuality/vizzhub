@@ -90,6 +90,10 @@ export function RegistryRowDialog({
   };
 
   const attachments: RegistryAttachment[] = row?.attachments ?? [];
+  const submitLabel = (() => {
+    if (isSaving) return 'Saving...';
+    return row ? 'Save' : 'Add';
+  })();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +178,7 @@ export function RegistryRowDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : row ? 'Save' : 'Add'}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>

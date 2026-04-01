@@ -82,7 +82,10 @@ async def _fetch_rows(db, node_id: UUID, year: int | None = None) -> list:
     return list(result.scalars())
 
 
-@router.get("/registries/{node_id}/rows")
+@router.get(
+    "/registries/{node_id}/rows",
+    responses={404: {"description": "Registry node not found"}},
+)
 async def list_rows(
     node_id: UUID,
     db: DBSession,
@@ -94,7 +97,15 @@ async def list_rows(
     return [RegistryRowResponse.model_validate(r) for r in rows]
 
 
-@router.post("/registries/{node_id}/rows", status_code=201)
+@router.post(
+    "/registries/{node_id}/rows",
+    status_code=201,
+    responses={
+        404: {"description": "Registry node or type not found"},
+        400: {"description": "Year is required for yearly registries"},
+        422: {"description": "Row data validation failed"},
+    },
+)
 async def create_row(
     node_id: UUID,
     data: RegistryRowCreate,
@@ -129,7 +140,10 @@ async def create_row(
 
 @router.patch(
     "/registries/{node_id}/rows/{row_id}",
-    responses={404: {"description": "Row not found"}},
+    responses={
+        404: {"description": "Row not found"},
+        422: {"description": "Row data validation failed"},
+    },
 )
 async def update_row(
     node_id: UUID,
@@ -190,7 +204,10 @@ async def delete_row(
     return {"ok": True}
 
 
-@router.put("/registries/{node_id}/rows/reorder")
+@router.put(
+    "/registries/{node_id}/rows/reorder",
+    responses={404: {"description": "Registry node or row not found"}},
+)
 async def reorder_rows(
     node_id: UUID,
     data: RegistryRowReorder,
@@ -218,7 +235,10 @@ async def reorder_rows(
     return {"ok": True}
 
 
-@router.get("/registries/{node_id}/export")
+@router.get(
+    "/registries/{node_id}/export",
+    responses={404: {"description": "Registry node or type not found"}},
+)
 async def export_registry(
     node_id: UUID,
     db: DBSession,
@@ -306,7 +326,13 @@ def _parse_csv(text: str, columns: list[dict]) -> list[dict]:
     return parsed_rows
 
 
-@router.post("/registries/{node_id}/import")
+@router.post(
+    "/registries/{node_id}/import",
+    responses={
+        404: {"description": "Registry node or type not found"},
+        400: {"description": "Invalid CSV file or data"},
+    },
+)
 async def import_registry(
     node_id: UUID,
     file: UploadFile,
@@ -458,7 +484,13 @@ async def _resolve_drive_parent(
     return drive_parent_id
 
 
-@router.post("/registries/{node_id}/export-drive")
+@router.post(
+    "/registries/{node_id}/export-drive",
+    responses={
+        404: {"description": "Registry node or type not found"},
+        400: {"description": "Google Drive not connected"},
+    },
+)
 async def export_registry_to_drive(
     node_id: UUID,
     db: DBSession,
