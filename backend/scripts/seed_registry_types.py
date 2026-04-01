@@ -16,6 +16,10 @@ from app.database import Base  # noqa: F401 — ensures all models are registere
 from app.core.models.user import UserDB  # noqa: F401
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
 
+UNDER_REVIEW = "Under Review"
+VERY_HIGH = "Very High"
+VERY_LOW = "Very Low"
+
 REGISTRY_TYPES = [
     {
         "name": "Asset Inventory",
@@ -33,7 +37,7 @@ REGISTRY_TYPES = [
             {"key": "classification", "label": "Classification", "type": "select", "required": True, "options": ["Public", "Internal", "Confidential", "Restricted"], "width": 120},
             {"key": "criticality", "label": "Criticality", "type": "select", "required": True, "options": ["Low", "Medium", "High", "Critical"], "width": 100},
             {"key": "acquisition_date", "label": "Acquisition Date", "type": "date", "required": False, "width": 130},
-            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Active", "Decommissioned", "Under Review"], "width": 120},
+            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Active", "Decommissioned", UNDER_REVIEW], "width": 120},
             {"key": "notes", "label": "Notes", "type": "string", "required": False, "width": 200},
         ],
     },
@@ -50,13 +54,13 @@ REGISTRY_TYPES = [
             {"key": "threat", "label": "Threat", "type": "string", "required": False, "width": 200},
             {"key": "vulnerability", "label": "Vulnerability", "type": "string", "required": False, "width": 200},
             {"key": "affected_assets", "label": "Affected Assets", "type": "string", "required": False, "width": 200},
-            {"key": "likelihood", "label": "Likelihood", "type": "select", "required": True, "options": ["Very Low", "Low", "Medium", "High", "Very High"], "width": 100},
-            {"key": "impact", "label": "Impact", "type": "select", "required": True, "options": ["Very Low", "Low", "Medium", "High", "Very High"], "width": 100},
+            {"key": "likelihood", "label": "Likelihood", "type": "select", "required": True, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 100},
+            {"key": "impact", "label": "Impact", "type": "select", "required": True, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 100},
             {"key": "inherent_risk", "label": "Inherent Risk", "type": "select", "required": True, "options": ["Low", "Medium", "High", "Critical"], "width": 110},
             {"key": "treatment", "label": "Treatment", "type": "select", "required": True, "options": ["Accept", "Mitigate", "Transfer", "Avoid"], "width": 100},
             {"key": "controls", "label": "Controls", "type": "string", "required": False, "width": 250},
-            {"key": "residual_likelihood", "label": "Residual Likelihood", "type": "select", "required": False, "options": ["Very Low", "Low", "Medium", "High", "Very High"], "width": 130},
-            {"key": "residual_impact", "label": "Residual Impact", "type": "select", "required": False, "options": ["Very Low", "Low", "Medium", "High", "Very High"], "width": 130},
+            {"key": "residual_likelihood", "label": "Residual Likelihood", "type": "select", "required": False, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 130},
+            {"key": "residual_impact", "label": "Residual Impact", "type": "select", "required": False, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 130},
             {"key": "residual_risk", "label": "Residual Risk", "type": "select", "required": False, "options": ["Low", "Medium", "High", "Critical"], "width": 110},
             {"key": "risk_owner", "label": "Risk Owner", "type": "string", "required": True, "width": 150},
             {"key": "review_date", "label": "Review Date", "type": "date", "required": False, "width": 130},
@@ -158,7 +162,7 @@ REGISTRY_TYPES = [
             {"key": "last_assessment", "label": "Last Assessment", "type": "date", "required": False, "width": 130},
             {"key": "assessment_result", "label": "Assessment Result", "type": "select", "required": False, "options": ["Pass", "Conditional", "Fail", "Pending"], "width": 130},
             {"key": "certifications", "label": "Certifications", "type": "string", "required": False, "width": 200},
-            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Active", "Under Review", "Suspended", "Terminated"], "width": 120},
+            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Active", UNDER_REVIEW, "Suspended", "Terminated"], "width": 120},
             {"key": "notes", "label": "Notes", "type": "string", "required": False, "width": 200},
         ],
     },
@@ -246,7 +250,7 @@ REGISTRY_TYPES = [
             {"key": "jurisdiction", "label": "Jurisdiction", "type": "string", "required": False, "width": 150},
             {"key": "description", "label": "Description", "type": "string", "required": True, "width": 300},
             {"key": "applicable_to", "label": "Applicable To", "type": "string", "required": False, "width": 200},
-            {"key": "compliance_status", "label": "Compliance Status", "type": "select", "required": True, "options": ["Compliant", "Partially Compliant", "Non-Compliant", "Under Review"], "width": 140},
+            {"key": "compliance_status", "label": "Compliance Status", "type": "select", "required": True, "options": ["Compliant", "Partially Compliant", "Non-Compliant", UNDER_REVIEW], "width": 140},
             {"key": "responsible", "label": "Responsible", "type": "string", "required": True, "width": 150},
             {"key": "last_reviewed", "label": "Last Reviewed", "type": "date", "required": False, "width": 130},
             {"key": "notes", "label": "Notes", "type": "string", "required": False, "width": 200},
@@ -299,7 +303,7 @@ REGISTRY_TYPES = [
             {"key": "approver", "label": "Approver", "type": "string", "required": False, "width": 150},
             {"key": "effective_date", "label": "Effective Date", "type": "date", "required": True, "width": 130},
             {"key": "next_review", "label": "Next Review", "type": "date", "required": False, "width": 130},
-            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Draft", "Under Review", "Approved", "Obsolete"], "width": 120},
+            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Draft", UNDER_REVIEW, "Approved", "Obsolete"], "width": 120},
             {"key": "distribution", "label": "Distribution", "type": "string", "required": False, "width": 200},
         ],
     },

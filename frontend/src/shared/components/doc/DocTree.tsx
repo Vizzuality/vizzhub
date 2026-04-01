@@ -44,11 +44,13 @@ function Node({
       {!isGroup && <span className="w-3.5 shrink-0" />}
       {isGroup && node.isOpen && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
       {isGroup && !node.isOpen && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-      {isGroup ? (
+      {isGroup && (
         <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-      ) : isRegistry ? (
+      )}
+      {isRegistry && (
         <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-      ) : (
+      )}
+      {!isGroup && !isRegistry && (
         <File className="h-4 w-4 shrink-0 text-muted-foreground" />
       )}
       <span className="truncate">{node.data.title}</span>

@@ -101,6 +101,8 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
   if (!editing) {
     return (
       <div
+        role="textbox"
+        tabIndex={0}
         className={`min-h-[1.5rem] flex items-center ${isEditor ? 'cursor-text' : ''}`}
         onDoubleClick={startEditing}
       >
@@ -112,7 +114,7 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
   switch (col.type) {
     case 'boolean':
       return (
-        <div className="flex items-center" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div role="group" className="flex items-center" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Switch
             checked={!!draft}
             onCheckedChange={(v) => {
@@ -127,7 +129,7 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
 
     case 'select':
       return (
-        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Select
             value={(draft as string) ?? ''}
             onValueChange={(v) => {
@@ -154,7 +156,7 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
 
     case 'user':
       return (
-        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <UserPicker
             value={(value as string) ?? null}
             defaultOpen
@@ -170,7 +172,7 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
 
     case 'date':
       return (
-        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Input
             ref={inputRef}
             type="date"
@@ -185,7 +187,7 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
 
     case 'number':
       return (
-        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Input
             ref={inputRef}
             type="number"
@@ -200,7 +202,7 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
 
     default:
       return (
-        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div role="group" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Input
             ref={inputRef}
             type="text"

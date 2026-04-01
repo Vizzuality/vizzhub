@@ -24,8 +24,8 @@ const COLUMN_TYPES = [
 function toKey(label: string): string {
   return label
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '')
+    .replaceAll(/[^a-z0-9]+/g, '_')
+    .replaceAll(/^_|_$/g, '')
     .replace(/^(\d)/, '_$1');
 }
 
@@ -80,7 +80,7 @@ export function RegistryColumnEditor({ columns, onChange }: RegistryColumnEditor
       <div className="space-y-2">
         {columns.map((col, index) => (
           <div
-            key={index}
+            key={col.key || `new-col-${index}`}
             className="flex items-start gap-2 p-3 rounded-md border bg-muted/30"
           >
             <GripVertical className="h-4 w-4 mt-2.5 text-muted-foreground shrink-0 cursor-grab" />

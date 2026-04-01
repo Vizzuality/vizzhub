@@ -53,6 +53,11 @@ export function NodeForm({
   };
 
   const resolvedTitle = dialogTitle ?? (parentId ? 'Add to group' : rootLabel);
+  const placeholderByType: Record<string, string> = {
+    registry: 'Registry name',
+    page: 'Page title',
+    group: 'Group name',
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -105,7 +110,7 @@ export function NodeForm({
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={type === 'registry' ? 'Registry name' : type === 'page' ? 'Page title' : 'Group name'}
+                placeholder={placeholderByType[type]}
                 autoFocus
               />
             </div>
