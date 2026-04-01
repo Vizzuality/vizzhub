@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2 } from 'lucide-react';
+import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
@@ -46,6 +46,8 @@ import { useIsoDocMetadata, useUpdateIsoDocMetadata } from '../hooks/useIsoDocMe
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MetadataEditDialog } from '../components/MetadataEditDialog';
 import { MetadataFilters } from '../components/MetadataFilters';
+import { RegistryView } from '../components/RegistryView';
+import { RegistryTypePicker } from '../components/RegistryTypePicker';
 import { usePermission, Action } from '@/core/permissions';
 import { useDriveExportStatus, useTriggerDriveExport } from '../hooks/useDriveExport';
 import { useJobStatus } from '@/core/hooks/useJobs';
@@ -120,6 +122,8 @@ function GroupChildren({
         >
           {child.type === 'group' ? (
             <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : child.type === 'registry' ? (
+            <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
           ) : (
             <File className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
@@ -140,17 +144,20 @@ function TreeSidebar({
   driveConnected,
   driveExporting,
   driveProgress,
+  collapsed,
   onSelect,
   onMove,
   onAdd,
   onToggleFilters,
   onFiltersChange,
   onDriveExport,
+  onToggleCollapse,
 }: Readonly<{
   tree: DocTreeNode[];
   treeLoading: boolean;
   selectedId: string | null;
   isEditor: boolean;
+  collapsed: boolean;
   filtersOpen: boolean;
   filters: MetadataFilterParams;
   driveConnected: boolean;
@@ -162,6 +169,7 @@ function TreeSidebar({
   onToggleFilters: () => void;
   onFiltersChange: (filters: MetadataFilterParams) => void;
   onDriveExport: () => void;
+  onToggleCollapse: () => void;
 }>): JSX.Element {
   const hasActiveFilters = !!(filters.category || filters.status || filters.standard || filters.clause);
 
@@ -198,48 +206,61 @@ function TreeSidebar({
   }
 
   return (
-    <div data-iso-tree-sidebar className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
-      <div className="flex items-center justify-between p-3 border-b">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <FileText className="h-4 w-4" />
-          ISO Documentation
-        </div>
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant={filtersOpen || hasActiveFilters ? 'secondary' : 'ghost'}
-            size="icon"
-            className="h-7 w-7 relative"
-            onClick={onToggleFilters}
-          >
-            <Filter className="h-4 w-4" />
-            {hasActiveFilters && !filtersOpen && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
-            )}
+    <div data-iso-tree-sidebar className={`shrink-0 border-r flex flex-col transition-all ${collapsed ? 'w-10' : 'w-full md:w-72'} ${selectedId && !collapsed ? 'hidden md:flex' : collapsed ? 'flex' : ''}`}>
+      {collapsed ? (
+        <div className="flex flex-col items-center pt-3 gap-2">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleCollapse} title="Expand sidebar">
+            <PanelLeftOpen className="h-4 w-4" />
           </Button>
-          {isEditor && !filtersOpen && driveConnected && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={onDriveExport}
-              disabled={driveExporting}
-              title={driveExporting ? `Exporting${driveProgress ? ` (${driveProgress}%)` : '...'}` : 'Export to Google Drive'}
-            >
-              {driveExporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
-            </Button>
-          )}
-          {isEditor && !filtersOpen && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
         </div>
-      </div>
-      <div className="flex-1 min-h-0 p-2">{renderSidebarContent()}</div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between p-3 border-b">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <FileText className="h-4 w-4" />
+              ISO Documentation
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant={filtersOpen || hasActiveFilters ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-7 w-7 relative"
+                onClick={onToggleFilters}
+              >
+                <Filter className="h-4 w-4" />
+                {hasActiveFilters && !filtersOpen && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
+                )}
+              </Button>
+              {isEditor && !filtersOpen && driveConnected && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={onDriveExport}
+                  disabled={driveExporting}
+                  title={driveExporting ? `Exporting${driveProgress ? ` (${driveProgress}%)` : '...'}` : 'Export to Google Drive'}
+                >
+                  {driveExporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              {isEditor && !filtersOpen && (
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleCollapse} title="Collapse sidebar">
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 p-2">{renderSidebarContent()}</div>
+        </>
+      )}
     </div>
   );
 }
@@ -265,6 +286,7 @@ export default function IsoDocs(): JSX.Element {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [metadataFilters, setMetadataFilters] = useState<MetadataFilterParams>({});
   const [driveJobId, setDriveJobId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -280,7 +302,11 @@ export default function IsoDocs(): JSX.Element {
   const pagePath = searchParams.get('page');
   const selectedId = pagePath ? (slugToId.get(pagePath) ?? null) : null;
 
-  const { data: page } = useIsoDocPage(selectedId);
+  const selectedNodeType = useMemo(
+    () => flat.find((n) => n.id === selectedId)?.type,
+    [flat, selectedId],
+  );
+  const { data: page } = useIsoDocPage(selectedId, selectedNodeType === 'page');
   const { data: metadata } = useIsoDocMetadata(selectedId);
   const createNode = useCreateIsoDocNode();
   const updateNode = useUpdateIsoDocNode();
@@ -310,6 +336,7 @@ export default function IsoDocs(): JSX.Element {
     [flat, selectedId],
   );
   const isPage = selectedNode?.type === 'page';
+  const isRegistry = selectedNode?.type === 'registry';
 
   const { data: versions } = useIsoDocVersions(historyOpen ? selectedId : null);
   const { data: versionDetail } = useIsoDocVersion(
@@ -381,17 +408,18 @@ export default function IsoDocs(): JSX.Element {
   );
 
   const handleCreateNode = useCallback(
-    (title: string, type: 'page' | 'group') => {
+    (title: string, type: 'page' | 'group' | 'registry', registryTypeId?: string) => {
       createNode.mutate(
         {
           title,
           type,
           parent_id: selectedNode?.type === 'group' ? selectedId : null,
+          registry_type_id: registryTypeId ?? null,
         },
         {
           onSuccess: (node) => {
             setFormOpen(false);
-            if (node.type === 'page') {
+            if (node.type === 'page' || node.type === 'registry') {
               const parentPath = selectedNode?.type === 'group' && selectedId
                 ? idToSlug.get(selectedId)
                 : undefined;
@@ -506,12 +534,14 @@ button, [data-iso-actions] { display: none !important; }
         driveConnected={!!driveStatus?.connected}
         driveExporting={driveExporting}
         driveProgress={driveJob?.progress ?? null}
+        collapsed={sidebarCollapsed}
         onSelect={handleSelect}
         onMove={handleMove}
         onAdd={() => setFormOpen(true)}
         onToggleFilters={() => setFiltersOpen((v) => !v)}
         onFiltersChange={setMetadataFilters}
         onDriveExport={handleDriveExport}
+        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
       <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
@@ -525,6 +555,9 @@ button, [data-iso-actions] { display: none !important; }
         isLoading={createNode.isPending}
         parentId={selectedNode?.type === 'group' ? selectedId : null}
         rootLabel="Add to ISO documentation"
+        renderRegistryPicker={(value, onChange) => (
+          <RegistryTypePicker value={value} onChange={onChange} />
+        )}
       />
 
       {metadata && (
@@ -680,7 +713,7 @@ button, [data-iso-actions] { display: none !important; }
                       onClick={() => setDeleteConfirmOpen(true)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete {selectedNode?.type === 'group' ? 'group' : 'page'}
+                      Delete {selectedNode?.type === 'group' ? 'group' : selectedNode?.type === 'registry' ? 'registry' : 'page'}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -699,7 +732,22 @@ button, [data-iso-actions] { display: none !important; }
             <DocViewer content={page?.content ?? ''} onInternalLink={handleInternalLink} />
           </div>
         )}
-        {!isPage && selectedNode && (
+        {isRegistry && selectedNode?.registry_type_id && (
+          <div className="space-y-6">
+            {metadata && (
+              <MetadataPanel
+                metadata={metadata}
+                onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
+              />
+            )}
+            <RegistryView
+              nodeId={selectedNode.id}
+              registryTypeId={selectedNode.registry_type_id}
+              isEditor={isEditor}
+            />
+          </div>
+        )}
+        {!isPage && !isRegistry && selectedNode && (
           <GroupChildren nodes={selectedNode.children} onSelect={handleSelect} />
         )}
       </div>
