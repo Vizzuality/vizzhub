@@ -21,8 +21,6 @@ import { formatPeriodDate, MOOD_EMOJIS, MOOD_BAR_COLORS } from '../utils/constan
 import MoodTrend from '../components/MoodTrend';
 import type { NamedFeedbackItem } from '../types/tracker';
 
-const now = new Date();
-
 interface MoodBarProps {
   readonly moodKey: number;
   readonly count: number;
@@ -79,21 +77,16 @@ function NamedFeedbackCard({ item, onDelete }: NamedFeedbackCardProps): JSX.Elem
 }
 
 export default function Moods(): JSX.Element {
+  const now = new Date();
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const { state, setState } = useUrlState({
-    month: { defaultValue: now.getMonth() + 1 },
-    year: { defaultValue: now.getFullYear() },
+    month: { defaultValue: prevMonth.getMonth() + 1 },
+    year: { defaultValue: prevMonth.getFullYear() },
     tab: { defaultValue: 'monthly' },
   });
 
   const { data: periods } = useReportingPeriods();
   const isMonthlyTab = state.tab === 'monthly';
-  const { data, isLoading } = useMoods(state.month, state.year, { enabled: isMonthlyTab });
-  const deleteAnon = useDeleteAnonymousFeedback(state.month, state.year);
-  const deleteMood = useDeleteReportMood(state.month, state.year);
-
-  const [deleteTarget, setDeleteTarget] = useState<
-    { type: 'anonymous'; id: string } | { type: 'named'; reportId: string; userName: string } | null
-  >(null);
 
   const sortedPeriods = useMemo(
     () => [...(periods ?? [])].sort(
@@ -103,6 +96,14 @@ export default function Moods(): JSX.Element {
   );
 
   const selectedValue = `${state.year}-${String(state.month).padStart(2, '0')}`;
+
+  const { data, isLoading } = useMoods(state.month, state.year, { enabled: isMonthlyTab });
+  const deleteAnon = useDeleteAnonymousFeedback(state.month, state.year);
+  const deleteMood = useDeleteReportMood(state.month, state.year);
+
+  const [deleteTarget, setDeleteTarget] = useState<
+    { type: 'anonymous'; id: string } | { type: 'named'; reportId: string; userName: string } | null
+  >(null);
 
   const handlePeriodChange = (value: string): void => {
     const d = new Date(value + '-01');

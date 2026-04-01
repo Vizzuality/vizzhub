@@ -244,13 +244,27 @@ class TestGetAllocationUsers:
         assert "No Report" not in names
 
     @pytest.mark.asyncio
-    async def test_allocation_users_excludes_active_periods(
+    async def test_allocation_users_default_excludes_active_periods(
         self, db_session: AsyncSession, allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
         result = await get_allocation_users(db=db_session)
         assert "2026-04" not in result["periods_used"]
+
+    @pytest.mark.asyncio
+    async def test_allocation_users_date_range_includes_active_periods(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        """When user explicitly selects a date range, active periods are included."""
+        from app.core.services.capacity_insights import get_allocation_users
+
+        result = await get_allocation_users(
+            db=db_session,
+            start_date=dt.date(2026, 4, 1),
+            end_date=dt.date(2026, 4, 1),
+        )
+        assert "2026-04" in result["periods_used"]
 
     @pytest.mark.asyncio
     async def test_allocation_users_empty_when_no_finished_periods(
