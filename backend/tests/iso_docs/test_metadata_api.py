@@ -103,6 +103,27 @@ async def test_metadata_with_changelog(client: AsyncClient, page_node: dict):
 
 
 @pytest.mark.asyncio
+async def test_document_date(client: AsyncClient, page_node: dict):
+    node_id = page_node["id"]
+
+    resp = await client.get(f"/api/iso-docs/pages/{node_id}/metadata")
+    assert resp.json()["document_date"] is None
+
+    resp = await client.put(
+        f"/api/iso-docs/pages/{node_id}/metadata",
+        json={"document_date": "2025-06-15"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["document_date"] == "2025-06-15"
+
+    resp = await client.put(
+        f"/api/iso-docs/pages/{node_id}/metadata",
+        json={"document_date": None},
+    )
+    assert resp.json()["document_date"] is None
+
+
+@pytest.mark.asyncio
 async def test_search_by_category(client: AsyncClient):
     g1 = await client.post(
         "/api/iso-docs/nodes", json={"title": "Policies", "type": "group"}

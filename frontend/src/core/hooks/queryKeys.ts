@@ -224,5 +224,7 @@ export const queryKeys = {
     registryType: (id: string) => ['iso-docs', 'registry-types', id] as const,
     registryRows: (nodeId: string, year?: number) =>
       ['iso-docs', 'registry-rows', nodeId, year] as const,
+    registryYears: (nodeId: string) =>
+      ['iso-docs', 'registry-years', nodeId] as const,
   },
 } as const;

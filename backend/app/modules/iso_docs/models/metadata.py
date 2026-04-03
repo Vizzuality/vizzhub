@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -57,6 +57,7 @@ class IsoDocMetadataDB(Base):
         nullable=False,
         server_default="internal_use",
     )
+    document_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     original_filename: Mapped[str | None] = mapped_column(
         String(500), nullable=True
     )

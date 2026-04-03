@@ -53,6 +53,7 @@ export interface IsoDocMetadata {
   classification: string;
   doc_version: string | null;
   status: string | null;
+  document_date: string | null;
   original_filename: string | null;
   changelog: ChangelogEntry[] | null;
   created_at: string;
@@ -66,6 +67,7 @@ export interface MetadataUpdate {
   classification?: string | null;
   doc_version?: string | null;
   status?: string | null;
+  document_date?: string | null;
   original_filename?: string | null;
   changelog?: ChangelogEntry[] | null;
 }

@@ -23,6 +23,27 @@ import type { IsoDocMetadata, MetadataUpdate, ChangelogEntry } from '../types/is
 const CLASSIFICATIONS = Object.entries(CLASSIFICATION_LABELS).map(([value, label]) => ({ value, label }));
 const STATUSES = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
+const STANDARD_OPTIONS = [
+  { value: 'iso27001', label: 'ISO 27001:2022', standards: ['ISO 27001:2022'] },
+  { value: 'iso9001', label: 'ISO 9001:2015', standards: ['ISO 9001:2015'] },
+  { value: 'both', label: 'Both', standards: ['ISO 27001:2022', 'ISO 9001:2015'] },
+];
+
+function standardsToSelectValue(standards: string[] | undefined): string {
+  if (!standards?.length) return '';
+  const has27001 = standards.includes('ISO 27001:2022');
+  const has9001 = standards.includes('ISO 9001:2015');
+  if (has27001 && has9001) return 'both';
+  if (has27001) return 'iso27001';
+  if (has9001) return 'iso9001';
+  return '';
+}
+
+function selectValueToStandards(value: string): string[] {
+  const opt = STANDARD_OPTIONS.find((o) => o.value === value);
+  return opt?.standards ?? [];
+}
+
 interface MetadataEditDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -126,9 +147,9 @@ function ChangelogEditor({
             className="h-7 text-xs"
           />
           <Input
+            type="date"
             value={entry.date}
             onChange={(e) => handleEntryChange(i, 'date', e.target.value)}
-            placeholder="Date"
             className="h-7 text-xs"
           />
           <Input
@@ -176,6 +197,7 @@ export function MetadataEditDialog({
         classification: metadata.classification ?? 'internal_use',
         doc_version: metadata.doc_version ?? '',
         status: metadata.status ?? '',
+        document_date: metadata.document_date ?? '',
         changelog: metadata.changelog?.map((e) => ({ ...e })) ?? [],
       });
     }
@@ -189,6 +211,7 @@ export function MetadataEditDialog({
       classification: form.classification || 'internal_use',
       doc_version: form.doc_version || null,
       status: form.status || null,
+      document_date: form.document_date || null,
       changelog: form.changelog?.length ? form.changelog : null,
     };
     onSave(data);
@@ -258,12 +281,33 @@ export function MetadataEditDialog({
             </div>
           </div>
 
-          <TagInput
-            label="Standards"
-            values={form.standard ?? []}
-            onChange={(v) => setForm({ ...form, standard: v })}
-            placeholder="e.g. ISO 27001:2022"
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Standard</Label>
+              <Select
+                value={standardsToSelectValue(form.standard ?? undefined)}
+                onValueChange={(v) => setForm({ ...form, standard: selectValueToStandards(v) })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select standard" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STANDARD_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Document Date</Label>
+              <Input
+                type="date"
+                value={(form.document_date as string) ?? ''}
+                onChange={(e) => setForm({ ...form, document_date: e.target.value || null })}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
 
           <TagInput
             label="Clauses"
