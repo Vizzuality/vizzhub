@@ -88,6 +88,72 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+interface RowLightboxProps {
+  readonly row: RegistryRow;
+  readonly rowIndex: number;
+  readonly columns: ColumnDef[];
+  readonly isEditor: boolean;
+  readonly onSave: (key: string, value: unknown) => void;
+  readonly onClose: () => void;
+}
+
+function RowLightbox({ row, rowIndex, columns, isEditor, onSave, onClose }: RowLightboxProps): JSX.Element {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+    const handleClick = (e: MouseEvent): void => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    const backdrop = backdropRef.current;
+    backdrop?.addEventListener('click', handleClick);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      backdrop?.removeEventListener('click', handleClick);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={backdropRef}
+      className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center overflow-y-auto"
+    >
+      <div
+        ref={panelRef}
+        className="relative w-full max-w-2xl mx-4 my-8 bg-background border rounded-lg shadow-lg"
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-background rounded-t-lg">
+          <h3 className="font-semibold text-lg">Row #{rowIndex}</h3>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {columns.map((col) => (
+            <div key={col.key}>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{col.label}</dt>
+              <dd className="text-sm">
+                <InlineCell
+                  value={row.data[col.key]}
+                  col={col}
+                  isEditor={isEditor}
+                  onSave={onSave}
+                />
+              </dd>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewProps): JSX.Element {
   const { data: registryType } = useRegistryType(registryTypeId);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -538,45 +604,17 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
       </AlertDialog>
 
       {viewingRow && (
-        <dialog
-          open
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center overflow-y-auto m-0 w-full h-full max-w-none max-h-none border-0"
-          onClick={() => setViewingRow(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setViewingRow(null); } }}
-          ref={(el) => el?.focus()}
-        >
-          <article
-            className="relative w-full max-w-2xl mx-4 my-8 bg-background border rounded-lg shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-background rounded-t-lg">
-              <h3 className="font-semibold text-lg">
-                Row #{sortedRows.findIndex((r) => r.id === viewingRow.id) + 1}
-              </h3>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingRow(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              {allColumns.map((col) => (
-                <div key={col.key}>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{col.label}</dt>
-                  <dd className="text-sm">
-                    <InlineCell
-                      value={viewingRow.data[col.key]}
-                      col={col}
-                      isEditor={isEditor}
-                      onSave={(key, value) => {
-                        handleInlineSave(viewingRow, key, value);
-                        setViewingRow({ ...viewingRow, data: { ...viewingRow.data, [key]: value } });
-                      }}
-                    />
-                  </dd>
-                </div>
-              ))}
-            </div>
-          </article>
-        </dialog>
+        <RowLightbox
+          row={viewingRow}
+          rowIndex={sortedRows.findIndex((r) => r.id === viewingRow.id) + 1}
+          columns={allColumns}
+          isEditor={isEditor}
+          onSave={(key, value) => {
+            handleInlineSave(viewingRow, key, value);
+            setViewingRow({ ...viewingRow, data: { ...viewingRow.data, [key]: value } });
+          }}
+          onClose={() => setViewingRow(null)}
+        />
       )}
     </div>
   );
