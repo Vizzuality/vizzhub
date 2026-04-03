@@ -5,6 +5,7 @@ and API endpoints (status, trigger export, concurrent rejection).
 """
 
 from collections.abc import AsyncGenerator
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import UUID
 
@@ -271,3 +272,38 @@ class TestDriveExportAPI:
 
         assert resp.status_code == 409
         assert "already in progress" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_stale_job_gets_cleaned(self, _setup_db, db_session):
+        """A pending job older than 10 minutes is marked FAILED and unblocks new exports."""
+        stale_job = Job(
+            type=JobType.EXPORT_GDRIVE,
+            status=JobStatus.PENDING,
+            name="Stale export",
+            params={},
+        )
+        db_session.add(stale_job)
+        await db_session.flush()
+
+        stale_job.created_at = datetime.now(timezone.utc) - timedelta(minutes=15)
+        await db_session.flush()
+
+        app.dependency_overrides[get_current_user] = _override_user(EDITOR_TOKEN)
+
+        with patch(
+            "app.modules.iso_docs.api.drive_export.GoogleDriveOAuth.get_valid_token",
+            new_callable=AsyncMock,
+            return_value="fake-token",
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as c:
+                resp = await c.post("/api/iso-docs/drive/export")
+
+        # The export may fail for other reasons (no root folder), but the
+        # stale job should have been cleaned up — not a 409.
+        assert resp.status_code != 409
+
+        await db_session.refresh(stale_job)
+        assert stale_job.status == JobStatus.FAILED
+        assert stale_job.result == {"error": "Timed out after 10 minutes"}

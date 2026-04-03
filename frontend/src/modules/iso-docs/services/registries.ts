@@ -34,6 +34,11 @@ export const registriesApi = {
     await api.delete(`/iso-docs/registry-types/${id}`);
   },
 
+  listYears: async (nodeId: string): Promise<number[]> => {
+    const { data } = await api.get<number[]>(`/iso-docs/registries/${nodeId}/years`);
+    return data;
+  },
+
   listRows: async (nodeId: string, year?: number): Promise<RegistryRow[]> => {
     const { data } = await api.get<RegistryRow[]>(`/iso-docs/registries/${nodeId}/rows`, {
       params: year != null ? { year } : undefined,

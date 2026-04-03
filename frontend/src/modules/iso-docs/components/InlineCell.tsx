@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, X, ExternalLink } from 'lucide-react';
 import { Input } from '@/shared/components/ui/input';
+import { Textarea } from '@/shared/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -199,18 +200,36 @@ export function InlineCell({ value, col, isEditor, onSave }: InlineCellProps): J
         />
       );
 
-    default:
+    default: {
+      const strVal = (draft as string) ?? '';
+      if (strVal.length > 80 || strVal.includes('\n')) {
+        return (
+          <Textarea
+            autoFocus
+            className="text-sm min-h-[5rem]"
+            value={strVal}
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+              e.stopPropagation();
+            }}
+          />
+        );
+      }
       return (
         <Input
           ref={inputRef}
           type="text"
           className="h-7 text-sm"
-          value={(draft as string) ?? ''}
+          value={strVal}
           onChange={(e) => setDraft(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           onBlur={commit}
           onKeyDown={handleKeyDown}
         />
       );
+    }
   }
 }

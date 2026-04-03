@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Plus, Download, Upload, Settings, Trash2, ChevronLeft, ChevronRight, Paperclip, ArrowUp, ArrowDown, Columns3, CheckCircle2 } from 'lucide-react';
+import { Plus, Download, Upload, Settings, Trash2, ChevronLeft, ChevronRight, Paperclip, ArrowUp, ArrowDown, Columns3, CheckCircle2, AlertCircle, X, Expand } from 'lucide-react';
+import { AxiosError } from 'axios';
 import { Button } from '@/shared/components/ui/button';
 import {
   Select,
@@ -30,6 +31,7 @@ import { RegistryRowDialog } from './RegistryRowDialog';
 import { RegistryTypeDialog } from './RegistryTypeDialog';
 import { useRegistryType, useUpdateRegistryType } from '../hooks/useRegistryTypes';
 import {
+  useRegistryYears,
   useRegistryRows,
   useCreateRegistryRow,
   useUpdateRegistryRow,
@@ -50,13 +52,10 @@ interface RegistryViewProps {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-function generateYearOptions(): number[] {
-  const years: number[] = [];
-  for (let y = CURRENT_YEAR + 1; y >= CURRENT_YEAR - 10; y--) {
-    years.push(y);
-  }
-  return years;
-}
+const YEAR_OPTIONS: number[] = Array.from(
+  { length: 12 },
+  (_, i) => CURRENT_YEAR + 1 - i,
+);
 
 type SortDir = 'asc' | 'desc';
 
@@ -80,9 +79,19 @@ function compareValues(a: unknown, b: unknown, dir: SortDir): number {
   return dir === 'asc' ? cmp : -cmp;
 }
 
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof AxiosError) {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) return detail.map((d) => d.msg ?? d).join('; ');
+  }
+  return fallback;
+}
+
 export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewProps): JSX.Element {
   const { data: registryType } = useRegistryType(registryTypeId);
-  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [yearInitialized, setYearInitialized] = useState(false);
   const [rowDialogOpen, setRowDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<RegistryRow | null>(null);
   const [deleteRowId, setDeleteRowId] = useState<string | null>(null);
@@ -90,16 +99,32 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [viewingRow, setViewingRow] = useState<RegistryRow | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null);
+
+  const showFeedback = (message: string, isError = false): void => {
+    setFeedback({ message, isError });
+  };
 
   useEffect(() => {
     if (!feedback) return;
-    const t = setTimeout(() => setFeedback(null), 3000);
+    const t = setTimeout(() => setFeedback(null), feedback.isError ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [feedback]);
 
   const isYearly = registryType?.is_yearly ?? false;
-  const year = isYearly ? selectedYear : undefined;
+  const { data: availableYears } = useRegistryYears(isYearly ? nodeId : null);
+
+  useEffect(() => {
+    if (yearInitialized || !isYearly) return;
+    if (availableYears === undefined) return;
+    const defaultYear = availableYears.length > 0 ? availableYears[0] : CURRENT_YEAR;
+    setSelectedYear(defaultYear);
+    setYearInitialized(true);
+  }, [availableYears, isYearly, yearInitialized]);
+
+  const resolvedYear = selectedYear ?? CURRENT_YEAR;
+  const year = isYearly ? resolvedYear : undefined;
 
   const { data: rows = [], isLoading } = useRegistryRows(nodeId, year);
   const createRow = useCreateRegistryRow(nodeId);
@@ -176,12 +201,12 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
         );
       } else {
         createRow.mutate(
-          { data, year: isYearly ? selectedYear : undefined },
+          { data, year: isYearly ? resolvedYear : undefined },
           { onSuccess: () => setRowDialogOpen(false) },
         );
       }
     },
-    [editingRow, updateRow, createRow, isYearly, selectedYear],
+    [editingRow, updateRow, createRow, isYearly, resolvedYear],
   );
 
   const handleDeleteRow = useCallback(() => {
@@ -197,8 +222,8 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
 
   const handleExportToDrive = useCallback(() => {
     exportToDrive.mutate(year, {
-      onSuccess: () => setFeedback('Exported to Google Drive'),
-      onError: () => setFeedback('Export to Drive failed'),
+      onSuccess: () => showFeedback('Exported to Google Drive'),
+      onError: (err) => showFeedback(extractErrorMessage(err, 'Export to Drive failed'), true),
     });
   }, [exportToDrive, year]);
 
@@ -206,8 +231,8 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
     const file = e.target.files?.[0];
     if (!file) return;
     importCsv.mutate({ file, year }, {
-      onSuccess: (data) => setFeedback(`Imported ${data.imported} rows`),
-      onError: () => setFeedback('CSV import failed'),
+      onSuccess: (data) => showFeedback(`Imported ${data.imported} rows`),
+      onError: (err) => showFeedback(extractErrorMessage(err, 'CSV import failed'), true),
     });
     e.target.value = '';
   }, [importCsv, year]);
@@ -237,21 +262,21 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => setSelectedYear((y) => y - 1)}
+                onClick={() => setSelectedYear((y) => (y ?? CURRENT_YEAR) - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Select
-                value={String(selectedYear)}
+                value={String(resolvedYear)}
                 onValueChange={(v) => setSelectedYear(Number(v))}
               >
-                <SelectTrigger className="w-24 h-8">
+                <SelectTrigger className="w-[7.5rem] h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {generateYearOptions().map((y) => (
+                  {YEAR_OPTIONS.map((y) => (
                     <SelectItem key={y} value={String(y)}>
-                      {y}
+                      {y}–{y + 1}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -260,7 +285,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => setSelectedYear((y) => y + 1)}
+                onClick={() => setSelectedYear((y) => (y ?? CURRENT_YEAR) + 1)}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -343,9 +368,11 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
             </>
           )}
           {feedback && (
-            <span className="flex items-center gap-1 text-xs text-green-600">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {feedback}
+            <span className={`flex items-center gap-1 text-xs ${feedback.isError ? 'text-destructive' : 'text-green-600'}`}>
+              {feedback.isError
+                ? <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                : <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
+              {feedback.message}
             </span>
           )}
         </div>
@@ -366,7 +393,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
         </div>
       )}
       {!isLoading && rows.length > 0 && (
-        <div className="border rounded-lg overflow-x-auto">
+        <div className="border rounded-lg overflow-x-auto overscroll-x-contain">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -399,9 +426,21 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                   key={row.id}
                   className="border-b last:border-b-0 hover:bg-muted/30"
                 >
-                  <td className="px-3 py-1.5 text-muted-foreground">{idx + 1}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      {idx + 1}
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => setViewingRow(row)}
+                        title="View details"
+                      >
+                        <Expand className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
                   {visibleColumns.map((col) => (
-                    <td key={col.key} className="px-3 py-1.5 whitespace-nowrap">
+                    <td key={col.key} className="px-3 py-1.5 max-w-xs align-top">
                       <div className="flex items-center gap-1">
                         <InlineCell
                           value={row.data[col.key]}
@@ -416,7 +455,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                     </td>
                   ))}
                   {isEditor && (
-                    <td className="px-3 py-1.5 text-right">
+                    <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-0.5">
                         {row.attachments.length > 0 && (
                           <Button
@@ -497,6 +536,48 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {viewingRow && (
+        <div
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center overflow-y-auto"
+          onClick={() => setViewingRow(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setViewingRow(null); }}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+        >
+          <div
+            className="relative w-full max-w-2xl mx-4 my-8 bg-background border rounded-lg shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-background rounded-t-lg">
+              <h3 className="font-semibold text-lg">
+                Row #{sortedRows.findIndex((r) => r.id === viewingRow.id) + 1}
+              </h3>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingRow(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {allColumns.map((col) => (
+                <div key={col.key}>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{col.label}</dt>
+                  <dd className="text-sm">
+                    <InlineCell
+                      value={viewingRow.data[col.key]}
+                      col={col}
+                      isEditor={isEditor}
+                      onSave={(key, value) => {
+                        handleInlineSave(viewingRow, key, value);
+                        setViewingRow({ ...viewingRow, data: { ...viewingRow.data, [key]: value } });
+                      }}
+                    />
+                  </dd>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

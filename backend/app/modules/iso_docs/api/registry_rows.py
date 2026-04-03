@@ -83,6 +83,23 @@ async def _fetch_rows(db, node_id: UUID, year: int | None = None) -> list:
 
 
 @router.get(
+    "/registries/{node_id}/years",
+    responses={404: {"description": "Registry node not found"}},
+)
+async def list_years(
+    node_id: UUID, db: DBSession, user: CurrentUser
+) -> list[int]:
+    node = await _get_registry_node(db, node_id)
+    result = await db.execute(
+        select(RegistryRowDB.year)
+        .where(RegistryRowDB.node_id == node.id, RegistryRowDB.year.is_not(None))
+        .distinct()
+        .order_by(RegistryRowDB.year.desc())
+    )
+    return list(result.scalars())
+
+
+@router.get(
     "/registries/{node_id}/rows",
     responses={404: {"description": "Registry node not found"}},
 )

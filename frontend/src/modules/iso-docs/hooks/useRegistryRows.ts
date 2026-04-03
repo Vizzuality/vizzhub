@@ -3,8 +3,16 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { registriesApi } from '../services/registries';
 import type { RegistryRowCreate, RegistryRowUpdate } from '../types/registry';
 
-function registryRowsKey(nodeId: string): ReturnType<typeof queryKeys.isoDocs.registryRows> {
-  return queryKeys.isoDocs.registryRows(nodeId);
+function invalidateRows(queryClient: ReturnType<typeof useQueryClient>, nodeId: string): void {
+  queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryRows(nodeId) });
+}
+
+export function useRegistryYears(nodeId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.isoDocs.registryYears(nodeId ?? ''),
+    queryFn: () => registriesApi.listYears(nodeId!),
+    enabled: !!nodeId,
+  });
 }
 
 export function useRegistryRows(nodeId: string | null, year?: number) {
@@ -19,9 +27,7 @@ export function useCreateRegistryRow(nodeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: RegistryRowCreate) => registriesApi.createRow(nodeId, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: registryRowsKey(nodeId) });
-    },
+    onSuccess: () => invalidateRows(queryClient, nodeId),
   });
 }
 
@@ -30,9 +36,7 @@ export function useUpdateRegistryRow(nodeId: string) {
   return useMutation({
     mutationFn: ({ rowId, data }: { rowId: string; data: RegistryRowUpdate }) =>
       registriesApi.updateRow(nodeId, rowId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: registryRowsKey(nodeId) });
-    },
+    onSuccess: () => invalidateRows(queryClient, nodeId),
   });
 }
 
@@ -40,9 +44,7 @@ export function useDeleteRegistryRow(nodeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (rowId: string) => registriesApi.deleteRow(nodeId, rowId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: registryRowsKey(nodeId) });
-    },
+    onSuccess: () => invalidateRows(queryClient, nodeId),
   });
 }
 
@@ -50,9 +52,7 @@ export function useReorderRegistryRows(nodeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (rowIds: string[]) => registriesApi.reorderRows(nodeId, rowIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: registryRowsKey(nodeId) });
-    },
+    onSuccess: () => invalidateRows(queryClient, nodeId),
   });
 }
 
@@ -62,7 +62,8 @@ export function useImportCsv(nodeId: string) {
     mutationFn: ({ file, year }: { file: File; year?: number }) =>
       registriesApi.importCsv(nodeId, file, year),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: registryRowsKey(nodeId) });
+      invalidateRows(queryClient, nodeId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryYears(nodeId) });
     },
   });
 }
