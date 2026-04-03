@@ -538,14 +538,14 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
       </AlertDialog>
 
       {viewingRow && (
-        <div
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center overflow-y-auto"
+        <dialog
+          open
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center overflow-y-auto m-0 w-full h-full max-w-none max-h-none border-0"
           onClick={() => setViewingRow(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setViewingRow(null); }}
-          tabIndex={-1}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setViewingRow(null); } }}
           ref={(el) => el?.focus()}
         >
-          <div
+          <article
             className="relative w-full max-w-2xl mx-4 my-8 bg-background border rounded-lg shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
@@ -575,8 +575,8 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </article>
+        </dialog>
       )}
     </div>
   );
