@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select, func as sa_func
@@ -80,13 +82,28 @@ async def save_drive_folder(
 async def trigger_drive_export(
     request: Request, user: IsoDocsEditor, db: DBSession
 ) -> DriveExportResponse:
-    running = await db.execute(
+    stale_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+    stale_jobs = await db.execute(
+        select(Job).where(
+            Job.type == JobType.EXPORT_GDRIVE,
+            Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
+            Job.created_at <= stale_cutoff,
+        )
+    )
+    for stale_job in stale_jobs.scalars():
+        stale_job.status = JobStatus.FAILED
+        stale_job.result = {"error": "Timed out after 10 minutes"}
+        logger.warning("drive_export_job_timed_out", job_id=str(stale_job.id))
+    await db.flush()
+
+    active = await db.execute(
         select(Job).where(
             Job.type == JobType.EXPORT_GDRIVE,
             Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
         )
     )
-    if running.scalar_one_or_none():
+    if active.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Export already in progress")
 
     token = await GoogleDriveOAuth.get_valid_token(db)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +27,7 @@ class MetadataResponse(BaseModel):
     classification: str
     doc_version: str | None
     status: str | None
+    document_date: date | None
     original_filename: str | None
     changelog: list[ChangelogEntry] | None
     created_at: datetime
@@ -46,6 +47,7 @@ class MetadataUpdate(BaseModel):
         None,
         pattern=r"^(draft|approved|under_review)$",
     )
+    document_date: date | None = None
     original_filename: str | None = Field(None, max_length=500)
     changelog: list[ChangelogEntry] | None = None
 

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-04-03] - Registry UX & Metadata Improvements
+
+### Added
+- Document date field on ISO doc metadata (migration 043, date picker in edit form)
+- Standard field as select dropdown (ISO 27001:2022, ISO 9001:2015, Both)
+- Drag-and-drop column reordering in registry type editor (@dnd-kit)
+- Row detail lightbox with inline editing for wide registries
+- Year selector shows audit cycle range (2024–2025 format)
+- Auto-select latest year with data via new /years endpoint
+- Textarea editor for long text fields (>80 chars or multiline)
+- Error feedback with backend error messages (red) vs success (green)
+- Stale export job auto-cleanup (>10 min pending/running marked as failed)
+
+### Fixed
+- Registry column editor losing focus after first character (unstable React key)
+- Dropdown options input not accepting commas (split on every keystroke)
+- Registry type picker race condition (invalidate before selecting new type)
+- Row cache not refreshing after create/delete/import (undefined in query key)
+- Browser back triggered by horizontal scroll on Mac (overscroll-x-contain)
+
 ## [2026-03-31] - ISO Docs Enhancements
 
 ### Added

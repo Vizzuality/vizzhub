@@ -268,3 +268,33 @@ async def test_import_csv_roundtrip(client: AsyncClient, registry_setup: dict):
     assert rows[0]["data"]["start_date"] == "2025-01-15"
     assert rows[1]["data"]["name"] == "Row 2"
     assert rows[1]["data"]["count"] == 20
+
+
+@pytest.mark.asyncio
+async def test_list_years(client: AsyncClient, yearly_setup: dict):
+    node_id = yearly_setup["node"]["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2024, "data": {"item": "old"}},
+    )
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2024, "data": {"item": "old2"}},
+    )
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2026, "data": {"item": "new"}},
+    )
+
+    resp = await client.get(f"/api/iso-docs/registries/{node_id}/years")
+    assert resp.status_code == 200
+    years = resp.json()
+    assert years == [2026, 2024]
+
+
+@pytest.mark.asyncio
+async def test_list_years_empty(client: AsyncClient, yearly_setup: dict):
+    node_id = yearly_setup["node"]["id"]
+    resp = await client.get(f"/api/iso-docs/registries/{node_id}/years")
+    assert resp.status_code == 200
+    assert resp.json() == []

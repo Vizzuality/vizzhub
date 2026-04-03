@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { Button } from '@/shared/components/ui/button';
 import {
   Select,
@@ -20,6 +22,7 @@ interface RegistryTypePickerProps {
 export function RegistryTypePicker({ value, onChange }: RegistryTypePickerProps): JSX.Element {
   const { data: types = [] } = useRegistryTypes();
   const createType = useCreateRegistryType();
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleCreateType = (data: {
@@ -29,8 +32,9 @@ export function RegistryTypePicker({ value, onChange }: RegistryTypePickerProps)
     schema: ColumnDef[];
   }): void => {
     createType.mutate(data, {
-      onSuccess: (created) => {
+      onSuccess: async (created) => {
         setDialogOpen(false);
+        await queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryTypes });
         onChange(created.id);
       },
     });
