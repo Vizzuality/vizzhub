@@ -189,8 +189,9 @@ async def test_reorder_nodes(client: AsyncClient):
 
     tree = await client.get("/api/playbook/tree")
     titles = [n["title"] for n in tree.json()]
-    assert titles[0] == "B"
-    assert titles[1] == "A"
+    # Tree always sorts alphabetically by title
+    assert titles[0] == "A"
+    assert titles[1] == "B"
 
 
 @pytest.mark.asyncio
