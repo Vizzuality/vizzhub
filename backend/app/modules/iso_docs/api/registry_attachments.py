@@ -17,6 +17,7 @@ from app.modules.iso_docs.services.registry_attachment_service import (
     ALLOWED_CONTENT_TYPES,
     MAX_FILE_SIZE,
     delete_attachment,
+    get_attachment_url,
     upload_attachment,
 )
 
@@ -63,6 +64,7 @@ async def upload_row_attachment(
 
     attachment = RegistryAttachmentDB(
         row_id=row_id,
+        node_id=node_id,
         field_key=field_key,
         filename=file.filename or "file",
         s3_key=s3_key,
@@ -79,7 +81,9 @@ async def upload_row_attachment(
         attachment_id=str(attachment.id),
         filename=file.filename,
     )
-    return AttachmentResponse.model_validate(attachment)
+    resp = AttachmentResponse.model_validate(attachment)
+    resp.url = get_attachment_url(attachment.s3_key)
+    return resp
 
 
 @router.delete(

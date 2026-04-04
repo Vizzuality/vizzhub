@@ -4,7 +4,7 @@ import { registriesApi } from '../services/registries';
 import type { RegistryRowCreate, RegistryRowUpdate } from '../types/registry';
 
 function invalidateRows(queryClient: ReturnType<typeof useQueryClient>, nodeId: string): void {
-  queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryRows(nodeId) });
+  queryClient.invalidateQueries({ queryKey: ['iso-docs', 'registry-rows', nodeId] });
 }
 
 export function useRegistryYears(nodeId: string | null) {
@@ -61,6 +61,18 @@ export function useImportCsv(nodeId: string) {
   return useMutation({
     mutationFn: ({ file, year }: { file: File; year?: number }) =>
       registriesApi.importCsv(nodeId, file, year),
+    onSuccess: () => {
+      invalidateRows(queryClient, nodeId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryYears(nodeId) });
+    },
+  });
+}
+
+export function useCopyYear(nodeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceYear, targetYear }: { sourceYear: number; targetYear: number }) =>
+      registriesApi.copyYear(nodeId, sourceYear, targetYear),
     onSuccess: () => {
       invalidateRows(queryClient, nodeId);
       queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryYears(nodeId) });

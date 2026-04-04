@@ -24,6 +24,11 @@ class RegistryAttachmentDB(Base):
         ForeignKey("registry_rows.id", ondelete="CASCADE"),
         nullable=False,
     )
+    node_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("iso_doc_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     field_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     filename: Mapped[str] = mapped_column(String(500), nullable=False)
     s3_key: Mapped[str] = mapped_column(String(1000), nullable=False)

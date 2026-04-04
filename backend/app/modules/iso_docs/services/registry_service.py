@@ -39,6 +39,9 @@ def validate_row_data(
     columns_by_key = {col["key"]: col for col in schema}
 
     for key, col in columns_by_key.items():
+        if col["type"] in ("computed", "attachment"):
+            continue
+
         value = data.get(key)
         is_missing = value is None or (isinstance(value, str) and value.strip() == "")
 
@@ -58,6 +61,45 @@ def validate_row_data(
         errors.append(f"Unknown fields: {', '.join(sorted(unknown_keys))}")
 
     return errors
+
+
+def strip_computed_keys(schema: list[dict], data: dict) -> dict:
+    """Remove computed and attachment field keys from row data before storage."""
+    computed_keys = {col["key"] for col in schema if col["type"] in ("computed", "attachment")}
+    if not computed_keys:
+        return data
+    return {k: v for k, v in data.items() if k not in computed_keys}
+
+
+def compute_row_fields(schema: list[dict], data: dict) -> dict:
+    """Add computed field values to row data for serialization."""
+    result = dict(data)
+    for col in schema:
+        if col["type"] != "computed":
+            continue
+        formula = col.get("formula")
+        if not formula:
+            continue
+        fields = formula["fields"]
+        values = []
+        for f in fields:
+            v = data.get(f)
+            if v is None or not isinstance(v, (int, float)):
+                values = None
+                break
+            values.append(v)
+        if values is None:
+            result[col["key"]] = None
+            continue
+        operation = formula["operation"]
+        if operation == "multiply":
+            computed = 1
+            for v in values:
+                computed *= v
+            result[col["key"]] = computed
+        elif operation == "sum":
+            result[col["key"]] = sum(values)
+    return result
 
 
 async def get_next_row_index(
