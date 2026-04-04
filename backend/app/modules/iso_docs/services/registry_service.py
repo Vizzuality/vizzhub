@@ -8,26 +8,35 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+_TYPE_VALIDATORS: dict[str, type | tuple[type, ...]] = {
+    "string": str,
+    "user": str,
+    "number": (int, float),
+    "boolean": bool,
+}
+
+
 def _validate_field_type(value: object, col: dict) -> str | None:
     """Validate a single field value against its column definition."""
     label = col["label"]
     col_type = col["type"]
 
-    if col_type in ("string", "user") and not isinstance(value, str):
-        return f"Field '{label}' must be a string"
-    if col_type == "number" and not isinstance(value, (int, float)):
-        return f"Field '{label}' must be a number"
-    if col_type == "boolean" and not isinstance(value, bool):
-        return f"Field '{label}' must be a boolean"
+    expected = _TYPE_VALIDATORS.get(col_type)
+    if expected and not isinstance(value, expected):
+        type_name = expected.__name__ if isinstance(expected, type) else col_type
+        return f"Field '{label}' must be a {type_name}"
+
     if col_type == "date" and isinstance(value, str):
         try:
             date.fromisoformat(value)
         except ValueError:
             return f"Field '{label}' must be a valid date (YYYY-MM-DD)"
+
     if col_type == "select":
         options = col.get("options", [])
         if value not in options:
             return f"Field '{label}' must be one of: {', '.join(options)}"
+
     return None
 
 
@@ -71,6 +80,28 @@ def strip_computed_keys(schema: list[dict], data: dict) -> dict:
     return {k: v for k, v in data.items() if k not in computed_keys}
 
 
+def _gather_numeric_values(data: dict, fields: list[str]) -> list[float] | None:
+    """Extract numeric values for formula fields. Returns None if any are missing."""
+    values = []
+    for f in fields:
+        v = data.get(f)
+        if v is None or not isinstance(v, (int, float)):
+            return None
+        values.append(v)
+    return values
+
+
+def _apply_formula(operation: str, values: list[float]) -> float | None:
+    if operation == "multiply":
+        result = 1.0
+        for v in values:
+            result *= v
+        return result
+    if operation == "sum":
+        return sum(values)
+    return None
+
+
 def compute_row_fields(schema: list[dict], data: dict) -> dict:
     """Add computed field values to row data for serialization."""
     result = dict(data)
@@ -80,25 +111,8 @@ def compute_row_fields(schema: list[dict], data: dict) -> dict:
         formula = col.get("formula")
         if not formula:
             continue
-        fields = formula["fields"]
-        values = []
-        for f in fields:
-            v = data.get(f)
-            if v is None or not isinstance(v, (int, float)):
-                values = None
-                break
-            values.append(v)
-        if values is None:
-            result[col["key"]] = None
-            continue
-        operation = formula["operation"]
-        if operation == "multiply":
-            computed = 1
-            for v in values:
-                computed *= v
-            result[col["key"]] = computed
-        elif operation == "sum":
-            result[col["key"]] = sum(values)
+        values = _gather_numeric_values(data, formula["fields"])
+        result[col["key"]] = _apply_formula(formula["operation"], values) if values else None
     return result
 
 

@@ -42,7 +42,7 @@ def test_invalid_number():
 
 def test_invalid_boolean():
     errors = validate_row_data(SCHEMA, {"name": "X", "category": "A", "active": "yes"})
-    assert any("boolean" in e for e in errors)
+    assert any("bool" in e for e in errors)
 
 
 def test_invalid_date():
