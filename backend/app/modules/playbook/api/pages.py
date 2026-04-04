@@ -95,7 +95,7 @@ async def save_page(
     if h1_title and h1_title != node.title:
         node.title = h1_title
         node.slug = await ensure_unique_slug(
-            db, generate_slug(h1_title), node.parent_id, exclude_id=node_id,
+            db, generate_slug(h1_title), exclude_id=node_id,
         )
         node.updated_by_id = user_id
         await db.flush()

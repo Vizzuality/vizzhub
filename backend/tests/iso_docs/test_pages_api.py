@@ -164,3 +164,23 @@ async def test_search_pages_no_results(client: AsyncClient):
     response = await client.get("/api/iso-docs/pages/search", params={"q": "zznonexistent"})
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_search_includes_registry_nodes(client: AsyncClient):
+    """Registry nodes should appear in search results by title."""
+    rt = await client.post(
+        "/api/iso-docs/registry-types",
+        json={"name": "Search Test", "schema": [{"key": "a", "label": "A", "type": "string"}]},
+    )
+    node = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "Zebra Registry", "type": "registry", "registry_type_id": rt.json()["id"]},
+    )
+    assert node.status_code == 201
+
+    search = await client.get("/api/iso-docs/pages/search", params={"q": "Zebra"})
+    assert search.status_code == 200
+    results = search.json()
+    assert len(results) == 1
+    assert results[0]["title"] == "Zebra Registry"

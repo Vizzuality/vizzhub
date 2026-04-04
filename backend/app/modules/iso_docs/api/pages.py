@@ -114,11 +114,12 @@ async def search_pages(
             latest.c.content,
             IsoDocMetadataDB.code,
         )
-        .join(latest, latest.c.node_id == IsoDocNodeDB.id)
+        .outerjoin(latest, latest.c.node_id == IsoDocNodeDB.id)
         .outerjoin(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
         .where(
+            IsoDocNodeDB.type.in_(["page", "registry"]),
             (IsoDocNodeDB.title.ilike(f"%{safe}%"))
-            | (latest.c.content.ilike(f"%{safe}%"))
+            | (latest.c.content.ilike(f"%{safe}%")),
         )
         .order_by(IsoDocNodeDB.title)
     )
@@ -195,7 +196,7 @@ async def save_page(
     if h1_title and h1_title != node.title:
         node.title = h1_title
         node.slug = await ensure_unique_slug(
-            db, generate_slug(h1_title), node.parent_id, exclude_id=node_id,
+            db, generate_slug(h1_title), exclude_id=node_id,
         )
         node.updated_by_id = user_id
         await db.flush()

@@ -171,6 +171,7 @@ function RowLightbox({ row, rowIndex, columns, isEditor, onSave, onUploadAttachm
                   attachment={cellAttachment}
                   onUploadAttachment={onUploadAttachment}
                   onDeleteAttachment={onDeleteAttachment}
+                  wrap
                 />
               </dd>
             </div>

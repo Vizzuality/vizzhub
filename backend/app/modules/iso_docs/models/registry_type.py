@@ -24,6 +24,9 @@ class RegistryTypeDB(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_yearly: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     schema: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    default_sort_key: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),

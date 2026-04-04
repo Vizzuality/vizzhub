@@ -65,18 +65,16 @@ function flattenTree(nodes: DocTreeNode[]): DocTreeNode[] {
   return result;
 }
 
-function buildSlugPaths(
+function buildSlugMaps(
   nodes: DocTreeNode[],
-  parentPath = '',
   slugToId = new Map<string, string>(),
   idToSlug = new Map<string, string>(),
 ): { slugToId: Map<string, string>; idToSlug: Map<string, string> } {
   for (const node of nodes) {
-    const path = parentPath ? `${parentPath}/${node.slug}` : node.slug;
-    slugToId.set(path, node.id);
-    idToSlug.set(node.id, path);
+    slugToId.set(node.slug, node.id);
+    idToSlug.set(node.id, node.slug);
     if (node.children.length > 0) {
-      buildSlugPaths(node.children, path, slugToId, idToSlug);
+      buildSlugMaps(node.children, slugToId, idToSlug);
     }
   }
   return { slugToId, idToSlug };
@@ -305,16 +303,24 @@ export default function IsoDocs(): JSX.Element {
   const { data: tree = [], isLoading: treeLoading } = useIsoDocTree();
 
   const flat = useMemo(() => flattenTree(tree), [tree]);
-  const { slugToId, idToSlug } = useMemo(() => buildSlugPaths(tree), [tree]);
+  const { slugToId, idToSlug } = useMemo(() => buildSlugMaps(tree), [tree]);
 
   const pagePath = searchParams.get('page');
-  const selectedId = pagePath ? (slugToId.get(pagePath) ?? null) : null;
+  const permalinkId = searchParams.get('id');
 
-  const selectedNodeType = useMemo(
-    () => flat.find((n) => n.id === selectedId)?.type,
+  useEffect(() => {
+    if (permalinkId && idToSlug.has(permalinkId)) {
+      setSearchParams({ page: idToSlug.get(permalinkId)! }, { replace: true });
+    }
+  }, [permalinkId, idToSlug, setSearchParams]);
+
+  const selectedId = pagePath ? (slugToId.get(pagePath) ?? null) : (permalinkId ?? null);
+
+  const selectedNode = useMemo(
+    () => flat.find((n) => n.id === selectedId),
     [flat, selectedId],
   );
-  const { data: page } = useIsoDocPage(selectedId, selectedNodeType === 'page');
+  const { data: page } = useIsoDocPage(selectedId, selectedNode?.type === 'page');
   const { data: metadata } = useIsoDocMetadata(selectedId);
   const createNode = useCreateIsoDocNode();
   const updateNode = useUpdateIsoDocNode();
@@ -338,11 +344,6 @@ export default function IsoDocs(): JSX.Element {
       onSuccess: (data) => setDriveJobId(data.job_id),
     });
   }, [triggerDriveExport]);
-
-  const selectedNode = useMemo(
-    () => flat.find((n) => n.id === selectedId),
-    [flat, selectedId],
-  );
   const isPage = selectedNode?.type === 'page';
   const isRegistry = selectedNode?.type === 'registry';
   const nodeTypeLabel = (() => {
@@ -376,13 +377,20 @@ export default function IsoDocs(): JSX.Element {
   const handleInternalLink = useCallback(
     (href: string) => {
       const url = new URL(href, globalThis.location.origin);
-      const pagePath = url.searchParams.get('page');
-      if (pagePath) {
-        setSearchParams({ page: pagePath }, { replace: true });
+      const pageSlug = url.searchParams.get('page');
+      const nodeId = url.searchParams.get('id');
+      if (pageSlug) {
+        setSearchParams({ page: pageSlug }, { replace: true });
         setEditing(false);
+      } else if (nodeId) {
+        const slug = idToSlug.get(nodeId);
+        if (slug) {
+          setSearchParams({ page: slug }, { replace: true });
+          setEditing(false);
+        }
       }
     },
-    [setSearchParams],
+    [setSearchParams, idToSlug],
   );
 
   const handleSelect = useCallback(
@@ -433,17 +441,13 @@ export default function IsoDocs(): JSX.Element {
           onSuccess: (node) => {
             setFormOpen(false);
             if (node.type === 'page' || node.type === 'registry') {
-              const parentPath = selectedNode?.type === 'group' && selectedId
-                ? idToSlug.get(selectedId)
-                : undefined;
-              const newPath = parentPath ? `${parentPath}/${node.slug}` : node.slug;
-              setSearchParams({ page: newPath }, { replace: true });
+              setSearchParams({ page: node.slug }, { replace: true });
             }
           },
         },
       );
     },
-    [createNode, selectedId, selectedNode, setSearchParams, idToSlug],
+    [createNode, selectedId, selectedNode, setSearchParams],
   );
 
   const handleDelete = useCallback(() => {
