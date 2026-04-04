@@ -70,9 +70,11 @@ export function RegistryRowDialog({
     });
   };
 
+  const editableColumns = columns.filter((c) => c.type !== 'computed' && c.type !== 'attachment');
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    for (const col of columns) {
+    for (const col of editableColumns) {
       if (!col.required) continue;
       const val = formData[col.key];
       if (val === undefined || val === null || val === '') {
@@ -90,10 +92,7 @@ export function RegistryRowDialog({
   };
 
   const attachments: RegistryAttachment[] = row?.attachments ?? [];
-  const submitLabel = (() => {
-    if (isSaving) return 'Saving...';
-    return row ? 'Save' : 'Add';
-  })();
+  const submitLabel = isSaving ? 'Saving...' : row ? 'Save' : 'Add';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,7 +102,7 @@ export function RegistryRowDialog({
             <DialogTitle>{row ? 'Edit Row' : 'Add Row'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {columns.map((col) => (
+            {editableColumns.map((col) => (
               <div key={col.key} className="space-y-1.5">
                 <Label htmlFor={`field-${col.key}`}>
                   {col.label}

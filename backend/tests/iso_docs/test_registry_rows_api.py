@@ -298,3 +298,177 @@ async def test_list_years_empty(client: AsyncClient, yearly_setup: dict):
     resp = await client.get(f"/api/iso-docs/registries/{node_id}/years")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_copy_year(client: AsyncClient, yearly_setup: dict):
+    node_id = yearly_setup["node"]["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2024, "data": {"item": "risk A"}},
+    )
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2024, "data": {"item": "risk B"}},
+    )
+
+    resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/copy-year",
+        params={"source_year": 2024, "target_year": 2025},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["copied"] == 2
+
+    rows = await client.get(
+        f"/api/iso-docs/registries/{node_id}/rows", params={"year": 2025}
+    )
+    assert len(rows.json()) == 2
+    assert rows.json()[0]["data"]["item"] == "risk A"
+
+
+@pytest.mark.asyncio
+async def test_copy_year_target_not_empty(client: AsyncClient, yearly_setup: dict):
+    node_id = yearly_setup["node"]["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2024, "data": {"item": "A"}},
+    )
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"year": 2025, "data": {"item": "B"}},
+    )
+    resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/copy-year",
+        params={"source_year": 2024, "target_year": 2025},
+    )
+    assert resp.status_code == 400
+    assert "already has data" in resp.json()["detail"]
+
+
+COMPUTED_SCHEMA = [
+    {"key": "probability", "label": "Probability", "type": "number", "required": True},
+    {"key": "impact", "label": "Impact", "type": "number", "required": True},
+    {
+        "key": "evaluation",
+        "label": "Evaluation",
+        "type": "computed",
+        "formula": {"operation": "multiply", "fields": ["probability", "impact"]},
+        "conditional_format": [
+            {"min": 1, "max": 2, "color": "#22c55e", "label": "Low"},
+            {"min": 3, "max": 4, "color": "#eab308", "label": "Moderate"},
+            {"min": 6, "max": 9, "color": "#ef4444", "label": "High"},
+        ],
+    },
+    {"key": "notes", "label": "Notes", "type": "string", "required": False},
+]
+
+
+@pytest_asyncio.fixture
+async def computed_setup(client: AsyncClient) -> dict:
+    rt_resp = await client.post(
+        "/api/iso-docs/registry-types",
+        json={"name": "Risk Test", "schema": COMPUTED_SCHEMA},
+    )
+    rt = rt_resp.json()
+    node_resp = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "Risks", "type": "registry", "registry_type_id": rt["id"]},
+    )
+    return {"type": rt, "node": node_resp.json()}
+
+
+@pytest.mark.asyncio
+async def test_computed_field_in_create_response(
+    client: AsyncClient, computed_setup: dict
+):
+    node_id = computed_setup["node"]["id"]
+    resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"probability": 2, "impact": 3}},
+    )
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["evaluation"] == 6
+
+
+@pytest.mark.asyncio
+async def test_computed_field_in_list_response(
+    client: AsyncClient, computed_setup: dict
+):
+    node_id = computed_setup["node"]["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"probability": 1, "impact": 2}},
+    )
+    resp = await client.get(f"/api/iso-docs/registries/{node_id}/rows")
+    assert resp.status_code == 200
+    rows = resp.json()
+    assert rows[0]["data"]["evaluation"] == 2
+
+
+@pytest.mark.asyncio
+async def test_computed_field_in_update_response(
+    client: AsyncClient, computed_setup: dict
+):
+    node_id = computed_setup["node"]["id"]
+    create_resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"probability": 1, "impact": 1}},
+    )
+    row_id = create_resp.json()["id"]
+    resp = await client.patch(
+        f"/api/iso-docs/registries/{node_id}/rows/{row_id}",
+        json={"data": {"impact": 3}},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["evaluation"] == 3
+
+
+@pytest.mark.asyncio
+async def test_computed_field_stripped_from_storage(
+    client: AsyncClient, computed_setup: dict
+):
+    """Sending a computed key in data should not cause validation error."""
+    node_id = computed_setup["node"]["id"]
+    resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"probability": 2, "impact": 2, "evaluation": 999}},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["data"]["evaluation"] == 4
+
+
+@pytest.mark.asyncio
+async def test_computed_field_in_csv_export(
+    client: AsyncClient, computed_setup: dict
+):
+    node_id = computed_setup["node"]["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"probability": 3, "impact": 3}},
+    )
+    resp = await client.get(
+        f"/api/iso-docs/registries/{node_id}/export", params={"format": "csv"}
+    )
+    assert resp.status_code == 200
+    lines = resp.text.strip().split("\n")
+    assert "Evaluation" in lines[0]
+    assert "9" in lines[1]
+
+
+@pytest.mark.asyncio
+async def test_computed_column_ignored_in_csv_import(
+    client: AsyncClient, computed_setup: dict
+):
+    node_id = computed_setup["node"]["id"]
+    csv_content = "Probability,Impact,Evaluation,Notes\n2,3,6,test\n"
+    import io
+    resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/import",
+        files={"file": ("data.csv", io.BytesIO(csv_content.encode()), "text/csv")},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["imported"] == 1
+    rows_resp = await client.get(f"/api/iso-docs/registries/{node_id}/rows")
+    row_data = rows_resp.json()[0]["data"]
+    assert row_data["evaluation"] == 6

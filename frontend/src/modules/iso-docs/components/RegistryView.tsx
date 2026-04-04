@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Plus, Download, Upload, Settings, Trash2, ChevronLeft, ChevronRight, Paperclip, ArrowUp, ArrowDown, Columns3, CheckCircle2, AlertCircle, X, Expand } from 'lucide-react';
+import { Plus, Download, Upload, Settings, Trash2, ChevronLeft, ChevronRight, Paperclip, ArrowUp, ArrowDown, Columns3, CheckCircle2, AlertCircle, X, Expand, Copy, Info } from 'lucide-react';
 import { AxiosError } from 'axios';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu';
+import MDEditor from '@uiw/react-md-editor';
 import { InlineCell } from './InlineCell';
 import { RegistryRowDialog } from './RegistryRowDialog';
 import { RegistryTypeDialog } from './RegistryTypeDialog';
@@ -39,8 +40,10 @@ import {
   useExportRegistry,
   useExportToDrive,
   useImportCsv,
+  useCopyYear,
 } from '../hooks/useRegistryRows';
 import { useDriveExportStatus } from '../hooks/useDriveExport';
+import { useIsoDocMetadata } from '../hooks/useIsoDocMetadata';
 import { useUploadAttachment, useDeleteAttachment } from '../hooks/useRegistryAttachments';
 import type { RegistryRow, ColumnDef } from '../types/registry';
 
@@ -88,16 +91,13 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-interface RowLightboxProps {
-  readonly row: RegistryRow;
-  readonly rowIndex: number;
-  readonly columns: ColumnDef[];
-  readonly isEditor: boolean;
-  readonly onSave: (key: string, value: unknown) => void;
+interface LightboxShellProps {
+  readonly title: string;
   readonly onClose: () => void;
+  readonly children: React.ReactNode;
 }
 
-function RowLightbox({ row, rowIndex, columns, isEditor, onSave, onClose }: RowLightboxProps): JSX.Element {
+function LightboxShell({ title, onClose, children }: LightboxShellProps): JSX.Element {
   const backdropRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -129,13 +129,37 @@ function RowLightbox({ row, rowIndex, columns, isEditor, onSave, onClose }: RowL
         className="relative w-full max-w-2xl mx-4 my-8 bg-background border rounded-lg shadow-lg"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-background rounded-t-lg">
-          <h3 className="font-semibold text-lg">Row #{rowIndex}</h3>
+          <h3 className="font-semibold text-lg">{title}</h3>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="px-6 py-5 space-y-4">
-          {columns.map((col) => (
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface RowLightboxProps {
+  readonly row: RegistryRow;
+  readonly rowIndex: number;
+  readonly columns: ColumnDef[];
+  readonly isEditor: boolean;
+  readonly onSave: (key: string, value: unknown) => void;
+  readonly onUploadAttachment: (fieldKey: string, file: File) => void;
+  readonly onDeleteAttachment: (attachmentId: string) => void;
+  readonly onClose: () => void;
+}
+
+function RowLightbox({ row, rowIndex, columns, isEditor, onSave, onUploadAttachment, onDeleteAttachment, onClose }: RowLightboxProps): JSX.Element {
+  return (
+    <LightboxShell title={`Row #${rowIndex}`} onClose={onClose}>
+      <div className="px-6 py-5 space-y-4">
+        {columns.map((col) => {
+          const cellAttachment = col.type === 'attachment'
+            ? row.attachments.find((a) => a.field_key === col.key)
+            : undefined;
+          return (
             <div key={col.key}>
               <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{col.label}</dt>
               <dd className="text-sm">
@@ -144,18 +168,32 @@ function RowLightbox({ row, rowIndex, columns, isEditor, onSave, onClose }: RowL
                   col={col}
                   isEditor={isEditor}
                   onSave={onSave}
+                  attachment={cellAttachment}
+                  onUploadAttachment={onUploadAttachment}
+                  onDeleteAttachment={onDeleteAttachment}
                 />
               </dd>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
-    </div>
+    </LightboxShell>
+  );
+}
+
+function GuidanceLightbox({ content, onClose }: { readonly content: string; readonly onClose: () => void }): JSX.Element {
+  return (
+    <LightboxShell title="Guidance" onClose={onClose}>
+      <div className="px-6 py-5 prose prose-sm max-w-none" data-color-mode="light">
+        <MDEditor.Markdown source={content} />
+      </div>
+    </LightboxShell>
   );
 }
 
 export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewProps): JSX.Element {
   const { data: registryType } = useRegistryType(registryTypeId);
+  const { data: metadata } = useIsoDocMetadata(nodeId);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [yearInitialized, setYearInitialized] = useState(false);
   const [rowDialogOpen, setRowDialogOpen] = useState(false);
@@ -166,6 +204,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [viewingRow, setViewingRow] = useState<RegistryRow | null>(null);
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null);
 
   const showFeedback = (message: string, isError = false): void => {
@@ -203,6 +242,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const updateType = useUpdateRegistryType();
   const uploadAttachment = useUploadAttachment(nodeId);
   const deleteAttachment = useDeleteAttachment(nodeId);
+  const copyYear = useCopyYear(nodeId);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const driveConnected = driveStatus?.connected ?? false;
 
@@ -362,6 +402,12 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {metadata?.guidance && (
+            <Button variant="outline" size="sm" onClick={() => setGuidanceOpen(true)}>
+              <Info className="h-4 w-4 mr-1" />
+              Guidance
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -450,12 +496,40 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
       {!isLoading && rows.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">No data yet</p>
-          {isEditor && (
-            <Button variant="outline" size="sm" className="mt-3" onClick={handleAddRow}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add first row
-            </Button>
-          )}
+          <div className="flex items-center justify-center gap-2 mt-3">
+            {isEditor && isYearly && availableYears && availableYears.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={copyYear.isPending}
+                onClick={() => {
+                  const prev = availableYears.find((y) => y < resolvedYear);
+                  if (!prev) return;
+                  copyYear.mutate(
+                    { sourceYear: prev, targetYear: resolvedYear },
+                    {
+                      onSuccess: (res) => showFeedback(`Copied ${res.copied} rows from ${prev}\u2013${prev + 1}`),
+                      onError: (err) => showFeedback(
+                        err instanceof AxiosError ? err.response?.data?.detail ?? 'Copy failed' : 'Copy failed',
+                        true,
+                      ),
+                    },
+                  );
+                }}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                {copyYear.isPending
+                  ? 'Copying...'
+                  : `Copy from ${availableYears.find((y) => y < resolvedYear)}\u2013${(availableYears.find((y) => y < resolvedYear) ?? 0) + 1}`}
+              </Button>
+            )}
+            {isEditor && (
+              <Button variant="outline" size="sm" onClick={handleAddRow}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add first row
+              </Button>
+            )}
+          </div>
         </div>
       )}
       {!isLoading && rows.length > 0 && (
@@ -505,21 +579,33 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                       </button>
                     </div>
                   </td>
-                  {visibleColumns.map((col) => (
-                    <td key={col.key} className="px-3 py-1.5 max-w-xs align-top">
-                      <div className="flex items-center gap-1">
-                        <InlineCell
-                          value={row.data[col.key]}
-                          col={col}
-                          isEditor={isEditor}
-                          onSave={(key, value) => handleInlineSave(row, key, value)}
-                        />
-                        {row.attachments.some((a) => a.field_key === col.key) && (
-                          <Paperclip className="h-3 w-3 text-muted-foreground" />
-                        )}
-                      </div>
-                    </td>
-                  ))}
+                  {visibleColumns.map((col) => {
+                    const cellAttachment = col.type === 'attachment'
+                      ? row.attachments.find((a) => a.field_key === col.key)
+                      : undefined;
+                    return (
+                      <td key={col.key} className="px-3 py-1.5 max-w-xs align-top">
+                        <div className="flex items-center gap-1">
+                          <InlineCell
+                            value={row.data[col.key]}
+                            col={col}
+                            isEditor={isEditor}
+                            onSave={(key, value) => handleInlineSave(row, key, value)}
+                            attachment={cellAttachment}
+                            onUploadAttachment={(fieldKey, file) =>
+                              uploadAttachment.mutate({ rowId: row.id, file, fieldKey })
+                            }
+                            onDeleteAttachment={(attachmentId) =>
+                              deleteAttachment.mutate(attachmentId)
+                            }
+                          />
+                          {col.type !== 'attachment' && row.attachments.some((a) => a.field_key === col.key) && (
+                            <Paperclip className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
                   {isEditor && (
                     <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-0.5">
@@ -613,8 +699,17 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
             handleInlineSave(viewingRow, key, value);
             setViewingRow({ ...viewingRow, data: { ...viewingRow.data, [key]: value } });
           }}
+          onUploadAttachment={(fieldKey, file) =>
+            uploadAttachment.mutate({ rowId: viewingRow.id, file, fieldKey })
+          }
+          onDeleteAttachment={(attachmentId) =>
+            deleteAttachment.mutate(attachmentId)
+          }
           onClose={() => setViewingRow(null)}
         />
+      )}
+      {guidanceOpen && metadata?.guidance && (
+        <GuidanceLightbox content={metadata.guidance} onClose={() => setGuidanceOpen(false)} />
       )}
     </div>
   );

@@ -33,8 +33,13 @@ from app.modules.iso_docs.services.drive_export_service import (
     DRIVE_TIMEOUT,
     DRIVE_UPLOAD_API,
 )
+from app.modules.iso_docs.services.registry_attachment_service import (
+    get_attachment_url,
+)
 from app.modules.iso_docs.services.registry_service import (
+    compute_row_fields,
     get_next_row_index,
+    strip_computed_keys,
     validate_row_data,
 )
 
@@ -99,6 +104,24 @@ async def list_years(
     return list(result.scalars())
 
 
+def _enrich_row(
+    row, schema: list[dict]
+) -> RegistryRowResponse:
+    """Serialize a row with computed field values and attachment URLs injected."""
+    resp = RegistryRowResponse.model_validate(row)
+    resp.data = compute_row_fields(schema, resp.data)
+    for att in resp.attachments:
+        att.url = get_attachment_url(att.s3_key)
+    return resp
+
+
+def _enrich_rows(
+    rows: list, schema: list[dict]
+) -> list[RegistryRowResponse]:
+    """Serialize rows with computed field values and attachment URLs injected."""
+    return [_enrich_row(r, schema) for r in rows]
+
+
 @router.get(
     "/registries/{node_id}/rows",
     responses={404: {"description": "Registry node not found"}},
@@ -110,8 +133,9 @@ async def list_rows(
     year: Annotated[int | None, Query()] = None,
 ) -> list[RegistryRowResponse]:
     node = await _get_registry_node(db, node_id)
+    rt = await _get_registry_type(db, node.registry_type_id)
     rows = await _fetch_rows(db, node.id, year)
-    return [RegistryRowResponse.model_validate(r) for r in rows]
+    return _enrich_rows(rows, rt.schema)
 
 
 @router.post(
@@ -135,7 +159,8 @@ async def create_row(
     if rt.is_yearly and data.year is None:
         raise HTTPException(status_code=400, detail="Year is required for yearly registries")
 
-    errors = validate_row_data(rt.schema, data.data)
+    clean_data = strip_computed_keys(rt.schema, data.data)
+    errors = validate_row_data(rt.schema, clean_data)
     if errors:
         raise HTTPException(status_code=422, detail=errors)
 
@@ -144,7 +169,7 @@ async def create_row(
         node_id=node.id,
         year=data.year,
         row_index=row_index,
-        data=data.data,
+        data=clean_data,
         created_by_id=UUID(user.user_id),
         updated_by_id=UUID(user.user_id),
     )
@@ -152,7 +177,7 @@ async def create_row(
     await db.flush()
     await db.refresh(row)
     logger.info("registry_row_created", node_id=str(node_id), row_id=str(row.id))
-    return RegistryRowResponse.model_validate(row)
+    return _enrich_row(row, rt.schema)
 
 
 @router.patch(
@@ -181,7 +206,8 @@ async def update_row(
     if not row:
         raise HTTPException(status_code=404, detail="Row not found")
 
-    merged = {**row.data, **data.data}
+    clean_update = strip_computed_keys(rt.schema, data.data)
+    merged = {**row.data, **clean_update}
     errors = validate_row_data(rt.schema, merged)
     if errors:
         raise HTTPException(status_code=422, detail=errors)
@@ -191,7 +217,7 @@ async def update_row(
     await db.flush()
     await db.refresh(row)
     logger.info("registry_row_updated", node_id=str(node_id), row_id=str(row_id))
-    return RegistryRowResponse.model_validate(row)
+    return _enrich_row(row, rt.schema)
 
 
 @router.delete(
@@ -276,7 +302,8 @@ async def export_registry(
         writer = csv.writer(buf)
         writer.writerow(headers)
         for row in rows:
-            writer.writerow([row.data.get(col["key"], "") for col in columns])
+            enriched = compute_row_fields(columns, row.data)
+            writer.writerow([enriched.get(col["key"], "") for col in columns])
 
         return StreamingResponse(
             iter([buf.getvalue()]),
@@ -311,13 +338,17 @@ def _coerce_csv_value(raw: str, col_type: str) -> object:
 
 def _parse_csv(text: str, columns: list[dict]) -> list[dict]:
     """Parse CSV text into validated row dicts. Raises HTTPException on errors."""
-    label_to_col = {col["label"]: col for col in columns}
+    computed_labels = {col["label"] for col in columns if col["type"] == "computed"}
+    label_to_col = {col["label"]: col for col in columns if col["type"] != "computed"}
     reader = csv.DictReader(StringIO(text))
 
     if not reader.fieldnames:
         raise HTTPException(status_code=400, detail="CSV has no headers")
 
-    unknown = [h for h in reader.fieldnames if h and h not in label_to_col]
+    unknown = [
+        h for h in reader.fieldnames
+        if h and h not in label_to_col and h not in computed_labels
+    ]
     if unknown:
         raise HTTPException(
             status_code=400,
@@ -407,6 +438,62 @@ async def import_registry(
     return {"imported": len(parsed_rows)}
 
 
+@router.post(
+    "/registries/{node_id}/copy-year",
+    responses={
+        404: {"description": "Registry node or type not found"},
+        400: {"description": "Invalid copy request"},
+    },
+)
+async def copy_year(
+    node_id: UUID,
+    db: DBSession,
+    user: IsoDocsEditor,
+    source_year: Annotated[int, Query()],
+    target_year: Annotated[int, Query()],
+) -> dict:
+    node = await _get_registry_node(db, node_id)
+    rt = await _get_registry_type(db, node.registry_type_id)
+
+    if not rt.is_yearly:
+        raise HTTPException(status_code=400, detail="Only yearly registries support copy")
+    if source_year == target_year:
+        raise HTTPException(status_code=400, detail="Source and target year must differ")
+
+    existing = await db.execute(
+        select(RegistryRowDB).where(
+            RegistryRowDB.node_id == node.id, RegistryRowDB.year == target_year
+        ).limit(1)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Target year already has data")
+
+    source_rows = await _fetch_rows(db, node.id, source_year)
+    if not source_rows:
+        raise HTTPException(status_code=400, detail="Source year has no data to copy")
+
+    user_id = UUID(user.user_id)
+    for idx, src in enumerate(source_rows):
+        db.add(RegistryRowDB(
+            node_id=node.id,
+            year=target_year,
+            row_index=idx,
+            data=dict(src.data),
+            created_by_id=user_id,
+            updated_by_id=user_id,
+        ))
+
+    await db.flush()
+    logger.info(
+        "registry_year_copied",
+        node_id=str(node_id),
+        source_year=source_year,
+        target_year=target_year,
+        rows_copied=len(source_rows),
+    )
+    return {"copied": len(source_rows)}
+
+
 def _build_xlsx(node_title: str, columns: list[dict], rows: list) -> BytesIO:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -414,7 +501,8 @@ def _build_xlsx(node_title: str, columns: list[dict], rows: list) -> BytesIO:
     headers = [col["label"] for col in columns]
     ws.append(headers)
     for row in rows:
-        ws.append([row.data.get(col["key"], "") for col in columns])
+        enriched = compute_row_fields(columns, row.data)
+        ws.append([enriched.get(col["key"], "") for col in columns])
 
     for col_idx, header in enumerate(headers, 1):
         max_len = len(str(header))

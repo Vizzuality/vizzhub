@@ -9,13 +9,28 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class FormulaSpec(BaseModel):
+    operation: Literal["multiply", "sum"]
+    fields: list[str]
+
+
+class ConditionalFormatRange(BaseModel):
+    min: float
+    max: float
+    color: str
+    label: str | None = None
+
+
 class ColumnDef(BaseModel):
     key: str = Field(min_length=1, max_length=100, pattern=r"^[a-z][a-z0-9_]*$")
     label: str = Field(min_length=1, max_length=255)
-    type: Literal["string", "number", "date", "boolean", "select", "user"]
+    type: Literal["string", "number", "date", "boolean", "select", "user", "computed", "attachment"]
     required: bool = False
     options: list[str] | None = None
+    option_colors: dict[str, str] | None = None
     width: int | None = None
+    formula: FormulaSpec | None = None
+    conditional_format: list[ConditionalFormatRange] | None = None
 
 
 class RegistryTypeCreate(BaseModel):
@@ -83,11 +98,14 @@ class AttachmentResponse(BaseModel):
 
     id: UUID
     row_id: UUID
+    node_id: UUID | None
     field_key: str | None
     filename: str
     s3_key: str
+    url: str | None = None
     content_type: str
     size_bytes: int
+    uploaded_by_id: UUID | None
     created_at: datetime
 
 

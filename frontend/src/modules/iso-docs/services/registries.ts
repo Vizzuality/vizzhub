@@ -86,6 +86,17 @@ export const registriesApi = {
     return data as { imported: number };
   },
 
+  copyYear: async (
+    nodeId: string,
+    sourceYear: number,
+    targetYear: number,
+  ): Promise<{ copied: number }> => {
+    const { data } = await api.post(`/iso-docs/registries/${nodeId}/copy-year`, null, {
+      params: { source_year: sourceYear, target_year: targetYear },
+    });
+    return data as { copied: number };
+  },
+
   exportToDrive: async (nodeId: string, year?: number): Promise<{ drive_file_id: string }> => {
     const params: Record<string, number> = {};
     if (year != null) params.year = year;

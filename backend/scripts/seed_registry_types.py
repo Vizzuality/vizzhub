@@ -20,6 +20,18 @@ UNDER_REVIEW = "Under Review"
 VERY_HIGH = "Very High"
 VERY_LOW = "Very Low"
 
+ORIGIN_OPTIONS = ["SWOT Analysis", "Stakeholder Expectations", "SWOT & Stakeholder Expectations", "Other"]
+PROCESS_OPTIONS = [
+    "Risk & Opportunity Analysis and Organization Context (4)",
+    "Leadership (5)", "Quality Planning (6)", "Human Resources (7)",
+    "Document Information Control (7)", "Procurement and Outsourcing (7)",
+    "Equipment Maintenance (7)", "Order and Offer Management (8)",
+    "Personnel Selection (8)", "Service Delivery (8)",
+    "Performance Evaluation (9)", "Improvement (10)",
+]
+ACTION_TYPE_OPTIONS = ["Objective", "Improvement Action", "Training", "None", "Maintain Current Management"]
+CLOSURE_OPTIONS = ["Satisfactory", "Improvable", "Unsatisfactory"]
+
 REGISTRY_TYPES = [
     {
         "name": "Asset Inventory",
@@ -44,28 +56,41 @@ REGISTRY_TYPES = [
     {
         "name": "Risk Register",
         "slug": "risk-register",
-        "description": "Information security risk assessment and treatment",
+        "description": "Risk assessment and treatment: identified risks from SWOT analysis and stakeholder expectations, rated by probability (1-3) and impact (1-3) with auto-calculated evaluation (P×I), action plans, and closure tracking. Yearly registry aligned to audit cycles. ISO 27001 clause 6.1, ISO 9001 clause 6.1.",
         "is_yearly": True,
         "schema": [
-            {"key": "risk_id", "label": "Risk ID", "type": "string", "required": True, "width": 100},
-            {"key": "title", "label": "Risk Title", "type": "string", "required": True, "width": 200},
-            {"key": "description", "label": "Description", "type": "string", "required": True, "width": 300},
-            {"key": "category", "label": "Category", "type": "select", "required": True, "options": ["Operational", "Technical", "Legal", "Physical", "Human", "Environmental"], "width": 120},
-            {"key": "threat", "label": "Threat", "type": "string", "required": False, "width": 200},
-            {"key": "vulnerability", "label": "Vulnerability", "type": "string", "required": False, "width": 200},
-            {"key": "affected_assets", "label": "Affected Assets", "type": "string", "required": False, "width": 200},
-            {"key": "likelihood", "label": "Likelihood", "type": "select", "required": True, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 100},
-            {"key": "impact", "label": "Impact", "type": "select", "required": True, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 100},
-            {"key": "inherent_risk", "label": "Inherent Risk", "type": "select", "required": True, "options": ["Low", "Medium", "High", "Critical"], "width": 110},
-            {"key": "treatment", "label": "Treatment", "type": "select", "required": True, "options": ["Accept", "Mitigate", "Transfer", "Avoid"], "width": 100},
-            {"key": "controls", "label": "Controls", "type": "string", "required": False, "width": 250},
-            {"key": "residual_likelihood", "label": "Residual Likelihood", "type": "select", "required": False, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 130},
-            {"key": "residual_impact", "label": "Residual Impact", "type": "select", "required": False, "options": [VERY_LOW, "Low", "Medium", "High", VERY_HIGH], "width": 130},
-            {"key": "residual_risk", "label": "Residual Risk", "type": "select", "required": False, "options": ["Low", "Medium", "High", "Critical"], "width": 110},
-            {"key": "risk_owner", "label": "Risk Owner", "type": "string", "required": True, "width": 150},
-            {"key": "review_date", "label": "Review Date", "type": "date", "required": False, "width": 130},
-            {"key": "status", "label": "Status", "type": "select", "required": True, "options": ["Open", "In Treatment", "Accepted", "Closed"], "width": 120},
-            {"key": "notes", "label": "Notes", "type": "string", "required": False, "width": 200},
+            {"key": "risk_id", "label": "Risk ID", "type": "string", "required": True, "width": 80},
+            {"key": "analysis_date", "label": "Analysis Date", "type": "date", "required": False, "width": 120},
+            {"key": "origin", "label": "Origin", "type": "select", "required": True, "options": ORIGIN_OPTIONS, "width": 180},
+            {"key": "related_process", "label": "Related Process", "type": "select", "required": False, "options": PROCESS_OPTIONS, "width": 250},
+            {"key": "description", "label": "Description", "type": "string", "required": True, "width": 350},
+            {"key": "probability", "label": "Probability", "type": "number", "required": True, "width": 90},
+            {"key": "impact", "label": "Impact", "type": "number", "required": True, "width": 80},
+            {"key": "evaluation", "label": "Evaluation (P×I)", "type": "computed", "width": 140, "formula": {"operation": "multiply", "fields": ["probability", "impact"]}, "conditional_format": [{"min": 1, "max": 1, "color": "#86efac", "label": "Trivial"}, {"min": 2, "max": 2, "color": "#22c55e", "label": "Tolerable"}, {"min": 3, "max": 4, "color": "#eab308", "label": "Moderate"}, {"min": 6, "max": 6, "color": "#f97316", "label": "Important"}, {"min": 9, "max": 9, "color": "#ef4444", "label": "Critical"}]},
+            {"key": "action_type", "label": "Action Type", "type": "select", "required": False, "options": ACTION_TYPE_OPTIONS, "width": 180},
+            {"key": "action_description", "label": "Action Description", "type": "string", "required": False, "width": 350},
+            {"key": "system_reference", "label": "System Reference", "type": "string", "required": False, "width": 150},
+            {"key": "closure", "label": "Closure", "type": "select", "required": False, "options": CLOSURE_OPTIONS, "width": 120},
+        ],
+    },
+    {
+        "name": "Opportunity Register",
+        "slug": "opportunity-register",
+        "description": "Opportunity assessment and prioritization: identified opportunities from SWOT analysis and stakeholder expectations, rated by benefit (1-10) and effort (1-10, where 10=low effort) with auto-calculated evaluation (B×E), action plans, and closure tracking. Yearly registry aligned to audit cycles. ISO 27001 clause 6.1, ISO 9001 clause 6.1.",
+        "is_yearly": True,
+        "schema": [
+            {"key": "opp_id", "label": "Opportunity ID", "type": "string", "required": True, "width": 80},
+            {"key": "analysis_date", "label": "Analysis Date", "type": "date", "required": False, "width": 120},
+            {"key": "origin", "label": "Origin", "type": "select", "required": True, "options": ORIGIN_OPTIONS, "width": 180},
+            {"key": "related_process", "label": "Related Process", "type": "select", "required": False, "options": PROCESS_OPTIONS, "width": 250},
+            {"key": "description", "label": "Description", "type": "string", "required": True, "width": 350},
+            {"key": "benefit", "label": "Benefit", "type": "number", "required": True, "width": 80},
+            {"key": "effort", "label": "Effort", "type": "number", "required": True, "width": 80},
+            {"key": "evaluation", "label": "Evaluation (B×E)", "type": "computed", "width": 140, "formula": {"operation": "multiply", "fields": ["benefit", "effort"]}, "conditional_format": [{"min": 1, "max": 49, "color": "#22c55e", "label": "Low"}, {"min": 50, "max": 74, "color": "#f97316", "label": "High"}, {"min": 75, "max": 100, "color": "#ef4444", "label": "Critical"}]},
+            {"key": "action_type", "label": "Action Type", "type": "select", "required": False, "options": ACTION_TYPE_OPTIONS, "width": 180},
+            {"key": "action_description", "label": "Action Description", "type": "string", "required": False, "width": 350},
+            {"key": "system_reference", "label": "System Reference", "type": "string", "required": False, "width": 150},
+            {"key": "closure", "label": "Closure", "type": "select", "required": False, "options": CLOSURE_OPTIONS, "width": 120},
         ],
     },
     {
