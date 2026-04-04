@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -61,6 +61,7 @@ class IsoDocMetadataDB(Base):
     original_filename: Mapped[str | None] = mapped_column(
         String(500), nullable=True
     )
+    guidance: Mapped[str | None] = mapped_column(Text, nullable=True)
     changelog: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

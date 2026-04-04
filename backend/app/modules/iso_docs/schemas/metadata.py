@@ -29,6 +29,7 @@ class MetadataResponse(BaseModel):
     status: str | None
     document_date: date | None
     original_filename: str | None
+    guidance: str | None
     changelog: list[ChangelogEntry] | None
     created_at: datetime
     updated_at: datetime
@@ -49,6 +50,7 @@ class MetadataUpdate(BaseModel):
     )
     document_date: date | None = None
     original_filename: str | None = Field(None, max_length=500)
+    guidance: str | None = None
     changelog: list[ChangelogEntry] | None = None
 
 

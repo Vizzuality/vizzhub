@@ -36,6 +36,7 @@ const COLUMN_TYPES = [
   { value: 'boolean', label: 'Yes/No' },
   { value: 'select', label: 'Dropdown' },
   { value: 'user', label: 'User' },
+  { value: 'attachment', label: 'Attachment' },
 ] as const;
 
 function toKey(label: string): string {
