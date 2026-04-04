@@ -31,7 +31,7 @@ function getConditionalColor(
 ): { color: string; label?: string } | null {
   if (!ranges || value === null || value === undefined) return null;
   const num = typeof value === 'number' ? value : Number(value);
-  if (isNaN(num)) return null;
+  if (Number.isNaN(num)) return null;
   return ranges.find((r) => num >= r.min && num <= r.max) ?? null;
 }
 
@@ -99,19 +99,179 @@ function AttachmentIcon({ contentType }: { readonly contentType: string }): JSX.
   return <FileText className="h-3.5 w-3.5 shrink-0" />;
 }
 
+function AttachmentCell({
+  col, attachment, isEditor, onUploadAttachment, onDeleteAttachment,
+}: {
+  readonly col: ColumnDef;
+  readonly attachment?: RegistryAttachment;
+  readonly isEditor: boolean;
+  readonly onUploadAttachment?: (fieldKey: string, file: File) => void;
+  readonly onDeleteAttachment?: (attachmentId: string) => void;
+}): JSX.Element {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (attachment) {
+    return (
+      <div className="flex items-center gap-1 min-h-[1.5rem]">
+        <a
+          href={attachment.url ?? '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline inline-flex items-center gap-1 text-sm truncate"
+          title={attachment.filename}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <AttachmentIcon contentType={attachment.content_type} />
+          <span className="truncate max-w-[150px]">{attachment.filename}</span>
+        </a>
+        {isEditor && onDeleteAttachment && (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-destructive shrink-0"
+            onClick={(e) => { e.stopPropagation(); onDeleteAttachment(attachment.id); }}
+            title="Remove attachment"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!isEditor || !onUploadAttachment) {
+    return <div className="flex items-center min-h-[1.5rem]"><span className="text-muted-foreground">-</span></div>;
+  }
+
+  return (
+    <div className="flex items-center min-h-[1.5rem]">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onUploadAttachment(col.key, file);
+          e.target.value = '';
+        }}
+      />
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
+        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+        title="Upload file"
+      >
+        <Upload className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+interface EditingFieldProps {
+  readonly col: ColumnDef;
+  readonly value: unknown;
+  readonly draft: unknown;
+  readonly inputRef: React.RefObject<HTMLInputElement>;
+  readonly setDraft: (v: unknown) => void;
+  readonly commit: () => void;
+  readonly cancel: () => void;
+  readonly handleKeyDown: (e: React.KeyboardEvent) => void;
+  readonly setEditing: (v: boolean) => void;
+  readonly onSave: (key: string, value: unknown) => void;
+}
+
+function EditingField({
+  col, value, draft, inputRef, setDraft, commit, cancel, handleKeyDown, setEditing, onSave,
+}: EditingFieldProps): JSX.Element {
+  switch (col.type) {
+    case 'boolean':
+      return (
+        <Switch
+          className="flex items-center"
+          checked={!!draft}
+          onCheckedChange={(v) => { setDraft(v); setEditing(false); onSave(col.key, v); }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          autoFocus
+        />
+      );
+
+    case 'select':
+      return (
+        <Select
+          value={(draft as string) ?? ''}
+          onValueChange={(v) => { setDraft(v); setEditing(false); onSave(col.key, v); }}
+          open
+          onOpenChange={(open) => { if (!open) cancel(); }}
+        >
+          <SelectTrigger
+            className="h-7 text-sm min-w-[100px]"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <SelectValue placeholder="Select..." />
+          </SelectTrigger>
+          <SelectContent>
+            {(col.options ?? []).map((opt) => (
+              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+
+    case 'user':
+      return (
+        <UserPicker
+          value={(value as string) ?? null}
+          defaultOpen
+          onSelect={(name) => { setEditing(false); onSave(col.key, name); }}
+          onCancel={cancel}
+          triggerClassName="h-7 text-sm justify-between min-w-[140px]"
+        />
+      );
+
+    case 'date':
+      return (
+        <Input ref={inputRef} type="date" className="h-7 text-sm w-36"
+          value={(draft as string) ?? ''} onChange={(e) => setDraft(e.target.value || null)}
+          onClick={(e) => e.stopPropagation()} onBlur={commit} onKeyDown={handleKeyDown} />
+      );
+
+    case 'number':
+      return (
+        <Input ref={inputRef} type="number" className="h-7 text-sm w-24"
+          value={draft != null ? String(draft) : ''}
+          onChange={(e) => setDraft(e.target.value ? Number(e.target.value) : null)}
+          onClick={(e) => e.stopPropagation()} onBlur={commit} onKeyDown={handleKeyDown} />
+      );
+
+    default: {
+      const strVal = (draft as string) ?? '';
+      if (strVal.length > 80 || strVal.includes('\n')) {
+        return (
+          <Textarea autoFocus className="text-sm min-h-[5rem]" value={strVal}
+            onChange={(e) => setDraft(e.target.value)} onClick={(e) => e.stopPropagation()}
+            onBlur={commit} onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+              e.stopPropagation();
+            }} />
+        );
+      }
+      return (
+        <Input ref={inputRef} type="text" className="h-7 text-sm" value={strVal}
+          onChange={(e) => setDraft(e.target.value)} onClick={(e) => e.stopPropagation()}
+          onBlur={commit} onKeyDown={handleKeyDown} />
+      );
+    }
+  }
+}
+
 export function InlineCell({
-  value,
-  col,
-  isEditor,
-  onSave,
-  attachment,
-  onUploadAttachment,
-  onDeleteAttachment,
+  value, col, isEditor, onSave, attachment, onUploadAttachment, onDeleteAttachment,
 }: InlineCellProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<unknown>(value);
   const inputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -122,98 +282,27 @@ export function InlineCell({
 
   const commit = useCallback(() => {
     setEditing(false);
-    if (draft !== value) {
-      onSave(col.key, draft === '' ? null : draft);
-    }
+    if (draft !== value) onSave(col.key, draft === '' ? null : draft);
   }, [draft, value, col.key, onSave]);
 
-  const cancel = useCallback(() => {
+  const cancel = useCallback(() => { setDraft(value); setEditing(false); }, [value]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    e.stopPropagation();
+  }, [commit, cancel]);
+
+  const startEditing = useCallback((e: React.MouseEvent) => {
+    if (!isEditor) return;
+    e.stopPropagation();
     setDraft(value);
-    setEditing(false);
-  }, [value]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        commit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        cancel();
-      }
-      e.stopPropagation();
-    },
-    [commit, cancel],
-  );
-
-  const startEditing = useCallback(
-    (e: React.MouseEvent) => {
-      if (!isEditor) return;
-      e.stopPropagation();
-      setDraft(value);
-      setEditing(true);
-    },
-    [isEditor, value],
-  );
+    setEditing(true);
+  }, [isEditor, value]);
 
   if (col.type === 'attachment') {
-    if (attachment) {
-      const url = attachment.url ?? '#';
-      return (
-        <div className="flex items-center gap-1 min-h-[1.5rem]">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline inline-flex items-center gap-1 text-sm truncate"
-            title={attachment.filename}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <AttachmentIcon contentType={attachment.content_type} />
-            <span className="truncate max-w-[150px]">{attachment.filename}</span>
-          </a>
-          {isEditor && onDeleteAttachment && (
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-destructive shrink-0"
-              onClick={(e) => { e.stopPropagation(); onDeleteAttachment(attachment.id); }}
-              title="Remove attachment"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-      );
-    }
-    return (
-      <div className="flex items-center min-h-[1.5rem]">
-        {isEditor && onUploadAttachment ? (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onUploadAttachment(col.key, file);
-                e.target.value = '';
-              }}
-            />
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-              title="Upload file"
-            >
-              <Upload className="h-3.5 w-3.5" />
-            </button>
-          </>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        )}
-      </div>
-    );
+    return <AttachmentCell col={col} attachment={attachment} isEditor={isEditor}
+      onUploadAttachment={onUploadAttachment} onDeleteAttachment={onDeleteAttachment} />;
   }
 
   if (!editing || col.type === 'computed') {
@@ -230,124 +319,7 @@ export function InlineCell({
     );
   }
 
-  switch (col.type) {
-    case 'boolean':
-      return (
-        <Switch
-          className="flex items-center"
-          checked={!!draft}
-          onCheckedChange={(v) => {
-            setDraft(v);
-            setEditing(false);
-            onSave(col.key, v);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          autoFocus
-        />
-      );
-
-    case 'select':
-      return (
-        <Select
-          value={(draft as string) ?? ''}
-          onValueChange={(v) => {
-            setDraft(v);
-            setEditing(false);
-            onSave(col.key, v);
-          }}
-          open
-          onOpenChange={(open) => { if (!open) cancel(); }}
-        >
-          <SelectTrigger
-            className="h-7 text-sm min-w-[100px]"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <SelectValue placeholder="Select..." />
-          </SelectTrigger>
-          <SelectContent>
-            {(col.options ?? []).map((opt) => (
-              <SelectItem key={opt} value={opt}>
-                {opt}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-
-    case 'user':
-      return (
-        <UserPicker
-          value={(value as string) ?? null}
-          defaultOpen
-          onSelect={(name) => {
-            setEditing(false);
-            onSave(col.key, name);
-          }}
-          onCancel={cancel}
-          triggerClassName="h-7 text-sm justify-between min-w-[140px]"
-        />
-      );
-
-    case 'date':
-      return (
-        <Input
-          ref={inputRef}
-          type="date"
-          className="h-7 text-sm w-36"
-          value={(draft as string) ?? ''}
-          onChange={(e) => setDraft(e.target.value || null)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-        />
-      );
-
-    case 'number':
-      return (
-        <Input
-          ref={inputRef}
-          type="number"
-          className="h-7 text-sm w-24"
-          value={draft != null ? String(draft) : ''}
-          onChange={(e) => setDraft(e.target.value ? Number(e.target.value) : null)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-        />
-      );
-
-    default: {
-      const strVal = (draft as string) ?? '';
-      if (strVal.length > 80 || strVal.includes('\n')) {
-        return (
-          <Textarea
-            autoFocus
-            className="text-sm min-h-[5rem]"
-            value={strVal}
-            onChange={(e) => setDraft(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-              e.stopPropagation();
-            }}
-          />
-        );
-      }
-      return (
-        <Input
-          ref={inputRef}
-          type="text"
-          className="h-7 text-sm"
-          value={strVal}
-          onChange={(e) => setDraft(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-        />
-      );
-    }
-  }
+  return <EditingField col={col} value={value} draft={draft} inputRef={inputRef}
+    setDraft={setDraft} commit={commit} cancel={cancel} handleKeyDown={handleKeyDown}
+    setEditing={setEditing} onSave={onSave} />;
 }

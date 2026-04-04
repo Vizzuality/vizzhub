@@ -252,6 +252,7 @@ async def _resolve_user_names(
     "/{node_id}/versions",
     responses={
         400: {"description": "Node is a group, not a page"},
+        403: {"description": "Access denied for confidential document"},
         404: {"description": "Page not found"},
     },
 )
@@ -280,7 +281,13 @@ async def list_versions(
     return items
 
 
-@router.get("/{node_id}/versions/{version}", responses={404: {"description": "Version not found"}})
+@router.get(
+    "/{node_id}/versions/{version}",
+    responses={
+        403: {"description": "Access denied for confidential document"},
+        404: {"description": "Version not found"},
+    },
+)
 async def get_version(
     node_id: UUID, version: int, db: DBSession, user: CurrentUser
 ) -> VersionDetailResponse:
