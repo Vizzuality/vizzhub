@@ -23,6 +23,7 @@ interface InlineCellProps {
   readonly attachment?: RegistryAttachment;
   readonly onUploadAttachment?: (fieldKey: string, file: File) => void;
   readonly onDeleteAttachment?: (attachmentId: string) => void;
+  readonly wrap?: boolean;
 }
 
 function getConditionalColor(
@@ -35,7 +36,7 @@ function getConditionalColor(
   return ranges.find((r) => num >= r.min && num <= r.max) ?? null;
 }
 
-function DisplayValue({ value, col }: { value: unknown; col: ColumnDef }): JSX.Element {
+function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wrap?: boolean }): JSX.Element {
   if (value === null || value === undefined || value === '') {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -67,7 +68,7 @@ function DisplayValue({ value, col }: { value: unknown; col: ColumnDef }): JSX.E
         </span>
       );
     }
-    return <span className="block truncate">{str}</span>;
+    return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{str}</span>;
   }
   if (col.type === 'boolean') {
     return value ? (
@@ -91,7 +92,7 @@ function DisplayValue({ value, col }: { value: unknown; col: ColumnDef }): JSX.E
       </a>
     );
   }
-  return <span className="block truncate">{str}</span>;
+  return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{str}</span>;
 }
 
 function AttachmentIcon({ contentType }: { readonly contentType: string }): JSX.Element {
@@ -267,7 +268,7 @@ function EditingField({
 }
 
 export function InlineCell({
-  value, col, isEditor, onSave, attachment, onUploadAttachment, onDeleteAttachment,
+  value, col, isEditor, onSave, attachment, onUploadAttachment, onDeleteAttachment, wrap,
 }: InlineCellProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<unknown>(value);
@@ -310,11 +311,11 @@ export function InlineCell({
     return (
       <button
         type="button"
-        className={`min-h-[1.5rem] flex items-center bg-transparent border-0 p-0 text-left text-inherit font-inherit w-full overflow-hidden ${editable ? 'cursor-text' : ''}`}
+        className={`min-h-[1.5rem] flex ${wrap ? 'items-start' : 'items-center overflow-hidden'} bg-transparent border-0 p-0 text-left text-inherit font-inherit w-full ${editable ? 'cursor-text' : ''}`}
         onDoubleClick={editable ? startEditing : undefined}
         onKeyDown={editable ? (e) => { if (e.key === 'Enter') startEditing(e as unknown as React.MouseEvent); } : undefined}
       >
-        <DisplayValue value={value} col={col} />
+        <DisplayValue value={value} col={col} wrap={wrap} />
       </button>
     );
   }
