@@ -56,18 +56,16 @@ function flattenTree(nodes: TreeNode[]): TreeNode[] {
   return result;
 }
 
-function buildSlugPaths(
+function buildSlugMaps(
   nodes: TreeNode[],
-  parentPath = '',
   slugToId = new Map<string, string>(),
   idToSlug = new Map<string, string>(),
 ): { slugToId: Map<string, string>; idToSlug: Map<string, string> } {
   for (const node of nodes) {
-    const path = parentPath ? `${parentPath}/${node.slug}` : node.slug;
-    slugToId.set(path, node.id);
-    idToSlug.set(node.id, path);
+    slugToId.set(node.slug, node.id);
+    idToSlug.set(node.id, node.slug);
     if (node.children.length > 0) {
-      buildSlugPaths(node.children, path, slugToId, idToSlug);
+      buildSlugMaps(node.children, slugToId, idToSlug);
     }
   }
   return { slugToId, idToSlug };
@@ -203,10 +201,18 @@ export default function Playbook(): JSX.Element {
   const { data: tree = [], isLoading: treeLoading } = usePlaybookTree();
 
   const flat = useMemo(() => flattenTree(tree), [tree]);
-  const { slugToId, idToSlug } = useMemo(() => buildSlugPaths(tree), [tree]);
+  const { slugToId, idToSlug } = useMemo(() => buildSlugMaps(tree), [tree]);
 
   const pagePath = searchParams.get('page');
-  const selectedId = pagePath ? (slugToId.get(pagePath) ?? null) : null;
+  const permalinkId = searchParams.get('id');
+
+  useEffect(() => {
+    if (permalinkId && idToSlug.has(permalinkId)) {
+      setSearchParams({ page: idToSlug.get(permalinkId)! }, { replace: true });
+    }
+  }, [permalinkId, idToSlug, setSearchParams]);
+
+  const selectedId = pagePath ? (slugToId.get(pagePath) ?? null) : (permalinkId ?? null);
 
   const { data: page } = usePlaybookPage(selectedId);
   const createNode = useCreateNode();
@@ -267,17 +273,13 @@ export default function Playbook(): JSX.Element {
           onSuccess: (node) => {
             setFormOpen(false);
             if (node.type === 'page') {
-              const parentPath = selectedNode?.type === 'group' && selectedId
-                ? idToSlug.get(selectedId)
-                : undefined;
-              const newPath = parentPath ? `${parentPath}/${node.slug}` : node.slug;
-              setSearchParams({ page: newPath }, { replace: true });
+              setSearchParams({ page: node.slug }, { replace: true });
             }
           },
         },
       );
     },
-    [createNode, selectedId, selectedNode, setSearchParams, idToSlug],
+    [createNode, selectedId, selectedNode, setSearchParams],
   );
 
   const handleDelete = useCallback(() => {

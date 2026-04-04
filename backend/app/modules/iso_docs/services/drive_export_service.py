@@ -129,7 +129,7 @@ class DriveExportService:
                             sub_children = [
                                 n for n in nodes if n.parent_id == node.id
                             ]
-                            sub_children.sort(key=lambda n: n.position)
+                            sub_children.sort(key=lambda n: n.title.lower())
                             await walk(sub_children, drive_id, node.title)
                         else:
                             content = versions_map.get(node.id, "")

@@ -36,7 +36,7 @@ router = APIRouter()
 def _build_tree(nodes: list[IsoDocNodeDB], parent_id: UUID | None = None) -> list[dict]:
     """Recursively build nested tree from flat node list."""
     children = [n for n in nodes if n.parent_id == parent_id]
-    children.sort(key=lambda n: n.position)
+    children.sort(key=lambda n: n.title.lower())
     result = []
     for node in children:
         item = {
@@ -115,7 +115,7 @@ async def create_node(
         )
 
     slug = generate_slug(data.title)
-    slug = await ensure_unique_slug(db, slug, data.parent_id)
+    slug = await ensure_unique_slug(db, slug)
     position = await get_next_position(db, data.parent_id)
 
     user_id = UUID(user.user_id)
@@ -169,9 +169,8 @@ async def update_node(
 
     if "title" in update and update["title"] != node.title:
         new_slug = generate_slug(update["title"])
-        parent_for_slug = update.get("parent_id", node.parent_id)
         update["slug"] = await ensure_unique_slug(
-            db, new_slug, parent_for_slug, exclude_id=node_id
+            db, new_slug, exclude_id=node_id
         )
 
     for field, value in update.items():

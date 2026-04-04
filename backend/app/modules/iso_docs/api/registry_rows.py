@@ -74,15 +74,19 @@ async def _get_registry_type(db, type_id: UUID) -> RegistryTypeDB:
     return rt
 
 
-async def _fetch_rows(db, node_id: UUID, year: int | None = None) -> list:
+async def _fetch_rows(
+    db, node_id: UUID, year: int | None = None, sort_key: str | None = None
+) -> list:
     """Fetch ordered rows for a registry node, optionally filtered by year."""
-    query = (
-        select(RegistryRowDB)
-        .where(RegistryRowDB.node_id == node_id)
-        .order_by(RegistryRowDB.row_index)
-    )
+    query = select(RegistryRowDB).where(RegistryRowDB.node_id == node_id)
     if year is not None:
         query = query.where(RegistryRowDB.year == year)
+    if sort_key:
+        query = query.order_by(
+            RegistryRowDB.data[sort_key].astext, RegistryRowDB.row_index
+        )
+    else:
+        query = query.order_by(RegistryRowDB.row_index)
     result = await db.execute(query)
     return list(result.scalars())
 
@@ -134,7 +138,7 @@ async def list_rows(
 ) -> list[RegistryRowResponse]:
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
-    rows = await _fetch_rows(db, node.id, year)
+    rows = await _fetch_rows(db, node.id, year, rt.default_sort_key)
     return _enrich_rows(rows, rt.schema)
 
 

@@ -143,7 +143,8 @@ async def test_reorder_nodes(client: AsyncClient):
 
     tree = await client.get("/api/iso-docs/tree")
     titles = [n["title"] for n in tree.json()]
-    assert titles == ["B", "A"]
+    # Tree always sorts alphabetically by title
+    assert titles == ["A", "B"]
 
 
 @pytest.mark.asyncio

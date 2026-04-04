@@ -36,19 +36,13 @@ class TreeService:
         self,
         db: AsyncSession,
         slug: str,
-        parent_id: UUID | None,
         exclude_id: UUID | None = None,
     ) -> str:
-        """Append -2, -3, etc. if slug already exists under the same parent."""
+        """Append -2, -3, etc. if slug already exists globally."""
         base_slug = slug
         counter = 1
         while True:
-            conditions = [
-                self._model.slug == slug,
-                self._model.parent_id == parent_id
-                if parent_id
-                else self._model.parent_id.is_(None),
-            ]
+            conditions = [self._model.slug == slug]
             if exclude_id is not None:
                 conditions.append(self._model.id != exclude_id)
             result = await db.execute(
