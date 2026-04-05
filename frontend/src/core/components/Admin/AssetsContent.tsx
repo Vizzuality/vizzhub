@@ -30,14 +30,20 @@ function AssetIcon({ contentType }: { readonly contentType: string }): JSX.Eleme
 function ImagePreview({ url, filename }: { readonly url: string; readonly filename: string }): JSX.Element {
   const [hovered, setHovered] = useState(false);
   return (
-    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <button
+      type="button"
+      className="relative bg-transparent border-0 p-0 cursor-default"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={`Preview ${filename}`}
+    >
       <Image className="h-4 w-4 text-blue-500" />
       {hovered && (
         <div className="absolute z-50 left-6 top-0 p-1 bg-background border rounded-md shadow-lg">
           <img src={url} alt={filename} className="max-h-48 max-w-64 rounded" />
         </div>
       )}
-    </div>
+    </button>
   );
 }
 
