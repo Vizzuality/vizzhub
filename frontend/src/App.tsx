@@ -32,6 +32,7 @@ import SilencesTab from './core/components/NotificationsAdmin/SilencesTab';
 import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab';
 import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
 import CustomNotificationTab from './core/components/NotificationsAdmin/CustomNotificationTab';
+import { AssetsContent } from './core/components/Admin/AssetsContent';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
 import { RatesContent } from './core/components/Admin/RatesContent';
@@ -69,6 +70,7 @@ function AdminRoutes(): JSX.Element {
         <Route path="moods" element={<Moods />} />
         <Route path="rates" element={<RatesContent />} />
       </Route>
+      <Route path="assets" element={<AssetsContent />} />
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />
       <Route path="users/:userId" element={<UserDetail />} />

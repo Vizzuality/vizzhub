@@ -11,6 +11,7 @@ export function useUploadAttachment(nodeId: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.isoDocs.registryRows(nodeId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
     },
   });
 }
@@ -23,6 +24,7 @@ export function useDeleteAttachment(nodeId: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.isoDocs.registryRows(nodeId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
     },
   });
 }

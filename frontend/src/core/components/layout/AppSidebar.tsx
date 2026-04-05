@@ -13,6 +13,7 @@ import {
   Bell,
   Clock,
   Cog,
+  HardDrive,
   Users,
   Moon,
   Sun,
@@ -54,6 +55,7 @@ import {
 const ADMIN_ITEMS = [
   { to: '/admin/scorecard-parameters', label: 'Parameters', icon: SlidersHorizontal },
   { to: '/admin/integrations', label: 'Integrations', icon: Plug },
+  { to: '/admin/assets', label: 'Assets', icon: HardDrive },
   { to: '/admin/jobs', label: 'Jobs', icon: Cog },
   { to: '/admin/users', label: 'Users', icon: Users },
 ] as const;
