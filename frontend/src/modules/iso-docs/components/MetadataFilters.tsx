@@ -102,9 +102,10 @@ export function MetadataFilters({
   };
 
   const resultCount = textResults?.length ?? 0;
+  const resultLabel = resultCount === 1 ? 'result' : 'results';
   const searchStatusText = isSearching
     ? 'Searching...'
-    : `${resultCount} ${resultCount === 1 ? 'result' : 'results'}`;
+    : `${resultCount} ${resultLabel}`;
 
   return (
     <div className="flex flex-col h-full">
