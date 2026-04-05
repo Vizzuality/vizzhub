@@ -47,6 +47,7 @@ import { MetadataPanel } from '../components/MetadataPanel';
 import { MetadataEditDialog } from '../components/MetadataEditDialog';
 import { MetadataFilters } from '../components/MetadataFilters';
 import { RegistryView } from '../components/RegistryView';
+import { isoDocsApi } from '../services/isoDocs';
 import { RegistryTypePicker } from '../components/RegistryTypePicker';
 import { usePermission, Action } from '@/core/permissions';
 import { useDriveExportStatus, useTriggerDriveExport } from '../hooks/useDriveExport';
@@ -666,6 +667,7 @@ button, [data-iso-actions] { display: none !important; }
           onSave={handleSave}
           onCancel={() => setEditing(false)}
           isSaving={savePage.isPending}
+          uploadImage={isoDocsApi.uploadImage}
         />
       );
     }
