@@ -77,6 +77,21 @@ function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wr
       <X className="h-4 w-4 text-muted-foreground" />
     );
   }
+  if (col.type === 'url') {
+    const href = String(value);
+    const isExternal = URL_REGEX.test(href);
+    return (
+      <a
+        href={href}
+        {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        className="text-primary hover:underline inline-flex items-center gap-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3 w-3 shrink-0" />
+        Open
+      </a>
+    );
+  }
   const str = String(value);
   if (URL_REGEX.test(str)) {
     return (
