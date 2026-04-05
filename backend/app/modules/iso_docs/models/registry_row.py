@@ -44,8 +44,7 @@ class RegistryRowDB(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    attachments: Mapped[list] = relationship(
-        "RegistryAttachmentDB",
+    attachments: Mapped[list["RegistryAttachmentDB"]] = relationship(
         back_populates="row",
         cascade="all, delete-orphan",
         lazy="selectin",

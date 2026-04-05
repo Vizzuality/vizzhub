@@ -148,7 +148,7 @@ function AttachmentCell({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,application/pdf"
+        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
