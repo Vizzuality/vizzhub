@@ -18,7 +18,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import delete as sql_delete, select
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.modules.iso_docs.api.deps import IsoDocsEditor
+from app.modules.iso_docs.api.deps import IsoDocsEditor, check_user_access
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.registry_row import RegistryRowDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
@@ -98,6 +98,7 @@ async def _fetch_rows(
 async def list_years(
     node_id: UUID, db: DBSession, user: CurrentUser
 ) -> list[int]:
+    await check_user_access(db, node_id, user)
     node = await _get_registry_node(db, node_id)
     result = await db.execute(
         select(RegistryRowDB.year)
@@ -136,6 +137,7 @@ async def list_rows(
     user: CurrentUser,
     year: Annotated[int | None, Query()] = None,
 ) -> list[RegistryRowResponse]:
+    await check_user_access(db, node_id, user)
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
     rows = await _fetch_rows(db, node.id, year, rt.default_sort_key)
@@ -293,6 +295,7 @@ async def export_registry(
     year: Annotated[int | None, Query()] = None,
     format: Annotated[str, Query()] = "xlsx",
 ) -> StreamingResponse:
+    await check_user_access(db, node_id, user)
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
     rows = await _fetch_rows(db, node.id, year)

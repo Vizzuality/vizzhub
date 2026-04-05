@@ -144,9 +144,9 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
   }
 }
 
-# Bucket policy: HTTPS-only + CloudFront access for playbook assets
+# Bucket policy: HTTPS-only + CloudFront access for static assets
 #
-# Playbook content (images + static HTML) is private in S3 and served
+# Playbook and ISO docs content is private in S3 and served
 # exclusively through CloudFront via Origin Access Control.
 resource "aws_s3_bucket_policy" "assets_cloudfront" {
   bucket = aws_s3_bucket.assets.id
@@ -178,7 +178,10 @@ resource "aws_s3_bucket_policy" "assets_cloudfront" {
           Service = "cloudfront.amazonaws.com"
         }
         Action   = "s3:GetObject"
-        Resource = "${aws_s3_bucket.assets.arn}/playbook/*"
+        Resource = [
+          "${aws_s3_bucket.assets.arn}/playbook/*",
+          "${aws_s3_bucket.assets.arn}/iso-docs/*",
+        ]
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.playbook.arn

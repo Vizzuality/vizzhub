@@ -121,7 +121,10 @@ class S3ImageListResponse(BaseModel):
 def _image_url(key: str) -> str:
     settings = get_settings()
     if settings.playbook_public_url:
-        return f"{settings.playbook_public_url}/{key}"
+        # Playbook origin has /playbook as origin path, so strip the prefix.
+        # ISO docs origin maps directly to bucket root, so keep the full key.
+        cf_path = key.removeprefix("playbook/") if key.startswith("playbook/") else key
+        return f"{settings.playbook_public_url}/{cf_path}"
     return get_s3_client().generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.assets_bucket_name, "Key": key},
