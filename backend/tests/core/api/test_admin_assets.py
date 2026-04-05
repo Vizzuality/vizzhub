@@ -152,3 +152,101 @@ async def test_delete_asset(
 async def test_delete_asset_not_found(client: AsyncClient) -> None:
     resp = await client.delete(f"/api/admin/assets/{uuid4()}")
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# S3 image management tests
+# ---------------------------------------------------------------------------
+
+class FakeS3Client:
+    """Mock S3 client that returns canned list_objects_v2 results."""
+
+    def __init__(self, objects: list[dict] | None = None) -> None:
+        self._objects = objects or []
+        self._deleted: list[str] = []
+
+    def get_paginator(self, _operation: str):  # noqa: ANN201
+        return self
+
+    def paginate(self, **_kwargs):  # noqa: ANN003, ANN201
+        from datetime import datetime, timezone
+
+        contents = [
+            {
+                "Key": obj["key"],
+                "Size": obj.get("size", 1024),
+                "LastModified": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            }
+            for obj in self._objects
+        ]
+        return [{"Contents": contents}]
+
+    def delete_object(self, **kwargs) -> None:  # noqa: ANN003
+        self._deleted.append(kwargs["Key"])
+
+    def generate_presigned_url(self, _method: str, **_kwargs) -> str:  # noqa: ANN003
+        return "https://presigned-url"
+
+
+@pytest.fixture
+def fake_s3(monkeypatch: pytest.MonkeyPatch) -> FakeS3Client:
+    fake = FakeS3Client(objects=[
+        {"key": "playbook/images/logo-abc123.png", "size": 2048},
+        {"key": "playbook/images/hero-def456.jpg", "size": 4096},
+    ])
+    monkeypatch.setattr(
+        "app.core.api.admin_assets.get_s3_client", lambda: fake
+    )
+    return fake
+
+
+@pytest.mark.asyncio
+async def test_list_images(client: AsyncClient, fake_s3: FakeS3Client) -> None:
+    resp = await client.get("/api/admin/assets/images", params={"source": "playbook"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 2
+    assert data["prefix"] == "playbook/images/"
+    assert data["items"][0]["filename"] == "logo-abc123.png"
+    assert data["items"][0]["url"] == "https://presigned-url"
+
+
+@pytest.mark.asyncio
+async def test_list_images_invalid_source(client: AsyncClient, fake_s3: FakeS3Client) -> None:
+    resp = await client.get("/api/admin/assets/images", params={"source": "invalid"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_delete_image(client: AsyncClient, fake_s3: FakeS3Client) -> None:
+    resp = await client.delete(
+        "/api/admin/assets/images",
+        params={"key": "playbook/images/logo-abc123.png"},
+    )
+    assert resp.status_code == 200
+    assert "playbook/images/logo-abc123.png" in fake_s3._deleted
+
+
+@pytest.mark.asyncio
+async def test_delete_image_invalid_prefix(client: AsyncClient, fake_s3: FakeS3Client) -> None:
+    resp = await client.delete(
+        "/api/admin/assets/images",
+        params={"key": "secret/data.txt"},
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_batch_delete_images(client: AsyncClient, fake_s3: FakeS3Client) -> None:
+    resp = await client.post(
+        "/api/admin/assets/images/batch-delete",
+        json={"keys": [
+            "playbook/images/logo-abc123.png",
+            "iso-docs/images/diagram.png",
+            "secret/hack.txt",
+        ]},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["deleted"] == 2
+    assert "secret/hack.txt" not in fake_s3._deleted

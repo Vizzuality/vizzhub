@@ -114,7 +114,7 @@ class TestUploadSite:
             "assets/style.css": b"body {}",
         }
         with patch(
-            "app.modules.playbook.services.publish_service._get_s3_client",
+            "app.modules.playbook.services.publish_service.get_s3_client",
         ) as mock_fn:
             mock_s3 = MagicMock()
             mock_fn.return_value = mock_s3
@@ -131,7 +131,7 @@ class TestUploadSite:
             "manifest.json": b"{}",
         }
         with patch(
-            "app.modules.playbook.services.publish_service._get_s3_client",
+            "app.modules.playbook.services.publish_service.get_s3_client",
         ) as mock_fn:
             mock_s3 = MagicMock()
             mock_fn.return_value = mock_s3
@@ -153,7 +153,7 @@ class TestCleanupOrphans:
     async def test_first_publish_skips_cleanup(self):
         svc = PublishService()
         with patch(
-            "app.modules.playbook.services.publish_service._get_s3_client",
+            "app.modules.playbook.services.publish_service.get_s3_client",
         ) as mock_fn:
             mock_s3 = MagicMock()
             mock_fn.return_value = mock_s3
@@ -173,7 +173,7 @@ class TestCleanupOrphans:
             {"files": ["old-page.html", "still-here.html"]},
         ).encode()
         with patch(
-            "app.modules.playbook.services.publish_service._get_s3_client",
+            "app.modules.playbook.services.publish_service.get_s3_client",
         ) as mock_fn:
             mock_s3 = MagicMock()
             mock_fn.return_value = mock_s3

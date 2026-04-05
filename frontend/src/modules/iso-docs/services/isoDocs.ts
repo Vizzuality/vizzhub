@@ -88,6 +88,15 @@ export const isoDocsApi = {
     return data;
   },
 
+  uploadImage: async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post<{ url: string }>('/iso-docs/assets/upload', form, {
+      headers: { 'Content-Type': undefined },
+    });
+    return data.url;
+  },
+
   getDriveExportStatus: async (): Promise<DriveExportStatus> => {
     const { data } = await api.get<DriveExportStatus>('/iso-docs/drive/status');
     return data;

@@ -22,6 +22,22 @@ export interface AssetListResponse {
   page_size: number;
 }
 
+export interface S3Image {
+  key: string;
+  filename: string;
+  url: string;
+  size_bytes: number;
+  last_modified: string;
+}
+
+export interface S3ImageListResponse {
+  items: S3Image[];
+  total: number;
+  prefix: string;
+}
+
+export type ImageSource = 'playbook' | 'iso-docs';
+
 export const assetsApi = {
   list: async (params: {
     page?: number;
@@ -34,5 +50,20 @@ export const assetsApi = {
 
   delete: async (assetId: string): Promise<void> => {
     await api.delete(`/admin/assets/${assetId}`);
+  },
+
+  listImages: async (source: ImageSource): Promise<S3ImageListResponse> => {
+    const response = await api.get<S3ImageListResponse>('/admin/assets/images', {
+      params: { source },
+    });
+    return response.data;
+  },
+
+  deleteImage: async (key: string): Promise<void> => {
+    await api.delete('/admin/assets/images', { params: { key } });
+  },
+
+  batchDeleteImages: async (keys: string[]): Promise<void> => {
+    await api.post('/admin/assets/images/batch-delete', { keys });
   },
 };
