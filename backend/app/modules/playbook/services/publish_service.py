@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
-from app.modules.playbook.services.asset_service import S3_PREFIX as IMAGES_S3_PREFIX, _get_s3_client
+from app.core.services.s3 import get_s3_client
+from app.modules.playbook.services.asset_service import S3_PREFIX as IMAGES_S3_PREFIX
 from app.modules.playbook.services.publish_renderer import render_markdown
 
 logger = structlog.get_logger()
@@ -430,7 +431,7 @@ class PublishService:
     async def _upload_site(self, files: dict[str, bytes]) -> None:
         """Upload all generated files to S3."""
         settings = get_settings()
-        s3 = _get_s3_client()
+        s3 = get_s3_client()
 
         for key, body in files.items():
             ext = Path(key).suffix
@@ -446,7 +447,7 @@ class PublishService:
     async def _cleanup_orphans(self, current_files: set[str]) -> int:
         """Delete S3 files from previous publish that are no longer in current set."""
         settings = get_settings()
-        s3 = _get_s3_client()
+        s3 = get_s3_client()
 
         try:
             response = await asyncio.to_thread(

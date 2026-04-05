@@ -1,4 +1,4 @@
-"""Playbook asset upload service (S3)."""
+"""ISO Docs asset upload service (S3) — images for page content."""
 
 from __future__ import annotations
 
@@ -18,8 +18,7 @@ ALLOWED_CONTENT_TYPES = {
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
-S3_PREFIX = "playbook/images/"
-S3_ROOT = S3_PREFIX.split("/", 1)[0] + "/"  # "playbook/"
+S3_PREFIX = "iso-docs/images/"
 
 
 def is_upload_available() -> bool:
@@ -55,15 +54,9 @@ def upload_image(file_bytes: bytes, filename: str, content_type: str) -> str:
     )
 
     if settings.playbook_public_url:
-        return f"{settings.playbook_public_url}/{key.removeprefix(S3_ROOT)}"
-    return f"{settings.assets_bucket_url}/{key}"
-
-
-def rewrite_image_urls(content: str) -> str:
-    """Replace legacy S3 image URLs with CloudFront URLs in markdown content."""
-    settings = get_settings()
-    if not settings.playbook_public_url or not settings.assets_bucket_url:
-        return content
-    s3_prefix = f"{settings.assets_bucket_url}/{S3_PREFIX}"
-    cf_prefix = f"{settings.playbook_public_url}/images/"
-    return content.replace(s3_prefix, cf_prefix)
+        return f"{settings.playbook_public_url}/{key}"
+    return get_s3_client().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.assets_bucket_name, "Key": key},
+        ExpiresIn=7 * 24 * 3600,
+    )
