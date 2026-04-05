@@ -253,11 +253,11 @@ export default function Playbook(): JSX.Element {
   );
 
   const handleCreateNode = useCallback(
-    (title: string, type: 'page' | 'group' | 'registry') => {
+    (title: string, type: 'page' | 'group') => {
       createNode.mutate(
         {
           title,
-          type: type as 'page' | 'group',
+          type,
           parent_id: selectedNode?.type === 'group' ? selectedId : null,
         },
         {

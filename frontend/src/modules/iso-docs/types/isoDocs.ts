@@ -1,6 +1,6 @@
-import type { DocNode, DocTreeNode, ReorderItem, VersionListItem, VersionDetail } from '@/shared/types/doc';
+import type { DocNode, DocNodeType, DocTreeNode, ReorderItem, VersionListItem, VersionDetail } from '@/shared/types/doc';
 
-export type { DocTreeNode as IsoDocTreeNode, ReorderItem, VersionListItem, VersionDetail };
+export type { DocNodeType, DocTreeNode as IsoDocTreeNode, ReorderItem, VersionListItem, VersionDetail };
 
 export type IsoDocNode = DocNode;
 
@@ -26,9 +26,10 @@ export interface PageSaveResponse {
 
 export interface NodeCreateRequest {
   title: string;
-  type: 'page' | 'group' | 'registry';
+  type: DocNodeType;
   parent_id?: string | null;
   registry_type_id?: string | null;
+  widget_key?: string | null;
 }
 
 export interface NodeUpdateRequest {
