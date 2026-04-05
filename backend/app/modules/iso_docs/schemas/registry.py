@@ -55,6 +55,7 @@ class RegistryTypeResponse(BaseModel):
     slug: str
     description: str | None
     is_yearly: bool
+    default_sort_key: str | None = None
     schema_: list[ColumnDef] = Field(alias="schema")
     created_at: datetime
     updated_at: datetime
