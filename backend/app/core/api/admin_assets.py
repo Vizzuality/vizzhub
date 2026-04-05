@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 import structlog
@@ -54,9 +54,9 @@ class AssetListResponse(BaseModel):
 async def list_assets(
     db: DBSession,
     _user: AdminUser,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
-    content_type: str | None = Query(None),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=200)] = 50,
+    content_type: Annotated[str | None, Query()] = None,
 ) -> AssetListResponse:
     base = select(
         RegistryAttachmentDB,
@@ -132,7 +132,7 @@ def _image_url(key: str) -> str:
 @router.get("/images")
 async def list_images(
     _user: AdminUser,
-    source: Literal["playbook", "iso-docs"] = Query(...),
+    source: Annotated[Literal["playbook", "iso-docs"], Query()],
 ) -> S3ImageListResponse:
     prefix = S3_PREFIXES[source]
     settings = get_settings()
@@ -167,9 +167,12 @@ def _has_valid_prefix(key: str) -> bool:
     return any(key.startswith(p) for p in S3_PREFIXES.values())
 
 
-@router.delete("/images")
+@router.delete(
+    "/images",
+    responses={400: {"description": "Invalid S3 key prefix"}},
+)
 async def delete_image(
-    key: str = Query(...), _user: AdminUser = None
+    key: Annotated[str, Query()], _user: AdminUser,
 ) -> dict:
     if not _has_valid_prefix(key):
         raise HTTPException(status_code=400, detail="Invalid S3 key prefix")
@@ -202,7 +205,10 @@ async def batch_delete_images(
 # Registry attachment management (DB-tracked)
 # ---------------------------------------------------------------------------
 
-@router.delete("/{asset_id}")
+@router.delete(
+    "/{asset_id}",
+    responses={404: {"description": "Asset not found"}},
+)
 async def delete_asset(
     asset_id: UUID, db: DBSession, _user: AdminUser
 ) -> dict:
