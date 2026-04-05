@@ -36,53 +36,25 @@ function getConditionalColor(
   return ranges.find((r) => num >= r.min && num <= r.max) ?? null;
 }
 
-function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wrap?: boolean }): JSX.Element {
-  if (value === null || value === undefined || value === '') {
-    return <span className="text-muted-foreground">-</span>;
-  }
-  if (col.type === 'computed') {
-    const match = getConditionalColor(value, col.conditional_format);
-    if (match) {
-      return (
-        <span
-          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold"
-          style={{ backgroundColor: match.color, color: '#fff' }}
-        >
-          {String(value)}
-          {match.label && <span className="font-normal">({match.label})</span>}
-        </span>
-      );
-    }
-    return <span className="font-medium">{String(value)}</span>;
-  }
-  if (col.type === 'select' && col.option_colors) {
-    const str = String(value);
-    const color = col.option_colors[str];
-    if (color) {
-      return (
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold"
-          style={{ backgroundColor: color, color: '#fff' }}
-        >
-          {str}
-        </span>
-      );
-    }
-    return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{str}</span>;
-  }
-  if (col.type === 'boolean') {
-    return value ? (
-      <Check className="h-4 w-4 text-green-600" />
-    ) : (
-      <X className="h-4 w-4 text-muted-foreground" />
-    );
-  }
-  const str = String(value);
-  if (col.type === 'url' || URL_REGEX.test(str)) {
-    const isExternal = URL_REGEX.test(str);
+function ColorBadge({ text, color, label }: { text: string; color: string; label?: string }): JSX.Element {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold"
+      style={{ backgroundColor: color, color: '#fff' }}
+    >
+      {text}
+      {label && <span className="font-normal">({label})</span>}
+    </span>
+  );
+}
+
+function TextOrLink({ value, col, wrap }: { value: string; col: ColumnDef; wrap?: boolean }): JSX.Element {
+  const isUrl = col.type === 'url' || URL_REGEX.test(value);
+  if (isUrl) {
+    const isExternal = URL_REGEX.test(value);
     return (
       <a
-        href={str}
+        href={value}
         {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
         className="text-primary hover:underline inline-flex items-center gap-1"
         onClick={(e) => e.stopPropagation()}
@@ -92,7 +64,28 @@ function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wr
       </a>
     );
   }
-  return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{str}</span>;
+  return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{value}</span>;
+}
+
+function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wrap?: boolean }): JSX.Element {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  if (col.type === 'computed') {
+    const match = getConditionalColor(value, col.conditional_format);
+    if (match) return <ColorBadge text={String(value)} color={match.color} label={match.label} />;
+    return <span className="font-medium">{String(value)}</span>;
+  }
+  if (col.type === 'select' && col.option_colors) {
+    const str = String(value);
+    const color = col.option_colors[str];
+    if (color) return <ColorBadge text={str} color={color} />;
+    return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{str}</span>;
+  }
+  if (col.type === 'boolean') {
+    return value ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-muted-foreground" />;
+  }
+  return <TextOrLink value={String(value)} col={col} wrap={wrap} />;
 }
 
 function AttachmentIcon({ contentType }: { readonly contentType: string }): JSX.Element {
