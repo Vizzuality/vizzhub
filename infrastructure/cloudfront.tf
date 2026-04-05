@@ -1,5 +1,6 @@
 # =============================================================================
-# CloudFront — Playbook static site (playbook.vizzuality.com)
+# CloudFront — Static assets (playbook.vizzuality.com)
+#   Serves playbook pages/images and ISO docs images from S3 via OAC.
 # =============================================================================
 
 # CloudFront requires ACM certificates in us-east-1
@@ -51,7 +52,7 @@ resource "aws_cloudfront_origin_access_control" "playbook" {
 resource "aws_cloudfront_distribution" "playbook" {
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "Playbook static site — ${var.playbook_domain_name}"
+  comment             = "Static assets — ${var.playbook_domain_name}"
   default_root_object = "index.html"
   aliases             = [var.playbook_domain_name]
   price_class         = "PriceClass_100" # US + Europe (cheapest)
@@ -70,6 +71,14 @@ resource "aws_cloudfront_distribution" "playbook" {
     origin_id                = "s3-playbook-images"
     origin_access_control_id = aws_cloudfront_origin_access_control.playbook.id
     origin_path              = "/playbook"
+  }
+
+  # ISO docs images origin: s3://bucket/ (no origin path — key includes iso-docs/)
+  origin {
+    domain_name              = aws_s3_bucket.assets.bucket_regional_domain_name
+    origin_id                = "s3-iso-docs-images"
+    origin_access_control_id = aws_cloudfront_origin_access_control.playbook.id
+    origin_path              = ""
   }
 
   # Default: serve pages from /playbook/public/
@@ -111,6 +120,27 @@ resource "aws_cloudfront_distribution" "playbook" {
     min_ttl     = 0
     default_ttl = 86400    # 24 hours (images change rarely)
     max_ttl     = 604800   # 7 days
+  }
+
+  # /iso-docs/images/* → serve from s3://bucket/iso-docs/images/
+  ordered_cache_behavior {
+    path_pattern           = "/iso-docs/images/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "s3-iso-docs-images"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 86400
+    max_ttl     = 604800
   }
 
   # S3 returns 403 for missing keys with OAC

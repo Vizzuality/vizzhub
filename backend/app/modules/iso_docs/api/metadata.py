@@ -10,7 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import aliased
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.modules.iso_docs.api.deps import IsoDocsEditor, is_iso_docs_editor
+from app.modules.iso_docs.api.deps import (
+    IsoDocsEditor,
+    check_user_access,
+    get_visible_node_ids,
+    is_iso_docs_editor,
+)
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.schemas.metadata import (
@@ -59,8 +64,7 @@ async def get_metadata(
     meta = result.scalar_one_or_none()
     if not meta:
         raise HTTPException(status_code=404, detail="Metadata not found")
-    if meta.classification == "confidential" and not is_iso_docs_editor(user):
-        raise HTTPException(status_code=403, detail="Access denied")
+    await check_user_access(db, node_id, user)
     return await _build_metadata_response(db, meta, node_id)
 
 
@@ -121,7 +125,8 @@ async def search_metadata(
     )
 
     if not is_iso_docs_editor(user):
-        query = query.where(IsoDocMetadataDB.classification != "confidential")
+        visible = await get_visible_node_ids(db)
+        query = query.where(IsoDocNodeDB.id.in_(visible))
     if standard:
         query = query.where(IsoDocMetadataDB.standard.any(standard))
     if category:

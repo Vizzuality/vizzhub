@@ -10,7 +10,7 @@ from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.modules.iso_docs.api.deps import IsoDocsEditor, is_iso_docs_editor
+from app.modules.iso_docs.api.deps import IsoDocsEditor, get_visible_node_ids, is_iso_docs_editor
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
@@ -73,13 +73,8 @@ async def get_tree(db: DBSession, user: CurrentUser) -> list[dict]:
     nodes = list(result.scalars().all())
 
     if not is_iso_docs_editor(user):
-        confidential_result = await db.execute(
-            select(IsoDocMetadataDB.node_id).where(
-                IsoDocMetadataDB.classification == "confidential"
-            )
-        )
-        confidential_ids = {row[0] for row in confidential_result}
-        nodes = [n for n in nodes if n.id not in confidential_ids]
+        visible = await get_visible_node_ids(db)
+        nodes = [n for n in nodes if n.id in visible]
 
     return _build_tree(nodes)
 
