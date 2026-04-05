@@ -152,3 +152,57 @@ async def test_duplicate_slug_gets_suffix(client: AsyncClient):
     await client.post("/api/iso-docs/nodes", json={"title": "Policy", "type": "page"})
     r2 = await client.post("/api/iso-docs/nodes", json={"title": "Policy", "type": "page"})
     assert r2.json()["slug"] == "policy-2"
+
+
+@pytest.mark.asyncio
+async def test_create_widget_node(client: AsyncClient):
+    response = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "Management Review", "type": "widget", "widget_key": "management-review-report"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["type"] == "widget"
+    assert data["widget_key"] == "management-review-report"
+    assert data["slug"] == "management-review"
+
+
+@pytest.mark.asyncio
+async def test_widget_requires_key(client: AsyncClient):
+    response = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "Bad Widget", "type": "widget"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_non_widget_rejects_key(client: AsyncClient):
+    response = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "Page With Key", "type": "page", "widget_key": "some-key"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_widget_in_tree(client: AsyncClient):
+    await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "My Widget", "type": "widget", "widget_key": "test-widget"},
+    )
+    response = await client.get("/api/iso-docs/tree")
+    tree = response.json()
+    widget = next(n for n in tree if n["type"] == "widget")
+    assert widget["widget_key"] == "test-widget"
+
+
+@pytest.mark.asyncio
+async def test_widget_gets_metadata(client: AsyncClient):
+    r = await client.post(
+        "/api/iso-docs/nodes",
+        json={"title": "Widget Meta", "type": "widget", "widget_key": "meta-test"},
+    )
+    node_id = r.json()["id"]
+    meta_r = await client.get(f"/api/iso-docs/pages/{node_id}/metadata")
+    assert meta_r.status_code == 200

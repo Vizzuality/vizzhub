@@ -1,11 +1,14 @@
+export type DocNodeType = 'page' | 'group' | 'registry' | 'widget';
+
 export interface DocNode {
   id: string;
   title: string;
   slug: string;
-  type: 'page' | 'group' | 'registry';
+  type: DocNodeType;
   parent_id: string | null;
   position: number;
   registry_type_id?: string | null;
+  widget_key?: string | null;
   created_by_id: string | null;
   updated_by_id: string | null;
   created_at: string;

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, Blocks, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import {
   DropdownMenu,
@@ -48,11 +48,12 @@ import { MetadataFilters } from '../components/MetadataFilters';
 import { RegistryView } from '../components/RegistryView';
 import { isoDocsApi } from '../services/isoDocs';
 import { RegistryTypePicker } from '../components/RegistryTypePicker';
+import { WIDGET_REGISTRY } from '../components/widgets';
 import { usePermission, Action } from '@/core/permissions';
 import { useDriveExportStatus, useTriggerDriveExport } from '../hooks/useDriveExport';
 import { useJobStatus } from '@/core/hooks/useJobs';
 import type { MetadataFilterParams } from '../types/isoDocs';
-import type { DocTreeNode, ReorderItem } from '@/shared/types/doc';
+import type { DocNodeType, DocTreeNode, ReorderItem } from '@/shared/types/doc';
 
 function flattenTree(nodes: DocTreeNode[]): DocTreeNode[] {
   const result: DocTreeNode[] = [];
@@ -103,6 +104,32 @@ function buildReorderItems(
   }));
 }
 
+function WidgetRenderer({
+  widgetKey,
+  nodeId,
+  isEditor,
+}: Readonly<{
+  widgetKey: string;
+  nodeId: string;
+  isEditor: boolean;
+}>): JSX.Element {
+  const Widget = WIDGET_REGISTRY[widgetKey];
+  if (Widget) {
+    return <Widget nodeId={nodeId} isEditor={isEditor} />;
+  }
+  return (
+    <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+      Widget not found: <code>{widgetKey}</code>
+    </div>
+  );
+}
+
+const NODE_TYPE_ICON: Record<string, typeof File> = {
+  group: Folder,
+  registry: Table2,
+  widget: Blocks,
+};
+
 function GroupChildren({
   nodes,
   onSelect,
@@ -112,24 +139,19 @@ function GroupChildren({
 }>): JSX.Element {
   return (
     <div className="space-y-1">
-      {nodes.map((child) => (
-        <button
-          key={child.id}
-          className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
-          onClick={() => onSelect(child.id)}
-        >
-          {child.type === 'group' && (
-            <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-          )}
-          {child.type === 'registry' && (
-            <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          )}
-          {child.type !== 'group' && child.type !== 'registry' && (
-            <File className="h-4 w-4 shrink-0 text-muted-foreground" />
-          )}
-          <span>{child.title}</span>
-        </button>
-      ))}
+      {nodes.map((child) => {
+        const Icon = NODE_TYPE_ICON[child.type] ?? File;
+        return (
+          <button
+            key={child.id}
+            className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
+            onClick={() => onSelect(child.id)}
+          >
+            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>{child.title}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -338,11 +360,8 @@ export default function IsoDocs(): JSX.Element {
   }, [triggerDriveExport]);
   const isPage = selectedNode?.type === 'page';
   const isRegistry = selectedNode?.type === 'registry';
-  const nodeTypeLabel = (() => {
-    if (isRegistry) return 'registry';
-    if (isPage) return 'page';
-    return 'group';
-  })();
+  const isWidget = selectedNode?.type === 'widget';
+  const nodeTypeLabel = selectedNode?.type ?? 'group';
 
   const { data: versions } = useIsoDocVersions(historyOpen ? selectedId : null);
   const { data: versionDetail } = useIsoDocVersion(
@@ -421,18 +440,19 @@ export default function IsoDocs(): JSX.Element {
   );
 
   const handleCreateNode = useCallback(
-    (title: string, type: 'page' | 'group' | 'registry', registryTypeId?: string) => {
+    (title: string, type: DocNodeType, registryTypeId?: string, widgetKey?: string) => {
       createNode.mutate(
         {
           title,
           type,
           parent_id: selectedNode?.type === 'group' ? selectedId : null,
           registry_type_id: registryTypeId ?? null,
+          widget_key: widgetKey ?? null,
         },
         {
           onSuccess: (node) => {
             setFormOpen(false);
-            if (node.type === 'page' || node.type === 'registry') {
+            if (node.type === 'page' || node.type === 'registry' || node.type === 'widget') {
               setSearchParams({ page: node.slug }, { replace: true });
             }
           },
@@ -582,6 +602,7 @@ export default function IsoDocs(): JSX.Element {
         renderRegistryPicker={(value, onChange) => (
           <RegistryTypePicker value={value} onChange={onChange} />
         )}
+        showWidgetOption
       />
 
       {metadata && (
@@ -726,7 +747,7 @@ export default function IsoDocs(): JSX.Element {
                     </DropdownMenuItem>
                   </>
                 )}
-                {(isPage || isRegistry) && (
+                {(isPage || isRegistry || isWidget) && (
                   <>
                     {!isPage && isEditor && <DropdownMenuSeparator />}
                     <DropdownMenuItem onClick={handlePrintPdf}>
@@ -777,7 +798,18 @@ export default function IsoDocs(): JSX.Element {
             />
           </div>
         )}
-        {!isPage && !isRegistry && selectedNode && (
+        {isWidget && selectedNode?.widget_key && (
+          <div className="space-y-6">
+            {metadata && (
+              <MetadataPanel
+                metadata={metadata}
+                onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
+              />
+            )}
+            <WidgetRenderer widgetKey={selectedNode.widget_key} nodeId={selectedNode.id} isEditor={isEditor} />
+          </div>
+        )}
+        {!isPage && !isRegistry && !isWidget && selectedNode && (
           <GroupChildren nodes={selectedNode.children} onSelect={handleSelect} />
         )}
       </div>
