@@ -7,9 +7,7 @@ import { useAuth } from '@/core/hooks/useAuth';
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from '@/shared/components/ui/sidebar';
-import { Separator } from '@/shared/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar';
 import {
   DropdownMenu,
@@ -55,8 +53,6 @@ export function AppLayout(): JSX.Element {
       <AppSidebar />
       <SidebarInset className="min-w-0 overflow-x-hidden">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 !h-4" />
           <PageBreadcrumb />
 
           <div className="ml-auto flex items-center gap-2">

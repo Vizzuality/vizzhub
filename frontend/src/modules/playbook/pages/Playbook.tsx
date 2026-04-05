@@ -1,8 +1,7 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, BookOpen, MoreHorizontal, Trash2, Globe, Lock, History, File, Folder, ArrowLeft, Pencil } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -177,14 +176,6 @@ function TreeSidebar({
 
 export default function Playbook(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { setOpen } = useSidebar();
-  const didCollapse = useRef(false);
-  useEffect(() => {
-    if (!didCollapse.current) {
-      setOpen(false);
-      didCollapse.current = true;
-    }
-  }, [setOpen]);
   const [editing, setEditing] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
