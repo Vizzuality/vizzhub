@@ -550,8 +550,8 @@ export default function IsoDocs(): JSX.Element {
       }
     `;
     document.head.appendChild(printStyle);
-    window.print();
-    document.head.removeChild(printStyle);
+    globalThis.print();
+    printStyle.remove();
   }, [selectedNode]);
 
   const descendantCount = useMemo(() => {
