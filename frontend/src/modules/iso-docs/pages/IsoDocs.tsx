@@ -1,8 +1,7 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { useSidebar } from '@/shared/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -274,14 +273,6 @@ function TreeSidebar({
 
 export default function IsoDocs(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { setOpen } = useSidebar();
-  const didCollapse = useRef(false);
-  useEffect(() => {
-    if (!didCollapse.current) {
-      setOpen(false);
-      didCollapse.current = true;
-    }
-  }, [setOpen]);
   const [editing, setEditing] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
