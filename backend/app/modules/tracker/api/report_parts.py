@@ -9,8 +9,8 @@ from sqlalchemy import select
 from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
-
-OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
+from app.modules.tracker.api.enrichment import enrich_part, enrich_parts_batch
+from app.modules.tracker.api.helpers import get_or_404, refresh_scorecard_evm
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.schemas.report_part import (
     ReportPartCreate,
@@ -18,8 +18,8 @@ from app.modules.tracker.schemas.report_part import (
     ReportPartUpdate,
 )
 from app.modules.tracker.services.cost_service import apply_cost_and_days
-from app.modules.tracker.api.enrichment import enrich_part
-from app.modules.tracker.api.helpers import get_or_404, refresh_scorecard_evm
+
+OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
 
 router = APIRouter()
 
@@ -37,7 +37,7 @@ async def list_report_parts(
         .where(ReportPartDB.report_id == report_id)
         .order_by(ReportPartDB.created_at)
     )
-    return [await enrich_part(p, db) for p in result.scalars().all()]
+    return await enrich_parts_batch(list(result.scalars().all()), db)
 
 
 @router.post("", status_code=201)
