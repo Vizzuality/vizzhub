@@ -14,7 +14,30 @@ import { UserPicker } from './UserPicker';
 import type { ColumnDef, RegistryAttachment } from '../types/registry';
 
 const URL_REGEX = /^https?:\/\//;
-const MD_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/;
+
+interface MdLink { start: number; end: number; text: string; href: string }
+
+function findMdLinks(value: string): MdLink[] {
+  const links: MdLink[] = [];
+  let i = 0;
+  while (i < value.length) {
+    const open = value.indexOf('[', i);
+    if (open === -1) break;
+    const close = value.indexOf(']', open + 1);
+    if (close === -1) break;
+    if (value[close + 1] !== '(') { i = close + 1; continue; }
+    const pClose = value.indexOf(')', close + 2);
+    if (pClose === -1) break;
+    links.push({
+      start: open,
+      end: pClose + 1,
+      text: value.slice(open + 1, close),
+      href: value.slice(close + 2, pClose),
+    });
+    i = pClose + 1;
+  }
+  return links;
+}
 
 interface InlineCellProps {
   readonly value: unknown;
@@ -50,29 +73,27 @@ function ColorBadge({ text, color, label }: { text: string; color: string; label
 }
 
 function MarkdownLinks({ value }: { readonly value: string }): JSX.Element {
+  const links = findMdLinks(value);
   const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  const regex = new RegExp(MD_LINK_PATTERN.source, 'g');
 
-  while ((match = regex.exec(value)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(value.slice(lastIndex, match.index));
+  for (const link of links) {
+    if (link.start > lastIndex) {
+      parts.push(value.slice(lastIndex, link.start));
     }
-    const [, text, href] = match;
     parts.push(
       <a
-        key={match.index}
-        href={href}
+        key={link.start}
+        href={link.href}
         target="_blank"
         rel="noopener noreferrer"
         className="text-primary hover:underline"
         onClick={(e) => e.stopPropagation()}
       >
-        {text}
+        {link.text}
       </a>,
     );
-    lastIndex = regex.lastIndex;
+    lastIndex = link.end;
   }
 
   if (lastIndex < value.length) {
@@ -83,7 +104,7 @@ function MarkdownLinks({ value }: { readonly value: string }): JSX.Element {
 }
 
 function TextOrLink({ value, col, wrap }: { value: string; col: ColumnDef; wrap?: boolean }): JSX.Element {
-  if (MD_LINK_PATTERN.test(value)) {
+  if (value.includes('](')) {
     return <span className={wrap ? 'block whitespace-pre-wrap' : 'block'}><MarkdownLinks value={value} /></span>;
   }
   const isUrl = col.type === 'url' || URL_REGEX.test(value);
