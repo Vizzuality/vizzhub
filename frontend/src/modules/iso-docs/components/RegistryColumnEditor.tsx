@@ -37,6 +37,7 @@ const COLUMN_TYPES = [
   { value: 'select', label: 'Dropdown' },
   { value: 'user', label: 'User' },
   { value: 'attachment', label: 'Attachment' },
+  { value: 'url', label: 'URL' },
 ] as const;
 
 function toKey(label: string): string {
