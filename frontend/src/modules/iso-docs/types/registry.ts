@@ -28,6 +28,7 @@ export interface RegistryType {
   slug: string;
   description: string | null;
   is_yearly: boolean;
+  default_sort_key: string | null;
   schema: ColumnDef[];
   created_at: string;
   updated_at: string;

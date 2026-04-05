@@ -505,27 +505,42 @@ export default function IsoDocs(): JSX.Element {
   const handlePrintPdf = useCallback(() => {
     const contentEl = document.querySelector('[data-iso-content]');
     if (!contentEl) return;
-    const iframe = document.createElement('iframe');
-    Object.assign(iframe.style, { position: 'fixed', left: '-9999px', width: '0', height: '0' });
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument;
-    if (!doc) { iframe.remove(); return; }
-    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map((el) => el.outerHTML)
-      .join('\n');
-    doc.open();
-    doc.write(`<!DOCTYPE html>
-<html><head><title>${selectedNode?.title ?? 'ISO Document'}</title>${styles}
-<style>body { padding: 1cm; background: white !important; color: black !important; }
-button, [data-iso-actions] { display: none !important; }
-@page { margin: 1.5cm; }</style>
-</head><body>${contentEl.innerHTML}</body></html>`);
-    doc.close();
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => iframe.remove(), 1000);
-    }, 500);
+    const hasRegistry = !!contentEl.querySelector('[data-registry-view]');
+
+    const printStyle = document.createElement('style');
+    printStyle.id = 'iso-print-style';
+    printStyle.textContent = `
+      @media print {
+        /* Reset all ancestors to flow naturally */
+        html, body, #root, #root > *, #root > * > *,
+        [data-iso-root], [data-iso-content] {
+          display: block !important; position: static !important;
+          overflow: visible !important; height: auto !important;
+          max-height: none !important; min-height: 0 !important;
+          width: 100% !important; flex: none !important;
+        }
+        [data-iso-content] { padding: 0.5cm !important; }
+        /* Hide sidebar, toolbar, actions */
+        [data-iso-root] > *:not([data-iso-content]) { display: none !important; }
+        [data-registry-toolbar], [data-iso-actions], [data-print-hide] { display: none !important; }
+        nav, aside { display: none !important; }
+        /* Unclip table content */
+        .truncate { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+        .max-w-xs { max-width: none !important; }
+        .overflow-x-auto, .overflow-auto { overflow: visible !important; }
+        [style*="min-width"] { min-width: 0 !important; }
+        /* Table styling */
+        table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; }
+        th, td { border: 1px solid #ccc !important; padding: 3px 5px !important; word-wrap: break-word !important; }
+        th { background: #f5f5f5 !important; font-weight: 600 !important; }
+        tr { page-break-inside: avoid; }
+        a { color: inherit !important; text-decoration: none !important; }
+        @page { margin: 1cm; ${hasRegistry ? 'size: landscape;' : ''} }
+      }
+    `;
+    document.head.appendChild(printStyle);
+    window.print();
+    document.head.removeChild(printStyle);
   }, [selectedNode]);
 
   const descendantCount = useMemo(() => {
@@ -718,6 +733,11 @@ button, [data-iso-actions] { display: none !important; }
                       <Download className="h-4 w-4 mr-2" />
                       Export Markdown
                     </DropdownMenuItem>
+                  </>
+                )}
+                {(isPage || isRegistry) && (
+                  <>
+                    {!isPage && isEditor && <DropdownMenuSeparator />}
                     <DropdownMenuItem onClick={handlePrintPdf}>
                       <Printer className="h-4 w-4 mr-2" />
                       Print / Save as PDF

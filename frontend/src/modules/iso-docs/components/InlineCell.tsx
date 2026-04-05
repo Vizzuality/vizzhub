@@ -14,6 +14,7 @@ import { UserPicker } from './UserPicker';
 import type { ColumnDef, RegistryAttachment } from '../types/registry';
 
 const URL_REGEX = /^https?:\/\//;
+const MD_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/;
 
 interface InlineCellProps {
   readonly value: unknown;
@@ -48,7 +49,43 @@ function ColorBadge({ text, color, label }: { text: string; color: string; label
   );
 }
 
+function MarkdownLinks({ value }: { readonly value: string }): JSX.Element {
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(MD_LINK_PATTERN.source, 'g');
+
+  while ((match = regex.exec(value)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(value.slice(lastIndex, match.index));
+    }
+    const [, text, href] = match;
+    parts.push(
+      <a
+        key={match.index}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {text}
+      </a>,
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < value.length) {
+    parts.push(value.slice(lastIndex));
+  }
+
+  return <>{parts}</>;
+}
+
 function TextOrLink({ value, col, wrap }: { value: string; col: ColumnDef; wrap?: boolean }): JSX.Element {
+  if (MD_LINK_PATTERN.test(value)) {
+    return <span className={wrap ? 'block whitespace-pre-wrap' : 'block'}><MarkdownLinks value={value} /></span>;
+  }
   const isUrl = col.type === 'url' || URL_REGEX.test(value);
   if (isUrl) {
     const isExternal = URL_REGEX.test(value);
