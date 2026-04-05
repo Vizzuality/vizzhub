@@ -11,7 +11,7 @@ from app.config import get_settings
 
 S3_PREFIX = "iso-registries/"
 
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
 
 ALLOWED_CONTENT_TYPES = {
     "image/png",

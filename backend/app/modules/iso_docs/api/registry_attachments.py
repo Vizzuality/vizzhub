@@ -58,7 +58,7 @@ async def upload_row_attachment(
 
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File exceeds 10MB limit")
+        raise HTTPException(status_code=400, detail="File exceeds 200MB limit")
 
     s3_key = upload_attachment(file_bytes, file.filename or "file", file.content_type)
 
