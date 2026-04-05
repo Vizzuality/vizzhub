@@ -144,6 +144,22 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 - **Project manager**: `project_manager_id` FK to `users.id` (SET NULL on delete). `project_manager_name` resolved via SQL join in list/detail responses. Use `_user_full_name_expr()` helper in `projects_v2.py` for the SQL name expression.
 - **Registry type descriptions**: Always fill `description` with a semantic, LLM-friendly text: (1) what it stores in plain language, (2) key fields/concepts tracked, (3) ISO clause reference. Never leave empty — required for MCP/LLM discoverability of generic JSONB registries.
 
+## Database & Migrations
+
+- When adding new database fields, always verify the migration is auto-applied and test the endpoint before marking complete. Check alembic revision ID length fits varchar(32).
+
+## UI Development
+
+- When asked to add/modify a UI field, confirm the EXACT location (which page/form/component) before implementing. Ask if ambiguous.
+
+## Code Quality / CI
+
+- After implementing features, run SonarCloud-compatible code only. Do not use PEP 695 type syntax (Python 3.12+) — CI runs Python 3.11. Always verify CI compatibility before pushing.
+
+## Backend Development
+
+- For scheduled jobs/background tasks, always register them in the appropriate registry (e.g., `SCHEDULED_JOBS` dict) — not just implement the logic.
+
 ## Reference Docs
 
 - `docs/CLAUDE_REFERENCE.md` — Auth, Slack, jobs, Redis cache, AWS, API endpoints

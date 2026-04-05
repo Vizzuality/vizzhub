@@ -24,7 +24,7 @@ class ConditionalFormatRange(BaseModel):
 class ColumnDef(BaseModel):
     key: str = Field(min_length=1, max_length=100, pattern=r"^[a-z][a-z0-9_]*$")
     label: str = Field(min_length=1, max_length=255)
-    type: Literal["string", "number", "date", "boolean", "select", "user", "computed", "attachment"]
+    type: Literal["string", "number", "date", "boolean", "select", "user", "computed", "attachment", "url"]
     required: bool = False
     options: list[str] | None = None
     option_colors: dict[str, str] | None = None

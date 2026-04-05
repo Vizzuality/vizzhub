@@ -13,7 +13,7 @@ export interface ConditionalFormatRange {
 export interface ColumnDef {
   key: string;
   label: string;
-  type: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'user' | 'computed' | 'attachment';
+  type: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'user' | 'computed' | 'attachment' | 'url';
   required: boolean;
   options?: string[];
   option_colors?: Record<string, string>;
