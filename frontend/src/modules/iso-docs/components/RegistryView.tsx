@@ -78,7 +78,7 @@ function compareValues(a: unknown, b: unknown, dir: SortDir): number {
     return dir === 'asc' ? aNum - bNum : bNum - aNum;
   }
 
-  const cmp = aStr.localeCompare(bStr, undefined, { sensitivity: 'base' });
+  const cmp = aStr.localeCompare(bStr, undefined, { sensitivity: 'base', numeric: true });
   return dir === 'asc' ? cmp : -cmp;
 }
 
@@ -203,6 +203,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const [typeDialogOpen, setTypeDialogOpen] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortInitialized, setSortInitialized] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [viewingRow, setViewingRow] = useState<RegistryRow | null>(null);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
@@ -211,6 +212,13 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const showFeedback = (message: string, isError = false): void => {
     setFeedback({ message, isError });
   };
+
+  useEffect(() => {
+    if (!sortInitialized && registryType?.default_sort_key) {
+      setSortKey(registryType.default_sort_key);
+      setSortInitialized(true);
+    }
+  }, [sortInitialized, registryType]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -360,8 +368,8 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="space-y-4" data-registry-view>
+      <div className="flex items-center justify-between gap-2 flex-wrap" data-registry-toolbar>
         <div className="flex items-center gap-3">
           {isYearly && (
             <div className="flex items-center gap-1">
@@ -550,14 +558,14 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                       {col.label}
                       {sortKey === col.key && (
                         sortDir === 'asc'
-                          ? <ArrowUp className="h-3 w-3" />
-                          : <ArrowDown className="h-3 w-3" />
+                          ? <ArrowUp className="h-3 w-3" data-print-hide />
+                          : <ArrowDown className="h-3 w-3" data-print-hide />
                       )}
                     </span>
                   </th>
                 ))}
                 {isEditor && (
-                  <th className="text-right px-3 py-2 w-10" />
+                  <th className="text-right px-3 py-2 w-10" data-print-hide />
                 )}
               </tr>
             </thead>
@@ -575,6 +583,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                         className="text-muted-foreground hover:text-foreground"
                         onClick={() => setViewingRow(row)}
                         title="View details"
+                        data-print-hide
                       >
                         <Expand className="h-3 w-3" />
                       </button>
@@ -586,12 +595,13 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                       : undefined;
                     return (
                       <td key={col.key} className="px-3 py-1.5 max-w-xs align-top">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-start gap-1">
                           <InlineCell
                             value={row.data[col.key]}
                             col={col}
                             isEditor={isEditor}
                             onSave={(key, value) => handleInlineSave(row, key, value)}
+                            wrap
                             attachment={cellAttachment}
                             onUploadAttachment={(fieldKey, file) =>
                               uploadAttachment.mutate({ rowId: row.id, file, fieldKey })
@@ -608,7 +618,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                     );
                   })}
                   {isEditor && (
-                    <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-3 py-1.5 text-right" data-print-hide onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-0.5">
                         {row.attachments.length > 0 && (
                           <Button

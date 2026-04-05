@@ -96,16 +96,25 @@ REGISTRY_TYPES = [
     {
         "name": "Statement of Applicability",
         "slug": "statement-of-applicability",
-        "description": "Annex A controls applicability and implementation status",
+        "description": (
+            "ISO 27001:2022 Annex A Statement of Applicability (SoA): maps all 93 controls "
+            "from organizational (A.5), people (A.6), physical (A.7) and technological (A.8) "
+            "domains to their applicability, implementation status, justification, and evidence "
+            "references. Core ISMS document per clause 6.1.3 d)."
+        ),
         "is_yearly": False,
+        "default_sort_key": "control_id",
         "schema": [
-            {"key": "control_id", "label": "Control ID", "type": "string", "required": True, "width": 100},
-            {"key": "control_name", "label": "Control Name", "type": "string", "required": True, "width": 200},
+            {"key": "control_id", "label": "Control ID", "type": "string", "required": True, "width": 90},
+            {"key": "category", "label": "Category", "type": "select", "required": True, "options": ["Organizational", "People", "Physical", "Technological"], "width": 140},
+            {"key": "control_name", "label": "Control Name", "type": "string", "required": True, "width": 260},
+            {"key": "control_name_es", "label": "Nombre (ES)", "type": "string", "required": False, "width": 260},
+            {"key": "control_type", "label": "Control Type", "type": "select", "required": False, "options": ["Preventive", "Detective", "Corrective"], "width": 120},
             {"key": "applicable", "label": "Applicable", "type": "boolean", "required": True, "width": 90},
-            {"key": "justification", "label": "Justification", "type": "string", "required": False, "width": 250},
-            {"key": "implementation_status", "label": "Implementation Status", "type": "select", "required": True, "options": ["Implemented", "Partially Implemented", "Planned", "Not Implemented", "N/A"], "width": 160},
-            {"key": "responsible", "label": "Responsible", "type": "string", "required": False, "width": 150},
-            {"key": "evidence", "label": "Evidence/Reference", "type": "string", "required": False, "width": 200},
+            {"key": "justification", "label": "Justification", "type": "string", "required": False, "width": 300},
+            {"key": "implementation_status", "label": "Implementation", "type": "select", "required": True, "options": ["Implemented", "Partially Implemented", "Planned", "Not Implemented", "N/A"], "width": 160},
+            {"key": "management", "label": "Current Management", "type": "string", "required": False, "width": 300},
+            {"key": "evidence", "label": "Evidence / Reference", "type": "string", "required": False, "width": 200},
             {"key": "notes", "label": "Notes", "type": "string", "required": False, "width": 200},
         ],
     },
@@ -391,6 +400,7 @@ async def seed(db_url: str | None = None) -> int:
                 description=rt_data["description"],
                 is_yearly=rt_data["is_yearly"],
                 schema=rt_data["schema"],
+                default_sort_key=rt_data.get("default_sort_key"),
             )
             db.add(rt)
             created += 1
