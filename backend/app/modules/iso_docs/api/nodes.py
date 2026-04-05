@@ -47,6 +47,7 @@ def _build_tree(nodes: list[IsoDocNodeDB], parent_id: UUID | None = None) -> lis
             "parent_id": node.parent_id,
             "position": node.position,
             "registry_type_id": node.registry_type_id,
+            "widget_key": node.widget_key,
             "children": _build_tree(nodes, node.id),
         }
         result.append(item)
@@ -121,6 +122,7 @@ async def create_node(
         parent_id=data.parent_id,
         position=position,
         registry_type_id=data.registry_type_id,
+        widget_key=data.widget_key,
         created_by_id=user_id,
         updated_by_id=user_id,
     )
@@ -128,7 +130,7 @@ async def create_node(
     await db.flush()
     await db.refresh(node)
 
-    if data.type in ("page", "registry"):
+    if data.type in ("page", "registry", "widget"):
         db.add(IsoDocMetadataDB(node_id=node.id))
         await db.flush()
 
