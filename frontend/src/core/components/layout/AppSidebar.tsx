@@ -19,6 +19,8 @@ import {
   Sun,
   ChevronRight,
   TrendingUp,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { usePermission, Action } from '@/core/permissions';
@@ -185,6 +187,7 @@ function CollapsibleMenuItem({
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { state, toggleSidebar } = useSidebar();
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
@@ -370,7 +373,17 @@ export function AppSidebar(): JSX.Element {
               <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => toggleSidebar()}
+              tooltip={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {state === 'collapsed'
+                ? <PanelLeftOpen />
+                : <PanelLeftClose />}
+              <span>Collapse sidebar</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
