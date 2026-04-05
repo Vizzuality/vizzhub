@@ -172,7 +172,7 @@ async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handle validation errors with user-friendly messages."""
-    logger.error(
+    logger.warning(
         "request_validation_failed",
         method=request.method,
         path=str(request.url.path),
