@@ -12,8 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
-
-OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
+from app.modules.tracker.api.enrichment import (
+    enrich_parts_batch,
+    enrich_report,
+    enrich_reports_batch,
+)
+from app.modules.tracker.api.helpers import get_or_404
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
@@ -23,8 +27,8 @@ from app.modules.tracker.schemas.report import (
     ReportUpdate,
     ReportWithPartsResponse,
 )
-from app.modules.tracker.api.enrichment import enrich_part, enrich_report
-from app.modules.tracker.api.helpers import get_or_404
+
+OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
 
 router = APIRouter()
 
@@ -89,7 +93,7 @@ async def list_reports(
         .order_by(ReportDB.created_at)
     )
     reports = result.scalars().all()
-    return [await enrich_report(r, db) for r in reports]
+    return await enrich_reports_batch(list(reports), db)
 
 
 @router.post("", status_code=201)
@@ -134,7 +138,9 @@ async def get_report(
         .where(ReportPartDB.report_id == report_id)
         .order_by(ReportPartDB.created_at)
     )
-    parts = [await enrich_part(p, db) for p in parts_result.scalars().all()]
+    parts = await enrich_parts_batch(
+        list(parts_result.scalars().all()), db,
+    )
 
     return ReportWithPartsResponse(
         **enriched.model_dump(),

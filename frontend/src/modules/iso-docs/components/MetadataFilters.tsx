@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, File, Search } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -69,7 +69,14 @@ export function MetadataFilters({
   onSelect,
   onClose,
 }: MetadataFiltersProps): JSX.Element {
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const { data: allResults } = useMetadataSearch({});
   const hasFilters = !!(filters.category || filters.status || filters.standard || filters.clause);
   const { data: filteredResults } = useMetadataSearch(hasFilters ? filters : {});
@@ -90,6 +97,7 @@ export function MetadataFilters({
 
   const clearAll = (): void => {
     onFiltersChange({});
+    setSearchInput('');
     setSearchQuery('');
   };
 
@@ -125,8 +133,8 @@ export function MetadataFilters({
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search in documents..."
             className="h-7 text-xs pl-7"
           />
