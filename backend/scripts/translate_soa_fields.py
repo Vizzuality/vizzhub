@@ -22,6 +22,14 @@ from app.modules.iso_docs.models.registry_row import RegistryRowDB
 
 logger = structlog.get_logger()
 
+_ACCESS_MGMT = (
+    "User validation through access management. Users are not local "
+    "administrators. Each user has unique credentials with periodic review."
+)
+_INCIDENT_POLICY = "An information security incident management policy is defined."
+_PHYSICAL_CONTROLS = "Defined in PR05 Physical Controls."
+_DEV_SCOPE = "Applicable as software development activities are within the ISMS scope."
+
 # Translations for management field — keyed by control_id
 # Uses official ISO terminology per iso-doc-translator skill
 MANAGEMENT_EN: dict[str, str] = {
@@ -64,22 +72,10 @@ MANAGEMENT_EN: dict[str, str] = {
         "An information classification procedure defines how information is "
         "classified, labelled, and handled."
     ),
-    "A.5.15": (
-        "User validation through access management. Users are not local "
-        "administrators. Each user has unique credentials with periodic review."
-    ),
-    "A.5.16": (
-        "User validation through access management. Users are not local "
-        "administrators. Each user has unique credentials with periodic review."
-    ),
-    "A.5.17": (
-        "User validation through access management. Users are not local "
-        "administrators. Each user has unique credentials with periodic review."
-    ),
-    "A.5.18": (
-        "User validation through access management. Users are not local "
-        "administrators. Each user has unique credentials with periodic review."
-    ),
+    "A.5.15": _ACCESS_MGMT,
+    "A.5.16": _ACCESS_MGMT,
+    "A.5.17": _ACCESS_MGMT,
+    "A.5.18": _ACCESS_MGMT,
     "A.5.19": "A supplier relationship procedure is defined.",
     "A.5.20": "A supplier relationship procedure is defined.",
     "A.5.21": (
@@ -93,11 +89,11 @@ MANAGEMENT_EN: dict[str, str] = {
         "A cloud usage policy is in place, also referenced in the Employee "
         "Security Policy."
     ),
-    "A.5.24": "An information security incident management policy is defined.",
-    "A.5.25": "An information security incident management policy is defined.",
-    "A.5.26": "An information security incident management policy is defined.",
-    "A.5.27": "An information security incident management policy is defined.",
-    "A.5.28": "An information security incident management policy is defined.",
+    "A.5.24": _INCIDENT_POLICY,
+    "A.5.25": _INCIDENT_POLICY,
+    "A.5.26": _INCIDENT_POLICY,
+    "A.5.27": _INCIDENT_POLICY,
+    "A.5.28": _INCIDENT_POLICY,
     "A.5.29": (
         "Business continuity is managed per the corresponding procedure. "
         "The ISMS Manager is responsible for its implementation."
@@ -147,12 +143,12 @@ MANAGEMENT_EN: dict[str, str] = {
         "An incident management policy is defined and employees know how to "
         "report security events through the established channels."
     ),
-    "A.7.1": "Defined in PR05 Physical Controls.",
-    "A.7.2": "Defined in PR05 Physical Controls.",
-    "A.7.3": "Defined in PR05 Physical Controls.",
-    "A.7.4": "Defined in PR05 Physical Controls.",
-    "A.7.5": "Defined in PR05 Physical Controls.",
-    "A.7.6": "Defined in PR05 Physical Controls.",
+    "A.7.1": _PHYSICAL_CONTROLS,
+    "A.7.2": _PHYSICAL_CONTROLS,
+    "A.7.3": _PHYSICAL_CONTROLS,
+    "A.7.4": _PHYSICAL_CONTROLS,
+    "A.7.5": _PHYSICAL_CONTROLS,
+    "A.7.6": _PHYSICAL_CONTROLS,
     "A.7.7": (
         "The Employee Security Policy and ISMS documentation require users to "
         "maintain a clear desk and screen policy."
@@ -162,7 +158,7 @@ MANAGEMENT_EN: dict[str, str] = {
         "The Employee Security Policy defines employee responsibilities for "
         "off-premises use of assets."
     ),
-    "A.7.10": "Defined in PR05 Physical Controls.",
+    "A.7.10": _PHYSICAL_CONTROLS,
     "A.7.11": (
         "Not applicable in the traditional sense due to remote working model. "
         "Laptop batteries serve as backup power for interruptions."
@@ -172,7 +168,7 @@ MANAGEMENT_EN: dict[str, str] = {
         "Equipment owners periodically review their equipment to ensure proper "
         "functioning and absence of unauthorized software."
     ),
-    "A.7.14": "Defined in PR05 Physical Controls.",
+    "A.7.14": _PHYSICAL_CONTROLS,
     "A.8.1": (
         "Multiple mechanisms protect endpoint devices: disk encryption, "
         "screen lock, antivirus, and access controls."
@@ -304,21 +300,11 @@ JUSTIFICATION_EN: dict[str, str] = {
         "Applicable as remote working is the primary working model of the "
         "organization."
     ),
-    "A.8.4": (
-        "Applicable as software development activities are within the ISMS scope."
-    ),
-    "A.8.25": (
-        "Applicable as software development activities are within the ISMS scope."
-    ),
-    "A.8.28": (
-        "Applicable as software development activities are within the ISMS scope."
-    ),
-    "A.8.29": (
-        "Applicable as software development activities are within the ISMS scope."
-    ),
-    "A.8.31": (
-        "Applicable as software development activities are within the ISMS scope."
-    ),
+    "A.8.4": _DEV_SCOPE,
+    "A.8.25": _DEV_SCOPE,
+    "A.8.28": _DEV_SCOPE,
+    "A.8.29": _DEV_SCOPE,
+    "A.8.31": _DEV_SCOPE,
 }
 
 
