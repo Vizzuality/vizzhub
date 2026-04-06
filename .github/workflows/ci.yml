@@ -52,7 +52,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_PASSWORD }}@localhost:5432/${{ env.DB_NAME }}
           TEST_DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_PASSWORD }}@localhost:5432/${{ env.DB_NAME }}
           DEBUG: "true"
-        run: pytest
+        run: pytest --durations=30
 
   frontend:
     name: Frontend Tests
