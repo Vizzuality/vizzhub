@@ -19,6 +19,8 @@ from app.modules.iso_docs.models.drive_mapping import IsoDocDriveMappingDB
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
+from app.modules.iso_docs.models.registry_row import RegistryRowDB
+from app.modules.iso_docs.models.registry_type import RegistryTypeDB
 from app.modules.iso_docs.services.google_drive_oauth import GoogleDriveOAuth, PROVIDER
 
 logger = structlog.get_logger()
@@ -27,6 +29,7 @@ DRIVE_API = "https://www.googleapis.com/drive/v3/files"
 DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 DRIVE_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 ROOT_FOLDER_KEY = "root_folder_id"
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 STATUS_LABELS = {
     "approved": "Approved",
@@ -78,7 +81,12 @@ class DriveExportService:
             if not access_token:
                 raise RuntimeError("Google Drive not connected")
 
-            nodes, versions_map, metadata_map = await self._load_data(db)
+            data = await self._load_data(db)
+            nodes = data["nodes"]
+            versions_map = data["versions_map"]
+            metadata_map = data["metadata_map"]
+            registry_types = data["registry_types"]
+            registry_rows = data["registry_rows"]
             if not nodes:
                 await JobService.update_status(
                     db, job_uuid, JobStatus.COMPLETED, result={"exported": 0}
@@ -98,7 +106,7 @@ class DriveExportService:
                 [n for n in nodes if n.parent_id is None],
                 key=lambda n: n.position,
             )
-            total = sum(1 for n in nodes if n.type != "registry")
+            total = len(nodes)
             exported = 0
 
             async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
@@ -116,9 +124,20 @@ class DriveExportService:
                         existing_drive_id = mappings.get(node.id)
 
                         if node.type == "registry":
-                            continue
+                            rt = registry_types.get(node.registry_type_id)
+                            if rt:
+                                rows = registry_rows.get(node.id, [])
+                                meta = metadata_map.get(node.id)
+                                drive_id = await self._upsert_spreadsheet(
+                                    http, access_token, node.title,
+                                    rt.schema, rt.is_yearly, rows,
+                                    parent_drive_id, existing_drive_id, meta,
+                                )
+                                await self._save_mapping(
+                                    db, node.id, drive_id, "spreadsheet", mappings
+                                )
 
-                        if node.type == "group":
+                        elif node.type == "group":
                             drive_id = await self._upsert_folder(
                                 http, access_token, node.title,
                                 parent_drive_id, existing_drive_id,
@@ -182,9 +201,7 @@ class DriveExportService:
             )
             raise
 
-    async def _load_data(
-        self, db: AsyncSession
-    ) -> tuple[list[IsoDocNodeDB], dict, dict]:
+    async def _load_data(self, db: AsyncSession) -> dict:
         nodes_result = await db.execute(
             select(IsoDocNodeDB).order_by(IsoDocNodeDB.position)
         )
@@ -211,7 +228,23 @@ class DriveExportService:
         meta_result = await db.execute(select(IsoDocMetadataDB))
         metadata_map = {m.node_id: m for m in meta_result.scalars().all()}
 
-        return nodes, versions_map, metadata_map
+        rt_result = await db.execute(select(RegistryTypeDB))
+        registry_types = {rt.id: rt for rt in rt_result.scalars().all()}
+
+        rows_result = await db.execute(
+            select(RegistryRowDB).order_by(RegistryRowDB.row_index)
+        )
+        registry_rows: dict[uuid.UUID, list[RegistryRowDB]] = {}
+        for row in rows_result.scalars().all():
+            registry_rows.setdefault(row.node_id, []).append(row)
+
+        return {
+            "nodes": nodes,
+            "versions_map": versions_map,
+            "metadata_map": metadata_map,
+            "registry_types": registry_types,
+            "registry_rows": registry_rows,
+        }
 
     async def _load_mappings(self, db: AsyncSession) -> dict[uuid.UUID, str]:
         result = await db.execute(select(IsoDocDriveMappingDB))
@@ -254,6 +287,69 @@ class DriveExportService:
             await self._update_file_content(http, token, existing_drive_id, html)
             return existing_drive_id
         return await self._create_doc(http, token, title, html, parent_drive_id)
+
+    async def _upsert_spreadsheet(
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        title: str,
+        schema: list[dict],
+        is_yearly: bool,
+        rows: list,
+        parent_drive_id: str,
+        existing_drive_id: str | None,
+        metadata=None,
+    ) -> str:
+        from app.modules.iso_docs.api.registry_rows import (
+            _build_xlsx,
+            _build_xlsx_multiyear,
+            _group_rows_by_year,
+        )
+
+        if is_yearly and rows:
+            xlsx_buf = _build_xlsx_multiyear(
+                title, schema, _group_rows_by_year(rows), metadata,
+            )
+        else:
+            xlsx_buf = _build_xlsx(title, schema, rows, metadata)
+
+        xlsx_bytes = xlsx_buf.read()
+        if existing_drive_id and await self._drive_file_exists(
+            http, token, existing_drive_id
+        ):
+            await self._update_file_metadata(
+                http, token, existing_drive_id, title
+            )
+            resp = await http.patch(
+                f"{DRIVE_UPLOAD_API}/{existing_drive_id}?uploadType=media",
+                content=xlsx_bytes,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": XLSX_CONTENT_TYPE,
+                },
+                params={"supportsAllDrives": "true"},
+            )
+            resp.raise_for_status()
+            return existing_drive_id
+
+        drive_meta = {
+            "name": title,
+            "parents": [parent_drive_id],
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+        }
+        resp = await http.post(
+            f"{DRIVE_UPLOAD_API}?uploadType=multipart",
+            headers={"Authorization": f"Bearer {token}"},
+            files={
+                "metadata": (
+                    None, json.dumps(drive_meta).encode(), "application/json",
+                ),
+                "file": (None, xlsx_bytes, XLSX_CONTENT_TYPE),
+            },
+            params={"fields": "id", "supportsAllDrives": "true"},
+        )
+        resp.raise_for_status()
+        return resp.json()["id"]
 
     async def _save_mapping(
         self,

@@ -18,6 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
 import {
   Dialog,
@@ -261,20 +262,35 @@ function TreeSidebar({
                 )}
               </Button>
               {isEditor && !filtersOpen && driveConnected && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={onDriveExport}
-                  disabled={driveExporting}
-                  title={driveExporting ? (driveProgress ? `Exporting (${driveProgress}%)` : 'Exporting...') : 'Export to Google Drive'}
-                >
-                  {driveExporting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4" />
-                  )}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={driveExporting}
+                      title={driveExporting ? (driveProgress ? `Exporting (${driveProgress}%)` : 'Exporting...') : 'Export to Google Drive'}
+                    >
+                      {driveExporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Export to Google Drive</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will export all documents and registries to Google Drive, replacing any existing versions. Continue?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onDriveExport}>Export</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
               {isEditor && !filtersOpen && (
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAdd}>
