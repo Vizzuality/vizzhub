@@ -228,6 +228,9 @@ function TreeSidebar({
     );
   }
 
+  const driveExportTitle = driveExporting
+    ? (driveProgress ? `Exporting (${driveProgress}%)` : 'Exporting...')
+    : 'Export to Google Drive';
   const sidebarVisibility = (() => {
     if (selectedId && !collapsed) return 'hidden md:flex';
     if (collapsed) return 'flex';
@@ -269,7 +272,7 @@ function TreeSidebar({
                       size="icon"
                       className="h-7 w-7"
                       disabled={driveExporting}
-                      title={driveExporting ? (driveProgress ? `Exporting (${driveProgress}%)` : 'Exporting...') : 'Export to Google Drive'}
+                      title={driveExportTitle}
                     >
                       {driveExporting ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

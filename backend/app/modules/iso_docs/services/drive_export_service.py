@@ -565,12 +565,12 @@ def _render_changelog_table(changelog: list[dict]) -> str:
     rows = [
         '<table style="border-collapse:collapse;font-size:9pt;'
         'margin:8pt 0 16pt 0;width:100%">'
-        '<tr style="background:#f5f5f5">'
-        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Version</th>'
-        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Date</th>'
-        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Description</th>'
-        '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Author</th>'
-        '</tr>'
+        + '<tr style="background:#f5f5f5">'
+        + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Version</th>'
+        + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Date</th>'
+        + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Description</th>'
+        + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Author</th>'
+        + '</tr>'
     ]
     for entry in changelog:
         v = _escape(str(entry.get("version", "")))
