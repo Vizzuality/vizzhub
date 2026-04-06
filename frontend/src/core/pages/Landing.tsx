@@ -70,12 +70,14 @@ function getScoreCssVar(score: number | null): string {
   return 'var(--aux-cool-steel)';
 }
 
+const SCORECARD_GRID_CELLS = ['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'];
+
 function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
   if (type === 'scorecard') {
     return (
       <span className="landing__card-icon landing__icon-scorecard">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <span key={i} />
+        {SCORECARD_GRID_CELLS.map((id) => (
+          <span key={id} />
         ))}
       </span>
     );
@@ -116,15 +118,11 @@ function TopScores(): JSX.Element | null {
           const color = getScoreCssVar(score);
           const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
           return (
-            <div
+            <button
               key={p.id}
+              type="button"
               className="landing__top5-row"
               onClick={() => navigate(`/scorecard/${p.id}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') navigate(`/scorecard/${p.id}`);
-              }}
             >
               <span className="landing__top5-rank">{String(i + 1).padStart(2, '0')}</span>
               <span className="landing__top5-name">{p.name}</span>
@@ -137,7 +135,7 @@ function TopScores(): JSX.Element | null {
               <span className="landing__top5-score" style={{ color }}>
                 {Math.round(score)}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -194,21 +192,19 @@ export default function Landing(): JSX.Element {
         {MODULES.map((mod) => {
           const disabled = mod.comingSoon || (mod.adminOnly && !isAdmin);
           return (
-          <div
+          <button
             key={mod.number}
+            type="button"
             className={`landing__card${disabled ? ' landing__card--disabled' : ''}`}
             onClick={() => !disabled && navigate(mod.path)}
-            role="button"
             tabIndex={disabled ? -1 : 0}
-            onKeyDown={(e) => {
-              if (!disabled && (e.key === 'Enter' || e.key === ' ')) navigate(mod.path);
-            }}
+            disabled={disabled}
           >
             <span className="landing__card-number">{mod.number}</span>
             <CardIcon type={mod.iconType} />
             <span className="landing__card-symbol">{mod.symbol}</span>
             <span className="landing__card-label">{mod.label}</span>
-          </div>
+          </button>
           );
         })}
         <TopScores />

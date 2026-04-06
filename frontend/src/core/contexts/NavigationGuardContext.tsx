@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useRef } from 'react';
+import { createContext, useContext, useCallback, useMemo, useRef } from 'react';
 
 interface NavigationGuardContextType {
   setGuard: (guard: (() => boolean) | null) => void;
@@ -28,8 +28,13 @@ export function NavigationGuardProvider({
     return true;
   }, []);
 
+  const value = useMemo(
+    () => ({ setGuard, confirmNavigation }),
+    [setGuard, confirmNavigation],
+  );
+
   return (
-    <NavigationGuardContext.Provider value={{ setGuard, confirmNavigation }}>
+    <NavigationGuardContext.Provider value={value}>
       {children}
     </NavigationGuardContext.Provider>
   );

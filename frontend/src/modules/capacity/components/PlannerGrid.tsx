@@ -74,6 +74,89 @@ function stickyLeft(colIdx: number): number | undefined {
   return STICKY_LEFT[colIdx];
 }
 
+function FACellRenderer({ row }: { readonly row: FlatRow }): JSX.Element | null {
+  if (row._type === 'data') {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {row.functional_area}
+      </span>
+    );
+  }
+  return null;
+}
+
+function NameCellRenderer({
+  row,
+  groupBy,
+  warningSet,
+  onDeleteRow,
+}: {
+  readonly row: FlatRow;
+  readonly groupBy: string;
+  readonly warningSet: Set<string>;
+  readonly onDeleteRow: (projectId: string, userId: string) => void;
+}): JSX.Element | null {
+  if (row._type !== 'data') return null;
+
+  const isPinned = row.is_absence || row.is_other;
+  const defaultLabel = groupBy === 'project' ? row.user_name : row.project_name;
+  const label = isPinned && row.is_other ? 'Others' : defaultLabel;
+  const userHasWarning = row.user_id ? warningSet.has(row.user_id) : false;
+
+  return (
+    <div className="flex items-center justify-between gap-1">
+      <span className="flex items-center gap-1 truncate">
+        {groupBy === 'project' && userHasWarning && (
+          <span title="Allocations exceed 100%"><AlertTriangle className="h-3 w-3 shrink-0 text-yellow-500" /></span>
+        )}
+        {groupBy === 'user' && !isPinned ? (
+          <Link
+            to={`/tracker/projects/${row.project_id}`}
+            className="truncate text-sm hover:underline"
+          >
+            {label}
+          </Link>
+        ) : (
+          <span className={`truncate text-sm ${isPinned ? 'italic text-muted-foreground' : ''}`}>
+            {label}
+          </span>
+        )}
+      </span>
+      {!isPinned && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
+            >
+              <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove row?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will delete all planned allocations for this combination.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (row.project_id && row.user_id) {
+                    onDeleteRow(row.project_id, row.user_id);
+                  }
+                }}
+              >
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
+  );
+}
+
 export function PlannerGrid({
   groups,
   weeks,
@@ -307,91 +390,32 @@ export function PlannerGrid({
         id: 'fa',
         header: 'FA',
         size: 50,
-        cell: ({ row: { original } }) => {
-          if (original._type === 'data') {
-            return (
-              <span className="text-xs text-muted-foreground">
-                {original.functional_area}
-              </span>
-            );
-          }
-          return null;
-        },
+        cell: ({ row: { original } }) => <FACellRenderer row={original} />,
       },
       {
         id: 'name',
         header: groupBy === 'project' ? 'Name' : 'Project',
         size: 200,
-        cell: ({ row: { original } }) => {
-          if (original._type === 'data') {
-            const isPinned = original.is_absence || original.is_other;
-            const defaultLabel = groupBy === 'project' ? original.user_name : original.project_name;
-            const label = isPinned && original.is_other ? 'Others' : defaultLabel;
-            const userHasWarning = original.user_id ? warningSet.has(original.user_id) : false;
-            return (
-              <div className="flex items-center justify-between gap-1">
-                <span className="flex items-center gap-1 truncate">
-                  {groupBy === 'project' && userHasWarning && (
-                    <span title="Allocations exceed 100%"><AlertTriangle className="h-3 w-3 shrink-0 text-yellow-500" /></span>
-                  )}
-                  {groupBy === 'user' && !isPinned ? (
-                    <Link
-                      to={`/tracker/projects/${original.project_id}`}
-                      className="truncate text-sm hover:underline"
-                    >
-                      {label}
-                    </Link>
-                  ) : (
-                    <span className={`truncate text-sm ${isPinned ? 'italic text-muted-foreground' : ''}`}>
-                      {label}
-                    </span>
-                  )}
-                </span>
-                {!isPinned && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remove row?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will delete all planned allocations for this combination.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => {
-                            if (original.project_id && original.user_id) {
-                              onDeleteRow(original.project_id, original.user_id);
-                            }
-                          }}
-                        >
-                          Remove
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-            );
-          }
-          return null;
-        },
+        cell: ({ row: { original } }) => (
+          <NameCellRenderer
+            row={original}
+            groupBy={groupBy}
+            warningSet={warningSet}
+            onDeleteRow={onDeleteRow}
+          />
+        ),
       },
     ];
 
-    const weekCols: ColumnDef<FlatRow>[] = weeks.map((week) => ({
-      id: `week_${week}`,
-      header: () => <span className="text-xs">W{getISOWeekNumber(week)}</span>,
-      size: 42,
-      cell: () => null,
-    }));
+    const weekCols: ColumnDef<FlatRow>[] = weeks.map((week) => {
+      const weekLabel = `W${getISOWeekNumber(week)}`;
+      return {
+        id: `week_${week}`,
+        header: weekLabel,
+        size: 42,
+        cell: () => null,
+      };
+    });
 
     return [...fixed, ...weekCols];
   }, [weeks, groupBy, onDeleteRow, warningSet]);

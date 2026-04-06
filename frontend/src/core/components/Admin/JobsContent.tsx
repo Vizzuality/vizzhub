@@ -541,10 +541,10 @@ function PlaybookPublishSection(): JSX.Element {
                 </tr>
               </thead>
               <tbody>
-                {history.map((entry, i) => {
+                {history.map((entry) => {
                   const duration = computeDurationSeconds(entry.started_at, entry.completed_at);
                   return (
-                    <tr key={i} className="border-b last:border-b-0">
+                    <tr key={entry.started_at} className="border-b last:border-b-0">
                       <td className="py-3 pr-4">
                         {getStatusIcon(entry.status)}
                       </td>
