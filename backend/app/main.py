@@ -36,8 +36,6 @@ from app.core.logging_config import configure_logging
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import init_db, get_db
-from scripts.seed_alert_definitions import seed_alert_definitions
-from scripts.seed_config_parameters import seed_config_parameters
 from sqlalchemy import select
 
 settings = get_settings()
@@ -81,10 +79,6 @@ async def lifespan(app: FastAPI) -> Any:
 
     if settings.debug:
         await init_db()
-
-    # Seed config parameters and alert definitions from CSV if not already seeded
-    await seed_config_parameters()
-    await seed_alert_definitions()
 
     # Validate roles table matches code definitions
     from app.core.permissions.roles import ROLE_PERMISSIONS
