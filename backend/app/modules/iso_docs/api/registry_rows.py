@@ -14,11 +14,13 @@ import openpyxl
 import structlog
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from sqlalchemy import delete as sql_delete, select
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.iso_docs.api.deps import IsoDocsEditor, check_user_access
+from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.registry_row import RegistryRowDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
@@ -89,6 +91,20 @@ async def _fetch_rows(
         query = query.order_by(RegistryRowDB.row_index)
     result = await db.execute(query)
     return list(result.scalars())
+
+
+async def _fetch_metadata(db, node_id: UUID) -> IsoDocMetadataDB | None:
+    result = await db.execute(
+        select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id)
+    )
+    return result.scalar_one_or_none()
+
+
+def _group_rows_by_year(rows: list) -> dict[int, list]:
+    grouped: dict[int, list] = {}
+    for r in rows:
+        grouped.setdefault(r.year, []).append(r)
+    return grouped
 
 
 @router.get(
@@ -299,6 +315,7 @@ async def export_registry(
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
     rows = await _fetch_rows(db, node.id, year)
+    metadata = await _fetch_metadata(db, node.id)
 
     columns = rt.schema
     headers = [col["label"] for col in columns]
@@ -318,7 +335,13 @@ async def export_registry(
             headers={"Content-Disposition": f'attachment; filename="{base_name}.csv"'},
         )
 
-    xlsx_buf = _build_xlsx(node.title, columns, rows)
+    if rt.is_yearly and year is None:
+        all_rows = await _fetch_rows(db, node.id)
+        xlsx_buf = _build_xlsx_multiyear(
+            node.title, columns, _group_rows_by_year(all_rows), metadata,
+        )
+    else:
+        xlsx_buf = _build_xlsx(node.title, columns, rows, metadata)
     return StreamingResponse(
         xlsx_buf,
         media_type=XLSX_CONTENT_TYPE,
@@ -501,24 +524,117 @@ async def copy_year(
     return {"copied": len(source_rows)}
 
 
-def _build_xlsx(node_title: str, columns: list[dict], rows: list) -> BytesIO:
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = node_title[:31]
+HEADER_FONT = Font(name="Calibri", size=10, bold=True)
+HEADER_FILL = PatternFill(start_color="E8E8E8", end_color="E8E8E8", fill_type="solid")
+HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
+BODY_FONT = Font(name="Calibri", size=10)
+BODY_ALIGNMENT = Alignment(vertical="top", wrap_text=True)
+META_LABEL_FONT = Font(name="Calibri", size=10, bold=True, color="555555")
+META_VALUE_FONT = Font(name="Calibri", size=10)
+
+STATUS_LABELS = {"draft": "Draft", "approved": "Approved", "under_review": "Under review"}
+CATEGORY_LABELS = {
+    "manual": "Manual", "policy": "Policy", "procedure": "Procedure",
+    "plan": "Plan", "record": "Record", "report": "Report",
+}
+CLASSIFICATION_LABELS = {
+    "internal_use": "Internal use", "confidential": "Confidential",
+}
+
+
+def _build_meta_rows(metadata) -> list[tuple[str, str]]:
+    """Extract displayable label-value pairs from metadata."""
+    if metadata is None:
+        return []
+    pairs: list[tuple[str, str]] = []
+    if metadata.code:
+        pairs.append(("Code", metadata.code))
+    if metadata.category:
+        pairs.append(("Category", CATEGORY_LABELS.get(metadata.category, metadata.category)))
+    if metadata.status:
+        pairs.append(("Status", STATUS_LABELS.get(metadata.status, metadata.status)))
+    if metadata.classification:
+        pairs.append(("Classification", CLASSIFICATION_LABELS.get(
+            metadata.classification, metadata.classification,
+        )))
+    if metadata.standard:
+        pairs.append(("Standard", ", ".join(metadata.standard)))
+    if metadata.clauses:
+        pairs.append(("Clauses", ", ".join(metadata.clauses)))
+    if metadata.doc_version:
+        pairs.append(("Version", metadata.doc_version))
+    if metadata.document_date:
+        pairs.append(("Date", str(metadata.document_date)))
+    return pairs
+
+
+def _populate_sheet(
+    ws, columns: list[dict], rows: list, metadata=None,
+) -> None:
+    """Write optional metadata header, column headers + rows with styling."""
+    meta_rows = _build_meta_rows(metadata)
+    for label, value in meta_rows:
+        ws.append([label, value])
+    if meta_rows:
+        ws.append([])
+
+    header_row_num = len(meta_rows) + 2 if meta_rows else 1
     headers = [col["label"] for col in columns]
     ws.append(headers)
     for row in rows:
         enriched = compute_row_fields(columns, row.data)
         ws.append([enriched.get(col["key"], "") for col in columns])
 
+    for row_num in range(1, len(meta_rows) + 1):
+        ws.cell(row=row_num, column=1).font = META_LABEL_FONT
+        ws.cell(row=row_num, column=2).font = META_VALUE_FONT
+
+    for cell in ws[header_row_num]:
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGNMENT
+
+    for row in ws.iter_rows(min_row=header_row_num + 1):
+        for cell in row:
+            cell.font = BODY_FONT
+            cell.alignment = BODY_ALIGNMENT
+
     for col_idx, header in enumerate(headers, 1):
         max_len = len(str(header))
-        for row in ws.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
+        for row in ws.iter_rows(
+            min_row=header_row_num + 1, min_col=col_idx, max_col=col_idx,
+        ):
             val = row[0].value
             if val is not None:
                 max_len = max(max_len, len(str(val)))
         ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 3, 50)
 
+    ws.freeze_panes = f"A{header_row_num + 1}"
+
+
+def _build_xlsx(
+    node_title: str, columns: list[dict], rows: list, metadata=None,
+) -> BytesIO:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = node_title[:31]
+    _populate_sheet(ws, columns, rows, metadata)
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def _build_xlsx_multiyear(
+    node_title: str, columns: list[dict], rows_by_year: dict[int, list],
+    metadata=None,
+) -> BytesIO:
+    """Build an XLSX with one tab per year, most recent first."""
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    for year in sorted(rows_by_year, reverse=True):
+        ws = wb.create_sheet(title=str(year))
+        _populate_sheet(ws, columns, rows_by_year[year], metadata)
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -618,10 +734,19 @@ async def export_registry_to_drive(
 
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
-    rows = await _fetch_rows(db, node.id, year)
+    doc_metadata = await _fetch_metadata(db, node.id)
 
     file_name = f"{node.title} ({year})" if year else node.title
-    xlsx_buf = _build_xlsx(node.title, rt.schema, rows)
+    if rt.is_yearly and year is None:
+        all_rows = await _fetch_rows(db, node.id)
+        xlsx_buf = _build_xlsx_multiyear(
+            node.title, rt.schema, _group_rows_by_year(all_rows), doc_metadata,
+        )
+        row_count = len(all_rows)
+    else:
+        rows = await _fetch_rows(db, node.id, year)
+        xlsx_buf = _build_xlsx(node.title, rt.schema, rows, doc_metadata)
+        row_count = len(rows)
 
     async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
         auth_header = {"Authorization": f"Bearer {access_token}"}
@@ -663,7 +788,7 @@ async def export_registry_to_drive(
                 existing_drive_id = None
 
         if not existing_drive_id:
-            metadata = {
+            drive_meta = {
                 "name": file_name,
                 "parents": [parent_drive_id],
                 "mimeType": "application/vnd.google-apps.spreadsheet",
@@ -672,12 +797,10 @@ async def export_registry_to_drive(
                 f"{DRIVE_UPLOAD_API}?uploadType=multipart",
                 headers=auth_header,
                 files={
-                    "metadata": (None, json.dumps(metadata).encode(), "application/json"),
-                    "file": (
-                        None,
-                        xlsx_buf.read(),
-                        XLSX_CONTENT_TYPE,
+                    "metadata": (
+                        None, json.dumps(drive_meta).encode(), "application/json",
                     ),
+                    "file": (None, xlsx_buf.read(), XLSX_CONTENT_TYPE),
                 },
                 params={"fields": "id", "supportsAllDrives": "true"},
             )
@@ -703,6 +826,6 @@ async def export_registry_to_drive(
         "registry_exported_to_drive",
         node_id=str(node_id),
         drive_file_id=drive_file_id,
-        rows=len(rows),
+        rows=row_count,
     )
     return {"drive_file_id": drive_file_id}

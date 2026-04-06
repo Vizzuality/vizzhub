@@ -158,12 +158,14 @@ class TestDriveExportService:
     async def test_load_data(self, db_session, sample_tree):
         """Loads nodes, latest versions, and metadata from DB."""
         svc = DriveExportService()
-        nodes, versions_map, metadata_map = await svc._load_data(db_session)
+        data = await svc._load_data(db_session)
 
-        assert len(nodes) == 3
-        assert sample_tree["page1"].id in versions_map
-        assert sample_tree["page2"].id in versions_map
-        assert sample_tree["page1"].id in metadata_map
+        assert len(data["nodes"]) == 3
+        assert sample_tree["page1"].id in data["versions_map"]
+        assert sample_tree["page2"].id in data["versions_map"]
+        assert sample_tree["page1"].id in data["metadata_map"]
+        assert isinstance(data["registry_types"], dict)
+        assert isinstance(data["registry_rows"], dict)
 
     @pytest.mark.asyncio
     async def test_save_and_load_mappings(self, db_session, sample_tree):
@@ -201,7 +203,8 @@ class TestDriveExportService:
     async def test_root_nodes_from_loaded_data(self, db_session, sample_tree):
         """Root-level nodes are correctly identified from loaded data."""
         svc = DriveExportService()
-        nodes, _, _ = await svc._load_data(db_session)
+        data = await svc._load_data(db_session)
+        nodes = data["nodes"]
         roots = sorted(
             [n for n in nodes if n.parent_id is None],
             key=lambda n: n.position,
