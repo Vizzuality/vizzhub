@@ -48,11 +48,14 @@ export function PublishButton() {
     });
   };
 
-  const statusText = status?.status === 'completed' && status.completed_at
-    ? `Published ${formatRelativeTime(status.completed_at)} (${status.page_count} pages)`
-    : status?.status === 'failed'
-      ? 'Last publish failed'
-      : null;
+  const getStatusText = (): string | null => {
+    if (status?.status === 'completed' && status.completed_at) {
+      return `Published ${formatRelativeTime(status.completed_at)} (${status.page_count} pages)`;
+    }
+    if (status?.status === 'failed') return 'Last publish failed';
+    return null;
+  };
+  const statusText = getStatusText();
 
   return (
     <div className="flex items-center gap-2">

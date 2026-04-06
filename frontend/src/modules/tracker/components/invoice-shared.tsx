@@ -115,18 +115,16 @@ export function EditableCell({
   const startEditing = (): void => { setVal(initial); setEditing(true); };
 
   return (
-    <span
-      role="button"
-      tabIndex={0}
-      className={cn('cursor-pointer hover:underline', displayClass)}
+    <button
+      type="button"
+      className={cn('cursor-pointer hover:underline bg-transparent border-0 p-0 text-left', displayClass)}
       onClick={startEditing}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEditing(); } }}
       title={display || initial || undefined}
     >
       {display || initial || (
         <span className="text-muted-foreground italic">{placeholder ?? 'edit'}</span>
       )}
-    </span>
+    </button>
   );
 }
 

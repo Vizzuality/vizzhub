@@ -31,7 +31,8 @@ def _is_last_business_day(today: date) -> bool:
     """Return True if *today* is the last business day (Mon-Fri) of its month."""
     _, last_day = calendar.monthrange(today.year, today.month)
     d = date(today.year, today.month, last_day)
-    while d.weekday() >= 5:  # 5=Sat, 6=Sun
+    saturday = 5
+    while d.weekday() >= saturday:
         d = d.replace(day=d.day - 1)
     return today == d
 

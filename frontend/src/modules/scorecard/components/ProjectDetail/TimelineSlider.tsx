@@ -104,7 +104,7 @@ export default function TimelineSlider({
   return (
     <div
       className="w-full py-4"
-      role="listbox"
+      role="toolbar"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Timeline period selector - use arrow keys to navigate"

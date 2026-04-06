@@ -88,6 +88,7 @@ export function RatesContent(): JSX.Element {
   }
 
   const isSaving = createRate.isPending || updateRate.isPending;
+  const submitLabel = isSaving ? 'Saving...' : isEditing ? 'Save' : 'Create';
 
   return (
     <div className="space-y-4">
@@ -182,7 +183,7 @@ export function RatesContent(): JSX.Element {
               onClick={handleSubmit}
               disabled={!form.code.trim() || !form.value || isSaving}
             >
-              {isSaving ? 'Saving...' : isEditing ? 'Save' : 'Create'}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
