@@ -11,12 +11,12 @@ from app.modules.playbook.services.asset_service import (
 
 
 def _require_editor(user: PlaybookEditor) -> None:
-    pass
+    """FastAPI resolves PlaybookEditor via its type annotation."""
 
 
 router = create_asset_router(
     is_upload_available=is_upload_available,
     upload_image=upload_image,
     log_event="playbook_image_uploaded",
+    dependencies=[Depends(_require_editor)],
 )
-router.dependencies.append(Depends(_require_editor))
