@@ -1,52 +1,16 @@
 """Pydantic schemas for ISO doc page content and versions."""
 
-from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
-
-class PageContentResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    node_id: UUID
-    title: str
-    content: str
-    version: int
-    created_by_id: UUID | None
-    created_at: datetime
-
-
-class PageSave(BaseModel):
-    content: str
-    expected_version: int = Field(ge=0)
-
-
-class PageSaveResponse(BaseModel):
-    node_id: UUID
-    version: int
-    conflict: bool = False
-
-
-class VersionListItem(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    version: int
-    created_by_id: UUID | None
-    created_by_name: str | None = None
-    created_at: datetime
-    lines_added: int = 0
-    lines_removed: int = 0
-
-
-class VersionDetailResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    node_id: UUID
-    content: str
-    version: int
-    created_by_id: UUID | None
-    created_at: datetime
+from app.core.schemas.page import (  # noqa: F401
+    PageContentBase as PageContentResponse,
+    PageSave,
+    PageSaveResponse,
+    VersionDetailResponse,
+    VersionListItem,
+)
 
 
 class SearchResultItem(BaseModel):

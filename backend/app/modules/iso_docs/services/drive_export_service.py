@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import uuid
 from datetime import datetime, timezone
@@ -102,6 +103,21 @@ async def _retry_request(coro_factory, description: str = ""):
     raise last_exc  # type: ignore[misc]
 
 
+@dataclasses.dataclass
+class _WalkContext:
+    """Mutable state shared across the recursive tree walk."""
+
+    nodes: list[IsoDocNodeDB]
+    mappings: dict[uuid.UUID, str]
+    versions_map: dict[uuid.UUID, str]
+    metadata_map: dict[uuid.UUID, IsoDocMetadataDB]
+    registry_types: dict[uuid.UUID, RegistryTypeDB]
+    registry_rows: dict[uuid.UUID, list[RegistryRowDB]]
+    total: int
+    access_token: str
+    exported: int = 0
+
+
 class DriveExportService:
     """Exports the full ISO Docs tree to Google Drive."""
 
@@ -147,84 +163,33 @@ class DriveExportService:
                 [n for n in nodes if n.parent_id is None],
                 key=lambda n: n.position,
             )
-            total = len(nodes)
-            exported = 0
+
+            ctx = _WalkContext(
+                nodes=nodes,
+                mappings=mappings,
+                versions_map=versions_map,
+                metadata_map=metadata_map,
+                registry_types=registry_types,
+                registry_rows=registry_rows,
+                total=len(nodes),
+                access_token=access_token,
+            )
 
             async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
-
-                async def walk(
-                    children: list[IsoDocNodeDB],
-                    parent_drive_id: str,
-                    parent_title: str | None = None,
-                ) -> None:
-                    nonlocal exported, access_token
-                    for node in children:
-                        if node.type == "widget":
-                            exported += 1
-                            continue
-
-                        access_token = await self._refresh_if_needed(
-                            db, access_token
-                        )
-                        existing_drive_id = mappings.get(node.id)
-
-                        if node.type == "registry":
-                            rt = registry_types.get(node.registry_type_id)
-                            if rt:
-                                rows = registry_rows.get(node.id, [])
-                                meta = metadata_map.get(node.id)
-                                drive_id = await self._upsert_spreadsheet(
-                                    http, access_token, node.title,
-                                    rt.schema, rt.is_yearly, rows,
-                                    parent_drive_id, existing_drive_id, meta,
-                                )
-                                await self._save_mapping(
-                                    db, node.id, drive_id, "spreadsheet", mappings
-                                )
-
-                        elif node.type == "group":
-                            drive_id = await self._upsert_folder(
-                                http, access_token, node.title,
-                                parent_drive_id, existing_drive_id,
-                            )
-                            await self._save_mapping(
-                                db, node.id, drive_id, "folder", mappings
-                            )
-                            sub_children = [
-                                n for n in nodes if n.parent_id == node.id
-                            ]
-                            sub_children.sort(key=lambda n: n.title.lower())
-                            await walk(sub_children, drive_id, node.title)
-                        else:
-                            content = versions_map.get(node.id, "")
-                            meta = metadata_map.get(node.id)
-                            html = self._to_html(
-                                node.title, content, meta, parent_title
-                            )
-                            drive_id = await self._upsert_doc(
-                                http, access_token, node.title, html,
-                                parent_drive_id, existing_drive_id,
-                            )
-                            await self._save_mapping(
-                                db, node.id, drive_id, "document", mappings
-                            )
-
-                        exported += 1
-                        pct = int((exported / total) * 90) + 5
-                        await JobService.update_progress(
-                            db, job_uuid, pct, f"Exported {exported}/{total}"
-                        )
-
-                await walk(tree, root_folder_id)
+                await self._walk_children(
+                    db, http, ctx, tree, root_folder_id, job_uuid,
+                )
+                access_token = ctx.access_token
 
                 orphan_count = await self._cleanup_orphans(
-                    db, http, access_token, {n.id for n in nodes}, mappings
+                    db, http, ctx.access_token,
+                    {n.id for n in nodes}, mappings,
                 )
 
             await JobService.update_progress(db, job_uuid, 100, "Export complete")
 
             result = {
-                "exported": exported,
+                "exported": ctx.exported,
                 "orphans_removed": orphan_count,
                 "root_folder_id": root_folder_id,
             }
@@ -233,7 +198,7 @@ class DriveExportService:
             )
             logger.info(
                 "drive_export_completed",
-                exported=exported,
+                exported=ctx.exported,
                 orphans_removed=orphan_count,
             )
             return result
@@ -248,6 +213,117 @@ class DriveExportService:
             except Exception:
                 logger.error("drive_export_status_save_failed", job_id=job_id)
             raise
+
+    async def _walk_children(
+        self,
+        db: AsyncSession,
+        http: httpx.AsyncClient,
+        ctx: _WalkContext,
+        children: list[IsoDocNodeDB],
+        parent_drive_id: str,
+        job_uuid: uuid.UUID,
+        parent_title: str | None = None,
+    ) -> None:
+        for node in children:
+            if node.type == "widget":
+                ctx.exported += 1
+                continue
+
+            ctx.access_token = await self._refresh_if_needed(
+                db, ctx.access_token
+            )
+            existing_drive_id = ctx.mappings.get(node.id)
+
+            if node.type == "registry":
+                await self._export_registry_node(
+                    db, http, ctx, node, parent_drive_id, existing_drive_id,
+                )
+            elif node.type == "group":
+                await self._export_group_node(
+                    db, http, ctx, node, parent_drive_id,
+                    existing_drive_id, job_uuid,
+                )
+            else:
+                await self._export_page_node(
+                    db, http, ctx, node, parent_drive_id,
+                    existing_drive_id, parent_title,
+                )
+
+            ctx.exported += 1
+            pct = int((ctx.exported / ctx.total) * 90) + 5
+            await JobService.update_progress(
+                db, job_uuid, pct,
+                f"Exported {ctx.exported}/{ctx.total}",
+            )
+
+    async def _export_registry_node(
+        self,
+        db: AsyncSession,
+        http: httpx.AsyncClient,
+        ctx: _WalkContext,
+        node: IsoDocNodeDB,
+        parent_drive_id: str,
+        existing_drive_id: str | None,
+    ) -> None:
+        rt = ctx.registry_types.get(node.registry_type_id)
+        if not rt:
+            return
+        rows = ctx.registry_rows.get(node.id, [])
+        meta = ctx.metadata_map.get(node.id)
+        drive_id = await self._upsert_spreadsheet(
+            http, ctx.access_token, node.title,
+            rt.schema, rt.is_yearly, rows,
+            parent_drive_id, existing_drive_id, meta,
+        )
+        await self._save_mapping(
+            db, node.id, drive_id, "spreadsheet", ctx.mappings,
+        )
+
+    async def _export_group_node(
+        self,
+        db: AsyncSession,
+        http: httpx.AsyncClient,
+        ctx: _WalkContext,
+        node: IsoDocNodeDB,
+        parent_drive_id: str,
+        existing_drive_id: str | None,
+        job_uuid: uuid.UUID,
+    ) -> None:
+        drive_id = await self._upsert_folder(
+            http, ctx.access_token, node.title,
+            parent_drive_id, existing_drive_id,
+        )
+        await self._save_mapping(
+            db, node.id, drive_id, "folder", ctx.mappings,
+        )
+        sub_children = sorted(
+            [n for n in ctx.nodes if n.parent_id == node.id],
+            key=lambda n: n.title.lower(),
+        )
+        await self._walk_children(
+            db, http, ctx, sub_children, drive_id, job_uuid, node.title,
+        )
+
+    async def _export_page_node(
+        self,
+        db: AsyncSession,
+        http: httpx.AsyncClient,
+        ctx: _WalkContext,
+        node: IsoDocNodeDB,
+        parent_drive_id: str,
+        existing_drive_id: str | None,
+        parent_title: str | None,
+    ) -> None:
+        content = ctx.versions_map.get(node.id, "")
+        meta = ctx.metadata_map.get(node.id)
+        html = self._to_html(node.title, content, meta, parent_title)
+        drive_id = await self._upsert_doc(
+            http, ctx.access_token, node.title, html,
+            parent_drive_id, existing_drive_id,
+        )
+        await self._save_mapping(
+            db, node.id, drive_id, "document", ctx.mappings,
+        )
 
     async def _load_data(self, db: AsyncSession) -> dict:
         nodes_result = await db.execute(
@@ -361,7 +437,7 @@ class DriveExportService:
 
         if is_yearly and rows:
             xlsx_buf = _build_xlsx_multiyear(
-                title, schema, _group_rows_by_year(rows), metadata,
+                schema, _group_rows_by_year(rows), metadata,
             )
         else:
             xlsx_buf = _build_xlsx(title, schema, rows, metadata)

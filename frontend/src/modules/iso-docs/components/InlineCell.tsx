@@ -232,44 +232,71 @@ interface EditingFieldProps {
   readonly onSave: (key: string, value: unknown) => void;
 }
 
+function BooleanField({ col, draft, setDraft, setEditing, onSave }: Pick<EditingFieldProps, 'col' | 'draft' | 'setDraft' | 'setEditing' | 'onSave'>): JSX.Element {
+  return (
+    <Switch
+      className="flex items-center"
+      checked={!!draft}
+      onCheckedChange={(v) => { setDraft(v); setEditing(false); onSave(col.key, v); }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      autoFocus
+    />
+  );
+}
+
+function SelectField({ col, draft, setDraft, setEditing, onSave, cancel }: Pick<EditingFieldProps, 'col' | 'draft' | 'setDraft' | 'setEditing' | 'onSave' | 'cancel'>): JSX.Element {
+  return (
+    <Select
+      value={(draft as string) ?? ''}
+      onValueChange={(v) => { setDraft(v); setEditing(false); onSave(col.key, v); }}
+      open
+      onOpenChange={(open) => { if (!open) cancel(); }}
+    >
+      <SelectTrigger
+        className="h-7 text-sm min-w-[100px]"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <SelectValue placeholder="Select..." />
+      </SelectTrigger>
+      <SelectContent>
+        {(col.options ?? []).map((opt) => (
+          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function TextField({ draft, inputRef, setDraft, commit, cancel, handleKeyDown }: Pick<EditingFieldProps, 'draft' | 'inputRef' | 'setDraft' | 'commit' | 'cancel' | 'handleKeyDown'>): JSX.Element {
+  const strVal = (draft as string) ?? '';
+  if (strVal.length > 80 || strVal.includes('\n')) {
+    return (
+      <Textarea autoFocus className="text-sm min-h-[5rem]" value={strVal}
+        onChange={(e) => setDraft(e.target.value)} onClick={(e) => e.stopPropagation()}
+        onBlur={commit} onKeyDown={(e) => {
+          if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+          e.stopPropagation();
+        }} />
+    );
+  }
+  return (
+    <Input ref={inputRef} type="text" className="h-7 text-sm" value={strVal}
+      onChange={(e) => setDraft(e.target.value)} onClick={(e) => e.stopPropagation()}
+      onBlur={commit} onKeyDown={handleKeyDown} />
+  );
+}
+
 function EditingField({
   col, value, draft, inputRef, setDraft, commit, cancel, handleKeyDown, setEditing, onSave,
 }: EditingFieldProps): JSX.Element {
   switch (col.type) {
     case 'boolean':
-      return (
-        <Switch
-          className="flex items-center"
-          checked={!!draft}
-          onCheckedChange={(v) => { setDraft(v); setEditing(false); onSave(col.key, v); }}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          autoFocus
-        />
-      );
+      return <BooleanField col={col} draft={draft} setDraft={setDraft} setEditing={setEditing} onSave={onSave} />;
 
     case 'select':
-      return (
-        <Select
-          value={(draft as string) ?? ''}
-          onValueChange={(v) => { setDraft(v); setEditing(false); onSave(col.key, v); }}
-          open
-          onOpenChange={(open) => { if (!open) cancel(); }}
-        >
-          <SelectTrigger
-            className="h-7 text-sm min-w-[100px]"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <SelectValue placeholder="Select..." />
-          </SelectTrigger>
-          <SelectContent>
-            {(col.options ?? []).map((opt) => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
+      return <SelectField col={col} draft={draft} setDraft={setDraft} setEditing={setEditing} onSave={onSave} cancel={cancel} />;
 
     case 'user':
       return (
@@ -297,30 +324,49 @@ function EditingField({
           onClick={(e) => e.stopPropagation()} onBlur={commit} onKeyDown={handleKeyDown} />
       );
 
-    default: {
-      const strVal = (draft as string) ?? '';
-      if (strVal.length > 80 || strVal.includes('\n')) {
-        return (
-          <Textarea autoFocus className="text-sm min-h-[5rem]" value={strVal}
-            onChange={(e) => setDraft(e.target.value)} onClick={(e) => e.stopPropagation()}
-            onBlur={commit} onKeyDown={(e) => {
-              if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-              e.stopPropagation();
-            }} />
-        );
-      }
-      return (
-        <Input ref={inputRef} type="text" className="h-7 text-sm" value={strVal}
-          onChange={(e) => setDraft(e.target.value)} onClick={(e) => e.stopPropagation()}
-          onBlur={commit} onKeyDown={handleKeyDown} />
-      );
-    }
+    default:
+      return <TextField draft={draft} inputRef={inputRef} setDraft={setDraft} commit={commit} cancel={cancel} handleKeyDown={handleKeyDown} />;
   }
 }
 
-export function InlineCell({
-  value, col, isEditor, onSave, attachment, onUploadAttachment, onDeleteAttachment, wrap,
-}: InlineCellProps): JSX.Element {
+interface DisplayCellProps {
+  readonly value: unknown;
+  readonly col: ColumnDef;
+  readonly isEditor: boolean;
+  readonly wrap?: boolean;
+  readonly onStartEditing: (e: React.MouseEvent) => void;
+}
+
+function DisplayCell({ value, col, isEditor, wrap, onStartEditing }: DisplayCellProps): JSX.Element {
+  const editable = isEditor && col.type !== 'computed';
+  return (
+    <button
+      type="button"
+      className={`min-h-[1.5rem] flex ${wrap ? 'items-start' : 'items-center overflow-hidden'} bg-transparent border-0 p-0 text-left text-inherit font-inherit w-full ${editable ? 'cursor-text' : ''}`}
+      onDoubleClick={editable ? onStartEditing : undefined}
+      onKeyDown={editable ? (e) => { if (e.key === 'Enter') onStartEditing(e as unknown as React.MouseEvent); } : undefined}
+    >
+      <DisplayValue value={value} col={col} wrap={wrap} />
+    </button>
+  );
+}
+
+function useInlineEditing(
+  value: unknown,
+  colKey: string,
+  onSave: (key: string, value: unknown) => void,
+  isEditor: boolean,
+): {
+  editing: boolean;
+  setEditing: (v: boolean) => void;
+  draft: unknown;
+  setDraft: (v: unknown) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+  commit: () => void;
+  cancel: () => void;
+  handleKeyDown: (e: React.KeyboardEvent) => void;
+  startEditing: (e: React.MouseEvent) => void;
+} {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<unknown>(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -334,8 +380,8 @@ export function InlineCell({
 
   const commit = useCallback(() => {
     setEditing(false);
-    if (draft !== value) onSave(col.key, draft === '' ? null : draft);
-  }, [draft, value, col.key, onSave]);
+    if (draft !== value) onSave(colKey, draft === '' ? null : draft);
+  }, [draft, value, colKey, onSave]);
 
   const cancel = useCallback(() => { setDraft(value); setEditing(false); }, [value]);
 
@@ -352,23 +398,24 @@ export function InlineCell({
     setEditing(true);
   }, [isEditor, value]);
 
+  return { editing, setEditing, draft, setDraft, inputRef, commit, cancel, handleKeyDown, startEditing };
+}
+
+export function InlineCell({
+  value, col, isEditor, onSave, attachment, onUploadAttachment, onDeleteAttachment, wrap,
+}: InlineCellProps): JSX.Element {
+  const {
+    editing, setEditing, draft, setDraft, inputRef,
+    commit, cancel, handleKeyDown, startEditing,
+  } = useInlineEditing(value, col.key, onSave, isEditor);
+
   if (col.type === 'attachment') {
     return <AttachmentCell col={col} attachment={attachment} isEditor={isEditor}
       onUploadAttachment={onUploadAttachment} onDeleteAttachment={onDeleteAttachment} />;
   }
 
   if (!editing || col.type === 'computed') {
-    const editable = isEditor && col.type !== 'computed';
-    return (
-      <button
-        type="button"
-        className={`min-h-[1.5rem] flex ${wrap ? 'items-start' : 'items-center overflow-hidden'} bg-transparent border-0 p-0 text-left text-inherit font-inherit w-full ${editable ? 'cursor-text' : ''}`}
-        onDoubleClick={editable ? startEditing : undefined}
-        onKeyDown={editable ? (e) => { if (e.key === 'Enter') startEditing(e as unknown as React.MouseEvent); } : undefined}
-      >
-        <DisplayValue value={value} col={col} wrap={wrap} />
-      </button>
-    );
+    return <DisplayCell value={value} col={col} isEditor={isEditor} wrap={wrap} onStartEditing={startEditing} />;
   }
 
   return <EditingField col={col} value={value} draft={draft} inputRef={inputRef}

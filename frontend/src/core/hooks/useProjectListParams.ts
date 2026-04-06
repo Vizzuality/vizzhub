@@ -3,7 +3,7 @@ import { useUrlState } from '@/shared/hooks/useUrlState';
 import type { ProjectListParams, ProjectStatus } from '@/core/types/project';
 
 export type StatusFilter = 'all' | ProjectStatus;
-export type SortField = 'name' | 'created_at' | 'status';
+export type SortField = 'name' | 'created_at' | 'status' | 'score';
 export type SortOrder = 'asc' | 'desc';
 
 const listParamsSchema = {
@@ -52,8 +52,10 @@ export function useProjectListParams(): UseProjectListParamsReturn {
     if (statusFilter !== 'all') p.status = statusFilter;
     if (startDateFrom) p.start_date_from = startDateFrom;
     if (startDateTo) p.start_date_to = startDateTo;
-    p.sort = sortField;
-    p.order = sortOrder;
+    if (sortField !== 'score') {
+      p.sort = sortField;
+      p.order = sortOrder;
+    }
     return p;
   }, [page, searchName, statusFilter, startDateFrom, startDateTo, sortField, sortOrder]);
 
