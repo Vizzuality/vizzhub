@@ -83,21 +83,20 @@ export function PlannerCell({
     : { backgroundColor: cellColors?.bg, color: cellColors?.text };
 
   return (
-    <div
-      role="button"
-      className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none ${
+    <button
+      type="button"
+      className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none border-0 bg-transparent p-0 ${
         !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
       } ${selected ? 'ring-2 ring-inset ring-primary' : ''}`}
       style={cellStyle}
       onDoubleClick={startEditing}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
-      tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') startEditing();
       }}
     >
       {value ?? ''}
-    </div>
+    </button>
   );
 }

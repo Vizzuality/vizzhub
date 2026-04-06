@@ -260,6 +260,9 @@ export function UsersContent(): JSX.Element {
             {filteredUsers.map((user) => {
               const isCurrentUser = currentUser?.id === user.id;
               const fullName = getFullName(user.first_name, user.last_name, user.email);
+              const statusTitle = isCurrentUser
+                ? 'Cannot change your own status'
+                : user.active ? 'Click to deactivate' : 'Click to activate';
 
               return (
                 <tr key={user.id} className={`border-t ${!user.active ? 'opacity-60' : ''}`}>
@@ -292,7 +295,7 @@ export function UsersContent(): JSX.Element {
                         }
                       }}
                       disabled={isCurrentUser}
-                      title={isCurrentUser ? 'Cannot change your own status' : user.active ? 'Click to deactivate' : 'Click to activate'}
+                      title={statusTitle}
                     >
                       <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${
                         user.active ? 'bg-green-500' : 'bg-muted-foreground'

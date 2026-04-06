@@ -140,21 +140,28 @@ function TreeSidebar({
   onMove: (args: { dragIds: string[]; parentId: string | null; index: number }) => void;
   onAdd: () => void;
 }>): JSX.Element {
-  const sidebarContent = treeLoading ? (
-    <p className="text-sm text-muted-foreground p-2">Loading...</p>
-  ) : tree.length > 0 ? (
-    <PlaybookTree
-      data={tree}
-      selectedId={selectedId}
-      onSelect={onSelect}
-      onMove={isEditor ? onMove : undefined}
-    />
-  ) : (
-    <div className="text-center py-8 px-4">
-      <p className="text-sm text-muted-foreground mb-3">No pages yet</p>
-      {isEditor && <Button size="sm" onClick={onAdd}>Create your first page</Button>}
-    </div>
-  );
+  const getSidebarContent = (): JSX.Element => {
+    if (treeLoading) {
+      return <p className="text-sm text-muted-foreground p-2">Loading...</p>;
+    }
+    if (tree.length > 0) {
+      return (
+        <PlaybookTree
+          data={tree}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onMove={isEditor ? onMove : undefined}
+        />
+      );
+    }
+    return (
+      <div className="text-center py-8 px-4">
+        <p className="text-sm text-muted-foreground mb-3">No pages yet</p>
+        {isEditor && <Button size="sm" onClick={onAdd}>Create your first page</Button>}
+      </div>
+    );
+  };
+  const sidebarContent = getSidebarContent();
 
   return (
     <div className={`w-full md:w-72 shrink-0 border-r flex flex-col ${selectedId ? 'hidden md:flex' : ''}`}>
@@ -328,8 +335,9 @@ export default function Playbook(): JSX.Element {
     return countChildren(selectedNode);
   }, [selectedNode]);
 
+  const itemWord = descendantCount === 1 ? 'item' : 'items';
   const deleteDescription = selectedNode?.type === 'group' && descendantCount > 0
-    ? `This will also delete ${descendantCount} ${descendantCount === 1 ? 'item' : 'items'} inside this group. This action cannot be undone.`
+    ? `This will also delete ${descendantCount} ${itemWord} inside this group. This action cannot be undone.`
     : 'This action cannot be undone.';
 
   return (
@@ -501,11 +509,10 @@ export default function Playbook(): JSX.Element {
             )}
           </div>
         </div>
-        {isPage ? (
-          <PageViewer content={page?.content ?? ''} />
-        ) : selectedNode ? (
+        {isPage && <PageViewer content={page?.content ?? ''} />}
+        {!isPage && selectedNode && (
           <GroupChildren nodes={selectedNode.children} onSelect={handleSelect} />
-        ) : null}
+        )}
       </div>
     );
   }

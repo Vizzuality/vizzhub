@@ -178,7 +178,7 @@ export default function GlobalTimelineChart({
   return (
     <div
       className="w-full"
-      role="listbox"
+      role="toolbar"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Timeline period selector - use arrow keys to navigate"

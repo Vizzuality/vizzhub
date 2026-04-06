@@ -140,6 +140,9 @@ export default function UserDetail(): JSX.Element {
   }
 
   const fullName = getFullName(user.first_name, user.last_name, user.email);
+  const slackButtonLabel = syncSlack.isPending
+    ? 'Syncing...'
+    : user.slack_display_name ? 'Re-sync' : 'Link Slack';
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -322,7 +325,7 @@ export default function UserDetail(): JSX.Element {
             }}
             disabled={syncSlack.isPending}
           >
-            {syncSlack.isPending ? 'Syncing...' : user.slack_display_name ? 'Re-sync' : 'Link Slack'}
+            {slackButtonLabel}
           </Button>
         </div>
       </div>

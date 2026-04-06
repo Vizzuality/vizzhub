@@ -181,9 +181,13 @@ function ErrorFallback({ error }: { error: unknown }): JSX.Element {
   );
 }
 
+const sentryFallback = ({ error }: { error: unknown }): JSX.Element => (
+  <ErrorFallback error={error} />
+);
+
 function App(): JSX.Element {
   return (
-    <Sentry.ErrorBoundary fallback={({ error }) => <ErrorFallback error={error} />}>
+    <Sentry.ErrorBoundary fallback={sentryFallback}>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
