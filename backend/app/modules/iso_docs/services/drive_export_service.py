@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -27,7 +28,7 @@ logger = structlog.get_logger()
 
 DRIVE_API = "https://www.googleapis.com/drive/v3/files"
 DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
-DRIVE_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
+DRIVE_TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 ROOT_FOLDER_KEY = "root_folder_id"
 XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -64,8 +65,47 @@ _PILL = (
 )
 
 
+_RETRYABLE_ERRORS = (httpx.TimeoutException, httpx.ConnectError)
+_RETRYABLE_STATUS_CODES = {500, 502, 503, 429}
+MAX_RETRIES = 2
+RETRY_BACKOFF = 3  # seconds
+
+
+async def _retry_request(coro_factory, description: str = ""):
+    """Retry a Drive API call on transient errors (timeout, 5xx, 429)."""
+    last_exc: Exception | None = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            resp = await coro_factory()
+            if resp.status_code in _RETRYABLE_STATUS_CODES and attempt < MAX_RETRIES:
+                logger.warning(
+                    "drive_api_retry",
+                    status=resp.status_code,
+                    attempt=attempt + 1,
+                    description=description,
+                )
+                await asyncio.sleep(RETRY_BACKOFF * (attempt + 1))
+                continue
+            return resp
+        except _RETRYABLE_ERRORS as exc:
+            last_exc = exc
+            if attempt < MAX_RETRIES:
+                logger.warning(
+                    "drive_api_retry",
+                    error=str(exc),
+                    attempt=attempt + 1,
+                    description=description,
+                )
+                await asyncio.sleep(RETRY_BACKOFF * (attempt + 1))
+            else:
+                raise
+    raise last_exc  # type: ignore[misc]
+
+
 class DriveExportService:
     """Exports the full ISO Docs tree to Google Drive."""
+
+    _TOKEN_REFRESH_INTERVAL = 300  # seconds between token refresh checks
 
     async def export_tree(
         self,
@@ -80,6 +120,7 @@ class DriveExportService:
             access_token = await GoogleDriveOAuth.get_valid_token(db)
             if not access_token:
                 raise RuntimeError("Google Drive not connected")
+            self._token_refreshed_at = datetime.now(timezone.utc)
 
             data = await self._load_data(db)
             nodes = data["nodes"]
@@ -118,6 +159,10 @@ class DriveExportService:
                 ) -> None:
                     nonlocal exported, access_token
                     for node in children:
+                        if node.type == "widget":
+                            exported += 1
+                            continue
+
                         access_token = await self._refresh_if_needed(
                             db, access_token
                         )
@@ -195,10 +240,13 @@ class DriveExportService:
 
         except Exception as exc:
             logger.error("drive_export_failed", error=str(exc))
-            await JobService.update_status(
-                db, job_uuid, JobStatus.FAILED,
-                error_message=str(exc)[:1000],
-            )
+            try:
+                await JobService.update_status(
+                    db, job_uuid, JobStatus.FAILED,
+                    error_message=str(exc)[:1000],
+                )
+            except Exception:
+                logger.error("drive_export_status_save_failed", job_id=job_id)
             raise
 
     async def _load_data(self, db: AsyncSession) -> dict:
@@ -253,7 +301,12 @@ class DriveExportService:
     async def _refresh_if_needed(
         self, db: AsyncSession, current_token: str
     ) -> str:
+        now = datetime.now(timezone.utc)
+        elapsed = (now - self._token_refreshed_at).total_seconds()
+        if elapsed < self._TOKEN_REFRESH_INTERVAL:
+            return current_token
         refreshed = await GoogleDriveOAuth.get_valid_token(db)
+        self._token_refreshed_at = now
         return refreshed or current_token
 
     async def _upsert_folder(
@@ -320,14 +373,17 @@ class DriveExportService:
             await self._update_file_metadata(
                 http, token, existing_drive_id, title
             )
-            resp = await http.patch(
-                f"{DRIVE_UPLOAD_API}/{existing_drive_id}?uploadType=media",
-                content=xlsx_bytes,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": XLSX_CONTENT_TYPE,
-                },
-                params={"supportsAllDrives": "true"},
+            resp = await _retry_request(
+                lambda: http.patch(
+                    f"{DRIVE_UPLOAD_API}/{existing_drive_id}?uploadType=media",
+                    content=xlsx_bytes,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": XLSX_CONTENT_TYPE,
+                    },
+                    params={"supportsAllDrives": "true"},
+                ),
+                description=f"update spreadsheet {title}",
             )
             resp.raise_for_status()
             return existing_drive_id
@@ -337,16 +393,19 @@ class DriveExportService:
             "parents": [parent_drive_id],
             "mimeType": "application/vnd.google-apps.spreadsheet",
         }
-        resp = await http.post(
-            f"{DRIVE_UPLOAD_API}?uploadType=multipart",
-            headers={"Authorization": f"Bearer {token}"},
-            files={
-                "metadata": (
-                    None, json.dumps(drive_meta).encode(), "application/json",
-                ),
-                "file": (None, xlsx_bytes, XLSX_CONTENT_TYPE),
-            },
-            params={"fields": "id", "supportsAllDrives": "true"},
+        resp = await _retry_request(
+            lambda: http.post(
+                f"{DRIVE_UPLOAD_API}?uploadType=multipart",
+                headers={"Authorization": f"Bearer {token}"},
+                files={
+                    "metadata": (
+                        None, json.dumps(drive_meta).encode(), "application/json",
+                    ),
+                    "file": (None, xlsx_bytes, XLSX_CONTENT_TYPE),
+                },
+                params={"fields": "id", "supportsAllDrives": "true"},
+            ),
+            description=f"create spreadsheet {title}",
         )
         resp.raise_for_status()
         return resp.json()["id"]
@@ -495,19 +554,22 @@ class DriveExportService:
         self, http: httpx.AsyncClient, token: str,
         title: str, html: str, parent_id: str,
     ) -> str:
-        metadata = {
+        doc_meta = {
             "name": title,
             "mimeType": "application/vnd.google-apps.document",
             "parents": [parent_id],
         }
-        resp = await http.post(
-            f"{DRIVE_UPLOAD_API}?uploadType=multipart",
-            headers={"Authorization": f"Bearer {token}"},
-            files={
-                "metadata": (None, json.dumps(metadata).encode(), "application/json"),
-                "file": (None, html.encode(), "text/html"),
-            },
-            params={"fields": "id", "supportsAllDrives": "true"},
+        resp = await _retry_request(
+            lambda: http.post(
+                f"{DRIVE_UPLOAD_API}?uploadType=multipart",
+                headers={"Authorization": f"Bearer {token}"},
+                files={
+                    "metadata": (None, json.dumps(doc_meta).encode(), "application/json"),
+                    "file": (None, html.encode(), "text/html"),
+                },
+                params={"fields": "id", "supportsAllDrives": "true"},
+            ),
+            description=f"create doc {title}",
         )
         resp.raise_for_status()
         return resp.json()["id"]
@@ -528,11 +590,14 @@ class DriveExportService:
         self, http: httpx.AsyncClient, token: str,
         file_id: str, html: str,
     ) -> None:
-        resp = await http.patch(
-            f"{DRIVE_UPLOAD_API}/{file_id}?uploadType=media",
-            content=html.encode(),
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "text/html"},
-            params={"supportsAllDrives": "true"},
+        resp = await _retry_request(
+            lambda: http.patch(
+                f"{DRIVE_UPLOAD_API}/{file_id}?uploadType=media",
+                content=html.encode(),
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "text/html"},
+                params={"supportsAllDrives": "true"},
+            ),
+            description=f"update content {file_id}",
         )
         resp.raise_for_status()
 
