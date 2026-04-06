@@ -550,18 +550,21 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                 {visibleColumns.map((col) => (
                   <th
                     key={col.key}
-                    className="text-left px-3 py-2 font-medium text-muted-foreground whitespace-nowrap cursor-pointer select-none hover:text-foreground transition-colors"
+                    className="text-left px-3 py-2 font-medium text-muted-foreground whitespace-nowrap"
                     style={col.width ? { minWidth: col.width } : undefined}
-                    onClick={() => handleSort(col.key)}
                   >
-                    <span className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-foreground transition-colors bg-transparent border-0 p-0 font-inherit text-inherit"
+                      onClick={() => handleSort(col.key)}
+                    >
                       {col.label}
                       {sortKey === col.key && (
                         sortDir === 'asc'
                           ? <ArrowUp className="h-3 w-3" data-print-hide />
                           : <ArrowDown className="h-3 w-3" data-print-hide />
                       )}
-                    </span>
+                    </button>
                   </th>
                 ))}
                 {isEditor && (
@@ -618,7 +621,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
                     );
                   })}
                   {isEditor && (
-                    <td className="px-3 py-1.5 text-right" data-print-hide onClick={(e) => e.stopPropagation()}>
+                    <td className="px-3 py-1.5 text-right" data-print-hide>
                       <div className="flex items-center justify-end gap-0.5">
                         {row.attachments.length > 0 && (
                           <Button

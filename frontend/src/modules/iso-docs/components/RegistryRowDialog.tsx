@@ -92,7 +92,10 @@ export function RegistryRowDialog({
   };
 
   const attachments: RegistryAttachment[] = row?.attachments ?? [];
-  const submitLabel = isSaving ? 'Saving...' : row ? 'Save' : 'Add';
+  const submitLabel = (() => {
+    if (isSaving) return 'Saving...';
+    return row ? 'Save' : 'Add';
+  })();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -40,30 +40,35 @@ def _validate_field_type(value: object, col: dict) -> str | None:
     return None
 
 
+def _validate_column(
+    col: dict, value: object, partial: bool,
+) -> str | None:
+    """Validate a single column value. Returns error message or None."""
+    if col["type"] in ("computed", "attachment"):
+        return None
+
+    is_missing = value is None or (isinstance(value, str) and value.strip() == "")
+
+    if col.get("required") and is_missing and not partial:
+        return f"Field '{col['label']}' is required"
+
+    if is_missing:
+        return None
+
+    return _validate_field_type(value, col)
+
+
 def validate_row_data(
     schema: list[dict], data: dict, *, partial: bool = False
 ) -> list[str]:
     """Validate row data against registry type schema. Returns error list."""
-    errors: list[str] = []
     columns_by_key = {col["key"]: col for col in schema}
 
-    for key, col in columns_by_key.items():
-        if col["type"] in ("computed", "attachment"):
-            continue
-
-        value = data.get(key)
-        is_missing = value is None or (isinstance(value, str) and value.strip() == "")
-
-        if col.get("required") and is_missing and not partial:
-            errors.append(f"Field '{col['label']}' is required")
-            continue
-
-        if is_missing:
-            continue
-
-        error = _validate_field_type(value, col)
-        if error:
-            errors.append(error)
+    errors = [
+        err
+        for key, col in columns_by_key.items()
+        if (err := _validate_column(col, data.get(key), partial))
+    ]
 
     unknown_keys = set(data.keys()) - set(columns_by_key.keys())
     if unknown_keys:

@@ -228,9 +228,11 @@ function TreeSidebar({
     );
   }
 
-  const driveExportTitle = driveExporting
-    ? (driveProgress ? `Exporting (${driveProgress}%)` : 'Exporting...')
-    : 'Export to Google Drive';
+  const driveExportTitle = (() => {
+    if (driveExporting && driveProgress) return `Exporting (${driveProgress}%)`;
+    if (driveExporting) return 'Exporting...';
+    return 'Export to Google Drive';
+  })();
   const sidebarVisibility = (() => {
     if (selectedId && !collapsed) return 'hidden md:flex';
     if (collapsed) return 'flex';
