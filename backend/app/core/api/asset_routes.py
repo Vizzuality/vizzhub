@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Sequence
+from typing import Any, Callable
 
 import structlog
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from app.core.services.doc_asset_service import (
     ALLOWED_CONTENT_TYPES,
@@ -20,6 +21,7 @@ def create_asset_router(
     is_upload_available: Callable[[], bool],
     upload_image: Callable[[bytes, str, str], str],
     log_event: str,
+    dependencies: Sequence[Any] | None = None,
 ) -> APIRouter:
     """Build an asset upload router for a doc module.
 
@@ -28,7 +30,7 @@ def create_asset_router(
         upload_image: Module-specific upload function.
         log_event: Event name for the upload log (e.g. "playbook_image_uploaded").
     """
-    router = APIRouter()
+    router = APIRouter(dependencies=list(dependencies or []))
 
     @router.get("/status")
     async def asset_status() -> dict:
