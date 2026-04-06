@@ -19,7 +19,7 @@ import {
   type SortField,
   type StatusFilter,
   type SortOrder,
-} from '../hooks/useProjectListParams';
+} from '@/core/hooks/useProjectListParams';
 import { useProjectScoresMap } from '../hooks/useProjectScoresMap';
 import ProjectCard from '../components/Dashboard/ProjectCard';
 import { Button } from '@/shared/components/ui/button';

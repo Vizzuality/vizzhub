@@ -338,7 +338,7 @@ async def export_registry(
     if rt.is_yearly and year is None:
         all_rows = await _fetch_rows(db, node.id)
         xlsx_buf = _build_xlsx_multiyear(
-            node.title, columns, _group_rows_by_year(all_rows), metadata,
+            columns, _group_rows_by_year(all_rows), metadata,
         )
     else:
         xlsx_buf = _build_xlsx(node.title, columns, rows, metadata)
@@ -626,7 +626,7 @@ def _build_xlsx(
 
 
 def _build_xlsx_multiyear(
-    _title: str, columns: list[dict], rows_by_year: dict[int, list],
+    columns: list[dict], rows_by_year: dict[int, list],
     metadata=None,
 ) -> BytesIO:
     """Build an XLSX with one tab per year, most recent first."""
@@ -740,7 +740,7 @@ async def export_registry_to_drive(
     if rt.is_yearly and year is None:
         all_rows = await _fetch_rows(db, node.id)
         xlsx_buf = _build_xlsx_multiyear(
-            node.title, rt.schema, _group_rows_by_year(all_rows), doc_metadata,
+            rt.schema, _group_rows_by_year(all_rows), doc_metadata,
         )
         row_count = len(all_rows)
     else:
