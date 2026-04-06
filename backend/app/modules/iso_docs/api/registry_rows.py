@@ -626,7 +626,7 @@ def _build_xlsx(
 
 
 def _build_xlsx_multiyear(
-    node_title: str, columns: list[dict], rows_by_year: dict[int, list],
+    _title: str, columns: list[dict], rows_by_year: dict[int, list],
     metadata=None,
 ) -> BytesIO:
     """Build an XLSX with one tab per year, most recent first."""
