@@ -17,7 +17,6 @@ import {
 import api from '@/core/services/client';
 import type { WidgetProps } from '../index';
 import { ScorecardTable } from './ScorecardTable';
-import { ManualKpiTable } from './ManualKpiTable';
 import { useKpiDashboard } from './useKpiDashboard';
 
 function getCurrentCycleYear(): number {
@@ -105,20 +104,13 @@ export default function KpiDashboard({ nodeId, isEditor }: WidgetProps): React.R
         </DropdownMenu>
       </div>
 
-      <div>
-        <h3 className="text-base font-semibold mb-3">Global Scorecard</h3>
-        <ScorecardTable
-          months={months}
-          metricsByPeriod={metricsByPeriod}
-          globalWeights={globalWeights}
-          targets={targets}
-        />
-      </div>
-
-      <ManualKpiTable
-        nodeId={nodeId}
+      <ScorecardTable
         months={months}
-        rows={manualRows}
+        metricsByPeriod={metricsByPeriod}
+        globalWeights={globalWeights}
+        targets={targets}
+        manualRows={manualRows}
+        nodeId={nodeId}
         isEditor={isEditor}
         selectedYear={selectedYear}
       />
