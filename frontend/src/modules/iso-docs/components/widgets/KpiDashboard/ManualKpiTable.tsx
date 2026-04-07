@@ -92,15 +92,14 @@ export function ManualKpiTable({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">KPIs Manuales</h3>
-        {isEditor && (
+      {isEditor && (
+        <div className="flex justify-end">
           <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
             Add KPI
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">No manual KPIs yet</p>
