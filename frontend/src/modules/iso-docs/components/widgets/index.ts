@@ -1,6 +1,12 @@
+import { lazy } from 'react';
+
 export interface WidgetProps {
   readonly nodeId: string;
   readonly isEditor: boolean;
 }
 
-export const WIDGET_REGISTRY: Record<string, React.ComponentType<WidgetProps>> = {};
+const KpiDashboard = lazy(() => import('./KpiDashboard'));
+
+export const WIDGET_REGISTRY: Record<string, React.ComponentType<WidgetProps>> = {
+  kpi_dashboard: KpiDashboard,
+};

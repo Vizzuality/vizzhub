@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, Blocks, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -116,7 +116,11 @@ function WidgetRenderer({
 }>): JSX.Element {
   const Widget = WIDGET_REGISTRY[widgetKey];
   if (Widget) {
-    return <Widget nodeId={nodeId} isEditor={isEditor} />;
+    return (
+      <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Loading widget...</div>}>
+        <Widget nodeId={nodeId} isEditor={isEditor} />
+      </Suspense>
+    );
   }
   return (
     <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
