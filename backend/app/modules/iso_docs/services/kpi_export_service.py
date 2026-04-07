@@ -28,6 +28,21 @@ MANUAL_KPI_FIELDS = ["name", "scope", "responsible", "methodology", "formula", "
 MANUAL_KPI_HEADERS = ["Name", "Scope", "Responsible", "Methodology", "Formula", "Target", "Periodicity"]
 
 
+def generate_iso_periods(
+    start_year: int, start_month: int, end_year: int, end_month: int
+) -> list[tuple[int, int]]:
+    """Return (year, month) tuples for the inclusive range."""
+    periods: list[tuple[int, int]] = []
+    year, month = start_year, start_month
+    while (year, month) <= (end_year, end_month):
+        periods.append((year, month))
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+    return periods
+
+
 class KpiExportService:
     """Generates XLSX with Global Scorecard and manual KPI sheets for the KPI Dashboard widget."""
 
@@ -47,7 +62,7 @@ class KpiExportService:
         end_month: int,
     ) -> BytesIO:
         """Build workbook with two sheets: Global Scorecard and KPIs manuales."""
-        periods = self._generate_periods(start_year, start_month, end_year, end_month)
+        periods = generate_iso_periods(start_year, start_month, end_year, end_month)
 
         wb = Workbook()
         ws_scorecard = wb.active
@@ -153,7 +168,7 @@ class KpiExportService:
         freeze_panes(ws, 2, len(MANUAL_KPI_FIELDS) + 1)
 
         widths = {}
-        for i, col in enumerate(MANUAL_KPI_FIELDS):
+        for i in range(len(MANUAL_KPI_FIELDS)):
             widths[get_column_letter(i + 1)] = 20
         for i, _ in enumerate(periods):
             widths[get_column_letter(len(MANUAL_KPI_FIELDS) + 1 + i)] = 12
@@ -178,21 +193,6 @@ class KpiExportService:
         if indicator_val and indicator_val.value is not None:
             return round(indicator_val.value, 1)
         return None
-
-    @staticmethod
-    def _generate_periods(
-        start_year: int, start_month: int, end_year: int, end_month: int
-    ) -> list[tuple[int, int]]:
-        """Generate list of (year, month) tuples for the given inclusive range."""
-        periods: list[tuple[int, int]] = []
-        year, month = start_year, start_month
-        while (year, month) <= (end_year, end_month):
-            periods.append((year, month))
-            month += 1
-            if month > 12:
-                month = 1
-                year += 1
-        return periods
 
     def _get_target_for_metric(self, key: str, level: int) -> str | None:
         """Get display-friendly target string for a metric row."""

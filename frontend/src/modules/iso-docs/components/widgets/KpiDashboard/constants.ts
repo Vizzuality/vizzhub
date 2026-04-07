@@ -247,7 +247,7 @@ export const DIMENSION_DEFINITIONS: DimensionDef[] = [
   },
 ];
 
-export function buildScorecardRows(): ScorecardRowDef[] {
+function buildScorecardRows(): ScorecardRowDef[] {
   const rows: ScorecardRowDef[] = [];
 
   rows.push({
@@ -282,6 +282,8 @@ export function buildScorecardRows(): ScorecardRowDef[] {
 
   return rows;
 }
+
+export const SCORECARD_ROWS: ScorecardRowDef[] = buildScorecardRows();
 
 export const GLOBAL_WEIGHT_KEYS: Record<string, string> = {
   p_time: 'time',

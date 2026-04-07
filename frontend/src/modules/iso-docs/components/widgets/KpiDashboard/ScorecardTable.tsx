@@ -1,15 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/shared/components/ui/button';
-import { buildScorecardRows, GLOBAL_WEIGHT_KEYS, DIMENSION_DEFINITIONS, monthToDataKey } from './constants';
+import { SCORECARD_ROWS, GLOBAL_WEIGHT_KEYS, DIMENSION_DEFINITIONS } from './constants';
 import { periodKey } from './useKpiDashboard';
-import { AddKpiDialog } from './AddKpiDialog';
-import {
-  useCreateRegistryRow,
-  useUpdateRegistryRow,
-  useDeleteRegistryRow,
-} from '../../../hooks/useRegistryRows';
+import { ManualKpiTable } from './ManualKpiTable';
 import type { MonthColumn } from './types';
 import type { RegistryRow } from '../../../types/registry';
 import type { GlobalMetricsRecord, ScoringConfig } from '@/modules/scorecard/types';
@@ -82,12 +76,6 @@ function getTarget(
   return String(t);
 }
 
-interface EditingCell {
-  rowId: string;
-  monthKey: string;
-  value: string;
-}
-
 export function ScorecardTable({
   months,
   metricsByPeriod,
@@ -99,15 +87,8 @@ export function ScorecardTable({
   selectedYear,
 }: ScorecardTableProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
-  const createRow = useCreateRegistryRow(nodeId);
-  const updateRow = useUpdateRegistryRow(nodeId);
-  const deleteRow = useDeleteRegistryRow(nodeId);
-
-  const allRows = buildScorecardRows();
-  const visibleRows = allRows.filter((row) => {
+  const visibleRows = SCORECARD_ROWS.filter((row) => {
     if (row.level !== 2) return true;
     return !collapsed.has(row.parentKey ?? '');
   });
@@ -119,37 +100,6 @@ export function ScorecardTable({
       else next.add(key);
       return next;
     });
-  }
-
-  function handleAdd(data: Record<string, unknown>): void {
-    createRow.mutate(
-      { data, year: selectedYear },
-      { onSuccess: () => setDialogOpen(false) },
-    );
-  }
-
-  function handleCellClick(rowId: string, monthKey: string, currentValue: unknown): void {
-    if (!isEditor) return;
-    setEditingCell({
-      rowId,
-      monthKey,
-      value: currentValue !== null && currentValue !== undefined ? String(currentValue) : '',
-    });
-  }
-
-  function handleCellSave(row: RegistryRow): void {
-    if (!editingCell) return;
-    const numericValue = editingCell.value === '' ? null : Number(editingCell.value);
-    updateRow.mutate({
-      rowId: row.id,
-      data: { data: { ...row.data, [editingCell.monthKey]: numericValue } },
-    });
-    setEditingCell(null);
-  }
-
-  function handleCellKeyDown(e: React.KeyboardEvent, row: RegistryRow): void {
-    if (e.key === 'Enter') handleCellSave(row);
-    else if (e.key === 'Escape') setEditingCell(null);
   }
 
   const dimensionKeys = new Set(DIMENSION_DEFINITIONS.map((d) => d.key));
@@ -175,7 +125,6 @@ export function ScorecardTable({
           </tr>
         </thead>
         <tbody>
-          {/* Scorecard rows (read-only) */}
           {visibleRows.map((row) => {
             const isDimension = dimensionKeys.has(row.key);
             const isCollapsed = collapsed.has(row.key);
@@ -226,86 +175,15 @@ export function ScorecardTable({
               </tr>
             );
           })}
-
-          {/* Manual KPI rows (editable) */}
-          {manualRows.map((row) => (
-            <tr key={row.id} className="border-b hover:bg-muted/20 transition-colors">
-              <td className="sticky left-0 z-10 bg-background px-3 py-2 font-medium">
-                {String(row.data.name ?? '—')}
-              </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {String(row.data.methodology ?? '—')}
-              </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {String(row.data.formula ?? '—')}
-              </td>
-              <td className="px-3 py-2 text-center">
-                {row.data.target != null ? String(row.data.target) : '—'}
-              </td>
-              <td className="px-3 py-2 text-center" />
-              {months.map((m) => {
-                const monthKey = monthToDataKey(m.month);
-                const cellValue = row.data[monthKey];
-                const isEditing = editingCell?.rowId === row.id && editingCell?.monthKey === monthKey;
-
-                return (
-                  <td
-                    key={`${m.year}-${m.month}`}
-                    className="px-2 py-2 text-center tabular-nums"
-                    onClick={() => handleCellClick(row.id, monthKey, cellValue)}
-                  >
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        step="any"
-                        className="w-16 text-center border rounded px-1 py-0.5 text-sm bg-background"
-                        value={editingCell.value}
-                        onChange={(e) =>
-                          setEditingCell((prev) => prev ? { ...prev, value: e.target.value } : prev)
-                        }
-                        onBlur={() => handleCellSave(row)}
-                        onKeyDown={(e) => handleCellKeyDown(e, row)}
-                        autoFocus
-                      />
-                    ) : (
-                      <span className={cn(isEditor && 'cursor-pointer hover:text-foreground')}>
-                        {cellValue != null ? String(cellValue) : '—'}
-                      </span>
-                    )}
-                  </td>
-                );
-              })}
-              {isEditor && (
-                <td className="px-2 py-2 text-center">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    onClick={() => deleteRow.mutate(row.id)}
-                    aria-label="Delete KPI row"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </td>
-              )}
-            </tr>
-          ))}
         </tbody>
       </table>
 
-      {isEditor && (
-        <div className="flex justify-end mt-2">
-          <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Add KPI
-          </Button>
-        </div>
-      )}
-
-      <AddKpiDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={handleAdd}
-        isLoading={createRow.isPending}
+      <ManualKpiTable
+        nodeId={nodeId}
+        months={months}
+        rows={manualRows}
+        isEditor={isEditor}
+        selectedYear={selectedYear}
       />
     </div>
   );
