@@ -321,6 +321,8 @@ async def export_registry(
     await check_user_access(db, node_id, user)
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
+    if rt is None:
+        raise HTTPException(status_code=404, detail="Registry type not found")
     rows = await _fetch_rows(db, node.id, year)
     metadata = await _fetch_metadata(db, node.id)
 
@@ -430,6 +432,8 @@ async def import_registry(
 
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
+    if rt is None:
+        raise HTTPException(status_code=404, detail="Registry type not found")
 
     content = await file.read()
     text = content.decode("utf-8-sig")
