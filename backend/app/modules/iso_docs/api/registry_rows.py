@@ -57,7 +57,7 @@ router = APIRouter()
 async def _get_registry_node(db, node_id: UUID) -> IsoDocNodeDB:
     result = await db.execute(
         select(IsoDocNodeDB).where(
-            IsoDocNodeDB.id == node_id, IsoDocNodeDB.type == "registry"
+            IsoDocNodeDB.id == node_id, IsoDocNodeDB.type.in_(["registry", "widget"])
         )
     )
     node = result.scalar_one_or_none()
@@ -66,7 +66,9 @@ async def _get_registry_node(db, node_id: UUID) -> IsoDocNodeDB:
     return node
 
 
-async def _get_registry_type(db, type_id: UUID) -> RegistryTypeDB:
+async def _get_registry_type(db, type_id: UUID | None) -> RegistryTypeDB | None:
+    if type_id is None:
+        return None
     result = await db.execute(
         select(RegistryTypeDB).where(RegistryTypeDB.id == type_id)
     )
@@ -156,8 +158,9 @@ async def list_rows(
     await check_user_access(db, node_id, user)
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
-    rows = await _fetch_rows(db, node.id, year, rt.default_sort_key)
-    return _enrich_rows(rows, rt.schema)
+    sort_key = rt.default_sort_key if rt else None
+    rows = await _fetch_rows(db, node.id, year, sort_key)
+    return _enrich_rows(rows, rt.schema if rt else [])
 
 
 @router.post(
@@ -177,14 +180,16 @@ async def create_row(
 ) -> RegistryRowResponse:
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
+    schema = rt.schema if rt else []
 
-    if rt.is_yearly and data.year is None:
+    if rt and rt.is_yearly and data.year is None:
         raise HTTPException(status_code=400, detail="Year is required for yearly registries")
 
-    clean_data = strip_computed_keys(rt.schema, data.data)
-    errors = validate_row_data(rt.schema, clean_data)
-    if errors:
-        raise HTTPException(status_code=422, detail=errors)
+    clean_data = strip_computed_keys(schema, data.data) if schema else data.data
+    if schema:
+        errors = validate_row_data(schema, clean_data)
+        if errors:
+            raise HTTPException(status_code=422, detail=errors)
 
     row_index = await get_next_row_index(db, node.id, data.year)
     row = RegistryRowDB(
@@ -199,7 +204,7 @@ async def create_row(
     await db.flush()
     await db.refresh(row)
     logger.info("registry_row_created", node_id=str(node_id), row_id=str(row.id))
-    return _enrich_row(row, rt.schema)
+    return _enrich_row(row, schema)
 
 
 @router.patch(
@@ -218,6 +223,7 @@ async def update_row(
 ) -> RegistryRowResponse:
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
+    schema = rt.schema if rt else []
 
     result = await db.execute(
         select(RegistryRowDB).where(
@@ -228,18 +234,19 @@ async def update_row(
     if not row:
         raise HTTPException(status_code=404, detail="Row not found")
 
-    clean_update = strip_computed_keys(rt.schema, data.data)
+    clean_update = strip_computed_keys(schema, data.data) if schema else data.data
     merged = {**row.data, **clean_update}
-    errors = validate_row_data(rt.schema, merged)
-    if errors:
-        raise HTTPException(status_code=422, detail=errors)
+    if schema:
+        errors = validate_row_data(schema, merged)
+        if errors:
+            raise HTTPException(status_code=422, detail=errors)
 
     row.data = merged
     row.updated_by_id = UUID(user.user_id)
     await db.flush()
     await db.refresh(row)
     logger.info("registry_row_updated", node_id=str(node_id), row_id=str(row_id))
-    return _enrich_row(row, rt.schema)
+    return _enrich_row(row, schema)
 
 
 @router.delete(
