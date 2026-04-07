@@ -34,6 +34,7 @@ vi.mock('../../../../hooks/useRegistryRows', () => ({
   useCreateRegistryRow: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateRegistryRow: () => ({ mutate: vi.fn() }),
   useDeleteRegistryRow: () => ({ mutate: vi.fn() }),
+  useCopyYear: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 import KpiDashboard from '../KpiDashboard';

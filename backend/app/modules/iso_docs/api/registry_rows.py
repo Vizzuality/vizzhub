@@ -492,7 +492,7 @@ async def copy_year(
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
 
-    if not rt.is_yearly:
+    if rt and not rt.is_yearly:
         raise HTTPException(status_code=400, detail="Only yearly registries support copy")
     if source_year == target_year:
         raise HTTPException(status_code=400, detail="Source and target year must differ")
