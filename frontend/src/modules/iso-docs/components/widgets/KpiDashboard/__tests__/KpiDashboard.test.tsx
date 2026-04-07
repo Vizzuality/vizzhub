@@ -55,7 +55,7 @@ describe('KpiDashboard', () => {
     renderDashboard();
 
     expect(screen.getByText('FINAL SCORE')).toBeInTheDocument();
-    expect(screen.getByText('Global Scorecard')).toBeInTheDocument();
+    expect(screen.getByText('P_time — Schedule')).toBeInTheDocument();
   });
 
   it('shows cycle selector', () => {

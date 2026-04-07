@@ -1,9 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { ScorecardTable } from '../ScorecardTable';
 import type { GlobalMetricsRecord, ScoringConfig } from '@/modules/scorecard/types';
 import type { MonthColumn } from '../types';
+
+vi.mock('../../../../hooks/useRegistryRows', () => ({
+  useCreateRegistryRow: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateRegistryRow: () => ({ mutate: vi.fn() }),
+  useDeleteRegistryRow: () => ({ mutate: vi.fn() }),
+}));
 
 function makeIndicatorValue(value: number): { value: number; count: number } {
   return { value, count: 5 };
@@ -97,17 +104,25 @@ const mockTargets: ScoringConfig['targets'] = {
   okr_impact: 0.55,
 };
 
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 function renderTable(): void {
   const metricsByPeriod = new Map<string, GlobalMetricsRecord>();
   metricsByPeriod.set('2025-3', mockRecord);
 
   render(
-    <ScorecardTable
-      months={mockMonths}
-      metricsByPeriod={metricsByPeriod}
-      globalWeights={mockGlobalWeights}
-      targets={mockTargets}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <ScorecardTable
+        months={mockMonths}
+        metricsByPeriod={metricsByPeriod}
+        globalWeights={mockGlobalWeights}
+        targets={mockTargets}
+        manualRows={[]}
+        nodeId="test-node"
+        isEditor={false}
+        selectedYear={2025}
+      />
+    </QueryClientProvider>,
   );
 }
 
