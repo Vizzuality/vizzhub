@@ -28,16 +28,16 @@ MANUAL_KPI_FIELDS = ["name", "scope", "responsible", "methodology", "formula", "
 MANUAL_KPI_HEADERS = ["Name", "Scope", "Responsible", "Methodology", "Formula", "Target", "Periodicity"]
 
 
-MAX_PERIOD_MONTHS = 24
+ISO_CYCLE_MONTHS = 12
 
 
 def generate_iso_periods(
-    start_year: int, start_month: int, end_year: int, end_month: int
+    start_year: int, start_month: int, end_year: int, end_month: int,
 ) -> list[tuple[int, int]]:
-    """Return (year, month) tuples for the inclusive range, capped at MAX_PERIOD_MONTHS."""
+    """Return exactly 12 (year, month) tuples for a fixed ISO cycle."""
     periods: list[tuple[int, int]] = []
-    year, month = start_year, start_month
-    while (year, month) <= (end_year, end_month) and len(periods) < MAX_PERIOD_MONTHS:
+    year, month = int(start_year), int(start_month)
+    for _ in range(ISO_CYCLE_MONTHS):
         periods.append((year, month))
         month += 1
         if month > 12:
