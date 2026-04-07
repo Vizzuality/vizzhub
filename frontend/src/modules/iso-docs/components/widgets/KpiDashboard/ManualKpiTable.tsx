@@ -36,6 +36,11 @@ interface EditingCell {
   value: string;
 }
 
+function formatCellValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  return String(value);
+}
+
 export function ManualKpiTable({
   nodeId,
   months,
@@ -81,9 +86,8 @@ export function ManualKpiTable({
     }
   }
 
-  function formatCellValue(value: unknown): string {
-    if (value === null || value === undefined) return '—';
-    return String(value);
+  function handleEditingCellChange(value: string): void {
+    setEditingCell((prev) => (prev ? { ...prev, value } : prev));
   }
 
   return (
@@ -161,11 +165,7 @@ export function ManualKpiTable({
                             step="any"
                             className="w-16 text-center border rounded px-1 py-0.5 text-sm bg-background"
                             value={editingCell.value}
-                            onChange={(e) =>
-                              setEditingCell((prev) =>
-                                prev ? { ...prev, value: e.target.value } : prev,
-                              )
-                            }
+                            onChange={(e) => handleEditingCellChange(e.target.value)}
                             onBlur={() => handleCellSave(row)}
                             onKeyDown={(e) => handleCellKeyDown(e, row)}
                             autoFocus
