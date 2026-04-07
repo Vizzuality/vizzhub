@@ -8,5 +8,6 @@ export interface WidgetProps {
 const KpiDashboard = lazy(() => import('./KpiDashboard'));
 
 export const WIDGET_REGISTRY: Record<string, React.ComponentType<WidgetProps>> = {
+  kpis: KpiDashboard,
   kpi_dashboard: KpiDashboard,
 };

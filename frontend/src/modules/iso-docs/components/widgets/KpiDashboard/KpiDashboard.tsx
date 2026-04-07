@@ -72,7 +72,7 @@ export default function KpiDashboard({ nodeId, isEditor }: WidgetProps): React.R
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Ciclo:</span>
+          <span className="text-sm font-medium">Cycle:</span>
           <Select
             value={String(selectedYear)}
             onValueChange={(v) => setSelectedYear(Number(v))}
