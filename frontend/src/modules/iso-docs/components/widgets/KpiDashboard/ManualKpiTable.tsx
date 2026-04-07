@@ -81,10 +81,6 @@ export function ManualKpiTable({
     }
   }
 
-  function handleDelete(rowId: string): void {
-    deleteRow.mutate(rowId);
-  }
-
   function formatCellValue(value: unknown): string {
     if (value === null || value === undefined) return '—';
     return String(value);
@@ -193,7 +189,7 @@ export function ManualKpiTable({
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
-                        onClick={() => handleDelete(row.id)}
+                        onClick={() => deleteRow.mutate(row.id)}
                         disabled={deleteRow.isPending}
                         aria-label="Delete KPI row"
                       >

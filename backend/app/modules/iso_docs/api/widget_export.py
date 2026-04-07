@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from io import BytesIO
 from typing import Annotated
 from uuid import UUID
 
@@ -18,7 +19,7 @@ from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.modules.iso_docs.api.deps import IsoDocsEditor, check_user_access
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.registry_row import RegistryRowDB
-from app.modules.iso_docs.services.kpi_export_service import KpiExportService
+from app.modules.iso_docs.services.kpi_export_service import KpiExportService, generate_iso_periods
 from app.modules.scorecard.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
 
 logger = structlog.get_logger()
@@ -54,7 +55,7 @@ async def export_kpi_widget(
     if node is None or node.type != "widget":
         raise HTTPException(status_code=404, detail="Widget node not found")
 
-    xlsx_buf, manual_count = await _build_widget_xlsx(db, node_id, year, config)
+    xlsx_buf = await _build_widget_xlsx(db, node_id, year, config)
 
     filename = f"kpi_dashboard_{year}.xlsx"
     logger.info("kpi_widget_exported", node_id=str(node_id), year=year)
@@ -66,14 +67,11 @@ async def export_kpi_widget(
     )
 
 
-async def _build_widget_xlsx(
-    db, node_id: UUID, year: int, config,
-):
+async def _build_widget_xlsx(db, node_id: UUID, year: int, config) -> BytesIO:
     """Build XLSX for KPI widget — shared by download and Drive export."""
     start_year, start_month = year, 3
     end_year, end_month = year + 1, 2
-
-    periods = list(_iter_periods(start_year, start_month, end_year, end_month))
+    periods = generate_iso_periods(start_year, start_month, end_year, end_month)
 
     global_rows_result = await db.execute(
         select(GlobalMetricsDB).where(
@@ -94,15 +92,14 @@ async def _build_widget_xlsx(
     )
     manual_rows = registry_rows_result.scalars().all()
 
-    service = KpiExportService(config)
-    return service.build_xlsx(
+    return KpiExportService(config).build_xlsx(
         global_by_period=global_by_period,
         manual_rows=manual_rows,
         start_year=start_year,
         start_month=start_month,
         end_year=end_year,
         end_month=end_month,
-    ), len(manual_rows)
+    )
 
 
 @router.post(
@@ -136,7 +133,7 @@ async def export_kpi_widget_to_drive(
     if node is None or node.type != "widget":
         raise HTTPException(status_code=404, detail="Widget node not found")
 
-    xlsx_buf, manual_count = await _build_widget_xlsx(db, node_id, year, config)
+    xlsx_buf = await _build_widget_xlsx(db, node_id, year, config)
     file_name = f"{node.title} ({year}–{year + 1})"
 
     async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
@@ -207,16 +204,3 @@ async def export_kpi_widget_to_drive(
 
     logger.info("kpi_widget_exported_to_drive", node_id=str(node_id), drive_file_id=drive_file_id)
     return {"drive_file_id": drive_file_id}
-
-
-def _iter_periods(
-    start_year: int, start_month: int, end_year: int, end_month: int
-):
-    """Yield (year, month) tuples for the given inclusive range."""
-    year, month = start_year, start_month
-    while (year, month) <= (end_year, end_month):
-        yield year, month
-        month += 1
-        if month > 12:
-            month = 1
-            year += 1

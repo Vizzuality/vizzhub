@@ -17,7 +17,7 @@ interface KpiDashboardData {
   isLoading: boolean;
 }
 
-function periodKey(year: number, month: number): string {
+export function periodKey(year: number, month: number): string {
   return `${year}-${month}`;
 }
 
@@ -68,5 +68,3 @@ export function useKpiDashboard(nodeId: string, selectedYear: number): KpiDashbo
     isLoading: historyLoading || configLoading || rowsLoading,
   };
 }
-
-export { periodKey };
