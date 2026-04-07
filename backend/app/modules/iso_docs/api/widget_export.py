@@ -30,7 +30,10 @@ DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files"
 DRIVE_TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 
 
-@router.get("/widgets/{node_id}/export")
+@router.get(
+    "/widgets/{node_id}/export",
+    responses={404: {"description": "Widget node not found"}},
+)
 @limiter.limit("10/minute")
 async def export_kpi_widget(
     request: Request,

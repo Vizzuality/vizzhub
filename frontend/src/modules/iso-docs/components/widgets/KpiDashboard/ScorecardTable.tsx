@@ -19,7 +19,9 @@ interface ScorecardTableProps {
   readonly selectedYear: number;
 }
 
-function scoreColor(value: number | null, level: 0 | 1 | 2): string {
+type ScoreLevel = 0 | 1 | 2;
+
+function scoreColor(value: number | null, level: ScoreLevel): string {
   if (value === null) return '';
   if (level === 2) return '';
 
@@ -31,29 +33,29 @@ function scoreColor(value: number | null, level: 0 | 1 | 2): string {
 function extractValue(
   record: GlobalMetricsRecord,
   key: string,
-  level: 0 | 1 | 2,
+  level: ScoreLevel,
 ): number | null {
   if (level === 0) {
     const s = record.scores.score;
     if (!s || s.count === 0) return null;
-    return s.value !== null ? Math.round(s.value * 10) / 10 : null;
+    return s.value === null ? null : Math.round(s.value * 10) / 10;
   }
   if (level === 1) {
     const scores = record.scores as unknown as Record<string, { value: number | null; count: number }>;
     const entry = scores[key];
     if (!entry || entry.count === 0) return null;
-    return entry.value !== null ? Math.round(entry.value * 10) / 10 : null;
+    return entry.value === null ? null : Math.round(entry.value * 10) / 10;
   }
   const indicators = record.indicators as unknown as Record<string, { value: number | null; count: number }>;
   const entry = indicators[key];
   if (!entry || entry.count === 0) return null;
   const v = entry.value;
-  return v !== null ? Math.round(v * 10) / 10 : null;
+  return v === null ? null : Math.round(v * 10) / 10;
 }
 
 function getWeight(
   key: string,
-  level: 0 | 1 | 2,
+  level: ScoreLevel,
   globalWeights: ScoringConfig['global_weights'],
 ): string {
   if (level !== 1) return '';
@@ -67,7 +69,7 @@ function getWeight(
 
 function getTarget(
   key: string,
-  level: 0 | 1 | 2,
+  level: ScoreLevel,
   targets: ScoringConfig['targets'],
 ): string {
   if (level <= 1) return '80';
@@ -167,7 +169,7 @@ export function ScorecardTable({
                       key={`${m.year}-${m.month}`}
                       className={cn('px-2 py-2 text-center tabular-nums', value !== null && scoreColor(value, row.level))}
                     >
-                      {value !== null ? value : '—'}
+                      {value ?? '—'}
                     </td>
                   );
                 })}
