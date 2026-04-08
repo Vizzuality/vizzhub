@@ -2,9 +2,20 @@ import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { plannerApi } from '@/modules/capacity/services/planner';
-import type { CellUpdate, PlannerResponse } from '@/modules/capacity/types/planner';
+import type { CellUpdate, PlannerResponse, PlannerRow } from '@/modules/capacity/types/planner';
 
 const DEBOUNCE_MS = 800;
+
+function updateRowCells(row: PlannerRow, update: CellUpdate): PlannerRow {
+  if (row.project_id !== update.project_id || row.user_id !== update.user_id) return row;
+  const cells = { ...row.cells };
+  if (update.percentage === null) {
+    delete cells[update.week_start];
+  } else {
+    cells[update.week_start] = update.percentage;
+  }
+  return { ...row, cells };
+}
 
 interface UsePlannerMutationsReturn {
   queueCellUpdate: (update: CellUpdate) => void;
@@ -64,16 +75,7 @@ export function usePlannerMutations(
           ...prev,
           groups: prev.groups.map((g) => ({
             ...g,
-            rows: g.rows.map((r) => {
-              if (r.project_id !== update.project_id || r.user_id !== update.user_id) return r;
-              const cells = { ...r.cells };
-              if (update.percentage === null) {
-                delete cells[update.week_start];
-              } else {
-                cells[update.week_start] = update.percentage;
-              }
-              return { ...r, cells };
-            }),
+            rows: g.rows.map((r) => updateRowCells(r, update)),
           })),
         };
       });
