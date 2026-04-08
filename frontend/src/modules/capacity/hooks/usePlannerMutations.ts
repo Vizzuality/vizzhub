@@ -26,7 +26,7 @@ export function usePlannerMutations(
 
   const cellMutation = useMutation({
     mutationFn: (updates: CellUpdate[]) => plannerApi.updateCells(updates),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.capacity.planner(start, end, groupBy),
       });
