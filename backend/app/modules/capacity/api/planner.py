@@ -86,7 +86,10 @@ def _process_rows(rows, group_by: str) -> dict[str, dict]:
             row_key = f"{row.user_id}:{row.project_id}"
 
         if group_key not in groups_map:
-            groups_map[group_key] = {"id": group_key, "name": group_name, "rows": []}
+            group_data: dict = {"id": group_key, "name": group_name, "rows": []}
+            if group_by == "user":
+                group_data["functional_area"] = _fa_short_name(row.functional_area)
+            groups_map[group_key] = group_data
 
         if row_key not in rows_map:
             row_data = _build_row_data(row)
@@ -111,7 +114,12 @@ async def _inject_empty_groups(
         )
     else:
         stmt = (
-            select(UserDB.id, _user_name_expr().label("name"))
+            select(
+                UserDB.id,
+                _user_name_expr().label("name"),
+                FunctionalAreaDB.name.label("functional_area"),
+            )
+            .outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
             .where(UserDB.active.is_(True))
             .where(UserDB.requires_project_reporting.is_(True))
             .order_by(UserDB.name)
@@ -120,7 +128,10 @@ async def _inject_empty_groups(
     for g in (await db.execute(stmt)).all():
         key = str(g.id)
         if key not in groups_map:
-            groups_map[key] = {"id": key, "name": g.name, "rows": []}
+            group_data: dict = {"id": key, "name": g.name, "rows": []}
+            if group_by == "user":
+                group_data["functional_area"] = _fa_short_name(getattr(g, "functional_area", None))
+            groups_map[key] = group_data
 
 
 async def _inject_pinned_rows(

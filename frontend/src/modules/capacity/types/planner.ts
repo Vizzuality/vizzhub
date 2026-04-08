@@ -12,6 +12,7 @@ export interface PlannerRow {
 export interface PlannerGroup {
   id: string;
   name: string;
+  functional_area?: string;
   rows: PlannerRow[];
 }
 

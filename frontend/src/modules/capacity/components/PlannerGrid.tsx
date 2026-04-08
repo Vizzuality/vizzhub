@@ -186,17 +186,16 @@ export function PlannerGrid({
   // Filter by FA if set
   const filteredGroups = useMemo(() => {
     if (fa === 'all') return groups;
+    if (groupBy === 'user') {
+      return groups.filter((g) => g.functional_area === fa);
+    }
     return groups
-      .map((g) => {
-        const hasMatchingRow = g.rows.some((r) => !r.is_absence && !r.is_other && r.functional_area === fa);
-        if (!hasMatchingRow) return { ...g, rows: [] };
-        return {
-          ...g,
-          rows: g.rows.filter((r) => r.is_absence || r.is_other || r.functional_area === fa),
-        };
-      })
+      .map((g) => ({
+        ...g,
+        rows: g.rows.filter((r) => r.functional_area === fa),
+      }))
       .filter((g) => g.rows.length > 0);
-  }, [groups, fa]);
+  }, [groups, fa, groupBy]);
 
   // Flatten groups into rows for the table
   const flatRows = useMemo((): FlatRow[] => {
