@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { plannerApi } from '@/modules/capacity/services/planner';
-import type { CellUpdate } from '@/modules/capacity/types/planner';
+import type { CellUpdate, PlannerResponse } from '@/modules/capacity/types/planner';
 
 const DEBOUNCE_MS = 800;
 
@@ -55,18 +55,45 @@ export function usePlannerMutations(
     await cellMutation.mutateAsync(updates);
   }, [cellMutation]);
 
+  const applyOptimisticUpdate = useCallback(
+    (update: CellUpdate): void => {
+      const qk = queryKeys.capacity.planner(start, end, groupBy);
+      queryClient.setQueryData<PlannerResponse>(qk, (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          groups: prev.groups.map((g) => ({
+            ...g,
+            rows: g.rows.map((r) => {
+              if (r.project_id !== update.project_id || r.user_id !== update.user_id) return r;
+              const cells = { ...r.cells };
+              if (update.percentage === null) {
+                delete cells[update.week_start];
+              } else {
+                cells[update.week_start] = update.percentage;
+              }
+              return { ...r, cells };
+            }),
+          })),
+        };
+      });
+    },
+    [queryClient, start, end, groupBy],
+  );
+
   const queueCellUpdate = useCallback(
     (update: CellUpdate): void => {
       const key = `${update.project_id}:${update.user_id}:${update.week_start}`;
       pendingRef.current.set(key, update);
       setPendingCount(pendingRef.current.size);
+      applyOptimisticUpdate(update);
 
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         flushUpdates();
       }, DEBOUNCE_MS);
     },
-    [flushUpdates],
+    [flushUpdates, applyOptimisticUpdate],
   );
 
   const deleteRow = useCallback(
