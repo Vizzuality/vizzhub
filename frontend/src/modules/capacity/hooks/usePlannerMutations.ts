@@ -36,7 +36,7 @@ export function usePlannerMutations(
   const deleteMutation = useMutation({
     mutationFn: ({ projectId, userId }: { projectId: string; userId: string }) =>
       plannerApi.deleteRow(projectId, userId),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.capacity.planner(start, end, groupBy),
       });
