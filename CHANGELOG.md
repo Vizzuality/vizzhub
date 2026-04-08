@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-04-08] - KPI Dashboard & Cleanup
+
+### Added
+- KPI Dashboard widget for ISO Docs (live scorecard + manual KPIs)
+- XLSX and Google Drive export for KPI dashboard
+- Copy manual KPIs between ISO cycles
+- Delete confirmation dialog for manual KPIs
+
+### Fixed
+- P_risk gradual scoring (target_high_vuln_count 0→5)
+- Risk calculator test updated for gradual vuln scoring
+
+### Changed
+- Removed accidental root package.json; moved shadcn to frontend devDependencies
+- Removed one-time seed/migration scripts
+
 ## [2026-04-03] - Registry UX & Metadata Improvements
 
 ### Added
