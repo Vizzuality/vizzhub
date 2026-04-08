@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/shared/components/ui/alert-dialog';
 import { SCORECARD_ROWS, GLOBAL_WEIGHT_KEYS, DIMENSION_DEFINITIONS, monthToDataKey } from './constants';
 import { periodKey } from './useKpiDashboard';
 import { AddKpiDialog } from './AddKpiDialog';
@@ -252,15 +257,27 @@ export function ScorecardTable({
                 })}
                 {isEditor && (
                   <td className="px-2 py-2 text-center">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => deleteRow.mutate(row.id)}
-                      aria-label="Delete KPI row"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Delete KPI row">
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete KPI</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will delete &quot;{String(row.data.name ?? 'this KPI')}&quot; from the current cycle. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteRow.mutate(row.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </td>
                 )}
               </tr>
