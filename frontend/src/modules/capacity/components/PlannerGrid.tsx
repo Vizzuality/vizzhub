@@ -189,7 +189,7 @@ export function PlannerGrid({
     return groups
       .map((g) => ({
         ...g,
-        rows: g.rows.filter((r) => r.functional_area === fa),
+        rows: g.rows.filter((r) => r.is_absence || r.is_other || r.functional_area === fa),
       }))
       .filter((g) => g.rows.length > 0);
   }, [groups, fa]);
