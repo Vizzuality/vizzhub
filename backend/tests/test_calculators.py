@@ -435,11 +435,13 @@ class TestRiskCalculator:
         score = calc.calculate(perfect_indicators, total_prs=100)
         assert score == 100
 
-    def test_high_vuln_strict_penalty(self, config: ScoringConfig) -> None:
+    def test_high_vuln_gradual_penalty(self, config: ScoringConfig) -> None:
         calc = RiskCalculator(config)
         indicators = IndicatorsCreate(prs_without_review=0, high_vulns=1)
         score = calc.calculate(indicators, total_prs=100)
-        assert score == 50  # 0.5 * 1.0 (no PRs without review) + 0.5 * 0.0 (strict zero)
+        # target=5: vuln_score = max(0, 1 - 1/5) = 0.8
+        # 0.5 * 1.0 (perfect PR review) + 0.5 * 0.8 = 90
+        assert score == 90
 
     def test_no_data_returns_none(self, config: ScoringConfig) -> None:
         calc = RiskCalculator(config)
