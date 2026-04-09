@@ -121,59 +121,25 @@ async def main():
         print()
 
         pool = await get_redis_pool()
-        results = []
-        earliest_year, earliest_month = to_year, to_month
+        jobs = []
 
+        # Enqueue all jobs at once — worker processes them sequentially
         for i, project in enumerate(projects, 1):
             start = project.start_date or date(DEFAULT_START_YEAR, DEFAULT_START_MONTH, 1)
-            if (start.year, start.month) < (earliest_year, earliest_month):
-                earliest_year, earliest_month = start.year, start.month
-
-            print(f"[{i}/{len(projects)}] {project.name} ({start} -> {to_year}-{to_month:02d})")
-
+            print(f"[{i}/{len(projects)}] Enqueuing {project.name} ({start} -> {to_year}-{to_month:02d})")
             try:
                 job = await enqueue_capture(db, pool, project, to_year, to_month)
                 print(f"  Job {job.id} enqueued")
-
-                completed_job = await wait_for_job(db, job.id, project.name)
-                if completed_job and completed_job.status == JobStatus.COMPLETED:
-                    result_data = completed_job.result or {}
-                    captured = result_data.get("captured", "?")
-                    errors = result_data.get("errors", 0)
-                    print(f"  OK: {captured} months captured, {errors} errors")
-                    results.append((project.name, "OK", f"{captured} months, {errors} errors"))
-                elif completed_job:
-                    error = completed_job.error_message or "unknown error"
-                    print(f"  FAILED: {error}")
-                    results.append((project.name, "FAILED", error[:100]))
-                else:
-                    results.append((project.name, "FAILED", "job disappeared"))
+                jobs.append((project.name, str(job.id)))
             except Exception as e:
                 print(f"  ERROR: {e}")
-                results.append((project.name, "ERROR", str(e)[:100]))
 
         await pool.close()
 
-        # Recalculate global metrics
-        print(f"\nRecalculating global metrics ({earliest_year}-{earliest_month:02d} to {to_year}-{to_month:02d})...")
-        try:
-            global_results = await recalculate_global(db, earliest_year, earliest_month, to_year, to_month)
-            print(f"  Global metrics recalculated for {len(global_results)} months")
-        except Exception as e:
-            print(f"  ERROR recalculating global: {e}")
-
-    # Summary
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    ok = sum(1 for _, s, _ in results if s == "OK")
-    failed = len(results) - ok
-    print(f"Total: {len(results)} | OK: {ok} | Failed: {failed}")
-    if failed:
-        print("\nFailed projects:")
-        for name, status, detail in results:
-            if status != "OK":
-                print(f"  - {name}: {detail}")
+    print(f"\nAll {len(jobs)} jobs enqueued. Monitor progress in /admin/jobs.")
+    print("When all jobs complete, recalculate global metrics via:")
+    print(f"  POST /api/metrics/global/calculate")
+    print(f'  Body: {{"from_year": 2022, "from_month": 1, "to_year": {to_year}, "to_month": {to_month}}}')
     print()
 
 
