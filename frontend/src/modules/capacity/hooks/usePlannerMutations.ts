@@ -17,6 +17,16 @@ function updateRowCells(row: PlannerRow, update: CellUpdate): PlannerRow {
   return { ...row, cells };
 }
 
+function applyUpdateToResponse(prev: PlannerResponse, update: CellUpdate): PlannerResponse {
+  return {
+    ...prev,
+    groups: prev.groups.map((g) => ({
+      ...g,
+      rows: g.rows.map((r) => updateRowCells(r, update)),
+    })),
+  };
+}
+
 interface UsePlannerMutationsReturn {
   queueCellUpdate: (update: CellUpdate) => void;
   flushUpdates: () => Promise<void>;
@@ -71,13 +81,7 @@ export function usePlannerMutations(
       const qk = queryKeys.capacity.planner(start, end, groupBy);
       queryClient.setQueryData<PlannerResponse>(qk, (prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          groups: prev.groups.map((g) => ({
-            ...g,
-            rows: g.rows.map((r) => updateRowCells(r, update)),
-          })),
-        };
+        return applyUpdateToResponse(prev, update);
       });
     },
     [queryClient, start, end, groupBy],
