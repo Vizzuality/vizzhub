@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+## Tech Radar
+
+Source of truth for technology decisions: `gh api repos/Vizzuality/vizzuality-engineering-handbook/contents/decisions/tech-radar`
+Before suggesting a library or pattern, check it against the radar. Adopt tier is approved by default. Anything else requires team discussion.
+
 ## Commands
 
 Backend: `cd backend && pytest` / `python run_server.py`
