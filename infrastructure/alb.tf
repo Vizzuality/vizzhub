@@ -161,6 +161,87 @@ resource "aws_lb_listener_rule" "api" {
   }
 }
 
+# Block common vulnerability scanner paths
+resource "aws_lb_listener_rule" "block_scanners" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = ""
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/phpmyadmin*", "/pma*", "/mysql*", "/db*", "/adminer*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "block_scanners_wp" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 2
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = ""
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/wp-admin*", "/wp-login*", "/wp-includes*", "/wp-content*", "/wordpress*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "block_scanners_dotfiles" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 3
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = ""
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/.env*", "/.git*", "/.aws*", "/.ssh*", "/.htaccess*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "block_scanners_misc" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 4
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = ""
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/cgi-bin*", "/vendor*", "/xmlrpc*", "/config.php*", "/admin/config*"]
+    }
+  }
+}
+
 # Listener Rule - /health → backend
 resource "aws_lb_listener_rule" "health" {
   listener_arn = aws_lb_listener.https.arn
