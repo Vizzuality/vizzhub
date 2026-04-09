@@ -23,6 +23,27 @@ export function useUsers(
   });
 }
 
+export interface UserSummary {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  active: boolean;
+}
+
+/**
+ * Fetch active users (any authenticated user). Lightweight, for dropdowns.
+ */
+export function useUserSummaries(): ReturnType<typeof useQuery<UserSummary[], Error>> {
+  return useQuery({
+    queryKey: queryKeys.users.summaries,
+    queryFn: async (): Promise<UserSummary[]> => {
+      const response = await api.get<UserSummary[]>('/users');
+      return response.data;
+    },
+  });
+}
+
 /**
  * Fetch a single user by ID (admin only).
  */

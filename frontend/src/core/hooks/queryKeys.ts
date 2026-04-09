@@ -80,6 +80,7 @@ export const queryKeys = {
   },
   users: {
     all: ['users'] as const,
+    summaries: ['users', 'summaries'] as const,
     detail: (id: string) => ['users', id] as const,
     roles: ['users', 'roles'] as const,
   },
