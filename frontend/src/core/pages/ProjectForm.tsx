@@ -12,7 +12,7 @@ import {
 } from '@/core/hooks/useProjects';
 import { usePrograms, useCreateProgram } from '@/core/hooks/usePrograms';
 import { useSlackChannels } from '@/core/hooks/useSlackChannels';
-import { useUsers } from '@/core/hooks/useUsers';
+import { useUserSummaries } from '@/core/hooks/useUsers';
 import { getFullName } from '@/utils/formatters';
 import {
   useCurrentPeriodMetrics,
@@ -270,10 +270,9 @@ export default function ProjectForm(): JSX.Element {
     isCheckingStatus,
   } = useSlackChannels();
 
-  const { data: users } = useUsers();
+  const { data: users } = useUserSummaries();
   const activeUsersSorted = useMemo(
     () => (users ?? [])
-      .filter((u) => u.active)
       .sort((a, b) => getFullName(a.first_name, a.last_name).localeCompare(getFullName(b.first_name, b.last_name))),
     [users],
   );
