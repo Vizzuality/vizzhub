@@ -30,7 +30,7 @@ Sentry.init({
     }),
   ],
   tracesSampleRate: 0.2,
-  enabled: !!import.meta.env.VITE_SENTRY_DSN,
+  enabled: !!import.meta.env.VITE_SENTRY_DSN && import.meta.env.VITE_APP_ENV !== 'development',
 });
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';

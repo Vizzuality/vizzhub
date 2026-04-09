@@ -60,7 +60,7 @@ def _sentry_before_send(
     return event
 
 
-if settings.sentry_dsn:
+if settings.sentry_dsn and settings.app_env != "development":
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.app_env,
