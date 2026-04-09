@@ -2,8 +2,10 @@
 
 ## Tech Radar
 
-Source of truth for technology decisions: `gh api repos/Vizzuality/vizzuality-engineering-handbook/contents/decisions/tech-radar`
-Before suggesting a library or pattern, check it against the radar. Adopt tier is approved by default. Anything else requires team discussion.
+**MUST check before suggesting any library, framework, or pattern.** Run:
+`gh api repos/Vizzuality/vizzuality-engineering-handbook/contents/decisions/tech-radar/<file>.md --jq '.content' | base64 -d`
+Files: `development.md`, `devops.md`, `tools-and-libraries.md`, `data-science-gis.md`.
+Only Adopt tier is auto-approved. Trial/Assess/Hold requires team discussion. If a technology is not in the radar, flag it to the user.
 
 ## Commands
 
