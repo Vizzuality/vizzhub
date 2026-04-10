@@ -24,6 +24,8 @@ from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.registry_row import RegistryRowDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
+
+_REGISTRY_TYPE_NOT_FOUND = "Registry type not found"
 from app.modules.iso_docs.schemas.registry import (
     RegistryRowCreate,
     RegistryRowReorder,
@@ -74,7 +76,7 @@ async def _get_registry_type(db, type_id: UUID | None) -> RegistryTypeDB | None:
     )
     rt = result.scalar_one_or_none()
     if not rt:
-        raise HTTPException(status_code=404, detail="Registry type not found")
+        raise HTTPException(status_code=404, detail=_REGISTRY_TYPE_NOT_FOUND)
     return rt
 
 
@@ -322,7 +324,7 @@ async def export_registry(
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
     if rt is None:
-        raise HTTPException(status_code=404, detail="Registry type not found")
+        raise HTTPException(status_code=404, detail=_REGISTRY_TYPE_NOT_FOUND)
     rows = await _fetch_rows(db, node.id, year)
     metadata = await _fetch_metadata(db, node.id)
 
@@ -433,7 +435,7 @@ async def import_registry(
     node = await _get_registry_node(db, node_id)
     rt = await _get_registry_type(db, node.registry_type_id)
     if rt is None:
-        raise HTTPException(status_code=404, detail="Registry type not found")
+        raise HTTPException(status_code=404, detail=_REGISTRY_TYPE_NOT_FOUND)
 
     content = await file.read()
     text = content.decode("utf-8-sig")
