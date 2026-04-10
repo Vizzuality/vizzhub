@@ -161,7 +161,7 @@ Returns rows for a specific registry, with computed fields injected.
 - No pagination — ISO registries rarely exceed 100 rows. Add `limit/offset` if needed later
 - Attachments excluded — S3 URLs not useful in conversational context
 
-**Slug resolution:** `data/iso.py` includes a `resolve_registry_node(session, slug)` function that encapsulates the JOIN between `registry_types` and `iso_doc_nodes`. Tools never need to know this relationship.
+**Slug resolution:** ISO registries live as nodes in the ISO document tree (`iso_doc_nodes`), each linked to a `registry_type` that defines the schema. `data/iso.py` includes a `resolve_registry_node(session, slug)` function that encapsulates this JOIN — given a slug, it returns the registry type and its associated node. Tools never need to know this relationship.
 
 ### `iso_get_documents(category?, search?)`
 
@@ -218,12 +218,16 @@ Full-text search across document content. Returns matching snippets with context
     "title": "Information Security Policy",
     "section": "## 4.3 Encryption",
     "snippet": "...All data in transit must use TLS 1.2+. Remote access requires VPN with AES-256 encryption...",
-    "relevance": 0.82
+    "rank": 0.82
   }
 ]
 ```
 
 **Implementation:** PostgreSQL native full-text search using `to_tsvector('english', content)` and `ts_headline()` for snippet generation. No extensions required.
+
+`rank` is the PostgreSQL `ts_rank` value, useful only for ordering results. It is not a normalized 0–1 score. Do not interpret it as a percentage of relevance.
+
+The `section` field requires documents to have Markdown headings. `data/iso.py` extracts the nearest preceding heading (`## ...`) from the matched position. If the document has no headings, `section` returns `null`.
 
 ## Database Migration
 
@@ -266,16 +270,19 @@ All settings via environment variables. No config files — the MCP client passe
   "vizzhub": {
     "command": "python",
     "args": ["-m", "mcp_server"],
-    "cwd": "/path/to/vizzhub/backend",
+    "cwd": "/path/to/vizzhub",
     "env": {
       "DATABASE_URL": "postgresql+asyncpg://...",
-      "MCP_USER_EMAIL": "miguel@vizzuality.com"
+      "MCP_USER_EMAIL": "miguel@vizzuality.com",
+      "PYTHONPATH": "/path/to/vizzhub/backend"
     }
   }
 }
 ```
 
 Added alongside existing MCP servers (shadcn, sonarqube, sentry).
+
+`cwd` is the repo root so that `python -m mcp_server` resolves the package. `PYTHONPATH` includes `backend/` so that imports from `app.modules.*` resolve. Both are needed.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 
@@ -285,10 +292,11 @@ Added alongside existing MCP servers (shadcn, sonarqube, sentry).
     "vizzhub": {
       "command": "/path/to/vizzhub/backend/.venv/bin/python",
       "args": ["-m", "mcp_server"],
-      "cwd": "/path/to/vizzhub/backend",
+      "cwd": "/path/to/vizzhub",
       "env": {
         "DATABASE_URL": "postgresql+asyncpg://...",
-        "MCP_USER_EMAIL": "miguel@vizzuality.com"
+        "MCP_USER_EMAIL": "miguel@vizzuality.com",
+        "PYTHONPATH": "/path/to/vizzhub/backend"
       }
     }
   }
@@ -300,6 +308,10 @@ Key difference: Claude Desktop does not inherit the virtualenv, so `command` poi
 ### Credentials
 
 `DATABASE_URL` contains credentials and must not be committed. `.mcp.json` is already in `.gitignore` (or a `.mcp.json.example` with placeholders is committed instead).
+
+### Environment safety
+
+`.mcp.json` is per-developer and not committed. Each developer points `DATABASE_URL` to their local or dev database. Never configure the MCP server to connect to the production database — the read-only session prevents writes but still exposes production data locally, which is unnecessary for development and a risk for ISO 27001 compliance.
 
 ## CD / Deployment Impact
 
@@ -365,6 +377,7 @@ Uses MCP Python SDK test utilities (server object directly, no stdio).
 2. Claude Code: "How many security incidents in 2026?" → queries incident register, counts
 3. Claude Code: "What does our security policy say about remote access?" → searches docs, reads relevant section, answers
 4. Claude Desktop: repeat #1 to verify it works there too
+5. Claude Code: ask it to "add a new row to the incident register". Verify the MCP server returns a clear message ("Write operations are not available in Phase 1") rather than a PostgreSQL error or stack trace.
 
 ## Dependencies
 
