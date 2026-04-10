@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, func as sa_func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
@@ -30,20 +31,20 @@ _latest_version_sq = (
 _SUMMARY_LENGTH = 200
 
 
-async def get_documents(
-    session: AsyncSession,
-    category: str | None = None,
-    title_search: str | None = None,
-) -> list[dict]:
-    """Return ISO documents (page nodes) with metadata and content summary."""
-    stmt = (
+def _doc_base_query(*extra_columns) -> Select:
+    """Build the common SELECT + JOIN chain for document queries.
+
+    Joins iso_doc_nodes -> metadata -> latest version subquery -> version.
+    Callers pass extra columns (e.g. content, summary) to include beyond
+    the standard slug/title/category/doc_version.
+    """
+    return (
         select(
             IsoDocNodeDB.slug,
             IsoDocNodeDB.title,
             IsoDocMetadataDB.category,
             IsoDocMetadataDB.doc_version,
-            IsoDocVersionDB.created_at.label("last_updated"),
-            sa_func.left(IsoDocVersionDB.content, _SUMMARY_LENGTH).label("summary"),
+            *extra_columns,
         )
         .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
         .join(
@@ -58,8 +59,20 @@ async def get_documents(
             ),
         )
         .where(IsoDocNodeDB.type == "page")
-        .order_by(IsoDocNodeDB.title)
     )
+
+
+async def get_documents(
+    session: AsyncSession,
+    category: str | None = None,
+    title_search: str | None = None,
+) -> list[dict]:
+    """Return ISO documents (page nodes) with metadata and content summary."""
+    stmt = _doc_base_query(
+        IsoDocVersionDB.created_at.label("last_updated"),
+        sa_func.left(IsoDocVersionDB.content, _SUMMARY_LENGTH).label("summary"),
+    ).order_by(IsoDocNodeDB.title)
+
     if category is not None:
         stmt = stmt.where(IsoDocMetadataDB.category == category)
     if title_search is not None:
@@ -74,29 +87,10 @@ async def get_document(session: AsyncSession, slug: str) -> dict:
 
     Raises ValueError if slug not found.
     """
-    stmt = (
-        select(
-            IsoDocNodeDB.slug,
-            IsoDocNodeDB.title,
-            IsoDocMetadataDB.category,
-            IsoDocMetadataDB.doc_version,
-            IsoDocVersionDB.content,
-        )
-        .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
-        .join(
-            _latest_version_sq,
-            _latest_version_sq.c.node_id == IsoDocNodeDB.id,
-        )
-        .join(
-            IsoDocVersionDB,
-            and_(
-                IsoDocVersionDB.node_id == IsoDocNodeDB.id,
-                IsoDocVersionDB.version == _latest_version_sq.c.max_version,
-            ),
-        )
-        .where(IsoDocNodeDB.type == "page")
-        .where(IsoDocNodeDB.slug == slug)
-    )
+    stmt = _doc_base_query(
+        IsoDocVersionDB.content,
+    ).where(IsoDocNodeDB.slug == slug)
+
     result = await session.execute(stmt)
     row = result.first()
     if row is None:
