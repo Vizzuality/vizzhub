@@ -12,7 +12,7 @@ os.environ.setdefault(
 
 from collections.abc import AsyncGenerator
 from unittest.mock import patch
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
