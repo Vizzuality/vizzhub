@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ChangelogEntry(BaseModel):
@@ -34,6 +34,12 @@ class MetadataResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @model_validator(mode="after")
+    def _derive_doc_version(self) -> MetadataResponse:
+        if self.changelog:
+            self.doc_version = self.changelog[-1].version
+        return self
+
 
 class MetadataUpdate(BaseModel):
     code: str | None = Field(None, max_length=50)
@@ -43,7 +49,6 @@ class MetadataUpdate(BaseModel):
         None,
         pattern=r"^(internal_use|confidential)$",
     )
-    doc_version: str | None = Field(None, max_length=20)
     status: str | None = Field(
         None,
         pattern=r"^(draft|approved|under_review)$",
