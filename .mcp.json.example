@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "vizzhub": {
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "cwd": "/path/to/vizzhub",
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost:5432/dbname",
+        "MCP_USER_EMAIL": "you@vizzuality.com",
+        "PYTHONPATH": "/path/to/vizzhub/backend"
+      }
+    }
+  }
+}
