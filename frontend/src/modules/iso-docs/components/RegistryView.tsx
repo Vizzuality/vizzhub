@@ -693,7 +693,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
 
       <RegistryTypeDialog
         open={typeDialogOpen}
-        onOpenChange={(v) => { if (!v) setTypeError(null); setTypeDialogOpen(v); }}
+        onOpenChange={(v) => { if (!v) { setTypeError(null); } setTypeDialogOpen(v); }}
         registryType={registryType}
         onSave={handleSaveType}
         isSaving={updateType.isPending}
