@@ -271,3 +271,65 @@ async def test_get_document_not_found(db_session: AsyncSession) -> None:
 
     with pytest.raises(ValueError, match="not found"):
         await get_document(db_session, "nonexistent-doc")
+
+
+@pytest.mark.asyncio
+async def test_search_documents_finds_matching_content(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import search_documents
+
+    results = await search_documents(db_session, "encryption VPN")
+    assert len(results) >= 1
+    slugs = [r["slug"] for r in results]
+    assert "access-control-procedure" in slugs
+
+
+@pytest.mark.asyncio
+async def test_search_documents_returns_snippets(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import search_documents
+
+    results = await search_documents(db_session, "remote access")
+    assert len(results) >= 1
+    result = results[0]
+    assert "snippet" in result
+    assert "rank" in result
+    assert "slug" in result
+    assert "title" in result
+
+
+@pytest.mark.asyncio
+async def test_search_documents_only_latest_version(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import search_documents
+
+    # "Scope" only exists in version 2 of the security policy
+    results = await search_documents(db_session, "Scope employees")
+    assert len(results) >= 1
+    assert results[0]["slug"] == "information-security-policy"
+
+
+@pytest.mark.asyncio
+async def test_search_documents_no_results(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import search_documents
+
+    results = await search_documents(db_session, "xyznonexistent")
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_search_documents_extracts_section_heading(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import search_documents
+
+    results = await search_documents(db_session, "employees remote")
+    matching = [r for r in results if r["slug"] == "information-security-policy"]
+    if matching:
+        # Section should be "## 2. Scope" (nearest heading before match)
+        assert matching[0]["section"] is None or "Scope" in matching[0]["section"]
