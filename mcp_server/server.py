@@ -11,3 +11,5 @@ mcp = FastMCP(
         "Document content can be searched with iso_search_documents."
     ),
 )
+
+import mcp_server.tools.iso  # noqa: F401 — registers tools on mcp
