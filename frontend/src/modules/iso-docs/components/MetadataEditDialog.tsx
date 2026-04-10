@@ -195,7 +195,6 @@ export function MetadataEditDialog({
         standard: metadata.standard ?? [],
         clauses: metadata.clauses ?? [],
         classification: metadata.classification ?? 'internal_use',
-        doc_version: metadata.doc_version ?? '',
         status: metadata.status ?? '',
         document_date: metadata.document_date ?? '',
         changelog: metadata.changelog?.map((e) => ({ ...e })) ?? [],
@@ -209,7 +208,6 @@ export function MetadataEditDialog({
       standard: form.standard?.length ? form.standard : null,
       clauses: form.clauses?.length ? form.clauses : null,
       classification: form.classification || 'internal_use',
-      doc_version: form.doc_version || null,
       status: form.status || null,
       document_date: form.document_date || null,
       changelog: form.changelog?.length ? form.changelog : null,
@@ -225,25 +223,14 @@ export function MetadataEditDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Document Code</Label>
-              <Input
-                value={form.code ?? ''}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="e.g. PO01"
-                className="h-8 text-sm font-mono"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Version</Label>
-              <Input
-                value={form.doc_version ?? ''}
-                onChange={(e) => setForm({ ...form, doc_version: e.target.value })}
-                placeholder="e.g. 2.0"
-                className="h-8 text-sm font-mono"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Document Code</Label>
+            <Input
+              value={form.code ?? ''}
+              onChange={(e) => setForm({ ...form, code: e.target.value })}
+              placeholder="e.g. PO01"
+              className="h-8 text-sm font-mono w-40"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

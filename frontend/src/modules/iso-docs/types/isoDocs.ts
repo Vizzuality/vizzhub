@@ -67,7 +67,6 @@ export interface MetadataUpdate {
   standard?: string[] | null;
   clauses?: string[] | null;
   classification?: string | null;
-  doc_version?: string | null;
   status?: string | null;
   document_date?: string | null;
   original_filename?: string | null;
