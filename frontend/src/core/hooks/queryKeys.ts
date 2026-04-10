@@ -15,6 +15,7 @@ export const queryKeys = {
     summary: ['projects', 'summary'] as const,
     allSummary: ['projects', 'all-summary'] as const,
     activeSummary: ['projects', 'active-summary'] as const,
+    projectManagers: ['projects', 'project-managers'] as const,
     scorecardSummary: ['projects', 'scorecard-summary'] as const,
     detail: (id: string) => ['projects', id] as const,
   },

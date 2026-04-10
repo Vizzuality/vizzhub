@@ -35,6 +35,11 @@ export const projectsApi = {
     return response.data;
   },
 
+  listProjectManagers: async (): Promise<{ id: string; name: string }[]> => {
+    const response = await api.get<{ id: string; name: string }[]>('/projects/project-managers');
+    return response.data;
+  },
+
   listActiveSummary: async (): Promise<ProjectSummary[]> => {
     const response = await api.get<ProjectSummary[]>('/projects', {
       params: { lightweight: true, status: 'live' },
