@@ -45,6 +45,13 @@ export function useActiveProjectSummaries() {
   });
 }
 
+export function useProjectManagers() {
+  return useQuery({
+    queryKey: queryKeys.projects.projectManagers,
+    queryFn: projectsApi.listProjectManagers,
+  });
+}
+
 export function useProject(id: string) {
   return useQuery({
     queryKey: queryKeys.projects.detail(id),

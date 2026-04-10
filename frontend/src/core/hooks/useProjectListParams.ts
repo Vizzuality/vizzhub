@@ -14,6 +14,7 @@ const listParamsSchema = {
   to: { defaultValue: '' },
   sort: { defaultValue: 'created_at' },
   order: { defaultValue: 'desc' },
+  pm: { defaultValue: '' },
 };
 
 export interface UseProjectListParamsReturn {
@@ -25,11 +26,13 @@ export interface UseProjectListParamsReturn {
   startDateTo: string;
   sortField: SortField;
   sortOrder: SortOrder;
+  projectManagerId: string;
   hasActiveFilters: boolean;
   setSearchName: (value: string) => void;
   setStatusFilter: (value: StatusFilter) => void;
   setStartDateFrom: (value: string) => void;
   setStartDateTo: (value: string) => void;
+  setProjectManagerId: (value: string) => void;
   setPage: (value: number) => void;
   handleSort: (field: SortField) => void;
   clearFilters: () => void;
@@ -45,6 +48,7 @@ export function useProjectListParams(): UseProjectListParamsReturn {
   const startDateTo = state.to;
   const sortField = state.sort as SortField;
   const sortOrder = state.order as SortOrder;
+  const projectManagerId = state.pm;
 
   const params: ProjectListParams = useMemo(() => {
     const p: ProjectListParams = { page };
@@ -52,12 +56,13 @@ export function useProjectListParams(): UseProjectListParamsReturn {
     if (statusFilter !== 'all') p.status = statusFilter;
     if (startDateFrom) p.start_date_from = startDateFrom;
     if (startDateTo) p.start_date_to = startDateTo;
+    if (projectManagerId) p.project_manager_id = projectManagerId;
     if (sortField !== 'score') {
       p.sort = sortField;
       p.order = sortOrder;
     }
     return p;
-  }, [page, searchName, statusFilter, startDateFrom, startDateTo, sortField, sortOrder]);
+  }, [page, searchName, statusFilter, startDateFrom, startDateTo, projectManagerId, sortField, sortOrder]);
 
   const setSearchName = useCallback(
     (value: string) => setState({ search: value, page: 1 }),
@@ -79,6 +84,11 @@ export function useProjectListParams(): UseProjectListParamsReturn {
     [setState],
   );
 
+  const setProjectManagerId = useCallback(
+    (value: string) => setState({ pm: value, page: 1 }),
+    [setState],
+  );
+
   const setPage = useCallback(
     (value: number) => setState({ page: value }),
     [setState],
@@ -93,8 +103,8 @@ export function useProjectListParams(): UseProjectListParamsReturn {
   }, [sortField, sortOrder, setState]);
 
   const hasActiveFilters = useMemo(
-    () => Boolean(searchName || statusFilter !== 'live' || startDateFrom || startDateTo),
-    [searchName, statusFilter, startDateFrom, startDateTo],
+    () => Boolean(searchName || statusFilter !== 'live' || startDateFrom || startDateTo || projectManagerId),
+    [searchName, statusFilter, startDateFrom, startDateTo, projectManagerId],
   );
 
   return {
@@ -106,11 +116,13 @@ export function useProjectListParams(): UseProjectListParamsReturn {
     startDateTo,
     sortField,
     sortOrder,
+    projectManagerId,
     hasActiveFilters,
     setSearchName,
     setStatusFilter,
     setStartDateFrom,
     setStartDateTo,
+    setProjectManagerId,
     setPage,
     handleSort,
     clearFilters: resetState,

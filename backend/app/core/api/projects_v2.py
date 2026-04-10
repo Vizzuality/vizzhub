@@ -47,6 +47,7 @@ def _build_project_filters(
     start_date_from: date | None,
     start_date_to: date | None,
     has_scorecard: bool | None,
+    project_manager_id: UUID | None = None,
 ) -> list:
     """Build SQLAlchemy filter clauses for project listing."""
     filters = []
@@ -63,6 +64,8 @@ def _build_project_filters(
         filters.append(ProjectDB.start_date >= start_date_from)
     if start_date_to:
         filters.append(ProjectDB.start_date <= start_date_to)
+    if project_manager_id:
+        filters.append(ProjectDB.project_manager_id == project_manager_id)
     return filters
 
 
@@ -120,6 +123,7 @@ async def list_projects(
     start_date_from: date | None = None,
     start_date_to: date | None = None,
     has_scorecard: bool | None = None,
+    project_manager_id: UUID | None = None,
 ):
     if lightweight:
         q = select(ProjectDB).order_by(ProjectDB.name)
@@ -127,6 +131,8 @@ async def list_projects(
             q = q.where(ProjectDB.has_scorecard.is_(has_scorecard))
         if filter_status and filter_status in ("proposal", "live", "finished"):
             q = q.where(ProjectDB.status == filter_status)
+        if project_manager_id:
+            q = q.where(ProjectDB.project_manager_id == project_manager_id)
         result = await db.execute(q)
         projects = result.scalars().all()
         return [ProjectSummary.model_validate(p) for p in projects]
@@ -146,6 +152,7 @@ async def list_projects(
 
     filters = _build_project_filters(
         search, filter_status, start_date_from, start_date_to, has_scorecard,
+        project_manager_id,
     )
     if filters:
         query = query.where(*filters)
@@ -177,6 +184,36 @@ async def list_projects(
         page_size=page_size,
         pages=pages,
     )
+
+
+class ProjectManagerOption(BaseModel):
+    id: str
+    name: str
+
+
+@router.get("/project-managers")
+async def list_project_managers(
+    current_user: CurrentUser,
+    db: DBSession,
+) -> list[ProjectManagerOption]:
+    """Distinct project managers assigned to at least one project."""
+    manager = aliased(UserDB)
+    display_name = func.coalesce(
+        _user_full_name_expr(manager),
+        manager.name,
+        manager.email,
+    ).label("display_name")
+    result = await db.execute(
+        select(manager.id, display_name)
+        .join(ProjectDB, ProjectDB.project_manager_id == manager.id)
+        .where(manager.active.is_(True))
+        .distinct()
+        .order_by("display_name")
+    )
+    return [
+        ProjectManagerOption(id=str(row.id), name=row.display_name)
+        for row in result.all()
+    ]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
