@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { usePaginatedAllProjects } from '@/core/hooks/useProjects';
+import { usePaginatedAllProjects, useProjectManagers } from '@/core/hooks/useProjects';
 import {
   useProjectListParams,
   type SortField,
@@ -29,6 +29,13 @@ import {
   Card,
   CardContent,
 } from '@/shared/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 
@@ -66,16 +73,19 @@ export default function Projects(): JSX.Element {
     startDateTo,
     sortField,
     sortOrder,
+    projectManagerId,
     hasActiveFilters,
     setSearchName,
     setStatusFilter,
     setStartDateFrom,
     setStartDateTo,
+    setProjectManagerId,
     setPage,
     handleSort,
     clearFilters,
   } = useProjectListParams();
 
+  const { data: projectManagers = [] } = useProjectManagers();
   const { data, isLoading, error } = usePaginatedAllProjects(params);
   const projects = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -262,6 +272,22 @@ export default function Projects(): JSX.Element {
               ))}
             </div>
 
+            <Select
+              value={projectManagerId || 'all'}
+              onValueChange={(v) => setProjectManagerId(v === 'all' ? '' : v)}
+            >
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue placeholder="Project Manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All PMs</SelectItem>
+                {projectManagers.map((pm) => (
+                  <SelectItem key={pm.id} value={pm.id}>
+                    {pm.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center gap-2 sm:ml-auto">

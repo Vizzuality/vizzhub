@@ -3,10 +3,29 @@
 Tests cover:
 - Jira project key uppercase conversion
 - Pagination, filtering, sorting, lightweight mode
+- Project manager filter and project-managers endpoint
 """
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import text
+
+
+@pytest_asyncio.fixture
+async def pm_user(db_session) -> dict:
+    """Create a user to serve as project manager."""
+    await db_session.execute(
+        text(
+            "INSERT INTO users (id, email, name, first_name, last_name, active) "
+            "VALUES (gen_random_uuid(), 'pm@test.com', 'pm@test.com', 'Alice', 'Manager', true) "
+            "RETURNING id"
+        )
+    )
+    result = await db_session.execute(text("SELECT id FROM users WHERE email = 'pm@test.com'"))
+    row = result.one()
+    await db_session.commit()
+    return {"id": str(row.id), "name": "Alice Manager"}
 
 
 class TestJiraProjectKeyUppercase:
@@ -267,3 +286,50 @@ class TestLightweightMode:
         data = response.json()
         assert data[0]["name"] == "Alpha"
         assert data[1]["name"] == "Zulu"
+
+
+class TestProjectManagerFilter:
+    """Test project_manager_id filter and /project-managers endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_project_managers_endpoint_empty(self, client: AsyncClient) -> None:
+        """Returns empty list when no projects have PMs."""
+        response = await client.get("/api/projects/project-managers")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    @pytest.mark.asyncio
+    async def test_project_managers_endpoint_returns_assigned(
+        self, client: AsyncClient, pm_user: dict,
+    ) -> None:
+        """Returns only users assigned as PM on at least one project."""
+        await client.post(
+            "/api/projects",
+            json={"name": "PM Project", "code": "PMP", "project_manager_id": pm_user["id"]},
+        )
+        await client.post("/api/projects", json={"name": "No PM", "code": "NP"})
+
+        response = await client.get("/api/projects/project-managers")
+        assert response.status_code == 200
+        pms = response.json()
+        assert len(pms) == 1
+        assert pms[0]["id"] == pm_user["id"]
+        assert pms[0]["name"] == pm_user["name"]
+
+    @pytest.mark.asyncio
+    async def test_filter_by_project_manager(
+        self, client: AsyncClient, pm_user: dict,
+    ) -> None:
+        """project_manager_id filter returns only matching projects."""
+        await client.post(
+            "/api/projects",
+            json={"name": "Managed", "code": "MAN", "project_manager_id": pm_user["id"]},
+        )
+        await client.post("/api/projects", json={"name": "Unmanaged", "code": "UNM"})
+
+        response = await client.get(
+            "/api/projects", params={"project_manager_id": pm_user["id"]},
+        )
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["name"] == "Managed"

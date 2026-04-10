@@ -95,6 +95,7 @@ export interface ProjectListParams {
   order?: string;
   start_date_from?: string;
   start_date_to?: string;
+  project_manager_id?: string;
 }
 
 export interface ProgramSummary {
