@@ -102,6 +102,7 @@ dmypy.json
 *.db
 .env.docker
 data/
+!mcp_server/data/
 capacity_seed.json
 
 # Git worktrees
