@@ -12,7 +12,6 @@ os.environ.setdefault(
 
 from collections.abc import AsyncGenerator
 from unittest.mock import patch
-from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -25,8 +24,6 @@ from app.database import Base
 _TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
 
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
-
-DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 @pytest.fixture(autouse=True)
