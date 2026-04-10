@@ -4,10 +4,103 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.iso_docs.models import IsoDocNodeDB, RegistryRowDB, RegistryTypeDB
+from app.modules.iso_docs.models import (
+    IsoDocMetadataDB,
+    IsoDocNodeDB,
+    IsoDocVersionDB,
+    RegistryRowDB,
+    RegistryTypeDB,
+)
+
+
+# Subquery for latest version number per node
+_latest_version_sq = (
+    select(
+        IsoDocVersionDB.node_id,
+        sa_func.max(IsoDocVersionDB.version).label("max_version"),
+    )
+    .group_by(IsoDocVersionDB.node_id)
+    .subquery()
+)
+
+_SUMMARY_LENGTH = 200
+
+
+async def get_documents(
+    session: AsyncSession,
+    category: str | None = None,
+    title_search: str | None = None,
+) -> list[dict]:
+    """Return ISO documents (page nodes) with metadata and content summary."""
+    stmt = (
+        select(
+            IsoDocNodeDB.slug,
+            IsoDocNodeDB.title,
+            IsoDocMetadataDB.category,
+            IsoDocMetadataDB.doc_version,
+            IsoDocVersionDB.created_at.label("last_updated"),
+            sa_func.left(IsoDocVersionDB.content, _SUMMARY_LENGTH).label("summary"),
+        )
+        .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
+        .join(
+            _latest_version_sq,
+            _latest_version_sq.c.node_id == IsoDocNodeDB.id,
+        )
+        .join(
+            IsoDocVersionDB,
+            and_(
+                IsoDocVersionDB.node_id == IsoDocNodeDB.id,
+                IsoDocVersionDB.version == _latest_version_sq.c.max_version,
+            ),
+        )
+        .where(IsoDocNodeDB.type == "page")
+        .order_by(IsoDocNodeDB.title)
+    )
+    if category is not None:
+        stmt = stmt.where(IsoDocMetadataDB.category == category)
+    if title_search is not None:
+        stmt = stmt.where(IsoDocNodeDB.title.ilike(f"%{title_search}%"))
+
+    result = await session.execute(stmt)
+    return [row._asdict() for row in result.all()]
+
+
+async def get_document(session: AsyncSession, slug: str) -> dict:
+    """Return full content of a single ISO document by slug.
+
+    Raises ValueError if slug not found.
+    """
+    stmt = (
+        select(
+            IsoDocNodeDB.slug,
+            IsoDocNodeDB.title,
+            IsoDocMetadataDB.category,
+            IsoDocMetadataDB.doc_version,
+            IsoDocVersionDB.content,
+        )
+        .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
+        .join(
+            _latest_version_sq,
+            _latest_version_sq.c.node_id == IsoDocNodeDB.id,
+        )
+        .join(
+            IsoDocVersionDB,
+            and_(
+                IsoDocVersionDB.node_id == IsoDocNodeDB.id,
+                IsoDocVersionDB.version == _latest_version_sq.c.max_version,
+            ),
+        )
+        .where(IsoDocNodeDB.type == "page")
+        .where(IsoDocNodeDB.slug == slug)
+    )
+    result = await session.execute(stmt)
+    row = result.first()
+    if row is None:
+        raise ValueError(f"Document '{slug}' not found")
+    return row._asdict()
 
 
 async def get_registry_types(session: AsyncSession) -> list[RegistryTypeDB]:
