@@ -4,7 +4,13 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.iso_docs.models import IsoDocNodeDB, RegistryRowDB, RegistryTypeDB
+from app.modules.iso_docs.models import (
+    IsoDocMetadataDB,
+    IsoDocNodeDB,
+    IsoDocVersionDB,
+    RegistryRowDB,
+    RegistryTypeDB,
+)
 
 
 @pytest_asyncio.fixture
@@ -147,3 +153,121 @@ async def test_get_registry_rows_ordered_by_index(
     rows = await get_registry_rows(db_session, node_id, year=2026)
     indices = [r.row_index for r in rows]
     assert indices == sorted(indices)
+
+
+@pytest_asyncio.fixture
+async def seed_documents(db_session: AsyncSession) -> list[IsoDocNodeDB]:
+    page1 = IsoDocNodeDB(
+        title="Information Security Policy",
+        slug="information-security-policy",
+        type="page",
+    )
+    page2 = IsoDocNodeDB(
+        title="Access Control Procedure",
+        slug="access-control-procedure",
+        type="page",
+    )
+    group = IsoDocNodeDB(
+        title="Policies Group",
+        slug="policies",
+        type="group",
+    )
+    db_session.add_all([page1, page2, group])
+    await db_session.flush()
+
+    meta1 = IsoDocMetadataDB(
+        node_id=page1.id,
+        category="policy",
+        doc_version="2.1",
+    )
+    meta2 = IsoDocMetadataDB(
+        node_id=page2.id,
+        category="procedure",
+        doc_version="1.0",
+    )
+    db_session.add_all([meta1, meta2])
+
+    v1 = IsoDocVersionDB(
+        node_id=page1.id, version=1,
+        content="## 1. Purpose\n\nThis policy establishes information security controls.",
+    )
+    v2 = IsoDocVersionDB(
+        node_id=page1.id, version=2,
+        content="## 1. Purpose\n\nThis policy establishes information security controls.\n\n## 2. Scope\n\nApplies to all employees and remote access.",
+    )
+    v3 = IsoDocVersionDB(
+        node_id=page2.id, version=1,
+        content="## 1. Overview\n\nAccess control procedure for VPN and encryption.",
+    )
+    db_session.add_all([v1, v2, v3])
+    await db_session.commit()
+    return [page1, page2]
+
+
+@pytest.mark.asyncio
+async def test_get_documents_returns_pages_only(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import get_documents
+
+    docs = await get_documents(db_session)
+    assert len(docs) == 2
+    slugs = [d["slug"] for d in docs]
+    assert "information-security-policy" in slugs
+    assert "policies" not in slugs  # group excluded
+
+
+@pytest.mark.asyncio
+async def test_get_documents_filters_by_category(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import get_documents
+
+    docs = await get_documents(db_session, category="policy")
+    assert len(docs) == 1
+    assert docs[0]["slug"] == "information-security-policy"
+
+
+@pytest.mark.asyncio
+async def test_get_documents_filters_by_title(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import get_documents
+
+    docs = await get_documents(db_session, title_search="Access")
+    assert len(docs) == 1
+    assert docs[0]["slug"] == "access-control-procedure"
+
+
+@pytest.mark.asyncio
+async def test_get_documents_includes_latest_version_metadata(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import get_documents
+
+    docs = await get_documents(db_session)
+    policy = next(d for d in docs if d["slug"] == "information-security-policy")
+    assert policy["doc_version"] == "2.1"
+    assert policy["category"] == "policy"
+    assert "summary" in policy
+    assert "Purpose" in policy["summary"]
+
+
+@pytest.mark.asyncio
+async def test_get_document_returns_latest_content(
+    db_session: AsyncSession, seed_documents: list[IsoDocNodeDB],
+) -> None:
+    from mcp_server.data.iso import get_document
+
+    doc = await get_document(db_session, "information-security-policy")
+    assert doc["slug"] == "information-security-policy"
+    assert doc["doc_version"] == "2.1"
+    assert "## 2. Scope" in doc["content"]  # only in version 2
+
+
+@pytest.mark.asyncio
+async def test_get_document_not_found(db_session: AsyncSession) -> None:
+    from mcp_server.data.iso import get_document
+
+    with pytest.raises(ValueError, match="not found"):
+        await get_document(db_session, "nonexistent-doc")
