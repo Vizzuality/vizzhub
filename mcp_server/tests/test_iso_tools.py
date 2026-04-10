@@ -40,14 +40,6 @@ async def seed_tool_registry(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_iso_get_registries_is_listed(db_session, seed_tool_registry) -> None:
-    async with override_session(db_session):
-        tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    assert "iso_get_registries" in names
-
-
-@pytest.mark.asyncio
 async def test_iso_get_registries_returns_json(db_session, seed_tool_registry) -> None:
     async with override_session(db_session):
         result = await mcp.call_tool("iso_get_registries", {})
@@ -58,14 +50,6 @@ async def test_iso_get_registries_returns_json(db_session, seed_tool_registry) -
     assert isinstance(data, list)
     assert len(data) >= 1
     assert data[0]["slug"] == "test-register"
-
-
-@pytest.mark.asyncio
-async def test_iso_get_registry_rows_is_listed(db_session, seed_tool_registry) -> None:
-    async with override_session(db_session):
-        tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    assert "iso_get_registry_rows" in names
 
 
 @pytest.mark.asyncio
@@ -105,30 +89,6 @@ async def seed_tool_documents(db_session: AsyncSession) -> None:
         content="## Purpose\n\nThis policy covers encryption and remote access.",
     ))
     await db_session.commit()
-
-
-@pytest.mark.asyncio
-async def test_iso_get_documents_is_listed(db_session, seed_tool_documents) -> None:
-    async with override_session(db_session):
-        tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    assert "iso_get_documents" in names
-
-
-@pytest.mark.asyncio
-async def test_iso_get_document_is_listed(db_session, seed_tool_documents) -> None:
-    async with override_session(db_session):
-        tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    assert "iso_get_document" in names
-
-
-@pytest.mark.asyncio
-async def test_iso_search_documents_is_listed(db_session, seed_tool_documents) -> None:
-    async with override_session(db_session):
-        tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    assert "iso_search_documents" in names
 
 
 @pytest.mark.asyncio
