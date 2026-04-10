@@ -57,7 +57,7 @@ async def get_read_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @asynccontextmanager
-async def override_session(session: AsyncSession):
+async def override_session(session: AsyncSession) -> AsyncGenerator[None, None]:
     """Context manager to override the read session for testing.
 
     Usage in tests:
