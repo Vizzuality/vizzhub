@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from uuid import UUID
 
-from sqlalchemy import and_, func as sa_func, select
+from sqlalchemy import and_, func as sa_func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.iso_docs.models import (
@@ -101,6 +102,67 @@ async def get_document(session: AsyncSession, slug: str) -> dict:
     if row is None:
         raise ValueError(f"Document '{slug}' not found")
     return row._asdict()
+
+
+def _extract_section_heading(content: str, snippet: str) -> str | None:
+    """Find the nearest preceding markdown heading for a snippet.
+
+    Searches for the snippet text (stripped of highlight tags) in the
+    full content, then walks backwards to find the nearest ## heading.
+    Returns None if no heading is found.
+    """
+    clean_snippet = re.sub(r"<b>|</b>", "", snippet).strip()
+    fragment = clean_snippet[:60]
+    pos = content.find(fragment)
+    if pos < 0:
+        return None
+    preceding = content[:pos]
+    headings = re.findall(r"^(#{1,3}\s+.+)$", preceding, re.MULTILINE)
+    return headings[-1] if headings else None
+
+
+async def search_documents(
+    session: AsyncSession, query: str,
+) -> list[dict]:
+    """Full-text search across ISO document content.
+
+    Uses the search_vector generated column (GIN-indexed) on
+    iso_doc_versions. Only searches the latest version of each document.
+    Returns results ordered by rank (ts_rank).
+    """
+    stmt = text("""
+        WITH latest_versions AS (
+            SELECT DISTINCT ON (v.node_id)
+                v.node_id, v.content, v.search_vector, v.version
+            FROM iso_doc_versions v
+            ORDER BY v.node_id, v.version DESC
+        )
+        SELECT
+            n.slug,
+            n.title,
+            lv.content,
+            ts_headline('english', lv.content, plainto_tsquery('english', :query),
+                'StartSel=<b>, StopSel=</b>, MaxWords=50, MinWords=20'
+            ) AS snippet,
+            ts_rank(lv.search_vector, plainto_tsquery('english', :query)) AS rank
+        FROM latest_versions lv
+        JOIN iso_doc_nodes n ON n.id = lv.node_id
+        WHERE n.type = 'page'
+          AND lv.search_vector @@ plainto_tsquery('english', :query)
+        ORDER BY rank DESC
+    """)
+    result = await session.execute(stmt, {"query": query})
+    rows = result.all()
+    return [
+        {
+            "slug": row.slug,
+            "title": row.title,
+            "section": _extract_section_heading(row.content, row.snippet),
+            "snippet": row.snippet,
+            "rank": float(row.rank),
+        }
+        for row in rows
+    ]
 
 
 async def get_registry_types(session: AsyncSession) -> list[RegistryTypeDB]:
