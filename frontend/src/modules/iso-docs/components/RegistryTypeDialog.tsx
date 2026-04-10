@@ -25,6 +25,7 @@ interface RegistryTypeDialogProps {
     schema: ColumnDef[];
   }) => void;
   readonly isSaving: boolean;
+  readonly error?: string | null;
 }
 
 export function RegistryTypeDialog({
@@ -33,6 +34,7 @@ export function RegistryTypeDialog({
   registryType,
   onSave,
   isSaving,
+  error,
 }: RegistryTypeDialogProps): JSX.Element {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -114,6 +116,9 @@ export function RegistryTypeDialog({
             </div>
             <RegistryColumnEditor columns={columns} onChange={setColumns} />
           </div>
+          {error && (
+            <p className="text-sm text-destructive">{error}</p>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { AxiosError } from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { Button } from '@/shared/components/ui/button';
@@ -24,6 +25,7 @@ export function RegistryTypePicker({ value, onChange }: RegistryTypePickerProps)
   const createType = useCreateRegistryType();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreateType = (data: {
     name: string;
@@ -31,13 +33,27 @@ export function RegistryTypePicker({ value, onChange }: RegistryTypePickerProps)
     is_yearly: boolean;
     schema: ColumnDef[];
   }): void => {
+    setError(null);
     createType.mutate(data, {
       onSuccess: async (created) => {
         setDialogOpen(false);
         await queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryTypes });
         onChange(created.id);
       },
+      onError: (err) => {
+        if (err instanceof AxiosError) {
+          const detail = err.response?.data?.detail;
+          setError(typeof detail === 'string' ? detail : 'Failed to create registry type');
+        } else {
+          setError('Failed to create registry type');
+        }
+      },
     });
+  };
+
+  const handleOpenChange = (v: boolean): void => {
+    if (!v) setError(null);
+    setDialogOpen(v);
   };
 
   return (
@@ -68,9 +84,10 @@ export function RegistryTypePicker({ value, onChange }: RegistryTypePickerProps)
 
       <RegistryTypeDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleOpenChange}
         onSave={handleCreateType}
         isSaving={createType.isPending}
+        error={error}
       />
     </div>
   );
