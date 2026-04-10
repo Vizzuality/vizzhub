@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.auth import TokenData
+from app.core.models.user import UserDB
 from app.core.permissions import Action, require_permission
 from app.modules.tracker.api.enrichment import (
     enrich_parts_batch,
@@ -89,7 +90,11 @@ async def list_reports(
 ) -> list[ReportResponse]:
     result = await db.execute(
         select(ReportDB)
-        .where(ReportDB.reporting_period_id == reporting_period_id)
+        .join(UserDB, ReportDB.user_id == UserDB.id)
+        .where(
+            ReportDB.reporting_period_id == reporting_period_id,
+            UserDB.requires_project_reporting.is_(True),
+        )
         .order_by(ReportDB.created_at)
     )
     reports = result.scalars().all()
