@@ -42,8 +42,11 @@ async def test_create_metadata(client: AsyncClient):
             "code": "POL04",
             "standard": ["ISO 27001:2022"],
             "clauses": ["A.5.15", "A.5.18"],
-            "doc_version": "1.1",
             "status": "approved",
+            "changelog": [
+                {"version": "1.0", "date": "2025-01-01", "author": "Admin", "description": "Initial"},
+                {"version": "1.1", "date": "2025-06-01", "author": "Admin", "description": "Updated"},
+            ],
         },
     )
     assert response.status_code == 200
