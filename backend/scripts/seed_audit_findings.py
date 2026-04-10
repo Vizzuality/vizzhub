@@ -34,6 +34,14 @@ from app.modules.iso_docs.models.registry_type import RegistryTypeDB
 
 logger = structlog.get_logger()
 
+SOURCE_INTERNAL = "Internal Audit"
+SOURCE_EXT_I = "External Audit Phase I"
+SOURCE_EXT_II = "External Audit Phase II"
+TYPE_OBS = "Observation"
+TYPE_OM = "Improvement Opportunity"
+STATUS_COMPLETED = "Completed"
+STATUS_PENDING = "Pending"
+
 REGISTRY_TYPE_NAME = "Audit Findings Register"
 REGISTRY_TYPE_SLUG = "audit-findings-register"
 REGISTRY_TYPE_DESCRIPTION = (
@@ -51,15 +59,11 @@ SCHEMA = [
         "type": "select",
         "required": True,
         "width": 180,
-        "options": [
-            "Internal Audit",
-            "External Audit Phase I",
-            "External Audit Phase II",
-        ],
+        "options": [SOURCE_INTERNAL, SOURCE_EXT_I, SOURCE_EXT_II],
         "option_colors": {
-            "Internal Audit": "#3b82f6",
-            "External Audit Phase I": "#f59e0b",
-            "External Audit Phase II": "#8b5cf6",
+            SOURCE_INTERNAL: "#3b82f6",
+            SOURCE_EXT_I: "#f59e0b",
+            SOURCE_EXT_II: "#8b5cf6",
         },
     },
     {
@@ -75,10 +79,10 @@ SCHEMA = [
         "type": "select",
         "required": True,
         "width": 160,
-        "options": ["Observation", "Improvement Opportunity"],
+        "options": [TYPE_OBS, TYPE_OM],
         "option_colors": {
-            "Observation": "#f59e0b",
-            "Improvement Opportunity": "#3b82f6",
+            TYPE_OBS: "#f59e0b",
+            TYPE_OM: "#3b82f6",
         },
     },
     {
@@ -101,11 +105,11 @@ SCHEMA = [
         "type": "select",
         "required": True,
         "width": 130,
-        "options": ["Pending", "In Progress", "Completed"],
+        "options": [STATUS_PENDING, "In Progress", STATUS_COMPLETED],
         "option_colors": {
-            "Pending": "#ef4444",
+            STATUS_PENDING: "#ef4444",
             "In Progress": "#f59e0b",
-            "Completed": "#22c55e",
+            STATUS_COMPLETED: "#22c55e",
         },
     },
     {
@@ -124,54 +128,54 @@ SEED_YEAR = 2025
 ROWS = [
     # --- Internal Audit (AI), 18/02/2025 — 4 observations ---
     {
-        "source": "Internal Audit",
+        "source": SOURCE_INTERNAL,
         "source_date": "2025-02-18",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Climate change is not evidenced as an element to analyze "
             "in the organizational context."
         ),
         "actions_taken": "Climate-related aspects have been included in the SWOT analysis.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "Internal Audit",
+        "source": SOURCE_INTERNAL,
         "source_date": "2025-02-18",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Although document control is established through a master list, "
             "it is not up to date."
         ),
         "actions_taken": "System procedures have been added to the document list.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "Internal Audit",
+        "source": SOURCE_INTERNAL,
         "source_date": "2025-02-18",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Risk treatment plans are not correctly updated in some cases."
         ),
         "actions_taken": "Updates have been included in the Risk Analysis.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "Internal Audit",
+        "source": SOURCE_INTERNAL,
         "source_date": "2025-02-18",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Although disaster scenarios and their respective drill tests are "
             "defined (A5.29), a correct relationship cannot be evidenced across "
             "all proposed scenarios."
         ),
         "actions_taken": "The scenarios have been analyzed and corrected.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     # --- External Audit Phase I (AE I), 06/03/2025 — 2 observations ---
     {
-        "source": "External Audit Phase I",
+        "source": SOURCE_EXT_I,
         "source_date": "2025-03-06",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "The Observations Summary register does not record the actions "
             "taken regarding the improvement opportunities identified in the "
@@ -181,12 +185,12 @@ ROWS = [
             "Observations and actions derived from the internal audit "
             "have been included."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase I",
+        "source": SOURCE_EXT_I,
         "source_date": "2025-03-06",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Regarding monitoring, measurement, analysis and evaluation: "
             "the frequency set as annual for some indicators should be reviewed "
@@ -196,13 +200,13 @@ ROWS = [
             "The frequency has been reviewed and the relevant changes "
             "have been made."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     # --- External Audit Phase II (AE II), 25/03/2025 — 13 findings ---
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Standardization of the Management Review: it is recommended to "
             "structure the Management Review report under a uniform format that "
@@ -217,24 +221,24 @@ ROWS = [
             "objectives, indicators, etc.), Management's assessment and diagnosis, "
             "and derived actions and decisions (future plans, follow-up, etc.)."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Evaluation of opportunities using an effort-benefit matrix: it is "
             "suggested to replace the current opportunity evaluation criteria "
             "with an effort-benefit matrix for more effective prioritization."
         ),
         "actions_taken": "The evaluation has been changed to an ICE scoring model.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Linking actions to management system objectives: it is recommended "
             "to reflect risk and opportunity actions directly in the system "
@@ -244,12 +248,12 @@ ROWS = [
             "Risks and opportunities have been linked to the system objectives "
             "table."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Alignment of the service delivery procedure with the process map: "
             "it is recommended to review and adjust the procedure to ensure "
@@ -259,36 +263,36 @@ ROWS = [
             "Support processes have been adjusted to better reflect what is "
             "described in the service delivery procedure."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Development of performance indicators: it is suggested to include "
             "technical description, formula, and calculation methodology for "
             "each KPI, for more precise and traceable measurement."
         ),
         "actions_taken": None,
-        "status": "Pending",
+        "status": STATUS_PENDING,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Data extraction for KPIs from operational tools: it is proposed "
             "to extract data from Jira and GitHub to identify useful KPIs for "
             "operational monitoring."
         ),
         "actions_taken": None,
-        "status": "Pending",
+        "status": STATUS_PENDING,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": (
             "Clarity in change management within the service delivery procedure: "
             "it is suggested to specify whether change management tools are used "
@@ -298,20 +302,20 @@ ROWS = [
             "The change management section has been reviewed, adding details "
             "about tools and management processes."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Improvement Opportunity",
+        "type": TYPE_OM,
         "description": "Develop a RACI matrix for segregation of duties.",
         "actions_taken": "Included in the Service Delivery Procedure.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Information security risk treatment \u2014 non-applied controls: "
             "the applicability of controls 8.11 Data Masking and 8.30 "
@@ -322,12 +326,12 @@ ROWS = [
             "PR10 - Acquisition, Development and Maintenance of Information "
             "Systems."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Document control \u2014 pending update: modifications to the manual "
             "and document edition status have not been recorded following the "
@@ -335,12 +339,12 @@ ROWS = [
             "these would be implemented after Phase II (\u00a77.5)."
         ),
         "actions_taken": "Records have been registered and updated.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Operational planning and control: "
             "a) 5.8 Information security in project management: security risks "
@@ -363,12 +367,12 @@ ROWS = [
             "e) All devices included. "
             "f) SOA text on application in Communication Security reviewed."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Responsibilities in contracts and proposals: the service delivery "
             "procedure does not clearly specify the responsibilities and "
@@ -378,12 +382,12 @@ ROWS = [
         "actions_taken": (
             "This has been reflected in the Service Delivery Procedure."
         ),
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
     {
-        "source": "External Audit Phase II",
+        "source": SOURCE_EXT_II,
         "source_date": "2025-03-25",
-        "type": "Observation",
+        "type": TYPE_OBS,
         "description": (
             "Lack of document control in a project: the document "
             '"Unilever NDPE Story \u2014 Phase II: Business Need (Roles and '
@@ -391,7 +395,7 @@ ROWS = [
             "according to the schedule it should be finalized (\u00a77.5)."
         ),
         "actions_taken": "This has been corrected.",
-        "status": "Completed",
+        "status": STATUS_COMPLETED,
     },
 ]
 
