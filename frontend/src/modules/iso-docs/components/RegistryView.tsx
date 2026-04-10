@@ -201,6 +201,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const [editingRow, setEditingRow] = useState<RegistryRow | null>(null);
   const [deleteRowId, setDeleteRowId] = useState<string | null>(null);
   const [typeDialogOpen, setTypeDialogOpen] = useState(false);
+  const [typeError, setTypeError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [sortInitialized, setSortInitialized] = useState(false);
@@ -369,9 +370,13 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const handleSaveType = useCallback(
     (data: { name: string; description: string | null; is_yearly: boolean; schema: ColumnDef[] }) => {
       if (!registryType) return;
+      setTypeError(null);
       updateType.mutate(
         { id: registryType.id, data },
-        { onSuccess: () => setTypeDialogOpen(false) },
+        {
+          onSuccess: () => setTypeDialogOpen(false),
+          onError: (err) => setTypeError(extractErrorMessage(err, 'Failed to save registry type')),
+        },
       );
     },
     [registryType, updateType],
@@ -688,10 +693,11 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
 
       <RegistryTypeDialog
         open={typeDialogOpen}
-        onOpenChange={setTypeDialogOpen}
+        onOpenChange={(v) => { if (!v) setTypeError(null); setTypeDialogOpen(v); }}
         registryType={registryType}
         onSave={handleSaveType}
         isSaving={updateType.isPending}
+        error={typeError}
       />
 
       <AlertDialog open={!!deleteRowId} onOpenChange={(v) => !v && setDeleteRowId(null)}>
