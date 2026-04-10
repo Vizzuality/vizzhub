@@ -20,6 +20,7 @@ export interface ColumnDef {
   width?: number;
   formula?: FormulaSpec;
   conditional_format?: ConditionalFormatRange[];
+  hidden?: boolean;
 }
 
 export interface RegistryType {

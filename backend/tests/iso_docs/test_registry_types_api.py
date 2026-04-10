@@ -117,3 +117,58 @@ async def test_schema_required(client: AsyncClient):
         json={"name": "Empty Schema", "schema": []},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_column_visibility(client: AsyncClient, registry_type: dict):
+    type_id = registry_type["id"]
+    resp = await client.patch(
+        f"/api/iso-docs/registry-types/{type_id}/column-visibility",
+        json={"hidden_columns": ["count"]},
+    )
+    assert resp.status_code == 200
+    schema = resp.json()["schema"]
+    by_key = {col["key"]: col for col in schema}
+    assert by_key["count"].get("hidden") is True
+    assert "hidden" not in by_key["name"] or by_key["name"]["hidden"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_column_visibility_unhide(client: AsyncClient, registry_type: dict):
+    type_id = registry_type["id"]
+    await client.patch(
+        f"/api/iso-docs/registry-types/{type_id}/column-visibility",
+        json={"hidden_columns": ["name", "count"]},
+    )
+    resp = await client.patch(
+        f"/api/iso-docs/registry-types/{type_id}/column-visibility",
+        json={"hidden_columns": []},
+    )
+    assert resp.status_code == 200
+    schema = resp.json()["schema"]
+    for col in schema:
+        assert "hidden" not in col or col["hidden"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_column_visibility_not_found(client: AsyncClient):
+    resp = await client.patch(
+        "/api/iso-docs/registry-types/00000000-0000-0000-0000-000000000099/column-visibility",
+        json={"hidden_columns": ["name"]},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_column_visibility_ignores_unknown_keys(
+    client: AsyncClient, registry_type: dict,
+):
+    type_id = registry_type["id"]
+    resp = await client.patch(
+        f"/api/iso-docs/registry-types/{type_id}/column-visibility",
+        json={"hidden_columns": ["nonexistent_key"]},
+    )
+    assert resp.status_code == 200
+    schema = resp.json()["schema"]
+    for col in schema:
+        assert "hidden" not in col or col["hidden"] is False
