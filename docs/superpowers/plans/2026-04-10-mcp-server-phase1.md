@@ -70,48 +70,80 @@ def get_settings() -> MCPSettings:
 
 - [ ] **Step 4: Create `mcp_server/data/base.py`**
 
-Read-only session factory. This engine rejects any INSERT/UPDATE/DELETE at the PostgreSQL connection level.
+Read-only session factory. This engine rejects any INSERT/UPDATE/DELETE at the PostgreSQL connection level. Includes a `ContextVar`-based override for tests so tools use the test DB session instead of creating their own.
 
 ```python
 """Read-only database session factory for MCP server."""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from mcp_server.config import get_settings
 
-
-def _create_engine():
-    settings = get_settings()
-    return create_async_engine(
-        settings.database_url,
-        execution_options={"postgresql_readonly": True},
-        echo=False,
-    )
-
-
 _engine = None
 _session_maker = None
+
+# Test override: when set, get_read_session() uses this session
+# instead of creating one from the engine.
+_session_override: ContextVar[AsyncSession | None] = ContextVar(
+    "_session_override", default=None
+)
 
 
 def _get_session_maker() -> async_sessionmaker[AsyncSession]:
     global _engine, _session_maker
     if _session_maker is None:
-        _engine = _create_engine()
+        settings = get_settings()
+        _engine = create_async_engine(
+            settings.database_url,
+            execution_options={"postgresql_readonly": True},
+            echo=False,
+        )
         _session_maker = async_sessionmaker(
             _engine, class_=AsyncSession, expire_on_commit=False,
         )
     return _session_maker
 
 
+def reset_engine() -> None:
+    """Reset cached engine and session maker. Used in tests."""
+    global _engine, _session_maker
+    _engine = None
+    _session_maker = None
+
+
 @asynccontextmanager
 async def get_read_session() -> AsyncGenerator[AsyncSession, None]:
-    """Yield a read-only async session. Never commits."""
+    """Yield a read-only async session. Never commits.
+
+    If a session override is set (via tests), yields that instead.
+    """
+    override = _session_override.get()
+    if override is not None:
+        yield override
+        return
+
     maker = _get_session_maker()
     async with maker() as session:
         yield session
+
+
+@asynccontextmanager
+async def override_session(session: AsyncSession):
+    """Context manager to override the read session for testing.
+
+    Usage in tests:
+        async with override_session(db_session):
+            result = await client.call_tool("iso_get_registries", {})
+    """
+    token = _session_override.set(session)
+    try:
+        yield
+    finally:
+        _session_override.reset(token)
 ```
 
 - [ ] **Step 5: Create `mcp_server/server.py`**
@@ -240,6 +272,15 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def use_test_db(db_session: AsyncSession):
+    """Ensure all MCP tools use the test DB session via override."""
+    from mcp_server.data.base import override_session
+
+    async with override_session(db_session):
+        yield
 ```
 
 - [ ] **Step 9: Add `mcp_server/` to `.dockerignore`**
@@ -251,10 +292,15 @@ mcp_server/
 requirements-mcp.txt
 ```
 
-- [ ] **Step 10: Verify the scaffold runs**
+- [ ] **Step 10: Verify the scaffold imports**
 
 Run: `PYTHONPATH=backend DATABASE_URL=postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard python -c "from mcp_server.server import mcp; print(mcp.name)"`
 Expected: `VizzHub`
+
+- [ ] **Step 10b: Verify the stdio entrypoint resolves**
+
+Run: `PYTHONPATH=backend DATABASE_URL=postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard timeout 2 python -m mcp_server 2>&1 || true`
+Expected: Process starts and waits for stdio input (no import errors, no crashes). The `timeout` kills it after 2 seconds since it blocks waiting for input. Verify there are no error messages in the output.
 
 - [ ] **Step 11: Commit**
 
@@ -850,8 +896,24 @@ git commit -m "feat(mcp): add get_documents and get_document data layer"
 
 **Files:**
 - Create: `backend/alembic/versions/mcp_fts_gin_idx.py`
+- Modify: `backend/app/modules/iso_docs/models/page_version.py`
 
-- [ ] **Step 1: Generate the migration stub**
+- [ ] **Step 1: Add `search_vector` column to the SQLAlchemy model**
+
+Edit `backend/app/modules/iso_docs/models/page_version.py` — add the generated column so the model stays in sync with the DB and `Base.metadata.create_all` creates it in test DBs:
+
+```python
+from sqlalchemy import Column, Computed
+from sqlalchemy.dialects.postgresql import TSVECTOR
+
+# Add after the existing columns, before the class ends:
+search_vector = Column(
+    TSVECTOR,
+    Computed("to_tsvector('english', coalesce(content, ''))", persisted=True),
+)
+```
+
+- [ ] **Step 2: Generate the migration stub**
 
 Run: `pushd backend > /dev/null && alembic revision -m "add tsvector and GIN index for iso doc search" && popd > /dev/null`
 
@@ -897,16 +959,21 @@ Expected: One row with `data_type = tsvector`.
 Run: `psql -d scorecard -c "SELECT indexname FROM pg_indexes WHERE tablename = 'iso_doc_versions' AND indexname = 'ix_iso_doc_versions_search_vector';"`
 Expected: One row.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add backend/alembic/versions/
+git add backend/alembic/versions/ backend/app/modules/iso_docs/models/page_version.py
 git commit -m "feat(mcp): add tsvector column and GIN index for ISO doc full-text search"
 ```
 
 ---
 
 ### Task 6: Data Layer — Document Search
+
+**Prerequisite:** Task 5 must be complete. The `search_vector` generated column must exist in both the Alembic migration AND the `IsoDocVersionDB` SQLAlchemy model (added in Task 5 Step 1). This ensures `Base.metadata.create_all` creates the column in the test DB. Verify before starting:
+
+Run: `python -c "from app.modules.iso_docs.models.page_version import IsoDocVersionDB; print([c.key for c in IsoDocVersionDB.__table__.columns])"`
+Expected: Output includes `search_vector`.
 
 **Files:**
 - Modify: `mcp_server/data/iso.py`
@@ -1017,14 +1084,14 @@ async def search_documents(
 ) -> list[dict]:
     """Full-text search across ISO document content.
 
-    Uses PostgreSQL tsvector with ts_headline for snippet generation.
-    Only searches the latest version of each document.
+    Uses the search_vector generated column (GIN-indexed) on
+    iso_doc_versions. Only searches the latest version of each document.
     Returns results ordered by rank (ts_rank).
     """
     stmt = text("""
         WITH latest_versions AS (
             SELECT DISTINCT ON (v.node_id)
-                v.node_id, v.content, v.version
+                v.node_id, v.content, v.search_vector, v.version
             FROM iso_doc_versions v
             ORDER BY v.node_id, v.version DESC
         )
@@ -1035,14 +1102,11 @@ async def search_documents(
             ts_headline('english', lv.content, plainto_tsquery('english', :query),
                 'StartSel=<b>, StopSel=</b>, MaxWords=50, MinWords=20'
             ) AS snippet,
-            ts_rank(
-                to_tsvector('english', lv.content),
-                plainto_tsquery('english', :query)
-            ) AS rank
+            ts_rank(lv.search_vector, plainto_tsquery('english', :query)) AS rank
         FROM latest_versions lv
         JOIN iso_doc_nodes n ON n.id = lv.node_id
         WHERE n.type = 'page'
-          AND to_tsvector('english', lv.content) @@ plainto_tsquery('english', :query)
+          AND lv.search_vector @@ plainto_tsquery('english', :query)
         ORDER BY rank DESC
     """)
     result = await session.execute(stmt, {"query": query})
@@ -1080,16 +1144,26 @@ git commit -m "feat(mcp): add search_documents with full-text search and section
 - Modify: `mcp_server/server.py`
 - Create: `mcp_server/tests/test_iso_tools.py`
 
+- [ ] **Step 0: Verify MCP SDK test client API**
+
+The SDK's test client API may vary by version. Verify before writing tests:
+
+Run: `python -c "from mcp.server.fastmcp import FastMCP; f = FastMCP('test'); print([m for m in dir(f) if 'test' in m.lower() or 'client' in m.lower()])"`
+
+Use the output to determine the correct in-process client pattern. The expected pattern is `mcp.test_client()`, but fall back to `mcp.client.Client` with memory streams if needed. Update the fixture below accordingly.
+
 - [ ] **Step 1: Write the failing test for `iso_get_registries` tool**
 
 ```python
 """Tests for MCP ISO tools — tool response formatting."""
 
-from datetime import datetime
+import json
 
 import pytest
-from mcp import Client
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.iso_docs.models import RegistryTypeDB
 from mcp_server.server import mcp
 
 
@@ -1098,31 +1172,45 @@ def anyio_backend():
     return "asyncio"
 
 
-@pytest.fixture
-async def client():
-    async with Client(mcp, raise_exceptions=True) as c:
+@pytest_asyncio.fixture
+async def seed_tool_registry(db_session: AsyncSession) -> None:
+    rt = RegistryTypeDB(
+        name="Test Register",
+        slug="test-register",
+        description="A test registry",
+        is_yearly=False,
+        schema=[{"key": "name", "label": "Name", "type": "string"}],
+    )
+    db_session.add(rt)
+    await db_session.commit()
+
+
+@pytest_asyncio.fixture
+async def client(seed_tool_registry, use_test_db):
+    """In-process MCP client. Uses session override for test DB."""
+    async with mcp.test_client() as c:
         yield c
 
 
 @pytest.mark.anyio
-async def test_iso_get_registries_is_listed(client: Client) -> None:
+async def test_iso_get_registries_is_listed(client) -> None:
     tools = await client.list_tools()
     names = [t.name for t in tools.tools]
     assert "iso_get_registries" in names
 
 
 @pytest.mark.anyio
-async def test_iso_get_registries_returns_json(client: Client) -> None:
+async def test_iso_get_registries_returns_json(client) -> None:
     result = await client.call_tool("iso_get_registries", {})
     assert result.content
     text = result.content[0].text
-    # Should be valid JSON (list of registries)
-    import json
     data = json.loads(text)
     assert isinstance(data, list)
+    assert len(data) >= 1
+    assert data[0]["slug"] == "test-register"
 ```
 
-Note: These tests hit the real DB via the data layer. The `DATABASE_URL` env var (set in conftest) points to the test DB. We need seed data in the DB for meaningful results, but the tool layer test primarily validates that the tool is registered and returns JSON.
+Note: The `use_test_db` fixture (from conftest) activates the session override so tools use the test DB. The `seed_tool_registry` fixture creates minimal data for validation.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -1193,19 +1281,19 @@ Add to `mcp_server/tests/test_iso_tools.py`:
 
 ```python
 @pytest.mark.anyio
-async def test_iso_get_registry_rows_is_listed(client: Client) -> None:
+async def test_iso_get_registry_rows_is_listed(client) -> None:
     tools = await client.list_tools()
     names = [t.name for t in tools.tools]
     assert "iso_get_registry_rows" in names
 
 
 @pytest.mark.anyio
-async def test_iso_get_registry_rows_invalid_slug(client: Client) -> None:
+async def test_iso_get_registry_rows_invalid_slug(client) -> None:
     result = await client.call_tool(
         "iso_get_registry_rows", {"slug": "nonexistent"}
     )
     text = result.content[0].text
-    assert "not found" in text.lower() or result.isError
+    assert "not found" in text.lower()
 ```
 
 - [ ] **Step 7: Implement `iso_get_registry_rows` tool**
@@ -1284,33 +1372,33 @@ Add to `mcp_server/tests/test_iso_tools.py`:
 
 ```python
 @pytest.mark.anyio
-async def test_iso_get_documents_is_listed(client: Client) -> None:
+async def test_iso_get_documents_is_listed(client) -> None:
     tools = await client.list_tools()
     names = [t.name for t in tools.tools]
     assert "iso_get_documents" in names
 
 
 @pytest.mark.anyio
-async def test_iso_get_document_is_listed(client: Client) -> None:
+async def test_iso_get_document_is_listed(client) -> None:
     tools = await client.list_tools()
     names = [t.name for t in tools.tools]
     assert "iso_get_document" in names
 
 
 @pytest.mark.anyio
-async def test_iso_search_documents_is_listed(client: Client) -> None:
+async def test_iso_search_documents_is_listed(client) -> None:
     tools = await client.list_tools()
     names = [t.name for t in tools.tools]
     assert "iso_search_documents" in names
 
 
 @pytest.mark.anyio
-async def test_iso_get_document_not_found(client: Client) -> None:
+async def test_iso_get_document_not_found(client) -> None:
     result = await client.call_tool(
         "iso_get_document", {"slug": "nonexistent"}
     )
     text = result.content[0].text
-    assert "not found" in text.lower() or result.isError
+    assert "not found" in text.lower()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1408,7 +1496,6 @@ import json
 
 import pytest
 import pytest_asyncio
-from mcp import Client
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.iso_docs.models import (
@@ -1478,14 +1565,15 @@ async def seeded_db(db_session: AsyncSession) -> None:
     await db_session.commit()
 
 
-@pytest.fixture
-async def client(seeded_db):
-    async with Client(mcp, raise_exceptions=True) as c:
+@pytest_asyncio.fixture
+async def client(seeded_db, use_test_db):
+    """In-process MCP client with seeded test data and session override."""
+    async with mcp.test_client() as c:
         yield c
 
 
 @pytest.mark.anyio
-async def test_list_registries_then_get_rows(client: Client) -> None:
+async def test_list_registries_then_get_rows(client) -> None:
     """Full flow: discover registries → fetch rows."""
     result = await client.call_tool("iso_get_registries", {})
     registries = json.loads(result.content[0].text)
@@ -1501,7 +1589,7 @@ async def test_list_registries_then_get_rows(client: Client) -> None:
 
 
 @pytest.mark.anyio
-async def test_search_then_read_document(client: Client) -> None:
+async def test_search_then_read_document(client) -> None:
     """Full flow: search docs → read matching document."""
     result = await client.call_tool(
         "iso_search_documents", {"query": "encryption remote"},
@@ -1516,7 +1604,7 @@ async def test_search_then_read_document(client: Client) -> None:
 
 
 @pytest.mark.anyio
-async def test_list_documents_filtered(client: Client) -> None:
+async def test_list_documents_filtered(client) -> None:
     result = await client.call_tool(
         "iso_get_documents", {"category": "policy"},
     )
@@ -1526,8 +1614,8 @@ async def test_list_documents_filtered(client: Client) -> None:
 
 
 @pytest.mark.anyio
-async def test_write_attempt_returns_graceful_error(client: Client) -> None:
-    """Verify that no write tools exist in Phase 1."""
+async def test_no_write_tools_registered(client) -> None:
+    """Phase 1 is read-only: no create/update/delete tools should exist."""
     tools = await client.list_tools()
     names = [t.name for t in tools.tools]
     write_tools = [n for n in names if "create" in n or "update" in n or "delete" in n]
@@ -1538,8 +1626,6 @@ async def test_write_attempt_returns_graceful_error(client: Client) -> None:
 
 Run: `PYTHONPATH=backend:. pytest mcp_server/tests/test_integration.py -v`
 Expected: 4 tests PASS
-
-Note: The integration tests need the `mcp_server/data/base.py` session to use the test DB. This requires overriding `DATABASE_URL` in the environment (already set by conftest.py). If `base.py` caches the engine, the tests may use the test DB automatically since `os.environ` is set before import. If the cached engine points to a different DB, add a `reset_engine()` helper to `base.py` and call it in the test fixtures.
 
 - [ ] **Step 3: Commit**
 
