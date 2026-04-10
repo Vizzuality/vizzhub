@@ -81,3 +81,58 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
         indent=2,
         default=str,
     )
+
+
+@mcp.tool()
+async def iso_get_documents(
+    category: str | None = None, search: str | None = None,
+) -> str:
+    """List ISO documents (policies, procedures, plans) with metadata.
+
+    Args:
+        category: Filter by category (policy, procedure, plan, record, etc.).
+        search: Filter by title (substring match). For full-text content
+                search, use iso_search_documents instead.
+
+    Returns JSON array of documents with slug, title, category,
+    version, and a summary of the content.
+    """
+    async with get_read_session() as session:
+        docs = await iso_data.get_documents(
+            session, category=category, title_search=search,
+        )
+    return json.dumps(docs, indent=2, default=str)
+
+
+@mcp.tool()
+async def iso_get_document(slug: str) -> str:
+    """Get the full content of a single ISO document by slug.
+
+    Args:
+        slug: Document slug (from iso_get_documents).
+
+    Returns JSON with title, category, version, and the full
+    markdown content of the document.
+    """
+    async with get_read_session() as session:
+        try:
+            doc = await iso_data.get_document(session, slug)
+        except ValueError as e:
+            return json.dumps({"error": str(e)})
+    return json.dumps(doc, indent=2, default=str)
+
+
+@mcp.tool()
+async def iso_search_documents(query: str) -> str:
+    """Full-text search across ISO document content.
+
+    Args:
+        query: Search terms (e.g. "encryption remote access").
+
+    Returns JSON array of matching documents with snippet, section
+    heading, and rank. Rank is a PostgreSQL ts_rank value useful
+    only for ordering — it is not a normalized 0-1 score.
+    """
+    async with get_read_session() as session:
+        results = await iso_data.search_documents(session, query)
+    return json.dumps(results, indent=2, default=str)

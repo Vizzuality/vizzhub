@@ -6,7 +6,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.iso_docs.models import RegistryTypeDB, IsoDocNodeDB, RegistryRowDB
+from app.modules.iso_docs.models import RegistryTypeDB, IsoDocNodeDB, RegistryRowDB, IsoDocVersionDB, IsoDocMetadataDB
 from mcp_server.data.base import override_session
 from mcp_server.server import mcp
 
@@ -85,3 +85,76 @@ async def test_iso_get_registry_rows_invalid_slug(db_session, seed_tool_registry
     content_blocks = result[0]
     text = content_blocks[0].text
     assert "not found" in text.lower()
+
+
+@pytest_asyncio.fixture
+async def seed_tool_documents(db_session: AsyncSession) -> None:
+    page = IsoDocNodeDB(
+        title="Test Policy",
+        slug="test-policy",
+        type="page",
+    )
+    db_session.add(page)
+    await db_session.flush()
+
+    db_session.add(IsoDocMetadataDB(
+        node_id=page.id, category="policy", doc_version="1.0",
+    ))
+    db_session.add(IsoDocVersionDB(
+        node_id=page.id, version=1,
+        content="## Purpose\n\nThis policy covers encryption and remote access.",
+    ))
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_iso_get_documents_is_listed(db_session, seed_tool_documents) -> None:
+    async with override_session(db_session):
+        tools = await mcp.list_tools()
+    names = [t.name for t in tools]
+    assert "iso_get_documents" in names
+
+
+@pytest.mark.asyncio
+async def test_iso_get_document_is_listed(db_session, seed_tool_documents) -> None:
+    async with override_session(db_session):
+        tools = await mcp.list_tools()
+    names = [t.name for t in tools]
+    assert "iso_get_document" in names
+
+
+@pytest.mark.asyncio
+async def test_iso_search_documents_is_listed(db_session, seed_tool_documents) -> None:
+    async with override_session(db_session):
+        tools = await mcp.list_tools()
+    names = [t.name for t in tools]
+    assert "iso_search_documents" in names
+
+
+@pytest.mark.asyncio
+async def test_iso_get_document_not_found(db_session, seed_tool_documents) -> None:
+    async with override_session(db_session):
+        result = await mcp.call_tool("iso_get_document", {"slug": "nonexistent"})
+    content_blocks = result[0]
+    text = content_blocks[0].text
+    assert "not found" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_iso_get_documents_returns_data(db_session, seed_tool_documents) -> None:
+    async with override_session(db_session):
+        result = await mcp.call_tool("iso_get_documents", {})
+    content_blocks = result[0]
+    docs = json.loads(content_blocks[0].text)
+    assert len(docs) >= 1
+    assert docs[0]["slug"] == "test-policy"
+
+
+@pytest.mark.asyncio
+async def test_iso_search_documents_returns_results(db_session, seed_tool_documents) -> None:
+    async with override_session(db_session):
+        result = await mcp.call_tool("iso_search_documents", {"query": "encryption"})
+    content_blocks = result[0]
+    results = json.loads(content_blocks[0].text)
+    assert len(results) >= 1
+    assert results[0]["slug"] == "test-policy"
