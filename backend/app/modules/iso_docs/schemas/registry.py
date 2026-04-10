@@ -31,6 +31,11 @@ class ColumnDef(BaseModel):
     width: int | None = None
     formula: FormulaSpec | None = None
     conditional_format: list[ConditionalFormatRange] | None = None
+    hidden: bool = Field(default=False)
+
+
+class ColumnVisibilityUpdate(BaseModel):
+    hidden_columns: list[str]
 
 
 class RegistryTypeCreate(BaseModel):
