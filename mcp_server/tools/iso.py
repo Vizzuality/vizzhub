@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from typing import Any
 
 from mcp_server.data.base import get_read_session
 from mcp_server.data import iso as iso_data
 from mcp_server.server import mcp
 
 from app.modules.iso_docs.services.registry_service import compute_row_fields
+
+
+def _to_json(data: Any) -> str:
+    """Serialize data to indented JSON with safe date/uuid handling."""
+    return json.dumps(data, indent=2, default=str)
 
 
 @mcp.tool()
@@ -22,20 +28,16 @@ async def iso_get_registries() -> str:
     """
     async with get_read_session() as session:
         types = await iso_data.get_registry_types(session)
-    return json.dumps(
-        [
-            {
-                "slug": rt.slug,
-                "name": rt.name,
-                "description": rt.description,
-                "is_yearly": rt.is_yearly,
-                "columns": rt.schema,
-            }
-            for rt in types
-        ],
-        indent=2,
-        default=str,
-    )
+    return _to_json([
+        {
+            "slug": rt.slug,
+            "name": rt.name,
+            "description": rt.description,
+            "is_yearly": rt.is_yearly,
+            "columns": rt.schema,
+        }
+        for rt in types
+    ])
 
 
 @mcp.tool()
@@ -54,7 +56,7 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
         try:
             rt, node_id = await iso_data.resolve_registry_node(session, slug)
         except ValueError as e:
-            return json.dumps({"error": str(e)})
+            return _to_json({"error": str(e)})
 
         effective_year = year
         if effective_year is None and rt.is_yearly:
@@ -62,25 +64,21 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
 
         rows = await iso_data.get_registry_rows(session, node_id, effective_year)
 
-    return json.dumps(
-        {
-            "registry": rt.name,
-            "slug": rt.slug,
-            "year": effective_year,
-            "total_rows": len(rows),
-            "columns": rt.schema,
-            "rows": [
-                {
-                    "id": str(row.id),
-                    "row_index": row.row_index,
-                    "data": compute_row_fields(rt.schema, row.data),
-                }
-                for row in rows
-            ],
-        },
-        indent=2,
-        default=str,
-    )
+    return _to_json({
+        "registry": rt.name,
+        "slug": rt.slug,
+        "year": effective_year,
+        "total_rows": len(rows),
+        "columns": rt.schema,
+        "rows": [
+            {
+                "id": str(row.id),
+                "row_index": row.row_index,
+                "data": compute_row_fields(rt.schema, row.data),
+            }
+            for row in rows
+        ],
+    })
 
 
 @mcp.tool()
@@ -101,7 +99,7 @@ async def iso_get_documents(
         docs = await iso_data.get_documents(
             session, category=category, title_search=search,
         )
-    return json.dumps(docs, indent=2, default=str)
+    return _to_json(docs)
 
 
 @mcp.tool()
@@ -118,8 +116,8 @@ async def iso_get_document(slug: str) -> str:
         try:
             doc = await iso_data.get_document(session, slug)
         except ValueError as e:
-            return json.dumps({"error": str(e)})
-    return json.dumps(doc, indent=2, default=str)
+            return _to_json({"error": str(e)})
+    return _to_json(doc)
 
 
 @mcp.tool()
@@ -135,4 +133,4 @@ async def iso_search_documents(query: str) -> str:
     """
     async with get_read_session() as session:
         results = await iso_data.search_documents(session, query)
-    return json.dumps(results, indent=2, default=str)
+    return _to_json(results)
