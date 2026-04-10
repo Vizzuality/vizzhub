@@ -20,3 +20,11 @@ Generates the playbook static site from local DB and serves it for browser previ
 ```bash
 python scripts/preview_playbook_export.py
 ```
+
+### seed_audit_findings.py
+
+Seeds the Audit Findings Register (registry type, tree node, and 19 translated rows) into the ISO Docs system. Idempotent.
+
+```bash
+cd backend && python -m scripts.seed_audit_findings
+```

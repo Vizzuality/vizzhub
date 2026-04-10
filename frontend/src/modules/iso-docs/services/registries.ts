@@ -34,6 +34,17 @@ export const registriesApi = {
     await api.delete(`/iso-docs/registry-types/${id}`);
   },
 
+  updateColumnVisibility: async (
+    id: string,
+    hiddenColumns: string[],
+  ): Promise<RegistryType> => {
+    const { data } = await api.patch<RegistryType>(
+      `/iso-docs/registry-types/${id}/column-visibility`,
+      { hidden_columns: hiddenColumns },
+    );
+    return data;
+  },
+
   listYears: async (nodeId: string): Promise<number[]> => {
     const { data } = await api.get<number[]>(`/iso-docs/registries/${nodeId}/years`);
     return data;

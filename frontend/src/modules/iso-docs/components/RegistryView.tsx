@@ -30,7 +30,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { InlineCell } from './InlineCell';
 import { RegistryRowDialog } from './RegistryRowDialog';
 import { RegistryTypeDialog } from './RegistryTypeDialog';
-import { useRegistryType, useUpdateRegistryType } from '../hooks/useRegistryTypes';
+import { useRegistryType, useUpdateRegistryType, useUpdateColumnVisibility } from '../hooks/useRegistryTypes';
 import {
   useRegistryYears,
   useRegistryRows,
@@ -205,6 +205,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [sortInitialized, setSortInitialized] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [visibilityInitialized, setVisibilityInitialized] = useState(false);
   const [viewingRow, setViewingRow] = useState<RegistryRow | null>(null);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null);
@@ -219,6 +220,17 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
       setSortInitialized(true);
     }
   }, [sortInitialized, registryType]);
+
+  useEffect(() => {
+    if (visibilityInitialized || !registryType?.schema) return;
+    const initial = new Set(
+      registryType.schema
+        .filter((col) => col.hidden)
+        .map((col) => col.key),
+    );
+    setHiddenColumns(initial);
+    setVisibilityInitialized(true);
+  }, [visibilityInitialized, registryType]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -249,6 +261,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   const importCsv = useImportCsv(nodeId);
   const { data: driveStatus } = useDriveExportStatus(isEditor);
   const updateType = useUpdateRegistryType();
+  const persistColumnVisibility = useUpdateColumnVisibility(registryTypeId);
   const uploadAttachment = useUploadAttachment(nodeId);
   const deleteAttachment = useDeleteAttachment(nodeId);
   const copyYear = useCopyYear(nodeId);
@@ -285,9 +298,10 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
       } else {
         next.add(key);
       }
+      persistColumnVisibility([...next]);
       return next;
     });
-  }, []);
+  }, [persistColumnVisibility]);
 
   const handleInlineSave = useCallback(
     (row: RegistryRow, key: string, value: unknown) => {

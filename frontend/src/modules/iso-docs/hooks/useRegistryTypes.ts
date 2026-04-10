@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef, useCallback, useEffect } from 'react';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { registriesApi } from '../services/registries';
 import type { RegistryTypeCreate, RegistryTypeUpdate } from '../types/registry';
@@ -47,4 +48,35 @@ export function useDeleteRegistryType() {
       queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryTypes });
     },
   });
+}
+
+const VISIBILITY_DEBOUNCE_MS = 400;
+
+export function useUpdateColumnVisibility(typeId: string | null): (hiddenColumns: string[]) => void {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mutation = useMutation({
+    mutationFn: (hiddenColumns: string[]) =>
+      registriesApi.updateColumnVisibility(typeId!, hiddenColumns),
+  });
+  const mutateRef = useRef(mutation.mutate);
+  mutateRef.current = mutation.mutate;
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const debouncedUpdate = useCallback(
+    (hiddenColumns: string[]) => {
+      if (!typeId) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        mutateRef.current(hiddenColumns);
+      }, VISIBILITY_DEBOUNCE_MS);
+    },
+    [typeId],
+  );
+
+  return debouncedUpdate;
 }
