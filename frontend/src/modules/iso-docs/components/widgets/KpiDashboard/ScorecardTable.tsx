@@ -86,6 +86,55 @@ interface EditingCell {
   value: string;
 }
 
+function ManualKpiMonthCell({
+  row,
+  month,
+  editingCell,
+  isEditor,
+  onCellClick,
+  onEditingChange,
+  onSave,
+  onKeyDown,
+}: {
+  readonly row: RegistryRow;
+  readonly month: MonthColumn;
+  readonly editingCell: EditingCell | null;
+  readonly isEditor: boolean;
+  readonly onCellClick: (rowId: string, monthKey: string, currentValue: unknown) => void;
+  readonly onEditingChange: (cell: EditingCell | null) => void;
+  readonly onSave: (row: RegistryRow) => void;
+  readonly onKeyDown: (e: React.KeyboardEvent, row: RegistryRow) => void;
+}): React.ReactElement {
+  const mKey = monthToDataKey(month.month);
+  const cellValue = row.data[mKey];
+  const isEditing = editingCell?.rowId === row.id && editingCell?.monthKey === mKey;
+
+  return (
+    <td
+      key={`${month.year}-${month.month}`}
+      className="px-2 py-2 text-center tabular-nums"
+      onClick={() => onCellClick(row.id, mKey, cellValue)}
+    >
+      {isEditing ? (
+        <input
+          type="number"
+          step="any"
+          className="w-16 text-center border rounded px-1 py-0.5 text-sm bg-background"
+          value={editingCell.value}
+          onChange={(e) => onEditingChange({ ...editingCell, value: e.target.value })}
+          onBlur={() => onSave(row)}
+          onKeyDown={(e) => onKeyDown(e, row)}
+          autoFocus
+        />
+      ) : (
+        <span className={cn(isEditor && 'cursor-pointer hover:text-foreground')}>
+          {formatCellValue(cellValue)}
+        </span>
+      )}
+    </td>
+  );
+}
+
 export function ScorecardTable({
   months,
   metricsByPeriod,
@@ -225,36 +274,19 @@ export function ScorecardTable({
                   {formatCellValue(row.data.target)}
                 </td>
                 <td className="px-3 py-2 text-center" />
-                {months.map((m) => {
-                  const mKey = monthToDataKey(m.month);
-                  const cellValue = row.data[mKey];
-                  const isEditing = editingCell?.rowId === row.id && editingCell?.monthKey === mKey;
-
-                  return (
-                    <td
-                      key={`${m.year}-${m.month}`}
-                      className="px-2 py-2 text-center tabular-nums"
-                      onClick={() => handleCellClick(row.id, mKey, cellValue)}
-                    >
-                      {isEditing ? (
-                        <input
-                          type="number"
-                          step="any"
-                          className="w-16 text-center border rounded px-1 py-0.5 text-sm bg-background"
-                          value={editingCell.value}
-                          onChange={(e) => setEditingCell((prev) => prev ? { ...prev, value: e.target.value } : prev)}
-                          onBlur={() => handleCellSave(row)}
-                          onKeyDown={(e) => handleCellKeyDown(e, row)}
-                          autoFocus
-                        />
-                      ) : (
-                        <span className={cn(isEditor && 'cursor-pointer hover:text-foreground')}>
-                          {formatCellValue(cellValue)}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
+                {months.map((m) => (
+                  <ManualKpiMonthCell
+                    key={`${m.year}-${m.month}`}
+                    row={row}
+                    month={m}
+                    editingCell={editingCell}
+                    isEditor={isEditor}
+                    onCellClick={handleCellClick}
+                    onEditingChange={setEditingCell}
+                    onSave={handleCellSave}
+                    onKeyDown={handleCellKeyDown}
+                  />
+                ))}
                 {isEditor && (
                   <td className="px-2 py-2 text-center">
                     <AlertDialog>
