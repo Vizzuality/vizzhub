@@ -6,9 +6,10 @@ import json
 from datetime import date
 from typing import Any
 
+from mcp.server.fastmcp import FastMCP
+
 from mcp_server.data.base import get_read_session
 from mcp_server.data import iso as iso_data
-from mcp_server.server import mcp
 
 from app.modules.iso_docs.services.registry_service import compute_row_fields
 
@@ -18,7 +19,6 @@ def _to_json(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
-@mcp.tool()
 async def iso_get_registries() -> str:
     """List all ISO registry types with their column schemas.
 
@@ -40,7 +40,6 @@ async def iso_get_registries() -> str:
     ])
 
 
-@mcp.tool()
 async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
     """Get all rows from an ISO registry by its slug.
 
@@ -81,7 +80,6 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
     })
 
 
-@mcp.tool()
 async def iso_get_documents(
     category: str | None = None, search: str | None = None,
 ) -> str:
@@ -102,7 +100,6 @@ async def iso_get_documents(
     return _to_json(docs)
 
 
-@mcp.tool()
 async def iso_get_document(slug: str) -> str:
     """Get the full content of a single ISO document by slug.
 
@@ -120,7 +117,6 @@ async def iso_get_document(slug: str) -> str:
     return _to_json(doc)
 
 
-@mcp.tool()
 async def iso_search_documents(query: str) -> str:
     """Full-text search across ISO document content.
 
@@ -134,3 +130,12 @@ async def iso_search_documents(query: str) -> str:
     async with get_read_session() as session:
         results = await iso_data.search_documents(session, query)
     return _to_json(results)
+
+
+def register_iso_tools(server: FastMCP) -> None:
+    """Register all ISO tools on the given MCP server instance."""
+    server.tool()(iso_get_registries)
+    server.tool()(iso_get_registry_rows)
+    server.tool()(iso_get_documents)
+    server.tool()(iso_get_document)
+    server.tool()(iso_search_documents)
