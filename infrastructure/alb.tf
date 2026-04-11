@@ -242,7 +242,7 @@ resource "aws_lb_listener_rule" "block_scanners_misc" {
   }
 }
 
-# Listener Rule - /mcp* and /.well-known/oauth-protected-resource* → backend
+# Listener Rule - /mcp* and OAuth discovery paths → backend
 resource "aws_lb_listener_rule" "mcp" {
   listener_arn = aws_lb_listener.https.arn
   priority     = 50
@@ -254,7 +254,7 @@ resource "aws_lb_listener_rule" "mcp" {
 
   condition {
     path_pattern {
-      values = ["/mcp*", "/.well-known/oauth-protected-resource*"]
+      values = ["/mcp*", "/.well-known/oauth-protected-resource*", "/.well-known/oauth-authorization-server*"]
     }
   }
 }
