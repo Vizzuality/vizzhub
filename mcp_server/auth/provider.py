@@ -148,35 +148,24 @@ class VizzHubOAuthProvider:
 
     async def register_client(
         self, client_info: OAuthClientInformationFull
-    ) -> OAuthClientInformationFull:
-        """Stubbed — we pre-register clients manually.
+    ) -> None:
+        """Store a dynamically registered client.
 
-        The MCP SDK requires this method to exist.  It inserts a row if called,
-        but production flow relies on manual INSERT.
+        The SDK handler generates client_id/secret, passes them here, then
+        returns its own copy to the caller — our return value is ignored.
+        We must store the SAME client_id the SDK generated.
         """
-        client_id = secrets.token_urlsafe(24)
-        client_secret = secrets.token_urlsafe(48)
-
-        full_info = client_info.model_copy(
-            update={
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "client_id_issued_at": int(datetime.now(timezone.utc).timestamp()),
-            }
-        )
-
         async with self._session_maker() as session:
             session.add(
                 MCPOAuthClientDB(
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    client_info=full_info.model_dump(mode="json"),
+                    client_id=client_info.client_id,
+                    client_secret=client_info.client_secret,
+                    client_info=client_info.model_dump(mode="json"),
                 )
             )
             await session.commit()
 
-        logger.info("mcp_oauth_client_registered", client_id=client_id)
-        return full_info
+        logger.info("mcp_oauth_client_registered", client_id=client_info.client_id)
 
     # ------------------------------------------------------------------
     # Authorize
