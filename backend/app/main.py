@@ -116,7 +116,13 @@ async def lifespan(app: FastAPI) -> Any:
 
     app.state.score_cache = score_cache
 
-    yield
+    # Start MCP session manager if mounted (sub-app lifespan isn't propagated)
+    mcp_mgr = getattr(app.state, "mcp_session_manager", None)
+    if mcp_mgr:
+        async with mcp_mgr.run():
+            yield
+    else:
+        yield
 
     if redis_client:
         await redis_client.aclose()
@@ -285,6 +291,7 @@ if settings.mcp_enabled and settings.mcp_base_url:
         )
 
         mcp_starlette = mcp_server.streamable_http_app()
+        app.state.mcp_session_manager = mcp_server.session_manager
 
         google_callback = build_google_oauth_callback(
             session_maker=async_session_maker,
