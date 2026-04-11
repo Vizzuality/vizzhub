@@ -33,14 +33,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --chmod=555 = r-xr-xr-x (read+execute, no write)
 COPY --from=builder --chown=appuser:appuser --chmod=555 /root/.local /home/appuser/.local
 
-# Copy application code — permissions set by find below
-COPY --chown=appuser:appuser backend/ .
-COPY --chown=appuser:appuser mcp_server/ ./mcp_server/
-
-# Directories need execute to traverse; files are read-only except entrypoint
-RUN find /app -type d -exec chmod 555 {} \; \
-    && find /app -type f -exec chmod 444 {} \; \
-    && chmod 555 /app/entrypoint.sh
+# Copy application code with read-only permissions (no write)
+# --chmod=555 sets dirs traversable; find then strips execute from files
+COPY --chown=appuser:appuser --chmod=555 backend/ .
+COPY --chown=appuser:appuser --chmod=555 mcp_server/ ./mcp_server/
+RUN find /app -type f -exec chmod 444 {} \; && chmod 555 /app/entrypoint.sh
 
 # Set environment
 ENV PATH=/home/appuser/.local/bin:$PATH
