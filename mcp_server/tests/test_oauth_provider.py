@@ -389,7 +389,7 @@ async def test_exchange_authorization_code_deletes_code(
 
 
 @pytest.mark.asyncio
-async def test_exchange_authorization_code_invalid_pkce_fails(
+async def test_load_authorization_code_preserves_challenge(
     provider: VizzHubOAuthProvider,
     registered_client: OAuthClientInformationFull,
     session_maker,
@@ -420,6 +420,46 @@ async def test_exchange_authorization_code_invalid_pkce_fails(
     auth_code = await provider.load_authorization_code(registered_client, code)
     assert auth_code is not None
     assert auth_code.code_challenge == "expected-challenge-value"
+
+
+@pytest.mark.asyncio
+async def test_exchange_authorization_code_null_user_raises(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    session_maker,
+) -> None:
+    """exchange_authorization_code raises ValueError when callback never populated user info."""
+    from mcp.server.auth.provider import AuthorizationCode
+
+    code = "null-user-code-abc"
+    async with session_maker() as session:
+        session.add(
+            MCPOAuthCodeDB(
+                code=code,
+                client_id=TEST_CLIENT_ID,
+                code_challenge="some-challenge",
+                redirect_uri="http://localhost:3000/callback",
+                redirect_uri_provided_explicitly=True,
+                scopes=["read"],
+                user_id=None,
+                user_email=None,
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            )
+        )
+        await session.commit()
+
+    auth_code = AuthorizationCode(
+        code=code,
+        client_id=TEST_CLIENT_ID,
+        code_challenge="some-challenge",
+        redirect_uri="http://localhost:3000/callback",
+        redirect_uri_provided_explicitly=True,
+        scopes=["read"],
+        expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp(),
+    )
+
+    with pytest.raises(ValueError, match="callback incomplete"):
+        await provider.exchange_authorization_code(registered_client, auth_code)
 
 
 # ------------------------------------------------------------------
