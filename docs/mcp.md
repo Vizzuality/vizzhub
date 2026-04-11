@@ -491,9 +491,10 @@ The script sets `PYTHONPATH=backend` and loads `DATABASE_URL` from `backend/.env
 
 ### Remote setup (HTTP)
 
-For production or remote access, Claude Code connects via SSE:
+For production access, both Claude Code and Claude Desktop connect via SSE with OAuth authentication.
+
+**Claude Code** — `.mcp.json` in the repo root:
 ```json
-// .mcp.json
 {
   "mcpServers": {
     "vizzhub-remote": {
@@ -504,9 +505,22 @@ For production or remote access, Claude Code connects via SSE:
 }
 ```
 
+**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+```json
+{
+  "mcpServers": {
+    "vizzhub": {
+      "url": "https://hub.vizzuality.com/mcp/sse"
+    }
+  }
+}
+```
+
+On Windows the config file is at `%APPDATA%\Claude\claude_desktop_config.json`.
+
 **Important:** The URL must point to the SSE endpoint (`/mcp/sse`), not the mount root (`/mcp/`). Use `type: "sse"` — Claude Code does not support `streamable-http` in `.mcp.json`.
 
-Claude Code will automatically discover the OAuth endpoints via `/.well-known/oauth-authorization-server` and open a browser for Google SSO authentication. After login, the OAuth token is cached and subsequent sessions reuse it until it expires.
+On first connection, the client discovers OAuth endpoints via `/.well-known/oauth-authorization-server` and opens a browser for Google SSO authentication. After login, the token is cached and reused until it expires.
 
 ## Infrastructure
 
