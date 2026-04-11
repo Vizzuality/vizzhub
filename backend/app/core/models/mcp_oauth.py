@@ -50,6 +50,7 @@ class MCPOAuthCodeDB(Base):
     user_roles: Mapped[list[str] | None] = mapped_column(JSONB)
     user_permissions: Mapped[list[str] | None] = mapped_column(JSONB)
     resource: Mapped[str | None] = mapped_column(Text)
+    mcp_state: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
