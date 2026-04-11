@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from jose import JWTError, jwt
 from mcp.server.auth.provider import AccessToken
 
@@ -28,8 +30,9 @@ class VizzHubTokenVerifier:
     async def verify_token(self, token: str) -> AccessToken | None:
         """Decode and validate *token*, returning an ``AccessToken`` on success."""
         try:
-            payload = jwt.decode(
-                token, self._secret_key, algorithms=[self._algorithm],
+            payload = await asyncio.to_thread(
+                jwt.decode, token, self._secret_key,
+                algorithms=[self._algorithm],
                 audience=self._audience, issuer=self._issuer,
             )
             return AccessToken(
