@@ -7,6 +7,11 @@ from app.core.models.functional_area import (
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.job import Job, JobStatus, JobType
 from app.core.models.link import Link, LinkCreate, LinkDB, LinkType
+from app.core.models.mcp_oauth import (
+    MCPOAuthClientDB,
+    MCPOAuthCodeDB,
+    MCPOAuthRefreshTokenDB,
+)
 from app.core.models.oauth import OAuthStateDB, OAuthToken, OAuthTokenDB
 from app.core.models.program import Program, ProgramCreate, ProgramDB
 from app.core.models.project import (
@@ -35,6 +40,9 @@ __all__ = [
     "LinkCreate",
     "LinkDB",
     "LinkType",
+    "MCPOAuthClientDB",
+    "MCPOAuthCodeDB",
+    "MCPOAuthRefreshTokenDB",
     "OAuthStateDB",
     "OAuthToken",
     "OAuthTokenDB",
