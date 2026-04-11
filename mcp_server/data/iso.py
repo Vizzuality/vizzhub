@@ -111,7 +111,7 @@ def _extract_section_heading(content: str, snippet: str) -> str | None:
     if pos < 0:
         return None
     preceding = content[:pos]
-    headings = re.findall(r"^(#{1,3}\s+.+)$", preceding, re.MULTILINE)
+    headings = re.findall(r"^(#{1,3}\s+[^\n]+)$", preceding, re.MULTILINE)
     return headings[-1] if headings else None
 
 
