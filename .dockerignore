@@ -1,2 +1,1 @@
-mcp_server/
-requirements-mcp.txt
+# mcp_server/ is included in the backend Docker image (mounted as sub-app)
