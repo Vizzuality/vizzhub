@@ -18,7 +18,10 @@ _INSTRUCTIONS = (
     "Use Capacity tools to see team allocation: insights by FA, "
     "drill into users, or view averaged allocation. "
     "Use Playbook tools to browse the internal knowledge base: "
-    "get the tree, read articles, or search content."
+    "get the tree, read articles, or search content. "
+    "Use Users tools for the team directory: list members with their "
+    "functional area, rate band, dedication, and roles. Also look up "
+    "functional areas and billing rates."
 )
 
 
@@ -71,6 +74,9 @@ def create_mcp_server(
 
     from mcp_server.tools.playbook import register_playbook_tools  # noqa: PLC0415
     register_playbook_tools(instance)
+
+    from mcp_server.tools.users import register_users_tools  # noqa: PLC0415
+    register_users_tools(instance)
 
     return instance
 

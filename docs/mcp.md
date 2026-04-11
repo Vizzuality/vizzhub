@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook) directly from the database. 22 read-only tools available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 26 read-only tools available.
 
 ## Architecture
 
@@ -299,6 +299,45 @@ Search playbook articles by title and content.
 | `query` | string | yes | Search terms |
 
 **Returns:** JSON array of matching articles with `title`, `slug`, `summary`.
+
+### `users_get_team`
+
+Get the team directory — list of users with their role and area.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `active_only` | boolean | no | Only active users (default: true) |
+| `functional_area` | string | no | Filter by FA name (e.g. "Frontend Developer") |
+
+**Returns:** JSON array of users with `id`, `name`, `email`, `functional_area`, `rate_code`, `dedication`, `roles`, `slack_display_name`, `requires_project_reporting`.
+
+### `users_get_detail`
+
+Get full profile for a specific user.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `user_id` | string | yes | User UUID |
+
+**Returns:** JSON object with full profile: `name`, `first_name`, `last_name`, `email`, `functional_area`, `rate_code`, `rate_value`, `dedication`, `roles`, `slack_display_name`, `last_login_at`, `requires_project_reporting`.
+
+### `users_get_functional_areas`
+
+List all functional areas (team skill categories).
+
+**Parameters:** None
+
+**Returns:** JSON array of functional areas with `id` and `name`.
+
+### `users_get_rates`
+
+List all billing rate bands.
+
+**Parameters:** None
+
+**Returns:** JSON array of rate bands with `id`, `code` (A-D), and `value`.
 
 ## Authentication
 
