@@ -1,0 +1,356 @@
+# MCP Server
+
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query ISO compliance data directly from the database.
+
+## Architecture
+
+The MCP server supports two transports from the same codebase:
+
+```
+Production (HTTPS):
+
+  Claude Code / Desktop
+        |
+        | HTTPS (streamable-http)
+        v
+  ALB (hub.vizzuality.com)
+        |
+        | /mcp/* → backend:8000
+        |
+  FastAPI backend
+        |
+        +-- /mcp/           StreamableHTTP endpoint (tools)
+        +-- /mcp/authorize   OAuth → redirects to Google SSO
+        +-- /mcp/token       Issues JWT access + refresh tokens
+        +-- /mcp/revoke      Token revocation
+        +-- /mcp/oauth/callback  Google SSO callback
+
+
+Local development (stdio):
+
+  Claude Code / Desktop
+        |
+        | stdin/stdout
+        v
+  python -m mcp_server   (direct DB, no auth)
+```
+
+### Key design decisions
+
+- **Sub-app, not separate process.** The MCP Starlette app is mounted on the existing FastAPI backend at `/mcp` via `app.mount()`. Same container, same DB pool, same deploy pipeline.
+- **Transport-agnostic server.** `create_mcp_server()` factory produces a `FastMCP` instance. `__main__.py` uses it with stdio; `main.py` uses it with streamable-http. The server object doesn't know which transport is active.
+- **Read-only guarantee.** MCP tool sessions use `postgresql_readonly=True` at the engine level. Even sharing the backend's connection pool, tools cannot write.
+- **`streamable_http_path="/"`** avoids path doubling. Without this, mounting at `/mcp` on FastAPI with the SDK default of `/mcp` would create `/mcp/mcp`.
+
+## Tools
+
+### `iso_get_registries`
+
+List all ISO registry types with their column schemas.
+
+**Parameters:** None
+
+**Returns:** JSON array of registry types with `slug`, `name`, `description`, `is_yearly`, and `columns` (schema definition).
+
+### `iso_get_registry_rows`
+
+Get all rows from an ISO registry.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `slug` | string | yes | Registry type slug (from `iso_get_registries`) |
+| `year` | int | no | Year filter for yearly registries. Defaults to current year if the registry uses yearly grouping. |
+
+**Returns:** JSON with registry metadata, column schema, total row count, and all rows with computed fields.
+
+### `iso_get_documents`
+
+List ISO documents (policies, procedures, plans) with metadata and content summary.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `category` | string | no | Filter by category (`policy`, `procedure`, `plan`, `record`, etc.) |
+| `search` | string | no | Filter by title substring. For full-text content search, use `iso_search_documents`. |
+
+**Returns:** JSON array of documents with `slug`, `title`, `category`, `doc_version`, `last_updated`, and a 200-character content `summary`.
+
+### `iso_get_document`
+
+Get the full markdown content of a single ISO document.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `slug` | string | yes | Document slug (from `iso_get_documents`) |
+
+**Returns:** JSON with `title`, `category`, `doc_version`, and `content` (full markdown).
+
+### `iso_search_documents`
+
+Full-text search across ISO document content using PostgreSQL `tsvector`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | string | yes | Search terms (e.g. `"encryption remote access"`) |
+
+**Returns:** JSON array of matches with `slug`, `title`, `section` (nearest heading), `snippet` (highlighted excerpt), and `rank`.
+
+## Authentication
+
+### Overview
+
+The MCP server uses OAuth 2.1 with PKCE, delegating user authentication to VizzHub's existing Google SSO. Every MCP call carries a JWT tied to a real VizzHub user, providing a complete audit trail (who, when, which tool) for ISO 27001 compliance.
+
+```
+Claude Code                       VizzHub Backend
+    |                                    |
+    |-- POST /mcp/ ------------------>   |
+    |<-- 401 + WWW-Authenticate ------   |  (no token)
+    |                                    |
+    |-- GET /.well-known/oauth-...  ->   |  (discover OAuth)
+    |                                    |
+    |-- GET /mcp/authorize ---------->   |
+    |<-- 302 Google OAuth consent ----   |  (redirect to Google)
+    |                                    |
+    |     [User authenticates]           |
+    |                                    |
+    |<-- 302 /mcp/oauth/callback ----   |  (Google redirects back)
+    |                                    |  (creates auth code + user info)
+    |<-- 302 redirect_uri?code=... --   |  (redirects to Claude)
+    |                                    |
+    |-- POST /mcp/token ------------->   |  (exchange code for JWT)
+    |<-- { access_token, refresh } ---   |
+    |                                    |
+    |-- POST /mcp/ + Bearer JWT ----->   |  (tool calls work)
+```
+
+### Components
+
+**`VizzHubTokenVerifier`** (`mcp_server/auth/token_verifier.py`)
+
+Implements the MCP SDK `TokenVerifier` protocol. Validates JWTs using `jose.jwt.decode()` with:
+- Shared secret: same `JWT_SECRET_KEY` as the backend
+- Audience: `vizzhub-mcp` (prevents UI session tokens from being accepted)
+- Issuer: `vizzhub`
+
+Returns an `AccessToken` with `client_id` (user UUID), `scopes`, and `expires_at`.
+
+**`VizzHubOAuthProvider`** (`mcp_server/auth/provider.py`)
+
+Implements the MCP SDK `OAuthAuthorizationServerProvider` protocol. Adapts the existing Google SSO flow to the OAuth 2.1 protocol that MCP clients expect.
+
+Key methods:
+| Method | Behavior |
+|--------|----------|
+| `authorize` | Stores MCP params in DB (5-min TTL), returns Google OAuth URL |
+| `exchange_authorization_code` | Verifies PKCE (via SDK), issues JWT + refresh token |
+| `exchange_refresh_token` | Rotates tokens (delete old, create new) |
+| `load_access_token` | Delegates to `VizzHubTokenVerifier` |
+| `revoke_token` | Deletes refresh token from DB |
+
+**`google_oauth_callback`** (`mcp_server/auth/callback.py`)
+
+Starlette endpoint at `/mcp/oauth/callback`. Handles the Google redirect:
+1. Loads the MCP state row from DB
+2. Exchanges Google auth code for ID token
+3. Verifies domain (`@vizzuality.com`)
+4. Looks up user, resolves permissions
+5. Creates a new auth code with user info (60s TTL)
+6. Redirects to MCP client with the new code
+
+### JWT claims
+
+Access tokens are HS256 JWTs with:
+
+```json
+{
+  "sub": "user-uuid",
+  "email": "user@vizzuality.com",
+  "client_id": "oauth-client-id",
+  "roles": ["user", "admin"],
+  "permissions": ["*"],
+  "scopes": ["read"],
+  "iss": "vizzhub",
+  "aud": "vizzhub-mcp",
+  "iat": 1744300000,
+  "exp": 1744307200
+}
+```
+
+Access tokens expire in 2 hours. Refresh tokens expire in 30 days and are rotated on use.
+
+### OAuth state storage
+
+OAuth state (codes, refresh tokens, client registrations) is stored in PostgreSQL:
+- `mcp_oauth_clients` — pre-registered OAuth client
+- `mcp_oauth_codes` — authorization codes (60s TTL after callback, 5min TTL during Google flow)
+- `mcp_oauth_refresh_tokens` — refresh tokens (30-day TTL)
+
+An ARQ cron job runs daily at 3 AM UTC to purge expired rows.
+
+### Pre-registered client
+
+Dynamic Client Registration (RFC 7591) is deferred. The OAuth client is pre-registered: credentials are generated by OpenTofu, stored in Secrets Manager, and auto-seeded into the DB on backend startup.
+
+## Configuration
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_ENABLED` | `false` | Enable the HTTP MCP sub-app |
+| `MCP_BASE_URL` | `""` | Public URL (e.g. `https://hub.vizzuality.com/mcp`) |
+| `MCP_OAUTH_CLIENT_ID` | `""` | Pre-registered OAuth client ID (from Secrets Manager) |
+| `MCP_OAUTH_CLIENT_SECRET` | `""` | Pre-registered OAuth client secret (from Secrets Manager) |
+
+These are set automatically in production by the deploy pipeline reading from Secrets Manager.
+
+### Local setup (stdio)
+
+For local development, the MCP server runs via stdio with no auth:
+
+**Claude Code** — use the wrapper script:
+```json
+// .mcp.json
+{
+  "mcpServers": {
+    "vizzhub-local": {
+      "command": "bash",
+      "args": ["./scripts/run-mcp-server.sh"]
+    }
+  }
+}
+```
+
+The script sets `PYTHONPATH=backend` and loads `DATABASE_URL` from `backend/.env`.
+
+**Claude Desktop** — use the direct Python path (macOS blocks bash scripts):
+```json
+// claude_desktop_config.json
+{
+  "mcpServers": {
+    "vizzhub": {
+      "command": "/path/to/python",
+      "args": ["-m", "mcp_server"],
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost:5432/dbname",
+        "PYTHONPATH": "/path/to/vizzhub/backend:/path/to/vizzhub"
+      }
+    }
+  }
+}
+```
+
+### Remote setup (HTTP)
+
+For production or remote access, Claude Code connects via streamable-http:
+```json
+// .mcp.json
+{
+  "mcpServers": {
+    "vizzhub-remote": {
+      "type": "streamable-http",
+      "url": "https://hub.vizzuality.com/mcp"
+    }
+  }
+}
+```
+
+Claude Code will automatically discover the OAuth endpoints and open a browser for Google SSO authentication.
+
+## Infrastructure
+
+### ALB routing
+
+The ALB routes `/mcp*` to the backend target group at priority 50:
+
+| Priority | Pattern | Target |
+|----------|---------|--------|
+| 1-4 | Scanner blocks | Fixed 403 |
+| 50 | `/mcp*` | backend:8000 |
+| 99 | `/health` | backend:8000 |
+| 100 | `/api/*` | backend:8000 |
+| default | `/*` | frontend:5173 |
+
+### Secrets Manager
+
+The MCP OAuth client credentials are stored in `/${project}/${env}/mcp-oauth`:
+```json
+{
+  "client_id": "auto-generated-by-tofu",
+  "client_secret": "auto-generated-by-tofu"
+}
+```
+
+Generated by OpenTofu (`random_password`), read by the deploy pipeline into the backend `.env`.
+
+### Database tables
+
+Three tables created by migrations 049-050:
+
+| Table | Purpose | TTL |
+|-------|---------|-----|
+| `mcp_oauth_clients` | Pre-registered OAuth clients | None |
+| `mcp_oauth_codes` | Authorization codes | 60s (post-callback) |
+| `mcp_oauth_refresh_tokens` | Refresh tokens | 30 days |
+
+## Testing
+
+```bash
+# Run all MCP tests (72 tests)
+PYTHONPATH=backend:. pytest mcp_server/tests/ -v
+
+# Run specific test suites
+PYTHONPATH=backend:. pytest mcp_server/tests/test_token_verifier.py -v
+PYTHONPATH=backend:. pytest mcp_server/tests/test_oauth_provider.py -v
+PYTHONPATH=backend:. pytest mcp_server/tests/test_oauth_callback.py -v
+PYTHONPATH=backend:. pytest mcp_server/tests/test_iso_data.py -v
+PYTHONPATH=backend:. pytest mcp_server/tests/test_iso_tools.py -v
+PYTHONPATH=backend:. pytest mcp_server/tests/test_integration.py -v
+
+# Run cleanup job tests
+cd backend && pytest tests/worker/test_cleanup_mcp_oauth.py -v
+```
+
+## Project structure
+
+```
+mcp_server/
+├── __init__.py
+├── __main__.py              # Stdio entrypoint: mcp.run(transport="stdio")
+├── config.py                # Settings for stdio mode (DATABASE_URL)
+├── server.py                # create_mcp_server() factory
+├── auth/
+│   ├── token_verifier.py    # VizzHubTokenVerifier (JWT validation)
+│   ├── provider.py          # VizzHubOAuthProvider (OAuth adapter)
+│   └── callback.py          # Google SSO callback endpoint
+├── data/
+│   ├── base.py              # Read-only session management
+│   └── iso.py               # ISO data queries (registries, documents, search)
+├── tools/
+│   └── iso.py               # 5 MCP tool definitions + register_iso_tools()
+└── tests/
+    ├── conftest.py           # Shared fixtures (test DB, session override)
+    ├── test_token_verifier.py
+    ├── test_oauth_provider.py
+    ├── test_oauth_callback.py
+    ├── test_iso_data.py
+    ├── test_iso_tools.py
+    └── test_integration.py
+```
+
+## Roadmap
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1 | Done | Read-only ISO tools (stdio) |
+| 1.5 | Done | HTTP transport + OAuth + deployment |
+| 2 | Planned | Read-only relational modules (Tracker, Scorecard, Capacity, Playbook) |
+| 3 | Planned | Command queue + write operations with human approval |
+| 4 | Planned | Transactions (Saga pattern with cross-command references) |
+| 5 | Planned | Policy engine (risk-based routing, role-based approval) |
+
+See `docs/MCP_plan.md` for the full architecture vision.
