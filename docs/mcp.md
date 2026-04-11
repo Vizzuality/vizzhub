@@ -45,6 +45,7 @@ Local development (stdio):
 - **Read-only guarantee.** MCP tool sessions use `postgresql_readonly=True` at the engine level. Even sharing the backend's connection pool, tools cannot write.
 - **`streamable_http_path="/"`** avoids path doubling. Without this, mounting at `/mcp` on FastAPI with the SDK default of `/mcp` would create `/mcp/mcp`.
 - **Session manager in parent lifespan.** `app.mount()` does **not** propagate the sub-app's Starlette lifespan. The `StreamableHTTPSessionManager` must be started explicitly in FastAPI's lifespan via `async with session_manager.run()`. Without this, tool calls fail with `RuntimeError: Task group is not initialized`.
+- **DNS rebinding protection.** The SDK defaults to `host="127.0.0.1"` which auto-enables DNS rebinding protection with `allowed_hosts=["127.0.0.1:*", "localhost:*"]`. Behind an ALB, the `Host` header is the public domain — pass `TransportSecuritySettings(allowed_hosts=["hub.vizzuality.com"])` to allow it.
 
 ## Tools
 
@@ -429,6 +430,21 @@ if mcp_mgr:
         yield
 else:
     yield
+```
+
+### "Invalid Host header" / 421 status after auth
+
+The SDK defaults to `host="127.0.0.1"` which auto-enables DNS rebinding protection with `allowed_hosts=["127.0.0.1:*", "localhost:*"]`. Behind an ALB, the `Host` header is the public domain (e.g. `hub.vizzuality.com`), which isn't in the allowlist.
+
+Fix: pass `TransportSecuritySettings` with the public hostname when creating the MCP server:
+
+```python
+from mcp.server.transport_security import TransportSecuritySettings
+
+TransportSecuritySettings(
+    enable_dns_rebinding_protection=True,
+    allowed_hosts=["hub.vizzuality.com"],
+)
 ```
 
 ## Roadmap
