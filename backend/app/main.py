@@ -284,10 +284,14 @@ if settings.mcp_enabled and settings.mcp_base_url:
             required_scopes=["read"],
         )
 
+        from urllib.parse import urlparse
+        _mcp_host = urlparse(settings.mcp_base_url).hostname
+
         mcp_server = create_mcp_server(
             auth_server_provider=provider,
             auth_settings=auth_settings,
             http_mode=True,
+            allowed_hosts=[_mcp_host] if _mcp_host else None,
         )
 
         mcp_starlette = mcp_server.streamable_http_app()
