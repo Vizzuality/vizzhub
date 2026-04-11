@@ -329,6 +329,16 @@ if settings.mcp_enabled and settings.mcp_base_url:
                 asyncio.run(_seed_mcp_oauth_client())
 
         app.mount("/mcp", mcp_starlette)
+
+        # RFC 9728: resource metadata lives at /.well-known/oauth-protected-resource
+        # on the domain root, but the SDK serves it under the /mcp mount.
+        # Redirect the root-level path to the mounted path so OAuth discovery works.
+        from starlette.responses import RedirectResponse as _Redirect
+
+        @app.get("/.well-known/oauth-protected-resource/{path:path}")
+        async def _oauth_resource_metadata_redirect(path: str) -> _Redirect:
+            return _Redirect(url=f"/mcp/.well-known/oauth-protected-resource/{path}")
+
         logger.info("mcp_server_mounted", base_url=settings.mcp_base_url)
     except Exception:
         logger.exception("mcp_server_mount_failed")
