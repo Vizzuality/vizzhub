@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     grafana_admin_token: str = ""
     grafana_admin_alerts_token: str = ""
 
+    # MCP server
+    mcp_enabled: bool = False
+    mcp_base_url: str = ""
+
     # Observability
     log_format: str = "console"
     log_level: str = "INFO"
