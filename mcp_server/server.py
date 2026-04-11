@@ -11,7 +11,10 @@ _INSTRUCTIONS = (
     "Document content can be searched with iso_search_documents. "
     "Use the Tracker tools to query project budgets, time allocation, "
     "invoices, and progress. Start with tracker_get_projects to list "
-    "projects, then drill into detail, time, invoices, or progress."
+    "projects, then drill into detail, time, invoices, or progress. "
+    "Use the Scorecard tools to query project health scores across 8 "
+    "dimensions. Start with scorecard_get_project_scores for an overview, "
+    "then drill into individual scorecards or score history."
 )
 
 
@@ -55,6 +58,9 @@ def create_mcp_server(
 
     from mcp_server.tools.tracker import register_tracker_tools  # noqa: PLC0415
     register_tracker_tools(instance)
+
+    from mcp_server.tools.scorecard import register_scorecard_tools  # noqa: PLC0415
+    register_scorecard_tools(instance)
 
     return instance
 
