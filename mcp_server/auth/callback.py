@@ -11,7 +11,7 @@ import structlog
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
@@ -57,6 +57,87 @@ def _error_html(message: str) -> HTMLResponse:
     )
 
 
+async def _load_original_code(
+    session: AsyncSession, state: str,
+) -> MCPOAuthCodeDB | HTMLResponse:
+    result = await session.execute(
+        select(MCPOAuthCodeDB).where(MCPOAuthCodeDB.code == state)
+    )
+    original = result.scalar_one_or_none()
+
+    if original is None:
+        logger.warning("mcp_oauth_callback_invalid_state", state=state[:8] + "...")
+        return _error_html("Invalid or expired session.")
+
+    if original.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        logger.warning("mcp_oauth_callback_expired_state", state=state[:8] + "...")
+        await session.delete(original)
+        await session.commit()
+        return _error_html("Session expired. Please try again.")
+
+    return original
+
+
+async def _verify_google_identity(
+    google_code: str,
+    google_client_id: str,
+    google_client_secret: str,
+    callback_redirect_uri: str,
+) -> str | HTMLResponse:
+    status_code, tokens = await _exchange_google_code(
+        google_code, google_client_id, google_client_secret, callback_redirect_uri,
+    )
+
+    if status_code != 200:
+        logger.warning("mcp_oauth_callback_google_token_failed", status=status_code)
+        return _error_html("Failed to authenticate with Google.")
+
+    raw_id_token = tokens.get("id_token")
+    if not raw_id_token:
+        logger.warning("mcp_oauth_callback_no_id_token")
+        return _error_html("Google did not return an ID token.")
+
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            raw_id_token,
+            google_requests.Request(),
+            google_client_id,
+        )
+    except ValueError:
+        logger.warning("mcp_oauth_callback_id_token_invalid")
+        return _error_html("Invalid Google ID token.")
+
+    email = idinfo.get("email", "").lower()
+    if not email:
+        return _error_html("Google did not provide an email address.")
+
+    return email
+
+
+async def _lookup_active_user(
+    session: AsyncSession, email: str, allowed_domain: str,
+) -> UserDB | HTMLResponse:
+    domain = email.split("@")[-1]
+    if domain != allowed_domain:
+        logger.warning("mcp_oauth_callback_domain_rejected", email=email)
+        return _error_html("Unauthorized domain.")
+
+    user_result = await session.execute(
+        select(UserDB).where(UserDB.email == email)
+    )
+    user = user_result.scalar_one_or_none()
+
+    if user is None:
+        logger.warning("mcp_oauth_callback_user_not_found", email=email)
+        return _error_html("User not found. Please log in to VizzHub first.")
+
+    if not user.active:
+        logger.warning("mcp_oauth_callback_user_inactive", email=email)
+        return _error_html("Account deactivated. Contact an administrator.")
+
+    return user
+
+
 def build_google_oauth_callback(
     session_maker: async_sessionmaker,
     google_client_id: str,
@@ -80,77 +161,23 @@ def build_google_oauth_callback(
             return _error_html("Missing required parameters.")
 
         async with session_maker() as session:
-            result = await session.execute(
-                select(MCPOAuthCodeDB).where(MCPOAuthCodeDB.code == state)
-            )
-            original = result.scalar_one_or_none()
+            original = await _load_original_code(session, state)
+            if isinstance(original, HTMLResponse):
+                return original
 
-            if original is None:
-                logger.warning("mcp_oauth_callback_invalid_state", state=state[:8] + "...")
-                return _error_html("Invalid or expired session.")
-
-            if original.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-                logger.warning("mcp_oauth_callback_expired_state", state=state[:8] + "...")
-                await session.delete(original)
-                await session.commit()
-                return _error_html("Session expired. Please try again.")
-
-            # Exchange Google auth code for tokens
-            status_code, tokens = await _exchange_google_code(
+            email_or_error = await _verify_google_identity(
                 google_code, google_client_id, google_client_secret, callback_redirect_uri,
             )
+            if isinstance(email_or_error, HTMLResponse):
+                return email_or_error
+            email = email_or_error
 
-            if status_code != 200:
-                logger.warning(
-                    "mcp_oauth_callback_google_token_failed",
-                    status=status_code,
-                )
-                return _error_html("Failed to authenticate with Google.")
+            user = await _lookup_active_user(session, email, allowed_google_domain)
+            if isinstance(user, HTMLResponse):
+                return user
 
-            raw_id_token = tokens.get("id_token")
-            if not raw_id_token:
-                logger.warning("mcp_oauth_callback_no_id_token")
-                return _error_html("Google did not return an ID token.")
-
-            # Verify ID token
-            try:
-                idinfo = id_token.verify_oauth2_token(
-                    raw_id_token,
-                    google_requests.Request(),
-                    google_client_id,
-                )
-            except ValueError:
-                logger.warning("mcp_oauth_callback_id_token_invalid")
-                return _error_html("Invalid Google ID token.")
-
-            email = idinfo.get("email", "").lower()
-            if not email:
-                return _error_html("Google did not provide an email address.")
-
-            # Domain restriction
-            domain = email.split("@")[-1]
-            if domain != allowed_google_domain:
-                logger.warning("mcp_oauth_callback_domain_rejected", email=email)
-                return _error_html("Unauthorized domain.")
-
-            # Look up VizzHub user
-            user_result = await session.execute(
-                select(UserDB).where(UserDB.email == email)
-            )
-            user = user_result.scalar_one_or_none()
-
-            if user is None:
-                logger.warning("mcp_oauth_callback_user_not_found", email=email)
-                return _error_html("User not found. Please log in to VizzHub first.")
-
-            if not user.active:
-                logger.warning("mcp_oauth_callback_user_inactive", email=email)
-                return _error_html("Account deactivated. Contact an administrator.")
-
-            # Resolve roles and permissions
             roles, permissions = await resolve_permissions(session, str(user.id))
 
-            # Create new auth code with user info
             new_code = secrets.token_urlsafe(32)
             new_row = MCPOAuthCodeDB(
                 code=new_code,
@@ -171,7 +198,6 @@ def build_google_oauth_callback(
             await session.delete(original)
             await session.commit()
 
-        # Redirect back to the MCP client
         redirect_params: dict[str, str] = {"code": new_code}
         if new_row.mcp_state:
             redirect_params["state"] = new_row.mcp_state
