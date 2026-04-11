@@ -44,6 +44,7 @@ Local development (stdio):
 - **Transport-agnostic server.** `create_mcp_server()` factory produces a `FastMCP` instance. `__main__.py` uses it with stdio; `main.py` uses it with streamable-http. The server object doesn't know which transport is active.
 - **Read-only guarantee.** MCP tool sessions use `postgresql_readonly=True` at the engine level. Even sharing the backend's connection pool, tools cannot write.
 - **`streamable_http_path="/"`** avoids path doubling. Without this, mounting at `/mcp` on FastAPI with the SDK default of `/mcp` would create `/mcp/mcp`.
+- **Session manager in parent lifespan.** `app.mount()` does **not** propagate the sub-app's Starlette lifespan. The `StreamableHTTPSessionManager` must be started explicitly in FastAPI's lifespan via `async with session_manager.run()`. Without this, tool calls fail with `RuntimeError: Task group is not initialized`.
 
 ## Tools
 
@@ -414,6 +415,21 @@ When changing MCP infrastructure:
 2. Push to main (deploy reads secrets into `.env`)
 
 If reversed, the deploy will fail to read the MCP OAuth secret.
+
+### "Task group is not initialized" RuntimeError
+
+The `StreamableHTTPSessionManager` requires its `run()` context manager to initialize an `anyio` task group. When mounting the MCP Starlette sub-app via `app.mount()`, FastAPI does **not** propagate the sub-app's lifespan — so `run()` never gets called.
+
+Fix: store `mcp_server.session_manager` on `app.state` during setup, then run it explicitly in FastAPI's lifespan:
+
+```python
+mcp_mgr = getattr(app.state, "mcp_session_manager", None)
+if mcp_mgr:
+    async with mcp_mgr.run():
+        yield
+else:
+    yield
+```
 
 ## Roadmap
 
