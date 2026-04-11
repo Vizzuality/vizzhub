@@ -254,7 +254,7 @@ if settings.mcp_enabled and settings.mcp_base_url:
         from mcp_server.auth.callback import build_google_oauth_callback
         from mcp_server.data.base import enable_backend_sessions
         from mcp_server.server import create_mcp_server
-        from mcp.server.auth.settings import AuthSettings, RevocationOptions
+        from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
         from starlette.routing import Route
 
         provider = VizzHubOAuthProvider(
@@ -269,6 +269,11 @@ if settings.mcp_enabled and settings.mcp_base_url:
         auth_settings = AuthSettings(
             issuer_url=settings.mcp_base_url,
             resource_server_url=settings.mcp_base_url,
+            client_registration_options=ClientRegistrationOptions(
+                enabled=True,
+                valid_scopes=["read"],
+                default_scopes=["read"],
+            ),
             revocation_options=RevocationOptions(enabled=True),
             required_scopes=["read"],
         )
@@ -353,6 +358,7 @@ if settings.mcp_enabled and settings.mcp_base_url:
                     "issuer": base,
                     "authorization_endpoint": f"{base}/authorize",
                     "token_endpoint": f"{base}/token",
+                    "registration_endpoint": f"{base}/register",
                     "response_types_supported": ["code"],
                     "grant_types_supported": ["authorization_code", "refresh_token"],
                     "token_endpoint_auth_methods_supported": [
