@@ -295,6 +295,40 @@ if settings.mcp_enabled and settings.mcp_base_url:
 
         enable_backend_sessions()
 
+        # Upsert pre-registered OAuth client from env vars
+        if settings.mcp_oauth_client_id and settings.mcp_oauth_client_secret:
+            import asyncio
+            from sqlalchemy import select
+            from app.core.models.mcp_oauth import MCPOAuthClientDB
+
+            async def _seed_mcp_oauth_client() -> None:
+                async with async_session_maker() as session:
+                    existing = await session.execute(
+                        select(MCPOAuthClientDB).where(
+                            MCPOAuthClientDB.client_id == settings.mcp_oauth_client_id
+                        )
+                    )
+                    if existing.scalar_one_or_none() is None:
+                        session.add(MCPOAuthClientDB(
+                            client_id=settings.mcp_oauth_client_id,
+                            client_secret=settings.mcp_oauth_client_secret,
+                            client_info={
+                                "client_name": "claude-code",
+                                "redirect_uris": [],
+                                "grant_types": ["authorization_code", "refresh_token"],
+                                "response_types": ["code"],
+                                "token_endpoint_auth_method": "client_secret_post",
+                            },
+                        ))
+                        await session.commit()
+                        logger.info("mcp_oauth_client_seeded", client_id=settings.mcp_oauth_client_id)
+
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(_seed_mcp_oauth_client())
+            except RuntimeError:
+                asyncio.run(_seed_mcp_oauth_client())
+
         app.mount("/mcp", mcp_starlette)
         logger.info("mcp_server_mounted", base_url=settings.mcp_base_url)
     except Exception:

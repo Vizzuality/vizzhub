@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     # MCP server
     mcp_enabled: bool = False
     mcp_base_url: str = ""
+    mcp_oauth_client_id: str = ""
+    mcp_oauth_client_secret: str = ""
 
     # Observability
     log_format: str = "console"
