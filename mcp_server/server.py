@@ -30,9 +30,8 @@ def create_mcp_server(
 
     kwargs: dict = {}
     if http_mode:
-        # SSE transport paths: GET /mcp/ (SSE stream), POST /mcp/messages/ (messages)
-        kwargs["sse_path"] = "/"
-        kwargs["mount_path"] = "/mcp"
+        # SSE transport: GET /sse (stream), POST /messages/ (client messages)
+        # Defaults: sse_path="/sse", message_path="/messages/"
         # Behind ALB the Host header is the public domain, not localhost.
         kwargs["transport_security"] = TransportSecuritySettings(
             enable_dns_rebinding_protection=bool(allowed_hosts),
