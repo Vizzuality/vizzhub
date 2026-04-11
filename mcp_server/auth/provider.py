@@ -128,6 +128,7 @@ class VizzHubOAuthProvider:
                     redirect_uri_provided_explicitly=params.redirect_uri_provided_explicitly,
                     scopes=params.scopes,
                     resource=params.resource,
+                    mcp_state=params.state,
                     expires_at=expires_at,
                 )
             )
