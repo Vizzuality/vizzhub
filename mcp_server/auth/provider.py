@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import structlog
-from jose import JWTError, jwt
+from jose import jwt
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
@@ -23,6 +23,7 @@ from app.core.models.mcp_oauth import (
     MCPOAuthCodeDB,
     MCPOAuthRefreshTokenDB,
 )
+from mcp_server.auth.token_verifier import VizzHubTokenVerifier
 
 logger = structlog.get_logger()
 
@@ -55,6 +56,79 @@ class VizzHubOAuthProvider:
         self._google_client_id = google_client_id
         self._allowed_google_domain = allowed_google_domain
         self._base_url = base_url.rstrip("/")
+        self._token_verifier: VizzHubTokenVerifier | None = None
+
+    # ------------------------------------------------------------------
+    # Token helpers
+    # ------------------------------------------------------------------
+
+    def _build_access_token(
+        self,
+        *,
+        user_id: str | None,
+        email: str | None,
+        client_id: str,
+        roles: list[str],
+        permissions: list[str],
+        scopes: list[str],
+    ) -> tuple[str, datetime]:
+        """Create a signed JWT access token. Returns (token_str, expiry)."""
+        now = datetime.now(timezone.utc)
+        expiry = now + timedelta(hours=ACCESS_TOKEN_TTL_HOURS)
+        payload = {
+            "sub": user_id,
+            "email": email,
+            "client_id": client_id,
+            "roles": roles,
+            "permissions": permissions,
+            "scopes": scopes,
+            "iss": "vizzhub",
+            "aud": "vizzhub-mcp",
+            "iat": now,
+            "exp": expiry,
+        }
+        return jwt.encode(payload, self._jwt_secret, algorithm="HS256"), expiry
+
+    @staticmethod
+    def _build_refresh_token_row(
+        *,
+        client_id: str,
+        user_id,
+        user_email: str | None,
+        user_roles: list[str] | None,
+        user_permissions: list[str] | None,
+        scopes: list[str] | None,
+        resource: str | None,
+    ) -> tuple[str, MCPOAuthRefreshTokenDB]:
+        """Create a new refresh token string and DB row. Returns (token_str, row)."""
+        token_str = secrets.token_urlsafe(48)
+        row = MCPOAuthRefreshTokenDB(
+            token=token_str,
+            client_id=client_id,
+            user_id=user_id,
+            user_email=user_email,
+            user_roles=user_roles,
+            user_permissions=user_permissions,
+            scopes=scopes,
+            resource=resource,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_TTL_DAYS),
+        )
+        return token_str, row
+
+    @staticmethod
+    def _build_oauth_token(
+        access_token: str,
+        refresh_token: str,
+        scopes: list[str] | None,
+    ) -> OAuthToken:
+        """Build the OAuthToken response."""
+        return OAuthToken(
+            access_token=access_token,
+            token_type="Bearer",
+            expires_in=ACCESS_TOKEN_TTL_HOURS * 3600,
+            scope=" ".join(scopes) if scopes else None,
+            refresh_token=refresh_token,
+        )
 
     # ------------------------------------------------------------------
     # Client registration
@@ -190,7 +264,6 @@ class VizzHubOAuthProvider:
         client: OAuthClientInformationFull,
         authorization_code: AuthorizationCode,
     ) -> OAuthToken:
-        # Re-fetch the DB row for user info populated by the callback
         async with self._session_maker() as session:
             result = await session.execute(
                 select(MCPOAuthCodeDB).where(
@@ -204,47 +277,32 @@ class VizzHubOAuthProvider:
             if not row.user_email:
                 raise ValueError("Authorization code has no associated user — callback incomplete")
 
-            # Delete the consumed code
             await session.execute(
                 delete(MCPOAuthCodeDB).where(
                     MCPOAuthCodeDB.code == authorization_code.code
                 )
             )
 
-            # Create JWT access token
-            now = datetime.now(timezone.utc)
-            payload = {
-                "sub": str(row.user_id) if row.user_id else None,
-                "email": row.user_email,
-                "client_id": client.client_id,
-                "roles": row.user_roles or [],
-                "permissions": row.user_permissions or [],
-                "scopes": row.scopes or [],
-                "iss": "vizzhub",
-                "aud": "vizzhub-mcp",
-                "iat": now,
-                "exp": now + timedelta(hours=ACCESS_TOKEN_TTL_HOURS),
-            }
-            access_token = jwt.encode(payload, self._jwt_secret, algorithm="HS256")
-
-            # Create refresh token
-            refresh_token_str = secrets.token_urlsafe(48)
-            refresh_expires = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
-
-            session.add(
-                MCPOAuthRefreshTokenDB(
-                    token=refresh_token_str,
-                    client_id=client.client_id,
-                    user_id=row.user_id,
-                    user_email=row.user_email,
-                    user_roles=row.user_roles,
-                    user_permissions=row.user_permissions,
-                    scopes=row.scopes,
-                    resource=row.resource,
-                    expires_at=refresh_expires,
-                )
+            effective_scopes = row.scopes or []
+            access_token, _ = self._build_access_token(
+                user_id=str(row.user_id) if row.user_id else None,
+                email=row.user_email,
+                client_id=client.client_id,
+                roles=row.user_roles or [],
+                permissions=row.user_permissions or [],
+                scopes=effective_scopes,
             )
 
+            refresh_token_str, refresh_row = self._build_refresh_token_row(
+                client_id=client.client_id,
+                user_id=row.user_id,
+                user_email=row.user_email,
+                user_roles=row.user_roles,
+                user_permissions=row.user_permissions,
+                scopes=row.scopes,
+                resource=row.resource,
+            )
+            session.add(refresh_row)
             await session.commit()
 
         logger.info(
@@ -253,13 +311,7 @@ class VizzHubOAuthProvider:
             user_email=row.user_email,
         )
 
-        return OAuthToken(
-            access_token=access_token,
-            token_type="Bearer",
-            expires_in=ACCESS_TOKEN_TTL_HOURS * 3600,
-            scope=" ".join(row.scopes) if row.scopes else None,
-            refresh_token=refresh_token_str,
-        )
+        return self._build_oauth_token(access_token, refresh_token_str, effective_scopes)
 
     # ------------------------------------------------------------------
     # Refresh tokens
@@ -304,7 +356,6 @@ class VizzHubOAuthProvider:
         scopes: list[str],
     ) -> OAuthToken:
         async with self._session_maker() as session:
-            # Fetch the old refresh token row for user info
             result = await session.execute(
                 select(MCPOAuthRefreshTokenDB).where(
                     MCPOAuthRefreshTokenDB.token == refresh_token.token
@@ -314,50 +365,32 @@ class VizzHubOAuthProvider:
             if old_row is None:
                 raise ValueError("Refresh token not found")
 
-            # Delete old refresh token (rotation)
             await session.execute(
                 delete(MCPOAuthRefreshTokenDB).where(
                     MCPOAuthRefreshTokenDB.token == refresh_token.token
                 )
             )
 
-            # Create new JWT
-            now = datetime.now(timezone.utc)
             effective_scopes = scopes if scopes else (old_row.scopes or [])
-            payload = {
-                "sub": str(old_row.user_id) if old_row.user_id else None,
-                "email": old_row.user_email,
-                "client_id": client.client_id,
-                "roles": old_row.user_roles or [],
-                "permissions": old_row.user_permissions or [],
-                "scopes": effective_scopes,
-                "iss": "vizzhub",
-                "aud": "vizzhub-mcp",
-                "iat": now,
-                "exp": now + timedelta(hours=ACCESS_TOKEN_TTL_HOURS),
-            }
-            new_access_token = jwt.encode(
-                payload, self._jwt_secret, algorithm="HS256"
+            new_access_token, _ = self._build_access_token(
+                user_id=str(old_row.user_id) if old_row.user_id else None,
+                email=old_row.user_email,
+                client_id=client.client_id,
+                roles=old_row.user_roles or [],
+                permissions=old_row.user_permissions or [],
+                scopes=effective_scopes,
             )
 
-            # Create new refresh token
-            new_refresh_str = secrets.token_urlsafe(48)
-            refresh_expires = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
-
-            session.add(
-                MCPOAuthRefreshTokenDB(
-                    token=new_refresh_str,
-                    client_id=client.client_id,
-                    user_id=old_row.user_id,
-                    user_email=old_row.user_email,
-                    user_roles=old_row.user_roles,
-                    user_permissions=old_row.user_permissions,
-                    scopes=effective_scopes,
-                    resource=old_row.resource,
-                    expires_at=refresh_expires,
-                )
+            new_refresh_str, refresh_row = self._build_refresh_token_row(
+                client_id=client.client_id,
+                user_id=old_row.user_id,
+                user_email=old_row.user_email,
+                user_roles=old_row.user_roles,
+                user_permissions=old_row.user_permissions,
+                scopes=effective_scopes,
+                resource=old_row.resource,
             )
-
+            session.add(refresh_row)
             await session.commit()
 
         logger.info(
@@ -366,35 +399,16 @@ class VizzHubOAuthProvider:
             user_email=old_row.user_email,
         )
 
-        return OAuthToken(
-            access_token=new_access_token,
-            token_type="Bearer",
-            expires_in=ACCESS_TOKEN_TTL_HOURS * 3600,
-            scope=" ".join(effective_scopes) if effective_scopes else None,
-            refresh_token=new_refresh_str,
-        )
+        return self._build_oauth_token(new_access_token, new_refresh_str, effective_scopes)
 
     # ------------------------------------------------------------------
     # Access token (JWT — no DB lookup needed)
     # ------------------------------------------------------------------
 
     async def load_access_token(self, token: str) -> AccessToken | None:
-        try:
-            payload = jwt.decode(
-                token,
-                self._jwt_secret,
-                algorithms=["HS256"],
-                audience="vizzhub-mcp",
-                issuer="vizzhub",
-            )
-            return AccessToken(
-                token=token,
-                client_id=payload.get("client_id", "unknown"),
-                scopes=payload.get("scopes", []),
-                expires_at=payload.get("exp"),
-            )
-        except JWTError:
-            return None
+        if self._token_verifier is None:
+            self._token_verifier = VizzHubTokenVerifier(secret_key=self._jwt_secret)
+        return await self._token_verifier.verify_token(token)
 
     # ------------------------------------------------------------------
     # Revocation

@@ -265,6 +265,45 @@ async def test_callback_google_token_exchange_failure(session_maker, original_co
 
 
 @pytest.mark.asyncio
+async def test_callback_invalid_google_token_returns_error(session_maker, original_code_row):
+    app = _build_app(session_maker)
+    transport = httpx.ASGITransport(app=app)
+
+    with (
+        patch(EXCHANGE_PATCH_TARGET, new_callable=AsyncMock, return_value=(200, {"id_token": "fake"})),
+        patch(VERIFY_PATCH_TARGET, side_effect=ValueError("Invalid token")),
+    ):
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                f"/oauth/callback?code=google-code&state={original_code_row.code}",
+                follow_redirects=False,
+            )
+
+    assert response.status_code == 400
+    assert "Invalid Google ID token" in response.text
+
+
+@pytest.mark.asyncio
+async def test_callback_missing_id_token_returns_error(session_maker, original_code_row):
+    app = _build_app(session_maker)
+    transport = httpx.ASGITransport(app=app)
+
+    with patch(
+        EXCHANGE_PATCH_TARGET,
+        new_callable=AsyncMock,
+        return_value=(200, {"access_token": "x"}),
+    ):
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                f"/oauth/callback?code=google-code&state={original_code_row.code}",
+                follow_redirects=False,
+            )
+
+    assert response.status_code == 400
+    assert "Google did not return an ID token" in response.text
+
+
+@pytest.mark.asyncio
 async def test_callback_wrong_domain_returns_error(session_maker, original_code_row):
     app = _build_app(session_maker)
     transport = httpx.ASGITransport(app=app)

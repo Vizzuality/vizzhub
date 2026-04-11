@@ -36,7 +36,7 @@ from app.core.error_handler import ValidationErrorHandler
 from app.core.logging_config import configure_logging
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.security_middleware import SecurityHeadersMiddleware
-from app.database import init_db, get_db
+from app.database import async_session_maker, init_db, get_db
 from sqlalchemy import select
 
 settings = get_settings()
@@ -245,6 +245,60 @@ app.include_router(capacity_router, prefix="/api/capacity", tags=["capacity"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
 app.include_router(iso_docs_router, prefix="/api/iso-docs", tags=["iso-docs"])
+
+# MCP sub-app (disabled by default; enable via MCP_ENABLED=true + MCP_BASE_URL)
+if settings.mcp_enabled and settings.mcp_base_url:
+    try:
+        from mcp_server.auth.provider import VizzHubOAuthProvider
+        from mcp_server.auth.token_verifier import VizzHubTokenVerifier
+        from mcp_server.auth.callback import build_google_oauth_callback
+        from mcp_server.data.base import enable_backend_sessions
+        from mcp_server.server import create_mcp_server
+        from mcp.server.auth.settings import AuthSettings, RevocationOptions
+        from starlette.routing import Route
+
+        provider = VizzHubOAuthProvider(
+            session_maker=async_session_maker,
+            jwt_secret=settings.jwt_secret_key,
+            google_client_id=settings.google_client_id,
+            allowed_google_domain=settings.allowed_google_domain,
+            base_url=settings.mcp_base_url,
+        )
+        verifier = VizzHubTokenVerifier(secret_key=settings.jwt_secret_key)
+
+        auth_settings = AuthSettings(
+            issuer_url=settings.mcp_base_url,
+            resource_server_url=settings.mcp_base_url,
+            revocation_options=RevocationOptions(enabled=True),
+            required_scopes=["read"],
+        )
+
+        mcp_server = create_mcp_server(
+            auth_server_provider=provider,
+            token_verifier=verifier,
+            auth_settings=auth_settings,
+            http_mode=True,
+        )
+
+        mcp_starlette = mcp_server.streamable_http_app()
+
+        google_callback = build_google_oauth_callback(
+            session_maker=async_session_maker,
+            google_client_id=settings.google_client_id,
+            google_client_secret=settings.google_client_secret,
+            allowed_google_domain=settings.allowed_google_domain,
+            base_url=settings.mcp_base_url,
+        )
+        mcp_starlette.routes.append(
+            Route("/oauth/callback", endpoint=google_callback, methods=["GET"])
+        )
+
+        enable_backend_sessions()
+
+        app.mount("/mcp", mcp_starlette)
+        logger.info("mcp_server_mounted", base_url=settings.mcp_base_url)
+    except Exception:
+        logger.exception("mcp_server_mount_failed")
 
 
 app.include_router(health_router.router)
