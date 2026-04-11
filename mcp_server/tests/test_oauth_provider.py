@@ -117,24 +117,23 @@ async def test_register_client_creates_db_row(
     session_maker,
 ) -> None:
     client_info = OAuthClientInformationFull(
+        client_id="sdk-generated-uuid",
+        client_secret="sdk-generated-secret",
         redirect_uris=["http://localhost:3000/callback"],
         client_name="Dynamic Client",
     )
-    result = provider.register_client(client_info)
-    result = await result
-
-    assert result.client_id is not None
-    assert result.client_secret is not None
+    await provider.register_client(client_info)
 
     async with session_maker() as session:
         row = await session.execute(
             select(MCPOAuthClientDB).where(
-                MCPOAuthClientDB.client_id == result.client_id
+                MCPOAuthClientDB.client_id == "sdk-generated-uuid"
             )
         )
         db_row = row.scalar_one_or_none()
     assert db_row is not None
-    assert db_row.client_info["client_id"] == result.client_id
+    assert db_row.client_secret == "sdk-generated-secret"
+    assert db_row.client_info["client_id"] == "sdk-generated-uuid"
 
 
 @pytest.mark.asyncio
