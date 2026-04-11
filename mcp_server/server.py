@@ -8,7 +8,10 @@ _INSTRUCTIONS = (
     "VizzHub is Vizzuality's internal operations hub. "
     "Use the ISO tools to query compliance registries and documents. "
     "Registry slugs are listed by iso_get_registries. "
-    "Document content can be searched with iso_search_documents."
+    "Document content can be searched with iso_search_documents. "
+    "Use the Tracker tools to query project budgets, time allocation, "
+    "invoices, and progress. Start with tracker_get_projects to list "
+    "projects, then drill into detail, time, invoices, or progress."
 )
 
 
@@ -19,7 +22,7 @@ def create_mcp_server(
     http_mode: bool = False,
     allowed_hosts: list[str] | None = None,
 ) -> FastMCP:
-    """Create the MCP server instance with all ISO tools registered.
+    """Create the MCP server instance with all tools registered.
 
     Without auth params: returns a server for stdio transport (Phase 1 behavior).
     With auth params + http_mode: returns a server configured for HTTP transport
@@ -49,6 +52,9 @@ def create_mcp_server(
 
     from mcp_server.tools.iso import register_iso_tools  # noqa: PLC0415
     register_iso_tools(instance)
+
+    from mcp_server.tools.tracker import register_tracker_tools  # noqa: PLC0415
+    register_tracker_tools(instance)
 
     return instance
 
