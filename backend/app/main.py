@@ -332,12 +332,18 @@ if settings.mcp_enabled and settings.mcp_base_url:
 
         # RFC 9728: resource metadata lives at /.well-known/oauth-protected-resource
         # on the domain root, but the SDK serves it under the /mcp mount.
-        # Redirect the root-level path to the mounted path so OAuth discovery works.
-        from starlette.responses import RedirectResponse as _Redirect
-
+        # Serve directly (not redirect) because the MCP SDK client doesn't follow 307s.
         @app.get("/.well-known/oauth-protected-resource/{path:path}")
-        async def _oauth_resource_metadata_redirect(path: str) -> _Redirect:
-            return _Redirect(url=f"/mcp/.well-known/oauth-protected-resource/{path}")
+        async def _oauth_resource_metadata(path: str) -> JSONResponse:
+            return JSONResponse(
+                content={
+                    "resource": settings.mcp_base_url,
+                    "authorization_servers": [settings.mcp_base_url],
+                    "scopes_supported": ["read"],
+                    "bearer_methods_supported": ["header"],
+                },
+                headers={"Cache-Control": "public, max-age=3600"},
+            )
 
         logger.info("mcp_server_mounted", base_url=settings.mcp_base_url)
     except Exception:
