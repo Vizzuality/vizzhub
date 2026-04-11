@@ -18,16 +18,12 @@ def create_mcp_server(
     auth_settings=None,
     http_mode: bool = False,
 ) -> FastMCP:
-    """Create the MCP server instance.
+    """Create the MCP server instance with all ISO tools registered.
 
     Without auth params: returns a server for stdio transport (Phase 1 behavior).
     With auth params + http_mode: returns a server configured for HTTP transport
     with OAuth. http_mode sets streamable_http_path="/" to avoid /mcp/mcp path
     doubling when mounted as sub-app at /mcp on FastAPI.
-
-    Note: tool registration happens at module import time via the module-level
-    `mcp` instance. Callers using this factory for HTTP mode must ensure tools
-    are registered separately (import mcp_server.tools.iso after creation).
     """
     kwargs = {}
     if http_mode:
@@ -42,11 +38,11 @@ def create_mcp_server(
         **kwargs,
     )
 
+    from mcp_server.tools.iso import register_iso_tools  # noqa: PLC0415
+    register_iso_tools(instance)
+
     return instance
 
 
 # Default instance for stdio (backward compatible).
-# Tools are registered on this instance by importing mcp_server.tools.iso below.
 mcp = create_mcp_server()
-
-import mcp_server.tools.iso  # noqa: F401, E402 — registers tools on mcp
