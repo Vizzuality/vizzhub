@@ -330,17 +330,41 @@ if settings.mcp_enabled and settings.mcp_base_url:
 
         app.mount("/mcp", mcp_starlette)
 
-        # RFC 9728: resource metadata lives at /.well-known/oauth-protected-resource
-        # on the domain root, but the SDK serves it under the /mcp mount.
-        # Serve directly (not redirect) because the MCP SDK client doesn't follow 307s.
+        # RFC 9728 + RFC 8414: the SDK expects OAuth metadata at the domain root
+        # (not under /mcp mount). Serve directly — SDK doesn't follow redirects.
+        base = settings.mcp_base_url
+
         @app.get("/.well-known/oauth-protected-resource/{path:path}")
         async def _oauth_resource_metadata(path: str) -> JSONResponse:
             return JSONResponse(
                 content={
-                    "resource": settings.mcp_base_url,
-                    "authorization_servers": [settings.mcp_base_url],
+                    "resource": base,
+                    "authorization_servers": [base],
                     "scopes_supported": ["read"],
                     "bearer_methods_supported": ["header"],
+                },
+                headers={"Cache-Control": "public, max-age=3600"},
+            )
+
+        @app.get("/.well-known/oauth-authorization-server/{path:path}")
+        async def _oauth_server_metadata(path: str) -> JSONResponse:
+            return JSONResponse(
+                content={
+                    "issuer": base,
+                    "authorization_endpoint": f"{base}/authorize",
+                    "token_endpoint": f"{base}/token",
+                    "response_types_supported": ["code"],
+                    "grant_types_supported": ["authorization_code", "refresh_token"],
+                    "token_endpoint_auth_methods_supported": [
+                        "client_secret_post",
+                        "client_secret_basic",
+                    ],
+                    "revocation_endpoint": f"{base}/revoke",
+                    "revocation_endpoint_auth_methods_supported": [
+                        "client_secret_post",
+                        "client_secret_basic",
+                    ],
+                    "code_challenge_methods_supported": ["S256"],
                 },
                 headers={"Cache-Control": "public, max-age=3600"},
             )
