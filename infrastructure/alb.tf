@@ -242,6 +242,23 @@ resource "aws_lb_listener_rule" "block_scanners_misc" {
   }
 }
 
+# Listener Rule - /mcp* → backend
+resource "aws_lb_listener_rule" "mcp" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 50
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/mcp*"]
+    }
+  }
+}
+
 # Listener Rule - /health → backend
 resource "aws_lb_listener_rule" "health" {
   listener_arn = aws_lb_listener.https.arn
