@@ -220,6 +220,7 @@ async def test_authorize_stores_state_in_db(
     assert row.scopes == ["read", "write"]
     assert row.redirect_uri_provided_explicitly is True
     assert row.resource == "https://hub.vizzuality.com/mcp"
+    assert row.mcp_state == "test-state"
     assert row.user_id is None
 
 

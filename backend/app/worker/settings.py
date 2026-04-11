@@ -112,6 +112,7 @@ from app.worker.rotate_reporting_period import rotate_reporting_period  # noqa: 
 from app.worker.heartbeat import write_heartbeat  # noqa: E402
 from app.worker.publish_playbook import publish_playbook_task  # noqa: E402
 from app.worker.export_iso_docs_gdrive import export_iso_docs_gdrive_task  # noqa: E402
+from app.worker.cleanup_mcp_oauth import cleanup_mcp_oauth  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
@@ -125,6 +126,7 @@ WorkerSettings.functions = [
     rotate_reporting_period,
     publish_playbook_task,
     export_iso_docs_gdrive_task,
+    cleanup_mcp_oauth,
 ]
 
 # Register cron jobs for scheduled execution
@@ -138,4 +140,5 @@ WorkerSettings.cron_jobs = [
     cron(send_report_confirmation_reminder, hour=12, minute=0),  # Daily — sends only on business days 2nd-12th
     cron(rotate_reporting_period, day=15, hour=0, minute=0),  # Monthly 15th at midnight UTC
     cron(write_heartbeat, minute=set(range(60)), run_at_startup=True),
+    cron(cleanup_mcp_oauth, hour=3, minute=0),  # Daily 3 AM UTC
 ]
