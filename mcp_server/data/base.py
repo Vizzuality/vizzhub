@@ -33,11 +33,12 @@ def enable_backend_sessions() -> None:
     global _backend_read_session_maker
     from app.database import engine  # noqa: PLC0415 — intentional late import
 
+    # execution_options() returns a new engine proxy; the original engine is untouched.
+    readonly_engine = engine.execution_options(postgresql_readonly=True)
     _backend_read_session_maker = async_sessionmaker(
-        engine,
+        readonly_engine,
         class_=AsyncSession,
         expire_on_commit=False,
-        execution_options={"postgresql_readonly": True},
     )
 
 
