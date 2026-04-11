@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "vizzhub": {
+    "vizzhub-local": {
       "command": "python",
       "args": ["-m", "mcp_server"],
       "cwd": "/path/to/vizzhub",
@@ -9,6 +9,10 @@
         "MCP_USER_EMAIL": "you@vizzuality.com",
         "PYTHONPATH": "/path/to/vizzhub/backend"
       }
+    },
+    "vizzhub-remote": {
+      "type": "streamable-http",
+      "url": "https://hub.vizzuality.com/mcp"
     }
   }
 }

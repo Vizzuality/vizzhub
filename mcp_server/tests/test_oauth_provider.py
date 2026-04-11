@@ -424,6 +424,28 @@ async def test_load_authorization_code_preserves_challenge(
 
 
 @pytest.mark.asyncio
+async def test_exchange_authorization_code_missing_code_raises(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+) -> None:
+    """exchange_authorization_code raises ValueError when code not found in DB."""
+    from mcp.server.auth.provider import AuthorizationCode
+
+    auth_code = AuthorizationCode(
+        code="nonexistent-code-xyz",
+        client_id=TEST_CLIENT_ID,
+        code_challenge="some-challenge",
+        redirect_uri="http://localhost:3000/callback",
+        redirect_uri_provided_explicitly=True,
+        scopes=["read"],
+        expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp(),
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        await provider.exchange_authorization_code(registered_client, auth_code)
+
+
+@pytest.mark.asyncio
 async def test_exchange_authorization_code_null_user_raises(
     provider: VizzHubOAuthProvider,
     registered_client: OAuthClientInformationFull,
@@ -572,6 +594,24 @@ async def test_exchange_refresh_token_rotates_tokens(
         new_row = result.scalar_one_or_none()
         assert new_row is not None
         assert new_row.user_email == "refresh@vizzuality.com"
+
+
+@pytest.mark.asyncio
+async def test_exchange_refresh_token_missing_token_raises(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+) -> None:
+    """exchange_refresh_token raises ValueError when token not found in DB."""
+    from mcp.server.auth.provider import RefreshToken
+
+    fake_token = RefreshToken(
+        token="nonexistent-refresh-token-xyz",
+        client_id=TEST_CLIENT_ID,
+        scopes=["read"],
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        await provider.exchange_refresh_token(registered_client, fake_token, scopes=["read"])
 
 
 # ------------------------------------------------------------------

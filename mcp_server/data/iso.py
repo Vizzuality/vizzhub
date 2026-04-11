@@ -99,15 +99,23 @@ async def get_document(session: AsyncSession, slug: str) -> dict:
 
 
 def _extract_section_heading(content: str, snippet: str) -> str | None:
-    """Find the nearest preceding markdown heading for a snippet.
+    """Find the nearest preceding markdown heading for the highlighted match.
 
-    Searches for the snippet text (stripped of highlight tags) in the
+    Extracts the first highlighted term from the snippet, locates it in the
     full content, then walks backwards to find the nearest ## heading.
-    Returns None if no heading is found.
+    Returns None if no heading is found before the match position.
     """
-    clean_snippet = re.sub(r"<b>|</b>", "", snippet).strip()
-    fragment = clean_snippet[:60]
-    pos = content.find(fragment)
+    # Extract the first highlighted term to pinpoint match position in content
+    highlighted = re.search(r"<b>(.+?)</b>", snippet)
+    if highlighted:
+        search_term = highlighted.group(1)
+        pos = content.find(search_term)
+    else:
+        # Fallback: search for the beginning of the cleaned snippet
+        clean_snippet = re.sub(r"<b>|</b>", "", snippet).strip()
+        fragment = clean_snippet[:60]
+        pos = content.find(fragment)
+
     if pos < 0:
         return None
     preceding = content[:pos]

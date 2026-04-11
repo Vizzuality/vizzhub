@@ -330,6 +330,7 @@ async def test_search_documents_extracts_section_heading(
 
     results = await search_documents(db_session, "employees remote")
     matching = [r for r in results if r["slug"] == "information-security-policy"]
-    if matching:
-        # Section should be "## 2. Scope" (nearest heading before match)
-        assert matching[0]["section"] is None or "Scope" in matching[0]["section"]
+    assert len(matching) >= 1
+    # Section should be "## 2. Scope" (nearest heading before match)
+    assert matching[0]["section"] is not None
+    assert "Scope" in matching[0]["section"]
