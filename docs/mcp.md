@@ -11,19 +11,22 @@ Production (HTTPS):
 
   Claude Code / Desktop
         |
-        | HTTPS (streamable-http)
+        | HTTPS (SSE transport)
         v
   ALB (hub.vizzuality.com)
         |
-        | /mcp/* → backend:8000
+        | /mcp/*                          → backend:8000
+        | /.well-known/oauth-protected-*  → backend:8000
         |
   FastAPI backend
         |
-        +-- /mcp/           StreamableHTTP endpoint (tools)
-        +-- /mcp/authorize   OAuth → redirects to Google SSO
-        +-- /mcp/token       Issues JWT access + refresh tokens
-        +-- /mcp/revoke      Token revocation
+        +-- /mcp/                StreamableHTTP endpoint (tools)
+        +-- /mcp/authorize       OAuth → redirects to Google SSO
+        +-- /mcp/token           Issues JWT access + refresh tokens
+        +-- /mcp/revoke          Token revocation
         +-- /mcp/oauth/callback  Google SSO callback
+        +-- /mcp/.well-known/oauth-authorization-server   OAuth metadata
+        +-- /.well-known/oauth-protected-resource/mcp  →  redirect to /mcp/...
 
 
 Local development (stdio):
@@ -246,20 +249,22 @@ The script sets `PYTHONPATH=backend` and loads `DATABASE_URL` from `backend/.env
 
 ### Remote setup (HTTP)
 
-For production or remote access, Claude Code connects via streamable-http:
+For production or remote access, Claude Code connects via SSE:
 ```json
 // .mcp.json
 {
   "mcpServers": {
     "vizzhub-remote": {
-      "type": "streamable-http",
-      "url": "https://hub.vizzuality.com/mcp"
+      "type": "sse",
+      "url": "https://hub.vizzuality.com/mcp/"
     }
   }
 }
 ```
 
-Claude Code will automatically discover the OAuth endpoints and open a browser for Google SSO authentication.
+**Important:** Use `type: "sse"`, not `"streamable-http"`. Claude Code's `.mcp.json` schema does not support `streamable-http` — that's an SDK-only transport. The trailing slash on the URL is required.
+
+Claude Code will automatically discover the OAuth endpoints via `/.well-known/oauth-authorization-server` and open a browser for Google SSO authentication. After login, the OAuth token is cached and subsequent sessions reuse it until it expires.
 
 ## Infrastructure
 
@@ -270,10 +275,12 @@ The ALB routes `/mcp*` to the backend target group at priority 50:
 | Priority | Pattern | Target |
 |----------|---------|--------|
 | 1-4 | Scanner blocks | Fixed 403 |
-| 50 | `/mcp*` | backend:8000 |
+| 50 | `/mcp*`, `/.well-known/oauth-protected-resource*` | backend:8000 |
 | 99 | `/health` | backend:8000 |
 | 100 | `/api/*` | backend:8000 |
 | default | `/*` | frontend:5173 |
+
+**Note:** The `/.well-known/oauth-protected-resource*` pattern is required because the MCP SDK generates OAuth resource metadata URLs at the domain root (per RFC 9728), not under the `/mcp` mount. FastAPI redirects these to `/mcp/.well-known/...` where the SDK serves them.
 
 ### Secrets Manager
 
@@ -341,6 +348,53 @@ mcp_server/
     ├── test_iso_tools.py
     └── test_integration.py
 ```
+
+## Troubleshooting
+
+### `/mcp/` returns 404 "Not Found"
+
+The MCP sub-app didn't mount. Check container logs:
+```bash
+docker logs hub-backend 2>&1 | grep mcp
+```
+
+Common causes:
+- `MCP_ENABLED` not set to `true` in `.env`
+- `mcp_server/` not included in the Docker image (check Dockerfile build context is repo root, not `./backend`)
+- `requirements-mcp.txt` not installed (check Dockerfile installs both requirement files)
+- Mount failed with exception (look for `mcp_server_mount_failed` in logs)
+
+### `/mcp/` returns 404 without trailing slash
+
+The StreamableHTTP endpoint is at `/mcp/` (with trailing slash). `/mcp` (without) returns 404. This is an MCP SDK behavior — always use the trailing slash in client config.
+
+### "SDK auth failed: Failed to parse JSON"
+
+Claude Code can't parse the OAuth resource metadata. The `WWW-Authenticate` header points to `/.well-known/oauth-protected-resource/mcp` at the domain root. If the ALB doesn't route `/.well-known/*` to the backend, the frontend serves HTML instead of JSON.
+
+Fix: ensure the ALB rule includes `/.well-known/oauth-protected-resource*` → backend.
+
+### "Cannot specify both auth_server_provider and token_verifier"
+
+`FastMCP` forbids passing both. When using `auth_server_provider`, the SDK creates its own verifier via the provider's `load_access_token` method. Remove `token_verifier` from `create_mcp_server()`.
+
+### `.mcp.json` schema validation error
+
+Claude Code's `.mcp.json` does not support `type: "streamable-http"`. Use `type: "sse"` for remote HTTP servers. `streamable-http` is an SDK-only transport.
+
+### OAuth flow doesn't start
+
+1. Check `/.well-known/oauth-authorization-server` returns JSON: `curl https://hub.vizzuality.com/mcp/.well-known/oauth-authorization-server`
+2. Check the Google Cloud Console has `https://hub.vizzuality.com/mcp/oauth/callback` as authorized redirect URI
+3. Check the OAuth client is seeded: look for `mcp_oauth_client_seeded` in container logs
+
+### Deploy order
+
+When changing MCP infrastructure:
+1. `tofu apply` first (creates secrets in Secrets Manager)
+2. Push to main (deploy reads secrets into `.env`)
+
+If reversed, the deploy will fail to read the MCP OAuth secret.
 
 ## Roadmap
 
