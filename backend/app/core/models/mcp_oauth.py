@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -39,13 +39,16 @@ class MCPOAuthCodeDB(Base):
     )
     code_challenge: Mapped[str] = mapped_column(String(256), nullable=False)
     redirect_uri: Mapped[str] = mapped_column(Text, nullable=False)
-    scopes: Mapped[list | None] = mapped_column(JSONB)
+    redirect_uri_provided_explicitly: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    scopes: Mapped[list[str] | None] = mapped_column(JSONB)
     user_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id")
     )
     user_email: Mapped[str | None] = mapped_column(String(255))
-    user_roles: Mapped[list | None] = mapped_column(JSONB)
-    user_permissions: Mapped[list | None] = mapped_column(JSONB)
+    user_roles: Mapped[list[str] | None] = mapped_column(JSONB)
+    user_permissions: Mapped[list[str] | None] = mapped_column(JSONB)
     resource: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -70,9 +73,9 @@ class MCPOAuthRefreshTokenDB(Base):
         PG_UUID(as_uuid=True), ForeignKey("users.id")
     )
     user_email: Mapped[str | None] = mapped_column(String(255))
-    user_roles: Mapped[list | None] = mapped_column(JSONB)
-    user_permissions: Mapped[list | None] = mapped_column(JSONB)
-    scopes: Mapped[list | None] = mapped_column(JSONB)
+    user_roles: Mapped[list[str] | None] = mapped_column(JSONB)
+    user_permissions: Mapped[list[str] | None] = mapped_column(JSONB)
+    scopes: Mapped[list[str] | None] = mapped_column(JSONB)
     resource: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
