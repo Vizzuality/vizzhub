@@ -275,7 +275,6 @@ if settings.mcp_enabled and settings.mcp_base_url:
 
         mcp_server = create_mcp_server(
             auth_server_provider=provider,
-            token_verifier=verifier,
             auth_settings=auth_settings,
             http_mode=True,
         )
