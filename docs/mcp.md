@@ -280,7 +280,7 @@ The ALB routes `/mcp*` to the backend target group at priority 50:
 | 100 | `/api/*` | backend:8000 |
 | default | `/*` | frontend:5173 |
 
-**Note:** The `/.well-known/oauth-protected-resource*` pattern is required because the MCP SDK generates OAuth resource metadata URLs at the domain root (per RFC 9728), not under the `/mcp` mount. FastAPI redirects these to `/mcp/.well-known/...` where the SDK serves them.
+**Note:** The `/.well-known/oauth-protected-resource*` pattern is required because the MCP SDK generates OAuth resource metadata URLs at the domain root (per RFC 9728), not under the `/mcp` mount. FastAPI serves the resource metadata JSON directly at this path (not via redirect — the MCP SDK client doesn't follow 307 redirects).
 
 ### Secrets Manager
 
@@ -370,9 +370,11 @@ The StreamableHTTP endpoint is at `/mcp/` (with trailing slash). `/mcp` (without
 
 ### "SDK auth failed: Failed to parse JSON"
 
-Claude Code can't parse the OAuth resource metadata. The `WWW-Authenticate` header points to `/.well-known/oauth-protected-resource/mcp` at the domain root. If the ALB doesn't route `/.well-known/*` to the backend, the frontend serves HTML instead of JSON.
+Two possible causes:
 
-Fix: ensure the ALB rule includes `/.well-known/oauth-protected-resource*` → backend.
+1. **ALB not routing `.well-known` to backend.** The `WWW-Authenticate` header points to `/.well-known/oauth-protected-resource/mcp` at the domain root. If the ALB doesn't route it to the backend, the frontend serves HTML instead of JSON. Fix: ensure the ALB rule includes `/.well-known/oauth-protected-resource*` → backend.
+
+2. **Redirect instead of direct response.** The MCP SDK client does NOT follow HTTP 307 redirects. If the `/.well-known/oauth-protected-resource/{path}` endpoint uses `RedirectResponse` to proxy to `/mcp/.well-known/...`, the SDK receives an empty 307 body and fails to parse it as JSON. Fix: serve the resource metadata JSON directly from the FastAPI endpoint, not via redirect.
 
 ### "Cannot specify both auth_server_provider and token_verifier"
 
