@@ -17,6 +17,7 @@ def create_mcp_server(
     token_verifier=None,
     auth_settings=None,
     http_mode: bool = False,
+    allowed_hosts: list[str] | None = None,
 ) -> FastMCP:
     """Create the MCP server instance with all ISO tools registered.
 
@@ -25,9 +26,17 @@ def create_mcp_server(
     with OAuth. http_mode sets streamable_http_path="/" to avoid /mcp/mcp path
     doubling when mounted as sub-app at /mcp on FastAPI.
     """
-    kwargs = {}
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    kwargs: dict = {}
     if http_mode:
         kwargs["streamable_http_path"] = "/"
+        # Behind ALB the Host header is the public domain, not localhost.
+        # Disable the default localhost-only DNS rebinding allowlist.
+        kwargs["transport_security"] = TransportSecuritySettings(
+            enable_dns_rebinding_protection=bool(allowed_hosts),
+            allowed_hosts=allowed_hosts or [],
+        )
 
     instance = FastMCP(
         "VizzHub",
