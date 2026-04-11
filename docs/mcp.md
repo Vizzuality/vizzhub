@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query ISO compliance data directly from the database.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook) directly from the database. 22 read-only tools available.
 
 ## Architecture
 
@@ -103,6 +103,202 @@ Full-text search across ISO document content using PostgreSQL `tsvector`.
 | `query` | string | yes | Search terms (e.g. `"encryption remote access"`) |
 
 **Returns:** JSON array of matches with `slug`, `title`, `section` (nearest heading), `snippet` (highlighted excerpt), and `rank`.
+
+### `tracker_get_projects`
+
+List all tracked projects with cost summary. Excludes absence projects.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `status` | string | no | Filter by project status (`proposal`, `live`, `finished`) |
+| `is_billable` | bool | no | Filter by billable flag |
+
+**Returns:** JSON array of projects with `name`, `code`, `budget`, `staff_cost`, `non_staff_cost`, `total_cost`, `burn_percentage`, `income`, and `project_manager`.
+
+### `tracker_get_project_detail`
+
+Full project detail: budget lines, cost summary with per-period breakdown.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `project_id` | string | yes | Project UUID |
+
+**Returns:** JSON with project info, `budget_lines` (days/percentage per FA), and `cost_summary` with per-period breakdown.
+
+### `tracker_get_project_time`
+
+Time allocation for a project grouped by user or functional area.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `project_id` | string | yes | Project UUID |
+| `group_by` | string | no | `"user"` (default) or `"functional_area"` |
+
+**Returns:** JSON array of groups with `total_days`, `total_cost`, and per-period breakdown.
+
+### `tracker_get_project_invoices`
+
+Invoices for a project with effective status (accounts for postponements).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `project_id` | string | yes | Project UUID |
+
+**Returns:** JSON array of invoices with `amount`, `milestone`, `due_date`, `status` (effective), `postpone_count`.
+
+### `tracker_get_project_progress`
+
+Progress history for a project: % completed per period with delta.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `project_id` | string | yes | Project UUID |
+
+**Returns:** JSON array of progress reports with `percentage` (0-1) and `delta` (change from prior period).
+
+### `tracker_get_periods`
+
+Reporting periods with report counts.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `status` | string | no | Filter by period status (`unstarted`, `active`, `finished`) |
+
+**Returns:** JSON array of periods with `date`, `status`, `base_rate`, `report_count`, `confirmed_count`.
+
+### `scorecard_get_project_scores`
+
+All scored projects with their latest overall score and dimension breakdown.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `status` | string | no | Filter by project status |
+
+**Returns:** JSON array of projects with `score` (0-100), 8 `dimensions` (time, cost, quality, value, satisfaction, flow, engineering, risk), and `dora` classification.
+
+### `scorecard_get_project_scorecard`
+
+Full scorecard for a single project: indicators, dimensions, DORA, EVM, milestones.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `project_id` | string | yes | Project UUID |
+| `year` | int | no | Period year (requires `month`) |
+| `month` | int | no | Period month 1-12 (requires `year`) |
+
+**Returns:** JSON with `score`, `dimensions`, `indicators` (normalized 0-1), `dora` metrics, `evm` data, and `milestones`.
+
+### `scorecard_get_project_history`
+
+Score trend for a project over recent periods.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `project_id` | string | yes | Project UUID |
+| `limit` | int | no | Max periods (default 12, max 48) |
+
+**Returns:** JSON array of periods with `score`, `dimensions`, `key_indicators` (SPI, CPI, lead time, etc.).
+
+### `scorecard_get_global_metrics`
+
+Organization-wide averaged scores and indicators by month.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `limit` | int | no | Max months (default 12, max 48) |
+
+**Returns:** JSON array of monthly records with averaged `scores` and `indicators` across all projects, plus `project_count`.
+
+### `capacity_get_insights`
+
+Billable allocation overview by functional area and period.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `start_month` | string | no | YYYY-MM format. Defaults to 6 months ago. |
+| `end_month` | string | no | YYYY-MM format. Defaults to current month. |
+
+**Returns:** JSON array of periods with per-FA `billable_pct`, `absence_pct`, and `user_count`.
+
+### `capacity_get_fa_detail`
+
+Per-user breakdown for a functional area.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `fa` | string | yes | FA short code: `FE`, `BE`, `Design`, `PM`, `Sci`, `Coms` |
+| `start_month` | string | no | YYYY-MM format |
+| `end_month` | string | no | YYYY-MM format |
+
+**Returns:** JSON array of periods with per-user `billable_pct`, `absence_pct`, `billable_project_count`.
+
+### `capacity_get_user_detail`
+
+Per-project breakdown for a specific user.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `user_id` | string | yes | User UUID |
+| `start_month` | string | no | YYYY-MM format |
+| `end_month` | string | no | YYYY-MM format |
+
+**Returns:** JSON array of periods with per-project `percentage` and `absence_pct`.
+
+### `capacity_get_allocation`
+
+Averaged allocation across finished periods.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `view` | string | no | `"users"` (default) or `"projects"` |
+| `start_month` | string | no | YYYY-MM format |
+| `end_month` | string | no | YYYY-MM format |
+
+**Returns:** JSON with `periods_used` and allocation segments (by user or by project).
+
+### `playbook_get_tree`
+
+Hierarchical navigation tree of the playbook.
+
+**Parameters:** None
+
+**Returns:** JSON tree with `title`, `slug`, `type` (page/group), `is_public`, and `children`.
+
+### `playbook_get_article`
+
+Full markdown content of a playbook article.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `slug` | string | yes | Article slug (from `playbook_get_tree`) |
+
+**Returns:** JSON with `title`, `content` (markdown), `version`, `is_public`.
+
+### `playbook_search_articles`
+
+Search playbook articles by title and content.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | string | yes | Search terms |
+
+**Returns:** JSON array of matching articles with `title`, `slug`, `summary`.
 
 ## Authentication
 
