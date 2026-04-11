@@ -20,13 +20,15 @@ Production (HTTPS):
         |
   FastAPI backend
         |
-        +-- /mcp/                StreamableHTTP endpoint (tools)
+        +-- /mcp/sse             SSE stream endpoint (GET)
+        +-- /mcp/messages/       Client messages endpoint (POST)
         +-- /mcp/authorize       OAuth → redirects to Google SSO
         +-- /mcp/token           Issues JWT access + refresh tokens
+        +-- /mcp/register        Dynamic Client Registration (RFC 7591)
         +-- /mcp/revoke          Token revocation
         +-- /mcp/oauth/callback  Google SSO callback
-        +-- /mcp/.well-known/oauth-authorization-server   OAuth metadata
-        +-- /.well-known/oauth-protected-resource/mcp  →  redirect to /mcp/...
+        +-- /.well-known/oauth-authorization-server/mcp   OAuth metadata (direct)
+        +-- /.well-known/oauth-protected-resource/mcp     Resource metadata (direct)
 
 
 Local development (stdio):
@@ -41,10 +43,9 @@ Local development (stdio):
 ### Key design decisions
 
 - **Sub-app, not separate process.** The MCP Starlette app is mounted on the existing FastAPI backend at `/mcp` via `app.mount()`. Same container, same DB pool, same deploy pipeline.
-- **Transport-agnostic server.** `create_mcp_server()` factory produces a `FastMCP` instance. `__main__.py` uses it with stdio; `main.py` uses it with streamable-http. The server object doesn't know which transport is active.
+- **Transport-agnostic server.** `create_mcp_server()` factory produces a `FastMCP` instance. `__main__.py` uses it with stdio; `main.py` uses it with SSE transport via `sse_app()`. The server object doesn't know which transport is active.
+- **SSE transport, not StreamableHTTP.** Claude Code (and all current MCP clients) only support `type: "sse"` in declarative config. StreamableHTTP is SDK-only. SSE uses GET `/sse` for the event stream and POST `/messages/` for client messages. No session manager or lifespan setup needed — each SSE connection creates its own server instance.
 - **Read-only guarantee.** MCP tool sessions use `postgresql_readonly=True` at the engine level. Even sharing the backend's connection pool, tools cannot write.
-- **`streamable_http_path="/"`** avoids path doubling. Without this, mounting at `/mcp` on FastAPI with the SDK default of `/mcp` would create `/mcp/mcp`.
-- **Session manager in parent lifespan.** `app.mount()` does **not** propagate the sub-app's Starlette lifespan. The `StreamableHTTPSessionManager` must be started explicitly in FastAPI's lifespan via `async with session_manager.run()`. Without this, tool calls fail with `RuntimeError: Task group is not initialized`.
 - **DNS rebinding protection.** The SDK defaults to `host="127.0.0.1"` which auto-enables DNS rebinding protection with `allowed_hosts=["127.0.0.1:*", "localhost:*"]`. Behind an ALB, the `Host` header is the public domain — pass `TransportSecuritySettings(allowed_hosts=["hub.vizzuality.com"])` to allow it.
 
 ## Tools
@@ -262,13 +263,13 @@ For production or remote access, Claude Code connects via SSE:
   "mcpServers": {
     "vizzhub-remote": {
       "type": "sse",
-      "url": "https://hub.vizzuality.com/mcp/"
+      "url": "https://hub.vizzuality.com/mcp/sse"
     }
   }
 }
 ```
 
-**Important:** Use `type: "sse"`, not `"streamable-http"`. Claude Code's `.mcp.json` schema does not support `streamable-http` — that's an SDK-only transport. The trailing slash on the URL is required.
+**Important:** The URL must point to the SSE endpoint (`/mcp/sse`), not the mount root (`/mcp/`). Use `type: "sse"` — Claude Code does not support `streamable-http` in `.mcp.json`.
 
 Claude Code will automatically discover the OAuth endpoints via `/.well-known/oauth-authorization-server` and open a browser for Google SSO authentication. After login, the OAuth token is cached and subsequent sessions reuse it until it expires.
 
