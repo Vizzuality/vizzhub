@@ -28,6 +28,7 @@ def upgrade() -> None:
         "        REFERENCES mcp_oauth_clients(client_id) ON DELETE CASCADE,"
         "    code_challenge  VARCHAR(256) NOT NULL,"
         "    redirect_uri    TEXT NOT NULL,"
+        "    redirect_uri_provided_explicitly BOOLEAN NOT NULL DEFAULT false,"
         "    scopes          JSONB,"
         "    user_id         UUID REFERENCES users(id),"
         "    user_email      VARCHAR(255),"
@@ -67,6 +68,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DROP INDEX IF EXISTS ix_mcp_oauth_refresh_tokens_expires")
+    op.execute("DROP INDEX IF EXISTS ix_mcp_oauth_codes_expires")
     op.execute("DROP TABLE IF EXISTS mcp_oauth_refresh_tokens")
     op.execute("DROP TABLE IF EXISTS mcp_oauth_codes")
     op.execute("DROP TABLE IF EXISTS mcp_oauth_clients")
