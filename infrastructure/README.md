@@ -7,6 +7,7 @@ OpenTofu/Terraform configuration for deploying Hub (Project Scorecard) to AWS.
 ```
 Internet → ALB (HTTPS/ACM) → EC2 (Docker Compose)
               ↓ path routing       ├── backend:8000
+              ├── /mcp/*  ────────→│   (MCP server sub-app)
               ├── /api/*  ────────→│
               └── /*      ────────→├── frontend:5173
                                    ├── worker (arq)
