@@ -215,6 +215,7 @@ jobs:
           GOOGLE=$(aws secretsmanager get-secret-value --secret-id /hub/prod/google-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
           JIRA=$(aws secretsmanager get-secret-value --secret-id /hub/prod/jira-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
           GRAFANA=$(aws secretsmanager get-secret-value --secret-id /hub/prod/grafana-cloud --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
+          MCP=$(aws secretsmanager get-secret-value --secret-id /hub/prod/mcp-oauth --query SecretString --output text --region AWS_REGION_PLACEHOLDER)
           cat > .env.alloy << EOF
           GRAFANA_API_TOKEN=$(echo $GRAFANA | jq -r '.api_token')
           GRAFANA_PROMETHEUS_USERNAME=$(echo $GRAFANA | jq -r '.prometheus_username')
@@ -245,6 +246,10 @@ jobs:
           PLAYBOOK_PUBLIC_URL=https://playbook.vizzuality.com
           PLAYBOOK_CLOUDFRONT_DISTRIBUTION_ID=E2B2DSEQB8J1K8
           SENTRY_DSN=https://0c204d934b8b93da862f16922f647e94@o4511123590086656.ingest.de.sentry.io/4511127154327632
+          MCP_ENABLED=true
+          MCP_BASE_URL=https://DOMAIN_PLACEHOLDER/mcp
+          MCP_OAUTH_CLIENT_ID=$(echo $MCP | jq -r '.client_id')
+          MCP_OAUTH_CLIENT_SECRET=$(echo $MCP | jq -r '.client_secret')
           LOG_FORMAT=json
           LOG_LEVEL=INFO
           APP_ENV=production
