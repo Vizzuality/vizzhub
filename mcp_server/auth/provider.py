@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
@@ -162,7 +160,10 @@ class VizzHubOAuthProvider:
     ) -> AuthorizationCode | None:
         async with self._session_maker() as session:
             result = await session.execute(
-                select(MCPOAuthCodeDB).where(MCPOAuthCodeDB.code == authorization_code)
+                select(MCPOAuthCodeDB).where(
+                    MCPOAuthCodeDB.code == authorization_code,
+                    MCPOAuthCodeDB.client_id == client.client_id,
+                )
             )
             row = result.scalar_one_or_none()
 
@@ -199,18 +200,8 @@ class VizzHubOAuthProvider:
             if row is None:
                 raise ValueError("Authorization code not found")
 
-            # PKCE verification
-            code_verifier = getattr(authorization_code, "_code_verifier", None)
-            if code_verifier:
-                expected = (
-                    base64.urlsafe_b64encode(
-                        hashlib.sha256(code_verifier.encode()).digest()
-                    )
-                    .rstrip(b"=")
-                    .decode()
-                )
-                if expected != row.code_challenge:
-                    raise ValueError("PKCE verification failed")
+            if not row.user_email:
+                raise ValueError("Authorization code has no associated user — callback incomplete")
 
             # Delete the consumed code
             await session.execute(
@@ -281,7 +272,8 @@ class VizzHubOAuthProvider:
         async with self._session_maker() as session:
             result = await session.execute(
                 select(MCPOAuthRefreshTokenDB).where(
-                    MCPOAuthRefreshTokenDB.token == refresh_token
+                    MCPOAuthRefreshTokenDB.token == refresh_token,
+                    MCPOAuthRefreshTokenDB.client_id == client.client_id,
                 )
             )
             row = result.scalar_one_or_none()
