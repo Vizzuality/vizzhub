@@ -14,7 +14,11 @@ _INSTRUCTIONS = (
     "projects, then drill into detail, time, invoices, or progress. "
     "Use the Scorecard tools to query project health scores across 8 "
     "dimensions. Start with scorecard_get_project_scores for an overview, "
-    "then drill into individual scorecards or score history."
+    "then drill into individual scorecards or score history. "
+    "Use Capacity tools to see team allocation: insights by FA, "
+    "drill into users, or view averaged allocation. "
+    "Use Playbook tools to browse the internal knowledge base: "
+    "get the tree, read articles, or search content."
 )
 
 
@@ -61,6 +65,12 @@ def create_mcp_server(
 
     from mcp_server.tools.scorecard import register_scorecard_tools  # noqa: PLC0415
     register_scorecard_tools(instance)
+
+    from mcp_server.tools.capacity import register_capacity_tools  # noqa: PLC0415
+    register_capacity_tools(instance)
+
+    from mcp_server.tools.playbook import register_playbook_tools  # noqa: PLC0415
+    register_playbook_tools(instance)
 
     return instance
 
