@@ -3,6 +3,8 @@
 import json
 
 import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcp_server.auth.permissions import mcp_requires
 from mcp_server.data.base import (
@@ -10,8 +12,13 @@ from mcp_server.data.base import (
     McpUserContext,
     get_mcp_user,
     override_mcp_user,
+    override_session,
     set_mcp_user,
 )
+from mcp_server.tools.tracker import tracker_get_projects
+from mcp_server.tools.scorecard import scorecard_get_project_scores
+from mcp_server.tools.capacity import capacity_get_insights
+from mcp_server.tools.iso import iso_get_registries
 
 
 class TestMcpUserContext:
@@ -122,3 +129,63 @@ class TestMcpRequires:
 
         assert my_tool.__name__ == "my_tool"
         assert my_tool.__doc__ == "Tool docstring."
+
+
+class TestToolGating:
+    """Verify real tools enforce permissions."""
+
+    @pytest.mark.asyncio
+    async def test_tracker_blocked_without_permission(self) -> None:
+        user = McpUserContext(
+            user_id="u1", email="a@b.com", roles=[], permissions=[],
+        )
+        async with override_mcp_user(user):
+            result = await tracker_get_projects()
+        assert "Permission denied" in result
+        assert "tracker:view" in result
+
+    @pytest.mark.asyncio
+    async def test_scorecard_blocked_without_permission(self) -> None:
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=[], permissions=["tracker:view"],
+        )
+        async with override_mcp_user(user):
+            result = await scorecard_get_project_scores()
+        assert "Permission denied" in result
+        assert "scorecard:view" in result
+
+    @pytest.mark.asyncio
+    async def test_capacity_uses_tracker_view(self) -> None:
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=[], permissions=["scorecard:view"],
+        )
+        async with override_mcp_user(user):
+            result = await capacity_get_insights()
+        assert "Permission denied" in result
+
+    @pytest.mark.asyncio
+    async def test_iso_registries_blocked_without_iso_edit(self) -> None:
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=["user"], permissions=["tracker:view", "scorecard:view"],
+        )
+        async with override_mcp_user(user):
+            result = await iso_get_registries()
+        assert "Permission denied" in result
+        assert "iso_docs:edit" in result
+
+    @pytest.mark.asyncio
+    async def test_iso_registries_allowed_for_editor(
+        self, db_session: AsyncSession,
+    ) -> None:
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=["iso_docs_editor"], permissions=["iso_docs:edit"],
+        )
+        async with override_session(db_session):
+            async with override_mcp_user(user):
+                result = await iso_get_registries()
+        parsed = json.loads(result)
+        assert isinstance(parsed, list)
