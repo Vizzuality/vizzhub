@@ -2,27 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
 
-_INSTRUCTIONS = (
-    "VizzHub is Vizzuality's internal operations hub. "
-    "Use the ISO tools to query compliance registries and documents. "
-    "Registry slugs are listed by iso_get_registries. "
-    "Document content can be searched with iso_search_documents. "
-    "Use the Tracker tools to query project budgets, time allocation, "
-    "invoices, and progress. Start with tracker_get_projects to list "
-    "projects, then drill into detail, time, invoices, or progress. "
-    "Use the Scorecard tools to query project health scores across 8 "
-    "dimensions. Start with scorecard_get_project_scores for an overview, "
-    "then drill into individual scorecards or score history. "
-    "Use Capacity tools to see team allocation: insights by FA, "
-    "drill into users, or view averaged allocation. "
-    "Use Playbook tools to browse the internal knowledge base: "
-    "get the tree, read articles, or search content. "
-    "Use Users tools for the team directory: list members with their "
-    "functional area, rate band, dedication, and roles. Also look up "
-    "functional areas and billing rates."
-)
+_SKILL_PATH = Path(__file__).resolve().parent.parent / "docs" / "mcp" / "vizzhub-skill.md"
+_INSTRUCTIONS = _SKILL_PATH.read_text(encoding="utf-8") if _SKILL_PATH.exists() else ""
 
 
 def create_mcp_server(
