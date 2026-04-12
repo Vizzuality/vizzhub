@@ -112,6 +112,9 @@ def create_mcp_server(
     from mcp_server.tools.iso_write import register_iso_write_tools  # noqa: PLC0415
     register_iso_write_tools(instance)
 
+    from mcp_server.tools.playbook_write import register_playbook_write_tools  # noqa: PLC0415
+    register_playbook_write_tools(instance)
+
     from mcp_server.tools.commands import register_command_tools  # noqa: PLC0415
     register_command_tools(instance)
 
