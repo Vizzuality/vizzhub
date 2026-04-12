@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.auth.permissions import mcp_requires
 from mcp_server.data.base import get_mcp_user, get_write_session
 from mcp_server.handlers import iso_docs as iso_handler
 from mcp_server.handlers import playbook as playbook_handler
 from mcp_server.services.command_service import CommandService
+from mcp_server.tools._shared import to_json
 
 _MODULE_PERMISSIONS = {
     "iso_docs": "iso_docs:edit",
@@ -23,11 +21,6 @@ _MODULE_EXECUTORS = {
     "iso_docs": iso_handler.execute,
     "playbook": playbook_handler.execute,
 }
-
-
-def _to_json(data: Any) -> str:
-    """Serialize data to indented JSON with safe date/uuid handling."""
-    return json.dumps(data, indent=2, default=str)
 
 
 async def get_pending_commands(module: str | None = None) -> str:
@@ -48,7 +41,7 @@ async def get_pending_commands(module: str | None = None) -> str:
     async with get_write_session() as session:
         svc = CommandService(session)
         commands = await svc.list_pending(user_id=user_id, module=module)
-        return _to_json([
+        return to_json([
             {
                 "command_id": str(cmd.id),
                 "module": cmd.module,
@@ -84,31 +77,30 @@ async def approve_command(command_id: str) -> str:
 
         required_perm = _MODULE_PERMISSIONS.get(cmd.module)
         if required_perm and not user.has_permission(required_perm):
-            return _to_json({
+            return to_json({
                 "error": f"Permission denied: requires {required_perm}",
                 "user": user.email,
             })
 
         executor = _MODULE_EXECUTORS.get(cmd.module)
         if executor is None:
-            return _to_json({
+            return to_json({
                 "error": f"No executor registered for module '{cmd.module}'",
             })
 
         cmd = await svc.approve(cmd_uuid, user_id, executor=executor)
 
         if cmd.status == "executed":
-            return _to_json({
+            return to_json({
                 "status": "executed",
                 "command_id": str(cmd.id),
                 "result": cmd.result,
             })
-        else:
-            return _to_json({
-                "status": "failed",
-                "command_id": str(cmd.id),
-                "error": cmd.error,
-            })
+        return to_json({
+            "status": "failed",
+            "command_id": str(cmd.id),
+            "error": cmd.error,
+        })
 
 
 async def reject_command(command_id: str) -> str:
@@ -132,13 +124,13 @@ async def reject_command(command_id: str) -> str:
 
         required_perm = _MODULE_PERMISSIONS.get(cmd.module)
         if required_perm and not user.has_permission(required_perm):
-            return _to_json({
+            return to_json({
                 "error": f"Permission denied: requires {required_perm}",
                 "user": user.email,
             })
 
         cmd = await svc.reject(cmd_uuid, user_id)
-        return _to_json({
+        return to_json({
             "status": "rejected",
             "command_id": str(cmd.id),
         })

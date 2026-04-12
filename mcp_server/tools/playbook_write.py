@@ -2,44 +2,10 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any
-from uuid import UUID
-
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.auth.permissions import mcp_requires
-from mcp_server.data.base import get_mcp_user, get_write_session
-from mcp_server.services.command_service import CommandService
-from mcp_server.services.summary import generate_summary
-
-
-def _to_json(data: Any) -> str:
-    """Serialize data to indented JSON with safe date/uuid handling."""
-    return json.dumps(data, indent=2, default=str)
-
-
-async def _enqueue_playbook(action: str, target: str | None, payload: dict) -> str:
-    """Shared helper: generate summary, enqueue command, return JSON response."""
-    user = get_mcp_user()
-    user_id = UUID(user.user_id)
-    async with get_write_session() as session:
-        summary = await generate_summary(session, "playbook", action, target, payload)
-        svc = CommandService(session)
-        cmd = await svc.enqueue(
-            module="playbook",
-            action=action,
-            target=target,
-            payload=payload,
-            summary=summary,
-            user_id=user_id,
-        )
-        return _to_json({
-            "status": "queued",
-            "command_id": str(cmd.id),
-            "summary": cmd.summary,
-            "message": f"Command queued. Use approve_command('{cmd.id}') to execute.",
-        })
+from mcp_server.tools._shared import enqueue_command
 
 
 @mcp_requires("playbook:edit")
@@ -57,8 +23,8 @@ async def playbook_create_article(parent_slug: str, title: str) -> str:
     Returns JSON with status, command_id, human-readable summary, and
     instructions for approval.
     """
-    return await _enqueue_playbook(
-        "create_article",
+    return await enqueue_command(
+        "playbook", "create_article",
         target=parent_slug,
         payload={"title": title},
     )
@@ -80,8 +46,8 @@ async def playbook_update_article_content(slug: str, content: str) -> str:
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
-    return await _enqueue_playbook(
-        "update_article_content",
+    return await enqueue_command(
+        "playbook", "update_article_content",
         target=slug,
         payload={"content": content},
     )
@@ -112,8 +78,8 @@ async def playbook_update_node(
     if parent_slug is not None:
         payload["parent_slug"] = parent_slug
 
-    return await _enqueue_playbook(
-        "update_node",
+    return await enqueue_command(
+        "playbook", "update_node",
         target=slug,
         payload=payload,
     )
@@ -132,8 +98,8 @@ async def playbook_delete_node(slug: str) -> str:
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
-    return await _enqueue_playbook(
-        "delete_node",
+    return await enqueue_command(
+        "playbook", "delete_node",
         target=slug,
         payload={},
     )
