@@ -55,8 +55,9 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def use_test_db(db_session: AsyncSession):
-    """Ensure all MCP tools use the test DB session via override."""
-    from mcp_server.data.base import override_session
+    """Ensure all MCP tools use the test DB session and have admin context."""
+    from mcp_server.data.base import FULL_ACCESS, override_mcp_user, override_session
 
     async with override_session(db_session):
-        yield
+        async with override_mcp_user(FULL_ACCESS):
+            yield
