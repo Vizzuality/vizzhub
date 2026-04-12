@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -21,6 +22,54 @@ _backend_read_session_maker: async_sessionmaker | None = None
 _session_override: ContextVar[AsyncSession | None] = ContextVar(
     "_session_override", default=None
 )
+
+
+@dataclass(frozen=True)
+class McpUserContext:
+    """Identity + permissions of the current MCP caller."""
+
+    user_id: str
+    email: str
+    roles: list[str] = field(default_factory=list)
+    permissions: list[str] = field(default_factory=list)
+
+    def has_permission(self, action: str) -> bool:
+        return "*" in self.permissions or action in self.permissions
+
+
+FULL_ACCESS = McpUserContext(
+    user_id="stdio",
+    email="local",
+    roles=["admin"],
+    permissions=["*"],
+)
+
+_mcp_user_context: ContextVar[McpUserContext | None] = ContextVar(
+    "_mcp_user_context", default=None,
+)
+
+
+def get_mcp_user() -> McpUserContext:
+    """Return the current MCP user context. Raises if not set."""
+    ctx = _mcp_user_context.get()
+    if ctx is None:
+        raise RuntimeError("MCP user context not set")
+    return ctx
+
+
+def set_mcp_user(ctx: McpUserContext) -> None:
+    """Set the MCP user context for the current async task."""
+    _mcp_user_context.set(ctx)
+
+
+@asynccontextmanager
+async def override_mcp_user(ctx: McpUserContext) -> AsyncGenerator[None, None]:
+    """Override the MCP user context for testing."""
+    token = _mcp_user_context.set(ctx)
+    try:
+        yield
+    finally:
+        _mcp_user_context.reset(token)
 
 
 def enable_backend_sessions() -> None:
