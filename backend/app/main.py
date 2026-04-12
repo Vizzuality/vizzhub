@@ -20,6 +20,7 @@ from app.core.api import oauth as oauth_router
 from app.core.api import currencies as currencies_router
 from app.core.api import functional_areas as functional_areas_router
 from app.core.api import rates as rates_router
+from app.core.api import commands as commands_router
 from app.core.api import programs as programs_router
 from app.core.api import projects_v2 as projects_v2_router
 from app.core.api import health as health_router
@@ -245,6 +246,7 @@ app.include_router(capacity_router, prefix="/api/capacity", tags=["capacity"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
 app.include_router(iso_docs_router, prefix="/api/iso-docs", tags=["iso-docs"])
+app.include_router(commands_router.router, prefix="/api")
 
 # MCP sub-app (disabled by default; enable via MCP_ENABLED=true + MCP_BASE_URL)
 if settings.mcp_enabled and settings.mcp_base_url:
