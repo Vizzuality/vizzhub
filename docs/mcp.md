@@ -580,13 +580,21 @@ cd backend && pytest tests/worker/test_cleanup_mcp_oauth.py -v
 
 ## Data model guide (instructions)
 
-The MCP server's `instructions` field is loaded from [`docs/mcp/vizzhub-skill.md`](mcp/vizzhub-skill.md) at startup. This is the **single source of truth** for the data model guide — it describes all 6 modules, tool conventions, cross-module query patterns, and app URL construction.
+The MCP server delivers context to clients in two layers:
 
-The same file is also installed as a Claude Code skill (`vizzhub-data-model`), so both Claude Desktop (via MCP instructions) and Claude Code (via skill) get the same guide.
+**1. Instructions (~1.5KB, always in context)**
 
-**To update the guide:** edit `docs/mcp/vizzhub-skill.md` and deploy. The file is read once at module import time — changes require a server restart (which happens on every deploy).
+A short text in `server.py` (`_INSTRUCTIONS`) that is injected into the client's context at connection time via the MCP `InitializeResult`. Contains: module overview table, key joins, FA mapping, app URL patterns, and core conventions. This is what Claude sees immediately without any tool calls.
 
-**Why not per-tool descriptions?** The guide covers cross-module relationships, query patterns, and conventions that span all 26 tools. Duplicating this in each tool's docstring would waste ~16KB x 26 tokens. Tool docstrings handle tool-specific context; the instructions handle the big picture.
+**2. Resource `vizzhub://data-model` (16KB, on demand)**
+
+The full data model guide loaded from [`docs/mcp/vizzhub-skill.md`](mcp/vizzhub-skill.md). Contains detailed tool reference tables, cross-module query patterns, registry lists (yearly vs non-yearly), and expanded conventions. Claude Code can read this via `ReadMcpResourceTool`; Claude Desktop lists it but cannot read it (client limitation).
+
+The same file is also installed as a Claude Code skill (`vizzhub-data-model`), so Claude Code gets the full guide via skill invocation as well.
+
+**To update:** Edit `_INSTRUCTIONS` in `server.py` for short context, or `docs/mcp/vizzhub-skill.md` for the full guide. Both are read once at module import time — changes require a deploy/restart.
+
+**Why this split?** The full 16KB guide exceeded client context limits when sent as instructions. Short instructions always arrive; the full guide is available on demand for complex query planning. The Dockerfile must COPY `docs/mcp/vizzhub-skill.md` into the image (`--chmod=555` to allow directory traversal).
 
 ## Project structure
 
@@ -595,7 +603,7 @@ mcp_server/
 ├── __init__.py
 ├── __main__.py              # Stdio entrypoint: mcp.run(transport="stdio")
 ├── config.py                # Settings for stdio mode (DATABASE_URL)
-├── server.py                # create_mcp_server() factory — loads instructions from docs/mcp/vizzhub-skill.md
+├── server.py                # create_mcp_server() factory — instructions + data-model resource
 ├── auth/
 │   ├── token_verifier.py    # VizzHubTokenVerifier (JWT validation)
 │   ├── provider.py          # VizzHubOAuthProvider (OAuth adapter)
