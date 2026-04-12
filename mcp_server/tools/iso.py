@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 
 from mcp_server.data.base import get_read_session
 from mcp_server.data import iso as iso_data
+from mcp_server.auth.permissions import mcp_requires
 
 from app.modules.iso_docs.services.registry_service import compute_row_fields
 
@@ -19,6 +20,7 @@ def _to_json(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
+@mcp_requires("iso_docs:edit")
 async def iso_get_registries() -> str:
     """List all ISO registry types with their column schemas.
 
@@ -40,6 +42,7 @@ async def iso_get_registries() -> str:
     ])
 
 
+@mcp_requires("iso_docs:edit")
 async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
     """Get all rows from an ISO registry by its slug.
 

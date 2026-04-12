@@ -141,12 +141,20 @@ async def get_read_session() -> AsyncGenerator[AsyncSession, None]:
 async def override_session(session: AsyncSession) -> AsyncGenerator[None, None]:
     """Context manager to override the read session for testing.
 
+    Also sets FULL_ACCESS user context when none is set, so
+    permission-gated tools work in tests that only override the session.
+
     Usage in tests:
         async with override_session(db_session):
             result = await client.call_tool("iso_get_registries", {})
     """
     token = _session_override.set(session)
+    user_token = None
+    if _mcp_user_context.get() is None:
+        user_token = _mcp_user_context.set(FULL_ACCESS)
     try:
         yield
     finally:
         _session_override.reset(token)
+        if user_token is not None:
+            _mcp_user_context.reset(user_token)
