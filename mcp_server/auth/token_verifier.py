@@ -7,12 +7,14 @@ import asyncio
 from jose import JWTError, jwt
 from mcp.server.auth.provider import AccessToken
 
+from mcp_server.data.base import McpUserContext, set_mcp_user
+
 
 class VizzHubTokenVerifier:
     """Verify MCP access tokens (JWTs signed with the backend's shared secret).
 
-    Implements the MCP SDK ``TokenVerifier`` protocol so it can be plugged
-    directly into the SDK's bearer-auth middleware.
+    On success, also sets the McpUserContext ContextVar so that downstream
+    tools and data functions can access user identity and permissions.
     """
 
     def __init__(
@@ -35,6 +37,12 @@ class VizzHubTokenVerifier:
                 algorithms=[self._algorithm],
                 audience=self._audience, issuer=self._issuer,
             )
+            set_mcp_user(McpUserContext(
+                user_id=payload.get("sub", "unknown"),
+                email=payload.get("email", ""),
+                roles=payload.get("roles", []),
+                permissions=payload.get("permissions", []),
+            ))
             return AccessToken(
                 token=token,
                 client_id=payload.get("client_id", "unknown"),
