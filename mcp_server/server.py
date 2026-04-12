@@ -45,6 +45,11 @@ Conventions:
 - Invoice status is the effective status (accounts for postponements).
 - Capacity percentages are 0-100 scale.
 - iso_search_documents uses full-text search; iso_get_documents(search=) is title-only.
+- Yearly registries follow the ISO audit cycle, not the calendar year. Each cycle \
+runs approximately March to February. The year parameter refers to the cycle start \
+year: year=2025 covers the 2025-2026 cycle (roughly March 2025 - February 2026). \
+When the user says "this period" or "current cycle", use the cycle that includes \
+today's date.
 
 For cross-module query patterns, detailed tool reference, and registry lists, \
 read the vizzhub://data-model resource before planning complex queries.\
