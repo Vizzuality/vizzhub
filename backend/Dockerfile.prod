@@ -37,7 +37,7 @@ COPY --from=builder --chown=appuser:appuser --chmod=555 /root/.local /home/appus
 # --chmod=555 sets dirs traversable; find then strips execute from files
 COPY --chown=appuser:appuser --chmod=555 backend/ .
 COPY --chown=appuser:appuser --chmod=555 mcp_server/ ./mcp_server/
-COPY --chown=appuser:appuser --chmod=444 docs/mcp/vizzhub-skill.md ./docs/mcp/vizzhub-skill.md
+COPY --chown=appuser:appuser --chmod=555 docs/mcp/vizzhub-skill.md ./docs/mcp/vizzhub-skill.md
 RUN find /app -type f -exec chmod 444 {} \; && chmod 555 /app/entrypoint.sh
 
 # Set environment
