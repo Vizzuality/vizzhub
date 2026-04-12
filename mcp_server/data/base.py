@@ -16,6 +16,7 @@ _session_maker = None
 
 # When set, MCP tools use the backend's engine (HTTP mode) instead of a standalone one.
 _backend_read_session_maker: async_sessionmaker | None = None
+_backend_write_session_maker: async_sessionmaker | None = None
 
 # Test override: when set, get_read_session() uses this session
 # instead of creating one from the engine.
@@ -91,6 +92,22 @@ def enable_backend_sessions() -> None:
     )
 
 
+def enable_backend_write_sessions() -> None:
+    """Create a writable session maker sharing the backend's engine.
+
+    Called during FastAPI lifespan when MCP runs embedded in the backend
+    process. Uses the backend engine directly without readonly restrictions.
+    """
+    global _backend_write_session_maker
+    from app.database import engine  # noqa: PLC0415 — intentional late import
+
+    _backend_write_session_maker = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+
 def _get_session_maker() -> async_sessionmaker[AsyncSession]:
     global _engine, _session_maker
     if _session_maker is None:
@@ -135,6 +152,50 @@ async def get_read_session() -> AsyncGenerator[AsyncSession, None]:
     maker = _get_session_maker()
     async with maker() as session:
         yield session
+
+
+@asynccontextmanager
+async def get_write_session() -> AsyncGenerator[AsyncSession, None]:
+    """Yield a writable async session. Commits on success, rolls back on error.
+
+    Priority order:
+    1. Test override (override_session context manager) — yields shared session as-is
+    2. Backend write session maker (when running embedded via enable_backend_write_sessions)
+    3. Standalone engine created from MCP settings (stdio mode) without readonly
+    """
+    override = _session_override.get()
+    if override is not None:
+        yield override
+        return
+
+    if _backend_write_session_maker is not None:
+        async with _backend_write_session_maker() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+        return
+
+    settings = get_settings()
+    standalone_engine = create_async_engine(
+        settings.database_url,
+        echo=False,
+    )
+    maker = async_sessionmaker(
+        standalone_engine, class_=AsyncSession, expire_on_commit=False,
+    )
+    try:
+        async with maker() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+    finally:
+        await standalone_engine.dispose()
 
 
 @asynccontextmanager
