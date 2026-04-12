@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 26 read-only tools available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 27 read-only tools + 15 write tools (via command queue) available.
 
 ## Architecture
 
@@ -721,9 +721,68 @@ TransportSecuritySettings(
 |-------|--------|-------------|
 | 1 | Done | Read-only ISO tools (stdio) |
 | 1.5 | Done | HTTP transport + OAuth + deployment |
-| 2 | Planned | Read-only relational modules (Tracker, Scorecard, Capacity, Playbook) |
-| 3 | Planned | Command queue + write operations with human approval |
+| 2 | Done | Read-only relational modules (Tracker, Scorecard, Capacity, Playbook, Users) |
+| 3A | Done | Permission layer (McpUserContext, @mcp_requires, ISO doc visibility) |
+| 3B | Done | Command queue — write operations for ISO docs, registries, Playbook |
 | 4 | Planned | Transactions (Saga pattern with cross-command references) |
 | 5 | Planned | Policy engine (risk-based routing, role-based approval) |
 
 See `docs/MCP_plan.md` for the full architecture vision.
+
+## Write Operations (Command Queue)
+
+All write operations go through a human-in-the-loop command queue. Tools enqueue commands that require explicit approval before execution.
+
+### ISO Docs Write Tools (8)
+
+| Tool | Permission | Description |
+|---|---|---|
+| `iso_create_page` | `iso_docs:edit` | Create a new page under a group |
+| `iso_update_page_content` | `iso_docs:edit` | Update page markdown content (versioned) |
+| `iso_update_page_metadata` | `iso_docs:edit` | Update metadata fields (partial update) |
+| `iso_update_node` | `iso_docs:edit` | Rename or move a node |
+| `iso_delete_node` | `iso_docs:edit` | Delete a leaf node (no children) |
+| `iso_create_registry_row` | `iso_docs:edit` | Add a row to a registry |
+| `iso_update_registry_row` | `iso_docs:edit` | Update fields in a registry row |
+| `iso_delete_registry_row` | `iso_docs:edit` | Delete a registry row |
+
+### Playbook Write Tools (4)
+
+| Tool | Permission | Description |
+|---|---|---|
+| `playbook_create_article` | `playbook:edit` | Create a new article under a group |
+| `playbook_update_article_content` | `playbook:edit` | Update article markdown content (versioned) |
+| `playbook_update_node` | `playbook:edit` | Rename or move a node |
+| `playbook_delete_node` | `playbook:edit` | Delete a leaf node (no children) |
+
+### Queue Management Tools (3)
+
+| Tool | Description |
+|---|---|
+| `get_pending_commands` | List your pending commands (optional module filter) |
+| `approve_command` | Approve and execute a command (requires module permission) |
+| `reject_command` | Reject a command (requires module permission) |
+
+### Command Flow
+
+1. Claude calls a write tool → command is enqueued with `status: queued`
+2. Claude presents the human-readable summary to the user for review
+3. User confirms → Claude calls `approve_command` → command executes
+4. User declines → Claude calls `reject_command` → command is discarded
+
+### REST API
+
+Commands are also accessible via REST for future UI integration:
+
+```
+GET  /api/commands?status=pending&module=iso_docs
+POST /api/commands/{id}/approve
+POST /api/commands/{id}/reject
+```
+
+### Safety
+
+- Delete node operations only work on leaf nodes (no children). Cascading deletes are blocked.
+- All write operations require the same permission as the corresponding UI action.
+- Failed executions are recorded with error details for audit.
+- User attribution: all changes are attributed to the authenticated user, not "system".
