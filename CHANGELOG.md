@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.9.0] - 2026-04-12 — MCP Phase 2 + Data Model Guide
+
+### Added
+- MCP Phase 2: 21 new read-only tools across 5 modules (Tracker 7, Scorecard 4, Capacity 4, Playbook 3, Users 4) — 27 total tools
+- `tracker_get_user_jira_issues` tool: query Jira issues assigned to a user by date range, cross-referenced with Users/Capacity
+- Data model guide (`docs/mcp/vizzhub-skill.md`) as single source of truth for MCP instructions and Claude Code skill
+- MCP resource `vizzhub://data-model` for on-demand full guide access
+- Short MCP instructions (~1.5KB) with modules, URL patterns, conventions — always in client context
+- ISO audit cycle convention in MCP instructions (yearly registries use Mar-Feb cycle)
+- Claude Desktop remote config documentation
+- Project manager filter on projects list
+
+### Fixed
+- axios upgraded 1.13.5 → 1.15.0 (CVE-2026-40175 header injection, CVE-2025-62718 SSRF)
+- Dockerfile permissions for MCP skill file (chmod=555 for directory traversal)
+- SonarCloud findings: Dockerfile COPY permissions, callback cognitive complexity
+
+### Changed
+- MCP instructions split from 16KB monolith into short context + on-demand resource (client context limit)
+- ISO docs: derive doc_version from last changelog entry
+- Registry column visibility persisted in schema
+
+### Security
+- axios 1.15.0 fixes 2 critical CVEs
+- ALB scanner path blocking
+
 ## [2026-04-08] - KPI Dashboard & Cleanup
 
 ### Added
