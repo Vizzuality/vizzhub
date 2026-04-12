@@ -10,14 +10,18 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
-from mcp_server.models.command import CommandDB
 
 logger = structlog.get_logger()
 
 router = APIRouter(tags=["commands"])
 
 
-def _serialize_command(cmd: CommandDB) -> dict:
+def _get_command_model():
+    from mcp_server.models.command import CommandDB
+    return CommandDB
+
+
+def _serialize_command(cmd) -> dict:
     """Convert a CommandDB row to a JSON-safe dict."""
     return {
         "id": str(cmd.id),
@@ -43,6 +47,7 @@ async def list_commands(
     module: Annotated[str | None, Query()] = None,
 ) -> list[dict]:
     """List commands, optionally filtered by status and/or module."""
+    CommandDB = _get_command_model()
     stmt = select(CommandDB).order_by(CommandDB.requested_at.desc())
     if status is not None:
         stmt = stmt.where(CommandDB.status == status)
