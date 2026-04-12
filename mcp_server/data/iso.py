@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, func as sa_func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
 
 from app.modules.iso_docs.models import (
@@ -30,6 +31,9 @@ _latest_version_sq = (
 )
 
 _SUMMARY_LENGTH = 200
+
+# Aliased parent node for deriving category from tree structure.
+_ParentNode = aliased(IsoDocNodeDB)
 
 # Root group slugs visible to non-editors. Mirrors backend's
 # USER_VISIBLE_ROOT_SLUGS in app/modules/iso_docs/api/deps.py.
@@ -64,18 +68,19 @@ async def _get_visible_node_ids(session: AsyncSession) -> set[UUID] | None:
 def _doc_base_query(*extra_columns) -> Select:
     """Build the common SELECT + JOIN chain for document queries.
 
-    Joins iso_doc_nodes -> metadata -> latest version subquery -> version.
-    Callers pass extra columns (e.g. content, summary) to include beyond
-    the standard slug/title/category/doc_version.
+    Joins iso_doc_nodes -> parent node -> metadata -> latest version -> version.
+    Category is derived from the parent group's title (matching the backend API),
+    not from the metadata enum field.
     """
     return (
         select(
             IsoDocNodeDB.slug,
             IsoDocNodeDB.title,
-            IsoDocMetadataDB.category,
+            _ParentNode.title.label("category"),
             IsoDocMetadataDB.doc_version,
             *extra_columns,
         )
+        .outerjoin(_ParentNode, _ParentNode.id == IsoDocNodeDB.parent_id)
         .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
         .join(
             _latest_version_sq,
@@ -108,7 +113,7 @@ async def get_documents(
     if visible_ids is not None:
         stmt = stmt.where(IsoDocNodeDB.id.in_(visible_ids))
     if category is not None:
-        stmt = stmt.where(IsoDocMetadataDB.category == category)
+        stmt = stmt.where(_ParentNode.title == category)
     if title_search is not None:
         stmt = stmt.where(IsoDocNodeDB.title.ilike(f"%{title_search}%"))
 

@@ -157,32 +157,40 @@ async def test_get_registry_rows_ordered_by_index(
 
 @pytest_asyncio.fixture
 async def seed_documents(db_session: AsyncSession) -> list[IsoDocNodeDB]:
+    policies_group = IsoDocNodeDB(
+        title="Policies",
+        slug="policies",
+        type="group",
+    )
+    procedures_group = IsoDocNodeDB(
+        title="Procedures",
+        slug="procedures",
+        type="group",
+    )
+    db_session.add_all([policies_group, procedures_group])
+    await db_session.flush()
+
     page1 = IsoDocNodeDB(
         title="Information Security Policy",
         slug="information-security-policy",
         type="page",
+        parent_id=policies_group.id,
     )
     page2 = IsoDocNodeDB(
         title="Access Control Procedure",
         slug="access-control-procedure",
         type="page",
+        parent_id=procedures_group.id,
     )
-    group = IsoDocNodeDB(
-        title="Policies Group",
-        slug="policies",
-        type="group",
-    )
-    db_session.add_all([page1, page2, group])
+    db_session.add_all([page1, page2])
     await db_session.flush()
 
     meta1 = IsoDocMetadataDB(
         node_id=page1.id,
-        category="policy",
         doc_version="2.1",
     )
     meta2 = IsoDocMetadataDB(
         node_id=page2.id,
-        category="procedure",
         doc_version="1.0",
     )
     db_session.add_all([meta1, meta2])
@@ -223,7 +231,7 @@ async def test_get_documents_filters_by_category(
 ) -> None:
     from mcp_server.data.iso import get_documents
 
-    docs = await get_documents(db_session, category="policy")
+    docs = await get_documents(db_session, category="Policies")
     assert len(docs) == 1
     assert docs[0]["slug"] == "information-security-policy"
 
@@ -248,7 +256,7 @@ async def test_get_documents_includes_latest_version_metadata(
     docs = await get_documents(db_session)
     policy = next(d for d in docs if d["slug"] == "information-security-policy")
     assert policy["doc_version"] == "2.1"
-    assert policy["category"] == "policy"
+    assert policy["category"] == "Policies"
     assert "summary" in policy
     assert "Purpose" in policy["summary"]
 
