@@ -19,6 +19,7 @@ from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import app.main  # noqa: F401 — registers all SQLAlchemy models to Base.metadata
+import mcp_server.models.command  # noqa: F401 — registers CommandDB to Base.metadata
 from app.database import Base
 
 _TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
