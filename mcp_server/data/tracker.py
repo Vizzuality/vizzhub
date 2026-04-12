@@ -1,14 +1,18 @@
-"""Tracker data access — projects, costs, time, invoices, progress, periods."""
+"""Tracker data access — projects, costs, time, invoices, progress, periods, jira."""
 
 from __future__ import annotations
 
+from calendar import monthrange
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
+import structlog
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from app.core.models.functional_area import FunctionalAreaDB
 from app.core.models.project import ProjectDB
@@ -513,3 +517,86 @@ async def get_periods(
         }
         for r in result.all()
     ]
+
+
+# ---------------------------------------------------------------------------
+# 7. tracker_get_user_jira_issues
+# ---------------------------------------------------------------------------
+
+async def get_user_jira_issues(
+    session: AsyncSession,
+    user_id: UUID,
+    start_date: str,
+    end_date: str,
+) -> dict:
+    """Jira issues assigned to a user in a date range.
+
+    Looks up the user's email, then queries Jira for issues that were
+    In Progress or Done during the period.
+    """
+    from app.core.services.jira_client import JiraClient
+    from app.core.services.oauth_service import OAuthService
+
+    user = await session.get(UserDB, user_id)
+    if not user:
+        return {"error": f"User '{user_id}' not found"}
+
+    jql = (
+        f'assignee = "{user.email}" AND '
+        f'updatedDate >= "{start_date}" AND updatedDate <= "{end_date}" AND '
+        f'statusCategory in ("In Progress", "Done")'
+    )
+
+    client = JiraClient(db=session)
+    try:
+        http = await client.get_client()
+        response = await http.post(
+            "/rest/api/3/search/jql",
+            json={
+                "jql": jql,
+                "fields": ["summary", "status", "project", "issuetype"],
+                "maxResults": 50,
+            },
+        )
+
+        if response.status_code != 200:
+            logger.warning(
+                "mcp_jira_query_failed",
+                status_code=response.status_code,
+                user_id=str(user_id),
+            )
+            return {"issues": [], "error": "Jira query failed"}
+
+        data = response.json()
+        issues = []
+        for issue in data.get("issues", []):
+            fields = issue.get("fields", {})
+            project = fields.get("project", {})
+            status = fields.get("status", {})
+            issue_type = fields.get("issuetype", {})
+            issues.append({
+                "key": issue["key"],
+                "summary": fields.get("summary", ""),
+                "status": status.get("name", ""),
+                "status_category": status.get("statusCategory", {}).get("name", ""),
+                "project_key": project.get("key", ""),
+                "project_name": project.get("name", ""),
+                "issue_type": issue_type.get("name", ""),
+            })
+
+        site_info = await OAuthService.get_jira_site_info(session)
+        site_url = site_info.get("site_url", "") if site_info else ""
+
+        return {
+            "user": user.email,
+            "start_date": start_date,
+            "end_date": end_date,
+            "issue_count": len(issues),
+            "issues": issues,
+            "site_url": site_url,
+        }
+    except Exception as e:
+        logger.warning("mcp_jira_fetch_failed", user_id=str(user_id), error=str(e))
+        return {"issues": [], "error": f"Jira connection failed: {e}"}
+    finally:
+        await client.close()

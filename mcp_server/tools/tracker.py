@@ -145,6 +145,34 @@ async def tracker_get_periods(status: str | None = None) -> str:
     return _to_json(periods)
 
 
+async def tracker_get_user_jira_issues(
+    user_id: str,
+    start_date: str,
+    end_date: str,
+) -> str:
+    """Get Jira issues assigned to a user in a date range.
+
+    Returns issues that were In Progress or moved to Done during the
+    period. Useful for understanding what a team member worked on.
+    Cross-reference user_id from users_get_team or capacity_get_fa_detail.
+
+    Args:
+        user_id: User UUID (from users_get_team or capacity_get_fa_detail).
+        start_date: Start of range (YYYY-MM-DD).
+        end_date: End of range (YYYY-MM-DD).
+    """
+    try:
+        uid = UUID(user_id)
+    except ValueError:
+        return _to_json({"error": f"Invalid user_id: {user_id}"})
+
+    async with get_read_session() as session:
+        result = await tracker_data.get_user_jira_issues(
+            session, uid, start_date, end_date,
+        )
+    return _to_json(result)
+
+
 def register_tracker_tools(server: FastMCP) -> None:
     """Register all Tracker tools on the given MCP server instance."""
     server.tool()(tracker_get_projects)
@@ -153,3 +181,4 @@ def register_tracker_tools(server: FastMCP) -> None:
     server.tool()(tracker_get_project_invoices)
     server.tool()(tracker_get_project_progress)
     server.tool()(tracker_get_periods)
+    server.tool()(tracker_get_user_jira_issues)
