@@ -109,6 +109,12 @@ def create_mcp_server(
     from mcp_server.tools.users import register_users_tools  # noqa: PLC0415
     register_users_tools(instance)
 
+    from mcp_server.tools.iso_write import register_iso_write_tools  # noqa: PLC0415
+    register_iso_write_tools(instance)
+
+    from mcp_server.tools.commands import register_command_tools  # noqa: PLC0415
+    register_command_tools(instance)
+
     if _SKILL_CONTENT:
 
         @instance.resource(
