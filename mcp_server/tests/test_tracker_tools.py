@@ -3,7 +3,9 @@
 import json
 from datetime import date
 from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -240,3 +242,114 @@ async def test_tracker_get_periods_with_filter(db_session, seed_tracker) -> None
         result = await server.call_tool("tracker_get_periods", {"status": "active"})
     data = _parse_tool_result(result)
     assert data == []
+
+
+# ---------------------------------------------------------------------------
+# tracker_get_user_jira_issues
+# ---------------------------------------------------------------------------
+
+
+def _mock_jira_response(issues: list[dict]) -> httpx.Response:
+    """Build a mock Jira search response."""
+    return httpx.Response(
+        200,
+        json={"issues": issues},
+        request=httpx.Request("POST", "https://fake.atlassian.net"),
+    )
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_user_jira_issues(db_session, seed_tracker) -> None:
+    """Happy path: returns Jira issues for a user in a date range."""
+    user = (await db_session.execute(
+        __import__("sqlalchemy").select(UserDB).where(UserDB.email == "test@vizzuality.com")
+    )).scalar_one()
+
+    mock_issues = [{
+        "key": "PROJ-1",
+        "fields": {
+            "summary": "Fix the bug",
+            "status": {"name": "Done", "statusCategory": {"name": "Done"}},
+            "project": {"key": "PROJ", "name": "Test Project"},
+            "issuetype": {"name": "Task"},
+        },
+    }]
+
+    mock_http = AsyncMock()
+    mock_http.post = AsyncMock(return_value=_mock_jira_response(mock_issues))
+
+    server = create_mcp_server()
+    with patch("app.core.services.jira_client.JiraClient") as MockClient, \
+         patch("app.core.services.oauth_service.OAuthService") as MockOAuth:
+        instance = MockClient.return_value
+        instance.get_client = AsyncMock(return_value=mock_http)
+        instance.close = AsyncMock()
+        MockOAuth.get_jira_site_info = AsyncMock(
+            return_value={"site_url": "https://test.atlassian.net"},
+        )
+
+        async with override_session(db_session):
+            result = await server.call_tool(
+                "tracker_get_user_jira_issues",
+                {"user_id": str(user.id), "start_date": "2026-03-01", "end_date": "2026-03-31"},
+            )
+
+    data = _parse_tool_result(result)
+    assert data["issue_count"] == 1
+    assert data["issues"][0]["key"] == "PROJ-1"
+    assert data["issues"][0]["summary"] == "Fix the bug"
+    assert data["site_url"] == "https://test.atlassian.net"
+    assert data["user"] == "test@vizzuality.com"
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_user_jira_issues_invalid_user(db_session, seed_tracker) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool(
+            "tracker_get_user_jira_issues",
+            {"user_id": "not-a-uuid", "start_date": "2026-03-01", "end_date": "2026-03-31"},
+        )
+    data = _parse_tool_result(result)
+    assert "error" in data
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_user_jira_issues_user_not_found(db_session, seed_tracker) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool(
+            "tracker_get_user_jira_issues",
+            {
+                "user_id": "00000000-0000-0000-0000-000000000000",
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-31",
+            },
+        )
+    data = _parse_tool_result(result)
+    assert "error" in data
+    assert "not found" in data["error"]
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_user_jira_issues_jira_fails(db_session, seed_tracker) -> None:
+    """Jira connection failure returns graceful error."""
+    user = (await db_session.execute(
+        __import__("sqlalchemy").select(UserDB).where(UserDB.email == "test@vizzuality.com")
+    )).scalar_one()
+
+    server = create_mcp_server()
+    with patch("app.core.services.jira_client.JiraClient") as MockClient:
+        instance = MockClient.return_value
+        instance.get_client = AsyncMock(side_effect=Exception("Connection refused"))
+        instance.close = AsyncMock()
+
+        async with override_session(db_session):
+            result = await server.call_tool(
+                "tracker_get_user_jira_issues",
+                {"user_id": str(user.id), "start_date": "2026-03-01", "end_date": "2026-03-31"},
+            )
+
+    data = _parse_tool_result(result)
+    assert "error" in data
+    assert data["issues"] == []

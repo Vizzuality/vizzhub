@@ -52,7 +52,7 @@ Playbook ── standalone (articles, linked by slug)
 - `users_get_team(functional_area="Frontend Developer")` filters by full name — not the short code
 - `dedication` is a decimal FTE value (e.g., 1.00 = full-time, 0.50 = half-time)
 
-### Tracker (6 tools)
+### Tracker (7 tools)
 
 | Tool | Use for | Key params |
 |------|---------|------------|
@@ -62,8 +62,9 @@ Playbook ── standalone (articles, linked by slug)
 | `tracker_get_project_invoices(project_id)` | Invoice schedule and payment status | `project_id` (UUID) |
 | `tracker_get_project_progress(project_id)` | Completion % over time | `project_id` (UUID) |
 | `tracker_get_periods` | Reporting periods with status | `status` (unstarted/active/finished) |
+| `tracker_get_user_jira_issues(user_id, start_date, end_date)` | Jira issues assigned to a user | `user_id` (UUID), `start_date`/`end_date` (YYYY-MM-DD) |
 
-**Returns:** `tracker_get_projects` → id, name, code, status, is_billable, currency, budget, start_date, end_date, project_manager, staff_cost, non_staff_cost, total_cost, burn_percentage, income. `tracker_get_project_detail` adds budget_lines (per FA), cost_summary with per-period breakdown, contract_rate, summary. `tracker_get_project_invoices` → id, code, amount, due_date, invoiced_on, milestone, observations, status (effective), stored_status, postpone_count, postponed_to.
+**Returns:** `tracker_get_projects` → id, name, code, status, is_billable, currency, budget, start_date, end_date, project_manager, staff_cost, non_staff_cost, total_cost, burn_percentage, income. `tracker_get_project_detail` adds budget_lines (per FA), cost_summary with per-period breakdown, contract_rate, summary. `tracker_get_project_invoices` → id, code, amount, due_date, invoiced_on, milestone, observations, status (effective), stored_status, postpone_count, postponed_to. `tracker_get_user_jira_issues` → user email, issue_count, issues (key, summary, status, project_key, project_name, issue_type), site_url.
 
 **Conventions:**
 - Absence projects are automatically excluded from `tracker_get_projects`
@@ -194,6 +195,13 @@ Playbook ── standalone (articles, linked by slug)
 1. `scorecard_get_global_metrics(limit=6)` → org-wide score trends
 2. `capacity_get_insights(start_month, end_month)` → utilization by FA
 3. `tracker_get_projects(status="live")` → active project count and burn rates
+
+### "What did this person work on last month?"
+
+1. `users_get_team(active_only=true)` → find the user_id
+2. `tracker_get_user_jira_issues(user_id, start_date, end_date)` → Jira issues in the period
+3. `capacity_get_user_detail(user_id, start_month, end_month)` → project allocation %
+4. Cross-reference: Jira shows actual tasks, Capacity shows planned allocation
 
 ### "Who's available for a new project?"
 
