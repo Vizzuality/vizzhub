@@ -51,7 +51,7 @@ class CommandService:
         *,
         executor: Executor,
     ) -> CommandDB:
-        cmd = await self._get_command(command_id)
+        cmd = await self.get_command(command_id)
         if cmd.status != "pending":
             raise ValueError(
                 f"Command {command_id} is not pending (status={cmd.status})"
@@ -78,7 +78,7 @@ class CommandService:
         return cmd
 
     async def reject(self, command_id: UUID, reviewer_id: UUID) -> CommandDB:
-        cmd = await self._get_command(command_id)
+        cmd = await self.get_command(command_id)
         if cmd.status != "pending":
             raise ValueError(
                 f"Command {command_id} is not pending (status={cmd.status})"
@@ -110,9 +110,6 @@ class CommandService:
         return list(result.scalars().all())
 
     async def get_command(self, command_id: UUID) -> CommandDB:
-        return await self._get_command(command_id)
-
-    async def _get_command(self, command_id: UUID) -> CommandDB:
         result = await self._session.execute(
             select(CommandDB).where(CommandDB.id == command_id)
         )

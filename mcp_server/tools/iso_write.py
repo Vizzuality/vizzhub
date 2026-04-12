@@ -2,44 +2,10 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any
-from uuid import UUID
-
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.auth.permissions import mcp_requires
-from mcp_server.data.base import get_mcp_user, get_write_session
-from mcp_server.services.command_service import CommandService
-from mcp_server.services.summary import generate_summary
-
-
-def _to_json(data: Any) -> str:
-    """Serialize data to indented JSON with safe date/uuid handling."""
-    return json.dumps(data, indent=2, default=str)
-
-
-async def _enqueue_iso(action: str, target: str | None, payload: dict) -> str:
-    """Shared helper: generate summary, enqueue command, return JSON response."""
-    user = get_mcp_user()
-    user_id = UUID(user.user_id)
-    async with get_write_session() as session:
-        summary = await generate_summary(session, "iso_docs", action, target, payload)
-        svc = CommandService(session)
-        cmd = await svc.enqueue(
-            module="iso_docs",
-            action=action,
-            target=target,
-            payload=payload,
-            summary=summary,
-            user_id=user_id,
-        )
-        return _to_json({
-            "status": "queued",
-            "command_id": str(cmd.id),
-            "summary": cmd.summary,
-            "message": f"Command queued. Use approve_command('{cmd.id}') to execute.",
-        })
+from mcp_server.tools._shared import enqueue_command
 
 
 @mcp_requires("iso_docs:edit")
@@ -57,8 +23,8 @@ async def iso_create_page(parent_slug: str, title: str) -> str:
     Returns JSON with status, command_id, human-readable summary, and
     instructions for approval.
     """
-    return await _enqueue_iso(
-        "create_page",
+    return await enqueue_command(
+        "iso_docs", "create_page",
         target=parent_slug,
         payload={"title": title},
     )
@@ -80,8 +46,8 @@ async def iso_update_page_content(slug: str, content: str) -> str:
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
-    return await _enqueue_iso(
-        "update_page_content",
+    return await enqueue_command(
+        "iso_docs", "update_page_content",
         target=slug,
         payload={"content": content},
     )
@@ -138,8 +104,8 @@ async def iso_update_page_metadata(
         if value is not None:
             payload[key] = value
 
-    return await _enqueue_iso(
-        "update_metadata",
+    return await enqueue_command(
+        "iso_docs", "update_metadata",
         target=slug,
         payload=payload,
     )
@@ -170,8 +136,8 @@ async def iso_update_node(
     if parent_slug is not None:
         payload["parent_slug"] = parent_slug
 
-    return await _enqueue_iso(
-        "update_node",
+    return await enqueue_command(
+        "iso_docs", "update_node",
         target=slug,
         payload=payload,
     )
@@ -190,8 +156,8 @@ async def iso_delete_node(slug: str) -> str:
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
-    return await _enqueue_iso(
-        "delete_node",
+    return await enqueue_command(
+        "iso_docs", "delete_node",
         target=slug,
         payload={},
     )
@@ -223,8 +189,8 @@ async def iso_create_registry_row(
     if year is not None:
         payload["year"] = year
 
-    return await _enqueue_iso(
-        "create_registry_row",
+    return await enqueue_command(
+        "iso_docs", "create_registry_row",
         target=slug,
         payload=payload,
     )
@@ -249,8 +215,8 @@ async def iso_update_registry_row(
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
-    return await _enqueue_iso(
-        "update_registry_row",
+    return await enqueue_command(
+        "iso_docs", "update_registry_row",
         target=slug,
         payload={"row_id": row_id, "data": data},
     )
@@ -269,8 +235,8 @@ async def iso_delete_registry_row(slug: str, row_id: str) -> str:
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
-    return await _enqueue_iso(
-        "delete_registry_row",
+    return await enqueue_command(
+        "iso_docs", "delete_registry_row",
         target=slug,
         payload={"row_id": row_id},
     )

@@ -5,45 +5,26 @@ from __future__ import annotations
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.content_version_service import ContentVersionService
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
-from app.modules.playbook.services.tree_service import (
-    ensure_unique_slug,
-    generate_slug,
-    get_next_position,
-    validate_depth,
-    validate_not_circular,
+from app.modules.playbook.services import tree_service
+
+from mcp_server.handlers._shared import (
+    delete_leaf_node,
+    extract_h1,
+    resolve_node_by_slug,
+    update_node_tree,
 )
 
 logger = structlog.get_logger()
-
-MODULE = "playbook"
 
 _versions = ContentVersionService(
     model_class=PlaybookPageVersionDB,
     entity_fk_field="node_id",
 )
-
-
-async def _resolve_node_by_slug(
-    session: AsyncSession, slug: str, *, expected_type: str | None = None,
-) -> PlaybookNodeDB:
-    """Find a playbook node by slug. Raises ValueError if not found or wrong type."""
-    result = await session.execute(
-        select(PlaybookNodeDB).where(PlaybookNodeDB.slug == slug)
-    )
-    node = result.scalar_one_or_none()
-    if node is None:
-        raise ValueError(f"Node with slug '{slug}' not found")
-    if expected_type and node.type != expected_type:
-        raise ValueError(
-            f"Node '{slug}' is type '{node.type}', expected '{expected_type}'"
-        )
-    return node
 
 
 # ---------------------------------------------------------------------------
@@ -60,17 +41,19 @@ async def _create_article(
     if not target:
         raise ValueError("target (parent_slug) is required for create_article")
 
-    parent = await _resolve_node_by_slug(session, target, expected_type="group")
+    parent = await resolve_node_by_slug(
+        session, PlaybookNodeDB, target, expected_type="group",
+    )
     title = payload.get("title")
     if not title:
         raise ValueError("payload.title is required")
 
-    if not await validate_depth(session, parent.id):
+    if not await tree_service.validate_depth(session, parent.id):
         raise ValueError("Maximum tree depth exceeded")
 
-    slug = generate_slug(title)
-    slug = await ensure_unique_slug(session, slug)
-    position = await get_next_position(session, parent.id)
+    slug = tree_service.generate_slug(title)
+    slug = await tree_service.ensure_unique_slug(session, slug)
+    position = await tree_service.get_next_position(session, parent.id)
 
     node = PlaybookNodeDB(
         title=title,
@@ -103,7 +86,9 @@ async def _update_article_content(
     if not target:
         raise ValueError("target (slug) is required for update_article_content")
 
-    node = await _resolve_node_by_slug(session, target, expected_type="page")
+    node = await resolve_node_by_slug(
+        session, PlaybookNodeDB, target, expected_type="page",
+    )
     content = payload.get("content")
     if content is None:
         raise ValueError("payload.content is required")
@@ -117,11 +102,11 @@ async def _update_article_content(
         expected_version=expected_version,
     )
 
-    h1_title = _extract_h1(content)
+    h1_title = extract_h1(content)
     if h1_title and h1_title != node.title:
         node.title = h1_title
-        node.slug = await ensure_unique_slug(
-            session, generate_slug(h1_title), exclude_id=node.id,
+        node.slug = await tree_service.ensure_unique_slug(
+            session, tree_service.generate_slug(h1_title), exclude_id=node.id,
         )
         node.updated_by_id = user_id
         await session.flush()
@@ -148,41 +133,16 @@ async def _update_node(
     if not target:
         raise ValueError("target (slug) is required for update_node")
 
-    node = await _resolve_node_by_slug(session, target)
-
-    if "parent_slug" in payload:
-        parent_slug = payload["parent_slug"]
-        parent = await _resolve_node_by_slug(
-            session, parent_slug, expected_type="group",
-        )
-        if not await validate_not_circular(session, node.id, parent.id):
-            raise ValueError("Cannot move node under its own descendant")
-        if not await validate_depth(session, parent.id):
-            raise ValueError("Maximum tree depth exceeded")
-        node.parent_id = parent.id
-
-    if "title" in payload:
-        new_title = payload["title"]
-        node.title = new_title
-        node.slug = await ensure_unique_slug(
-            session, generate_slug(new_title), exclude_id=node.id,
-        )
-
-    node.updated_by_id = user_id
-    await session.flush()
-    await session.refresh(node)
-
+    result = await update_node_tree(
+        session, PlaybookNodeDB, target, payload, user_id,
+        tree_service=tree_service,
+    )
     logger.info(
         "mcp_playbook_node_updated",
-        node_id=str(node.id),
-        slug=node.slug,
+        node_id=result["node_id"],
+        slug=result["slug"],
     )
-    return {
-        "node_id": str(node.id),
-        "slug": node.slug,
-        "title": node.title,
-        "parent_id": str(node.parent_id) if node.parent_id else None,
-    }
+    return result
 
 
 async def _delete_node(
@@ -194,35 +154,9 @@ async def _delete_node(
     if not target:
         raise ValueError("target (slug) is required for delete_node")
 
-    node = await _resolve_node_by_slug(session, target)
-
-    result = await session.execute(
-        select(sa_func.count())
-        .select_from(PlaybookNodeDB)
-        .where(PlaybookNodeDB.parent_id == node.id)
-    )
-    child_count = result.scalar_one()
-    if child_count > 0:
-        raise ValueError(
-            f"Node '{target}' has children. Delete children first."
-        )
-
-    await session.delete(node)
-    await session.flush()
-
+    await delete_leaf_node(session, PlaybookNodeDB, target)
     logger.info("mcp_playbook_node_deleted", slug=target)
     return {"ok": True}
-
-
-def _extract_h1(content: str) -> str | None:
-    """Extract H1 title from markdown content."""
-    for line in content.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("# "):
-            return stripped[2:].strip()
-        if stripped and not stripped.startswith("#"):
-            break
-    return None
 
 
 # ---------------------------------------------------------------------------
