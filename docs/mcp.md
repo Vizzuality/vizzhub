@@ -578,6 +578,16 @@ PYTHONPATH=backend:. pytest mcp_server/tests/test_integration.py -v
 cd backend && pytest tests/worker/test_cleanup_mcp_oauth.py -v
 ```
 
+## Data model guide (instructions)
+
+The MCP server's `instructions` field is loaded from [`docs/mcp/vizzhub-skill.md`](mcp/vizzhub-skill.md) at startup. This is the **single source of truth** for the data model guide — it describes all 6 modules, tool conventions, cross-module query patterns, and app URL construction.
+
+The same file is also installed as a Claude Code skill (`vizzhub-data-model`), so both Claude Desktop (via MCP instructions) and Claude Code (via skill) get the same guide.
+
+**To update the guide:** edit `docs/mcp/vizzhub-skill.md` and deploy. The file is read once at module import time — changes require a server restart (which happens on every deploy).
+
+**Why not per-tool descriptions?** The guide covers cross-module relationships, query patterns, and conventions that span all 26 tools. Duplicating this in each tool's docstring would waste ~16KB x 26 tokens. Tool docstrings handle tool-specific context; the instructions handle the big picture.
+
 ## Project structure
 
 ```
@@ -585,7 +595,7 @@ mcp_server/
 ├── __init__.py
 ├── __main__.py              # Stdio entrypoint: mcp.run(transport="stdio")
 ├── config.py                # Settings for stdio mode (DATABASE_URL)
-├── server.py                # create_mcp_server() factory
+├── server.py                # create_mcp_server() factory — loads instructions from docs/mcp/vizzhub-skill.md
 ├── auth/
 │   ├── token_verifier.py    # VizzHubTokenVerifier (JWT validation)
 │   ├── provider.py          # VizzHubOAuthProvider (OAuth adapter)
