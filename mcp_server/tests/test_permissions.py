@@ -7,6 +7,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcp_server.auth.permissions import mcp_requires
+from mcp_server.data import iso as iso_data
 from mcp_server.data.base import (
     FULL_ACCESS,
     McpUserContext,
@@ -19,6 +20,12 @@ from mcp_server.tools.tracker import tracker_get_projects
 from mcp_server.tools.scorecard import scorecard_get_project_scores
 from mcp_server.tools.capacity import capacity_get_insights
 from mcp_server.tools.iso import iso_get_registries
+
+from app.modules.iso_docs.models import (
+    IsoDocMetadataDB,
+    IsoDocNodeDB,
+    IsoDocVersionDB,
+)
 
 
 class TestMcpUserContext:
@@ -189,3 +196,139 @@ class TestToolGating:
                 result = await iso_get_registries()
         parsed = json.loads(result)
         assert isinstance(parsed, list)
+
+
+@pytest_asyncio.fixture
+async def iso_doc_tree(db_session: AsyncSession):
+    """Create a minimal ISO doc tree for visibility tests.
+
+    Tree:
+      policies (group, root)        <- visible to all
+        +-- data-protection (page)
+      procedures (group, root)      <- visible to all
+        +-- access-review (page)
+      plans (group, root)           <- hidden from non-editors
+        +-- bcp-plan (page)
+    """
+    policies_group = IsoDocNodeDB(
+        title="Policies", slug="policies", type="group", parent_id=None, position=0,
+    )
+    procedures_group = IsoDocNodeDB(
+        title="Procedures", slug="procedures", type="group", parent_id=None, position=1,
+    )
+    plans_group = IsoDocNodeDB(
+        title="Plans", slug="plans", type="group", parent_id=None, position=2,
+    )
+    db_session.add_all([policies_group, procedures_group, plans_group])
+    await db_session.flush()
+
+    policy_page = IsoDocNodeDB(
+        title="Data Protection Policy", slug="data-protection",
+        type="page", parent_id=policies_group.id, position=0,
+    )
+    procedure_page = IsoDocNodeDB(
+        title="Access Review Procedure", slug="access-review",
+        type="page", parent_id=procedures_group.id, position=0,
+    )
+    plan_page = IsoDocNodeDB(
+        title="Business Continuity Plan", slug="bcp-plan",
+        type="page", parent_id=plans_group.id, position=0,
+    )
+    db_session.add_all([policy_page, procedure_page, plan_page])
+    await db_session.flush()
+
+    for page, cat, content in [
+        (policy_page, "policy", "Data protection encryption guidelines for remote access"),
+        (procedure_page, "procedure", "Quarterly access review process and checklists"),
+        (plan_page, "plan", "Business continuity and disaster recovery encryption procedures"),
+    ]:
+        db_session.add(IsoDocMetadataDB(
+            node_id=page.id, category=cat, doc_version="1.0",
+        ))
+        db_session.add(IsoDocVersionDB(
+            node_id=page.id, content=content, version=1,
+        ))
+
+    await db_session.flush()
+    return {
+        "policy_page": policy_page,
+        "procedure_page": procedure_page,
+        "plan_page": plan_page,
+    }
+
+
+class TestIsoDocVisibility:
+    """Verify non-editors only see policies + procedures."""
+
+    REGULAR_USER = McpUserContext(
+        user_id="u1", email="user@vizzuality.com",
+        roles=["user"], permissions=["tracker:view", "scorecard:view"],
+    )
+    ISO_EDITOR = McpUserContext(
+        user_id="u2", email="editor@vizzuality.com",
+        roles=["iso_docs_editor"], permissions=["iso_docs:edit"],
+    )
+
+    @pytest.mark.asyncio
+    async def test_editor_sees_all_documents(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.ISO_EDITOR):
+                docs = await iso_data.get_documents(db_session)
+        slugs = {d["slug"] for d in docs}
+        assert "data-protection" in slugs
+        assert "access-review" in slugs
+        assert "bcp-plan" in slugs
+
+    @pytest.mark.asyncio
+    async def test_regular_user_sees_only_policies_procedures(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                docs = await iso_data.get_documents(db_session)
+        slugs = {d["slug"] for d in docs}
+        assert "data-protection" in slugs
+        assert "access-review" in slugs
+        assert "bcp-plan" not in slugs
+
+    @pytest.mark.asyncio
+    async def test_regular_user_cannot_get_hidden_document(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                with pytest.raises(ValueError, match="not found"):
+                    await iso_data.get_document(db_session, "bcp-plan")
+
+    @pytest.mark.asyncio
+    async def test_regular_user_can_get_visible_document(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                doc = await iso_data.get_document(db_session, "data-protection")
+        assert doc["slug"] == "data-protection"
+
+    @pytest.mark.asyncio
+    async def test_regular_user_search_filters_results(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                results = await iso_data.search_documents(db_session, "encryption")
+        slugs = {r["slug"] for r in results}
+        assert "data-protection" in slugs
+        assert "bcp-plan" not in slugs
+
+    @pytest.mark.asyncio
+    async def test_editor_search_sees_all(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.ISO_EDITOR):
+                results = await iso_data.search_documents(db_session, "encryption")
+        slugs = {r["slug"] for r in results}
+        assert "data-protection" in slugs
+        assert "bcp-plan" in slugs

@@ -9,6 +9,7 @@ from sqlalchemy import and_, func as sa_func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from app.modules.iso_docs.api.deps import USER_VISIBLE_ROOT_SLUGS
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
     IsoDocNodeDB,
@@ -16,6 +17,7 @@ from app.modules.iso_docs.models import (
     RegistryRowDB,
     RegistryTypeDB,
 )
+from mcp_server.data.base import get_mcp_user
 
 
 # Subquery for latest version number per node
@@ -29,6 +31,31 @@ _latest_version_sq = (
 )
 
 _SUMMARY_LENGTH = 200
+
+
+async def _get_visible_node_ids(session: AsyncSession) -> set[UUID] | None:
+    """Return IDs of nodes visible to the current user, or None if no filter needed."""
+    try:
+        user = get_mcp_user()
+    except RuntimeError:
+        return None
+    if user.has_permission("iso_docs:edit"):
+        return None
+
+    result = await session.execute(
+        text("""
+            WITH RECURSIVE visible_tree AS (
+                SELECT id FROM iso_doc_nodes
+                WHERE slug = ANY(:slugs) AND parent_id IS NULL
+                UNION ALL
+                SELECT n.id FROM iso_doc_nodes n
+                INNER JOIN visible_tree vt ON n.parent_id = vt.id
+            )
+            SELECT id FROM visible_tree
+        """),
+        {"slugs": list(USER_VISIBLE_ROOT_SLUGS)},
+    )
+    return {row[0] for row in result.all()}
 
 
 def _doc_base_query(*extra_columns) -> Select:
@@ -68,11 +95,15 @@ async def get_documents(
     title_search: str | None = None,
 ) -> list[dict]:
     """Return ISO documents (page nodes) with metadata and content summary."""
+    visible_ids = await _get_visible_node_ids(session)
+
     stmt = _doc_base_query(
         IsoDocVersionDB.created_at.label("last_updated"),
         sa_func.left(IsoDocVersionDB.content, _SUMMARY_LENGTH).label("summary"),
     ).order_by(IsoDocNodeDB.title)
 
+    if visible_ids is not None:
+        stmt = stmt.where(IsoDocNodeDB.id.in_(visible_ids))
     if category is not None:
         stmt = stmt.where(IsoDocMetadataDB.category == category)
     if title_search is not None:
@@ -85,11 +116,16 @@ async def get_documents(
 async def get_document(session: AsyncSession, slug: str) -> dict:
     """Return full content of a single ISO document by slug.
 
-    Raises ValueError if slug not found.
+    Raises ValueError if slug not found or not visible to current user.
     """
+    visible_ids = await _get_visible_node_ids(session)
+
     stmt = _doc_base_query(
         IsoDocVersionDB.content,
     ).where(IsoDocNodeDB.slug == slug)
+
+    if visible_ids is not None:
+        stmt = stmt.where(IsoDocNodeDB.id.in_(visible_ids))
 
     result = await session.execute(stmt)
     row = result.first()
@@ -133,11 +169,18 @@ async def search_documents(
 ) -> list[dict]:
     """Full-text search across ISO document content.
 
-    Uses the search_vector generated column (GIN-indexed) on
-    iso_doc_versions. Only searches the latest version of each document.
-    Returns results ordered by rank (ts_rank).
+    Respects user visibility: non-editors only see results from
+    documents under policies and procedures root groups.
     """
-    stmt = text("""
+    visible_ids = await _get_visible_node_ids(session)
+
+    visibility_filter = ""
+    params: dict = {"query": query}
+    if visible_ids is not None:
+        visibility_filter = "AND n.id = ANY(:visible_ids)"
+        params["visible_ids"] = list(visible_ids)
+
+    stmt = text(f"""
         WITH latest_versions AS (
             SELECT DISTINCT ON (v.node_id)
                 v.node_id, v.content, v.search_vector, v.version
@@ -156,9 +199,10 @@ async def search_documents(
         JOIN iso_doc_nodes n ON n.id = lv.node_id
         WHERE n.type = 'page'
           AND lv.search_vector @@ plainto_tsquery('english', :query)
+          {visibility_filter}
         ORDER BY rank DESC
     """)
-    result = await session.execute(stmt, {"query": query})
+    result = await session.execute(stmt, params)
     rows = result.all()
     return [
         {
