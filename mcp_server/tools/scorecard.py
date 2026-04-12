@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 
 from mcp_server.data.base import get_read_session
 from mcp_server.data import scorecard as scorecard_data
+from mcp_server.auth.permissions import mcp_requires
 
 
 def _to_json(data: Any) -> str:
@@ -17,6 +18,7 @@ def _to_json(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
+@mcp_requires("scorecard:view")
 async def scorecard_get_project_scores(status: str | None = None) -> str:
     """List all scored projects with their latest overall score and dimension breakdown.
 
@@ -33,6 +35,7 @@ async def scorecard_get_project_scores(status: str | None = None) -> str:
     return _to_json(projects)
 
 
+@mcp_requires("scorecard:view")
 async def scorecard_get_project_scorecard(
     project_id: str,
     year: int | None = None,
@@ -65,6 +68,7 @@ async def scorecard_get_project_scorecard(
     return _to_json(result)
 
 
+@mcp_requires("scorecard:view")
 async def scorecard_get_project_history(
     project_id: str,
     limit: int = 12,
@@ -96,6 +100,7 @@ async def scorecard_get_project_history(
     return _to_json(result)
 
 
+@mcp_requires("scorecard:view")
 async def scorecard_get_global_metrics(limit: int = 12) -> str:
     """Get organization-wide averaged scores and indicators by month.
 
