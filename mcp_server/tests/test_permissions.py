@@ -1,7 +1,10 @@
 """Tests for MCP permission layer."""
 
+import json
+
 import pytest
 
+from mcp_server.auth.permissions import mcp_requires
 from mcp_server.data.base import (
     FULL_ACCESS,
     McpUserContext,
@@ -65,3 +68,57 @@ class TestMcpUserHelpers:
             assert get_mcp_user().user_id == "outer"
         finally:
             set_mcp_user(None)  # type: ignore[arg-type]
+
+
+class TestMcpRequires:
+    @pytest.mark.asyncio
+    async def test_blocks_without_permission(self) -> None:
+        @mcp_requires("tracker:view")
+        async def my_tool() -> str:
+            return '{"data": "ok"}'
+
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=["user"], permissions=["scorecard:view"],
+        )
+        async with override_mcp_user(user):
+            result = await my_tool()
+
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "tracker:view" in parsed["error"]
+
+    @pytest.mark.asyncio
+    async def test_allows_with_permission(self) -> None:
+        @mcp_requires("tracker:view")
+        async def my_tool() -> str:
+            return '{"data": "ok"}'
+
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=["user"], permissions=["tracker:view"],
+        )
+        async with override_mcp_user(user):
+            result = await my_tool()
+
+        assert json.loads(result) == {"data": "ok"}
+
+    @pytest.mark.asyncio
+    async def test_allows_wildcard(self) -> None:
+        @mcp_requires("tracker:view")
+        async def my_tool() -> str:
+            return '{"data": "ok"}'
+
+        async with override_mcp_user(FULL_ACCESS):
+            result = await my_tool()
+
+        assert json.loads(result) == {"data": "ok"}
+
+    def test_preserves_function_metadata(self) -> None:
+        @mcp_requires("tracker:view")
+        async def my_tool() -> str:
+            """Tool docstring."""
+            return '{"data": "ok"}'
+
+        assert my_tool.__name__ == "my_tool"
+        assert my_tool.__doc__ == "Tool docstring."
