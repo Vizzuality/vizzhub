@@ -15,6 +15,8 @@ from app.modules.iso_docs.models import (
     IsoDocVersionDB,
     RegistryTypeDB,
 )
+from app.modules.playbook.models.node import PlaybookNodeDB
+from app.modules.playbook.models.page_version import PlaybookPageVersionDB
 from mcp_server.data.base import McpUserContext, override_mcp_user, override_session
 from mcp_server.server import mcp
 
@@ -218,6 +220,98 @@ async def test_get_pending_commands(
             actions = {cmd["action"] for cmd in data}
             assert "create_page" in actions
             assert "delete_node" in actions
+
+
+@pytest_asyncio.fixture
+async def seeded_playbook(db_session: AsyncSession, editor_user: UserDB) -> dict:
+    """Create group + article + page version for playbook tests."""
+    group = PlaybookNodeDB(
+        title="Guides",
+        slug="guides",
+        type="group",
+        position=0,
+        created_by_id=editor_user.id,
+    )
+    db_session.add(group)
+    await db_session.flush()
+    await db_session.refresh(group)
+
+    article = PlaybookNodeDB(
+        title="Onboarding",
+        slug="onboarding",
+        type="page",
+        parent_id=group.id,
+        position=0,
+        created_by_id=editor_user.id,
+    )
+    db_session.add(article)
+    await db_session.flush()
+    await db_session.refresh(article)
+
+    version = PlaybookPageVersionDB(
+        node_id=article.id,
+        content="# Onboarding\n\nWelcome to the team.",
+        version=1,
+        created_by_id=editor_user.id,
+    )
+    db_session.add(version)
+    await db_session.flush()
+
+    return {"group": group, "article": article, "version": version}
+
+
+@pytest.mark.asyncio
+async def test_playbook_create_article_enqueue_and_approve(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_playbook: dict,
+) -> None:
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "playbook_create_article",
+                {"parent_slug": "guides", "title": "Dev Setup"},
+            )
+            data = json.loads(result[0][0].text)
+            assert data["status"] == "queued"
+            assert "command_id" in data
+            assert "Dev Setup" in data["summary"]
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": data["command_id"]},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "executed"
+            assert approve_data["result"]["slug"] == "dev-setup"
+            assert approve_data["result"]["title"] == "Dev Setup"
+
+
+@pytest.mark.asyncio
+async def test_playbook_update_article_content(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_playbook: dict,
+) -> None:
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "playbook_update_article_content",
+                {
+                    "slug": "onboarding",
+                    "content": "# Onboarding\n\nUpdated content.",
+                },
+            )
+            data = json.loads(result[0][0].text)
+            assert data["status"] == "queued"
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": data["command_id"]},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "executed"
+            assert approve_data["result"]["version"] == 2
 
 
 @pytest.mark.asyncio
