@@ -174,5 +174,5 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 - `docs/OAUTH_SETUP.md` — Jira OAuth setup
 - `docs/API.md` — Full API documentation
 - `docs/mcp.md` — MCP server: tools, OAuth auth, transport, deployment
-- `docs/mcp/vizzhub-skill.md` — MCP data model guide (single source of truth for server instructions + Claude Code skill)
+- `docs/mcp/vizzhub-skill.md` — MCP data model guide (full reference, served as `vizzhub://data-model` resource + Claude Code skill)
 - `docs/MCP_plan.md` — MCP architecture vision (all phases)
