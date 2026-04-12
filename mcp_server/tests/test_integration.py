@@ -121,10 +121,14 @@ async def test_list_documents_filtered(db_session, seeded_db) -> None:
 
 
 @pytest.mark.asyncio
-async def test_no_write_tools_registered(db_session, seeded_db) -> None:
-    """Phase 1 is read-only: no create/update/delete tools should exist."""
+async def test_write_and_command_tools_registered(db_session, seeded_db) -> None:
+    """Write tools and command management tools are registered."""
     async with override_session(db_session):
         tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    write_tools = [n for n in names if "create" in n or "update" in n or "delete" in n]
-    assert write_tools == [], f"Unexpected write tools found: {write_tools}"
+    names = {t.name for t in tools}
+    assert "iso_create_page" in names
+    assert "iso_update_page_content" in names
+    assert "iso_delete_node" in names
+    assert "get_pending_commands" in names
+    assert "approve_command" in names
+    assert "reject_command" in names
