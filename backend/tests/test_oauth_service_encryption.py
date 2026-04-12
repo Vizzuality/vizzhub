@@ -87,7 +87,7 @@ class TestJiraTokenEncryption:
             expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
         )
         db_session.add(existing)
-        await db_session.flush()
+        await db_session.commit()
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -104,11 +104,7 @@ class TestJiraTokenEncryption:
             mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_http)
             mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            await OAuthService.refresh_jira_token(db_session)
+            refreshed = await OAuthService.refresh_jira_token(db_session)
 
-        result = await db_session.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-        )
-        token = result.scalar_one()
-        assert decrypt_token(token.access_token) == "new-jira-access"
-        assert decrypt_token(token.refresh_token) == "old-refresh"
+        assert decrypt_token(refreshed.access_token) == "new-jira-access"
+        assert decrypt_token(refreshed.refresh_token) == "old-refresh"
