@@ -450,10 +450,11 @@ This is directly useful for ISO 27001 and ISO 9001 audits when demonstrating AI 
 - Add Playbook read endpoints: `playbook.get_articles()`, `playbook.get_article()`, `playbook.search_articles()`
 - Validate cross-module queries (e.g., project health combining Tracker + Scorecard data)
 
-### Phase 3: Command Queue (Single Commands)
+### Phase 3: Command Queue + Permission Layer
 
+- **Permission layer (prerequisite):** Add `McpUserContext` (ContextVar) propagating JWT claims (user_id, roles, permissions) to all tools. In HTTP mode, set from auth middleware; in stdio mode, grant full access. Each data module enforces its own restrictions (ISO: `USER_VISIBLE_ROOT_SLUGS` for non-editors; others: pass-through initially, prepared for future restrictions). Retroactively applies to all Phase 2 read tools.
 - Add `command_queue` and `command_transactions` tables
-- Implement the Command Service middleware
+- Implement the Command Service middleware — checks write permissions before queuing
 - Add write operations for ISO (`iso.create_row`) routed through queue
 - Build the "Pending Actions" inbox in VizzHub UI
 - Add `get_pending_commands()`, `approve_command()`, `reject_command()` to MCP
