@@ -6,7 +6,11 @@ from urllib.parse import urlencode
 
 import httpx
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.config import get_settings
 from app.core.token_encryption import decrypt_token, encrypt_token
@@ -116,7 +120,11 @@ class OAuthService:
 
     @staticmethod
     async def refresh_jira_token(db: AsyncSession) -> OAuthTokenDB | None:
-        """Refresh the Jira access token using refresh token."""
+        """Refresh the Jira access token using refresh token.
+
+        Persists the updated token via a dedicated writable session so
+        this works even when the caller's session is read-only (e.g. MCP).
+        """
         result = await db.execute(
             select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
         )
@@ -124,6 +132,8 @@ class OAuthService:
 
         if not token or not token.refresh_token:
             return None
+
+        token_id = token.id
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -139,23 +149,44 @@ class OAuthService:
             response.raise_for_status()
             token_data = response.json()
 
-        # Update token
-        expires_in = token_data.get("expires_in")
-        if expires_in:
-            token.expires_at = datetime.now(timezone.utc) + timedelta(
-                seconds=expires_in
-            )
+        # Persist via a dedicated writable session — the caller's session
+        # may be read-only (MCP context). A fresh engine avoids connection
+        # pool contamination across contexts. Token refresh is rare (~1/hr)
+        # so the overhead is negligible.
+        db_url = get_settings().database_url
+        write_engine = create_async_engine(db_url)
+        write_maker = async_sessionmaker(
+            write_engine, class_=AsyncSession, expire_on_commit=False,
+        )
+        try:
+            async with write_maker() as write_session:
+                result = await write_session.execute(
+                    select(OAuthTokenDB).where(OAuthTokenDB.id == token_id)
+                )
+                writable_token = result.scalar_one()
 
-        token.access_token = encrypt_token(token_data["access_token"])
-        if "refresh_token" in token_data:
-            token.refresh_token = encrypt_token(token_data["refresh_token"])
-        token.token_type = token_data.get("token_type", "Bearer")
-        token.scope = token_data.get("scope")
+                expires_in = token_data.get("expires_in")
+                if expires_in:
+                    writable_token.expires_at = datetime.now(
+                        timezone.utc
+                    ) + timedelta(seconds=expires_in)
 
-        await db.flush()
-        await db.refresh(token)
+                writable_token.access_token = encrypt_token(
+                    token_data["access_token"]
+                )
+                if "refresh_token" in token_data:
+                    writable_token.refresh_token = encrypt_token(
+                        token_data["refresh_token"]
+                    )
+                writable_token.token_type = token_data.get("token_type", "Bearer")
+                writable_token.scope = token_data.get("scope")
 
-        return token
+                await write_session.commit()
+                await write_session.refresh(writable_token)
+                write_session.expunge(writable_token)
+                return writable_token
+        finally:
+            await write_engine.dispose()
 
     @staticmethod
     async def get_valid_jira_token(db: AsyncSession) -> str | None:
