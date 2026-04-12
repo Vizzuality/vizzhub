@@ -9,7 +9,6 @@ from sqlalchemy import and_, func as sa_func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
-from app.modules.iso_docs.api.deps import USER_VISIBLE_ROOT_SLUGS
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
     IsoDocNodeDB,
@@ -32,6 +31,10 @@ _latest_version_sq = (
 
 _SUMMARY_LENGTH = 200
 
+# Root group slugs visible to non-editors. Mirrors backend's
+# USER_VISIBLE_ROOT_SLUGS in app/modules/iso_docs/api/deps.py.
+_USER_VISIBLE_ROOT_SLUGS = {"policies", "procedures"}
+
 
 async def _get_visible_node_ids(session: AsyncSession) -> set[UUID] | None:
     """Return IDs of nodes visible to the current user, or None if no filter needed."""
@@ -53,7 +56,7 @@ async def _get_visible_node_ids(session: AsyncSession) -> set[UUID] | None:
             )
             SELECT id FROM visible_tree
         """),
-        {"slugs": list(USER_VISIBLE_ROOT_SLUGS)},
+        {"slugs": list(_USER_VISIBLE_ROOT_SLUGS)},
     )
     return {row[0] for row in result.all()}
 
