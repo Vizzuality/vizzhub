@@ -254,7 +254,7 @@ if settings.mcp_enabled and settings.mcp_base_url:
         from mcp_server.auth.provider import VizzHubOAuthProvider
         from mcp_server.auth.token_verifier import VizzHubTokenVerifier
         from mcp_server.auth.callback import build_google_oauth_callback
-        from mcp_server.data.base import enable_backend_sessions
+        from mcp_server.data.base import enable_backend_sessions, enable_backend_write_sessions
         from mcp_server.server import create_mcp_server
         from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
         from starlette.routing import Route
@@ -304,6 +304,7 @@ if settings.mcp_enabled and settings.mcp_base_url:
         )
 
         enable_backend_sessions()
+        enable_backend_write_sessions()
 
         # Upsert pre-registered OAuth client from env vars
         if settings.mcp_oauth_client_id and settings.mcp_oauth_client_secret:
