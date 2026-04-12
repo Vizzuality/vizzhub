@@ -4,9 +4,11 @@ import json
 
 import pytest
 import pytest_asyncio
+from jose import jwt as jose_jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcp_server.auth.permissions import mcp_requires
+from mcp_server.auth.token_verifier import VizzHubTokenVerifier
 from mcp_server.data import iso as iso_data
 from mcp_server.data.base import (
     FULL_ACCESS,
@@ -332,3 +334,47 @@ class TestIsoDocVisibility:
         slugs = {r["slug"] for r in results}
         assert "data-protection" in slugs
         assert "bcp-plan" in slugs
+
+
+class TestTokenVerifierSetsContext:
+    SECRET = "test-secret-key-for-testing-only"
+
+    def _make_jwt(self, **extra_claims) -> str:
+        payload = {
+            "sub": "user-uuid-123",
+            "email": "test@vizzuality.com",
+            "client_id": "test-client",
+            "roles": ["user", "iso_docs_editor"],
+            "permissions": ["tracker:view", "scorecard:view", "iso_docs:edit"],
+            "scopes": ["read"],
+            "iss": "vizzhub",
+            "aud": "vizzhub-mcp",
+            "exp": 9999999999,
+            "iat": 1700000000,
+            **extra_claims,
+        }
+        return jose_jwt.encode(payload, self.SECRET, algorithm="HS256")
+
+    @pytest.mark.asyncio
+    async def test_verify_token_sets_mcp_user_context(self) -> None:
+        verifier = VizzHubTokenVerifier(secret_key=self.SECRET)
+        token_str = self._make_jwt()
+
+        access_token = await verifier.verify_token(token_str)
+
+        assert access_token is not None
+        user = get_mcp_user()
+        assert user.user_id == "user-uuid-123"
+        assert user.email == "test@vizzuality.com"
+        assert "user" in user.roles
+        assert "iso_docs_editor" in user.roles
+        assert user.has_permission("tracker:view")
+        assert user.has_permission("iso_docs:edit")
+
+    @pytest.mark.asyncio
+    async def test_failed_verification_does_not_set_context(self) -> None:
+        verifier = VizzHubTokenVerifier(secret_key=self.SECRET)
+
+        result = await verifier.verify_token("invalid-jwt-token")
+
+        assert result is None
