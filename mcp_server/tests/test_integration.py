@@ -49,17 +49,24 @@ async def seeded_db(db_session: AsyncSession) -> None:
         data={"number": "INC-001", "severity": "High"},
     ))
 
-    # Document page + metadata + version
+    # Parent group + document page + metadata + version
+    group = IsoDocNodeDB(
+        title="Policies", slug="policies", type="group",
+    )
+    db_session.add(group)
+    await db_session.flush()
+
     page = IsoDocNodeDB(
         title="Security Policy",
         slug="security-policy",
         type="page",
+        parent_id=group.id,
     )
     db_session.add(page)
     await db_session.flush()
 
     db_session.add(IsoDocMetadataDB(
-        node_id=page.id, category="policy", doc_version="1.0",
+        node_id=page.id, doc_version="1.0",
     ))
     db_session.add(IsoDocVersionDB(
         node_id=page.id, version=1,
@@ -106,11 +113,11 @@ async def test_search_then_read_document(db_session, seeded_db) -> None:
 async def test_list_documents_filtered(db_session, seeded_db) -> None:
     async with override_session(db_session):
         result = await mcp.call_tool(
-            "iso_get_documents", {"category": "policy"},
+            "iso_get_documents", {"category": "Policies"},
         )
         docs = json.loads(result[0][0].text)
         assert len(docs) >= 1
-        assert all(d["category"] == "policy" for d in docs)
+        assert all(d["category"] == "Policies" for d in docs)
 
 
 @pytest.mark.asyncio
