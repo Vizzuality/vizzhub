@@ -7,7 +7,48 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
 _SKILL_PATH = Path(__file__).resolve().parent.parent / "docs" / "mcp" / "vizzhub-skill.md"
-_INSTRUCTIONS = _SKILL_PATH.read_text(encoding="utf-8") if _SKILL_PATH.exists() else ""
+_SKILL_CONTENT = _SKILL_PATH.read_text(encoding="utf-8") if _SKILL_PATH.exists() else ""
+
+_INSTRUCTIONS = """\
+VizzHub is Vizzuality's internal operations hub with 6 modules:
+
+| Module | Key ID | Tools prefix |
+|--------|--------|-------------|
+| Users | user_id (UUID) | users_ |
+| Tracker | project_id (UUID) | tracker_ |
+| Scorecard | project_id (UUID) | scorecard_ |
+| Capacity | user_id + period (YYYY-MM) | capacity_ |
+| ISO | slug (string) | iso_ |
+| Playbook | slug (string) | playbook_ |
+
+Key joins: user_id is the same UUID across Users, Capacity, and Tracker. \
+project_id is the same UUID across Tracker and Scorecard.
+
+FA mapping (Capacity short codes → Users full names): \
+FE=Frontend Developer, BE=Backend Developer, Design=Designer, \
+PM=Project Manager, Sci=Scientist, Coms=Communications.
+
+App URLs (base: https://hub.vizzuality.com):
+- Project scorecard: /scorecard/{project_id}
+- Tracker project: /tracker/projects/{project_id}
+- Invoice detail: /tracker/invoices/{invoice_id}
+- Capacity insights: /capacity/insights (add ?fa=FE to filter)
+- ISO document: /iso/docs?page={slug}
+- Playbook article: /playbook?page={slug}
+- Admin user: /admin/users/{user_id}
+Always include full URLs in responses using IDs/slugs from tool results.
+
+Conventions:
+- Null scores mean no data, not zero.
+- Cost values are currency-specific — check the currency field.
+- burn_percentage is null when budget is zero.
+- Invoice status is the effective status (accounts for postponements).
+- Capacity percentages are 0-100 scale.
+- iso_search_documents uses full-text search; iso_get_documents(search=) is title-only.
+
+For cross-module query patterns, detailed tool reference, and registry lists, \
+read the vizzhub://data-model resource before planning complex queries.\
+"""
 
 
 def create_mcp_server(
@@ -62,6 +103,21 @@ def create_mcp_server(
 
     from mcp_server.tools.users import register_users_tools  # noqa: PLC0415
     register_users_tools(instance)
+
+    if _SKILL_CONTENT:
+
+        @instance.resource(
+            "vizzhub://data-model",
+            name="VizzHub Data Model Guide",
+            description=(
+                "Complete reference: 6 modules, 26 tools, cross-module query "
+                "patterns, registry lists (yearly vs non-yearly), and URL "
+                "construction. Read this before planning multi-tool queries."
+            ),
+            mime_type="text/markdown",
+        )
+        def get_data_model() -> str:
+            return _SKILL_CONTENT
 
     return instance
 
