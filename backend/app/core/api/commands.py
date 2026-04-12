@@ -47,12 +47,12 @@ async def list_commands(
     module: Annotated[str | None, Query()] = None,
 ) -> list[dict]:
     """List commands, optionally filtered by status and/or module."""
-    CommandDB = _get_command_model()
-    stmt = select(CommandDB).order_by(CommandDB.requested_at.desc())
+    command_model = _get_command_model()
+    stmt = select(command_model).order_by(command_model.requested_at.desc())
     if status is not None:
-        stmt = stmt.where(CommandDB.status == status)
+        stmt = stmt.where(command_model.status == status)
     if module is not None:
-        stmt = stmt.where(CommandDB.module == module)
+        stmt = stmt.where(command_model.module == module)
     result = await db.execute(stmt)
     return [_serialize_command(cmd) for cmd in result.scalars().all()]
 

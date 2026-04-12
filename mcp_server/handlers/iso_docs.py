@@ -52,6 +52,19 @@ async def _get_user_display_name(session: AsyncSession, user_id: UUID) -> str:
     return user.email.split("@")[0] if user.email else str(user_id)
 
 
+async def _fill_changelog_authors(
+    session: AsyncSession, changelog: list, user_id: UUID,
+) -> None:
+    """Set author on changelog entries that are missing or 'system'."""
+    display_name = await _get_user_display_name(session, user_id)
+    for entry in changelog:
+        if not isinstance(entry, dict):
+            continue
+        author = entry.get("author", "")
+        if not author or author == "system":
+            entry["author"] = display_name
+
+
 async def _resolve_registry(
     session: AsyncSession, slug: str,
 ) -> tuple[IsoDocNodeDB, RegistryTypeDB]:
@@ -195,12 +208,7 @@ async def _update_metadata(
     update = {k: v for k, v in payload.items() if k in allowed_fields}
 
     if "changelog" in update and update["changelog"]:
-        display_name = await _get_user_display_name(session, user_id)
-        for entry in update["changelog"]:
-            if isinstance(entry, dict):
-                author = entry.get("author", "")
-                if not author or author == "system":
-                    entry["author"] = display_name
+        await _fill_changelog_authors(session, update["changelog"], user_id)
 
     if meta:
         for field, value in update.items():
@@ -375,7 +383,7 @@ async def _delete_registry_row(
             "target (registry slug) is required for delete_registry_row"
         )
 
-    node, rt = await _resolve_registry(session, target)
+    node, _ = await _resolve_registry(session, target)
 
     row_id_str = payload.get("row_id")
     if not row_id_str:
