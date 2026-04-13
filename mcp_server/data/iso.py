@@ -10,9 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
 
+from app.core.models.user import UserDB
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
     IsoDocNodeDB,
+    IsoDocNoteDB,
     IsoDocVersionDB,
     RegistryRowDB,
     RegistryTypeDB,
@@ -272,3 +274,106 @@ async def get_registry_rows(
         stmt = stmt.where(RegistryRowDB.year == year)
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+def _user_display_name_expr(user_alias):
+    """SQL expression resolving to first+last > name > email for a user alias."""
+    return sa_func.coalesce(
+        sa_func.nullif(
+            sa_func.concat_ws(
+                " ",
+                sa_func.nullif(user_alias.first_name, ""),
+                sa_func.nullif(user_alias.last_name, ""),
+            ),
+            "",
+        ),
+        user_alias.name,
+        user_alias.email,
+    )
+
+
+def _note_row_to_dict(note: IsoDocNoteDB, creator_name, doner_name) -> dict:
+    return {
+        "id": str(note.id),
+        "content": note.content,
+        "done": note.done,
+        "done_at": note.done_at,
+        "done_by": doner_name,
+        "created_by": creator_name,
+        "created_at": note.created_at,
+        "updated_at": note.updated_at,
+    }
+
+
+async def get_node_notes(
+    session: AsyncSession, slug: str, include_done: bool,
+) -> dict:
+    """Return notes attached to a node identified by slug.
+
+    Raises ValueError if the slug does not match any ISO doc node.
+    """
+    node_row = (await session.execute(
+        select(IsoDocNodeDB).where(IsoDocNodeDB.slug == slug)
+    )).scalar_one_or_none()
+    if node_row is None:
+        raise ValueError(f"Node '{slug}' not found")
+
+    creator_alias = aliased(UserDB)
+    doner_alias = aliased(UserDB)
+    stmt = (
+        select(
+            IsoDocNoteDB,
+            _user_display_name_expr(creator_alias),
+            _user_display_name_expr(doner_alias),
+        )
+        .outerjoin(creator_alias, creator_alias.id == IsoDocNoteDB.created_by_id)
+        .outerjoin(doner_alias, doner_alias.id == IsoDocNoteDB.done_by_id)
+        .where(IsoDocNoteDB.node_id == node_row.id)
+        .order_by(IsoDocNoteDB.done.asc(), IsoDocNoteDB.created_at.desc())
+    )
+    if not include_done:
+        stmt = stmt.where(IsoDocNoteDB.done.is_(False))
+
+    rows = (await session.execute(stmt)).all()
+    return {
+        "node_slug": node_row.slug,
+        "node_title": node_row.title,
+        "node_type": node_row.type,
+        "total_notes": len(rows),
+        "notes": [_note_row_to_dict(*row) for row in rows],
+    }
+
+
+async def get_pending_notes(session: AsyncSession) -> list[dict]:
+    """Return all pending (not done) notes across all ISO nodes.
+
+    Each entry includes the node's slug, title and type so the caller
+    can group or link back to the source node.
+    """
+    creator_alias = aliased(UserDB)
+    stmt = (
+        select(
+            IsoDocNoteDB,
+            IsoDocNodeDB.slug.label("node_slug"),
+            IsoDocNodeDB.title.label("node_title"),
+            IsoDocNodeDB.type.label("node_type"),
+            _user_display_name_expr(creator_alias),
+        )
+        .join(IsoDocNodeDB, IsoDocNodeDB.id == IsoDocNoteDB.node_id)
+        .outerjoin(creator_alias, creator_alias.id == IsoDocNoteDB.created_by_id)
+        .where(IsoDocNoteDB.done.is_(False))
+        .order_by(IsoDocNodeDB.title.asc(), IsoDocNoteDB.created_at.desc())
+    )
+    rows = (await session.execute(stmt)).all()
+    return [
+        {
+            "id": str(note.id),
+            "node_slug": node_slug,
+            "node_title": node_title,
+            "node_type": node_type,
+            "content": note.content,
+            "created_by": creator_name,
+            "created_at": note.created_at,
+        }
+        for note, node_slug, node_title, node_type, creator_name in rows
+    ]
