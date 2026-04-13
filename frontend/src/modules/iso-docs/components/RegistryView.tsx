@@ -62,6 +62,12 @@ const YEAR_OPTIONS: number[] = Array.from(
 
 type SortDir = 'asc' | 'desc';
 
+function toSortableString(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return JSON.stringify(v) ?? '';
+}
+
 function compareValues(a: unknown, b: unknown, dir: SortDir): number {
   const aNull = a === null || a === undefined || a === '';
   const bNull = b === null || b === undefined || b === '';
@@ -69,15 +75,14 @@ function compareValues(a: unknown, b: unknown, dir: SortDir): number {
   if (aNull) return 1;
   if (bNull) return -1;
 
-  const aStr = String(a);
-  const bStr = String(b);
-
   const aNum = Number(a);
   const bNum = Number(b);
   if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
     return dir === 'asc' ? aNum - bNum : bNum - aNum;
   }
 
+  const aStr = toSortableString(a);
+  const bStr = toSortableString(b);
   const cmp = aStr.localeCompare(bStr, undefined, { sensitivity: 'base', numeric: true });
   return dir === 'asc' ? cmp : -cmp;
 }
