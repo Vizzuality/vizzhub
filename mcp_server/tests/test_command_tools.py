@@ -6,6 +6,7 @@ import json
 
 import pytest
 import pytest_asyncio
+from mcp.server.fastmcp.exceptions import ToolError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
@@ -141,6 +142,59 @@ async def test_iso_create_page_enqueue_and_approve(
             assert approve_data["status"] == "executed"
             assert approve_data["result"]["slug"] == "access-control"
             assert approve_data["result"]["title"] == "Access Control"
+
+
+@pytest.mark.asyncio
+async def test_iso_update_page_metadata_changelog_missing_version(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Changelog entries without a version must be rejected before queuing."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            with pytest.raises(ToolError, match="version"):
+                await mcp.call_tool(
+                    "iso_update_page_metadata",
+                    {
+                        "slug": "security-policy",
+                        "changelog": [
+                            {
+                                "date": "2026-04-13",
+                                "author": "Editor User",
+                                "description": "Initial draft",
+                            },
+                        ],
+                    },
+                )
+
+
+@pytest.mark.asyncio
+async def test_iso_update_page_metadata_changelog_valid(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Changelog entries with all four required fields are queued successfully."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "iso_update_page_metadata",
+                {
+                    "slug": "security-policy",
+                    "changelog": [
+                        {
+                            "version": "1.0",
+                            "date": "2026-04-13",
+                            "author": "Editor User",
+                            "description": "Initial draft",
+                        },
+                    ],
+                },
+            )
+            data = json.loads(result[0][0].text)
+            assert data["status"] == "queued"
+            assert "command_id" in data
 
 
 @pytest.mark.asyncio
