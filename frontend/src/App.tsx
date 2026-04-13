@@ -43,6 +43,7 @@ import CapacityAllocation from './modules/capacity/pages/Allocation';
 import CapacityPlanner from './modules/capacity/pages/Planner';
 import Playbook from './modules/playbook/pages/Playbook';
 import IsoDocs from './modules/iso-docs/pages/IsoDocs';
+import IsoNotesAdmin from './modules/iso-docs/pages/IsoNotesAdmin';
 import NotFound from './core/pages/NotFound';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
@@ -70,6 +71,7 @@ function AdminRoutes(): JSX.Element {
         <Route path="moods" element={<Moods />} />
         <Route path="rates" element={<RatesContent />} />
       </Route>
+      <Route path="iso/notes" element={<IsoNotesAdmin />} />
       <Route path="assets" element={<AssetsContent />} />
       <Route path="jobs" element={<JobsContent />} />
       <Route path="users" element={<UsersContent />} />
