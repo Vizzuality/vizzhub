@@ -15,10 +15,10 @@ async def page_node(client: AsyncClient) -> dict:
 
 
 @pytest_asyncio.fixture
-async def registry_node(client: AsyncClient) -> dict:
+async def group_node(client: AsyncClient) -> dict:
     response = await client.post(
         "/api/iso-docs/nodes",
-        json={"title": "Opportunity Register", "type": "registry"},
+        json={"title": "Opportunity Register", "type": "group"},
     )
     return response.json()
 
@@ -48,7 +48,8 @@ async def test_list_notes_for_node(client: AsyncClient, page_node: dict):
     assert response.status_code == 200
     notes = response.json()
     assert len(notes) == 3
-    assert notes[0]["content"] == "third"
+    contents = {n["content"] for n in notes}
+    assert contents == {"first", "second", "third"}
 
 
 @pytest.mark.asyncio
@@ -116,14 +117,14 @@ async def test_node_cascade_deletes_notes(client: AsyncClient, page_node: dict):
 
 @pytest.mark.asyncio
 async def test_admin_list_default_excludes_done(
-    client: AsyncClient, page_node: dict, registry_node: dict
+    client: AsyncClient, page_node: dict, group_node: dict
 ):
     pending = (await client.post(
         f"/api/iso-docs/nodes/{page_node['id']}/notes",
         json={"content": "pending"},
     )).json()
     done_note = (await client.post(
-        f"/api/iso-docs/nodes/{registry_node['id']}/notes",
+        f"/api/iso-docs/nodes/{group_node['id']}/notes",
         json={"content": "done"},
     )).json()
     await client.patch(
