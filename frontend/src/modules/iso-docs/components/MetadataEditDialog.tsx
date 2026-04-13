@@ -10,6 +10,7 @@ import {
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { CLASSIFICATION_LABELS, STATUS_LABELS } from '../types/isoDocs';
-import type { IsoDocMetadata, MetadataUpdate, ChangelogEntry } from '../types/isoDocs';
+import type { IsoDocMetadata, MetadataUpdate, ChangelogEntry, DocNodeType } from '../types/isoDocs';
 
 const CLASSIFICATIONS = Object.entries(CLASSIFICATION_LABELS).map(([value, label]) => ({ value, label }));
 const STATUSES = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
@@ -48,6 +49,7 @@ interface MetadataEditDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly metadata: IsoDocMetadata;
+  readonly nodeType?: DocNodeType;
   readonly onSave: (data: MetadataUpdate) => void;
   readonly isSaving: boolean;
 }
@@ -183,6 +185,7 @@ export function MetadataEditDialog({
   open,
   onOpenChange,
   metadata,
+  nodeType,
   onSave,
   isSaving,
 }: MetadataEditDialogProps): JSX.Element {
@@ -197,6 +200,7 @@ export function MetadataEditDialog({
         classification: metadata.classification ?? 'internal_use',
         status: metadata.status ?? '',
         document_date: metadata.document_date ?? '',
+        instructions: metadata.instructions ?? '',
         changelog: metadata.changelog?.map((e) => ({ ...e })) ?? [],
       });
     }
@@ -210,6 +214,7 @@ export function MetadataEditDialog({
       classification: form.classification || 'internal_use',
       status: form.status || null,
       document_date: form.document_date || null,
+      instructions: form.instructions?.trim() ? form.instructions : null,
       changelog: form.changelog?.length ? form.changelog : null,
     };
     onSave(data);
@@ -302,6 +307,18 @@ export function MetadataEditDialog({
             onChange={(v) => setForm({ ...form, clauses: v })}
             placeholder="e.g. 5.2"
           />
+
+          {nodeType === 'registry' && (
+            <div className="space-y-1.5">
+              <Label>Instructions</Label>
+              <Textarea
+                value={form.instructions ?? ''}
+                onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+                placeholder="Markdown supported. Instructions for filling in this register."
+                className="min-h-[120px] text-sm font-mono"
+              />
+            </div>
+          )}
 
           <ChangelogEditor
             entries={form.changelog ?? []}
