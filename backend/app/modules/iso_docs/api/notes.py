@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 
 from app.core.api.deps import DBSession
 from app.core.models.user import UserDB
+from app.core.sql_helpers import user_display_name_expr
 from app.modules.iso_docs.api.deps import IsoDocsEditor
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.note import IsoDocNoteDB
@@ -27,21 +28,6 @@ router = APIRouter()
 logger = structlog.get_logger()
 
 
-def _user_name_expr(user_alias):
-    return func.coalesce(
-        func.nullif(
-            func.concat_ws(
-                " ",
-                func.nullif(user_alias.first_name, ""),
-                func.nullif(user_alias.last_name, ""),
-            ),
-            "",
-        ),
-        user_alias.name,
-        user_alias.email,
-    )
-
-
 def _select_notes_with_names(*extra_columns):
     """Build a select with Creator/Doner name joins for IsoDocNoteDB."""
     creator_alias = aliased(UserDB)
@@ -49,8 +35,8 @@ def _select_notes_with_names(*extra_columns):
     return (
         select(
             IsoDocNoteDB,
-            _user_name_expr(creator_alias),
-            _user_name_expr(doner_alias),
+            user_display_name_expr(creator_alias),
+            user_display_name_expr(doner_alias),
             *extra_columns,
         )
         .outerjoin(creator_alias, creator_alias.id == IsoDocNoteDB.created_by_id)

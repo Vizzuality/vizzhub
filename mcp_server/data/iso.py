@@ -11,6 +11,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
 
 from app.core.models.user import UserDB
+from app.core.sql_helpers import user_display_name_expr
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
     IsoDocNodeDB,
@@ -276,22 +277,6 @@ async def get_registry_rows(
     return list(result.scalars().all())
 
 
-def _user_display_name_expr(user_alias):
-    """SQL expression resolving to first+last > name > email for a user alias."""
-    return sa_func.coalesce(
-        sa_func.nullif(
-            sa_func.concat_ws(
-                " ",
-                sa_func.nullif(user_alias.first_name, ""),
-                sa_func.nullif(user_alias.last_name, ""),
-            ),
-            "",
-        ),
-        user_alias.name,
-        user_alias.email,
-    )
-
-
 def _note_row_to_dict(note: IsoDocNoteDB, creator_name, doner_name) -> dict:
     return {
         "id": str(note.id),
@@ -323,8 +308,8 @@ async def get_node_notes(
     stmt = (
         select(
             IsoDocNoteDB,
-            _user_display_name_expr(creator_alias),
-            _user_display_name_expr(doner_alias),
+            user_display_name_expr(creator_alias),
+            user_display_name_expr(doner_alias),
         )
         .outerjoin(creator_alias, creator_alias.id == IsoDocNoteDB.created_by_id)
         .outerjoin(doner_alias, doner_alias.id == IsoDocNoteDB.done_by_id)
@@ -357,7 +342,7 @@ async def get_pending_notes(session: AsyncSession) -> list[dict]:
             IsoDocNodeDB.slug.label("node_slug"),
             IsoDocNodeDB.title.label("node_title"),
             IsoDocNodeDB.type.label("node_type"),
-            _user_display_name_expr(creator_alias),
+            user_display_name_expr(creator_alias),
         )
         .join(IsoDocNodeDB, IsoDocNodeDB.id == IsoDocNoteDB.node_id)
         .outerjoin(creator_alias, creator_alias.id == IsoDocNoteDB.created_by_id)
