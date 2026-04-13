@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { formatDate } from '@/utils/formatters';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { useAllNotes, useUpdateNote, useDeleteNote } from '../hooks/useIsoDocNotes';
 import type { AdminIsoDocNote } from '../types/notes';
@@ -41,7 +42,7 @@ function NoteRow({ note }: { readonly note: AdminIsoDocNote }): JSX.Element {
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>{note.created_by_name ?? 'Unknown'}</span>
         <span>·</span>
-        <span>{new Date(note.created_at).toLocaleDateString('en-GB')}</span>
+        <span>{formatDate(note.created_at)}</span>
         <div className="ml-auto flex items-center gap-1">
           {editing ? (
             <>
