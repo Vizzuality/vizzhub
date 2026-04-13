@@ -635,6 +635,7 @@ export default function IsoDocs(): JSX.Element {
           open={metadataEditOpen}
           onOpenChange={setMetadataEditOpen}
           metadata={metadata}
+          nodeType={selectedNode?.type}
           onSave={(data) => {
             updateMetadata.mutate(data, {
               onSuccess: () => setMetadataEditOpen(false),

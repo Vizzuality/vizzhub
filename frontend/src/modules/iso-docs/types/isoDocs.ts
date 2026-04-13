@@ -57,6 +57,7 @@ export interface IsoDocMetadata {
   document_date: string | null;
   original_filename: string | null;
   guidance: string | null;
+  instructions: string | null;
   changelog: ChangelogEntry[] | null;
   created_at: string;
   updated_at: string;
@@ -71,6 +72,7 @@ export interface MetadataUpdate {
   document_date?: string | null;
   original_filename?: string | null;
   guidance?: string | null;
+  instructions?: string | null;
   changelog?: ChangelogEntry[] | null;
 }
 
