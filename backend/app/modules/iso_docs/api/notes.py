@@ -44,17 +44,17 @@ def _user_name_expr(user_alias):
 
 def _select_notes_with_names(*extra_columns):
     """Build a select with Creator/Doner name joins for IsoDocNoteDB."""
-    Creator = aliased(UserDB)
-    Doner = aliased(UserDB)
+    creator_alias = aliased(UserDB)
+    doner_alias = aliased(UserDB)
     return (
         select(
             IsoDocNoteDB,
-            _user_name_expr(Creator),
-            _user_name_expr(Doner),
+            _user_name_expr(creator_alias),
+            _user_name_expr(doner_alias),
             *extra_columns,
         )
-        .outerjoin(Creator, Creator.id == IsoDocNoteDB.created_by_id)
-        .outerjoin(Doner, Doner.id == IsoDocNoteDB.done_by_id)
+        .outerjoin(creator_alias, creator_alias.id == IsoDocNoteDB.created_by_id)
+        .outerjoin(doner_alias, doner_alias.id == IsoDocNoteDB.done_by_id)
     )
 
 
@@ -73,7 +73,10 @@ async def _hydrate_response(db, note: IsoDocNoteDB) -> NoteResponse:
     return _row_to_response(*row)
 
 
-@router.get("/nodes/{node_id}/notes")
+@router.get(
+    "/nodes/{node_id}/notes",
+    responses={404: {"description": "Node not found"}},
+)
 async def list_node_notes(
     node_id: UUID, db: DBSession, _: IsoDocsEditor
 ) -> list[NoteResponse]:
@@ -90,7 +93,9 @@ async def list_node_notes(
 
 
 @router.post(
-    "/nodes/{node_id}/notes", status_code=status.HTTP_201_CREATED
+    "/nodes/{node_id}/notes",
+    status_code=status.HTTP_201_CREATED,
+    responses={404: {"description": "Node not found"}},
 )
 async def create_note(
     node_id: UUID, data: NoteCreate, db: DBSession, user: IsoDocsEditor
@@ -116,7 +121,10 @@ async def create_note(
     return await _hydrate_response(db, note)
 
 
-@router.patch("/notes/{note_id}")
+@router.patch(
+    "/notes/{note_id}",
+    responses={404: {"description": "Note not found"}},
+)
 async def update_note(
     note_id: UUID, data: NoteUpdate, db: DBSession, user: IsoDocsEditor
 ) -> NoteResponse:
@@ -146,7 +154,11 @@ async def update_note(
     return await _hydrate_response(db, note)
 
 
-@router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/notes/{note_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"description": "Note not found"}},
+)
 async def delete_note(
     note_id: UUID, db: DBSession, user: IsoDocsEditor
 ) -> Response:
