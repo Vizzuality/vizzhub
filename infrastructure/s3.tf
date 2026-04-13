@@ -181,6 +181,7 @@ resource "aws_s3_bucket_policy" "assets_cloudfront" {
         Resource = [
           "${aws_s3_bucket.assets.arn}/playbook/*",
           "${aws_s3_bucket.assets.arn}/iso-docs/*",
+          "${aws_s3_bucket.assets.arn}/iso-registries/*",
         ]
         Condition = {
           StringEquals = {

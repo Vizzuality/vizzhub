@@ -143,6 +143,27 @@ resource "aws_cloudfront_distribution" "playbook" {
     max_ttl     = 604800
   }
 
+  # /iso-registries/* → serve from s3://bucket/iso-registries/ (evidence files)
+  ordered_cache_behavior {
+    path_pattern           = "/iso-registries/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "s3-iso-docs-images"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 86400
+    max_ttl     = 604800
+  }
+
   # S3 returns 403 for missing keys with OAC
   custom_error_response {
     error_code            = 403

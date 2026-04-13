@@ -282,6 +282,11 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
     );
   }, [rows, sortKey, sortDir]);
 
+  const currentViewingRow = useMemo(
+    () => (viewingRow ? rows.find((r) => r.id === viewingRow.id) ?? null : null),
+    [viewingRow, rows],
+  );
+
   const handleSort = useCallback((key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -723,18 +728,15 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
         </AlertDialogContent>
       </AlertDialog>
 
-      {viewingRow && (
+      {currentViewingRow && (
         <RowLightbox
-          row={viewingRow}
-          rowIndex={sortedRows.findIndex((r) => r.id === viewingRow.id) + 1}
+          row={currentViewingRow}
+          rowIndex={sortedRows.findIndex((r) => r.id === currentViewingRow.id) + 1}
           columns={allColumns}
           isEditor={isEditor}
-          onSave={(key, value) => {
-            handleInlineSave(viewingRow, key, value);
-            setViewingRow({ ...viewingRow, data: { ...viewingRow.data, [key]: value } });
-          }}
+          onSave={(key, value) => handleInlineSave(currentViewingRow, key, value)}
           onUploadAttachment={(fieldKey, file) =>
-            uploadAttachment.mutate({ rowId: viewingRow.id, file, fieldKey })
+            uploadAttachment.mutate({ rowId: currentViewingRow.id, file, fieldKey })
           }
           onDeleteAttachment={(attachmentId) =>
             deleteAttachment.mutate(attachmentId)

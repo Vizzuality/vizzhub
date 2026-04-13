@@ -46,9 +46,19 @@ def upload_attachment(file_bytes: bytes, filename: str, content_type: str) -> st
 
 
 def get_attachment_url(s3_key: str) -> str:
-    """Construct a URL for an S3 object."""
+    """Construct a URL for an attachment.
+
+    Prefers the CloudFront public URL when configured (production); falls back
+    to a time-limited presigned S3 URL (local dev where CloudFront is absent).
+    """
     settings = get_settings()
-    return f"{settings.assets_bucket_url}/{s3_key}"
+    if settings.playbook_public_url:
+        return f"{settings.playbook_public_url}/{s3_key}"
+    return get_s3_client().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.assets_bucket_name, "Key": s3_key},
+        ExpiresIn=7 * 24 * 3600,
+    )
 
 
 def delete_attachment(s3_key: str) -> None:
