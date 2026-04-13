@@ -234,5 +234,9 @@ export const queryKeys = {
       ['iso-docs', 'registry-rows', nodeId, year] as const,
     registryYears: (nodeId: string) =>
       ['iso-docs', 'registry-years', nodeId] as const,
+    notesByNode: (nodeId: string) =>
+      ['iso-docs', 'notes', 'node', nodeId] as const,
+    allNotes: (includeDone: boolean) =>
+      ['iso-docs', 'notes', 'admin', includeDone] as const,
   },
 } as const;
