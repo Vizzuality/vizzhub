@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, Blocks, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, Blocks, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen, MessageSquare } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import {
   DropdownMenu,
@@ -45,6 +45,8 @@ import { useIsoDocVersions, useIsoDocVersion } from '../hooks/useIsoDocVersions'
 import { useIsoDocMetadata, useUpdateIsoDocMetadata } from '../hooks/useIsoDocMetadata';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MetadataEditDialog } from '../components/MetadataEditDialog';
+import { NotesPanel } from '../components/NotesPanel';
+import { useNodeNotes } from '../hooks/useIsoDocNotes';
 import { MetadataFilters } from '../components/MetadataFilters';
 import { RegistryView } from '../components/RegistryView';
 import { isoDocsApi } from '../services/isoDocs';
@@ -333,11 +335,29 @@ export default function IsoDocs(): JSX.Element {
   const [driveJobId, setDriveJobId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  const notesOpen = searchParams.get('notes') === '1';
+  const setNotesOpen = useCallback(
+    (open: boolean) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (open) {
+          next.set('notes', '1');
+        } else {
+          next.delete('notes');
+        }
+        return next;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
+
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
   const canEditIsoDocs = usePermission(Action.ISO_DOCS_EDIT);
   const isAdmin = bypassAuth || canAdmin;
   const isEditor = canEditIsoDocs || isAdmin;
+
+  const showNotes = notesOpen && isEditor;
 
   const { data: tree = [], isLoading: treeLoading } = useIsoDocTree();
 
@@ -361,6 +381,8 @@ export default function IsoDocs(): JSX.Element {
   );
   const { data: page } = useIsoDocPage(selectedId, selectedNode?.type === 'page');
   const { data: metadata } = useIsoDocMetadata(selectedId);
+  const { data: nodeNotes = [] } = useNodeNotes(isEditor && selectedNode ? selectedNode.id : null);
+  const pendingNotesCount = nodeNotes.filter((n) => !n.done).length;
   const createNode = useCreateIsoDocNode();
   const updateNode = useUpdateIsoDocNode();
   const deleteNode = useDeleteIsoDocNode();
@@ -740,6 +762,22 @@ export default function IsoDocs(): JSX.Element {
             <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
           </div>
           <div data-iso-actions className="flex items-center gap-2">
+            {isEditor && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1"
+                onClick={() => setNotesOpen(!showNotes)}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Notes
+                {pendingNotesCount > 0 && (
+                  <span className="rounded bg-primary text-primary-foreground text-xs px-1.5 py-0.5">
+                    {pendingNotesCount}
+                  </span>
+                )}
+              </Button>
+            )}
             {isPage && isEditor && (
               <Button size="sm" onClick={() => setEditing(true)}>
                 Edit
@@ -806,6 +844,7 @@ export default function IsoDocs(): JSX.Element {
                 onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
               />
             )}
+            {showNotes && selectedNode && <NotesPanel nodeId={selectedNode.id} />}
             <DocViewer content={page?.content ?? ''} onInternalLink={handleInternalLink} />
           </div>
         )}
@@ -817,6 +856,7 @@ export default function IsoDocs(): JSX.Element {
                 onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
               />
             )}
+            {showNotes && selectedNode && <NotesPanel nodeId={selectedNode.id} />}
             <RegistryView
               nodeId={selectedNode.id}
               registryTypeId={selectedNode.registry_type_id}
@@ -832,6 +872,7 @@ export default function IsoDocs(): JSX.Element {
                 onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
               />
             )}
+            {showNotes && selectedNode && <NotesPanel nodeId={selectedNode.id} />}
             <WidgetRenderer widgetKey={selectedNode.widget_key} nodeId={selectedNode.id} isEditor={isEditor} />
           </div>
         )}
