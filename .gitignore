@@ -135,4 +135,4 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
-infrastructure/tfplan
+infrastructure/tfplanSupport/
