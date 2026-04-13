@@ -3,6 +3,7 @@ import { Check, Trash2 } from 'lucide-react';
 import { DocViewer } from '@/shared/components/doc/DocViewer';
 import { Button } from '@/shared/components/ui/button';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { formatDate } from '@/utils/formatters';
 import {
   useNodeNotes,
   useCreateNote,
@@ -13,14 +14,6 @@ import type { IsoDocNote } from '../types/notes';
 
 interface NotesPanelProps {
   readonly nodeId: string;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
 }
 
 function NoteItem({
@@ -54,6 +47,7 @@ function NoteItem({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-destructive"
             onClick={() => onDelete(note)}
+            aria-label="Delete note"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
