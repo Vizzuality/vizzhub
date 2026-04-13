@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
 
+from app.modules.iso_docs.schemas.metadata import ChangelogEntry
 from mcp_server.auth.permissions import mcp_requires
 from mcp_server.tools._shared import enqueue_command
 
@@ -64,7 +65,7 @@ async def iso_update_page_metadata(
     document_date: str | None = None,
     original_filename: str | None = None,
     guidance: str | None = None,
-    changelog: list[dict] | None = None,
+    changelog: list[ChangelogEntry] | None = None,
 ) -> str:
     """Update metadata fields on an ISO document page.
 
@@ -82,14 +83,17 @@ async def iso_update_page_metadata(
         document_date: Date string in ISO format (YYYY-MM-DD).
         original_filename: Original filename if imported from a file.
         guidance: Implementation guidance text.
-        changelog: List of changelog entries, each a dict with keys
-                   like "date", "description", "author". If author is
-                   empty or "system", it is replaced with the user's name.
+        changelog: List of changelog entries. Each entry MUST include all
+                   four fields: "version" (e.g. "1.0"), "date"
+                   (YYYY-MM-DD), "author", and "description". Entries
+                   missing any field are rejected before being queued. If
+                   author is empty or "system", it is replaced with the
+                   user's name at approval time.
 
     Returns JSON with status, command_id, summary, and approval instructions.
     """
     payload: dict = {}
-    fields = {
+    fields: dict = {
         "code": code,
         "standard": standard,
         "clauses": clauses,
@@ -98,11 +102,12 @@ async def iso_update_page_metadata(
         "document_date": document_date,
         "original_filename": original_filename,
         "guidance": guidance,
-        "changelog": changelog,
     }
     for key, value in fields.items():
         if value is not None:
             payload[key] = value
+    if changelog is not None:
+        payload["changelog"] = [e.model_dump() for e in changelog]
 
     return await enqueue_command(
         "iso_docs", "update_metadata",
