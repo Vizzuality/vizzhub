@@ -42,20 +42,35 @@ def _user_name_expr(user_alias):
     )
 
 
-async def _hydrate_response(db, note: IsoDocNoteDB) -> NoteResponse:
+def _select_notes_with_names(*extra_columns):
+    """Build a select with Creator/Doner name joins for IsoDocNoteDB."""
     Creator = aliased(UserDB)
     Doner = aliased(UserDB)
-    row = (await db.execute(
-        select(_user_name_expr(Creator), _user_name_expr(Doner))
-        .select_from(IsoDocNoteDB)
+    return (
+        select(
+            IsoDocNoteDB,
+            _user_name_expr(Creator),
+            _user_name_expr(Doner),
+            *extra_columns,
+        )
         .outerjoin(Creator, Creator.id == IsoDocNoteDB.created_by_id)
         .outerjoin(Doner, Doner.id == IsoDocNoteDB.done_by_id)
+    )
+
+
+def _row_to_response(note: IsoDocNoteDB, creator_name, doner_name) -> NoteResponse:
+    resp = NoteResponse.model_validate(note)
+    resp.created_by_name = creator_name
+    resp.done_by_name = doner_name
+    return resp
+
+
+async def _hydrate_response(db, note: IsoDocNoteDB) -> NoteResponse:
+    row = (await db.execute(
+        _select_notes_with_names()
         .where(IsoDocNoteDB.id == note.id)
     )).one()
-    resp = NoteResponse.model_validate(note)
-    resp.created_by_name = row[0]
-    resp.done_by_name = row[1]
-    return resp
+    return _row_to_response(*row)
 
 
 @router.get("/nodes/{node_id}/notes")
@@ -66,23 +81,12 @@ async def list_node_notes(
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
 
-    Creator = aliased(UserDB)
-    Doner = aliased(UserDB)
     rows = (await db.execute(
-        select(IsoDocNoteDB, _user_name_expr(Creator), _user_name_expr(Doner))
-        .outerjoin(Creator, Creator.id == IsoDocNoteDB.created_by_id)
-        .outerjoin(Doner, Doner.id == IsoDocNoteDB.done_by_id)
+        _select_notes_with_names()
         .where(IsoDocNoteDB.node_id == node_id)
         .order_by(IsoDocNoteDB.done.asc(), desc(IsoDocNoteDB.created_at))
     )).all()
-
-    out: list[NoteResponse] = []
-    for note, creator_name, doner_name in rows:
-        item = NoteResponse.model_validate(note)
-        item.created_by_name = creator_name
-        item.done_by_name = doner_name
-        out.append(item)
-    return out
+    return [_row_to_response(*row) for row in rows]
 
 
 @router.post(
@@ -164,34 +168,23 @@ async def list_all_notes(
     _: IsoDocsEditor,
     include_done: Annotated[bool, Query()] = False,
 ) -> list[AdminNoteResponse]:
-    Creator = aliased(UserDB)
-    Doner = aliased(UserDB)
     stmt = (
-        select(
-            IsoDocNoteDB,
+        _select_notes_with_names(
             IsoDocNodeDB.title.label("node_title"),
             IsoDocNodeDB.slug.label("node_slug"),
-            _user_name_expr(Creator),
-            _user_name_expr(Doner),
         )
         .join(IsoDocNodeDB, IsoDocNodeDB.id == IsoDocNoteDB.node_id)
-        .outerjoin(Creator, Creator.id == IsoDocNoteDB.created_by_id)
-        .outerjoin(Doner, Doner.id == IsoDocNoteDB.done_by_id)
         .order_by(IsoDocNodeDB.title.asc(), desc(IsoDocNoteDB.created_at))
     )
     if not include_done:
         stmt = stmt.where(IsoDocNoteDB.done.is_(False))
 
     rows = (await db.execute(stmt)).all()
-    out: list[AdminNoteResponse] = []
-    for note, title, slug, creator_name, doner_name in rows:
-        base = NoteResponse.model_validate(note)
-        base.created_by_name = creator_name
-        base.done_by_name = doner_name
-        item = AdminNoteResponse(
-            **base.model_dump(),
+    return [
+        AdminNoteResponse(
+            **_row_to_response(note, creator_name, doner_name).model_dump(),
             node_title=title,
             node_slug=slug,
         )
-        out.append(item)
-    return out
+        for note, creator_name, doner_name, title, slug in rows
+    ]
