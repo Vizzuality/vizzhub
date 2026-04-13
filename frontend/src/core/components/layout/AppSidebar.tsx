@@ -15,6 +15,7 @@ import {
   Cog,
   HardDrive,
   Users,
+  MessageSquare,
   Moon,
   Sun,
   ChevronRight,
@@ -75,6 +76,10 @@ const TRACKER_TABS = [
   { to: '/admin/tracker/invoices', label: 'Invoices' },
   { to: '/admin/tracker/moods', label: 'Moods' },
   { to: '/admin/tracker/rates', label: 'Rates' },
+] as const;
+
+const ISO_ADMIN_TABS = [
+  { to: '/admin/iso/notes', label: 'Notes' },
 ] as const;
 
 const ISO_TABS_ADMIN = [
@@ -351,6 +356,13 @@ export function AppSidebar(): JSX.Element {
                     label="Tracker"
                     isActive={location.pathname.startsWith('/admin/tracker')}
                     items={TRACKER_TABS}
+                  />
+
+                  <CollapsibleMenuItem
+                    icon={MessageSquare}
+                    label="ISO"
+                    isActive={location.pathname.startsWith('/admin/iso')}
+                    items={ISO_ADMIN_TABS}
                   />
                 </SidebarMenu>
               </SidebarGroupContent>
