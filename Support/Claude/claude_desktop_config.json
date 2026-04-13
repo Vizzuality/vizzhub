@@ -1,0 +1,7 @@
+  {
+    "mcpServers": {
+       "vizzhub": {
+        "url": "https://hub.vizzuality.com/mcp/sse"
+      }
+    }
+  }
