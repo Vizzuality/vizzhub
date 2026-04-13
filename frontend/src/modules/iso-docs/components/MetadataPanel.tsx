@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import { DocViewer } from '@/shared/components/doc/DocViewer';
 import { CLASSIFICATION_LABELS, STATUS_LABELS } from '../types/isoDocs';
 import type { IsoDocMetadata } from '../types/isoDocs';
 
@@ -26,6 +27,8 @@ function Separator(): JSX.Element {
 
 export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Element {
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const hasInstructions = Boolean(metadata.instructions?.trim());
 
   const documentDate = useMemo(() => {
     if (metadata.document_date) return formatDate(metadata.document_date);
@@ -112,7 +115,29 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
             </button>
           </>
         )}
+        {hasInstructions && (
+          <>
+            <Separator />
+            <button
+              className="flex items-center gap-0.5 hover:text-foreground"
+              onClick={() => setInstructionsOpen(!instructionsOpen)}
+            >
+              {instructionsOpen ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              Instructions
+            </button>
+          </>
+        )}
       </div>
+
+      {instructionsOpen && hasInstructions && (
+        <div className="pt-1 border-t">
+          <DocViewer content={metadata.instructions ?? ''} />
+        </div>
+      )}
 
       {changelogOpen && metadata.changelog && (
         <div className="pt-1 border-t space-y-0.5">
