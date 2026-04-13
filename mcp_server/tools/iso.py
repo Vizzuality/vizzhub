@@ -120,6 +120,45 @@ async def iso_get_document(slug: str) -> str:
     return _to_json(doc)
 
 
+@mcp_requires("iso_docs:edit")
+async def iso_list_notes(node_slug: str, include_done: bool = False) -> str:
+    """List audit notes attached to an ISO doc node.
+
+    Notes are short markdown messages captured by editors during audits
+    (e.g. "auditor flagged version mismatch"). They can be attached to
+    any node type — pages, registries, widgets, or groups.
+
+    Args:
+        node_slug: Slug of the node (document, registry, or group).
+        include_done: If false (default) only pending notes are returned;
+                      if true, completed notes are included as well.
+
+    Returns JSON with the node's slug/title/type plus the list of notes,
+    each with content, author, timestamps, and done status.
+    """
+    async with get_read_session() as session:
+        try:
+            data = await iso_data.get_node_notes(session, node_slug, include_done)
+        except ValueError as e:
+            return _to_json({"error": str(e)})
+    return _to_json(data)
+
+
+@mcp_requires("iso_docs:edit")
+async def iso_list_pending_notes() -> str:
+    """List all pending audit notes across every ISO node.
+
+    Useful for review during an audit: returns every not-done note
+    alongside the node it belongs to (slug + title + type) so the
+    caller can group or follow up.
+
+    Returns JSON array of notes sorted by node title then creation date.
+    """
+    async with get_read_session() as session:
+        notes = await iso_data.get_pending_notes(session)
+    return _to_json(notes)
+
+
 async def iso_search_documents(query: str) -> str:
     """Full-text search across ISO document content.
 
@@ -142,3 +181,5 @@ def register_iso_tools(server: FastMCP) -> None:
     server.tool()(iso_get_documents)
     server.tool()(iso_get_document)
     server.tool()(iso_search_documents)
+    server.tool()(iso_list_notes)
+    server.tool()(iso_list_pending_notes)
