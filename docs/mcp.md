@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 27 read-only tools + 15 write tools (via command queue) available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 27 read-only tools + 16 write tools (via command queue) available.
 
 ## Architecture
 
@@ -733,12 +733,13 @@ See `docs/MCP_plan.md` for the full architecture vision.
 
 All write operations go through a human-in-the-loop command queue. Tools enqueue commands that require explicit approval before execution.
 
-### ISO Docs Write Tools (8)
+### ISO Docs Write Tools (9)
 
 | Tool | Permission | Description |
 |---|---|---|
 | `iso_create_page` | `iso_docs:edit` | Create a new page under a group |
 | `iso_update_page_content` | `iso_docs:edit` | Update page markdown content (versioned) |
+| `iso_patch_page_content` | `iso_docs:edit` | Apply search-replace patches to page content (versioned) |
 | `iso_update_page_metadata` | `iso_docs:edit` | Update metadata fields (partial update) |
 | `iso_update_node` | `iso_docs:edit` | Rename or move a node |
 | `iso_delete_node` | `iso_docs:edit` | Delete a leaf node (no children) |

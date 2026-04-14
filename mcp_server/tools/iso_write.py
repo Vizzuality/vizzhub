@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+from pydantic import BaseModel, Field
+
 from mcp.server.fastmcp import FastMCP
 
 from app.modules.iso_docs.schemas.metadata import ChangelogEntry
 from mcp_server.auth.permissions import mcp_requires
 from mcp_server.tools._shared import enqueue_command
+
+
+class PatchOperation(BaseModel):
+    """A single search-and-replace operation on document content."""
+
+    search: str = Field(min_length=1, description="Exact text to find in the document.")
+    replace: str = Field(description="Text to replace the match with.")
+    description: str | None = Field(
+        default=None,
+        description="Optional human-readable description of this change.",
+    )
 
 
 @mcp_requires("iso_docs:edit")
@@ -51,6 +64,53 @@ async def iso_update_page_content(slug: str, content: str) -> str:
         "iso_docs", "update_page_content",
         target=slug,
         payload={"content": content},
+    )
+
+
+@mcp_requires("iso_docs:edit")
+async def iso_patch_page_content(
+    slug: str,
+    operations: list[PatchOperation],
+    expected_version: int | None = None,
+) -> str:
+    """Apply surgical search-and-replace edits to an ISO document page.
+
+    Use this instead of iso_update_page_content when you only need to
+    change specific parts of a document. Each operation finds an exact
+    text match and replaces it. This avoids downloading and re-uploading
+    the full document content.
+
+    This does NOT execute immediately. The command is queued for human
+    approval. A new version is created when executed (version history
+    is preserved). Use approve_command() to execute.
+
+    Args:
+        slug: Page slug (from iso_get_documents or iso_get_document).
+        operations: List of search-and-replace operations to apply
+                    sequentially. Each operation must have a non-empty
+                    'search' string and a 'replace' string. Optionally
+                    include a 'description' for the approval summary.
+                    Each search string must match exactly once in the
+                    document — the operation fails if not found or if
+                    found more than once (add surrounding context to
+                    disambiguate).
+        expected_version: Optional version number for optimistic locking.
+                         If provided and the current version is higher,
+                         the patch is still applied but a conflict flag
+                         is returned.
+
+    Returns JSON with status, command_id, summary, and approval instructions.
+    """
+    payload: dict = {
+        "operations": [op.model_dump() for op in operations],
+    }
+    if expected_version is not None:
+        payload["expected_version"] = expected_version
+
+    return await enqueue_command(
+        "iso_docs", "patch_page_content",
+        target=slug,
+        payload=payload,
     )
 
 
@@ -251,6 +311,7 @@ def register_iso_write_tools(server: FastMCP) -> None:
     """Register all ISO write tools on the given MCP server instance."""
     server.tool()(iso_create_page)
     server.tool()(iso_update_page_content)
+    server.tool()(iso_patch_page_content)
     server.tool()(iso_update_page_metadata)
     server.tool()(iso_update_node)
     server.tool()(iso_delete_node)

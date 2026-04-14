@@ -185,6 +185,78 @@ async def _update_page_content(
     }
 
 
+async def _patch_page_content(
+    target: str | None,
+    payload: dict,
+    user_id: UUID,
+    session: AsyncSession,
+) -> dict:
+    if not target:
+        raise ValueError("target (slug) is required for patch_page_content")
+
+    node = await resolve_node_by_slug(
+        session, IsoDocNodeDB, target, expected_type="page",
+    )
+
+    operations = payload.get("operations")
+    if not operations:
+        raise ValueError("payload.operations is required and must not be empty")
+
+    latest = await _versions.get_latest(session, node.id)
+    if not latest:
+        raise ValueError(f"Page '{target}' has no content to patch")
+    content = latest.content
+
+    for i, op in enumerate(operations):
+        search = op["search"]
+        replace = op["replace"]
+        count = content.count(search)
+        if count == 0:
+            desc = op.get("description", f"operation {i + 1}")
+            raise ValueError(
+                f"Patch failed ({desc}): search text not found in document"
+            )
+        if count > 1:
+            desc = op.get("description", f"operation {i + 1}")
+            raise ValueError(
+                f"Patch failed ({desc}): search text found {count} times, "
+                f"expected exactly 1. Add surrounding context to disambiguate."
+            )
+        content = content.replace(search, replace, 1)
+
+    expected_version = payload.get("expected_version")
+    new_version, conflict = await _versions.save_version(
+        session,
+        entity_id=node.id,
+        content=content,
+        user_id=user_id,
+        expected_version=expected_version,
+    )
+
+    h1_title = extract_h1(content)
+    if h1_title and h1_title != node.title:
+        node.title = h1_title
+        node.slug = await tree_service.ensure_unique_slug(
+            session, tree_service.generate_slug(h1_title), exclude_id=node.id,
+        )
+        node.updated_by_id = user_id
+        await session.flush()
+
+    logger.info(
+        "mcp_iso_content_patched",
+        node_id=str(node.id),
+        version=new_version,
+        conflict=conflict,
+        operations=len(operations),
+    )
+    return {
+        "node_id": str(node.id),
+        "version": new_version,
+        "conflict": conflict,
+        "operations_applied": len(operations),
+    }
+
+
 async def _update_metadata(
     target: str | None,
     payload: dict,
@@ -417,6 +489,7 @@ async def _delete_registry_row(
 _ACTIONS: dict[str, object] = {
     "create_page": _create_page,
     "update_page_content": _update_page_content,
+    "patch_page_content": _patch_page_content,
     "update_metadata": _update_metadata,
     "update_node": _update_node,
     "delete_node": _delete_node,

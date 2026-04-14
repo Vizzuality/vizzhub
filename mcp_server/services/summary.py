@@ -88,6 +88,37 @@ async def _iso_update_page_content(
     return f"Update content of **{node_title}** (v{current_version} \u2192 v{next_version})"
 
 
+async def _iso_patch_page_content(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    node_title = target or "unknown"
+    current_version = 0
+    if target:
+        result = await session.execute(
+            select(IsoDocNodeDB).where(IsoDocNodeDB.slug == target)
+        )
+        node = result.scalar_one_or_none()
+        if node:
+            node_title = node.title
+            latest = await _iso_versions.get_latest(session, node.id)
+            if latest:
+                current_version = latest.version
+    next_version = current_version + 1
+    ops = payload.get("operations", [])
+    descriptions: list[str] = []
+    for op in ops:
+        desc = op.get("description")
+        if not desc:
+            search = op.get("search", "")
+            desc = f"replace '{search[:30]}...'" if len(search) > 30 else f"replace '{search}'"
+        descriptions.append(desc)
+    ops_summary = _field_list(descriptions)
+    return (
+        f"Patch **{node_title}** (v{current_version} → v{next_version}): "
+        f"{ops_summary}"
+    )
+
+
 async def _iso_update_metadata(
     session: AsyncSession, target: str | None, payload: dict,
 ) -> str:
@@ -238,6 +269,7 @@ async def _playbook_delete_node(
 _GENERATORS: dict[tuple[str, str], Generator] = {
     ("iso_docs", "create_page"): _iso_create_page,
     ("iso_docs", "update_page_content"): _iso_update_page_content,
+    ("iso_docs", "patch_page_content"): _iso_patch_page_content,
     ("iso_docs", "update_metadata"): _iso_update_metadata,
     ("iso_docs", "update_node"): _iso_update_node,
     ("iso_docs", "delete_node"): _iso_delete_node,
