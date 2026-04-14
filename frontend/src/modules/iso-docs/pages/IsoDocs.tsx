@@ -613,6 +613,8 @@ export default function IsoDocs(): JSX.Element {
     ? `This will also delete ${descendantCount} ${itemWord} inside this group. This action cannot be undone.`
     : 'This action cannot be undone.';
 
+  const contentOverflow = editing ? '' : isRegistry ? 'overflow-hidden' : 'overflow-auto';
+
   return (
     <div className="flex h-[calc(100vh-3rem)]" data-iso-root>
       <TreeSidebar
@@ -635,7 +637,7 @@ export default function IsoDocs(): JSX.Element {
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
-      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : isRegistry ? 'overflow-hidden' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
+      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${contentOverflow} ${selectedId ? '' : 'hidden md:block'}`}>
         {renderContent()}
       </div>
 
