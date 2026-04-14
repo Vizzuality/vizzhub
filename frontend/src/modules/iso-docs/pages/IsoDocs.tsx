@@ -635,7 +635,7 @@ export default function IsoDocs(): JSX.Element {
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
-      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
+      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${editing ? '' : isRegistry ? 'overflow-hidden' : 'overflow-auto'} ${selectedId ? '' : 'hidden md:block'}`}>
         {renderContent()}
       </div>
 
@@ -748,8 +748,8 @@ export default function IsoDocs(): JSX.Element {
     }
 
     return (
-      <div>
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -849,18 +849,18 @@ export default function IsoDocs(): JSX.Element {
           </div>
         )}
         {isRegistry && selectedNode?.registry_type_id && (
-          <div className="space-y-6">
-            {metadata && (
-              <MetadataPanel
-                metadata={metadata}
-                onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
-              />
-            )}
+          <div className="flex flex-col flex-1 min-h-0 gap-4">
             {showNotes && selectedNode && <NotesPanel nodeId={selectedNode.id} />}
             <RegistryView
               nodeId={selectedNode.id}
               registryTypeId={selectedNode.registry_type_id}
               isEditor={isEditor}
+              headerSlot={metadata ? (
+                <MetadataPanel
+                  metadata={metadata}
+                  onEdit={isEditor ? () => setMetadataEditOpen(true) : undefined}
+                />
+              ) : undefined}
             />
           </div>
         )}
