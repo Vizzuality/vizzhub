@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+_SLUG_RE = re.compile(r"page=([a-z0-9][\w-]*)")
 
 
 _TYPE_VALIDATORS: dict[str, type | tuple[type, ...]] = {
@@ -119,6 +122,44 @@ def compute_row_fields(schema: list[dict], data: dict) -> dict:
         values = _gather_numeric_values(data, formula["fields"])
         result[col["key"]] = _apply_formula(formula["operation"], values) if values else None
     return result
+
+
+def extract_drive_lookup_columns(schema: list[dict]) -> list[tuple[str, str]]:
+    """Return [(col_key, source_field_key)] for drive_lookup computed columns."""
+    result: list[tuple[str, str]] = []
+    for col in schema:
+        if col.get("type") != "computed":
+            continue
+        formula = col.get("formula")
+        if not formula or formula.get("operation") != "drive_lookup":
+            continue
+        fields = formula.get("fields", [])
+        if fields:
+            result.append((col["key"], fields[0]))
+    return result
+
+
+def extract_slug_from_link(link_value: str | None) -> str | None:
+    """Extract the page slug from an ISO docs URL like '/iso/docs?page=my-slug'."""
+    if not link_value:
+        return None
+    m = _SLUG_RE.search(str(link_value))
+    return m.group(1) if m else None
+
+
+_DRIVE_URL_TEMPLATES: dict[str, str] = {
+    "document": "https://docs.google.com/document/d/{}/edit",
+    "spreadsheet": "https://docs.google.com/spreadsheets/d/{}/edit",
+    "folder": "https://drive.google.com/drive/folders/{}",
+}
+
+
+def build_drive_url(drive_file_id: str, drive_file_type: str) -> str:
+    """Construct the Google Drive URL for a file/folder."""
+    template = _DRIVE_URL_TEMPLATES.get(
+        drive_file_type, "https://drive.google.com/file/d/{}/view"
+    )
+    return template.format(drive_file_id)
 
 
 async def get_next_row_index(

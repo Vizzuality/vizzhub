@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class FormulaSpec(BaseModel):
-    operation: Literal["multiply", "sum"]
+    operation: Literal["multiply", "sum", "drive_lookup"]
     fields: list[str]
 
 
