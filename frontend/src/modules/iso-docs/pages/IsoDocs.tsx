@@ -320,6 +320,12 @@ function TreeSidebar({
   );
 }
 
+function getContentOverflow(editing: boolean, isRegistry: boolean): string {
+  if (editing) return '';
+  if (isRegistry) return 'overflow-hidden';
+  return 'overflow-auto';
+}
+
 export default function IsoDocs(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
@@ -613,7 +619,7 @@ export default function IsoDocs(): JSX.Element {
     ? `This will also delete ${descendantCount} ${itemWord} inside this group. This action cannot be undone.`
     : 'This action cannot be undone.';
 
-  const contentOverflow = editing ? '' : isRegistry ? 'overflow-hidden' : 'overflow-auto';
+  const contentOverflow = getContentOverflow(editing, isRegistry);
 
   return (
     <div className="flex h-[calc(100vh-3rem)]" data-iso-root>
