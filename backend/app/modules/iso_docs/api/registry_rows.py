@@ -41,7 +41,10 @@ from app.modules.iso_docs.services.registry_attachment_service import (
     get_attachment_url,
 )
 from app.modules.iso_docs.services.registry_service import (
+    build_drive_url,
     compute_row_fields,
+    extract_drive_lookup_columns,
+    extract_slug_from_link,
     get_next_row_index,
     strip_computed_keys,
     validate_row_data,
@@ -147,6 +150,46 @@ def _enrich_rows(
     return [_enrich_row(r, schema) for r in rows]
 
 
+async def _enrich_drive_lookups(
+    db, rows: list[RegistryRowResponse], schema: list[dict]
+) -> None:
+    """Resolve drive_lookup computed columns via a single batch query."""
+    from app.modules.iso_docs.models.drive_mapping import IsoDocDriveMappingDB
+
+    lookups = extract_drive_lookup_columns(schema)
+    if not lookups:
+        return
+
+    all_slugs: set[str] = set()
+    for row in rows:
+        for _, source_key in lookups:
+            slug = extract_slug_from_link(row.data.get(source_key))
+            if slug:
+                all_slugs.add(slug)
+
+    if not all_slugs:
+        return
+
+    result = await db.execute(
+        select(
+            IsoDocNodeDB.slug,
+            IsoDocDriveMappingDB.drive_file_id,
+            IsoDocDriveMappingDB.drive_file_type,
+        )
+        .join(IsoDocDriveMappingDB, IsoDocNodeDB.id == IsoDocDriveMappingDB.node_id)
+        .where(IsoDocNodeDB.slug.in_(all_slugs))
+    )
+    slug_to_url = {
+        slug: build_drive_url(file_id, file_type)
+        for slug, file_id, file_type in result
+    }
+
+    for row in rows:
+        for col_key, source_key in lookups:
+            slug = extract_slug_from_link(row.data.get(source_key))
+            row.data[col_key] = slug_to_url.get(slug) if slug else None
+
+
 @router.get(
     "/registries/{node_id}/rows",
     responses={404: {"description": "Registry node not found"}},
@@ -162,7 +205,10 @@ async def list_rows(
     rt = await _get_registry_type(db, node.registry_type_id)
     sort_key = rt.default_sort_key if rt else None
     rows = await _fetch_rows(db, node.id, year, sort_key)
-    return _enrich_rows(rows, rt.schema if rt else [])
+    schema = rt.schema if rt else []
+    enriched = _enrich_rows(rows, schema)
+    await _enrich_drive_lookups(db, enriched, schema)
+    return enriched
 
 
 @router.post(
@@ -206,7 +252,9 @@ async def create_row(
     await db.flush()
     await db.refresh(row)
     logger.info("registry_row_created", node_id=str(node_id), row_id=str(row.id))
-    return _enrich_row(row, schema)
+    enriched = _enrich_row(row, schema)
+    await _enrich_drive_lookups(db, [enriched], schema)
+    return enriched
 
 
 @router.patch(
@@ -248,7 +296,9 @@ async def update_row(
     await db.flush()
     await db.refresh(row)
     logger.info("registry_row_updated", node_id=str(node_id), row_id=str(row_id))
-    return _enrich_row(row, schema)
+    enriched = _enrich_row(row, schema)
+    await _enrich_drive_lookups(db, [enriched], schema)
+    return enriched
 
 
 @router.delete(
