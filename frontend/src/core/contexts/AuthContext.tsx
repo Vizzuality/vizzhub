@@ -2,13 +2,14 @@
  * Authentication Context for Google OAuth
  *
  * JWT is stored in an httpOnly cookie (set by the backend).
- * Only user info is cached in localStorage to avoid UI flicker on reload.
+ * A session hint flag in localStorage avoids unnecessary /auth/me calls
+ * on mount when no session exists. Actual user data comes from the API.
  */
 
 import { createContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { UserPublic, AuthState, AuthContextType, AuthLoginResponse } from '../types/auth';
 
-const USER_STORAGE_KEY = 'auth_user';
+const SESSION_HINT_KEY = 'auth_session';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const DEFAULT_AUTH_STATE: AuthState = {
@@ -17,19 +18,6 @@ const DEFAULT_AUTH_STATE: AuthState = {
   isLoading: true,
   permissions: [],
 };
-
-function sanitizeUser(data: UserPublic): UserPublic {
-  return {
-    id: String(data.id ?? ''),
-    email: String(data.email ?? ''),
-    first_name: data.first_name != null ? String(data.first_name) : null,
-    last_name: data.last_name != null ? String(data.last_name) : null,
-    picture: data.picture != null ? String(data.picture) : null,
-    roles: Array.isArray(data.roles) ? data.roles.map(String) : [],
-    permissions: Array.isArray(data.permissions) ? data.permissions.map(String) : [],
-    active: Boolean(data.active),
-  };
-}
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -43,7 +31,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   /**
    * Login with Google credential.
-   * Backend sets the httpOnly cookie; we only store user info locally.
+   * Backend sets the httpOnly cookie; we store a session hint locally.
    */
   const login = useCallback(async (credential: string): Promise<void> => {
     const response = await fetch(`${API_URL}/api/auth/google`, {
@@ -59,20 +47,19 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
 
     const data: AuthLoginResponse = await response.json();
-    const user = sanitizeUser(data.user);
 
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    localStorage.setItem(SESSION_HINT_KEY, '1');
 
     setAuthState({
-      user,
+      user: data.user,
       isAuthenticated: true,
       isLoading: false,
-      permissions: user.permissions,
+      permissions: data.user.permissions ?? [],
     });
   }, []);
 
   /**
-   * Logout: ask backend to clear the cookie, then clear local user cache.
+   * Logout: ask backend to clear the cookie, then clear local session hint.
    */
   const logout = useCallback(async (): Promise<void> => {
     try {
@@ -84,7 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       // Best-effort; clear local state regardless
     }
 
-    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(SESSION_HINT_KEY);
     setIsImpersonating(false);
     setAuthState({
       user: null,
@@ -108,14 +95,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         const { is_impersonating, ...userData } = data as UserPublic & {
           is_impersonating?: boolean;
         };
-        const user = sanitizeUser(userData);
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        const user: UserPublic = userData;
+        localStorage.setItem(SESSION_HINT_KEY, '1');
         setIsImpersonating(is_impersonating ?? false);
         setAuthState({
           user,
           isAuthenticated: true,
           isLoading: false,
-          permissions: user.permissions,
+          permissions: user.permissions ?? [],
         });
         return true;
       }
@@ -125,15 +112,15 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
   }, []);
 
-  // On mount: if we have cached user info, try to validate the session cookie
+  // On mount: if session hint exists, validate the cookie; otherwise skip
   useEffect(() => {
     const initAuth = async (): Promise<void> => {
-      const cachedUser = localStorage.getItem(USER_STORAGE_KEY);
+      const hasSession = localStorage.getItem(SESSION_HINT_KEY);
 
-      if (cachedUser) {
+      if (hasSession) {
         const isValid = await validateSession();
         if (!isValid) {
-          localStorage.removeItem(USER_STORAGE_KEY);
+          localStorage.removeItem(SESSION_HINT_KEY);
           setAuthState({
             user: null,
             isAuthenticated: false,
@@ -160,14 +147,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       throw new Error(error.detail || 'Impersonation failed');
     }
 
-    const user = sanitizeUser(await response.json());
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    const user: UserPublic = await response.json();
+    localStorage.setItem(SESSION_HINT_KEY, '1');
     setIsImpersonating(true);
     setAuthState({
       user,
       isAuthenticated: true,
       isLoading: false,
-      permissions: user.permissions,
+      permissions: user.permissions ?? [],
     });
   }, []);
 
@@ -182,14 +169,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       throw new Error(error.detail || 'Failed to stop impersonation');
     }
 
-    const user = sanitizeUser(await response.json());
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    const user: UserPublic = await response.json();
+    localStorage.setItem(SESSION_HINT_KEY, '1');
     setIsImpersonating(false);
     setAuthState({
       user,
       isAuthenticated: true,
       isLoading: false,
-      permissions: user.permissions,
+      permissions: user.permissions ?? [],
     });
   }, []);
 
