@@ -361,11 +361,11 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   }, [exportRegistry, year]);
 
   const handleExportToDrive = useCallback(() => {
-    exportToDrive.mutate(year, {
+    exportToDrive.mutate(undefined, {
       onSuccess: () => showFeedback('Exported to Google Drive'),
       onError: (err) => showFeedback(extractErrorMessage(err, 'Export to Drive failed'), true),
     });
-  }, [exportToDrive, year]);
+  }, [exportToDrive]);
 
   const handleImportCsv = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
