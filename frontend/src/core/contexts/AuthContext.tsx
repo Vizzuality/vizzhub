@@ -18,6 +18,19 @@ const DEFAULT_AUTH_STATE: AuthState = {
   permissions: [],
 };
 
+function sanitizeUser(data: UserPublic): UserPublic {
+  return {
+    id: String(data.id ?? ''),
+    email: String(data.email ?? ''),
+    first_name: data.first_name != null ? String(data.first_name) : null,
+    last_name: data.last_name != null ? String(data.last_name) : null,
+    picture: data.picture != null ? String(data.picture) : null,
+    roles: Array.isArray(data.roles) ? data.roles.map(String) : [],
+    permissions: Array.isArray(data.permissions) ? data.permissions.map(String) : [],
+    active: Boolean(data.active),
+  };
+}
+
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
@@ -46,14 +59,15 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
 
     const data: AuthLoginResponse = await response.json();
+    const user = sanitizeUser(data.user);
 
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
 
     setAuthState({
-      user: data.user,
+      user,
       isAuthenticated: true,
       isLoading: false,
-      permissions: data.user.permissions ?? [],
+      permissions: user.permissions,
     });
   }, []);
 
@@ -94,14 +108,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         const { is_impersonating, ...userData } = data as UserPublic & {
           is_impersonating?: boolean;
         };
-        const user: UserPublic = userData;
+        const user = sanitizeUser(userData);
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
         setIsImpersonating(is_impersonating ?? false);
         setAuthState({
           user,
           isAuthenticated: true,
           isLoading: false,
-          permissions: user.permissions ?? [],
+          permissions: user.permissions,
         });
         return true;
       }
@@ -146,14 +160,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       throw new Error(error.detail || 'Impersonation failed');
     }
 
-    const user: UserPublic = await response.json();
+    const user = sanitizeUser(await response.json());
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     setIsImpersonating(true);
     setAuthState({
       user,
       isAuthenticated: true,
       isLoading: false,
-      permissions: user.permissions ?? [],
+      permissions: user.permissions,
     });
   }, []);
 
@@ -168,14 +182,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       throw new Error(error.detail || 'Failed to stop impersonation');
     }
 
-    const user: UserPublic = await response.json();
+    const user = sanitizeUser(await response.json());
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     setIsImpersonating(false);
     setAuthState({
       user,
       isAuthenticated: true,
       isLoading: false,
-      permissions: user.permissions ?? [],
+      permissions: user.permissions,
     });
   }, []);
 
