@@ -37,7 +37,7 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
   }, [metadata.document_date, metadata.changelog, metadata.created_at]);
 
   return (
-    <div className="border rounded px-3 py-2.5 text-xs space-y-1.5 bg-muted/30">
+    <div className="px-3 py-2.5 text-xs space-y-1.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {metadata.code && (
           <span className="font-mono font-semibold text-foreground">{metadata.code}</span>
