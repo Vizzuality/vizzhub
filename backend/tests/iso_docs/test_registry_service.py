@@ -139,6 +139,31 @@ def test_compute_row_fields_sum():
     assert result["total"] == 30
 
 
+def test_compute_row_fields_chained():
+    """Computed field can reference another computed field (e.g., impact→risk_value)."""
+    schema = [
+        {"key": "c", "label": "C", "type": "number", "required": True},
+        {"key": "a", "label": "A", "type": "number", "required": True},
+        {"key": "i", "label": "I", "type": "number", "required": True},
+        {
+            "key": "impact",
+            "label": "Impact",
+            "type": "computed",
+            "formula": {"operation": "sum", "fields": ["c", "a", "i"]},
+        },
+        {"key": "likelihood", "label": "Likelihood", "type": "number", "required": True},
+        {
+            "key": "risk_value",
+            "label": "Risk Value",
+            "type": "computed",
+            "formula": {"operation": "multiply", "fields": ["impact", "likelihood"]},
+        },
+    ]
+    result = compute_row_fields(schema, {"c": 3, "a": 2, "i": 4, "likelihood": 2})
+    assert result["impact"] == 9
+    assert result["risk_value"] == 18
+
+
 def test_strip_computed_keys():
     data = {"probability": 2, "impact": 3, "evaluation": 6, "notes": "x"}
     result = strip_computed_keys(SCHEMA_WITH_COMPUTED, data)

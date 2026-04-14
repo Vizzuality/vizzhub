@@ -119,7 +119,7 @@ def compute_row_fields(schema: list[dict], data: dict) -> dict:
         formula = col.get("formula")
         if not formula:
             continue
-        values = _gather_numeric_values(data, formula["fields"])
+        values = _gather_numeric_values(result, formula["fields"])
         result[col["key"]] = _apply_formula(formula["operation"], values) if values else None
     return result
 
