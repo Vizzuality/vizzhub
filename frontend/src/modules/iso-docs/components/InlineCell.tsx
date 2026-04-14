@@ -132,7 +132,7 @@ function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wr
   if (col.type === 'computed') {
     const match = getConditionalColor(value, col.conditional_format);
     if (match) return <ColorBadge text={String(value)} color={match.color} label={match.label} />;
-    return <span className="font-medium">{String(value)}</span>;
+    return <TextOrLink value={String(value)} col={col} wrap={wrap} />;
   }
   if (col.type === 'select' && col.option_colors) {
     const str = String(value);
