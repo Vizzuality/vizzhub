@@ -51,6 +51,7 @@ interface RegistryViewProps {
   readonly nodeId: string;
   readonly registryTypeId: string;
   readonly isEditor: boolean;
+  readonly headerSlot?: React.ReactNode;
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -197,7 +198,7 @@ function GuidanceLightbox({ content, onClose }: { readonly content: string; read
   );
 }
 
-export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewProps): JSX.Element {
+export function RegistryView({ nodeId, registryTypeId, isEditor, headerSlot }: RegistryViewProps): JSX.Element {
   const { data: registryType } = useRegistryType(registryTypeId);
   const { data: metadata } = useIsoDocMetadata(nodeId);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -397,8 +398,10 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
   }
 
   return (
-    <div className="space-y-4" data-registry-view>
-      <div className="flex items-center justify-between gap-2 flex-wrap" data-registry-toolbar>
+    <div className="flex flex-col flex-1 min-h-0 gap-4" data-registry-view>
+      <div className="space-y-4 shrink-0">
+        {headerSlot}
+        <div className="flex items-center justify-between gap-2 flex-wrap" data-registry-toolbar>
         <div className="flex items-center gap-3">
           {isYearly && (
             <div className="flex items-center gap-1">
@@ -527,6 +530,7 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
           )}
         </div>
       </div>
+      </div>
 
       {isLoading && (
         <p className="text-sm text-muted-foreground">Loading...</p>
@@ -571,10 +575,10 @@ export function RegistryView({ nodeId, registryTypeId, isEditor }: RegistryViewP
         </div>
       )}
       {!isLoading && rows.length > 0 && (
-        <div className="border rounded-lg overflow-x-auto overscroll-x-contain">
+        <div className="flex-1 min-h-0 border rounded-lg overflow-auto overscroll-contain">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
+            <thead className="sticky top-0 z-[5]">
+              <tr className="border-b bg-muted">
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground w-10">#</th>
                 {visibleColumns.map((col) => (
                   <th
