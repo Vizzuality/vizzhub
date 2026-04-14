@@ -198,6 +198,182 @@ async def test_iso_update_page_metadata_changelog_valid(
 
 
 @pytest.mark.asyncio
+async def test_iso_patch_page_content_enqueue_and_approve(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Patch applies search-replace operations and creates a new version."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "iso_patch_page_content",
+                {
+                    "slug": "security-policy",
+                    "operations": [
+                        {
+                            "search": "Initial content.",
+                            "replace": "Updated content with patches.",
+                            "description": "update intro paragraph",
+                        },
+                    ],
+                },
+            )
+            data = json.loads(result[0][0].text)
+            assert data["status"] == "queued"
+            assert "command_id" in data
+            assert "Patch" in data["summary"]
+            assert "Security Policy" in data["summary"]
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": data["command_id"]},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "executed"
+            assert approve_data["result"]["version"] == 2
+            assert approve_data["result"]["operations_applied"] == 1
+
+
+@pytest.mark.asyncio
+async def test_iso_patch_page_content_search_not_found(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Patch fails at execution if search text is not found."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "iso_patch_page_content",
+                {
+                    "slug": "security-policy",
+                    "operations": [
+                        {
+                            "search": "text that does not exist",
+                            "replace": "replacement",
+                        },
+                    ],
+                },
+            )
+            data = json.loads(result[0][0].text)
+            command_id = data["command_id"]
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": command_id},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "failed"
+            assert "not found" in approve_data["error"]
+
+
+@pytest_asyncio.fixture
+async def page_with_duplicate_text(
+    db_session: AsyncSession, seeded_iso: dict, editor_user: UserDB,
+) -> dict:
+    """Add a version with duplicate text for ambiguous match testing."""
+    page = seeded_iso["page"]
+    version = IsoDocVersionDB(
+        node_id=page.id,
+        content="# Security Policy\n\nRule one.\n\nRule one.",
+        version=2,
+        created_by_id=editor_user.id,
+    )
+    db_session.add(version)
+    await db_session.flush()
+    return seeded_iso
+
+
+@pytest.mark.asyncio
+async def test_iso_patch_page_content_ambiguous_match(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    page_with_duplicate_text: dict,
+) -> None:
+    """Patch fails at execution if search text matches more than once."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "iso_patch_page_content",
+                {
+                    "slug": "security-policy",
+                    "operations": [
+                        {"search": "Rule one.", "replace": "Rule two."},
+                    ],
+                },
+            )
+            data = json.loads(result[0][0].text)
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": data["command_id"]},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "failed"
+            assert "found 2 times" in approve_data["error"]
+
+
+@pytest.mark.asyncio
+async def test_iso_patch_page_content_multiple_operations(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Multiple patch operations are applied sequentially."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "iso_patch_page_content",
+                {
+                    "slug": "security-policy",
+                    "operations": [
+                        {
+                            "search": "# Security Policy",
+                            "replace": "# Security Policy v2",
+                        },
+                        {
+                            "search": "Initial content.",
+                            "replace": "Revised content.",
+                        },
+                    ],
+                },
+            )
+            data = json.loads(result[0][0].text)
+            assert data["status"] == "queued"
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": data["command_id"]},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "executed"
+            assert approve_data["result"]["version"] == 2
+            assert approve_data["result"]["operations_applied"] == 2
+
+
+@pytest.mark.asyncio
+async def test_iso_patch_page_content_empty_search_rejected(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Empty search string is rejected by Pydantic validation."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            with pytest.raises(ToolError, match="search"):
+                await mcp.call_tool(
+                    "iso_patch_page_content",
+                    {
+                        "slug": "security-policy",
+                        "operations": [
+                            {"search": "", "replace": "something"},
+                        ],
+                    },
+                )
+
+
+@pytest.mark.asyncio
 async def test_iso_create_registry_row_enqueue_and_approve(
     db_session: AsyncSession,
     editor_ctx: McpUserContext,
