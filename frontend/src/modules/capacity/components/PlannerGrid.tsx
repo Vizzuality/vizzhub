@@ -6,7 +6,7 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { AlertTriangle, MessageSquare, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
@@ -452,24 +452,38 @@ export function PlannerGrid({
       const weekLabel = `W${getISOWeekNumber(week)}`;
       return {
         id: `week_${week}`,
-        header: () => (
-          <div className="flex items-center gap-1">
-            <span>{weekLabel}</span>
-            {weeksWithComments.has(week) && (
+        header: () => {
+          const hasComment = weeksWithComments.has(week);
+          const isExpanded = expandedWeek === week;
+          return (
+            <div className="flex flex-col items-start leading-none gap-0.5">
               <button
                 type="button"
                 aria-label={`Toggle comments for ${weekLabel}`}
+                tabIndex={hasComment ? 0 : -1}
                 onClick={(e) => {
+                  if (!hasComment) return;
                   e.stopPropagation();
                   setExpandedWeek((prev) => (prev === week ? null : week));
                 }}
-                className={`rounded p-0.5 ${expandedWeek === week ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                className={`h-3 flex items-center ${
+                  hasComment
+                    ? isExpanded
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-primary'
+                    : 'invisible'
+                }`}
               >
-                <MessageSquare className="h-3 w-3" />
+                {isExpanded ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
               </button>
-            )}
-          </div>
-        ),
+              <span>{weekLabel}</span>
+            </div>
+          );
+        },
         size: 42,
         cell: () => null,
       };
