@@ -6,7 +6,7 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { AlertTriangle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
@@ -469,15 +469,15 @@ export function PlannerGrid({
                 className={`h-3 flex items-center ${
                   hasComment
                     ? isExpanded
-                      ? 'text-primary'
-                      : 'text-muted-foreground hover:text-primary'
+                      ? 'text-red-500'
+                      : 'text-red-500/70 hover:text-red-500'
                     : 'invisible'
                 }`}
               >
                 {isExpanded ? (
-                  <ChevronUp className="h-3 w-3" />
+                  <ChevronLeft className="h-3 w-3" />
                 ) : (
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronRight className="h-3 w-3" />
                 )}
               </button>
               <span>{weekLabel}</span>
