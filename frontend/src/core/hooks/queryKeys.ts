@@ -79,6 +79,11 @@ export const queryKeys = {
   scheduledJobs: {
     all: ['scheduledJobs'] as const,
   },
+  commands: {
+    all: ['commands'] as const,
+    list: (params: { status?: string; module?: string }) =>
+      ['commands', 'list', params] as const,
+  },
   users: {
     all: ['users'] as const,
     summaries: ['users', 'summaries'] as const,
