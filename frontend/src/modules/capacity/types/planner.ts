@@ -7,6 +7,7 @@ export interface PlannerRow {
   is_absence?: boolean;
   is_other?: boolean;
   cells: Record<string, number>;
+  comments: Record<string, string>;
 }
 
 export interface PlannerGroup {
@@ -27,6 +28,7 @@ export interface CellUpdate {
   user_id: string;
   week_start: string;
   percentage: number | null;
+  comment?: string | null;
 }
 
 export interface UpdatedAtResponse {
