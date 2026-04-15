@@ -10,6 +10,7 @@ import {
   addMonths,
   defaultStart,
   endFromStart,
+  snapToMondayString,
 } from '@/modules/capacity/utils/plannerDates';
 import type { PlannerGroup, PlannerRow } from '@/modules/capacity/types/planner';
 
@@ -23,6 +24,17 @@ export default function Planner(): JSX.Element {
     end: { defaultValue: defaultEndDate },
     fa: { defaultValue: 'all' },
   });
+
+  // Migrate stale URLs that could carry non-Monday dates from pre-UTC-fix
+  // navigation. Keeps the wire date always Monday and never sends a Sunday
+  // that makes the backend pad an uncovered week into the response.
+  useEffect(() => {
+    const snappedStart = snapToMondayString(state.start);
+    const snappedEnd = snapToMondayString(state.end);
+    if (snappedStart !== state.start || snappedEnd !== state.end) {
+      setState({ start: snappedStart, end: snappedEnd });
+    }
+  }, [state.start, state.end, setState]);
 
   const { queueCellUpdate, flushUpdates, deleteRow, isSaving, pendingCount } =
     usePlannerMutations(state.start, state.end, state.group);
