@@ -726,15 +726,14 @@ export function PlannerGrid({
                 {commentForExpanded && (
                   <td
                     aria-hidden
-                    className="pointer-events-none absolute top-0 flex h-full items-center rounded-sm border px-2 text-xs"
+                    className="pointer-events-none absolute top-0 flex h-full items-center rounded-sm border px-2 text-xs shadow-sm"
                     style={{
                       left: commentLeft,
                       width: 4 * 42,
-                      backgroundColor: isDark
-                        ? 'rgba(251,191,36,0.22)'
-                        : 'rgba(251,191,36,0.18)',
+                      backgroundColor: isDark ? '#451a03' : '#fffbeb',
+                      color: isDark ? '#fef3c7' : '#78350f',
                       borderColor: '#d97706',
-                      zIndex: 15,
+                      zIndex: 25,
                     }}
                     title={commentForExpanded}
                   >
