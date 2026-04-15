@@ -466,18 +466,18 @@ export function PlannerGrid({
                   e.stopPropagation();
                   setExpandedWeek((prev) => (prev === week ? null : week));
                 }}
-                className={`h-3 flex items-center ${
+                className={`h-3.5 flex items-center ${
                   hasComment
                     ? isExpanded
-                      ? 'text-red-500'
-                      : 'text-red-500/70 hover:text-red-500'
+                      ? 'text-red-500 dark:text-white'
+                      : 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white'
                     : 'invisible'
                 }`}
               >
                 {isExpanded ? (
-                  <ChevronLeft className="h-3 w-3" />
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={3} />
                 ) : (
-                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
                 )}
               </button>
               <span>{weekLabel}</span>
