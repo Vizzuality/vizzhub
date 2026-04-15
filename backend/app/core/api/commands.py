@@ -9,7 +9,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
-from app.core.api.deps import CurrentUser, DBSession
+from app.core.api.deps import AdminUser, DBSession
 
 logger = structlog.get_logger()
 
@@ -28,12 +28,14 @@ def _serialize_command(cmd) -> dict:
         "module": cmd.module,
         "action": cmd.action,
         "target": cmd.target,
+        "payload": cmd.payload,
         "summary": cmd.summary,
         "status": cmd.status,
         "requested_by": str(cmd.requested_by),
         "requested_at": cmd.requested_at.isoformat() if cmd.requested_at else None,
         "reviewed_by": str(cmd.reviewed_by) if cmd.reviewed_by else None,
         "reviewed_at": cmd.reviewed_at.isoformat() if cmd.reviewed_at else None,
+        "executed_at": cmd.executed_at.isoformat() if cmd.executed_at else None,
         "result": cmd.result,
         "error": cmd.error,
     }
@@ -42,7 +44,7 @@ def _serialize_command(cmd) -> dict:
 @router.get("/commands")
 async def list_commands(
     db: DBSession,
-    user: CurrentUser,
+    _user: AdminUser,
     status: Annotated[str | None, Query()] = None,
     module: Annotated[str | None, Query()] = None,
 ) -> list[dict]:
@@ -67,7 +69,7 @@ async def list_commands(
 async def approve_command(
     command_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: AdminUser,
 ) -> dict:
     """Approve a pending command and execute its handler."""
     from mcp_server.handlers import iso_docs as iso_handler
@@ -126,7 +128,7 @@ async def approve_command(
 async def reject_command(
     command_id: UUID,
     db: DBSession,
-    user: CurrentUser,
+    user: AdminUser,
 ) -> dict:
     """Reject a pending command."""
     from mcp_server.services.command_service import CommandService

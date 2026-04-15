@@ -756,12 +756,13 @@ All write operations go through a human-in-the-loop command queue. Tools enqueue
 | `playbook_update_node` | `playbook:edit` | Rename or move a node |
 | `playbook_delete_node` | `playbook:edit` | Delete a leaf node (no children) |
 
-### Queue Management Tools (3)
+### Queue Management Tools (4)
 
 | Tool | Description |
 |---|---|
 | `get_pending_commands` | List your pending commands (optional module filter) |
 | `approve_command` | Approve and execute a command (requires module permission) |
+| `approve_all` | Approve and execute every pending command in one call (optional module filter) |
 | `reject_command` | Reject a command (requires module permission) |
 
 ### Command Flow

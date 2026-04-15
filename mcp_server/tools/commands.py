@@ -103,6 +103,88 @@ async def approve_command(command_id: str) -> str:
         })
 
 
+async def approve_all(module: str | None = None) -> str:
+    """Approve and execute ALL your pending commands in a single call.
+
+    Iterates your pending commands (optionally filtered by module), checks
+    module permission, and executes each one. Each command is approved in
+    its own transaction so a single failure does not block the rest.
+
+    Args:
+        module: Optional filter by module name ("iso_docs" or "playbook").
+                Omit to approve pending commands from all modules.
+
+    Returns JSON with total counts and a per-command result list
+    (command_id, action, summary, status, error).
+    """
+    user = get_mcp_user()
+    user_id = UUID(user.user_id)
+
+    async with get_write_session() as session:
+        svc = CommandService(session)
+        pending = await svc.list_pending(user_id=user_id, module=module)
+        command_ids = [cmd.id for cmd in pending]
+
+    results: list[dict] = []
+    counts = {"executed": 0, "failed": 0, "permission_denied": 0, "error": 0}
+
+    for cmd_id in command_ids:
+        try:
+            async with get_write_session() as session:
+                svc = CommandService(session)
+                cmd = await svc.get_command(cmd_id)
+
+                required_perm = _MODULE_PERMISSIONS.get(cmd.module)
+                if required_perm and not user.has_permission(required_perm):
+                    results.append({
+                        "command_id": str(cmd.id),
+                        "action": cmd.action,
+                        "summary": cmd.summary,
+                        "status": "permission_denied",
+                        "error": f"requires {required_perm}",
+                    })
+                    counts["permission_denied"] += 1
+                    continue
+
+                executor = _MODULE_EXECUTORS.get(cmd.module)
+                if executor is None:
+                    results.append({
+                        "command_id": str(cmd.id),
+                        "action": cmd.action,
+                        "summary": cmd.summary,
+                        "status": "error",
+                        "error": f"no executor for module '{cmd.module}'",
+                    })
+                    counts["error"] += 1
+                    continue
+
+                cmd = await svc.approve(cmd_id, user_id, executor=executor)
+                results.append({
+                    "command_id": str(cmd.id),
+                    "action": cmd.action,
+                    "summary": cmd.summary,
+                    "status": cmd.status,
+                    "error": cmd.error,
+                })
+                counts[cmd.status] = counts.get(cmd.status, 0) + 1
+        except Exception as exc:
+            results.append({
+                "command_id": str(cmd_id),
+                "status": "error",
+                "error": str(exc),
+            })
+            counts["error"] += 1
+
+    return to_json({
+        "total": len(command_ids),
+        "executed": counts["executed"],
+        "failed": counts["failed"],
+        "permission_denied": counts["permission_denied"],
+        "errors": counts["error"],
+        "results": results,
+    })
+
+
 async def reject_command(command_id: str) -> str:
     """Reject a pending command, discarding it without executing.
 
@@ -140,4 +222,5 @@ def register_command_tools(server: FastMCP) -> None:
     """Register all command management tools on the given MCP server instance."""
     server.tool()(get_pending_commands)
     server.tool()(approve_command)
+    server.tool()(approve_all)
     server.tool()(reject_command)

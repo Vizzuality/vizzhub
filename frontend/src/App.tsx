@@ -33,6 +33,7 @@ import AlertConfigTab from './core/components/NotificationsAdmin/AlertConfigTab'
 import StatisticsTab from './core/components/NotificationsAdmin/StatisticsTab';
 import CustomNotificationTab from './core/components/NotificationsAdmin/CustomNotificationTab';
 import { AssetsContent } from './core/components/Admin/AssetsContent';
+import CommandsContent from './core/components/Admin/CommandsContent';
 import JobsContent from './core/components/Admin/JobsContent';
 import { UsersContent } from './core/components/Admin/UsersContent';
 import { RatesContent } from './core/components/Admin/RatesContent';
@@ -74,6 +75,7 @@ function AdminRoutes(): JSX.Element {
       <Route path="iso/notes" element={<IsoNotesAdmin />} />
       <Route path="assets" element={<AssetsContent />} />
       <Route path="jobs" element={<JobsContent />} />
+      <Route path="commands" element={<CommandsContent />} />
       <Route path="users" element={<UsersContent />} />
       <Route path="users/:userId" element={<UserDetail />} />
     </>
