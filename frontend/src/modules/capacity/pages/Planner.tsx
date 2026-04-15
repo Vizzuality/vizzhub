@@ -6,30 +6,12 @@ import { usePlannerData } from '@/modules/capacity/hooks/usePlannerData';
 import { usePlannerMutations } from '@/modules/capacity/hooks/usePlannerMutations';
 import { PlannerToolbar } from '@/modules/capacity/components/PlannerToolbar';
 import { PlannerGrid } from '@/modules/capacity/components/PlannerGrid';
+import {
+  addMonths,
+  defaultStart,
+  endFromStart,
+} from '@/modules/capacity/utils/plannerDates';
 import type { PlannerGroup, PlannerRow } from '@/modules/capacity/types/planner';
-
-function defaultStart(): string {
-  const d = new Date();
-  // Snap to Monday of current week
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d.setDate(diff));
-  return monday.toISOString().slice(0, 10);
-}
-
-function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setMonth(d.getMonth() + months);
-  // Snap to Monday
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
-
-function endFromStart(start: string): string {
-  return addMonths(start, 6);
-}
 
 const defaultStartDate = defaultStart();
 const defaultEndDate = endFromStart(defaultStartDate);
