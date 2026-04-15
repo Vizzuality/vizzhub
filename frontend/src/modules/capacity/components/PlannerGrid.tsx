@@ -692,7 +692,11 @@ export function PlannerGrid({
                           : 'border-l'
                       }`}
                       style={{
-                        position: 'relative',
+                        // `position: relative` only on week cells — it gives the
+                        // comment overlay an anchor. Leaving the sticky FA/Name
+                        // cells alone preserves their `position: sticky` + left:50
+                        // behavior.
+                        position: isWeekCol ? 'relative' : undefined,
                         width: cell.column.getSize(),
                         height: 32,
                         left: stickyLeft(colIdx),
