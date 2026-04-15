@@ -218,6 +218,43 @@ export default function CommandsContent(): JSX.Element {
 
   const isMutating = approve.isPending || reject.isPending;
 
+  const renderBody = (): JSX.Element => {
+    if (isLoading) return <LoadingSpinner />;
+    if (!commands || commands.length === 0) {
+      return <p className="text-muted-foreground text-sm">No commands found.</p>;
+    }
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="text-left text-sm text-muted-foreground border-b">
+              <th className="pb-3 w-6" />
+              <th className="pb-3 pr-4 font-medium">Module</th>
+              <th className="pb-3 pr-4 font-medium">Action</th>
+              <th className="pb-3 pr-4 font-medium">Summary</th>
+              <th className="pb-3 pr-4 font-medium">Requested by</th>
+              <th className="pb-3 pr-4 font-medium">Requested</th>
+              <th className="pb-3 pr-4 font-medium">Status</th>
+              <th className="pb-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {commands.map((cmd) => (
+              <CommandRow
+                key={cmd.id}
+                command={cmd}
+                userName={userMap.get(cmd.requested_by) ?? cmd.requested_by.slice(0, 8)}
+                onApprove={(id) => approve.mutate(id)}
+                onReject={(id) => reject.mutate(id)}
+                isMutating={isMutating}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 mt-4">
       <Card>
@@ -239,42 +276,7 @@ export default function CommandsContent(): JSX.Element {
             </SelectContent>
           </Select>
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <LoadingSpinner />
-          ) : !commands || commands.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No commands found.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-sm text-muted-foreground border-b">
-                    <th className="pb-3 w-6" />
-                    <th className="pb-3 pr-4 font-medium">Module</th>
-                    <th className="pb-3 pr-4 font-medium">Action</th>
-                    <th className="pb-3 pr-4 font-medium">Summary</th>
-                    <th className="pb-3 pr-4 font-medium">Requested by</th>
-                    <th className="pb-3 pr-4 font-medium">Requested</th>
-                    <th className="pb-3 pr-4 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {commands.map((cmd) => (
-                    <CommandRow
-                      key={cmd.id}
-                      command={cmd}
-                      userName={userMap.get(cmd.requested_by) ?? cmd.requested_by.slice(0, 8)}
-                      onApprove={(id) => approve.mutate(id)}
-                      onReject={(id) => reject.mutate(id)}
-                      isMutating={isMutating}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
+        <CardContent>{renderBody()}</CardContent>
       </Card>
     </div>
   );
