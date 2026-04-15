@@ -10,6 +10,16 @@ _SKILL_PATH = Path(__file__).resolve().parent.parent / "docs" / "mcp" / "vizzhub
 _SKILL_CONTENT = _SKILL_PATH.read_text(encoding="utf-8") if _SKILL_PATH.exists() else ""
 
 _INSTRUCTIONS = """\
+**CRITICAL — HUMAN-IN-THE-LOOP FOR WRITES:** Write tools (iso_*, playbook_*)
+NEVER execute directly — they only queue a command and return a summary.
+`approve_command` and `approve_all` are NOT shortcuts for the assistant to
+complete its task. They MUST ONLY be called AFTER the human user has seen
+the summary in chat and explicitly confirmed (e.g. "ok", "approve", "sí",
+"yes"). Do NOT call approve_* in the same turn as the write tool. Do NOT
+auto-approve to "be helpful". Do NOT loop approve_all on your own. If the
+user has not clearly confirmed, stop and ask. Auto-approving defeats the
+whole purpose of the queue.
+
 VizzHub is Vizzuality's internal operations hub with 6 modules:
 
 | Module | Key ID | Tools prefix |
