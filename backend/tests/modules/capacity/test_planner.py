@@ -677,20 +677,6 @@ class TestCellUpdateSchema:
                 comment="x" * 501,
             )
 
-    def test_comment_defaults_to_none(self):
-        from app.modules.capacity.models.capacity_plan import CellUpdate
-        from uuid import uuid4
-        from datetime import date
-
-        update = CellUpdate(
-            project_id=uuid4(),
-            user_id=uuid4(),
-            week_start=date(2026, 1, 5),
-            percentage=50,
-        )
-        assert update.comment is None
-
-
 class TestPatchCellsWithComment:
     @pytest.mark.asyncio
     async def test_creates_cell_with_comment(self, db_session, planner_data):

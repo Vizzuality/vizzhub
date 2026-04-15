@@ -10,19 +10,6 @@ import { AlertTriangle, ArrowLeftFromLine, ArrowRightFromLine, Trash2 } from 'lu
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
-import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
-import { PlannerAddRow } from '@/modules/capacity/components/PlannerAddRow';
-import { currentMondayString } from '@/modules/capacity/utils/plannerDates';
-import type { PlannerGroup } from '@/modules/capacity/types/planner';
-
-const CURRENT_WEEK_BORDER_LIGHT = '1px solid #2d8a4e';
-const CURRENT_WEEK_BORDER_DARK = '1px solid #5AFF15';
-const CURRENT_WEEK_TINT_LIGHT = 'rgba(45, 138, 78, 0.10)';
-const CURRENT_WEEK_TINT_DARK = 'rgba(90, 255, 21, 0.08)';
-import {
-  useCellSelection,
-  type CellCoord,
-} from '@/modules/capacity/hooks/useCellSelection';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +21,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
+import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
+import { PlannerAddRow } from '@/modules/capacity/components/PlannerAddRow';
+import { currentMondayString } from '@/modules/capacity/utils/plannerDates';
+import {
+  useCellSelection,
+  type CellCoord,
+} from '@/modules/capacity/hooks/useCellSelection';
+import type { PlannerGroup } from '@/modules/capacity/types/planner';
+
+const CURRENT_WEEK_BORDER_LIGHT = '1px solid #2d8a4e';
+const CURRENT_WEEK_BORDER_DARK = '1px solid #5AFF15';
+const CURRENT_WEEK_TINT_LIGHT = 'rgba(45, 138, 78, 0.10)';
+const CURRENT_WEEK_TINT_DARK = 'rgba(90, 255, 21, 0.08)';
 
 interface FlatRow {
   _type: 'header' | 'data' | 'add';
@@ -85,6 +85,66 @@ function getISOWeekNumber(weekStr: string): number {
 const STICKY_LEFT: Record<number, number> = { 0: 0, 1: 50 };
 function stickyLeft(colIdx: number): number | undefined {
   return STICKY_LEFT[colIdx];
+}
+
+interface WeekStyleConfig {
+  currentWeekKey: string;
+  currentWeekTint: string;
+  currentWeekBorder: string;
+  oddMonthBg: string;
+  weekMonthInfo: Map<string, { isOddMonth: boolean }>;
+}
+
+function weekCellStyle(
+  weekKey: string,
+  config: WeekStyleConfig,
+): { backgroundColor?: string; borderLeft?: string } {
+  const isCurrentWeek = weekKey === config.currentWeekKey;
+  const info = config.weekMonthInfo.get(weekKey);
+  return {
+    backgroundColor: isCurrentWeek
+      ? config.currentWeekTint
+      : info?.isOddMonth ? config.oddMonthBg : undefined,
+    borderLeft: isCurrentWeek ? config.currentWeekBorder : undefined,
+  };
+}
+
+function CommentOverlay({
+  comment,
+  isDark,
+}: {
+  readonly comment: string;
+  readonly isDark: boolean;
+}): JSX.Element {
+  return (
+    <div
+      aria-hidden
+      className="absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
+      style={{
+        left: '100%',
+        width: 10 * 42,
+        backgroundColor: isDark ? '#451a03' : '#fffbeb',
+        color: isDark ? '#fef3c7' : '#78350f',
+        zIndex: 25,
+      }}
+      title={comment}
+    >
+      <span
+        className="absolute"
+        style={{
+          left: -6,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 0,
+          height: 0,
+          borderTop: '6px solid transparent',
+          borderBottom: '6px solid transparent',
+          borderRight: `6px solid ${isDark ? '#451a03' : '#fffbeb'}`,
+        }}
+      />
+      <span className="truncate">{comment}</span>
+    </div>
+  );
 }
 
 function FACellRenderer({ row }: { readonly row: FlatRow }): JSX.Element | null {
@@ -201,7 +261,6 @@ export function PlannerGrid({
   const batchInputRef = useRef<HTMLInputElement>(null);
   const copiedValueRef = useRef<number | null>(null);
 
-  // Filter by FA if set
   const filteredGroups = useMemo(() => {
     if (fa === 'all') return groups;
     if (groupBy === 'user') {
@@ -412,6 +471,13 @@ export function PlannerGrid({
     return { monthGroups: groups, weekMonthInfo: info };
   }, [weeks]);
 
+  const weekStyleConfig: WeekStyleConfig = {
+    currentWeekKey, currentWeekTint, currentWeekBorder, oddMonthBg, weekMonthInfo,
+  };
+  const weekStyleConfigMuted: WeekStyleConfig = {
+    ...weekStyleConfig, oddMonthBg: oddMonthBgMuted,
+  };
+
   // Existing IDs in each group (for add-row filtering)
   const existingIdsByGroup = useMemo(() => {
     const map = new Map<string, Set<string>>();
@@ -545,14 +611,8 @@ export function PlannerGrid({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className="bg-background">
               {headerGroup.headers.map((header) => {
-                const weekIdx = header.index - 2;
-                const isWeekHeader = header.index >= 2;
-                const weekKey = isWeekHeader ? weeks[weekIdx] : undefined;
-                const info = weekKey ? weekMonthInfo.get(weekKey) : undefined;
-                const isCurrentWeek = weekKey === currentWeekKey;
-                const headerBg = isCurrentWeek
-                  ? currentWeekTint
-                  : info?.isOddMonth ? oddMonthBg : undefined;
+                const weekKey = header.index >= 2 ? weeks[header.index - 2] : undefined;
+                const wStyle = weekKey ? weekCellStyle(weekKey, weekStyleConfig) : {};
                 return (
                   <th
                     key={header.id}
@@ -564,8 +624,7 @@ export function PlannerGrid({
                     style={{
                       width: header.getSize(),
                       left: stickyLeft(header.index),
-                      backgroundColor: headerBg,
-                      borderLeft: isCurrentWeek ? currentWeekBorder : undefined,
+                      ...wStyle,
                     }}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
@@ -608,19 +667,11 @@ export function PlannerGrid({
                   </td>
                   {weekCells.map((cell) => {
                     const weekKey = weeks[cell.column.getIndex() - 2];
-                    const info = weekMonthInfo.get(weekKey);
-                    const isCurrentWeek = weekKey === currentWeekKey;
                     return (
                       <td
                         key={cell.id}
                         className="border-l bg-muted"
-                        style={{
-                          height: 28,
-                          backgroundColor: isCurrentWeek
-                            ? currentWeekTint
-                            : info?.isOddMonth ? oddMonthBgMuted : undefined,
-                          borderLeft: isCurrentWeek ? currentWeekBorder : undefined,
-                        }}
+                        style={{ height: 28, ...weekCellStyle(weekKey, weekStyleConfigMuted) }}
                       />
                     );
                   })}
@@ -645,19 +696,11 @@ export function PlannerGrid({
                   </td>
                   {weekCells.map((cell) => {
                     const weekKey = weeks[cell.column.getIndex() - 2];
-                    const info = weekMonthInfo.get(weekKey);
-                    const isCurrentWeek = weekKey === currentWeekKey;
                     return (
                       <td
                         key={cell.id}
                         className="border-l"
-                        style={{
-                          height: 28,
-                          backgroundColor: isCurrentWeek
-                            ? currentWeekTint
-                            : info?.isOddMonth ? oddMonthBg : undefined,
-                          borderLeft: isCurrentWeek ? currentWeekBorder : undefined,
-                        }}
+                        style={{ height: 28, ...weekCellStyle(weekKey, weekStyleConfig) }}
                       />
                     );
                   })}
@@ -674,15 +717,15 @@ export function PlannerGrid({
                 {row.getVisibleCells().map((cell) => {
                   const colIdx = cell.column.getIndex();
                   const isWeekCol = colIdx >= 2;
-                  const weekIdx = colIdx - 2;
-                  const week = isWeekCol ? weeks[weekIdx] : undefined;
+                  const week = isWeekCol ? weeks[colIdx - 2] : undefined;
                   const coord: CellCoord | undefined =
                     isWeekCol && orig.project_id && orig.user_id && week
                       ? { projectId: orig.project_id, userId: orig.user_id, week }
                       : undefined;
                   const isSelected = coord ? selection.isSelected(coord) : false;
+                  const wStyle = isWeekCol && week
+                    ? weekCellStyle(week, weekStyleConfig) : {};
 
-                  const showOverlay = isWeekCol && week === expandedWeek && commentForExpanded;
                   return (
                     <td
                       key={cell.id}
@@ -692,20 +735,11 @@ export function PlannerGrid({
                           : 'border-l'
                       }`}
                       style={{
-                        // `position: relative` only on week cells — it gives the
-                        // comment overlay an anchor. Leaving the sticky FA/Name
-                        // cells alone preserves their `position: sticky` + left:50
-                        // behavior.
                         position: isWeekCol ? 'relative' : undefined,
                         width: cell.column.getSize(),
                         height: 32,
                         left: stickyLeft(colIdx),
-                        backgroundColor: isWeekCol && week === currentWeekKey
-                          ? currentWeekTint
-                          : isWeekCol && week && weekMonthInfo.get(week)?.isOddMonth
-                            ? oddMonthBg : undefined,
-                        borderLeft: isWeekCol && week === currentWeekKey
-                          ? currentWeekBorder : undefined,
+                        ...wStyle,
                       }}
                     >
                       {isWeekCol && orig._type === 'data' && coord ? (
@@ -737,34 +771,8 @@ export function PlannerGrid({
                       ) : (
                         flexRender(cell.column.columnDef.cell, cell.getContext())
                       )}
-                      {showOverlay && (
-                        <div
-                          aria-hidden
-                          className="absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
-                          style={{
-                            left: '100%',
-                            width: 10 * 42,
-                            backgroundColor: isDark ? '#451a03' : '#fffbeb',
-                            color: isDark ? '#fef3c7' : '#78350f',
-                            zIndex: 25,
-                          }}
-                          title={commentForExpanded}
-                        >
-                          <span
-                            className="absolute"
-                            style={{
-                              left: -6,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              width: 0,
-                              height: 0,
-                              borderTop: '6px solid transparent',
-                              borderBottom: '6px solid transparent',
-                              borderRight: `6px solid ${isDark ? '#451a03' : '#fffbeb'}`,
-                            }}
-                          />
-                          <span className="truncate">{commentForExpanded}</span>
-                        </div>
+                      {isWeekCol && week === expandedWeek && commentForExpanded && (
+                        <CommentOverlay comment={commentForExpanded} isDark={isDark} />
                       )}
                     </td>
                   );
