@@ -722,17 +722,29 @@ export function PlannerGrid({
                       {showOverlay && (
                         <div
                           aria-hidden
-                          className="pointer-events-none absolute top-0 flex h-full items-center rounded-sm border px-2 text-xs shadow-sm"
+                          className="pointer-events-none absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
                           style={{
                             left: '100%',
                             width: 4 * 42,
                             backgroundColor: isDark ? '#451a03' : '#fffbeb',
                             color: isDark ? '#fef3c7' : '#78350f',
-                            borderColor: '#d97706',
                             zIndex: 25,
                           }}
                           title={commentForExpanded}
                         >
+                          <span
+                            className="absolute"
+                            style={{
+                              left: -6,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderTop: '6px solid transparent',
+                              borderBottom: '6px solid transparent',
+                              borderRight: `6px solid ${isDark ? '#451a03' : '#fffbeb'}`,
+                            }}
+                          />
                           <span className="truncate">{commentForExpanded}</span>
                         </div>
                       )}
