@@ -4,7 +4,7 @@ from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, field_validator
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, SmallInteger, UniqueConstraint
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, SmallInteger, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -34,6 +34,7 @@ class CapacityPlanDB(Base):
     )
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     percentage: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey(_USERS_ID_FK, ondelete="RESTRICT"), nullable=False
     )
@@ -53,6 +54,7 @@ class CellUpdate(BaseModel):
     user_id: UUID
     week_start: date
     percentage: int | None
+    comment: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,6 +70,13 @@ class CellUpdate(BaseModel):
     def valid_range(cls, v: int | None) -> int | None:
         if v is not None and (v < 0 or v > 200):
             raise ValueError("percentage must be 0-200 or null")
+        return v
+
+    @field_validator("comment")
+    @classmethod
+    def comment_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("comment must be 500 chars or fewer")
         return v
 
 
