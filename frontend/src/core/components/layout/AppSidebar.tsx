@@ -6,6 +6,7 @@ import {
   BookOpen,
   ClipboardList,
   FolderKanban,
+  ListTodo,
   Shield,
   Globe,
   SlidersHorizontal,
@@ -60,6 +61,7 @@ const ADMIN_ITEMS = [
   { to: '/admin/integrations', label: 'Integrations', icon: Plug },
   { to: '/admin/assets', label: 'Assets', icon: HardDrive },
   { to: '/admin/jobs', label: 'Jobs', icon: Cog },
+  { to: '/admin/commands', label: 'Command Queue', icon: ListTodo },
   { to: '/admin/users', label: 'Users', icon: Users },
 ] as const;
 

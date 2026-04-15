@@ -452,6 +452,121 @@ async def test_get_pending_commands(
             assert "delete_node" in actions
 
 
+@pytest.mark.asyncio
+async def test_approve_all_executes_every_pending_command(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """approve_all iterates pending commands and executes each."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            await mcp.call_tool(
+                "iso_create_page",
+                {"parent_slug": "policies", "title": "Page A"},
+            )
+            await mcp.call_tool(
+                "iso_create_page",
+                {"parent_slug": "policies", "title": "Page B"},
+            )
+            await mcp.call_tool(
+                "iso_create_registry_row",
+                {
+                    "slug": "incident-register",
+                    "data": {"number": 1, "severity": "low"},
+                },
+            )
+
+            result = await mcp.call_tool("approve_all", {})
+            data = json.loads(result[0][0].text)
+            assert data["total"] == 3
+            assert data["executed"] == 3
+            assert data["failed"] == 0
+            assert data["permission_denied"] == 0
+            assert len(data["results"]) == 3
+            assert {r["status"] for r in data["results"]} == {"executed"}
+
+            pending = await mcp.call_tool("get_pending_commands", {})
+            assert json.loads(pending[0][0].text) == []
+
+
+@pytest.mark.asyncio
+async def test_approve_all_reports_failures_and_continues(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """A failing executor marks one command failed but others still run."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            await mcp.call_tool(
+                "iso_patch_page_content",
+                {
+                    "slug": "security-policy",
+                    "operations": [
+                        {"search": "does not exist", "replace": "x"},
+                    ],
+                },
+            )
+            await mcp.call_tool(
+                "iso_create_page",
+                {"parent_slug": "policies", "title": "Valid Page"},
+            )
+
+            result = await mcp.call_tool("approve_all", {})
+            data = json.loads(result[0][0].text)
+            assert data["total"] == 2
+            assert data["executed"] == 1
+            assert data["failed"] == 1
+            statuses = {r["status"] for r in data["results"]}
+            assert statuses == {"executed", "failed"}
+
+
+@pytest.mark.asyncio
+async def test_approve_all_with_module_filter(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+    seeded_playbook: dict,
+) -> None:
+    """module filter approves only matching commands, leaves others pending."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            await mcp.call_tool(
+                "iso_create_page",
+                {"parent_slug": "policies", "title": "ISO Page"},
+            )
+            await mcp.call_tool(
+                "playbook_create_article",
+                {"parent_slug": "guides", "title": "Playbook Article"},
+            )
+
+            result = await mcp.call_tool("approve_all", {"module": "iso_docs"})
+            data = json.loads(result[0][0].text)
+            assert data["total"] == 1
+            assert data["executed"] == 1
+
+            pending = await mcp.call_tool("get_pending_commands", {})
+            pending_data = json.loads(pending[0][0].text)
+            assert len(pending_data) == 1
+            assert pending_data[0]["module"] == "playbook"
+
+
+@pytest.mark.asyncio
+async def test_approve_all_empty_queue(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool("approve_all", {})
+            data = json.loads(result[0][0].text)
+            assert data["total"] == 0
+            assert data["executed"] == 0
+            assert data["results"] == []
+
+
 @pytest_asyncio.fixture
 async def seeded_playbook(db_session: AsyncSession, editor_user: UserDB) -> dict:
     """Create group + article + page version for playbook tests."""
