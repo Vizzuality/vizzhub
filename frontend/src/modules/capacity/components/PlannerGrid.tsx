@@ -6,7 +6,7 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
@@ -48,6 +48,7 @@ interface FlatRow {
   is_absence?: boolean;
   is_other?: boolean;
   cells: Record<string, number>;
+  comments?: Record<string, string>;
 }
 
 interface PlannerGridProps {
@@ -64,6 +65,12 @@ interface PlannerGridProps {
   ) => void;
   readonly onDeleteRow: (projectId: string, userId: string) => void;
   readonly onAddRow: (groupId: string, targetId: string) => void;
+  readonly onCommentChange?: (
+    projectId: string,
+    userId: string,
+    week: string,
+    comment: string | null,
+  ) => void;
   readonly addRowOptions: { id: string; name: string; extra?: string }[];
 }
 
@@ -171,6 +178,7 @@ export function PlannerGrid({
   fa,
   onCellChange,
   onDeleteRow,
+  onCommentChange,
   onAddRow,
   addRowOptions,
 }: PlannerGridProps): JSX.Element {
@@ -184,6 +192,7 @@ export function PlannerGrid({
   const currentWeekKey = useMemo(() => currentMondayString(), []);
   const currentWeekTint = isDark ? CURRENT_WEEK_TINT_DARK : CURRENT_WEEK_TINT_LIGHT;
   const currentWeekBorder = isDark ? CURRENT_WEEK_BORDER_DARK : CURRENT_WEEK_BORDER_LIGHT;
+  const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const selection = useCellSelection();
@@ -233,6 +242,7 @@ export function PlannerGrid({
           is_absence: row.is_absence,
           is_other: row.is_other,
           cells: row.cells,
+          comments: row.comments ?? {},
         });
       }
       result.push({
@@ -244,6 +254,24 @@ export function PlannerGrid({
     }
     return result;
   }, [filteredGroups, groupBy, warningSet]);
+
+  const weeksWithComments = useMemo(() => {
+    const set = new Set<string>();
+    if (groupBy !== 'user') return set;
+    for (const row of flatRows) {
+      if (row._type !== 'data' || !row.comments) continue;
+      for (const [week, text] of Object.entries(row.comments)) {
+        if (text) set.add(week);
+      }
+    }
+    return set;
+  }, [flatRows, groupBy]);
+
+  useEffect(() => {
+    if (expandedWeek && !weeksWithComments.has(expandedWeek)) {
+      setExpandedWeek(null);
+    }
+  }, [expandedWeek, weeksWithComments]);
 
   // Build allCoords for selection range calculation
   useEffect(() => {
@@ -327,6 +355,7 @@ export function PlannerGrid({
 
       if (e.key === 'Escape') {
         selection.clearSelection();
+        setExpandedWeek(null);
         return;
       }
 
@@ -423,14 +452,31 @@ export function PlannerGrid({
       const weekLabel = `W${getISOWeekNumber(week)}`;
       return {
         id: `week_${week}`,
-        header: weekLabel,
+        header: () => (
+          <div className="flex items-center gap-1">
+            <span>{weekLabel}</span>
+            {weeksWithComments.has(week) && (
+              <button
+                type="button"
+                aria-label={`Toggle comments for ${weekLabel}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedWeek((prev) => (prev === week ? null : week));
+                }}
+                className={`rounded p-0.5 ${expandedWeek === week ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+              >
+                <MessageSquare className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ),
         size: 42,
         cell: () => null,
       };
     });
 
     return [...fixed, ...weekCols];
-  }, [weeks, groupBy, onDeleteRow, warningSet]);
+  }, [weeks, groupBy, onDeleteRow, warningSet, weeksWithComments, expandedWeek]);
 
   const table = useReactTable({
     data: flatRows,
@@ -606,8 +652,14 @@ export function PlannerGrid({
             }
 
             const orig = row.original;
+            const commentForExpanded = expandedWeek && orig.comments
+              ? orig.comments[expandedWeek]
+              : undefined;
+            const commentLeft = expandedWeek
+              ? 250 + (weeks.indexOf(expandedWeek)) * 42 + 42
+              : 0;
             return (
-              <tr key={row.id} className="group/row border-b hover:bg-muted/10">
+              <tr key={row.id} className="group/row relative border-b hover:bg-muted/10">
                 {row.getVisibleCells().map((cell) => {
                   const colIdx = cell.column.getIndex();
                   const isWeekCol = colIdx >= 2;
@@ -622,7 +674,7 @@ export function PlannerGrid({
                   return (
                     <td
                       key={cell.id}
-                      className={`px-0 py-0 ${
+                      className={`group/cell px-0 py-0 ${
                         colIdx < 2
                           ? 'sticky left-0 z-10 bg-background px-2'
                           : 'border-l'
@@ -645,6 +697,11 @@ export function PlannerGrid({
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
                           absence={orig.is_absence}
+                          canComment={groupBy === 'user' && !orig.is_absence && !orig.is_other}
+                          comment={orig.comments?.[coord.week]}
+                          onCommentChange={(text) =>
+                            onCommentChange?.(coord.projectId, coord.userId, coord.week, text)
+                          }
                           onChange={(v) =>
                             onCellChange(
                               coord.projectId,
@@ -666,6 +723,24 @@ export function PlannerGrid({
                     </td>
                   );
                 })}
+                {commentForExpanded && (
+                  <td
+                    aria-hidden
+                    className="pointer-events-none absolute top-0 flex h-full items-center rounded-sm border px-2 text-xs"
+                    style={{
+                      left: commentLeft,
+                      width: 4 * 42,
+                      backgroundColor: isDark
+                        ? 'rgba(251,191,36,0.22)'
+                        : 'rgba(251,191,36,0.18)',
+                      borderColor: '#d97706',
+                      zIndex: 15,
+                    }}
+                    title={commentForExpanded}
+                  >
+                    <span className="truncate">{commentForExpanded}</span>
+                  </td>
+                )}
               </tr>
             );
           })}
