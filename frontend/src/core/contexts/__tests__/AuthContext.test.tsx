@@ -1,8 +1,9 @@
 /**
  * Tests for AuthContext authentication state management
  *
- * JWT is now stored in httpOnly cookies (set by the backend).
- * Only user info is cached in localStorage.
+ * JWT is stored in httpOnly cookies (set by the backend).
+ * A session hint flag in localStorage avoids unnecessary /auth/me calls
+ * on mount when no session exists. User data always comes from the API.
  *
  * HTTP calls are intercepted by MSW (set up globally in test/setup.ts).
  */
@@ -23,8 +24,8 @@ describe('AuthContext', () => {
   });
 
   describe('Initialization', () => {
-    it('validates session via cookie when cached user exists', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
+    it('validates session via cookie when session hint exists', async () => {
+      localStorage.setItem('auth_session', '1');
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -36,12 +37,10 @@ describe('AuthContext', () => {
 
       expect(result.current.isAuthenticated).toBe(true);
       expect(result.current.user).toEqual(fixtures.authUser);
-      expect(localStorage.getItem('auth_user')).toBe(
-        JSON.stringify(fixtures.authUser),
-      );
+      expect(localStorage.getItem('auth_session')).toBe('1');
     });
 
-    it('initializes with empty state when no cached user', async () => {
+    it('initializes with empty state when no session hint', async () => {
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
       });
@@ -55,7 +54,7 @@ describe('AuthContext', () => {
     });
 
     it('clears auth state when session cookie is invalid', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
+      localStorage.setItem('auth_session', '1');
 
       server.use(
         http.get(`${API_URL}/api/auth/me`, () => {
@@ -76,12 +75,12 @@ describe('AuthContext', () => {
 
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
-      expect(localStorage.getItem('auth_user')).toBeNull();
+      expect(localStorage.getItem('auth_session')).toBeNull();
     });
   });
 
   describe('Login', () => {
-    it('authenticates with Google credential and stores user info', async () => {
+    it('authenticates with Google credential and sets session hint', async () => {
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
       });
@@ -96,9 +95,7 @@ describe('AuthContext', () => {
 
       expect(result.current.isAuthenticated).toBe(true);
       expect(result.current.user).toEqual(fixtures.authUser);
-      expect(localStorage.getItem('auth_user')).toBe(
-        JSON.stringify(fixtures.authUser),
-      );
+      expect(localStorage.getItem('auth_session')).toBe('1');
     });
 
     it('throws error when login fails', async () => {
@@ -130,8 +127,8 @@ describe('AuthContext', () => {
   });
 
   describe('Logout', () => {
-    it('calls logout endpoint and clears user from localStorage', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
+    it('calls logout endpoint and clears session hint from localStorage', async () => {
+      localStorage.setItem('auth_session', '1');
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -145,11 +142,11 @@ describe('AuthContext', () => {
         await result.current.logout();
       });
 
-      expect(localStorage.getItem('auth_user')).toBeNull();
+      expect(localStorage.getItem('auth_session')).toBeNull();
     });
 
     it('updates state to unauthenticated after logout', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
+      localStorage.setItem('auth_session', '1');
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,
@@ -171,7 +168,7 @@ describe('AuthContext', () => {
 
   describe('Error Handling', () => {
     it('handles network errors during session validation gracefully', async () => {
-      localStorage.setItem('auth_user', JSON.stringify(fixtures.authUser));
+      localStorage.setItem('auth_session', '1');
 
       server.use(
         http.get(`${API_URL}/api/auth/me`, () => {
