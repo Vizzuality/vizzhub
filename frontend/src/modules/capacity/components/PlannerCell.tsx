@@ -122,20 +122,25 @@ export function PlannerCell({
               aria-label={hasComment ? 'Edit comment' : 'Add comment'}
               onClick={(e) => { e.stopPropagation(); setPopoverOpen((v) => !v); }}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`absolute right-0 top-0 transition-opacity ${
+              className={`absolute right-0 top-0 h-3.5 w-3.5 bg-transparent p-0 transition-opacity ${
                 hasComment
                   ? 'opacity-100'
                   : 'opacity-0 hover:opacity-100 group-hover/cell:opacity-100'
               }`}
-              style={{
-                width: 9,
-                height: 9,
-                clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
-                backgroundColor: hasComment
-                  ? 'hsl(var(--primary))'
-                  : isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)',
-              }}
-            />
+            >
+              <span
+                className="block"
+                style={{
+                  width: 10,
+                  height: 10,
+                  marginLeft: 'auto',
+                  clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+                  backgroundColor: hasComment
+                    ? 'hsl(var(--primary))'
+                    : isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)',
+                }}
+              />
+            </button>
           }
         />
       )}

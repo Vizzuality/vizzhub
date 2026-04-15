@@ -475,9 +475,9 @@ export function PlannerGrid({
                 }`}
               >
                 {isExpanded ? (
-                  <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-                ) : (
                   <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+                ) : (
+                  <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
                 )}
               </button>
               <span>{weekLabel}</span>
@@ -736,7 +736,7 @@ export function PlannerGrid({
                       {showOverlay && (
                         <div
                           aria-hidden
-                          className="pointer-events-none absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
+                          className="absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
                           style={{
                             left: '100%',
                             width: 10 * 42,
