@@ -242,20 +242,20 @@ function NameCellRenderer({
   const userHasWarning = row.user_id ? warningSet.has(row.user_id) : false;
 
   return (
-    <div className="flex items-center justify-between gap-1">
-      <span className="flex items-center gap-1 truncate">
+    <div className="flex items-center justify-between gap-1 min-w-0" title={label ?? undefined}>
+      <span className="flex min-w-0 items-center gap-1 truncate">
         {groupBy === 'project' && userHasWarning && (
           <span title="Allocations exceed 100%"><AlertTriangle className="h-3 w-3 shrink-0 text-yellow-500" /></span>
         )}
         {groupBy === 'user' && !isPinned ? (
           <Link
             to={`/tracker/projects/${row.project_id}`}
-            className="truncate text-sm hover:underline"
+            className="block min-w-0 truncate text-sm hover:underline"
           >
             {label}
           </Link>
         ) : (
-          <span className={`truncate text-sm ${isPinned ? 'italic text-muted-foreground' : ''}`}>
+          <span className={`block min-w-0 truncate text-sm ${isPinned ? 'italic text-muted-foreground' : ''}`}>
             {label}
           </span>
         )}
@@ -761,6 +761,7 @@ export function PlannerGrid({
                   const wStyle = isWeekCol && week
                     ? weekCellStyle(week, weekStyleConfig) : {};
 
+                  const isNameCol = colIdx === 1;
                   return (
                     <td
                       key={cell.id}
@@ -768,10 +769,11 @@ export function PlannerGrid({
                         colIdx < 2
                           ? 'sticky left-0 z-10 bg-background px-2'
                           : 'border-l'
-                      }`}
+                      } ${isNameCol ? 'max-w-0 overflow-hidden' : ''}`}
                       style={{
                         position: isWeekCol ? 'relative' : undefined,
                         width: cell.column.getSize(),
+                        maxWidth: isNameCol ? cell.column.getSize() : undefined,
                         height: 32,
                         left: stickyLeft(colIdx),
                         ...wStyle,
