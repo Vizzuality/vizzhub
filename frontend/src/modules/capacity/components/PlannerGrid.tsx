@@ -725,7 +725,7 @@ export function PlannerGrid({
                           className="pointer-events-none absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
                           style={{
                             left: '100%',
-                            width: 4 * 42,
+                            width: 10 * 42,
                             backgroundColor: isDark ? '#451a03' : '#fffbeb',
                             color: isDark ? '#fef3c7' : '#78350f',
                             zIndex: 25,
