@@ -118,6 +118,48 @@ class TestGetPlanner:
         assert "2026-01-19" not in alice_row["cells"]
 
     @pytest.mark.asyncio
+    async def test_returns_comments_per_row(self, db_session, planner_data):
+        from app.modules.capacity.api.planner import get_planner
+
+        from sqlalchemy import update
+        await db_session.execute(
+            update(CapacityPlanDB)
+            .where(
+                CapacityPlanDB.user_id == planner_data["user1"].id,
+                CapacityPlanDB.project_id == planner_data["project1"].id,
+                CapacityPlanDB.week_start == date(2026, 1, 5),
+            )
+            .values(comment="Need reviewer")
+        )
+        await db_session.flush()
+
+        fake_user = FakeUser(planner_data["user1"].id)
+        result = await get_planner(
+            db_session, fake_user,
+            start="2026-01-05", end="2026-01-12",
+            group_by="user",
+        )
+
+        user1_group = next(g for g in result["groups"] if g["id"] == str(planner_data["user1"].id))
+        row = next(r for r in user1_group["rows"] if r["project_id"] == str(planner_data["project1"].id))
+        assert row["comments"] == {"2026-01-05": "Need reviewer"}
+
+    @pytest.mark.asyncio
+    async def test_rows_without_comments_return_empty_map(self, db_session, planner_data):
+        from app.modules.capacity.api.planner import get_planner
+
+        fake_user = FakeUser(planner_data["user1"].id)
+        result = await get_planner(
+            db_session, fake_user,
+            start="2026-01-05", end="2026-01-12",
+            group_by="user",
+        )
+
+        for group in result["groups"]:
+            for row in group["rows"]:
+                assert row["comments"] == {}
+
+    @pytest.mark.asyncio
     async def test_fa_short_name_mapping(self, db_session, planner_data):
         from app.modules.capacity.api.planner import get_planner
 

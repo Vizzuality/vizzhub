@@ -67,6 +67,7 @@ def _build_row_data(row) -> dict:
         "is_absence": row.is_absence,
         "is_other": not row.is_absence and not row.is_billable,
         "cells": {},
+        "comments": {},
     }
 
 
@@ -97,6 +98,8 @@ def _process_rows(rows, group_by: str) -> dict[str, dict]:
             groups_map[group_key]["rows"].append(row_data)
 
         rows_map[row_key]["cells"][row.week_start.isoformat()] = row.percentage
+        if row.comment:
+            rows_map[row_key]["comments"][row.week_start.isoformat()] = row.comment
 
     return groups_map
 
@@ -162,6 +165,7 @@ async def _inject_pinned_rows(
                     "is_absence": pp.is_absence,
                     "is_other": not pp.is_absence,
                     "cells": {},
+                    "comments": {},
                 })
 
 
@@ -212,6 +216,7 @@ async def get_planner(
             FunctionalAreaDB.name.label("functional_area"),
             CapacityPlanDB.week_start,
             CapacityPlanDB.percentage,
+            CapacityPlanDB.comment,
         )
         .join(ProjectDB, CapacityPlanDB.project_id == ProjectDB.id)
         .join(UserDB, CapacityPlanDB.user_id == UserDB.id)
