@@ -456,29 +456,31 @@ export function PlannerGrid({
           const hasComment = weeksWithComments.has(week);
           const isExpanded = expandedWeek === week;
           return (
-            <div className="relative">
-              <span>{weekLabel}</span>
-              {hasComment && (
-                <button
-                  type="button"
-                  aria-label={`Toggle comments for ${weekLabel}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedWeek((prev) => (prev === week ? null : week));
-                  }}
-                  className={`absolute right-0 top-1/2 -translate-y-1/2 ${
-                    isExpanded
+            <div className="flex flex-col leading-none gap-0.5">
+              <button
+                type="button"
+                aria-label={`Toggle comments for ${weekLabel}`}
+                tabIndex={hasComment ? 0 : -1}
+                onClick={(e) => {
+                  if (!hasComment) return;
+                  e.stopPropagation();
+                  setExpandedWeek((prev) => (prev === week ? null : week));
+                }}
+                className={`h-3.5 flex items-center justify-end ${
+                  hasComment
+                    ? isExpanded
                       ? 'text-red-500 dark:text-white'
                       : 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white'
-                  }`}
-                >
-                  {isExpanded ? (
-                    <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  ) : (
-                    <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  )}
-                </button>
-              )}
+                    : 'invisible'
+                }`}
+              >
+                {isExpanded ? (
+                  <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+                ) : (
+                  <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+                )}
+              </button>
+              <span>{weekLabel}</span>
             </div>
           );
         },
