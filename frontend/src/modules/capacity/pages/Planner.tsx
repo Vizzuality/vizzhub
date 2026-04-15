@@ -48,19 +48,18 @@ export default function Planner(): JSX.Element {
   // Local-only rows not yet persisted (no cells saved yet)
   const [localRows, setLocalRows] = useState<PlannerRow[]>([]);
 
-  const handlePrev = useCallback(async (): Promise<void> => {
-    await flushUpdates();
-    setLocalRows([]);
-    const newStart = addMonths(state.start, -1);
-    setState({ start: newStart, end: addMonths(newStart, 6) });
-  }, [state.start, setState, flushUpdates]);
+  const navigate = useCallback(
+    async (direction: -1 | 1): Promise<void> => {
+      await flushUpdates();
+      setLocalRows([]);
+      const newStart = addMonths(state.start, direction);
+      setState({ start: newStart, end: addMonths(newStart, 6) });
+    },
+    [state.start, setState, flushUpdates],
+  );
 
-  const handleNext = useCallback(async (): Promise<void> => {
-    await flushUpdates();
-    setLocalRows([]);
-    const newStart = addMonths(state.start, 1);
-    setState({ start: newStart, end: addMonths(newStart, 6) });
-  }, [state.start, setState, flushUpdates]);
+  const handlePrev = useCallback(() => navigate(-1), [navigate]);
+  const handleNext = useCallback(() => navigate(1), [navigate]);
 
   const handleGroupByChange = useCallback(
     async (group: string): Promise<void> => {
