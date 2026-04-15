@@ -370,6 +370,7 @@ async def update_cells(
                 "user_id": cell.user_id,
                 "week_start": cell.week_start,
                 "percentage": cell.percentage,
+                "comment": cell.comment,
                 "created_by": user.user_id,
                 "updated_by": user.user_id,
             }
@@ -380,6 +381,7 @@ async def update_cells(
             constraint="uq_capacity_plan_cell",
             set_={
                 "percentage": stmt.excluded.percentage,
+                "comment": stmt.excluded.comment,
                 "updated_by": stmt.excluded.updated_by,
                 "updated_at": func.now(),
             },
