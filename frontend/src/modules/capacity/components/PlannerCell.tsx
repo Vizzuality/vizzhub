@@ -136,7 +136,7 @@ export function PlannerCell({
                   marginLeft: 'auto',
                   clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
                   backgroundColor: hasComment
-                    ? 'hsl(var(--primary))'
+                    ? '#ef4444'
                     : isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)',
                 }}
               />
