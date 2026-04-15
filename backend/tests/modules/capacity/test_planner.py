@@ -602,3 +602,48 @@ class TestUpdatedAt:
             start="2030-01-05", end="2030-01-19",
         )
         assert result["updated_at"] is None
+
+
+class TestCellUpdateSchema:
+    def test_accepts_comment_within_limit(self):
+        from app.modules.capacity.models.capacity_plan import CellUpdate
+        from uuid import uuid4
+        from datetime import date
+
+        update = CellUpdate(
+            project_id=uuid4(),
+            user_id=uuid4(),
+            week_start=date(2026, 1, 5),
+            percentage=50,
+            comment="Short note",
+        )
+        assert update.comment == "Short note"
+
+    def test_rejects_comment_over_500_chars(self):
+        from app.modules.capacity.models.capacity_plan import CellUpdate
+        from pydantic import ValidationError
+        from uuid import uuid4
+        from datetime import date
+        import pytest
+
+        with pytest.raises(ValidationError):
+            CellUpdate(
+                project_id=uuid4(),
+                user_id=uuid4(),
+                week_start=date(2026, 1, 5),
+                percentage=50,
+                comment="x" * 501,
+            )
+
+    def test_comment_defaults_to_none(self):
+        from app.modules.capacity.models.capacity_plan import CellUpdate
+        from uuid import uuid4
+        from datetime import date
+
+        update = CellUpdate(
+            project_id=uuid4(),
+            user_id=uuid4(),
+            week_start=date(2026, 1, 5),
+            percentage=50,
+        )
+        assert update.comment is None
