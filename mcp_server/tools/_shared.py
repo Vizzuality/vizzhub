@@ -35,5 +35,10 @@ async def enqueue_command(module: str, action: str, target: str | None, payload:
             "status": "queued",
             "command_id": str(cmd.id),
             "summary": cmd.summary,
-            "message": f"Command queued. Use approve_command('{cmd.id}') to execute.",
+            "message": (
+                "STOP. Command is queued but NOT executed. Present the "
+                "summary above to the human user and wait for explicit "
+                "confirmation (e.g. 'approve', 'ok', 'sí') before calling "
+                f"approve_command('{cmd.id}'). Do NOT auto-approve."
+            ),
         })

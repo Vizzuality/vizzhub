@@ -54,7 +54,17 @@ async def get_pending_commands(module: str | None = None) -> str:
 
 
 async def approve_command(command_id: str) -> str:
-    """Approve and execute a pending command.
+    """Approve and execute a pending command. HUMAN CONFIRMATION REQUIRED.
+
+    ⚠️ DO NOT CALL THIS AUTONOMOUSLY. This tool represents the human user's
+    explicit "yes, do it" signal. You MUST have received a clear confirmation
+    from the human in chat (e.g. "approve", "ok", "sí", "go ahead") in the
+    current conversation turn BEFORE calling this. Queuing a command and
+    approving it yourself in the same turn defeats the entire purpose of
+    the queue and is never acceptable — even if the action seems obviously
+    correct, even if the user seems to expect it, even if it would save a
+    round-trip. When in doubt, do not call this; present the summary and
+    ask.
 
     Verifies you have permission for the command's module, then executes
     the queued action immediately. The command transitions from "pending"
@@ -104,7 +114,15 @@ async def approve_command(command_id: str) -> str:
 
 
 async def approve_all(module: str | None = None) -> str:
-    """Approve and execute ALL your pending commands in a single call.
+    """Approve and execute ALL pending commands in one call. HUMAN ONLY.
+
+    ⚠️ EVEN MORE DANGEROUS THAN approve_command. This tool bulk-executes
+    every queued command at once. It MUST ONLY be called when the human
+    has explicitly asked to approve everything (e.g. "approve all",
+    "aprueba todos", "do them all"). NEVER call this to finish your task
+    faster, NEVER call it after queuing a batch of your own commands,
+    NEVER use it to recover from a partial approval. If the human only
+    confirmed one action, use approve_command with that specific id.
 
     Iterates your pending commands (optionally filtered by module), checks
     module permission, and executes each one. Each command is approved in
