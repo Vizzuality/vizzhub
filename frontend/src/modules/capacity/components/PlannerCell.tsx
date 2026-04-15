@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { MessageSquare } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { getPlannerCellColors } from '@/modules/capacity/utils/plannerColors';
 import { PlannerCommentPopover } from '@/modules/capacity/components/PlannerCommentPopover';
@@ -123,14 +122,20 @@ export function PlannerCell({
               aria-label={hasComment ? 'Edit comment' : 'Add comment'}
               onClick={(e) => { e.stopPropagation(); setPopoverOpen((v) => !v); }}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`absolute right-0.5 top-0.5 rounded p-0.5 transition-opacity ${
+              className={`absolute right-0 top-0 transition-opacity ${
                 hasComment
-                  ? 'opacity-100 text-primary'
-                  : 'opacity-0 hover:opacity-100 group-hover/cell:opacity-100 text-muted-foreground'
+                  ? 'opacity-100'
+                  : 'opacity-0 hover:opacity-100 group-hover/cell:opacity-100'
               }`}
-            >
-              <MessageSquare className="h-2.5 w-2.5" />
-            </button>
+              style={{
+                width: 9,
+                height: 9,
+                clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+                backgroundColor: hasComment
+                  ? 'hsl(var(--primary))'
+                  : isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)',
+              }}
+            />
           }
         />
       )}
