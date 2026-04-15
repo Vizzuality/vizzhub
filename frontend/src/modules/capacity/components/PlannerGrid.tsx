@@ -6,7 +6,7 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { AlertTriangle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeftFromLine, ArrowRightFromLine, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
@@ -456,31 +456,29 @@ export function PlannerGrid({
           const hasComment = weeksWithComments.has(week);
           const isExpanded = expandedWeek === week;
           return (
-            <div className="flex flex-col items-start leading-none gap-0.5">
-              <button
-                type="button"
-                aria-label={`Toggle comments for ${weekLabel}`}
-                tabIndex={hasComment ? 0 : -1}
-                onClick={(e) => {
-                  if (!hasComment) return;
-                  e.stopPropagation();
-                  setExpandedWeek((prev) => (prev === week ? null : week));
-                }}
-                className={`h-3.5 flex items-center ${
-                  hasComment
-                    ? isExpanded
+            <div className="relative">
+              <span>{weekLabel}</span>
+              {hasComment && (
+                <button
+                  type="button"
+                  aria-label={`Toggle comments for ${weekLabel}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedWeek((prev) => (prev === week ? null : week));
+                  }}
+                  className={`absolute right-0 top-1/2 -translate-y-1/2 ${
+                    isExpanded
                       ? 'text-red-500 dark:text-white'
                       : 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white'
-                    : 'invisible'
-                }`}
-              >
-                {isExpanded ? (
-                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={3} />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
-                )}
-              </button>
-              <span>{weekLabel}</span>
+                  }`}
+                >
+                  {isExpanded ? (
+                    <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  ) : (
+                    <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  )}
+                </button>
+              )}
             </div>
           );
         },
