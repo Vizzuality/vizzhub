@@ -71,6 +71,24 @@ export default function Planner(): JSX.Element {
     [queueCellUpdate],
   );
 
+  const handleCommentChange = useCallback(
+    (projectId: string, userId: string, week: string, comment: string | null): void => {
+      const row = data?.groups
+        .flatMap((g) => g.rows)
+        .find((r) => r.project_id === projectId && r.user_id === userId);
+      const percentage = row?.cells[week];
+      if (percentage === undefined) return;
+      queueCellUpdate({
+        project_id: projectId,
+        user_id: userId,
+        week_start: week,
+        percentage,
+        comment,
+      });
+    },
+    [data, queueCellUpdate],
+  );
+
   // Merge server data with local phantom rows
   const mergedGroups = useMemo((): PlannerGroup[] => {
     if (!data) return [];
@@ -195,6 +213,7 @@ export default function Planner(): JSX.Element {
           fa={state.fa}
           onCellChange={handleCellChange}
           onDeleteRow={deleteRow}
+          onCommentChange={handleCommentChange}
           onAddRow={handleAddRow}
           addRowOptions={addRowOptions}
         />
