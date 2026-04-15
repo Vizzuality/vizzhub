@@ -12,7 +12,13 @@ import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
 import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
 import { PlannerAddRow } from '@/modules/capacity/components/PlannerAddRow';
+import { currentMondayString } from '@/modules/capacity/utils/plannerDates';
 import type { PlannerGroup } from '@/modules/capacity/types/planner';
+
+const CURRENT_WEEK_BORDER_LIGHT = '1px solid #2d8a4e';
+const CURRENT_WEEK_BORDER_DARK = '1px solid #5AFF15';
+const CURRENT_WEEK_TINT_LIGHT = 'rgba(45, 138, 78, 0.10)';
+const CURRENT_WEEK_TINT_DARK = 'rgba(90, 255, 21, 0.08)';
 import {
   useCellSelection,
   type CellCoord,
@@ -175,6 +181,9 @@ export function PlannerGrid({
   const oddMonthBgMuted = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
 
   const warningSet = useMemo(() => new Set(warnings), [warnings]);
+  const currentWeekKey = useMemo(() => currentMondayString(), []);
+  const currentWeekTint = isDark ? CURRENT_WEEK_TINT_DARK : CURRENT_WEEK_TINT_LIGHT;
+  const currentWeekBorder = isDark ? CURRENT_WEEK_BORDER_DARK : CURRENT_WEEK_BORDER_LIGHT;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const selection = useCellSelection();
@@ -480,6 +489,10 @@ export function PlannerGrid({
                 const isWeekHeader = header.index >= 2;
                 const weekKey = isWeekHeader ? weeks[weekIdx] : undefined;
                 const info = weekKey ? weekMonthInfo.get(weekKey) : undefined;
+                const isCurrentWeek = weekKey === currentWeekKey;
+                const headerBg = isCurrentWeek
+                  ? currentWeekTint
+                  : info?.isOddMonth ? oddMonthBg : undefined;
                 return (
                   <th
                     key={header.id}
@@ -491,7 +504,8 @@ export function PlannerGrid({
                     style={{
                       width: header.getSize(),
                       left: stickyLeft(header.index),
-                      backgroundColor: info?.isOddMonth ? oddMonthBg : undefined,
+                      backgroundColor: headerBg,
+                      borderLeft: isCurrentWeek ? currentWeekBorder : undefined,
                     }}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
@@ -535,11 +549,18 @@ export function PlannerGrid({
                   {weekCells.map((cell) => {
                     const weekKey = weeks[cell.column.getIndex() - 2];
                     const info = weekMonthInfo.get(weekKey);
+                    const isCurrentWeek = weekKey === currentWeekKey;
                     return (
                       <td
                         key={cell.id}
                         className="border-l bg-muted"
-                        style={{ height: 28, backgroundColor: info?.isOddMonth ? oddMonthBgMuted : undefined }}
+                        style={{
+                          height: 28,
+                          backgroundColor: isCurrentWeek
+                            ? currentWeekTint
+                            : info?.isOddMonth ? oddMonthBgMuted : undefined,
+                          borderLeft: isCurrentWeek ? currentWeekBorder : undefined,
+                        }}
                       />
                     );
                   })}
@@ -565,11 +586,18 @@ export function PlannerGrid({
                   {weekCells.map((cell) => {
                     const weekKey = weeks[cell.column.getIndex() - 2];
                     const info = weekMonthInfo.get(weekKey);
+                    const isCurrentWeek = weekKey === currentWeekKey;
                     return (
                       <td
                         key={cell.id}
                         className="border-l"
-                        style={{ height: 28, backgroundColor: info?.isOddMonth ? oddMonthBg : undefined }}
+                        style={{
+                          height: 28,
+                          backgroundColor: isCurrentWeek
+                            ? currentWeekTint
+                            : info?.isOddMonth ? oddMonthBg : undefined,
+                          borderLeft: isCurrentWeek ? currentWeekBorder : undefined,
+                        }}
                       />
                     );
                   })}
@@ -603,8 +631,12 @@ export function PlannerGrid({
                         width: cell.column.getSize(),
                         height: 32,
                         left: stickyLeft(colIdx),
-                        backgroundColor: isWeekCol && week && weekMonthInfo.get(week)?.isOddMonth
-                          ? oddMonthBg : undefined,
+                        backgroundColor: isWeekCol && week === currentWeekKey
+                          ? currentWeekTint
+                          : isWeekCol && week && weekMonthInfo.get(week)?.isOddMonth
+                            ? oddMonthBg : undefined,
+                        borderLeft: isWeekCol && week === currentWeekKey
+                          ? currentWeekBorder : undefined,
                       }}
                     >
                       {isWeekCol && orig._type === 'data' && coord ? (
