@@ -29,6 +29,6 @@ export function getPlannerCellColors(
   if (!range) return undefined;
   return {
     bg: isDark ? range.dark : range.light,
-    text: !isDark ? range.lightText : undefined,
+    text: isDark ? undefined : range.lightText,
   };
 }

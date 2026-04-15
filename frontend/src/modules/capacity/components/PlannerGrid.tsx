@@ -101,10 +101,9 @@ function weekCellStyle(
 ): { backgroundColor?: string; borderLeft?: string } {
   const isCurrentWeek = weekKey === config.currentWeekKey;
   const info = config.weekMonthInfo.get(weekKey);
+  const monthTint = info?.isOddMonth ? config.oddMonthBg : undefined;
   return {
-    backgroundColor: isCurrentWeek
-      ? config.currentWeekTint
-      : info?.isOddMonth ? config.oddMonthBg : undefined,
+    backgroundColor: isCurrentWeek ? config.currentWeekTint : monthTint,
     borderLeft: isCurrentWeek ? config.currentWeekBorder : undefined,
   };
 }
@@ -143,6 +142,50 @@ function CommentOverlay({
         }}
       />
       <span className="truncate">{comment}</span>
+    </div>
+  );
+}
+
+function weekHeaderClassName(hasComment: boolean, isExpanded: boolean): string {
+  if (!hasComment) return 'invisible';
+  if (isExpanded) return 'text-red-500 dark:text-white';
+  return 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white';
+}
+
+interface WeekHeaderProps {
+  readonly weekLabel: string;
+  readonly hasComment: boolean;
+  readonly isExpanded: boolean;
+  readonly onToggle: () => void;
+}
+
+function WeekHeader({
+  weekLabel,
+  hasComment,
+  isExpanded,
+  onToggle,
+}: WeekHeaderProps): JSX.Element {
+  const handleClick = (e: React.MouseEvent): void => {
+    if (!hasComment) return;
+    e.stopPropagation();
+    onToggle();
+  };
+  return (
+    <div className="flex flex-col leading-none gap-0.5">
+      <button
+        type="button"
+        aria-label={`Toggle comments for ${weekLabel}`}
+        tabIndex={hasComment ? 0 : -1}
+        onClick={handleClick}
+        className={`h-3.5 flex items-center justify-end ${weekHeaderClassName(hasComment, isExpanded)}`}
+      >
+        {isExpanded ? (
+          <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+        ) : (
+          <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+        )}
+      </button>
+      <span>{weekLabel}</span>
     </div>
   );
 }
@@ -514,42 +557,23 @@ export function PlannerGrid({
       },
     ];
 
+    const toggleWeek = (week: string): void => {
+      setExpandedWeek((prev) => (prev === week ? null : week));
+    };
     const weekCols: ColumnDef<FlatRow>[] = weeks.map((week) => {
       const weekLabel = `W${getISOWeekNumber(week)}`;
+      const hasComment = weeksWithComments.has(week);
+      const isExpanded = expandedWeek === week;
       return {
         id: `week_${week}`,
-        header: () => {
-          const hasComment = weeksWithComments.has(week);
-          const isExpanded = expandedWeek === week;
-          return (
-            <div className="flex flex-col leading-none gap-0.5">
-              <button
-                type="button"
-                aria-label={`Toggle comments for ${weekLabel}`}
-                tabIndex={hasComment ? 0 : -1}
-                onClick={(e) => {
-                  if (!hasComment) return;
-                  e.stopPropagation();
-                  setExpandedWeek((prev) => (prev === week ? null : week));
-                }}
-                className={`h-3.5 flex items-center justify-end ${
-                  hasComment
-                    ? isExpanded
-                      ? 'text-red-500 dark:text-white'
-                      : 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white'
-                    : 'invisible'
-                }`}
-              >
-                {isExpanded ? (
-                  <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-                ) : (
-                  <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-                )}
-              </button>
-              <span>{weekLabel}</span>
-            </div>
-          );
-        },
+        header: () => (
+          <WeekHeader
+            weekLabel={weekLabel}
+            hasComment={hasComment}
+            isExpanded={isExpanded}
+            onToggle={() => toggleWeek(week)}
+          />
+        ),
         size: 42,
         cell: () => null,
       };
