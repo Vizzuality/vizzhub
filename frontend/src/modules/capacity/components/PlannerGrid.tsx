@@ -655,11 +655,8 @@ export function PlannerGrid({
             const commentForExpanded = expandedWeek && orig.comments
               ? orig.comments[expandedWeek]
               : undefined;
-            const commentLeft = expandedWeek
-              ? 250 + (weeks.indexOf(expandedWeek)) * 42 + 42
-              : 0;
             return (
-              <tr key={row.id} className="group/row relative border-b hover:bg-muted/10">
+              <tr key={row.id} className="group/row border-b hover:bg-muted/10">
                 {row.getVisibleCells().map((cell) => {
                   const colIdx = cell.column.getIndex();
                   const isWeekCol = colIdx >= 2;
@@ -671,6 +668,7 @@ export function PlannerGrid({
                       : undefined;
                   const isSelected = coord ? selection.isSelected(coord) : false;
 
+                  const showOverlay = isWeekCol && week === expandedWeek && commentForExpanded;
                   return (
                     <td
                       key={cell.id}
@@ -680,6 +678,7 @@ export function PlannerGrid({
                           : 'border-l'
                       }`}
                       style={{
+                        position: 'relative',
                         width: cell.column.getSize(),
                         height: 32,
                         left: stickyLeft(colIdx),
@@ -720,26 +719,26 @@ export function PlannerGrid({
                       ) : (
                         flexRender(cell.column.columnDef.cell, cell.getContext())
                       )}
+                      {showOverlay && (
+                        <div
+                          aria-hidden
+                          className="pointer-events-none absolute top-0 flex h-full items-center rounded-sm border px-2 text-xs shadow-sm"
+                          style={{
+                            left: '100%',
+                            width: 4 * 42,
+                            backgroundColor: isDark ? '#451a03' : '#fffbeb',
+                            color: isDark ? '#fef3c7' : '#78350f',
+                            borderColor: '#d97706',
+                            zIndex: 25,
+                          }}
+                          title={commentForExpanded}
+                        >
+                          <span className="truncate">{commentForExpanded}</span>
+                        </div>
+                      )}
                     </td>
                   );
                 })}
-                {commentForExpanded && (
-                  <td
-                    aria-hidden
-                    className="pointer-events-none absolute top-0 flex h-full items-center rounded-sm border px-2 text-xs shadow-sm"
-                    style={{
-                      left: commentLeft,
-                      width: 4 * 42,
-                      backgroundColor: isDark ? '#451a03' : '#fffbeb',
-                      color: isDark ? '#fef3c7' : '#78350f',
-                      borderColor: '#d97706',
-                      zIndex: 25,
-                    }}
-                    title={commentForExpanded}
-                  >
-                    <span className="truncate">{commentForExpanded}</span>
-                  </td>
-                )}
               </tr>
             );
           })}
