@@ -52,3 +52,9 @@ export function endFromStart(start: string): string {
 export function currentMondayString(): string {
   return formatDate(currentMondayUTC());
 }
+
+export function snapToMondayString(dateStr: string): string {
+  const d = parseDate(dateStr);
+  if (d.getUTCDay() === 1) return dateStr;
+  return formatDate(snapToMonday(d));
+}
