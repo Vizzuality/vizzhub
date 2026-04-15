@@ -19,7 +19,7 @@ function formatDate(d: Date): string {
 function snapToMonday(d: Date): Date {
   const day = d.getUTCDay();
   const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-  const result = new Date(d.getTime());
+  const result = new Date(d);
   result.setUTCDate(diff);
   return result;
 }
