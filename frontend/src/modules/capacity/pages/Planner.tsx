@@ -105,6 +105,7 @@ export default function Planner(): JSX.Element {
           project_id: groupId,
           project_name: data?.groups.find((g) => g.id === groupId)?.name ?? '',
           cells: {},
+          comments: {},
         };
       } else {
         const project = projects?.find((p) => p.id === targetId);
@@ -116,6 +117,7 @@ export default function Planner(): JSX.Element {
           project_id: project.id,
           project_name: project.name,
           cells: {},
+          comments: {},
         };
       }
       setLocalRows((prev) => [...prev, newRow]);
