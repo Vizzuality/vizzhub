@@ -4,6 +4,7 @@ import {
   useReactTable,
   getCoreRowModel,
   flexRender,
+  type CellContext,
   type ColumnDef,
   type HeaderContext,
 } from '@tanstack/react-table';
@@ -198,6 +199,28 @@ function FACellRenderer({ row }: { readonly row: FlatRow }): JSX.Element | null 
     );
   }
   return null;
+}
+
+function FACell(ctx: CellContext<FlatRow, unknown>): JSX.Element | null {
+  return <FACellRenderer row={ctx.row.original} />;
+}
+
+interface NameColumnMeta {
+  readonly groupBy: string;
+  readonly warningSet: Set<string>;
+  readonly onDeleteRow: (projectId: string, userId: string) => void;
+}
+
+function NameCell(ctx: CellContext<FlatRow, unknown>): JSX.Element | null {
+  const meta = ctx.column.columnDef.meta as NameColumnMeta;
+  return (
+    <NameCellRenderer
+      row={ctx.row.original}
+      groupBy={meta.groupBy}
+      warningSet={meta.warningSet}
+      onDeleteRow={meta.onDeleteRow}
+    />
+  );
 }
 
 function NameCellRenderer({
@@ -542,20 +565,14 @@ export function PlannerGrid({
         id: 'fa',
         header: 'FA',
         size: 50,
-        cell: ({ row: { original } }) => <FACellRenderer row={original} />,
+        cell: FACell,
       },
       {
         id: 'name',
         header: groupBy === 'project' ? 'Name' : 'Project',
         size: 200,
-        cell: ({ row: { original } }) => (
-          <NameCellRenderer
-            row={original}
-            groupBy={groupBy}
-            warningSet={warningSet}
-            onDeleteRow={onDeleteRow}
-          />
-        ),
+        cell: NameCell,
+        meta: { groupBy, warningSet, onDeleteRow } satisfies NameColumnMeta,
       },
     ];
 
