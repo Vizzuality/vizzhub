@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   flexRender,
   type ColumnDef,
+  type HeaderContext,
 } from '@tanstack/react-table';
 import { AlertTriangle, ArrowLeftFromLine, ArrowRightFromLine, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -152,23 +153,21 @@ function weekHeaderClassName(hasComment: boolean, isExpanded: boolean): string {
   return 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white';
 }
 
-interface WeekHeaderProps {
+interface WeekColumnMeta {
+  readonly week: string;
   readonly weekLabel: string;
   readonly hasComment: boolean;
   readonly isExpanded: boolean;
-  readonly onToggle: () => void;
+  readonly onToggle: (week: string) => void;
 }
 
-function WeekHeader({
-  weekLabel,
-  hasComment,
-  isExpanded,
-  onToggle,
-}: WeekHeaderProps): JSX.Element {
+function WeekHeader(ctx: HeaderContext<FlatRow, unknown>): JSX.Element {
+  const meta = ctx.column.columnDef.meta as WeekColumnMeta;
+  const { week, weekLabel, hasComment, isExpanded, onToggle } = meta;
   const handleClick = (e: React.MouseEvent): void => {
     if (!hasComment) return;
     e.stopPropagation();
-    onToggle();
+    onToggle(week);
   };
   return (
     <div className="flex flex-col leading-none gap-0.5">
@@ -296,6 +295,9 @@ export function PlannerGrid({
   const currentWeekTint = isDark ? CURRENT_WEEK_TINT_DARK : CURRENT_WEEK_TINT_LIGHT;
   const currentWeekBorder = isDark ? CURRENT_WEEK_BORDER_DARK : CURRENT_WEEK_BORDER_LIGHT;
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
+  const toggleWeek = useCallback((week: string): void => {
+    setExpandedWeek((prev) => (prev === week ? null : week));
+  }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const selection = useCellSelection();
@@ -557,30 +559,22 @@ export function PlannerGrid({
       },
     ];
 
-    const toggleWeek = (week: string): void => {
-      setExpandedWeek((prev) => (prev === week ? null : week));
-    };
-    const weekCols: ColumnDef<FlatRow>[] = weeks.map((week) => {
-      const weekLabel = `W${getISOWeekNumber(week)}`;
-      const hasComment = weeksWithComments.has(week);
-      const isExpanded = expandedWeek === week;
-      return {
-        id: `week_${week}`,
-        header: () => (
-          <WeekHeader
-            weekLabel={weekLabel}
-            hasComment={hasComment}
-            isExpanded={isExpanded}
-            onToggle={() => toggleWeek(week)}
-          />
-        ),
-        size: 42,
-        cell: () => null,
-      };
-    });
+    const weekCols: ColumnDef<FlatRow>[] = weeks.map((week) => ({
+      id: `week_${week}`,
+      header: WeekHeader,
+      size: 42,
+      cell: () => null,
+      meta: {
+        week,
+        weekLabel: `W${getISOWeekNumber(week)}`,
+        hasComment: weeksWithComments.has(week),
+        isExpanded: expandedWeek === week,
+        onToggle: toggleWeek,
+      } satisfies WeekColumnMeta,
+    }));
 
     return [...fixed, ...weekCols];
-  }, [weeks, groupBy, onDeleteRow, warningSet, weeksWithComments, expandedWeek]);
+  }, [weeks, groupBy, onDeleteRow, warningSet, weeksWithComments, expandedWeek, toggleWeek]);
 
   const table = useReactTable({
     data: flatRows,
