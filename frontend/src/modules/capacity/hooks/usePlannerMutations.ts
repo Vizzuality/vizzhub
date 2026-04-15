@@ -9,12 +9,19 @@ const DEBOUNCE_MS = 800;
 function updateRowCells(row: PlannerRow, update: CellUpdate): PlannerRow {
   if (row.project_id !== update.project_id || row.user_id !== update.user_id) return row;
   const cells = { ...row.cells };
+  const comments = { ...row.comments };
   if (update.percentage === null) {
     delete cells[update.week_start];
+    delete comments[update.week_start];
   } else {
     cells[update.week_start] = update.percentage;
+    if (update.comment === null) {
+      delete comments[update.week_start];
+    } else if (update.comment !== undefined) {
+      comments[update.week_start] = update.comment;
+    }
   }
-  return { ...row, cells };
+  return { ...row, cells, comments };
 }
 
 function applyUpdateToResponse(prev: PlannerResponse, update: CellUpdate): PlannerResponse {
