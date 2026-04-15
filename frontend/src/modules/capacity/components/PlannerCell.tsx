@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { MessageSquare } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { getPlannerCellColors } from '@/modules/capacity/utils/plannerColors';
+import { PlannerCommentPopover } from '@/modules/capacity/components/PlannerCommentPopover';
 
 interface PlannerCellProps {
   readonly value: number | undefined;
@@ -8,6 +10,9 @@ interface PlannerCellProps {
   readonly isOwnRow: boolean;
   readonly selected?: boolean;
   readonly absence?: boolean;
+  readonly canComment?: boolean;
+  readonly comment?: string;
+  readonly onCommentChange?: (value: string | null) => void;
   readonly onMouseDown?: (e: React.MouseEvent) => void;
   readonly onMouseEnter?: () => void;
 }
@@ -23,14 +28,20 @@ export function PlannerCell({
   isOwnRow,
   selected,
   absence,
+  canComment,
+  comment,
+  onCommentChange,
   onMouseDown,
   onMouseEnter,
 }: PlannerCellProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const showIcon = Boolean(canComment && value !== undefined && onCommentChange);
+  const hasComment = comment !== undefined && comment !== '';
 
   const cellColors = getPlannerCellColors(value, isDark);
 
@@ -83,20 +94,46 @@ export function PlannerCell({
     : { backgroundColor: cellColors?.bg, color: cellColors?.text };
 
   return (
-    <button
-      type="button"
-      className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none border-0 bg-transparent p-0 ${
-        !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
-      } ${selected ? 'ring-2 ring-inset ring-primary' : ''}`}
-      style={cellStyle}
-      onDoubleClick={startEditing}
-      onMouseDown={onMouseDown}
-      onMouseEnter={onMouseEnter}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') startEditing();
-      }}
-    >
-      {value ?? ''}
-    </button>
+    <div className="relative h-full w-full">
+      <button
+        type="button"
+        className={`flex h-full w-full cursor-pointer items-center justify-center text-xs select-none border-0 bg-transparent p-0 ${
+          !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : ''
+        } ${selected ? 'ring-2 ring-inset ring-primary' : ''}`}
+        style={cellStyle}
+        onDoubleClick={startEditing}
+        onMouseDown={onMouseDown}
+        onMouseEnter={onMouseEnter}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') startEditing();
+        }}
+      >
+        {value ?? ''}
+      </button>
+      {showIcon && (
+        <PlannerCommentPopover
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
+          comment={hasComment ? comment : undefined}
+          onSave={(text) => onCommentChange?.(text)}
+          onDelete={hasComment ? () => onCommentChange?.(null) : undefined}
+          anchor={
+            <button
+              type="button"
+              aria-label={hasComment ? 'Edit comment' : 'Add comment'}
+              onClick={(e) => { e.stopPropagation(); setPopoverOpen((v) => !v); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`absolute right-0.5 top-0.5 rounded p-0.5 transition-opacity ${
+                hasComment
+                  ? 'opacity-100 text-primary'
+                  : 'opacity-0 hover:opacity-100 group-hover/cell:opacity-100 text-muted-foreground'
+              }`}
+            >
+              <MessageSquare className="h-2.5 w-2.5" />
+            </button>
+          }
+        />
+      )}
+    </div>
   );
 }
