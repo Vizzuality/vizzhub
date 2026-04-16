@@ -1,6 +1,7 @@
-import { Calendar, ExternalLink, MapPin, Users } from 'lucide-react';
+import { Calendar, ExternalLink, MapPin, MessageSquareText, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { useTheme } from 'next-themes';
 import { StarRating } from './StarRating';
 import { getThemeColor } from '../utils/constants';
@@ -93,9 +94,28 @@ export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t">
-          <span className="text-sm font-medium">
-            {formatCost(Number(event.cost))}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              {formatCost(Number(event.cost))}
+            </span>
+            {event.observations && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className="text-muted-foreground hover:text-foreground cursor-default"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MessageSquareText size={14} />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    {event.observations}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           {event.url && (
             <a
               href={event.url}
