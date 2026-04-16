@@ -84,11 +84,12 @@ function HorizontalBarCard({
               axisLine={false}
             />
             <Tooltip
-              cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
+              cursor={{ fill: 'transparent' }}
               contentStyle={{
                 fontSize: 12,
                 borderRadius: 6,
                 border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--background))',
               }}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>

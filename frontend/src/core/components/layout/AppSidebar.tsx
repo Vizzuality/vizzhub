@@ -96,6 +96,11 @@ const CAPACITY_TABS = [
   { to: '/capacity/planner', label: 'Planner' },
 ] as const;
 
+const EVENTS_TABS = [
+  { to: '/events', label: 'List' },
+  { to: '/events/dashboard', label: 'Dashboard' },
+] as const;
+
 
 function GuardedLink({
   to,
@@ -285,18 +290,12 @@ export function AppSidebar(): JSX.Element {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive('/events')}
-                  tooltip="Events"
-                >
-                  <GuardedLink to="/events">
-                    <CalendarDays />
-                    <span>Events</span>
-                  </GuardedLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <CollapsibleMenuItem
+                icon={CalendarDays}
+                label="Events"
+                isActive={isActive('/events')}
+                items={EVENTS_TABS}
+              />
 
               {isAdmin && (
                 <SidebarMenuItem>

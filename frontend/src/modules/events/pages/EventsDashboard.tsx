@@ -1,0 +1,64 @@
+import { useMemo } from 'react';
+import { useUrlState } from '@/shared/hooks/useUrlState';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
+import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { StatsCharts } from '../components/StatsCharts';
+import { useEventStats } from '../hooks/useEventStats';
+
+const ALL_SENTINEL = '__all__';
+
+const urlSchema = {
+  year: { defaultValue: '' },
+};
+
+function buildYearOptions(): string[] {
+  const currentYear = new Date().getFullYear();
+  const years: string[] = [];
+  for (let y = currentYear; y >= 2024; y--) {
+    years.push(String(y));
+  }
+  return years;
+}
+
+export default function EventsDashboard(): JSX.Element {
+  const { state, setState } = useUrlState(urlSchema);
+  const yearOptions = useMemo(() => buildYearOptions(), []);
+
+  const { data: stats, isLoading } = useEventStats(
+    state.year ? Number(state.year) : undefined,
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Events Dashboard</h1>
+        <Select
+          value={state.year || ALL_SENTINEL}
+          onValueChange={(v) => setState({ year: v === ALL_SENTINEL ? '' : v })}
+        >
+          <SelectTrigger className="w-[130px] h-9 text-sm">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_SENTINEL}>All Years</SelectItem>
+            {yearOptions.map((y) => (
+              <SelectItem key={y} value={y}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : stats ? (
+        <StatsCharts stats={stats} />
+      ) : null}
+    </div>
+  );
+}
