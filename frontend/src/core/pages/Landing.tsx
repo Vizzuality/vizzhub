@@ -13,7 +13,7 @@ interface ModuleCard {
   symbol: string;
   label: string;
   path: string;
-  iconType: 'tracker' | 'scorecard' | 'iso' | 'playbook' | 'admin';
+  iconType: 'tracker' | 'scorecard' | 'iso' | 'playbook' | 'capacity';
   adminOnly?: boolean;
   comingSoon?: boolean;
 }
@@ -52,7 +52,7 @@ const MODULES: ModuleCard[] = [
     symbol: 'Ca',
     label: 'CAPACITY',
     path: '/capacity/insights',
-    iconType: 'admin',
+    iconType: 'capacity',
   },
 ];
 
@@ -70,25 +70,16 @@ function getScoreCssVar(score: number | null): string {
   return 'var(--aux-cool-steel)';
 }
 
-const SCORECARD_GRID_CELLS = ['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'];
+const ICON_CLASS: Record<ModuleCard['iconType'], string> = {
+  tracker: 'landing__icon-tracker',
+  scorecard: 'landing__icon-scorecard',
+  iso: 'landing__icon-iso',
+  playbook: 'landing__icon-playbook',
+  capacity: 'landing__icon-capacity',
+};
 
 function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
-  if (type === 'scorecard') {
-    return (
-      <span className="landing__card-icon landing__icon-scorecard">
-        {SCORECARD_GRID_CELLS.map((id) => (
-          <span key={id} />
-        ))}
-      </span>
-    );
-  }
-  const classMap = {
-    tracker: 'landing__icon-tracker',
-    iso: 'landing__icon-iso',
-    playbook: 'landing__icon-playbook',
-    admin: 'landing__icon-admin',
-  };
-  return <span className={`landing__card-icon ${classMap[type]}`} />;
+  return <span className={`landing__card-icon ${ICON_CLASS[type]}`} />;
 }
 
 function TopScores(): JSX.Element | null {
