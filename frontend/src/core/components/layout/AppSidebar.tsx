@@ -4,6 +4,7 @@ import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import {
   BarChart3,
   BookOpen,
+  CalendarDays,
   ClipboardList,
   FolderKanban,
   ListTodo,
@@ -280,6 +281,19 @@ export function AppSidebar(): JSX.Element {
                   <GuardedLink to="/playbook">
                     <BookOpen />
                     <span>Playbook</span>
+                  </GuardedLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive('/events')}
+                  tooltip="Events"
+                >
+                  <GuardedLink to="/events">
+                    <CalendarDays />
+                    <span>Events</span>
                   </GuardedLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
