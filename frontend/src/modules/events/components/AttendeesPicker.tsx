@@ -29,17 +29,14 @@ import { useEventOptions } from '../hooks/useEventOptions';
 import { ROLE_COLORS } from '../utils/constants';
 import type { Attendee } from '../types/events';
 
-type AttendeesPickerProps = {
-  readonly eventId: string;
+interface AttendeesPickerProps {
   readonly attendees: Attendee[];
   readonly onAdd: (attendees: { user_id: string; role: string }[]) => void;
   readonly onRemove: (userId: string) => void;
-};
+}
 
 export function AttendeesPicker({
-  attendees,
-  onAdd,
-  onRemove,
+  attendees, onAdd, onRemove,
 }: AttendeesPickerProps): JSX.Element {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('Attendee');

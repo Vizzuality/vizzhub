@@ -2,6 +2,7 @@ import { Calendar, ExternalLink, MapPin, MessageSquareText, Users } from 'lucide
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { formatCurrency } from '@/shared/utils/evmCalculations';
 import { useTheme } from 'next-themes';
 import { StarRating } from './StarRating';
 import { getThemeColor } from '../utils/constants';
@@ -25,15 +26,6 @@ function formatDateRange(start: string, end: string | null): string {
     year: 'numeric',
   });
   return `${s} \u2014 ${e}`;
-}
-
-function formatCost(cost: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(cost);
 }
 
 export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
@@ -96,7 +88,7 @@ export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">
-              {formatCost(Number(event.cost))}
+              {formatCurrency(Number(event.cost))}
             </span>
             {event.observations && (
               <TooltipProvider>

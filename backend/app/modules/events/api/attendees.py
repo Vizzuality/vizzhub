@@ -1,76 +1,21 @@
 """Event attendee management endpoints."""
 
-from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import aliased
 
 from app.core.api.deps import DBSession
-from app.core.auth import TokenData
-from app.core.models.functional_area import FunctionalAreaDB
-from app.core.models.user import UserDB
-from app.core.permissions import Action, require_permission
-from app.core.sql_helpers import user_display_name_expr
-from app.modules.events.models.event import EventDB
+from app.modules.events.api.deps import EventsManager, get_event_or_404
 from app.modules.events.models.event_attendee import EventAttendeeDB
 from app.modules.events.schemas.event_attendee import AttendeeCreate, AttendeeResponse
+from app.modules.events.services.event_service import load_attendee_details
 
 logger = structlog.get_logger()
 
 router = APIRouter()
-
-EventsManager = Annotated[TokenData, Depends(require_permission(Action.EVENTS_MANAGE))]
-
-
-async def _get_event_or_404(db, event_id: UUID) -> EventDB:
-    result = await db.execute(select(EventDB).where(EventDB.id == event_id))
-    event = result.scalar_one_or_none()
-    if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return event
-
-
-async def _load_attendee_responses(
-    db,
-    event_id: UUID,
-    attendee_ids: list[UUID],
-) -> list[AttendeeResponse]:
-    user_alias = aliased(UserDB)
-    fa_alias = aliased(FunctionalAreaDB)
-
-    stmt = (
-        select(
-            EventAttendeeDB,
-            user_display_name_expr(user_alias).label("user_name"),
-            user_alias.email.label("user_email"),
-            fa_alias.name.label("functional_area"),
-        )
-        .join(user_alias, user_alias.id == EventAttendeeDB.user_id)
-        .outerjoin(fa_alias, fa_alias.id == user_alias.functional_area_id)
-        .where(
-            EventAttendeeDB.event_id == event_id,
-            EventAttendeeDB.id.in_(attendee_ids),
-        )
-        .order_by(EventAttendeeDB.role, user_display_name_expr(user_alias))
-    )
-    result = await db.execute(stmt)
-    return [
-        AttendeeResponse(
-            id=att.id,
-            event_id=att.event_id,
-            user_id=att.user_id,
-            role=att.role,
-            user_name=user_name,
-            user_email=user_email,
-            functional_area=functional_area,
-            created_at=att.created_at,
-        )
-        for att, user_name, user_email, functional_area in result.all()
-    ]
 
 
 @router.post(
@@ -87,7 +32,7 @@ async def add_attendees(
     db: DBSession,
     user: EventsManager,
 ) -> list[AttendeeResponse]:
-    await _get_event_or_404(db, event_id)
+    await get_event_or_404(db, event_id)
 
     created_ids: list[UUID] = []
     for item in body:
@@ -113,7 +58,8 @@ async def add_attendees(
         event_id=str(event_id),
         count=len(created_ids),
     )
-    return await _load_attendee_responses(db, event_id, created_ids)
+    details = await load_attendee_details(db, [event_id], attendee_ids=created_ids)
+    return [AttendeeResponse(**d) for d in details]
 
 
 @router.delete(
