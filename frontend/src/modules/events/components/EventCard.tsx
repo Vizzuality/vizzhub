@@ -99,9 +99,10 @@ export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 -mr-2 rounded-md hover:bg-muted transition-colors"
             >
               <ExternalLink size={14} />
+              <span>Link</span>
             </a>
           )}
         </div>
