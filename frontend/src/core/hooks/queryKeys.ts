@@ -223,6 +223,13 @@ export const queryKeys = {
     publishStatus: ['playbook', 'publish', 'status'] as const,
     publishHistory: ['playbook', 'publish', 'history'] as const,
   },
+  events: {
+    all: ['events'] as const,
+    list: (params: Record<string, unknown>) => ['events', 'list', params] as const,
+    detail: (id: string) => ['events', id] as const,
+    stats: (year?: number) => ['events', 'stats', year] as const,
+    options: ['events', 'options'] as const,
+  },
   isoDocs: {
     tree: ['iso-docs', 'tree'] as const,
     page: (id: string) => ['iso-docs', 'page', id] as const,
