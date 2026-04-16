@@ -6,6 +6,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -19,7 +29,7 @@ import {
 } from '@/shared/components/ui/select';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useEvent, useAddAttendees, useRemoveAttendee } from '../hooks/useEvent';
-import { useCreateEvent, useUpdateEvent } from '../hooks/useEvents';
+import { useCreateEvent, useUpdateEvent, useDeleteEvent } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
 import { StarRating } from './StarRating';
 import { AttendeesPicker } from './AttendeesPicker';
@@ -72,11 +82,13 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
   const { data: options } = useEventOptions();
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
+  const deleteEvent = useDeleteEvent();
   const addAttendees = useAddAttendees();
   const removeAttendee = useRemoveAttendee();
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (existingEvent && !isNew) {
@@ -148,6 +160,10 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
         { onSuccess: onClose, onError },
       );
     }
+  };
+
+  const handleDelete = (): void => {
+    deleteEvent.mutate(editId, { onSuccess: onClose });
   };
 
   const isPending = createEvent.isPending || updateEvent.isPending;
@@ -367,21 +383,52 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
               <p className="text-sm text-destructive">{error}</p>
             )}
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending
-                  ? 'Saving...'
-                  : isNew
-                    ? 'Create'
-                    : 'Save'}
-              </Button>
+            <DialogFooter className="flex !justify-between">
+              {!isNew ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete
+                </Button>
+              ) : <span />}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending
+                    ? 'Saving...'
+                    : isNew
+                      ? 'Create'
+                      : 'Save'}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         )}
       </DialogContent>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{form.name}&quot; and all its attendees.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+            >
+              {deleteEvent.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
