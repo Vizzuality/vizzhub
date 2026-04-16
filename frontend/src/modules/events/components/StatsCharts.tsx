@@ -7,9 +7,19 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { THEME_COLORS, ROLE_COLORS } from '../utils/constants';
 import type { EventStats, StatGroup } from '../types/events';
+
+function ChartTooltip({ active, payload, label }: TooltipProps<number, string>): JSX.Element | null {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-md border bg-card text-card-foreground shadow-md px-3 py-1.5 text-xs">
+      <span className="font-medium">{label}</span>: {payload[0].value}
+    </div>
+  );
+}
 
 type StatsChartsProps = {
   readonly stats: EventStats;
@@ -85,16 +95,7 @@ function HorizontalBarCard({
             />
             <Tooltip
               cursor={{ fill: 'transparent' }}
-              contentStyle={{
-                fontSize: 12,
-                borderRadius: 6,
-                border: '1px solid hsl(var(--border))',
-                background: 'hsl(var(--card))',
-                color: 'hsl(var(--card-foreground))',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                padding: '6px 10px',
-              }}
-              formatter={(value: number) => [value, 'Events']}
+              content={<ChartTooltip />}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>
               {data.map((entry, i) => (
