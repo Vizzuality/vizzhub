@@ -735,6 +735,45 @@ class TestPatchCellsWithComment:
         assert row.comment == "Updated note"
 
     @pytest.mark.asyncio
+    async def test_percentage_update_preserves_existing_comment(self, db_session, planner_data):
+        from app.modules.capacity.api.planner import update_cells
+        from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CellUpdate
+        from sqlalchemy import update as sa_update
+
+        u = planner_data["user1"]
+        p = planner_data["project1"]
+        fake_user = FakeUser(u.id)
+
+        await db_session.execute(
+            sa_update(CapacityPlanDB)
+            .where(
+                CapacityPlanDB.user_id == u.id,
+                CapacityPlanDB.project_id == p.id,
+                CapacityPlanDB.week_start == date(2026, 1, 5),
+            )
+            .values(comment="keep me")
+        )
+        await db_session.flush()
+
+        body = BulkCellUpdate(updates=[
+            CellUpdate(
+                project_id=p.id, user_id=u.id,
+                week_start=date(2026, 1, 5),
+                percentage=80,
+            ),
+        ])
+        await update_cells(db_session, fake_user, body)
+
+        stmt = select(CapacityPlanDB).where(
+            CapacityPlanDB.user_id == u.id,
+            CapacityPlanDB.project_id == p.id,
+            CapacityPlanDB.week_start == date(2026, 1, 5),
+        )
+        row = (await db_session.execute(stmt)).scalar_one()
+        assert row.percentage == 80
+        assert row.comment == "keep me"
+
+    @pytest.mark.asyncio
     async def test_delete_wipes_comment(self, db_session, planner_data):
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CellUpdate

@@ -364,29 +364,37 @@ async def update_cells(
 
     upserted_count = 0
     if upserts:
-        values = [
-            {
-                "project_id": cell.project_id,
-                "user_id": cell.user_id,
-                "week_start": cell.week_start,
-                "percentage": cell.percentage,
-                "comment": cell.comment,
-                "created_by": user.user_id,
-                "updated_by": user.user_id,
-            }
-            for cell in upserts
-        ]
-        stmt = pg_insert(CapacityPlanDB).values(values)
-        stmt = stmt.on_conflict_do_update(
-            constraint="uq_capacity_plan_cell",
-            set_={
+        with_comment = [c for c in upserts if "comment" in c.model_fields_set]
+        without_comment = [c for c in upserts if "comment" not in c.model_fields_set]
+
+        for batch, include_comment in [(with_comment, True), (without_comment, False)]:
+            if not batch:
+                continue
+            values = [
+                {
+                    "project_id": cell.project_id,
+                    "user_id": cell.user_id,
+                    "week_start": cell.week_start,
+                    "percentage": cell.percentage,
+                    "comment": cell.comment,
+                    "created_by": user.user_id,
+                    "updated_by": user.user_id,
+                }
+                for cell in batch
+            ]
+            stmt = pg_insert(CapacityPlanDB).values(values)
+            update_set: dict = {
                 "percentage": stmt.excluded.percentage,
-                "comment": stmt.excluded.comment,
                 "updated_by": stmt.excluded.updated_by,
                 "updated_at": func.now(),
-            },
-        )
-        await db.execute(stmt)
+            }
+            if include_comment:
+                update_set["comment"] = stmt.excluded.comment
+            stmt = stmt.on_conflict_do_update(
+                constraint="uq_capacity_plan_cell",
+                set_=update_set,
+            )
+            await db.execute(stmt)
         upserted_count = len(upserts)
 
     await db.commit()

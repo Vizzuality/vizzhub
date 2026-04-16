@@ -97,7 +97,11 @@ export function usePlannerMutations(
   const queueCellUpdate = useCallback(
     (update: CellUpdate): void => {
       const key = `${update.project_id}:${update.user_id}:${update.week_start}`;
-      pendingRef.current.set(key, update);
+      const existing = pendingRef.current.get(key);
+      const merged = existing && update.comment === undefined
+        ? { ...update, comment: existing.comment }
+        : update;
+      pendingRef.current.set(key, merged);
       setPendingCount(pendingRef.current.size);
       applyOptimisticUpdate(update);
 
