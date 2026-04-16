@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { EventCard } from '../components/EventCard';
+import { EventForm } from '../components/EventForm';
 import { useEvents } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
 import type { EventListParams } from '../types/events';
@@ -257,8 +258,12 @@ export default function Events(): JSX.Element {
         </Card>
       )}
 
-      {/* EventForm will be added in next task */}
-      {selectedEventId !== null && null}
+      {selectedEventId && (
+        <EventForm
+          eventId={selectedEventId}
+          onClose={() => setSelectedEventId(null)}
+        />
+      )}
     </div>
   );
 }
