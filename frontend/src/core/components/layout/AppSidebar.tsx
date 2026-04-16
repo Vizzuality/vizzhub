@@ -212,9 +212,9 @@ export function AppSidebar(): JSX.Element {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
-        <GuardedLink to="/" className="flex items-center gap-2">
-          <VizzualityLogo className="h-6 w-auto shrink-0 group-data-[collapsible=icon]:hidden" />
+      <SidebarHeader className="p-4 transition-[padding] duration-200 ease-linear group-data-[collapsible=icon]:px-0">
+        <GuardedLink to="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+          <VizzualityLogo className="h-6 w-[6.29rem] shrink-0 transition-[width] duration-200 ease-linear group-data-[collapsible=icon]:w-[1.1rem]" />
         </GuardedLink>
       </SidebarHeader>
 
