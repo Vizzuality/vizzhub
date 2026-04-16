@@ -1,26 +1,23 @@
 """Excel import endpoint for bulk event creation."""
 
+import zipfile
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Annotated
+from io import BytesIO
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from sqlalchemy import func, select
+from fastapi import APIRouter, HTTPException, UploadFile
+from sqlalchemy import select
 
 from app.core.api.deps import DBSession
-from app.core.auth import TokenData
 from app.core.models.user import UserDB
-from app.core.permissions import Action, require_permission
-from app.core.sql_helpers import user_display_name_expr
+from app.modules.events.api.deps import EventsManager
 from app.modules.events.models.event import EventDB
 from app.modules.events.models.event_attendee import EventAttendeeDB
 
 logger = structlog.get_logger()
 
 router = APIRouter()
-
-EventsManager = Annotated[TokenData, Depends(require_permission(Action.EVENTS_MANAGE))]
 
 EXPECTED_HEADERS = {
     "event_name": "name",
@@ -55,7 +52,6 @@ EXPECTED_HEADERS = {
 
 
 def _build_user_lookup(users: list) -> dict[str, "UserDB"]:
-    """Map lowercase display names to UserDB objects."""
     lookup: dict[str, UserDB] = {}
     for u in users:
         if u.first_name and u.last_name:
@@ -123,9 +119,8 @@ async def import_events_from_excel(
     content = await file.read()
 
     try:
-        from io import BytesIO
         wb = openpyxl.load_workbook(BytesIO(content), read_only=True, data_only=True)
-    except Exception:
+    except (KeyError, ValueError, zipfile.BadZipFile):
         raise HTTPException(status_code=400, detail="Could not read Excel file")
 
     sheet_name = "Events" if "Events" in wb.sheetnames else wb.sheetnames[0]
@@ -159,7 +154,7 @@ async def import_events_from_excel(
     event_groups: dict[tuple[str, date], dict] = {}
     skipped_rows = 0
 
-    for row_num, row in enumerate(rows[1:], start=2):
+    for row in rows[1:]:
         event_name = _safe_str(_cell(row, "name"))
         start_date_val = _parse_date(_cell(row, "start_date"))
 

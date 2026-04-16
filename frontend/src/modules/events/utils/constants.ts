@@ -24,3 +24,14 @@ export const ROLE_COLORS: Record<string, string> = {
   'Exhibitor': '#ca8a04',
   'Attendee': '#64748b',
 };
+
+export const ALL_SENTINEL = '__all__';
+
+export function buildYearOptions(): string[] {
+  const currentYear = new Date().getFullYear();
+  const years: string[] = [];
+  for (let y = currentYear; y >= 2024; y--) {
+    years.push(String(y));
+  }
+  return years;
+}

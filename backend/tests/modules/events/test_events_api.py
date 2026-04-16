@@ -153,6 +153,29 @@ class TestEventStats:
         assert Decimal(str(data["total_cost"])) == Decimal("0")
         assert data["total_attendees"] == 0
 
+    @pytest.mark.asyncio
+    async def test_get_stats_with_data(
+        self, client: AsyncClient, test_user: UserDB,
+    ):
+        create_resp = await client.post(
+            "/api/events",
+            json=_event_payload(cost=500, start_date="2025-03-10"),
+        )
+        event_id = create_resp.json()["id"]
+        await client.post(
+            f"/api/events/{event_id}/attendees",
+            json=[{"user_id": str(test_user.id), "role": "Speaker"}],
+        )
+
+        resp = await client.get("/api/events/stats", params={"year": 2025})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_events"] == 1
+        assert data["total_attendees"] == 1
+        assert Decimal(str(data["total_cost"])) == Decimal("500")
+        assert any(g["label"] == "Climate" for g in data["by_theme"])
+        assert any(g["label"] == "Speaker" for g in data["by_role"])
+
 
 class TestEventAttendees:
     @pytest.mark.asyncio

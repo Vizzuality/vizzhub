@@ -19,6 +19,17 @@ SORT_COLUMNS = {
     "rating": EventDB.rating,
 }
 
+EVENT_FIELDS = [
+    "id", "name", "event_type", "theme_primary", "theme_secondary",
+    "region_focus", "location_city", "location_country", "start_date",
+    "end_date", "cost", "rating", "url", "observations", "created_by",
+    "created_at", "updated_at",
+]
+
+
+def event_to_dict(event: EventDB) -> dict:
+    return {field: getattr(event, field) for field in EVENT_FIELDS}
+
 
 def _attendee_count_subquery() -> Select:
     return (
@@ -77,6 +88,53 @@ def apply_sort(
     return stmt.order_by(col.desc().nulls_last())
 
 
+def _attendee_detail_query(
+    event_ids: list[UUID],
+    attendee_ids: list[UUID] | None = None,
+) -> Select:
+    user_alias = aliased(UserDB)
+    fa_alias = aliased(FunctionalAreaDB)
+    stmt = (
+        select(
+            EventAttendeeDB,
+            user_display_name_expr(user_alias).label("user_name"),
+            user_alias.email.label("user_email"),
+            fa_alias.name.label("functional_area"),
+        )
+        .join(user_alias, user_alias.id == EventAttendeeDB.user_id)
+        .outerjoin(fa_alias, fa_alias.id == user_alias.functional_area_id)
+        .where(EventAttendeeDB.event_id.in_(event_ids))
+        .order_by(EventAttendeeDB.role, user_display_name_expr(user_alias))
+    )
+    if attendee_ids is not None:
+        stmt = stmt.where(EventAttendeeDB.id.in_(attendee_ids))
+    return stmt
+
+
+def _attendee_row_to_dict(att, user_name, user_email, functional_area) -> dict:
+    return {
+        "id": att.id,
+        "event_id": att.event_id,
+        "user_id": att.user_id,
+        "role": att.role,
+        "user_name": user_name,
+        "user_email": user_email,
+        "functional_area": functional_area,
+        "created_at": att.created_at,
+    }
+
+
+async def load_attendee_details(
+    db: AsyncSession,
+    event_ids: list[UUID],
+    attendee_ids: list[UUID] | None = None,
+) -> list[dict]:
+    if not event_ids:
+        return []
+    result = await db.execute(_attendee_detail_query(event_ids, attendee_ids))
+    return [_attendee_row_to_dict(*row) for row in result.all()]
+
+
 async def list_events(
     db: AsyncSession,
     *,
@@ -92,9 +150,7 @@ async def list_events(
     offset: int = 0,
     limit: int = 50,
 ) -> tuple[list[dict], int]:
-    base = _base_list_query()
-    filtered = apply_filters(
-        base,
+    filter_kwargs = dict(
         search=search,
         year=year,
         quarter=quarter,
@@ -103,6 +159,9 @@ async def list_events(
         region_focus=region_focus,
         location_country=location_country,
     )
+
+    base = _base_list_query()
+    filtered = apply_filters(base, **filter_kwargs)
     sorted_stmt = apply_sort(filtered, sort_by, sort_dir)
     paginated = sorted_stmt.offset(offset).limit(limit)
 
@@ -110,19 +169,9 @@ async def list_events(
     rows = result.all()
 
     count_stmt = select(func.count()).select_from(EventDB)
-    count_stmt = apply_filters(
-        count_stmt,
-        search=search,
-        year=year,
-        quarter=quarter,
-        event_type=event_type,
-        theme_primary=theme_primary,
-        region_focus=region_focus,
-        location_country=location_country,
-    )
+    count_stmt = apply_filters(count_stmt, **filter_kwargs)
     total = (await db.execute(count_stmt)).scalar() or 0
 
-    # Fetch attendee names for all events in one query
     event_ids = [row[0].id for row in rows]
     attendee_names_map: dict[UUID, list[str]] = {eid: [] for eid in event_ids}
     if event_ids:
@@ -142,27 +191,9 @@ async def list_events(
 
     items = []
     for event, attendee_count in rows:
-        data = {
-            "id": event.id,
-            "name": event.name,
-            "event_type": event.event_type,
-            "theme_primary": event.theme_primary,
-            "theme_secondary": event.theme_secondary,
-            "region_focus": event.region_focus,
-            "location_city": event.location_city,
-            "location_country": event.location_country,
-            "start_date": event.start_date,
-            "end_date": event.end_date,
-            "cost": event.cost,
-            "rating": event.rating,
-            "url": event.url,
-            "observations": event.observations,
-            "created_by": event.created_by,
-            "attendee_count": attendee_count or 0,
-            "attendee_names": attendee_names_map.get(event.id, []),
-            "created_at": event.created_at,
-            "updated_at": event.updated_at,
-        }
+        data = event_to_dict(event)
+        data["attendee_count"] = attendee_count or 0
+        data["attendee_names"] = attendee_names_map.get(event.id, [])
         items.append(data)
 
     return items, total
@@ -180,57 +211,9 @@ async def get_event_with_attendees(
         return None
 
     event, attendee_count = row
+    attendees = await load_attendee_details(db, [event_id])
 
-    user_alias = aliased(UserDB)
-    fa_alias = aliased(FunctionalAreaDB)
-
-    attendee_stmt = (
-        select(
-            EventAttendeeDB,
-            user_display_name_expr(user_alias).label("user_name"),
-            user_alias.email.label("user_email"),
-            fa_alias.name.label("functional_area"),
-        )
-        .join(user_alias, user_alias.id == EventAttendeeDB.user_id)
-        .outerjoin(fa_alias, fa_alias.id == user_alias.functional_area_id)
-        .where(EventAttendeeDB.event_id == event_id)
-        .order_by(EventAttendeeDB.role, user_display_name_expr(user_alias))
-    )
-    attendee_result = await db.execute(attendee_stmt)
-    attendee_rows = attendee_result.all()
-
-    attendees = [
-        {
-            "id": att.id,
-            "event_id": att.event_id,
-            "user_id": att.user_id,
-            "role": att.role,
-            "user_name": user_name,
-            "user_email": user_email,
-            "functional_area": functional_area,
-            "created_at": att.created_at,
-        }
-        for att, user_name, user_email, functional_area in attendee_rows
-    ]
-
-    return {
-        "id": event.id,
-        "name": event.name,
-        "event_type": event.event_type,
-        "theme_primary": event.theme_primary,
-        "theme_secondary": event.theme_secondary,
-        "region_focus": event.region_focus,
-        "location_city": event.location_city,
-        "location_country": event.location_country,
-        "start_date": event.start_date,
-        "end_date": event.end_date,
-        "cost": event.cost,
-        "rating": event.rating,
-        "url": event.url,
-        "observations": event.observations,
-        "created_by": event.created_by,
-        "attendee_count": attendee_count or 0,
-        "created_at": event.created_at,
-        "updated_at": event.updated_at,
-        "attendees": attendees,
-    }
+    data = event_to_dict(event)
+    data["attendee_count"] = attendee_count or 0
+    data["attendees"] = attendees
+    return data

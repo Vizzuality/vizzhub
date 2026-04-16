@@ -17,9 +17,9 @@ import { EventCard } from '../components/EventCard';
 import { EventForm } from '../components/EventForm';
 import { useEvents } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
+import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
 import type { EventListParams } from '../types/events';
 
-const ALL_SENTINEL = '__all__';
 const SEARCH_DEBOUNCE_MS = 300;
 
 const SORT_OPTIONS = [
@@ -41,15 +41,6 @@ const urlSchema = {
   region: { defaultValue: '' },
   sort: { defaultValue: 'start_date:desc' },
 };
-
-function buildYearOptions(): string[] {
-  const currentYear = new Date().getFullYear();
-  const years: string[] = [];
-  for (let y = currentYear; y >= 2024; y--) {
-    years.push(String(y));
-  }
-  return years;
-}
 
 export default function Events(): JSX.Element {
   const canManage = usePermission(Action.EVENTS_MANAGE);
@@ -90,6 +81,9 @@ export default function Events(): JSX.Element {
   const { data, isLoading, error } = useEvents(queryParams);
   const events = data?.items ?? [];
   const total = data?.total ?? 0;
+  const hasActiveFilters = !!(
+    state.search || state.year || state.theme || state.type || state.region
+  );
 
   const handleCardClick = (id: string): void => {
     setSelectedEventId(id);
@@ -243,11 +237,11 @@ export default function Events(): JSX.Element {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-muted-foreground">
-              {state.search || state.year || state.theme || state.type || state.region
+              {hasActiveFilters
                 ? 'No events match your filters'
                 : 'No events yet'}
             </p>
-            {canManage && !state.search && !state.year && !state.theme && !state.type && !state.region && (
+            {canManage && !hasActiveFilters && (
               <Button
                 className="mt-4"
                 onClick={() => setSelectedEventId('new')}

@@ -4,12 +4,11 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from app.core.api.deps import DBSession
-from app.core.auth import TokenData
-from app.core.permissions import Action, require_permission
+from app.modules.events.api.deps import EventsManager, EventsViewer, get_event_or_404
 from app.modules.events.models.event import EventDB
 from app.modules.events.models.event_attendee import EventAttendeeDB
 from app.modules.events.schemas.event import (
@@ -27,31 +26,11 @@ logger = structlog.get_logger()
 
 router = APIRouter()
 
-EventsViewer = Annotated[TokenData, Depends(require_permission(Action.EVENTS_VIEW))]
-EventsManager = Annotated[TokenData, Depends(require_permission(Action.EVENTS_MANAGE))]
-
 
 def _event_to_response(event: EventDB, attendee_count: int = 0) -> EventResponse:
-    return EventResponse(
-        id=event.id,
-        name=event.name,
-        event_type=event.event_type,
-        theme_primary=event.theme_primary,
-        theme_secondary=event.theme_secondary,
-        region_focus=event.region_focus,
-        location_city=event.location_city,
-        location_country=event.location_country,
-        start_date=event.start_date,
-        end_date=event.end_date,
-        cost=event.cost,
-        rating=event.rating,
-        url=event.url,
-        observations=event.observations,
-        created_by=event.created_by,
-        attendee_count=attendee_count,
-        created_at=event.created_at,
-        updated_at=event.updated_at,
-    )
+    resp = EventResponse.model_validate(event)
+    resp.attendee_count = attendee_count
+    return resp
 
 
 @router.get("")
@@ -138,10 +117,7 @@ async def update_event(
     db: DBSession,
     user: EventsManager,
 ) -> EventResponse:
-    result = await db.execute(select(EventDB).where(EventDB.id == event_id))
-    event = result.scalar_one_or_none()
-    if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = await get_event_or_404(db, event_id)
 
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
@@ -171,10 +147,7 @@ async def delete_event(
     db: DBSession,
     user: EventsManager,
 ) -> None:
-    result = await db.execute(select(EventDB).where(EventDB.id == event_id))
-    event = result.scalar_one_or_none()
-    if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = await get_event_or_404(db, event_id)
 
     await db.delete(event)
     await db.commit()

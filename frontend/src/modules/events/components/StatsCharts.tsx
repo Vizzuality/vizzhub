@@ -9,6 +9,7 @@ import {
 } from 'recharts';
 import type { TooltipProps } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { formatCurrency } from '@/shared/utils/evmCalculations';
 import { useTheme } from 'next-themes';
 import { THEME_COLORS, ROLE_COLORS } from '../utils/constants';
 import type { EventStats, StatGroup } from '../types/events';
@@ -33,9 +34,9 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>):
   );
 }
 
-type StatsChartsProps = {
+interface StatsChartsProps {
   readonly stats: EventStats;
-};
+}
 
 const CHART_PALETTE_LIGHT = [
   '#2563eb', '#16a34a', '#ca8a04', '#dc2626', '#7c3aed',
@@ -45,15 +46,6 @@ const CHART_PALETTE_DARK = [
   '#60a5fa', '#4ade80', '#facc15', '#f87171', '#a78bfa',
   '#22d3ee', '#fb923c', '#f472b6', '#94a3b8', '#34d399',
 ];
-
-function formatCost(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function getBarColor(
   label: string,
@@ -157,7 +149,7 @@ export function StatsCharts({ stats }: StatsChartsProps): JSX.Element {
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Total Cost</p>
             <p className="text-2xl font-semibold">
-              {formatCost(stats.total_cost)}
+              {formatCurrency(stats.total_cost)}
             </p>
           </CardContent>
         </Card>
