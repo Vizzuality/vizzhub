@@ -329,6 +329,41 @@ async def get_planner_suggestions(
     return {"suggestions": suggestions, "others_percentage": others_pct}
 
 
+async def _upsert_batch(
+    db: AsyncSession,
+    batch: list,
+    user_id: UUID,
+    include_comment: bool,
+) -> None:
+    """Upsert a batch of cells. When include_comment is False the existing
+    DB comment is preserved (percentage-only update)."""
+    values = [
+        {
+            "project_id": cell.project_id,
+            "user_id": cell.user_id,
+            "week_start": cell.week_start,
+            "percentage": cell.percentage,
+            "comment": cell.comment,
+            "created_by": user_id,
+            "updated_by": user_id,
+        }
+        for cell in batch
+    ]
+    stmt = pg_insert(CapacityPlanDB).values(values)
+    update_set: dict = {
+        "percentage": stmt.excluded.percentage,
+        "updated_by": stmt.excluded.updated_by,
+        "updated_at": func.now(),
+    }
+    if include_comment:
+        update_set["comment"] = stmt.excluded.comment
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_capacity_plan_cell",
+        set_=update_set,
+    )
+    await db.execute(stmt)
+
+
 @router.patch(
     "/cells",
     responses={422: {"description": "Validation error"}},
@@ -366,35 +401,10 @@ async def update_cells(
     if upserts:
         with_comment = [c for c in upserts if "comment" in c.model_fields_set]
         without_comment = [c for c in upserts if "comment" not in c.model_fields_set]
-
-        for batch, include_comment in [(with_comment, True), (without_comment, False)]:
-            if not batch:
-                continue
-            values = [
-                {
-                    "project_id": cell.project_id,
-                    "user_id": cell.user_id,
-                    "week_start": cell.week_start,
-                    "percentage": cell.percentage,
-                    "comment": cell.comment,
-                    "created_by": user.user_id,
-                    "updated_by": user.user_id,
-                }
-                for cell in batch
-            ]
-            stmt = pg_insert(CapacityPlanDB).values(values)
-            update_set: dict = {
-                "percentage": stmt.excluded.percentage,
-                "updated_by": stmt.excluded.updated_by,
-                "updated_at": func.now(),
-            }
-            if include_comment:
-                update_set["comment"] = stmt.excluded.comment
-            stmt = stmt.on_conflict_do_update(
-                constraint="uq_capacity_plan_cell",
-                set_=update_set,
-            )
-            await db.execute(stmt)
+        if with_comment:
+            await _upsert_batch(db, with_comment, user.user_id, include_comment=True)
+        if without_comment:
+            await _upsert_batch(db, without_comment, user.user_id, include_comment=False)
         upserted_count = len(upserts)
 
     await db.commit()
