@@ -27,10 +27,10 @@ import type { EventCreate } from '../types/events';
 
 const NONE_SENTINEL = '__none__';
 
-type EventFormProps = {
+interface EventFormProps {
   readonly eventId: string | null;
   readonly onClose: () => void;
-};
+}
 
 interface FormState {
   name: string;
@@ -356,7 +356,6 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
             {!isNew && existingEvent && (
               <div className="border-t pt-4">
                 <AttendeesPicker
-                  eventId={editId}
                   attendees={existingEvent.attendees}
                   onAdd={handleAddAttendees}
                   onRemove={handleRemoveAttendee}

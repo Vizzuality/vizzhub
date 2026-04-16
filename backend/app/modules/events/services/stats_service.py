@@ -1,6 +1,6 @@
 """Event statistics aggregation service."""
 
-from sqlalchemy import ColumnElement, Select, desc, func, select
+from sqlalchemy import ColumnElement, Select, desc, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -13,7 +13,7 @@ from app.modules.events.models.event_attendee import EventAttendeeDB
 def _year_filter(year: int | None) -> ColumnElement:
     if year is not None:
         return func.extract("year", EventDB.start_date) == year
-    return True
+    return true()
 
 
 async def _group_count(

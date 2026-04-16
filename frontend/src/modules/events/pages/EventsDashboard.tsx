@@ -10,21 +10,11 @@ import {
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { StatsCharts } from '../components/StatsCharts';
 import { useEventStats } from '../hooks/useEventStats';
-
-const ALL_SENTINEL = '__all__';
+import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
 
 const urlSchema = {
   year: { defaultValue: '' },
 };
-
-function buildYearOptions(): string[] {
-  const currentYear = new Date().getFullYear();
-  const years: string[] = [];
-  for (let y = currentYear; y >= 2024; y--) {
-    years.push(String(y));
-  }
-  return years;
-}
 
 export default function EventsDashboard(): JSX.Element {
   const { state, setState } = useUrlState(urlSchema);
