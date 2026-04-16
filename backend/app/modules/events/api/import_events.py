@@ -23,20 +23,33 @@ router = APIRouter()
 EventsManager = Annotated[TokenData, Depends(require_permission(Action.EVENTS_MANAGE))]
 
 EXPECTED_HEADERS = {
+    "event_name": "name",
     "event name": "name",
+    "event_type": "event_type",
     "type": "event_type",
+    "theme_sector_primary": "theme_primary",
+    "theme_sector_ primary": "theme_primary",
     "primary theme": "theme_primary",
+    "theme_sector_secondary": "theme_secondary",
+    "theme_sector_ secondary": "theme_secondary",
     "secondary theme": "theme_secondary",
+    "region_focus": "region_focus",
     "region focus": "region_focus",
+    "location_city": "location_city",
     "city": "location_city",
+    "location_country": "location_country",
     "country": "location_country",
+    "start_date": "start_date",
     "start date": "start_date",
+    "end_date": "end_date",
     "end date": "end_date",
     "cost": "cost",
     "rating": "rating",
     "url": "url",
     "observations": "observations",
+    "attendee_name": "attendee_name",
     "attendee name": "attendee_name",
+    "role_event": "attendee_role",
     "attendee role": "attendee_role",
 }
 
