@@ -89,7 +89,10 @@ function HorizontalBarCard({
                 fontSize: 12,
                 borderRadius: 6,
                 border: '1px solid hsl(var(--border))',
-                background: 'hsl(var(--background))',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--card-foreground))',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                padding: '6px 10px',
               }}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>

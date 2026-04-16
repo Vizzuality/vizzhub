@@ -60,6 +60,7 @@ class EventResponse(BaseModel):
     observations: str | None = None
     created_by: UUID | None = None
     attendee_count: int = 0
+    attendee_names: list[str] = []
     created_at: datetime
     updated_at: datetime
 

@@ -40,6 +40,7 @@ export interface EventSummary {
   observations: string | null;
   created_by: string | null;
   attendee_count: number;
+  attendee_names: string[];
   created_at: string;
   updated_at: string;
 }
