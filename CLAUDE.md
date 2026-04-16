@@ -40,6 +40,12 @@ app/
 │   │   ├── api/           # insights, fa_detail, user_detail, _validation
 │   │   ├── router.py      # Aggregates capacity sub-routers
 │   │   └── public.py      # Cross-module interface
+│   ├── events/            # Conference & event tracking
+│   │   ├── api/           # events, attendees, stats, options, import
+│   │   ├── models/        # EventDB, EventAttendeeDB
+│   │   ├── services/      # event_service, stats_service
+│   │   ├── router.py
+│   │   └── public.py
 │   └── iso/               # ISO compliance (snapshots, reviews, exports)
 │       ├── api/           # snapshots, reviews, config, exports
 │       ├── models/        # AccessSnapshot, AccessReview
@@ -83,6 +89,13 @@ src/
 │   │   ├── services/      # capacity (API client)
 │   │   ├── types/         # capacity (PeriodInsight, PeriodUserInsight, PeriodProjectInsight, ChartDataPoint)
 │   │   └── utils/         # constants (FA_COLORS, FA_ORDER, ITEM_PALETTE)
+│   ├── events/            # Conference & event tracking dashboard
+│   │   ├── components/    # EventCard, EventForm, AttendeesPicker, StarRating, StatsCharts
+│   │   ├── hooks/         # useEvents, useEvent, useEventStats, useEventOptions
+│   │   ├── pages/         # Events
+│   │   ├── services/      # events (API client)
+│   │   ├── types/         # events
+│   │   └── utils/         # constants (THEME_COLORS, ROLE_COLORS)
 │   └── iso/               # ISO compliance UI
 │       ├── components/    # ISOConfig
 │       ├── hooks/         # useIso
@@ -139,6 +152,9 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 - **Reporting period uniqueness**: Date normalized to first of month via Pydantic validator. Unique constraint on `date` column. 409 response on duplicate creation.
 - **Scorecard cost dimension**: `budget_variance` returns `None` when `cost_to_date <= 0` — projects with budget but no actual cost data show "-" instead of 100.
 - **Exchange rates**: ECB rates stored in `exchange_rates` table, fetched daily at 14:30 UTC. EUR-based (rate = units per 1 EUR). Conversion: `amount / rate`. EUR passthrough (rate = 1.0). Currencies endpoint: `GET /api/currencies`.
+- **Events enums in code**: Event type, theme, region, attendee role are StrEnum (backend) / `as const` (frontend) — not PostgreSQL enum types. Lists defined in `events/constants.py` and `events/types/events.ts`.
+- **Events cost is per-event**: Not per-attendee. `event_attendees` only stores `event_id`, `user_id`, `role`.
+- **Events year/quarter derived**: Not stored — computed from `start_date` in queries.
 - **Landing page**: `/` renders `Landing.tsx` inside `AppLayout` (with sidebar). Logo links to `/`. Uses `--lnd-green` CSS var: `deepTeal` in light mode, `neonGrass` in dark. Top 5 scores widget uses `useActiveProjectSummaries` + `useProjectScoresMap`.
 - **Status display pattern**: Always use colored dot + plain text (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + text in `text-foreground`). Never use colored badges or background-tinted pills for status indicators.
 - **Admin impersonation**: Token swap via `admin_token` httpOnly cookie. `stop-impersonate` uses `CurrentUser` (not `AdminUser`) because the session is the impersonated user. Use `delete_auth_cookie(response, key)` from `core/auth.py` for cookie deletion — never hand-unpack `get_cookie_settings()`.
