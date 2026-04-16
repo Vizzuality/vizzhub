@@ -30,6 +30,7 @@ const SORT_OPTIONS = [
   { value: 'cost:desc', label: 'Highest cost' },
   { value: 'cost:asc', label: 'Lowest cost' },
   { value: 'rating:desc', label: 'Highest rating' },
+  { value: 'rating:asc', label: 'Lowest rating' },
 ] as const;
 
 const urlSchema = {
