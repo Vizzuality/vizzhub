@@ -94,12 +94,13 @@ export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span
-                      className="text-muted-foreground hover:text-foreground cursor-default"
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MessageSquareText size={14} />
-                    </span>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs text-xs">
                     {event.observations}
