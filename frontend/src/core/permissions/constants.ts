@@ -19,6 +19,9 @@ export const Action = {
 
   ISO_DOCS_EDIT: 'iso_docs:edit',
 
+  EVENTS_VIEW: 'events:view',
+  EVENTS_MANAGE: 'events:manage',
+
   ADMIN_USERS: 'admin:users',
   ADMIN_JOBS: 'admin:jobs',
   ADMIN_INTEGRATIONS: 'admin:integrations',
