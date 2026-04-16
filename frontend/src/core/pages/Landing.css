@@ -128,15 +128,6 @@
   color: var(--lnd-green);
 }
 
-.landing__card:hover .landing__card-icon * {
-  background: var(--lnd-green);
-}
-
-.landing__card:hover .landing__card-icon::before,
-.landing__card:hover .landing__card-icon::after {
-  border-color: var(--lnd-green);
-  background: var(--lnd-green);
-}
 
 /* Disabled card */
 .landing__card--disabled {
@@ -187,80 +178,81 @@
 
 /* ── CSS Icons ── */
 
-/* Trending chart (tracker) */
-.landing__icon-tracker {
-  overflow: hidden;
-}
-
+/* Clock (tracker) — matches sidebar Clock icon */
 .landing__icon-tracker::before {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--lnd-steel);
-  transition: background 0.25s;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--lnd-steel);
+  border-radius: 50%;
+  background: transparent;
+  transition: border-color 0.25s;
 }
 
 .landing__icon-tracker::after {
   content: '';
   position: absolute;
-  bottom: 2px;
-  left: 0;
-  right: 0;
-  height: 10px;
-  clip-path: polygon(0% 100%, 35% 40%, 60% 70%, 100% 10%, 100% 100%);
-  background: var(--lnd-steel);
-  transition: background 0.25s;
-}
-
-/* Grid dots (scorecard) */
-.landing__icon-scorecard {
-  display: grid;
-  grid-template-columns: repeat(3, 3px);
-  grid-template-rows: repeat(3, 3px);
-  gap: 1.5px;
-}
-
-.landing__icon-scorecard span {
-  width: 3px;
-  height: 3px;
-  background: var(--lnd-steel);
-  border-radius: 0.5px;
-  transition: background 0.25s;
-}
-
-/* Diamond (ISO) */
-.landing__icon-iso {
-}
-
-.landing__icon-iso::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 10px;
-  height: 10px;
-  border: 1.5px solid var(--lnd-steel);
+  top: 3px;
+  left: 6px;
+  width: 4px;
+  height: 4.5px;
+  border-left: 1.5px solid var(--lnd-steel);
+  border-bottom: 1.5px solid var(--lnd-steel);
   background: transparent;
-  transform: rotate(45deg);
   transition: border-color 0.25s;
 }
 
-/* Play button (playbook) */
-.landing__icon-playbook {
+/* Bar chart (scorecard) — matches sidebar BarChart3 */
+.landing__icon-scorecard::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--lnd-steel);
+  transition: background 0.25s;
 }
 
-.landing__icon-playbook::before {
+.landing__icon-scorecard::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 1.5px;
+  width: 2.5px;
+  height: 4px;
+  background: var(--lnd-steel);
+  box-shadow: 4.5px -2px 0 0 var(--lnd-steel), 9px -5px 0 0 var(--lnd-steel);
+  transition: background 0.25s, box-shadow 0.25s;
+}
+
+/* Shield (ISO) — matches sidebar Shield icon */
+.landing__icon-iso::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
+  left: 1px;
   width: 12px;
-  height: 12px;
+  height: 13px;
   border: 1.5px solid var(--lnd-steel);
-  border-radius: 2px;
+  border-radius: 2px 2px 50% 50%;
+  background: transparent;
+  transition: border-color 0.25s;
+}
+
+/* Open book (playbook) — matches sidebar BookOpen icon */
+.landing__icon-playbook::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 11px;
+  border: 1.5px solid var(--lnd-steel);
+  border-radius: 1px;
   background: transparent;
   transition: border-color 0.25s;
 }
@@ -268,50 +260,62 @@
 .landing__icon-playbook::after {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 5px;
-  width: 0;
-  height: 0;
-  border-left: 5px solid var(--lnd-steel);
-  border-top: 3.5px solid transparent;
-  border-bottom: 3.5px solid transparent;
-  background: transparent;
-  transition: border-left-color 0.25s;
+  top: 2.5px;
+  left: 6.25px;
+  width: 1.5px;
+  height: 8px;
+  background: var(--lnd-steel);
+  transition: background 0.25s;
 }
 
-/* Gear (admin) — circle + cross */
-.landing__icon-admin {
-}
-
-.landing__icon-admin::before {
+/* Trending up (capacity) — matches sidebar TrendingUp icon */
+.landing__icon-capacity::before {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 10px;
-  height: 10px;
-  border: 1.5px solid var(--lnd-steel);
-  border-radius: 50%;
+  bottom: 3px;
+  left: 0;
+  width: 13px;
+  height: 0;
+  border-top: 1.5px solid var(--lnd-steel);
+  transform: rotate(-30deg);
+  transform-origin: bottom left;
   background: transparent;
   transition: border-color 0.25s;
 }
 
-.landing__icon-admin::after {
-  content: '+';
+.landing__icon-capacity::after {
+  content: '';
   position: absolute;
-  top: -1px;
-  left: 1px;
-  width: 14px;
-  height: 14px;
-  font-size: 16px;
-  line-height: 14px;
-  text-align: center;
-  color: var(--lnd-steel);
-  font-weight: 300;
-  transition: color 0.25s;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  border-top: 1.5px solid var(--lnd-steel);
+  border-right: 1.5px solid var(--lnd-steel);
+  background: transparent;
+  transition: border-color 0.25s;
 }
 
 /* Hover overrides for icons with border-only elements */
+.landing__card:hover .landing__icon-tracker::before {
+  border-color: var(--lnd-green);
+  background: transparent;
+}
+
+.landing__card:hover .landing__icon-tracker::after {
+  border-color: var(--lnd-green);
+  background: transparent;
+}
+
+.landing__card:hover .landing__icon-scorecard::before {
+  background: var(--lnd-green);
+}
+
+.landing__card:hover .landing__icon-scorecard::after {
+  background: var(--lnd-green);
+  box-shadow: 4.5px -2px 0 0 var(--lnd-green), 9px -5px 0 0 var(--lnd-green);
+}
+
 .landing__card:hover .landing__icon-iso::before {
   border-color: var(--lnd-green);
   background: transparent;
@@ -323,17 +327,17 @@
 }
 
 .landing__card:hover .landing__icon-playbook::after {
-  border-left-color: var(--lnd-green);
-  background: transparent;
+  background: var(--lnd-green);
 }
 
-.landing__card:hover .landing__icon-admin::before {
+.landing__card:hover .landing__icon-capacity::before {
   border-color: var(--lnd-green);
   background: transparent;
 }
 
-.landing__card:hover .landing__icon-admin::after {
-  color: var(--lnd-green);
+.landing__card:hover .landing__icon-capacity::after {
+  border-color: var(--lnd-green);
+  background: transparent;
 }
 
 /* ── CTA Button ── */
