@@ -72,8 +72,9 @@ def apply_sort(
     sort_dir: str | None = None,
 ) -> Select:
     col = SORT_COLUMNS.get(sort_by or "start_date", EventDB.start_date)
-    direction = "asc" if sort_dir == "asc" else "desc"
-    return stmt.order_by(getattr(col, direction)())
+    if sort_dir == "asc":
+        return stmt.order_by(col.asc().nulls_last())
+    return stmt.order_by(col.desc().nulls_last())
 
 
 async def list_events(
