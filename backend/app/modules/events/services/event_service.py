@@ -121,6 +121,24 @@ async def list_events(
     )
     total = (await db.execute(count_stmt)).scalar() or 0
 
+    # Fetch attendee names for all events in one query
+    event_ids = [row[0].id for row in rows]
+    attendee_names_map: dict[UUID, list[str]] = {eid: [] for eid in event_ids}
+    if event_ids:
+        user_alias = aliased(UserDB)
+        names_stmt = (
+            select(
+                EventAttendeeDB.event_id,
+                user_display_name_expr(user_alias).label("name"),
+            )
+            .join(user_alias, user_alias.id == EventAttendeeDB.user_id)
+            .where(EventAttendeeDB.event_id.in_(event_ids))
+            .order_by(user_display_name_expr(user_alias))
+        )
+        name_rows = (await db.execute(names_stmt)).all()
+        for event_id, name in name_rows:
+            attendee_names_map[event_id].append(name)
+
     items = []
     for event, attendee_count in rows:
         data = {
@@ -140,6 +158,7 @@ async def list_events(
             "observations": event.observations,
             "created_by": event.created_by,
             "attendee_count": attendee_count or 0,
+            "attendee_names": attendee_names_map.get(event.id, []),
             "created_at": event.created_at,
             "updated_at": event.updated_at,
         }

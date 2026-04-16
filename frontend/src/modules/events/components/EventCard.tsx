@@ -79,12 +79,14 @@ export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
               </span>
             </div>
           )}
-          <div className="flex items-center gap-1.5">
-            <Users size={12} />
-            <span>
-              {event.attendee_count} attendee{event.attendee_count !== 1 ? 's' : ''}
-            </span>
-          </div>
+          {event.attendee_names.length > 0 && (
+            <div className="flex items-start gap-1.5">
+              <Users size={12} className="mt-0.5 shrink-0" />
+              <span className="line-clamp-2">
+                {event.attendee_names.join(', ')}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t">
