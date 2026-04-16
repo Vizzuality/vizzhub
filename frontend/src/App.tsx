@@ -44,6 +44,7 @@ import CapacityAllocation from './modules/capacity/pages/Allocation';
 import CapacityPlanner from './modules/capacity/pages/Planner';
 import Playbook from './modules/playbook/pages/Playbook';
 import Events from './modules/events/pages/Events';
+import EventsDashboard from './modules/events/pages/EventsDashboard';
 import IsoDocs from './modules/iso-docs/pages/IsoDocs';
 import IsoNotesAdmin from './modules/iso-docs/pages/IsoNotesAdmin';
 import NotFound from './core/pages/NotFound';
@@ -112,6 +113,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/capacity/planner" element={<CapacityPlanner />} />
           <Route path="/playbook" element={<Playbook />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/events/dashboard" element={<EventsDashboard />} />
           <Route path="/iso/docs" element={<IsoDocs />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -144,6 +146,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/capacity/planner" element={<CapacityPlanner />} />
           <Route path="/playbook" element={<Playbook />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/events/dashboard" element={<EventsDashboard />} />
           <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
