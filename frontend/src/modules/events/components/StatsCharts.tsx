@@ -94,6 +94,7 @@ function HorizontalBarCard({
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                 padding: '6px 10px',
               }}
+              formatter={(value: number) => [value, 'Events']}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>
               {data.map((entry, i) => (
