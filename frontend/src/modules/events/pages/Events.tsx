@@ -15,8 +15,10 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { EventCard } from '../components/EventCard';
 import { EventForm } from '../components/EventForm';
+import { StatsCharts } from '../components/StatsCharts';
 import { useEvents } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
+import { useEventStats } from '../hooks/useEventStats';
 import type { EventListParams } from '../types/events';
 
 const ALL_SENTINEL = '__all__';
@@ -87,6 +89,9 @@ export default function Events(): JSX.Element {
   };
 
   const { data, isLoading, error } = useEvents(queryParams);
+  const { data: stats } = useEventStats(
+    state.year ? Number(state.year) : undefined,
+  );
   const events = data?.items ?? [];
   const total = data?.total ?? 0;
 
@@ -256,6 +261,13 @@ export default function Events(): JSX.Element {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {stats && (
+        <div className="pt-6 border-t">
+          <h2 className="text-lg font-semibold mb-4">Statistics</h2>
+          <StatsCharts stats={stats} />
+        </div>
       )}
 
       {selectedEventId && (
