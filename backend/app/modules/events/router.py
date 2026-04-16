@@ -10,10 +10,13 @@ from app.modules.events.api import stats as stats_router
 
 router = APIRouter()
 
+# Static-path routers MUST be registered before the CRUD router whose
+# /{event_id} path parameter would otherwise swallow "stats", "options", etc.
+router.include_router(stats_router.router, tags=["events:stats"])
+router.include_router(options_router.router, tags=["events:options"])
+router.include_router(import_events_router.router, tags=["events:import"])
+
 # CRUD routes use empty path ("") so they need extend instead of include_router
 # (FastAPI rejects include_router with both empty prefix and empty path)
 router.routes.extend(events_router.router.routes)
 router.include_router(attendees_router.router, tags=["events:attendees"])
-router.include_router(stats_router.router, tags=["events:stats"])
-router.include_router(options_router.router, tags=["events:options"])
-router.include_router(import_events_router.router, tags=["events:import"])
