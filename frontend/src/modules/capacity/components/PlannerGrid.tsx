@@ -384,7 +384,6 @@ export function PlannerGrid({
 
   const weeksWithComments = useMemo(() => {
     const set = new Set<string>();
-    if (groupBy !== 'user') return set;
     for (const row of flatRows) {
       if (row._type !== 'data' || !row.comments) continue;
       for (const [week, text] of Object.entries(row.comments)) {
@@ -392,7 +391,7 @@ export function PlannerGrid({
       }
     }
     return set;
-  }, [flatRows, groupBy]);
+  }, [flatRows]);
 
   useEffect(() => {
     if (expandedWeek && !weeksWithComments.has(expandedWeek)) {
@@ -785,7 +784,7 @@ export function PlannerGrid({
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
                           absence={orig.is_absence}
-                          canComment={groupBy === 'user' && !orig.is_absence && !orig.is_other}
+                          canComment={!orig.is_absence && !orig.is_other}
                           comment={orig.comments?.[coord.week]}
                           onCommentChange={(text) =>
                             onCommentChange?.(coord.projectId, coord.userId, coord.week, text)
