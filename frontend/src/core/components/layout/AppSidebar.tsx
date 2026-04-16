@@ -193,7 +193,7 @@ function CollapsibleMenuItem({
 
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const { state, toggleSidebar } = useSidebar();
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
@@ -379,12 +379,12 @@ export function AppSidebar(): JSX.Element {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              tooltip={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              tooltip={resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
             >
               <Sun className="rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
-              <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+              <span>{resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
