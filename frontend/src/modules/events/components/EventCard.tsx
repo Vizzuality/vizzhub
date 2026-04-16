@@ -1,8 +1,9 @@
 import { Calendar, ExternalLink, MapPin, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
+import { useTheme } from 'next-themes';
 import { StarRating } from './StarRating';
-import { THEME_COLORS } from '../utils/constants';
+import { getThemeColor } from '../utils/constants';
 import type { EventSummary } from '../types/events';
 
 interface EventCardProps {
@@ -35,7 +36,9 @@ function formatCost(cost: number): string {
 }
 
 export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
-  const themeColor = THEME_COLORS[event.theme_primary] ?? THEME_COLORS['Other'];
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const themeColor = getThemeColor(event.theme_primary, isDark);
 
   return (
     <Card

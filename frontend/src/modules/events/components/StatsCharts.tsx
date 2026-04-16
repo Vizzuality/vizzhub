@@ -9,8 +9,20 @@ import {
 } from 'recharts';
 import type { TooltipProps } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { useTheme } from 'next-themes';
 import { THEME_COLORS, ROLE_COLORS } from '../utils/constants';
 import type { EventStats, StatGroup } from '../types/events';
+
+function resolveColorMap(
+  map: Record<string, { light: string; dark: string }>,
+  isDark: boolean,
+): Record<string, string> {
+  const resolved: Record<string, string> = {};
+  for (const [key, value] of Object.entries(map)) {
+    resolved[key] = isDark ? value.dark : value.light;
+  }
+  return resolved;
+}
 
 function ChartTooltip({ active, payload, label }: TooltipProps<number, string>): JSX.Element | null {
   if (!active || !payload?.length) return null;
@@ -25,9 +37,13 @@ type StatsChartsProps = {
   readonly stats: EventStats;
 };
 
-const CHART_PALETTE = [
+const CHART_PALETTE_LIGHT = [
   '#2563eb', '#16a34a', '#ca8a04', '#dc2626', '#7c3aed',
   '#0891b2', '#ea580c', '#db2777', '#64748b', '#059669',
+];
+const CHART_PALETTE_DARK = [
+  '#60a5fa', '#4ade80', '#facc15', '#f87171', '#a78bfa',
+  '#22d3ee', '#fb923c', '#f472b6', '#94a3b8', '#34d399',
 ];
 
 function formatCost(value: number): string {
@@ -43,18 +59,22 @@ function getBarColor(
   label: string,
   colorMap: Record<string, string>,
   index: number,
+  isDark: boolean,
 ): string {
-  return colorMap[label] ?? CHART_PALETTE[index % CHART_PALETTE.length];
+  const palette = isDark ? CHART_PALETTE_DARK : CHART_PALETTE_LIGHT;
+  return colorMap[label] ?? palette[index % palette.length];
 }
 
 function HorizontalBarCard({
   title,
   data,
   colorMap,
+  isDark,
 }: {
   readonly title: string;
   readonly data: StatGroup[];
   readonly colorMap?: Record<string, string>;
+  readonly isDark: boolean;
 }): JSX.Element {
   if (data.length === 0) {
     return (
@@ -101,7 +121,7 @@ function HorizontalBarCard({
               {data.map((entry, i) => (
                 <Cell
                   key={entry.label}
-                  fill={getBarColor(entry.label, resolvedColorMap, i)}
+                  fill={getBarColor(entry.label, resolvedColorMap, i, isDark)}
                 />
               ))}
             </Bar>
@@ -113,6 +133,10 @@ function HorizontalBarCard({
 }
 
 export function StatsCharts({ stats }: StatsChartsProps): JSX.Element {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const themeColorMap = resolveColorMap(THEME_COLORS, isDark);
+
   return (
     <div className="space-y-6">
       {/* Summary cards */}
@@ -144,24 +168,29 @@ export function StatsCharts({ stats }: StatsChartsProps): JSX.Element {
         <HorizontalBarCard
           title="By Quarter"
           data={stats.by_quarter}
+          isDark={isDark}
         />
         <HorizontalBarCard
           title="By Theme"
           data={stats.by_theme}
-          colorMap={THEME_COLORS}
+          colorMap={themeColorMap}
+          isDark={isDark}
         />
         <HorizontalBarCard
           title="By Role"
           data={stats.by_role}
           colorMap={ROLE_COLORS}
+          isDark={isDark}
         />
         <HorizontalBarCard
           title="By Functional Area"
           data={stats.by_fa}
+          isDark={isDark}
         />
         <HorizontalBarCard
           title="By Country"
           data={stats.by_country}
+          isDark={isDark}
         />
       </div>
     </div>
