@@ -61,7 +61,7 @@ class TestReportSchemas:
         schema = ReportCreate(
             reporting_period_id=uuid4(),
         )
-        assert schema.estimated is False
+        assert schema.estimated is True
 
     def test_create_with_estimated(self):
         schema = ReportCreate(
