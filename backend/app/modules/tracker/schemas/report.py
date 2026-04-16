@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ReportCreate(BaseModel):
     reporting_period_id: UUID
-    estimated: bool = False
+    estimated: bool = True
 
 
 class ReportUpdate(BaseModel):

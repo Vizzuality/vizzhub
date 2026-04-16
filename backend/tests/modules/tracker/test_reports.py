@@ -80,7 +80,7 @@ class TestReportsCRUD:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["estimated"] is False
+        assert data["estimated"] is True
         assert data["user_id"] == str(DEBUG_USER_ID)
         assert data["user_name"] == "Test User"
 

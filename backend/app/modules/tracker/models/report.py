@@ -37,7 +37,7 @@ class ReportDB(Base):
         ForeignKey("reporting_periods.id", ondelete="CASCADE"),
         nullable=False,
     )
-    estimated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    estimated: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     mood: Mapped[int | None] = mapped_column(Integer, nullable=True)
     feedback_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
