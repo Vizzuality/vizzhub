@@ -47,7 +47,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId={googleClientId}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="vizzhub-theme">
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <NavigationGuardProvider>
