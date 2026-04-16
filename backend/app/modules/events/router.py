@@ -1,10 +1,4 @@
-"""Events module router — aggregates all events sub-routers.
-
-The CRUD router's root-level routes (GET "", POST "") are merged directly
-into the aggregating router to avoid FastAPI's empty-prefix-and-path
-restriction, while sub-feature routers with non-empty paths are included
-normally.
-"""
+"""Events module router — aggregates all events sub-routers."""
 
 from fastapi import APIRouter
 
@@ -16,6 +10,8 @@ from app.modules.events.api import stats as stats_router
 
 router = APIRouter()
 
+# CRUD routes use empty path ("") so they need extend instead of include_router
+# (FastAPI rejects include_router with both empty prefix and empty path)
 router.routes.extend(events_router.router.routes)
 router.include_router(attendees_router.router, tags=["events:attendees"])
 router.include_router(stats_router.router, tags=["events:stats"])
