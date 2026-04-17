@@ -95,7 +95,15 @@ export default function EntryDetail(): JSX.Element {
                   <Star size={18} className="text-amber-500 fill-amber-500" />
                 )}
               </div>
-              <p className="text-muted-foreground">{entry.description}</p>
+              <div
+                data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}
+                className="text-muted-foreground text-sm"
+              >
+                <MDEditor.Markdown
+                  source={entry.description}
+                  style={{ background: 'transparent' }}
+                />
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{entry.type}</Badge>
                 <InstallMethodBadge method={entry.install_method} iconSize={12} />

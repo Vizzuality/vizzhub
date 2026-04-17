@@ -46,7 +46,7 @@ export function EntryCard({ entry, onClick }: EntryCardProps): JSX.Element {
 
       <CardContent className="pt-0 flex-1 flex flex-col justify-between gap-3">
         <div>
-          <p className="text-xs text-muted-foreground line-clamp-3">
+          <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line">
             {entry.description}
           </p>
           {entry.tech.length > 0 && (

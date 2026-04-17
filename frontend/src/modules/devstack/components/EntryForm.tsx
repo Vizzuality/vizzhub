@@ -181,13 +181,18 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="entry-desc">Description</Label>
+              <Label htmlFor="entry-desc">
+                Description
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (markdown supported)
+                </span>
+              </Label>
               <Textarea
                 id="entry-desc"
-                rows={2}
+                rows={5}
                 value={form.description}
                 onChange={(e) => setField('description', e.target.value)}
-                placeholder="What does this entry provide?"
+                placeholder="What does this entry provide? Markdown formatting is supported."
               />
             </div>
 
