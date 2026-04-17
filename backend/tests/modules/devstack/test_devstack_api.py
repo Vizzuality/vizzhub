@@ -209,3 +209,65 @@ class TestGithubSha:
         mock_fetch.assert_called_once()
 
 
+class TestSearchAndSort:
+    @pytest.mark.asyncio
+    async def test_search_by_name(self, client: AsyncClient) -> None:
+        await client.post("/api/devstack", json=_entry_payload(name="alpha-skill"))
+        await client.post("/api/devstack", json=_entry_payload(name="beta-command", type="command"))
+
+        resp = await client.get("/api/devstack", params={"search": "alpha"})
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+        assert resp.json()["items"][0]["name"] == "alpha-skill"
+
+    @pytest.mark.asyncio
+    async def test_search_case_insensitive(self, client: AsyncClient) -> None:
+        await client.post("/api/devstack", json=_entry_payload(name="MySkill"))
+
+        resp = await client.get("/api/devstack", params={"search": "myskill"})
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+
+    @pytest.mark.asyncio
+    async def test_sort_by_name_asc(self, client: AsyncClient) -> None:
+        await client.post("/api/devstack", json=_entry_payload(name="zeta-skill"))
+        await client.post("/api/devstack", json=_entry_payload(name="alpha-skill"))
+
+        resp = await client.get("/api/devstack", params={"sort_by": "name", "sort_dir": "asc"})
+        assert resp.status_code == 200
+        names = [e["name"] for e in resp.json()["items"]]
+        assert names == ["alpha-skill", "zeta-skill"]
+
+    @pytest.mark.asyncio
+    async def test_sort_by_name_desc(self, client: AsyncClient) -> None:
+        await client.post("/api/devstack", json=_entry_payload(name="alpha-skill"))
+        await client.post("/api/devstack", json=_entry_payload(name="zeta-skill"))
+
+        resp = await client.get("/api/devstack", params={"sort_by": "name", "sort_dir": "desc"})
+        assert resp.status_code == 200
+        names = [e["name"] for e in resp.json()["items"]]
+        assert names == ["zeta-skill", "alpha-skill"]
+
+    @pytest.mark.asyncio
+    async def test_response_includes_pagination_metadata(self, client: AsyncClient) -> None:
+        await client.post("/api/devstack", json=_entry_payload())
+
+        resp = await client.get("/api/devstack", params={"page": 1, "page_size": 10})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["page"] == 1
+        assert data["page_size"] == 10
+        assert "total" in data
+        assert "items" in data
+
+    @pytest.mark.asyncio
+    async def test_featured_filter(self, client: AsyncClient) -> None:
+        await client.post("/api/devstack", json=_entry_payload(name="normal-skill", featured=False))
+        await client.post("/api/devstack", json=_entry_payload(name="star-skill", featured=True))
+
+        resp = await client.get("/api/devstack", params={"featured": "true"})
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+        assert resp.json()["items"][0]["name"] == "star-skill"
+
+
