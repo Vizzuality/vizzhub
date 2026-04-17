@@ -297,6 +297,66 @@ class TestRefreshShas:
         assert "failed" in data
 
 
+class TestGetEntryContent:
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.api.entries.fetch_github_content",
+        new_callable=AsyncMock,
+        return_value="# Hello\n\nThis is markdown",
+    )
+    async def test_returns_content_for_github_entry(
+        self, mock_fetch: AsyncMock, client: AsyncClient,
+    ) -> None:
+        create_resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                url="https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+            ),
+        )
+        entry_id = create_resp.json()["id"]
+
+        resp = await client.get(f"/api/devstack/{entry_id}/content")
+        assert resp.status_code == 200
+        assert resp.json()["content"] == "# Hello\n\nThis is markdown"
+
+    @pytest.mark.asyncio
+    async def test_rejects_npm_entry(self, client: AsyncClient) -> None:
+        create_resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                name="npm-no-content",
+                type="plugin",
+                install_method="npm",
+                package="react",
+                url=None,
+            ),
+        )
+        entry_id = create_resp.json()["id"]
+
+        resp = await client.get(f"/api/devstack/{entry_id}/content")
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.api.entries.fetch_github_content",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    async def test_returns_404_when_fetch_fails(
+        self, mock_fetch: AsyncMock, client: AsyncClient,
+    ) -> None:
+        create_resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                url="https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+            ),
+        )
+        entry_id = create_resp.json()["id"]
+
+        resp = await client.get(f"/api/devstack/{entry_id}/content")
+        assert resp.status_code == 404
+
+
 class TestInstallMethodValidation:
     @pytest.mark.asyncio
     async def test_rejects_invalid_npm_package(self, client: AsyncClient) -> None:

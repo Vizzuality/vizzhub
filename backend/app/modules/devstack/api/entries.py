@@ -13,7 +13,7 @@ from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.api.deps import DevstackManager, DevstackViewer, get_entry_or_404
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryCreate, EntryResponse, EntryUpdate
-from app.modules.devstack.services.github_sha import fetch_github_sha
+from app.modules.devstack.services.github_sha import fetch_github_content, fetch_github_sha
 from app.modules.devstack.services.sha_refresh import refresh_all_sources_tracked
 
 logger = structlog.get_logger()
@@ -105,6 +105,39 @@ async def get_entry(
 ) -> EntryResponse:
     entry = await get_entry_or_404(db, entry_id)
     return EntryResponse.model_validate(entry)
+
+
+@router.get(
+    "/{entry_id}/content",
+    responses={
+        404: {"description": "Devstack entry not found"},
+        400: {"description": "Entry is not a github install"},
+    },
+)
+async def get_entry_content(
+    entry_id: UUID,
+    db: DBSession,
+    user: DevstackViewer,
+) -> dict:
+    """Fetch raw markdown content from the entry's GitHub URL (supports private repos)."""
+    entry = await get_entry_or_404(db, entry_id)
+
+    if entry.install_method != "github" or not entry.url:
+        raise HTTPException(
+            status_code=400,
+            detail="Entry does not have a GitHub source URL",
+        )
+
+    token = await IntegrationTokenService.get_token(db, "github")
+    content = await fetch_github_content(entry.url, token)
+
+    if content is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Could not fetch content from source",
+        )
+
+    return {"content": content}
 
 
 @router.post(
