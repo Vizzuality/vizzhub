@@ -5,6 +5,7 @@ import type {
   DevstackEntryListParams,
   DevstackEntryListResponse,
   DevstackEntryUpdate,
+  ShaRefreshResult,
 } from '../types/devstack';
 
 export const devstackApi = {
@@ -30,6 +31,11 @@ export const devstackApi = {
 
   delete: async (id: string): Promise<void> => {
     await api.delete(`/devstack/${id}`);
+  },
+
+  refreshShas: async (): Promise<ShaRefreshResult> => {
+    const response = await api.post<ShaRefreshResult>('/devstack/refresh-shas');
+    return response.data;
   },
 
 };

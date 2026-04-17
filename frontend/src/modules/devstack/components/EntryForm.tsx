@@ -51,6 +51,7 @@ interface FormState {
   tech: string;
   required: boolean;
   active: boolean;
+  featured: boolean;
 }
 
 const INITIAL_FORM: FormState = {
@@ -65,6 +66,7 @@ const INITIAL_FORM: FormState = {
   tech: '',
   required: false,
   active: true,
+  featured: false,
 };
 
 export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element {
@@ -92,6 +94,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
         tech: existing.tech.join(', '),
         required: existing.required,
         active: existing.active,
+        featured: existing.featured,
       });
     }
   }, [existing, isNew]);
@@ -127,6 +130,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
         .filter(Boolean),
       required: form.required,
       active: form.active,
+      featured: form.featured,
     };
 
     const onError = (err: unknown): void => {
@@ -285,7 +289,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="flex items-center gap-3">
                 <Switch
                   id="entry-required"
@@ -301,6 +305,14 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
                   onCheckedChange={(v) => setField('active', v)}
                 />
                 <Label htmlFor="entry-active">Active</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="entry-featured"
+                  checked={form.featured}
+                  onCheckedChange={(v) => setField('featured', v)}
+                />
+                <Label htmlFor="entry-featured">Featured</Label>
               </div>
             </div>
 
