@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { devstackApi } from '../services/devstack';
-import type {
-  DevstackEntryCreate,
-  DevstackEntryListParams,
-  DevstackEntryUpdate,
-} from '../types/devstack';
+import type { DevstackEntryCreate, DevstackEntryListParams, DevstackEntryUpdate } from '../types/devstack';
 
 export function useDevstackEntries(params: DevstackEntryListParams = {}) {
   return useQuery({
@@ -53,20 +49,3 @@ export function useDeleteDevstackEntry() {
   });
 }
 
-export function useMyDevstackPrefs() {
-  return useQuery({
-    queryKey: queryKeys.devstack.myPrefs,
-    queryFn: () => devstackApi.listMyPrefs(),
-  });
-}
-
-export function useUpdateMyDevstackPref() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ entryId, enabled }: { entryId: string; enabled: boolean }) =>
-      devstackApi.updateMyPref(entryId, enabled),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.devstack.myPrefs });
-    },
-  });
-}
