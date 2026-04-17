@@ -230,6 +230,12 @@ export const queryKeys = {
     stats: (year?: number) => ['events', 'stats', year] as const,
     options: ['events', 'options'] as const,
   },
+  devstack: {
+    all: ['devstack'] as const,
+    list: (params: Record<string, unknown>) => ['devstack', 'list', params] as const,
+    detail: (id: string) => ['devstack', id] as const,
+    myPrefs: ['devstack', 'my-prefs'] as const,
+  },
   isoDocs: {
     tree: ['iso-docs', 'tree'] as const,
     page: (id: string) => ['iso-docs', 'page', id] as const,
