@@ -45,6 +45,7 @@ async def active_entry(db_session: AsyncSession) -> DevstackEntryDB:
         active=True,
         origin="internal",
         tech=["claude-code"],
+        github_sha="a" * 40,
     )
     db_session.add(entry)
     await db_session.commit()
@@ -84,6 +85,8 @@ class TestGetCatalog:
         assert isinstance(data, list)
         assert len(data) == 1
         assert data[0]["name"] == "org-skill"
+        assert data[0]["github_sha"] == "a" * 40
+        assert data[0]["required"] is True
 
     @pytest.mark.asyncio
     async def test_excludes_inactive_entries(
