@@ -10,7 +10,7 @@ from app.modules.devstack.schemas import EntryResponse
 
 _CATALOG_FIELDS = (
     "name", "description", "type", "install_method", "url",
-    "package", "package_version", "required", "origin", "tech", "github_sha",
+    "package", "package_version", "required", "origin", "tech", "github_sha", "featured",
 )
 
 
