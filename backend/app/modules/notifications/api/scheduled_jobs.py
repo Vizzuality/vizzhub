@@ -70,6 +70,11 @@ SCHEDULED_JOBS = {
         "schedule": "Monthly on 15th at 12:00 AM UTC",
         "description": "Finishes the active reporting period and creates a new one for the current month",
     },
+    "refresh_devstack_shas": {
+        "name": "refresh_devstack_shas",
+        "schedule": "Daily at 6:00 AM UTC",
+        "description": "Refreshes GitHub file SHAs for all active DevStack catalog entries",
+    },
 }
 
 
