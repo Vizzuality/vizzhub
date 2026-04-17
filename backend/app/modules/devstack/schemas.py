@@ -1,11 +1,16 @@
 """Pydantic schemas for the devstack module."""
 
+from __future__ import annotations
+
+import re
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.modules.devstack.constants import EntryOrigin, EntryType, InstallMethod
+
+_NPM_PACKAGE_RE = re.compile(r"^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$")
 
 
 class EntryCreate(BaseModel):
@@ -22,6 +27,16 @@ class EntryCreate(BaseModel):
     active: bool = True
     featured: bool = False
 
+    @field_validator("package")
+    @classmethod
+    def validate_npm_package(cls, v: str | None, info) -> str | None:
+        if v is None:
+            return v
+        method = info.data.get("install_method")
+        if method == InstallMethod.NPM and not _NPM_PACKAGE_RE.match(v):
+            raise ValueError("Invalid npm package name format")
+        return v
+
 
 class EntryUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
@@ -36,6 +51,16 @@ class EntryUpdate(BaseModel):
     tech: list[str] | None = None
     active: bool | None = None
     featured: bool | None = None
+
+    @field_validator("package")
+    @classmethod
+    def validate_npm_package(cls, v: str | None, info) -> str | None:
+        if v is None:
+            return v
+        method = info.data.get("install_method")
+        if method == InstallMethod.NPM and not _NPM_PACKAGE_RE.match(v):
+            raise ValueError("Invalid npm package name format")
+        return v
 
 
 class EntryResponse(BaseModel):
@@ -54,6 +79,7 @@ class EntryResponse(BaseModel):
     tech: list[str] = Field(default_factory=list)
     active: bool
     github_sha: str | None = None
+    latest_package_version: str | None = None
     featured: bool
     created_by_id: UUID | None = None
     updated_by_id: UUID | None = None
