@@ -234,6 +234,7 @@ export const queryKeys = {
     all: ['devstack'] as const,
     list: (params: Record<string, unknown>) => ['devstack', 'list', params] as const,
     detail: (id: string) => ['devstack', id] as const,
+    content: (id: string) => ['devstack', 'content', id] as const,
   },
   isoDocs: {
     tree: ['iso-docs', 'tree'] as const,
