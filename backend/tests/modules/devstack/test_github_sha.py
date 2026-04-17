@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.modules.devstack.services.github_sha import parse_github_url
+from app.modules.devstack.services.github_sha import fetch_github_sha, parse_github_url
 
 
 class TestParseGithubUrl:
@@ -38,9 +38,6 @@ class TestParseGithubUrl:
 
     def test_empty_string_returns_none(self) -> None:
         assert parse_github_url("") is None
-
-
-from app.modules.devstack.services.github_sha import fetch_github_sha
 
 
 class TestFetchGithubSha:
