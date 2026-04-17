@@ -1,6 +1,7 @@
-import { ExternalLink, Github, Package, Star } from 'lucide-react';
+import { ExternalLink, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
+import { InstallMethodBadge } from './EntryBadges';
 import type { DevstackEntry } from '../types/devstack';
 
 interface EntryCardProps {
@@ -29,14 +30,7 @@ export function EntryCard({ entry, onClick }: EntryCardProps): JSX.Element {
           <Badge variant="outline" className="text-xs">
             {entry.type}
           </Badge>
-          <Badge variant="outline" className="text-xs flex items-center gap-1">
-            {entry.install_method === 'github' ? (
-              <Github size={10} />
-            ) : (
-              <Package size={10} />
-            )}
-            {entry.install_method}
-          </Badge>
+          <InstallMethodBadge method={entry.install_method} />
           {entry.required && (
             <Badge className="text-xs bg-blue-600 hover:bg-blue-600 text-white">
               required
