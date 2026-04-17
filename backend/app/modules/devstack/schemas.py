@@ -20,6 +20,7 @@ class EntryCreate(BaseModel):
     origin: EntryOrigin = EntryOrigin.INTERNAL
     tech: list[str] = Field(default_factory=list)
     active: bool = True
+    featured: bool = False
 
 
 class EntryUpdate(BaseModel):
@@ -34,6 +35,7 @@ class EntryUpdate(BaseModel):
     origin: EntryOrigin | None = None
     tech: list[str] | None = None
     active: bool | None = None
+    featured: bool | None = None
 
 
 class EntryResponse(BaseModel):
@@ -52,6 +54,7 @@ class EntryResponse(BaseModel):
     tech: list[str] = Field(default_factory=list)
     active: bool
     github_sha: str | None = None
+    featured: bool
     created_by_id: UUID | None = None
     updated_by_id: UUID | None = None
     created_at: datetime
