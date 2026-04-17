@@ -54,6 +54,7 @@ class DevstackEntryDB(Base):
     origin: Mapped[str] = mapped_column(String(20), server_default="internal")
     tech: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
     active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    github_sha: Mapped[str | None] = mapped_column(String(40))
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
