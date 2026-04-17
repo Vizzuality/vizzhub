@@ -49,3 +49,13 @@ export function useDeleteDevstackEntry() {
   });
 }
 
+export function useRefreshShas() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => devstackApi.refreshShas(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.devstack.all });
+    },
+  });
+}
+
