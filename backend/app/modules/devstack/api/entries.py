@@ -82,6 +82,18 @@ async def list_entries(
     }
 
 
+@router.post(
+    "/refresh-shas",
+    responses={403: {"description": "Not authorized"}},
+)
+async def refresh_shas(
+    db: DBSession,
+    user: DevstackManager,
+) -> dict:
+    from app.modules.devstack.services.sha_refresh import refresh_all_shas
+    return await refresh_all_shas(db)
+
+
 @router.get(
     "/{entry_id}",
     responses={404: {"description": "Devstack entry not found"}},
