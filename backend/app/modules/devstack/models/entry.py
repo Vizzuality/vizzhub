@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -53,7 +53,7 @@ class DevstackEntryDB(Base):
     package_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     required: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     origin: Mapped[str] = mapped_column(String(20), nullable=False, server_default="internal")
-    tech: Mapped[list[str]] = mapped_column(JSONB, nullable=True, server_default="'[]'::jsonb")
+    tech: Mapped[list[str]] = mapped_column(JSONB, nullable=True, default=list, server_default=text("'[]'::jsonb"))
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
