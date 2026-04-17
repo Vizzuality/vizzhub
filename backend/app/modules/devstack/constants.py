@@ -14,6 +14,7 @@ class EntryType(StrEnum):
 class InstallMethod(StrEnum):
     GITHUB = "github"
     NPM = "npm"
+    CLAUDE_PLUGIN = "claude_plugin"
 
 
 class EntryOrigin(StrEnum):

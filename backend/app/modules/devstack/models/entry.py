@@ -23,7 +23,7 @@ class DevstackEntryDB(Base):
             name="ck_devstack_entries_type",
         ),
         CheckConstraint(
-            "install_method IN ('github', 'npm')",
+            "install_method IN ('github', 'npm', 'claude_plugin')",
             name="ck_devstack_entries_install_method",
         ),
         CheckConstraint(
@@ -37,6 +37,10 @@ class DevstackEntryDB(Base):
         CheckConstraint(
             "install_method != 'npm' OR package IS NOT NULL",
             name="ck_devstack_entries_npm_package",
+        ),
+        CheckConstraint(
+            "install_method != 'claude_plugin' OR package IS NOT NULL",
+            name="ck_devstack_entries_claude_plugin_package",
         ),
     )
 
@@ -55,6 +59,7 @@ class DevstackEntryDB(Base):
     tech: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
     active: Mapped[bool] = mapped_column(Boolean, server_default="true")
     github_sha: Mapped[str | None] = mapped_column(String(40))
+    latest_package_version: Mapped[str | None] = mapped_column(String(50))
     featured: Mapped[bool] = mapped_column(Boolean, server_default="false")
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
