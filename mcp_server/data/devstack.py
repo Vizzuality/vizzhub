@@ -6,6 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.devstack.models.entry import DevstackEntryDB
+from app.modules.devstack.schemas import EntryResponse
+
+_CATALOG_FIELDS = ("name", "description", "type", "install_method", "url", "package", "package_version", "origin", "tech")
 
 
 async def get_catalog(session: AsyncSession) -> list[dict]:
@@ -14,18 +17,7 @@ async def get_catalog(session: AsyncSession) -> list[dict]:
         select(DevstackEntryDB).where(DevstackEntryDB.active.is_(True))
     )
     entries = result.scalars().all()
-
     return [
-        {
-            "name": entry.name,
-            "description": entry.description,
-            "type": entry.type,
-            "install_method": entry.install_method,
-            "url": entry.url,
-            "package": entry.package,
-            "package_version": entry.package_version,
-            "origin": entry.origin,
-            "tech": entry.tech,
-        }
+        EntryResponse.model_validate(entry).model_dump(include=set(_CATALOG_FIELDS))
         for entry in entries
     ]
