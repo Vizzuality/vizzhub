@@ -14,6 +14,7 @@ from app.modules.devstack.api.deps import DevstackManager, DevstackViewer, get_e
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryCreate, EntryResponse, EntryUpdate
 from app.modules.devstack.services.github_sha import fetch_github_sha
+from app.modules.devstack.services.sha_refresh import refresh_all_shas
 
 logger = structlog.get_logger()
 
@@ -90,7 +91,6 @@ async def refresh_shas(
     db: DBSession,
     user: DevstackManager,
 ) -> dict:
-    from app.modules.devstack.services.sha_refresh import refresh_all_shas
     return await refresh_all_shas(db)
 
 
