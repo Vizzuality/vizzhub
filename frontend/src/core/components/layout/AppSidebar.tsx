@@ -3,6 +3,7 @@ import type { To } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import {
   BarChart3,
+  Blocks,
   BookOpen,
   CalendarDays,
   ClipboardList,
@@ -101,6 +102,10 @@ const EVENTS_TABS = [
   { to: '/events/dashboard', label: 'Dashboard' },
 ] as const;
 
+const DEVSTACK_TABS = [
+  { to: '/devstack', label: 'Catalog' },
+  { to: '/devstack/me', label: 'My Environment' },
+] as const;
 
 function GuardedLink({
   to,
@@ -295,6 +300,13 @@ export function AppSidebar(): JSX.Element {
                 label="Events"
                 isActive={isActive('/events')}
                 items={EVENTS_TABS}
+              />
+
+              <CollapsibleMenuItem
+                icon={Blocks}
+                label="DevStack"
+                isActive={isActive('/devstack')}
+                items={DEVSTACK_TABS}
               />
 
               {isAdmin && (
