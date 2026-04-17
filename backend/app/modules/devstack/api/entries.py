@@ -35,31 +35,50 @@ router = APIRouter()
 async def list_entries(
     db: DBSession,
     user: DevstackViewer,
+    search: str | None = None,
     type: str | None = None,
     required: bool | None = None,
     active: bool | None = None,
+    featured: bool | None = None,
+    sort_by: Annotated[
+        str | None,
+        Query(pattern=r"^(name|type|created_at)$"),
+    ] = None,
+    sort_dir: Annotated[
+        str | None,
+        Query(pattern=r"^(asc|desc)$"),
+    ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> dict:
     filters = []
+    if search:
+        filters.append(DevstackEntryDB.name.ilike(f"%{search}%"))
     if type is not None:
         filters.append(DevstackEntryDB.type == type)
     if required is not None:
         filters.append(DevstackEntryDB.required == required)
     if active is not None:
         filters.append(DevstackEntryDB.active == active)
+    if featured is not None:
+        filters.append(DevstackEntryDB.featured == featured)
 
     total_result = await db.execute(select(func.count(DevstackEntryDB.id)).where(*filters))
     total = total_result.scalar() or 0
 
+    order_col = getattr(DevstackEntryDB, sort_by, DevstackEntryDB.name) if sort_by else DevstackEntryDB.name
+    order_expr = order_col.desc() if sort_dir == "desc" else order_col.asc()
+
     offset = (page - 1) * page_size
-    query = select(DevstackEntryDB).where(*filters).order_by(DevstackEntryDB.name).offset(offset).limit(page_size)
+    query = select(DevstackEntryDB).where(*filters).order_by(order_expr).offset(offset).limit(page_size)
     result = await db.execute(query)
     entries = result.scalars().all()
 
     return {
         "items": [EntryResponse.model_validate(e) for e in entries],
         "total": total,
+        "page": page,
+        "page_size": page_size,
     }
 
 
