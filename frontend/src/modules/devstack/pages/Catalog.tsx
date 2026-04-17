@@ -112,6 +112,7 @@ export default function Catalog(): JSX.Element {
               <TableHead>Required</TableHead>
               <TableHead>Origin</TableHead>
               <TableHead>Active</TableHead>
+              <TableHead>SHA</TableHead>
               {canManage && <TableHead className="w-20" />}
             </TableRow>
           </TableHeader>
@@ -133,6 +134,9 @@ export default function Catalog(): JSX.Element {
                     <StatusDot on={entry.active} />
                     <span className="text-sm text-foreground">{entry.active ? 'Active' : 'Inactive'}</span>
                   </div>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground font-mono">
+                  {entry.github_sha ? entry.github_sha.slice(0, 7) : '—'}
                 </TableCell>
                 {canManage && (
                   <TableCell>

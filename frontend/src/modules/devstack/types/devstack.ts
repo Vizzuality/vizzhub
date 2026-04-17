@@ -20,6 +20,7 @@ export interface DevstackEntry {
   origin: EntryOrigin;
   tech: string[];
   active: boolean;
+  github_sha: string | null;
   created_at: string;
   updated_at: string;
 }
