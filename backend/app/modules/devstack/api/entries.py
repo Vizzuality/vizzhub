@@ -27,24 +27,19 @@ async def list_entries(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> dict:
-    query = select(DevstackEntryDB)
-    count_query = select(func.count(DevstackEntryDB.id))
-
+    filters = []
     if type is not None:
-        query = query.where(DevstackEntryDB.type == type)
-        count_query = count_query.where(DevstackEntryDB.type == type)
+        filters.append(DevstackEntryDB.type == type)
     if required is not None:
-        query = query.where(DevstackEntryDB.required == required)
-        count_query = count_query.where(DevstackEntryDB.required == required)
+        filters.append(DevstackEntryDB.required == required)
     if active is not None:
-        query = query.where(DevstackEntryDB.active == active)
-        count_query = count_query.where(DevstackEntryDB.active == active)
+        filters.append(DevstackEntryDB.active == active)
 
-    total_result = await db.execute(count_query)
+    total_result = await db.execute(select(func.count(DevstackEntryDB.id)).where(*filters))
     total = total_result.scalar() or 0
 
     offset = (page - 1) * page_size
-    query = query.order_by(DevstackEntryDB.name).offset(offset).limit(page_size)
+    query = select(DevstackEntryDB).where(*filters).order_by(DevstackEntryDB.name).offset(offset).limit(page_size)
     result = await db.execute(query)
     entries = result.scalars().all()
 

@@ -5,7 +5,7 @@ import type { DevstackEntryCreate, DevstackEntryListParams, DevstackEntryUpdate 
 
 export function useDevstackEntries(params: DevstackEntryListParams = {}) {
   return useQuery({
-    queryKey: queryKeys.devstack.list(params as unknown as Record<string, unknown>),
+    queryKey: queryKeys.devstack.list(params as Record<string, unknown>),
     queryFn: () => devstackApi.list(params),
   });
 }

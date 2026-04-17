@@ -47,8 +47,7 @@ export default function Catalog(): JSX.Element {
   const canManage = usePermission(Action.DEVSTACK_MANAGE);
   const [typeFilter, setTypeFilter] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteName, setDeleteName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const params = typeFilter ? { type: typeFilter } : {};
   const { data, isLoading } = useDevstackEntries(params);
@@ -57,12 +56,9 @@ export default function Catalog(): JSX.Element {
   const entries = data?.items ?? [];
 
   const handleDeleteConfirm = (): void => {
-    if (!deleteId) return;
-    deleteEntry.mutate(deleteId, {
-      onSuccess: () => {
-        setDeleteId(null);
-        setDeleteName('');
-      },
+    if (!deleteTarget) return;
+    deleteEntry.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
     });
   };
 
@@ -134,7 +130,7 @@ export default function Catalog(): JSX.Element {
                 <TableCell className="text-sm text-muted-foreground">{entry.origin}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <StatusDot on={entry.active} onColor={entry.active ? 'bg-green-500' : 'bg-red-500'} />
+                    <StatusDot on={entry.active} />
                     <span className="text-sm text-foreground">{entry.active ? 'Active' : 'Inactive'}</span>
                   </div>
                 </TableCell>
@@ -153,10 +149,7 @@ export default function Catalog(): JSX.Element {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setDeleteId(entry.id);
-                          setDeleteName(entry.name);
-                        }}
+                        onClick={() => setDeleteTarget({ id: entry.id, name: entry.name })}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -174,14 +167,14 @@ export default function Catalog(): JSX.Element {
       )}
 
       <AlertDialog
-        open={deleteId !== null}
-        onOpenChange={(open) => { if (!open) { setDeleteId(null); setDeleteName(''); } }}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete entry?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete &quot;{deleteName}&quot; from the catalog.
+              This will permanently delete &quot;{deleteTarget?.name}&quot; from the catalog.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
