@@ -113,7 +113,7 @@ from app.worker.heartbeat import write_heartbeat  # noqa: E402
 from app.worker.publish_playbook import publish_playbook_task  # noqa: E402
 from app.worker.export_iso_docs_gdrive import export_iso_docs_gdrive_task  # noqa: E402
 from app.worker.cleanup_mcp_oauth import cleanup_mcp_oauth  # noqa: E402
-from app.worker.refresh_devstack_shas import refresh_devstack_shas  # noqa: E402
+from app.worker.refresh_devstack_sources import refresh_devstack_sources  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
@@ -128,7 +128,7 @@ WorkerSettings.functions = [
     publish_playbook_task,
     export_iso_docs_gdrive_task,
     cleanup_mcp_oauth,
-    refresh_devstack_shas,
+    refresh_devstack_sources,
 ]
 
 # Register cron jobs for scheduled execution
@@ -143,5 +143,5 @@ WorkerSettings.cron_jobs = [
     cron(rotate_reporting_period, day=15, hour=0, minute=0),  # Monthly 15th at midnight UTC
     cron(write_heartbeat, minute=set(range(60)), run_at_startup=True),
     cron(cleanup_mcp_oauth, hour=3, minute=0),  # Daily 3 AM UTC
-    cron(refresh_devstack_shas, hour=6, minute=0),  # Daily 6 AM UTC — refresh devstack GitHub SHAs
+    cron(refresh_devstack_sources, hour=6, minute=0),  # Daily 6 AM UTC — refresh devstack sources
 ]
