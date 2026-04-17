@@ -2,7 +2,11 @@
 
 import pytest
 
-from app.modules.devstack.services.github_sha import fetch_github_sha, parse_github_url
+from app.modules.devstack.services.github_sha import (
+    fetch_github_content,
+    fetch_github_sha,
+    parse_github_url,
+)
 
 
 class TestParseGithubUrl:
@@ -49,4 +53,16 @@ class TestFetchGithubSha:
     @pytest.mark.asyncio
     async def test_returns_none_for_empty_url(self) -> None:
         result = await fetch_github_sha("")
+        assert result is None
+
+
+class TestFetchGithubContent:
+    @pytest.mark.asyncio
+    async def test_returns_none_for_unparseable_url(self) -> None:
+        result = await fetch_github_content("https://example.com/not-github")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_empty_url(self) -> None:
+        result = await fetch_github_content("")
         assert result is None

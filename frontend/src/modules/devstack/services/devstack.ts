@@ -19,6 +19,11 @@ export const devstackApi = {
     return response.data;
   },
 
+  getContent: async (id: string): Promise<{ content: string }> => {
+    const response = await api.get<{ content: string }>(`/devstack/${id}/content`);
+    return response.data;
+  },
+
   create: async (data: DevstackEntryCreate): Promise<DevstackEntry> => {
     const response = await api.post<DevstackEntry>('/devstack', data);
     return response.data;

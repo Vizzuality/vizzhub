@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Pencil, Star, Trash2 } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
@@ -18,10 +18,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog';
-import { useDevstackEntry, useDeleteDevstackEntry } from '../hooks/useDevstack';
+import {
+  useDevstackEntry,
+  useDeleteDevstackEntry,
+  useDevstackEntryContent,
+} from '../hooks/useDevstack';
 import { EntryForm } from '../components/EntryForm';
 import { InstallMethodBadge } from '../components/EntryBadges';
-import { toRawGithubUrl } from '../utils/github';
 
 export default function EntryDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -31,21 +34,16 @@ export default function EntryDetail(): JSX.Element {
   const { data: entry, isLoading } = useDevstackEntry(id ?? '');
   const deleteEntry = useDeleteDevstackEntry();
 
-  const [markdown, setMarkdown] = useState<string | null>(null);
-  const [mdLoading, setMdLoading] = useState(false);
+  const isGithubEntry = entry?.install_method === 'github';
+  const {
+    data: contentData,
+    isLoading: mdLoading,
+    isError: mdError,
+  } = useDevstackEntryContent(id ?? '', isGithubEntry);
+  const markdown = contentData?.content ?? null;
+
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  useEffect(() => {
-    if (!entry?.url || entry.install_method !== 'github') return;
-    const rawUrl = toRawGithubUrl(entry.url);
-    setMdLoading(true);
-    fetch(rawUrl)
-      .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`${res.status}`))))
-      .then(setMarkdown)
-      .catch(() => setMarkdown(null))
-      .finally(() => setMdLoading(false));
-  }, [entry?.url, entry?.install_method]);
 
   const handleDelete = (): void => {
     if (!id) return;
@@ -162,7 +160,7 @@ export default function EntryDetail(): JSX.Element {
           <CardContent className="pt-6">
             {mdLoading ? (
               <LoadingSpinner />
-            ) : markdown ? (
+            ) : markdown && !mdError ? (
               <div data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}>
                 <MDEditor.Markdown source={markdown} />
               </div>

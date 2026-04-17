@@ -18,6 +18,15 @@ export function useDevstackEntry(id: string) {
   });
 }
 
+export function useDevstackEntryContent(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.devstack.content(id),
+    queryFn: () => devstackApi.getContent(id),
+    enabled: !!id && enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCreateDevstackEntry() {
   const queryClient = useQueryClient();
   return useMutation({
