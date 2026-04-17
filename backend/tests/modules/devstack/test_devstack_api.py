@@ -271,3 +271,29 @@ class TestSearchAndSort:
         assert resp.json()["items"][0]["name"] == "star-skill"
 
 
+class TestRefreshShas:
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="c" * 40,
+    )
+    async def test_refresh_shas_endpoint(
+        self, mock_fetch: AsyncMock, client: AsyncClient,
+    ) -> None:
+        await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                url="https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+            ),
+        )
+
+        resp = await client.post("/api/devstack/refresh-shas")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total" in data
+        assert "updated" in data
+        assert "unchanged" in data
+        assert "failed" in data
+
+
