@@ -57,16 +57,3 @@ class EntryResponse(BaseModel):
     updated_at: datetime
 
 
-class UserPrefUpdate(BaseModel):
-    enabled: bool
-
-
-class UserPrefResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    user_id: UUID
-    entry_id: UUID
-    enabled: bool
-    last_synced_sha: str | None = None
-    last_synced_at: datetime | None = None

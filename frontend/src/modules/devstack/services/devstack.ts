@@ -5,7 +5,6 @@ import type {
   DevstackEntryListParams,
   DevstackEntryListResponse,
   DevstackEntryUpdate,
-  UserPref,
 } from '../types/devstack';
 
 export const devstackApi = {
@@ -33,13 +32,4 @@ export const devstackApi = {
     await api.delete(`/devstack/${id}`);
   },
 
-  listMyPrefs: async (): Promise<UserPref[]> => {
-    const response = await api.get<UserPref[]>('/devstack/me/prefs');
-    return response.data;
-  },
-
-  updateMyPref: async (entryId: string, enabled: boolean): Promise<UserPref> => {
-    const response = await api.put<UserPref>(`/devstack/me/prefs/${entryId}`, { enabled });
-    return response.data;
-  },
 };

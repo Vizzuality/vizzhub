@@ -51,9 +51,3 @@ export interface DevstackEntryListParams {
   active?: boolean;
 }
 
-export interface UserPref {
-  entry_id: string;
-  enabled: boolean;
-  last_synced_sha: string | null;
-  last_synced_at: string | null;
-}
