@@ -51,6 +51,7 @@ class EntryResponse(BaseModel):
     origin: str
     tech: list[str] = Field(default_factory=list)
     active: bool
+    github_sha: str | None = None
     created_by_id: UUID | None = None
     updated_by_id: UUID | None = None
     created_at: datetime

@@ -1,5 +1,6 @@
 """Tests for devstack module API endpoints."""
 
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -144,5 +145,67 @@ class TestEntryCRUD:
         data = resp.json()
         assert data["install_method"] == "npm"
         assert data["package"] == "@vizzuality/claude-plugin"
+
+
+class TestGithubSha:
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.api.entries.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="a" * 40,
+    )
+    async def test_create_fetches_sha_for_github_entry(
+        self, mock_fetch: AsyncMock, client: AsyncClient,
+    ) -> None:
+        resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                url="https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+            ),
+        )
+        assert resp.status_code == 201
+        assert resp.json()["github_sha"] == "a" * 40
+        mock_fetch.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_npm_entry_has_no_sha(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                name="npm-plugin",
+                type="plugin",
+                install_method="npm",
+                package="@vizzuality/test-plugin",
+                url=None,
+            ),
+        )
+        assert resp.status_code == 201
+        assert resp.json()["github_sha"] is None
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.api.entries.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="b" * 40,
+    )
+    async def test_update_refetches_sha_when_url_changes(
+        self, mock_fetch: AsyncMock, client: AsyncClient,
+    ) -> None:
+        create_resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                url="https://github.com/Vizzuality/devstack/blob/main/skills/old.md",
+            ),
+        )
+        entry_id = create_resp.json()["id"]
+        mock_fetch.reset_mock()
+
+        resp = await client.put(
+            f"/api/devstack/{entry_id}",
+            json={"url": "https://github.com/Vizzuality/devstack/blob/main/skills/new.md"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["github_sha"] == "b" * 40
+        mock_fetch.assert_called_once()
 
 

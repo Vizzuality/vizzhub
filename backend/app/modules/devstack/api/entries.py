@@ -6,13 +6,27 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import DBSession
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.api.deps import DevstackManager, DevstackViewer, get_entry_or_404
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryCreate, EntryResponse, EntryUpdate
+from app.modules.devstack.services.github_sha import fetch_github_sha
 
 logger = structlog.get_logger()
+
+
+async def _resolve_github_sha(db: AsyncSession, entry: DevstackEntryDB) -> None:
+    """Auto-fetch and set github_sha for github entries. No-op for npm entries."""
+    if entry.install_method != "github" or not entry.url:
+        return
+    token = await IntegrationTokenService.get_token(db, "github")
+    sha = await fetch_github_sha(entry.url, token)
+    if sha:
+        entry.github_sha = sha
+
 
 router = APIRouter()
 
@@ -80,6 +94,7 @@ async def create_entry(
 
     entry = DevstackEntryDB(**body.model_dump(), created_by_id=user.user_id)
     db.add(entry)
+    await _resolve_github_sha(db, entry)
     await db.commit()
     await db.refresh(entry)
     logger.info("devstack_entry_created", entry_id=str(entry.id), name=entry.name)
@@ -102,6 +117,7 @@ async def update_entry(
     for field, value in updates.items():
         setattr(entry, field, value)
     entry.updated_by_id = user.user_id
+    await _resolve_github_sha(db, entry)
 
     await db.commit()
     await db.refresh(entry)
