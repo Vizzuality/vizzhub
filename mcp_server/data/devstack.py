@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryResponse
 
-_CATALOG_FIELDS = frozenset({
+_CATALOG_FIELDS = frozenset((
     "name", "description", "type", "install_method", "url",
-    "package", "package_version", "required", "origin", "tech", "github_sha", "featured",
-})
+    "package", "package_version", "latest_package_version",
+    "required", "origin", "tech", "github_sha", "featured",
+))
 
 
 async def get_catalog(session: AsyncSession) -> list[dict]:
