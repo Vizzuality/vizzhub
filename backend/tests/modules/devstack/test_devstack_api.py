@@ -297,3 +297,53 @@ class TestRefreshShas:
         assert "failed" in data
 
 
+class TestInstallMethodValidation:
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_npm_package(self, client: AsyncClient) -> None:
+        resp = await client.post("/api/devstack", json=_entry_payload(
+            name="invalid-npm",
+            type="plugin",
+            install_method="npm",
+            package="superpowers@claude-plugins-official",
+            url=None,
+        ))
+        # App maps validation errors to 400 (see main.py validation_exception_handler)
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_accepts_scoped_npm_package(self, client: AsyncClient) -> None:
+        resp = await client.post("/api/devstack", json=_entry_payload(
+            name="valid-npm",
+            type="plugin",
+            install_method="npm",
+            package="@vizzuality/claude-plugin",
+            url=None,
+        ))
+        assert resp.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_accepts_simple_npm_package(self, client: AsyncClient) -> None:
+        resp = await client.post("/api/devstack", json=_entry_payload(
+            name="simple-npm",
+            type="plugin",
+            install_method="npm",
+            package="react",
+            url=None,
+        ))
+        assert resp.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_accepts_claude_plugin(self, client: AsyncClient) -> None:
+        resp = await client.post("/api/devstack", json=_entry_payload(
+            name="superpowers",
+            type="plugin",
+            install_method="claude_plugin",
+            package="superpowers@claude-plugins-official",
+            url=None,
+        ))
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["install_method"] == "claude_plugin"
+        assert data["package"] == "superpowers@claude-plugins-official"
+
+
