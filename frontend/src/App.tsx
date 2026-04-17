@@ -46,6 +46,7 @@ import Playbook from './modules/playbook/pages/Playbook';
 import Events from './modules/events/pages/Events';
 import EventsDashboard from './modules/events/pages/EventsDashboard';
 import DevstackCatalog from './modules/devstack/pages/Catalog';
+import EntryDetail from './modules/devstack/pages/EntryDetail';
 import IsoDocs from './modules/iso-docs/pages/IsoDocs';
 import IsoNotesAdmin from './modules/iso-docs/pages/IsoNotesAdmin';
 import NotFound from './core/pages/NotFound';
@@ -116,6 +117,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/events" element={<Events />} />
           <Route path="/events/dashboard" element={<EventsDashboard />} />
           <Route path="/devstack" element={<DevstackCatalog />} />
+          <Route path="/devstack/:id" element={<EntryDetail />} />
           <Route path="/iso/docs" element={<IsoDocs />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -150,6 +152,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/events" element={<Events />} />
           <Route path="/events/dashboard" element={<EventsDashboard />} />
           <Route path="/devstack" element={<DevstackCatalog />} />
+          <Route path="/devstack/:id" element={<EntryDetail />} />
           <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
             <Route path="/admin" element={<Admin />}>
               {AdminRoutes()}
