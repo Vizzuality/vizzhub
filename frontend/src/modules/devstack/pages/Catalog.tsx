@@ -77,13 +77,6 @@ export default function Catalog(): JSX.Element {
     navigate(`/devstack/${id}`);
   };
 
-  const handleSelectChange = (
-    key: keyof typeof urlSchema,
-    value: string,
-  ): void => {
-    setState({ [key]: value === ALL_SENTINEL ? '' : value });
-  };
-
   if (isLoading && !data) {
     return <LoadingSpinner />;
   }
@@ -141,7 +134,7 @@ export default function Catalog(): JSX.Element {
 
         <Select
           value={state.type || ALL_SENTINEL}
-          onValueChange={(v) => handleSelectChange('type', v)}
+          onValueChange={(v) => setState({ type: v === ALL_SENTINEL ? '' : v })}
         >
           <SelectTrigger className="w-[160px] h-9 text-sm">
             <SelectValue placeholder="Type" />
