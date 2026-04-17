@@ -30,6 +30,7 @@ VizzHub is Vizzuality's internal operations hub with 6 modules:
 | Capacity | user_id + period (YYYY-MM) | capacity_ |
 | ISO | slug (string) | iso_ |
 | Playbook | slug (string) | playbook_ |
+| DevStack | name (string) | devstack_ |
 
 Key joins: user_id is the same UUID across Users, Capacity, and Tracker. \
 project_id is the same UUID across Tracker and Scorecard.
@@ -127,6 +128,9 @@ def create_mcp_server(
 
     from mcp_server.tools.commands import register_command_tools  # noqa: PLC0415
     register_command_tools(instance)
+
+    from mcp_server.tools.devstack import register_devstack_tools  # noqa: PLC0415
+    register_devstack_tools(instance)
 
     if _SKILL_CONTENT:
 
