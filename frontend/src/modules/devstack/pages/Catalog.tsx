@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, RefreshCw, Search } from 'lucide-react';
 import { usePermission, Action } from '@/core/permissions';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -9,189 +12,209 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/components/ui/alert-dialog';
+import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { EntryCard } from '../components/EntryCard';
 import { EntryForm } from '../components/EntryForm';
-import { useDevstackEntries, useDeleteDevstackEntry } from '../hooks/useDevstack';
+import { useDevstackEntries, useRefreshShas } from '../hooks/useDevstack';
 import { ENTRY_TYPES } from '../types/devstack';
 
-const ALL_TYPES = '__all__';
+const ALL_SENTINEL = '__all__';
+const SEARCH_DEBOUNCE_MS = 300;
 
-function StatusDot({ on, onColor = 'bg-green-500' }: {
-  readonly on: boolean;
-  readonly onColor?: string;
-}): JSX.Element {
-  return (
-    <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${on ? onColor : 'bg-muted-foreground/40'}`} />
-  );
-}
+const SORT_OPTIONS = [
+  { value: 'name:asc', label: 'Name A-Z' },
+  { value: 'name:desc', label: 'Name Z-A' },
+  { value: 'created_at:desc', label: 'Newest first' },
+  { value: 'created_at:asc', label: 'Oldest first' },
+  { value: 'type:asc', label: 'Type A-Z' },
+] as const;
+
+const urlSchema = {
+  search: { defaultValue: '' },
+  type: { defaultValue: '' },
+  sort: { defaultValue: 'name:asc' },
+};
 
 export default function Catalog(): JSX.Element {
   const canManage = usePermission(Action.DEVSTACK_MANAGE);
-  const [typeFilter, setTypeFilter] = useState('');
+  const navigate = useNavigate();
+  const { state, setState } = useUrlState(urlSchema);
+  const refreshShas = useRefreshShas();
+
+  const [localSearch, setLocalSearch] = useState(state.search);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const params = typeFilter ? { type: typeFilter } : {};
-  const { data, isLoading } = useDevstackEntries(params);
-  const deleteEntry = useDeleteDevstackEntry();
+  useEffect(() => {
+    setLocalSearch(state.search);
+  }, [state.search]);
 
-  const entries = data?.items ?? [];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== state.search) {
+        setState({ search: localSearch });
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [localSearch, state.search, setState]);
 
-  const handleDeleteConfirm = (): void => {
-    if (!deleteTarget) return;
-    deleteEntry.mutate(deleteTarget.id, {
-      onSuccess: () => setDeleteTarget(null),
-    });
+  const [sortBy, sortDir] = state.sort.split(':');
+
+  const params = {
+    ...(state.search && { search: state.search }),
+    ...(state.type && { type: state.type }),
+    sort_by: sortBy,
+    sort_dir: sortDir,
+    page_size: 100,
   };
 
-  if (isLoading) {
+  const { data, isLoading, error } = useDevstackEntries(params);
+  const entries = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const hasActiveFilters = !!(state.search || state.type);
+
+  const handleCardClick = (id: string): void => {
+    navigate(`/devstack/${id}`);
+  };
+
+  const handleSelectChange = (
+    key: keyof typeof urlSchema,
+    value: string,
+  ): void => {
+    setState({ [key]: value === ALL_SENTINEL ? '' : value });
+  };
+
+  if (isLoading && !data) {
     return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-destructive">
+            Error loading catalog: {error.message}
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">DevStack Catalog</h1>
         {canManage && (
-          <Button size="sm" onClick={() => setSelectedId('new')}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Entry
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshShas.mutate()}
+              disabled={refreshShas.isPending}
+            >
+              <RefreshCw
+                className={`w-4 h-4 mr-1.5 ${refreshShas.isPending ? 'animate-spin' : ''}`}
+              />
+              Refresh SHAs
+            </Button>
+            <Button size="sm" onClick={() => setSelectedId('new')}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add Entry
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Filter bar */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search entries..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         <Select
-          value={typeFilter || ALL_TYPES}
-          onValueChange={(v) => setTypeFilter(v === ALL_TYPES ? '' : v)}
+          value={state.type || ALL_SENTINEL}
+          onValueChange={(v) => handleSelectChange('type', v)}
         >
           <SelectTrigger className="w-[160px] h-9 text-sm">
-            <SelectValue placeholder="All types" />
+            <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_TYPES}>All types</SelectItem>
+            <SelectItem value={ALL_SENTINEL}>All types</SelectItem>
             {ENTRY_TYPES.map((t) => (
               <SelectItem key={t} value={t}>{t}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">
-          {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
-        </span>
+
+        <Select
+          value={state.sort}
+          onValueChange={(v) => setState({ sort: v })}
+        >
+          <SelectTrigger className="w-[160px] h-9 text-sm">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">
-          {typeFilter ? 'No entries match the selected type.' : 'No catalog entries yet.'}
+      {/* Count display */}
+      {total > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Showing {entries.length} of {total} entries
         </p>
+      )}
+
+      {/* Card grid */}
+      {entries.length > 0 ? (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {entries.map((entry) => (
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              onClick={handleCardClick}
+            />
+          ))}
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Required</TableHead>
-              <TableHead>Origin</TableHead>
-              <TableHead>Active</TableHead>
-              <TableHead>SHA</TableHead>
-              {canManage && <TableHead className="w-20" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entries.map((entry) => (
-              <TableRow key={entry.id}>
-                <TableCell className="font-medium">{entry.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{entry.type}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{entry.install_method}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <StatusDot on={entry.required} />
-                    <span className="text-sm text-foreground">{entry.required ? 'Yes' : 'No'}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{entry.origin}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <StatusDot on={entry.active} />
-                    <span className="text-sm text-foreground">{entry.active ? 'Active' : 'Inactive'}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground font-mono">
-                  {entry.github_sha ? entry.github_sha.slice(0, 7) : '—'}
-                </TableCell>
-                {canManage && (
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setSelectedId(entry.id)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget({ id: entry.id, name: entry.name })}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground">
+              {hasActiveFilters
+                ? 'No entries match your filters'
+                : 'No catalog entries yet'}
+            </p>
+            {canManage && !hasActiveFilters && (
+              <Button
+                className="mt-4"
+                onClick={() => setSelectedId('new')}
+              >
+                Add your first entry
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {selectedId !== null && (
-        <EntryForm selectedId={selectedId} onClose={() => setSelectedId(null)} />
+        <EntryForm
+          selectedId={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
       )}
-
-      <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete entry?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete &quot;{deleteTarget?.name}&quot; from the catalog.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => { e.preventDefault(); handleDeleteConfirm(); }}
-            >
-              {deleteEntry.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
