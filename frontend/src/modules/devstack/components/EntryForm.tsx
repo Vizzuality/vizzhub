@@ -29,6 +29,9 @@ import {
   INSTALL_METHODS,
   ENTRY_ORIGINS,
   type DevstackEntryCreate,
+  type EntryType,
+  type InstallMethod,
+  type EntryOrigin,
 } from '../types/devstack';
 
 interface EntryFormProps {
@@ -39,12 +42,12 @@ interface EntryFormProps {
 interface FormState {
   name: string;
   description: string;
-  type: string;
-  install_method: string;
+  type: EntryType;
+  install_method: InstallMethod;
   url: string;
   package: string;
   package_version: string;
-  origin: string;
+  origin: EntryOrigin;
   tech: string;
   required: boolean;
   active: boolean;
@@ -66,7 +69,7 @@ const INITIAL_FORM: FormState = {
 
 export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element {
   const isNew = selectedId === 'new';
-  const editId = !isNew && selectedId ? selectedId : '';
+  const editId = isNew ? '' : (selectedId ?? '');
 
   const { data: existing, isLoading } = useDevstackEntry(editId);
   const createEntry = useCreateDevstackEntry();
@@ -109,15 +112,15 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
     const payload: DevstackEntryCreate = {
       name: form.name.trim(),
       description: form.description.trim(),
-      type: form.type as DevstackEntryCreate['type'],
-      install_method: form.install_method as DevstackEntryCreate['install_method'],
+      type: form.type,
+      install_method: form.install_method,
       url: form.install_method === 'github' && form.url ? form.url.trim() : null,
       package: form.install_method === 'npm' && form.package ? form.package.trim() : null,
       package_version:
         form.install_method === 'npm' && form.package_version
           ? form.package_version.trim()
           : null,
-      origin: form.origin as DevstackEntryCreate['origin'],
+      origin: form.origin,
       tech: form.tech
         .split(',')
         .map((t) => t.trim())
@@ -140,6 +143,11 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
   };
 
   const isPending = createEntry.isPending || updateEntry.isPending;
+
+  function submitLabel(): string {
+    if (isPending) return 'Saving...';
+    return isNew ? 'Create' : 'Save';
+  }
 
   return (
     <Dialog open={selectedId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -184,7 +192,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
                 <Label>Type</Label>
                 <Select
                   value={form.type}
-                  onValueChange={(v) => setField('type', v)}
+                  onValueChange={(v) => setField('type', v as EntryType)}
                 >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue />
@@ -200,7 +208,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
                 <Label>Install Method</Label>
                 <Select
                   value={form.install_method}
-                  onValueChange={(v) => setField('install_method', v)}
+                  onValueChange={(v) => setField('install_method', v as InstallMethod)}
                 >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue />
@@ -254,7 +262,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
               <Label>Origin</Label>
               <Select
                 value={form.origin}
-                onValueChange={(v) => setField('origin', v)}
+                onValueChange={(v) => setField('origin', v as EntryOrigin)}
               >
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue />
@@ -301,7 +309,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? 'Saving...' : isNew ? 'Create' : 'Save'}
+                {submitLabel()}
               </Button>
             </DialogFooter>
           </form>
