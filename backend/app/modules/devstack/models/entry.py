@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -39,8 +39,6 @@ class DevstackEntryDB(Base):
             "install_method != 'npm' OR package IS NOT NULL",
             name="ck_devstack_entries_npm_package",
         ),
-        Index("ix_devstack_entries_type", "type"),
-        Index("ix_devstack_entries_active", "active"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -55,7 +53,7 @@ class DevstackEntryDB(Base):
     package_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     required: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     origin: Mapped[str] = mapped_column(String(20), nullable=False, server_default="internal")
-    tech: Mapped[list] = mapped_column(JSONB, nullable=True, server_default="'[]'::jsonb")
+    tech: Mapped[list[str]] = mapped_column(JSONB, nullable=True, server_default="'[]'::jsonb")
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
