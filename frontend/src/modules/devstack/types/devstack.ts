@@ -1,7 +1,7 @@
 export const ENTRY_TYPES = ['skill', 'command', 'plugin', 'config', 'agent'] as const;
 export type EntryType = typeof ENTRY_TYPES[number];
 
-export const INSTALL_METHODS = ['github', 'npm'] as const;
+export const INSTALL_METHODS = ['github', 'npm', 'claude_plugin'] as const;
 export type InstallMethod = typeof INSTALL_METHODS[number];
 
 export const ENTRY_ORIGINS = ['internal', 'external'] as const;
@@ -21,6 +21,7 @@ export interface DevstackEntry {
   tech: string[];
   active: boolean;
   github_sha: string | null;
+  latest_package_version: string | null;
   featured: boolean;
   created_at: string;
   updated_at: string;
@@ -34,6 +35,7 @@ export interface DevstackEntryCreate {
   url?: string | null;
   package?: string | null;
   package_version?: string | null;
+  latest_package_version?: string | null;
   required: boolean;
   origin: EntryOrigin;
   tech: string[];

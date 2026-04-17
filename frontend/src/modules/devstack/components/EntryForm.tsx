@@ -118,7 +118,10 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
       type: form.type,
       install_method: form.install_method,
       url: form.install_method === 'github' && form.url ? form.url.trim() : null,
-      package: form.install_method === 'npm' && form.package ? form.package.trim() : null,
+      package:
+        (form.install_method === 'npm' || form.install_method === 'claude_plugin') && form.package
+          ? form.package.trim()
+          : null,
       package_version:
         form.install_method === 'npm' && form.package_version
           ? form.package_version.trim()
@@ -263,7 +266,32 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
                     onChange={(e) => setField('package_version', e.target.value)}
                     placeholder="1.0.0"
                   />
+                  {form.install_method === 'npm' && existing?.latest_package_version &&
+                   existing.latest_package_version !== form.package_version && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Latest on npm: <code className="font-mono">{existing.latest_package_version}</code>{' '}
+                      <button
+                        type="button"
+                        className="underline hover:text-foreground"
+                        onClick={() => setField('package_version', existing.latest_package_version ?? '')}
+                      >
+                        Use latest
+                      </button>
+                    </p>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {form.install_method === 'claude_plugin' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-plugin">Plugin</Label>
+                <Input
+                  id="entry-plugin"
+                  value={form.package}
+                  onChange={(e) => setField('package', e.target.value)}
+                  placeholder="plugin-name@marketplace-name"
+                />
               </div>
             )}
 
