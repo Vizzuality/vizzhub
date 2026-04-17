@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Github, Package, Pencil, Star, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Pencil, Star, Trash2 } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
@@ -19,6 +19,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { useDevstackEntry, useDeleteDevstackEntry } from '../hooks/useDevstack';
 import { EntryForm } from '../components/EntryForm';
+import { InstallMethodBadge } from '../components/EntryBadges';
 import { toRawGithubUrl } from '../utils/github';
 
 export default function EntryDetail(): JSX.Element {
@@ -95,17 +96,7 @@ export default function EntryDetail(): JSX.Element {
               <p className="text-muted-foreground">{entry.description}</p>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{entry.type}</Badge>
-                <Badge variant="outline">
-                  {entry.install_method === 'github' ? (
-                    <span className="flex items-center gap-1">
-                      <Github size={12} /> github
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <Package size={12} /> npm
-                    </span>
-                  )}
-                </Badge>
+                <InstallMethodBadge method={entry.install_method} iconSize={12} />
                 <Badge variant="outline">{entry.origin}</Badge>
                 {entry.required && (
                   <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-100">
