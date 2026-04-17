@@ -1,4 +1,4 @@
-"""Tests for SHA refresh service."""
+"""Tests for source refresh service (github SHAs + npm versions)."""
 
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
 from app.modules.devstack.models.entry import DevstackEntryDB
-from app.modules.devstack.services.sha_refresh import refresh_all_shas
+from app.modules.devstack.services.sha_refresh import refresh_all_sources
 
 DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -50,11 +50,30 @@ async def github_entry(db_session: AsyncSession) -> DevstackEntryDB:
 @pytest_asyncio.fixture
 async def npm_entry(db_session: AsyncSession) -> DevstackEntryDB:
     entry = DevstackEntryDB(
-        name="test-plugin",
-        description="A test plugin",
+        name="test-npm",
+        description="A test npm package",
         type="plugin",
         install_method="npm",
-        package="@vizzuality/test",
+        package="react",
+        required=False,
+        active=True,
+        origin="external",
+        latest_package_version=None,
+    )
+    db_session.add(entry)
+    await db_session.commit()
+    await db_session.refresh(entry)
+    return entry
+
+
+@pytest_asyncio.fixture
+async def claude_plugin_entry(db_session: AsyncSession) -> DevstackEntryDB:
+    entry = DevstackEntryDB(
+        name="test-claude-plugin",
+        description="A test claude plugin",
+        type="plugin",
+        install_method="claude_plugin",
+        package="superpowers@claude-plugins-official",
         required=False,
         active=True,
         origin="external",
@@ -65,7 +84,7 @@ async def npm_entry(db_session: AsyncSession) -> DevstackEntryDB:
     return entry
 
 
-class TestRefreshAllShas:
+class TestRefreshGithub:
     @pytest.mark.asyncio
     @patch(
         "app.modules.devstack.services.sha_refresh.fetch_github_sha",
@@ -75,12 +94,11 @@ class TestRefreshAllShas:
     async def test_updates_changed_sha(
         self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
     ) -> None:
-        result = await refresh_all_shas(db_session)
+        result = await refresh_all_sources(db_session)
         await db_session.refresh(github_entry)
 
         assert github_entry.github_sha == "new_sha_" + "y" * 32
         assert result["updated"] == 1
-        assert result["total"] == 1
 
     @pytest.mark.asyncio
     @patch(
@@ -91,16 +109,9 @@ class TestRefreshAllShas:
     async def test_skips_unchanged_sha(
         self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
     ) -> None:
-        result = await refresh_all_shas(db_session)
+        result = await refresh_all_sources(db_session)
         assert result["unchanged"] == 1
         assert result["updated"] == 0
-
-    @pytest.mark.asyncio
-    async def test_skips_npm_entries(
-        self, db_session: AsyncSession, npm_entry: DevstackEntryDB,
-    ) -> None:
-        result = await refresh_all_shas(db_session)
-        assert result["total"] == 0
 
     @pytest.mark.asyncio
     @patch(
@@ -108,9 +119,64 @@ class TestRefreshAllShas:
         new_callable=AsyncMock,
         return_value=None,
     )
-    async def test_counts_failures(
+    async def test_counts_github_failures(
         self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
     ) -> None:
-        result = await refresh_all_shas(db_session)
+        result = await refresh_all_sources(db_session)
         assert result["failed"] == 1
         assert result["updated"] == 0
+
+
+class TestRefreshNpm:
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_latest_version",
+        new_callable=AsyncMock,
+        return_value="18.3.1",
+    )
+    async def test_updates_changed_version(
+        self, mock_fetch: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+    ) -> None:
+        result = await refresh_all_sources(db_session)
+        await db_session.refresh(npm_entry)
+
+        assert npm_entry.latest_package_version == "18.3.1"
+        assert result["updated"] == 1
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_latest_version",
+        new_callable=AsyncMock,
+        return_value="18.3.1",
+    )
+    async def test_skips_unchanged_version(
+        self, mock_fetch: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+    ) -> None:
+        npm_entry.latest_package_version = "18.3.1"
+        db_session.add(npm_entry)
+        await db_session.commit()
+
+        result = await refresh_all_sources(db_session)
+        assert result["unchanged"] == 1
+        assert result["updated"] == 0
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_latest_version",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    async def test_counts_npm_failures(
+        self, mock_fetch: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+    ) -> None:
+        result = await refresh_all_sources(db_session)
+        assert result["failed"] == 1
+
+
+class TestClaudePluginSkipped:
+    @pytest.mark.asyncio
+    async def test_claude_plugin_not_counted(
+        self, db_session: AsyncSession, claude_plugin_entry: DevstackEntryDB,
+    ) -> None:
+        result = await refresh_all_sources(db_session)
+        assert result["total"] == 0
