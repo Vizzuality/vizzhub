@@ -104,7 +104,6 @@ const EVENTS_TABS = [
 
 const DEVSTACK_TABS = [
   { to: '/devstack', label: 'Catalog' },
-  { to: '/devstack/me', label: 'My Environment' },
 ] as const;
 
 function GuardedLink({

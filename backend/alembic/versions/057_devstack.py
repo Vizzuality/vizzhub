@@ -48,23 +48,6 @@ def upgrade() -> None:
         )
     """)
 
-    op.execute("""
-        CREATE TABLE IF NOT EXISTS devstack_user_prefs (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            entry_id UUID NOT NULL REFERENCES devstack_entries(id) ON DELETE CASCADE,
-            enabled BOOLEAN NOT NULL DEFAULT false,
-            last_synced_sha VARCHAR(40),
-            last_synced_at TIMESTAMPTZ,
-            CONSTRAINT uq_devstack_user_prefs_user_entry UNIQUE (user_id, entry_id)
-        )
-    """)
-
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_devstack_user_prefs_user_id"
-        " ON devstack_user_prefs (user_id)"
-    )
-
     op.execute(
         "INSERT INTO roles (id, name)"
         " VALUES (gen_random_uuid(), 'devstack_manager')"
@@ -73,7 +56,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DELETE FROM roles WHERE name = 'devstack_manager'")
-
-    op.execute("DROP TABLE IF EXISTS devstack_user_prefs")
 
     op.execute("DROP TABLE IF EXISTS devstack_entries")
