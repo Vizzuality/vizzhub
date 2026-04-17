@@ -15,7 +15,12 @@ logger = structlog.get_logger()
 _BLOB_RE = re.compile(
     r"https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)"
 )
-# Raw content URL: raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}
+# Raw URL with refs/heads or refs/tags prefix (GitHub's "Copy raw file" button):
+# raw.githubusercontent.com/{owner}/{repo}/refs/heads/{ref}/{path}
+_RAW_REFS_RE = re.compile(
+    r"https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/refs/(?:heads|tags)/([^/]+)/(.+)"
+)
+# Raw content URL (plain): raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}
 _RAW_RE = re.compile(
     r"https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)"
 )
@@ -29,10 +34,12 @@ def parse_github_url(url: str) -> tuple[str, str, str, str] | None:
     Supports:
     - github.com/{owner}/{repo}/blob/{ref}/{path}
     - raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}
+    - raw.githubusercontent.com/{owner}/{repo}/refs/heads/{ref}/{path}
+    - raw.githubusercontent.com/{owner}/{repo}/refs/tags/{ref}/{path}
 
     Returns None if the URL format is not recognized.
     """
-    for pattern in (_BLOB_RE, _RAW_RE):
+    for pattern in (_BLOB_RE, _RAW_REFS_RE, _RAW_RE):
         match = pattern.match(url)
         if match:
             return match.group(1), match.group(2), match.group(3), match.group(4)
