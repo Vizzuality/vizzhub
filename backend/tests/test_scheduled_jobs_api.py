@@ -27,7 +27,7 @@ class TestListScheduledJobs:
         assert "monthly_scorecard_capture" in job_names
         assert "fetch_exchange_rates" in job_names
         assert "send_monthly_report_reminder" in job_names
-        assert "refresh_devstack_shas" in job_names
+        assert "refresh_devstack_sources" in job_names
         assert "send_report_confirmation_reminder" in job_names
         assert "rotate_reporting_period" in job_names
 
