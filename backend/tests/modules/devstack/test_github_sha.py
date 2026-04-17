@@ -22,6 +22,18 @@ class TestParseGithubUrl:
         )
         assert result == ("Vizzuality", "devstack", "main", "org-claude.md")
 
+    def test_raw_url_with_refs_heads(self) -> None:
+        result = parse_github_url(
+            "https://raw.githubusercontent.com/Vizzuality/claude-code-standards/refs/heads/main/Skills/finalize.md"
+        )
+        assert result == ("Vizzuality", "claude-code-standards", "main", "Skills/finalize.md")
+
+    def test_raw_url_with_refs_tags(self) -> None:
+        result = parse_github_url(
+            "https://raw.githubusercontent.com/Vizzuality/devstack/refs/tags/v1.0.0/file.md"
+        )
+        assert result == ("Vizzuality", "devstack", "v1.0.0", "file.md")
+
     def test_nested_path(self) -> None:
         result = parse_github_url(
             "https://github.com/Vizzuality/devstack/blob/main/deep/nested/file.md"
