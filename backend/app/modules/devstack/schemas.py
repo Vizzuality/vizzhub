@@ -49,7 +49,7 @@ class EntryResponse(BaseModel):
     package_version: str | None = None
     required: bool
     origin: str
-    tech: list = []
+    tech: list[str] = Field(default_factory=list)
     active: bool
     created_by_id: UUID | None = None
     updated_by_id: UUID | None = None
