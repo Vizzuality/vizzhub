@@ -21,6 +21,7 @@ export interface DevstackEntry {
   tech: string[];
   active: boolean;
   github_sha: string | null;
+  featured: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +38,7 @@ export interface DevstackEntryCreate {
   origin: EntryOrigin;
   tech: string[];
   active: boolean;
+  featured: boolean;
 }
 
 export type DevstackEntryUpdate = Partial<DevstackEntryCreate>;
@@ -44,11 +46,25 @@ export type DevstackEntryUpdate = Partial<DevstackEntryCreate>;
 export interface DevstackEntryListResponse {
   items: DevstackEntry[];
   total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface DevstackEntryListParams {
+  search?: string;
   type?: string;
   required?: boolean;
   active?: boolean;
+  featured?: boolean;
+  sort_by?: string;
+  sort_dir?: string;
+  page?: number;
+  page_size?: number;
 }
 
+export interface ShaRefreshResult {
+  total: number;
+  updated: number;
+  unchanged: number;
+  failed: number;
+}
