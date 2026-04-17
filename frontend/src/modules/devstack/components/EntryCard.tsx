@@ -41,6 +41,13 @@ export function EntryCard({ entry, onClick }: EntryCardProps): JSX.Element {
               inactive
             </Badge>
           )}
+          {entry.install_method === 'npm' &&
+           entry.latest_package_version &&
+           entry.latest_package_version !== entry.package_version && (
+            <Badge className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-100">
+              update available
+            </Badge>
+          )}
         </div>
       </CardHeader>
 

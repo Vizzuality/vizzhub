@@ -144,6 +144,13 @@ export default function EntryDetail(): JSX.Element {
                   {entry.package}{entry.package_version ? `@${entry.package_version}` : ''}
                 </p>
               )}
+              {entry.install_method === 'npm' &&
+               entry.latest_package_version &&
+               entry.latest_package_version !== entry.package_version && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Latest: {entry.latest_package_version}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
