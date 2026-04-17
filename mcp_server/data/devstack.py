@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryResponse
 
-_CATALOG_FIELDS = ("name", "description", "type", "install_method", "url", "package", "package_version", "origin", "tech")
+_CATALOG_FIELDS = (
+    "name", "description", "type", "install_method", "url",
+    "package", "package_version", "required", "origin", "tech", "github_sha",
+)
 
 
 async def get_catalog(session: AsyncSession) -> list[dict]:
