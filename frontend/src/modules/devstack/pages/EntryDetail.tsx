@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Pencil, Star, Trash2 } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
+import { useTheme } from 'next-themes';
 import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
@@ -26,6 +27,7 @@ export default function EntryDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const canManage = usePermission(Action.DEVSTACK_MANAGE);
+  const { resolvedTheme } = useTheme();
   const { data: entry, isLoading } = useDevstackEntry(id ?? '');
   const deleteEntry = useDeleteDevstackEntry();
 
@@ -146,7 +148,7 @@ export default function EntryDetail(): JSX.Element {
             {mdLoading ? (
               <LoadingSpinner />
             ) : markdown ? (
-              <div data-color-mode="auto">
+              <div data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}>
                 <MDEditor.Markdown source={markdown} />
               </div>
             ) : (
