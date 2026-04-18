@@ -20,6 +20,7 @@ def test_user_has_base_permissions():
     assert Action.PROJECTS_VIEW in user_perms
     assert Action.TRACKER_VIEW in user_perms
     assert Action.TRACKER_MANAGE_OWN_REPORTS in user_perms
+    assert Action.DEVSTACK_VIEW in user_perms
 
 
 def test_user_cannot_manage_tracker():

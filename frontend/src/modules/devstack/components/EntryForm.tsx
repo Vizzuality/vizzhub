@@ -185,7 +185,7 @@ export function EntryForm({ selectedId, onClose }: EntryFormProps): JSX.Element 
 
             <div className="space-y-1.5">
               <Label htmlFor="entry-desc">
-                Description
+                Description{' '}
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   (markdown supported)
                 </span>
