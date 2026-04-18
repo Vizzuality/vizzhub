@@ -75,8 +75,32 @@ async def devstack_get_tech_radar(
     return content
 
 
+@mcp_requires("devstack:view")
+async def devstack_get_installable(name: str) -> str:
+    """Get a ready-to-write installable for a DevStack catalog entry.
+
+    Fetches the source from GitHub, injects `devstack_sha` into the YAML
+    frontmatter, and returns the final `{target_path, content}` to be written
+    verbatim. Use this instead of composing the frontmatter on the client —
+    it eliminates drift between local files and the catalog.
+
+    Supports only `github`-installed skills, commands, and agents. On failure
+    returns a JSON object with `error` and `code` fields.
+
+    Args:
+        name: Catalog entry name (unique per catalog).
+    """
+    try:
+        async with get_read_session() as session:
+            data = await devstack_data.get_installable(session, name)
+    except devstack_data.InstallableError as exc:
+        return json.dumps({"error": exc.message, "code": exc.code})
+    return json.dumps(data)
+
+
 def register_devstack_tools(server: FastMCP) -> None:
     """Register all DevStack tools on the given MCP server instance."""
     server.tool()(devstack_get_catalog)
     server.tool()(devstack_discover)
     server.tool()(devstack_get_tech_radar)
+    server.tool()(devstack_get_installable)

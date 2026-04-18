@@ -169,6 +169,33 @@ Fetches a Tech Radar markdown file via the backend's GitHub token — removes th
 
 **Returns:** Raw markdown content. Error JSON if fetch fails.
 
+#### `devstack_get_installable(name)` (implemented)
+
+Returns a ready-to-write installable for a catalog entry. Backend fetches the source from GitHub, injects `devstack_sha` into the YAML frontmatter, and returns `{target_path, content}`. Claude writes verbatim — no client-side frontmatter composition.
+
+Supports only `github`-installed `skill` / `command` / `agent` entries. Target paths:
+- `skill` → `~/.claude/skills/{name}/SKILL.md`
+- `command` → `~/.claude/commands/{name}.md`
+- `agent` → `~/.claude/agents/{name}.md`
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | string | yes | Catalog entry name (unique). |
+
+**Returns on success:** `{"target_path": "...", "content": "..."}`.
+
+**Returns on error:** `{"error": "...", "code": "..."}` where `code` is one of:
+
+| Code | Meaning |
+|------|---------|
+| `NOT_FOUND` | Entry missing or inactive. |
+| `UNSUPPORTED_TYPE` | Type is not `skill`/`command`/`agent` (e.g. `plugin`, `config`). |
+| `NO_GITHUB_URL` | Entry not installed via `github`. |
+| `NO_SHA` | `github_sha` not populated yet — catalog refresh pending. |
+| `FETCH_FAILED` | Could not fetch source from GitHub. |
+
 #### `devstack_recommend` (future)
 
 Takes a technology stack and returns matching catalog entries ordered by tag overlap. Currently covered in part by `devstack_discover(tech=...)` — the `recommend` variant would add weighting.
@@ -429,21 +456,23 @@ Ordered by priority. All items move reliability/ergonomics from "Claude follows 
 2. ~~**`devstack_discover(type, tech, featured_only)`**~~ — shipped. Lightweight dev-facing view returning only `name`, `type`, `description`. Replaces the Phase 2 `devstack_list` idea.
 3. ~~**`DEVSTACK_VIEW` added to `user` role**~~ — catalog and discovery tools now callable by any authenticated dev.
 
+**Done (continued)**
+
+4. ~~**`devstack_get_installable(name)`**~~ — shipped. Backend injects `devstack_sha` into frontmatter and returns `{target_path, content}`. Unblocks hook v2 and removes the main failure mode of the sync contract.
+
 **Next**
-
-4. **`devstack_get_installable(name)`** — MCP tool that fetches source for a catalog entry and returns `{ target_path, content }` where `content` already has `devstack_sha` injected into the YAML frontmatter. Claude then writes verbatim. Eliminates client-side composition, which is the main failure mode of the current sync contract. Unblocks hook v2.
-
-**Then (quality-of-life on top of the above)**
 
 5. **Hook v2 — warn-only, broad coverage** — reintroduce the PreToolUse hook as non-blocking (logs to a file, exits 0 always). Matcher expanded to `Write|Edit|MultiEdit`. Becomes a visible drift signal without obstructing developers. Works in tandem with `devstack_get_installable`: the install path is guaranteed correct by the server, the hook catches manual/edit deviations.
 
-6. **Orphan detection in sync** — during the session-start sync pass, scan `~/.claude/{skills,commands,agents}/` for files whose name isn't in the catalog. Surface them as "untracked" so the dev can decide: add to catalog, mark local (`devstack_sha: local`), or remove.
+6. **Update org CLAUDE.md** — switch sync contract instructions from "read source, compose frontmatter" to "call `devstack_get_installable(name)` and write verbatim".
+
+7. **Orphan detection in sync** — during the session-start sync pass, scan `~/.claude/{skills,commands,agents}/` for files whose name isn't in the catalog. Surface them as "untracked" so the dev can decide: add to catalog, mark local (`devstack_sha: local`), or remove.
 
 **Later (Phase 3)**
 
-7. **`devstack_recommend`** — weighted tech-match ranking (on top of the existing `devstack_discover(tech=...)`).
-8. **npm install lifecycle** — npm-based entries with version comparison.
-9. **Dry-run mode for sync** — show what would change without applying.
+8. **`devstack_recommend`** — weighted tech-match ranking (on top of the existing `devstack_discover(tech=...)`).
+9. **npm install lifecycle** — npm-based entries with version comparison.
+10. **Dry-run mode for sync** — show what would change without applying.
 
 ### Why the hook was dropped in v1
 
