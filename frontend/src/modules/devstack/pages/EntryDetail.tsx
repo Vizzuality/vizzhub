@@ -40,7 +40,9 @@ export default function EntryDetail(): JSX.Element {
     isLoading: mdLoading,
     isError: mdError,
   } = useDevstackEntryContent(id ?? '', isGithubEntry);
-  const markdown = contentData?.content ?? null;
+  const markdown = contentData?.content
+    ? contentData.content.replace(/^---\n[\s\S]*?\n---\n?/, '')
+    : null;
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
