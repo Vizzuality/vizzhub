@@ -20,8 +20,6 @@ _CATALOG_FIELDS = frozenset((
 
 _DISCOVER_FIELDS = frozenset(("name", "type", "description"))
 
-TECH_RADAR_FILES = ("development", "devops", "tools-and-libraries", "data-science-gis")
-
 _TECH_RADAR_REPO = "Vizzuality/vizzuality-engineering-handbook"
 _TECH_RADAR_BASE = (
     f"https://github.com/{_TECH_RADAR_REPO}/blob/main/decisions/tech-radar"
