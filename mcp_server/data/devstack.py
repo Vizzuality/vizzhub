@@ -1,6 +1,8 @@
-"""DevStack data access — catalog entries and tech radar."""
+"""DevStack data access — catalog entries, tech radar, installables."""
 
 from __future__ import annotations
+
+import re
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,3 +83,88 @@ async def get_tech_radar(session: AsyncSession, file: str) -> str | None:
     token = await IntegrationTokenService.get_token(session, "github")
     url = f"{_TECH_RADAR_BASE}/{file}.md"
     return await fetch_github_content(url, token)
+
+
+_TARGET_PATH_BY_TYPE = {
+    "skill": "~/.claude/skills/{name}/SKILL.md",
+    "command": "~/.claude/commands/{name}.md",
+    "agent": "~/.claude/agents/{name}.md",
+}
+
+_FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
+_SHA_LINE_RE = re.compile(r"^devstack_sha:.*$", re.MULTILINE)
+
+
+def _inject_devstack_sha(content: str, sha: str) -> str:
+    """Inject or replace `devstack_sha` in the YAML frontmatter of content.
+
+    Preserves existing formatting. If no frontmatter exists, prepends one.
+    """
+    match = _FRONTMATTER_RE.match(content)
+    if match is None:
+        return f"---\ndevstack_sha: {sha}\n---\n\n{content}"
+
+    block = match.group(1)
+    rest = content[match.end():]
+    new_block, count = _SHA_LINE_RE.subn(f"devstack_sha: {sha}", block, count=1)
+    if count == 0:
+        new_block = f"{block}\ndevstack_sha: {sha}"
+    return f"---\n{new_block}\n---\n{rest}"
+
+
+class InstallableError(Exception):
+    """Raised when an entry cannot be installed via get_installable."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+async def get_installable(session: AsyncSession, name: str) -> dict:
+    """Return target_path + content with `devstack_sha` injected server-side.
+
+    Raises InstallableError on any problem. Only supports github-installed
+    skills, commands, and agents.
+    """
+    result = await session.execute(
+        select(DevstackEntryDB).where(
+            DevstackEntryDB.name == name,
+            DevstackEntryDB.active.is_(True),
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if entry is None:
+        raise InstallableError("NOT_FOUND", f"No active catalog entry named {name!r}")
+
+    target_template = _TARGET_PATH_BY_TYPE.get(entry.type)
+    if target_template is None:
+        raise InstallableError(
+            "UNSUPPORTED_TYPE",
+            f"Entry type {entry.type!r} is not installable via this tool",
+        )
+
+    if entry.install_method != "github" or not entry.url:
+        raise InstallableError(
+            "NO_GITHUB_URL",
+            f"Entry {name!r} does not have a GitHub source URL",
+        )
+
+    if not entry.github_sha:
+        raise InstallableError(
+            "NO_SHA",
+            f"Entry {name!r} has no github_sha yet — catalog refresh pending",
+        )
+
+    token = await IntegrationTokenService.get_token(session, "github")
+    content = await fetch_github_content(entry.url, token)
+    if content is None:
+        raise InstallableError(
+            "FETCH_FAILED",
+            f"Could not fetch source for {name!r} from GitHub",
+        )
+
+    return {
+        "target_path": target_template.format(name=entry.name),
+        "content": _inject_devstack_sha(content, entry.github_sha),
+    }
