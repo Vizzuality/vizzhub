@@ -211,7 +211,7 @@ The sync is driven by instructions in the org CLAUDE.md — not a separate skill
 3. If `devstack_sha` matches `github_sha` → up to date, skip
 4. If they differ or file doesn't exist → needs update
 5. Claude reports: "These entries need updating: X, Y. Update?"
-6. On install/update, Claude writes the file with `devstack_sha: <sha>` in the frontmatter
+6. On install/update of `skill`/`command`/`agent`: Claude calls `devstack_get_installable(name)` and writes the returned `content` to the returned `target_path` verbatim — the sha is injected server-side.
 
 **Frontmatter SHA tracking (local, per file):**
 
@@ -242,108 +242,19 @@ Claude Code ignores unknown frontmatter fields. The SHA travels with the file, n
 
 #### Sync instructions (org CLAUDE.md template)
 
-The instructions below are the canonical contract Claude Code follows at session start. They live in `Vizzuality/claude-code-standards/Settings/managed/CLAUDE.md` and are deployed via Miradore to `/Library/Application Support/ClaudeCode/CLAUDE.md`. Update both places together.
+The instructions below are the canonical contract Claude Code follows at session start. They live in `Vizzuality/claude-code-standards/Settings/managed/CLAUDE.md` and are deployed via Miradore to `/Library/Application Support/ClaudeCode/CLAUDE.md`. Keep the three locations (this doc, the repo, and the Miradore installer heredoc) in sync on every change.
 
-````markdown
-## DevStack Sync
+See `Vizzuality/claude-code-standards/Settings/managed/CLAUDE.md` for the live version. The key mechanics:
 
-At the start of every session, synchronize the local developer environment with the Vizzuality DevStack catalog. Do this silently unless something needs the user's attention.
-
-### Steps
-
-1. **Fetch the catalog** — call the MCP tool `devstack_get_catalog`. It returns all active entries with `name`, `type`, `install_method`, `url`, `package`, `package_version`, `required`, `github_sha`, `latest_package_version`.
-
-2. **Filter to required entries** — only entries with `required: true` are auto-synced. Non-required entries are installed on explicit user request (via `devstack_list` / `devstack_recommend`).
-
-3. **For each required entry, detect drift:**
-
-   - **`install_method: github`** (skills, commands, agents, configs)
-     - Resolve the local target path (see table below).
-     - If the file does not exist → needs install.
-     - If it exists, read the YAML frontmatter and compare `devstack_sha` with the catalog's `github_sha`.
-       - Equal → up to date, skip.
-       - Different or missing → needs update.
-
-   - **`install_method: npm`** (CLI tools, linters)
-     - Run `npm list -g --depth=0 --json <package>` and read the installed version.
-     - Compare with the catalog's `package_version`.
-       - Equal → up to date, skip.
-       - Different or not installed → needs update.
-     - Ignore `latest_package_version` for sync decisions; it is informational (shown in VizzHub UI when a newer version exists upstream).
-
-   - **`install_method: claude_plugin`**
-     - Skip. Claude Code's plugin manager owns the lifecycle of marketplace plugins. DevStack only lists them for discoverability.
-
-4. **Report drift once, concisely** — if one or more entries need changes, list them grouped by action (install / update) with the entry name and reason (`new`, `sha <old>→<new>`, `version <old>→<new>`). Ask the user to confirm before making any changes. Never install or overwrite files without confirmation.
-
-5. **On confirmation, apply changes:**
-
-   - **github** — fetch the file content via `gh api repos/{owner}/{repo}/contents/{path}?ref={ref} --jq '.content' | base64 -d`. Write it to the target path. Inject or replace the `devstack_sha: <github_sha>` line in the YAML frontmatter (create the frontmatter block if missing). Preserve all other frontmatter fields.
-   - **npm** — run `npm install -g <package>@<package_version>`.
-   - **config** entries targeting `/Library/Application Support/ClaudeCode/CLAUDE.md` — write with elevated permissions; if the write fails, report the path and stop (do not silently skip).
-
-6. **Verify** — after each install/update, re-read the target to confirm the write succeeded and the SHA/version landed as expected. Report a one-line summary per entry.
-
-### Target paths
-
-| Type             | Target                                                     |
-|------------------|------------------------------------------------------------|
-| `skill`          | `~/.claude/skills/{name}/SKILL.md`                         |
-| `command`        | `~/.claude/commands/{name}.md`                             |
-| `agent`          | `~/.claude/agents/{name}.md`                               |
-| `config` (org)   | `/Library/Application Support/ClaudeCode/CLAUDE.md`        |
-| `config` (other) | as specified by the entry (fall back to asking the user)   |
-| `plugin` (npm)   | npm global                                                 |
-
-### Frontmatter SHA contract
-
-Every installed file of type `skill` / `command` / `agent` / `config` MUST carry a `devstack_sha` key in its YAML frontmatter. Example:
-
-```yaml
----
-name: finalize
-description: End-of-session finalization workflow.
-devstack_sha: 8790a9aac0d4528de87e61aab742a2f7556a2e23
----
-```
-
-- Claude Code ignores unknown frontmatter keys — safe to add.
-- If the upstream file has no frontmatter, create one with just `name` and `devstack_sha`.
-- Never remove `devstack_sha` on edit. It is the only source of truth for drift detection.
-
-### Authentication
-
-- GitHub: private repos require `gh auth status` to be OK. If it is not, stop and ask the user to run `gh auth login` — do not attempt anonymous fetches.
-- npm: public registry, no auth needed for the catalog entries currently tracked.
-
-### Failure modes
-
-- **MCP unavailable** — skip sync for this session and report once. Do not block the user.
-- **Single entry fails** — continue with the rest, report failures at the end.
-- **Frontmatter parse error** — treat as "needs update" and rewrite cleanly.
-````
+- **Tech Radar** — call `devstack_get_tech_radar(file)` (no per-user `gh auth` needed).
+- **Catalog** — call `devstack_get_catalog` to detect drift (compare frontmatter `devstack_sha` vs catalog `github_sha`).
+- **Install / update** — for `skill`/`command`/`agent`, call `devstack_get_installable(name)` and write the returned `content` to `target_path` verbatim. The sha is injected server-side.
+- **Discovery** — `devstack_discover(type?, tech?, featured_only?)` for "what's available?" questions.
+- **Managed CLAUDE.md** — Miradore-owned; on drift report and ask to re-run Miradore, do not auto-update.
 
 ### Tech Radar
 
-Lives in GitHub at `Vizzuality/vizzuality-engineering-handbook/decisions/tech-radar/`. Referenced in the org CLAUDE.md as `gh api` commands:
-
-```markdown
-## Tech Radar
-
-**You MUST consult the Tech Radar before suggesting any library, framework,
-database, or tool.** Run:
-
-`gh api repos/Vizzuality/vizzuality-engineering-handbook/contents/decisions/tech-radar/<file>.md --jq '.content' | base64 -d`
-
-Files: `development.md`, `devops.md`, `tools-and-libraries.md`, `data-science-gis.md`.
-
-- **Adopt** — use by default, no justification needed
-- **Trial** — allowed in selected projects, flag it explicitly
-- **Assess** — do not use in production, exploration only
-- **Hold** — do not use in new projects under any circumstance
-
-If a technology is not listed in the Tech Radar, flag it before proceeding.
-```
+Lives in GitHub at `Vizzuality/vizzuality-engineering-handbook/decisions/tech-radar/`. Exposed to Claude Code via the MCP tool `devstack_get_tech_radar(file)` — the backend holds the GitHub token, so no per-user `gh auth` is needed. The org CLAUDE.md directs Claude to the MCP call and spells out the mandatory tier interpretation (Adopt/Trial/Assess/Hold).
 
 ### Org CLAUDE.md as catalog entry
 
