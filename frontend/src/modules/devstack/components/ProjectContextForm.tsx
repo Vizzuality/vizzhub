@@ -60,6 +60,7 @@ export function ProjectContextForm({
   const [slug, setSlug] = useState(context?.slug ?? '');
   const [description, setDescription] = useState(context?.description ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
 
   const selectedProjectName = isEdit
@@ -94,7 +95,18 @@ export function ProjectContextForm({
           project_id: projectId,
           description: description || null,
         },
-        { onSuccess: onClose },
+        {
+          onSuccess: (created) => {
+            // If the GitHub seed failed, keep the dialog open so the admin
+            // reads the warning. The DB mapping is already saved — closing
+            // via "Close" keeps it.
+            if (created.github_error) {
+              setWarning(created.github_error);
+            } else {
+              onClose();
+            }
+          },
+        },
       );
     }
   };
@@ -185,14 +197,31 @@ export function ProjectContextForm({
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {warning && (
+            <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+              <p className="font-medium">Mapping saved, but GitHub seed failed</p>
+              <p className="mt-1 text-xs">{warning}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The project context is registered in VizzHub. Create{' '}
+                <code className="font-mono">{slug}/CLAUDE.md</code> manually in
+                the private repo, or fix the token and delete/recreate this row.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || isPending}>
-            {isPending ? 'Saving...' : isEdit ? 'Save' : 'Create'}
-          </Button>
+          {warning ? (
+            <Button onClick={onClose}>Close</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={!canSubmit || isPending}>
+                {isPending ? 'Saving...' : isEdit ? 'Save' : 'Create'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

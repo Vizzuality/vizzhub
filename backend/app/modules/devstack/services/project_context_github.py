@@ -41,6 +41,10 @@ class OptimisticLockError(Exception):
         self.current_sha = current_sha
 
 
+class AlreadyExistsError(Exception):
+    """Attempted to create a file that already exists at the target path."""
+
+
 class ProjectContextGitHubClient:
     """Thin wrapper around GitHub's REST + Git Data APIs.
 
@@ -101,6 +105,44 @@ class ProjectContextGitHubClient:
         if data.get("encoding") != "base64":
             raise FetchError(f"Unexpected encoding: {data.get('encoding')}")
         return base64.b64decode(data["content"]).decode("utf-8")
+
+    async def create_file(
+        self,
+        *,
+        slug: str,
+        content: str,
+        author_name: str,
+        author_email: str,
+        message: str,
+    ) -> str:
+        """Create `<slug>/CLAUDE.md` for the first time. Returns new blob SHA.
+
+        Uses GitHub's Contents API (PUT /contents/{path}) — simpler than the
+        Git Data API push because no parent tree / ref juggling is required
+        when the file doesn't yet exist. If the file already exists, GitHub
+        returns 422; we surface that as AlreadyExistsError so the caller
+        can decide whether to swallow (idempotent seed) or report.
+        """
+        url = f"{GITHUB_API}/repos/{self.repo}/contents/{slug}/CLAUDE.md"
+        body = {
+            "message": message,
+            "content": base64.b64encode(content.encode("utf-8")).decode(),
+            "author": {"name": author_name, "email": author_email},
+            "committer": {
+                "name": self.committer_name,
+                "email": self.committer_email,
+            },
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.put(url, headers=self._headers(), json=body)
+
+        if resp.status_code == 422:
+            raise AlreadyExistsError(f"{slug}/CLAUDE.md already exists")
+        if resp.status_code >= 400:
+            raise CommitError(
+                f"create file {slug}/CLAUDE.md: {resp.status_code} {resp.text}"
+            )
+        return resp.json()["content"]["sha"]
 
     async def push(
         self,

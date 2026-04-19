@@ -4,19 +4,30 @@ import re
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.core.api.deps import DBSession
 from app.core.models.project import ProjectDB
+from app.core.models.user import UserDB
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.api.deps import DevstackManager, DevstackViewer
 from app.modules.devstack.models.project_context import DevstackProjectContextDB
+from app.modules.devstack.services.project_context_github import (
+    AlreadyExistsError,
+    CommitError,
+    ProjectContextGitHubClient,
+)
 from app.modules.devstack.services.project_context_service import (
     DevstackProjectContextService,
     DuplicateSlugError,
     ProjectAlreadyLinkedError,
 )
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/project-contexts", tags=["devstack-contexts"])
 
@@ -29,6 +40,12 @@ class ProjectContextResponse(BaseModel):
     project_id: UUID
     project_name: str | None
     description: str | None
+    # Populated only by the POST (create) endpoint. github_seeded is True if
+    # <slug>/CLAUDE.md was created remotely during this request; False with
+    # github_error set if the attempt failed (missing token, repo not
+    # reachable, file already there). GET/PUT/LIST leave both as None.
+    github_seeded: bool | None = None
+    github_error: str | None = None
 
 
 class ProjectContextCreate(BaseModel):
@@ -53,7 +70,11 @@ class ProjectContextUpdate(BaseModel):
 
 
 def _to_response(
-    ctx: DevstackProjectContextDB, project_name: str | None
+    ctx: DevstackProjectContextDB,
+    project_name: str | None,
+    *,
+    github_seeded: bool | None = None,
+    github_error: str | None = None,
 ) -> ProjectContextResponse:
     return ProjectContextResponse(
         id=ctx.id,
@@ -61,7 +82,81 @@ def _to_response(
         project_id=ctx.project_id,
         project_name=project_name,
         description=ctx.description,
+        github_seeded=github_seeded,
+        github_error=github_error,
     )
+
+
+def _render_seed_template(slug: str, project_name: str, description: str | None) -> str:
+    """Initial CLAUDE.md content created when registering a new Project Context.
+
+    Deliberately minimal — the intent is to provide a starting scaffold that
+    devs will iterate on through Claude Code, not a comprehensive template.
+    """
+    lines = [f"# {project_name}", ""]
+    if description:
+        lines.extend([description, ""])
+    lines.extend(
+        [
+            "<!-- Private project context synced via VizzHub DevStack.",
+            f"     Slug: {slug}",
+            "     Edit through Claude Code and publish with \"publica los cambios\". -->",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+async def _seed_github_claude_md(
+    db,
+    slug: str,
+    project_name: str,
+    description: str | None,
+    user_id: UUID,
+    user_email: str | None,
+) -> tuple[bool, str | None]:
+    """Attempt to create `<slug>/CLAUDE.md` in the private repo.
+
+    Returns (seeded, error_message). Never raises — missing token, unreachable
+    repo, or "file already exists" are reported as errors in the response so
+    the caller can decide (and the DB mapping remains valid either way).
+    """
+    token = await IntegrationTokenService.get_token(db, "github")
+    if not token:
+        return False, "GitHub integration token not configured in VizzHub"
+
+    settings = get_settings()
+    user_row = await db.get(UserDB, user_id) if user_id else None
+    author_name = (
+        user_row.name if user_row and user_row.name else (user_email or "VizzHub User")
+    )
+    author_email = user_email or settings.devstack_project_contexts_committer_email
+
+    client = ProjectContextGitHubClient(
+        repo=settings.devstack_project_contexts_repo,
+        token=token,
+        committer_name=settings.devstack_project_contexts_committer_name,
+        committer_email=settings.devstack_project_contexts_committer_email,
+    )
+    content = _render_seed_template(slug, project_name, description)
+    try:
+        await client.create_file(
+            slug=slug,
+            content=content,
+            author_name=author_name,
+            author_email=author_email,
+            message=f"Seed {slug}/CLAUDE.md via VizzHub",
+        )
+        return True, None
+    except AlreadyExistsError:
+        # The file is already there — the mapping is still valid; this is
+        # the common case when re-registering a context after a previous
+        # delete, or when the admin pre-seeded the file by hand.
+        return False, "File already exists in GitHub — mapping linked to it"
+    except CommitError as exc:
+        return False, f"GitHub rejected the seed commit: {exc}"
+    except Exception as exc:  # noqa: BLE001 — graceful degradation
+        return False, f"Seed failed: {exc}"
 
 
 @router.get("", responses={403: {"description": "Not authorized"}})
@@ -106,7 +201,31 @@ async def create_project_context(
     project = await db.get(ProjectDB, body.project_id)
     if project is None:
         raise HTTPException(status_code=422, detail="Project not found")
-    return _to_response(ctx, project.name)
+
+    github_seeded, github_error = await _seed_github_claude_md(
+        db,
+        slug=body.slug,
+        project_name=project.name,
+        description=body.description,
+        user_id=UUID(user.user_id),
+        user_email=user.email,
+    )
+    if github_seeded:
+        logger.info("project_context_seeded", slug=body.slug, project_id=str(project.id))
+    else:
+        logger.warning(
+            "project_context_seed_failed",
+            slug=body.slug,
+            project_id=str(project.id),
+            reason=github_error,
+        )
+
+    return _to_response(
+        ctx,
+        project.name,
+        github_seeded=github_seeded,
+        github_error=github_error,
+    )
 
 
 @router.get(
