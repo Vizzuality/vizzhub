@@ -8,6 +8,14 @@
 
 **Tech Stack:** FastAPI + SQLAlchemy 2.0 async + asyncpg + Alembic (backend), httpx for GitHub API, FastMCP (MCP server), React 18 + TanStack Query + shadcn/ui (frontend), pytest + vitest.
 
+**Execution mode — autonomous:** This plan is designed to run end-to-end without user interaction. Do NOT pause between tasks for manual verification or approval. Specifically:
+
+- Tests in every task are mocked (respx for GitHub, vitest mocks for hooks), so they pass regardless of whether the production prerequisites (private GitHub repo, token write scope) exist yet. Production validation happens in Task 16, the post-implementation checklist, which the user runs manually at the end.
+- If a subagent encounters a field-name mismatch (e.g. `CommandDB` columns differ from what the plan assumes), inspect the real model with Read/Grep and adapt inline. Do not escalate unless genuinely blocked.
+- If the `fixture` names for authenticated test clients differ from `client_manager` / `client_viewer`, grep for existing auth fixtures in `backend/tests/` and use the canonical name.
+- Task 13 (skill PR to external repo) must be done via `gh` from the local machine; the subagent should clone `Vizzuality/claude-code-standards` to a temp directory, push the branch, create the PR, and record the URL for the final report. No wait on human review.
+- Browser-based UI smoke testing is explicitly deferred to Task 16; the subagent never opens a browser.
+
 **Key references:**
 - Existing pattern for CRUD: `backend/app/modules/devstack/api/entries.py`, `backend/app/modules/devstack/models/entry.py`
 - Existing MCP tool file to extend: `mcp_server/tools/devstack.py`
@@ -2792,19 +2800,13 @@ import ProjectContexts from '@/modules/devstack/pages/ProjectContexts';
 
 Confirm the existing DevStack catalog route's permission wrapper and copy that shape — `PermissionRoute` + `Action.DEVSTACK_VIEW` is typical.
 
-- [ ] **Step 6: Run tests + typecheck + manual dev check**
+- [ ] **Step 6: Run tests + typecheck**
 
 ```bash
 cd frontend && npx vitest run src/modules/devstack && npx tsc --noEmit
 ```
 
-Expected: all form + page tests PASS; no TS errors.
-
-```bash
-cd frontend && npm run dev
-```
-
-Navigate to `/devstack/contexts` in the browser, confirm the sidebar shows "Project Contexts" under DevStack, create a context with a real project, edit it (slug disabled), delete it.
+Expected: all form + page tests PASS; no TS errors. Browser smoke test is intentionally deferred to Task 16 (user-driven).
 
 - [ ] **Step 7: Commit**
 
@@ -2829,15 +2831,16 @@ git commit -m "feat(devstack): project-contexts form + sidebar + route"
 
 Do NOT put any private project content in the skill. Only procedure.
 
-- [ ] **Step 1: Clone the skill repo if not already done**
+- [ ] **Step 1: Clone the skill repo to a temp location**
 
 ```bash
-git clone git@github.com:Vizzuality/claude-code-standards.git ~/work/claude-code-standards
-cd ~/work/claude-code-standards
+rm -rf /tmp/claude-code-standards
+git clone git@github.com:Vizzuality/claude-code-standards.git /tmp/claude-code-standards
+cd /tmp/claude-code-standards
 git checkout -b feat/project-contexts-section
 ```
 
-- [ ] **Step 2: Append the new section to `skills/devstack-sync/SKILL.md`**
+- [ ] **Step 2: Append the new section to `/tmp/claude-code-standards/skills/devstack-sync/SKILL.md`**
 
 Add this block at the end of the file (or after the existing catalog-sync section — match existing heading levels):
 
@@ -2923,16 +2926,14 @@ Triggered by *"publica los cambios del contexto"*, *"push my CLAUDE.md changes"*
 - [ ] **Step 3: Open PR against `Vizzuality/claude-code-standards`**
 
 ```bash
-cd ~/work/claude-code-standards
+cd /tmp/claude-code-standards
 git add skills/devstack-sync/SKILL.md
 git commit -m "feat(devstack-sync): add per-project private context procedure"
 git push -u origin feat/project-contexts-section
 gh pr create --title "devstack-sync: per-project private context procedure" --body "Adds the prose procedure for pull-automatic, push-explicit sync with LLM-mediated merge for per-project private CLAUDE.md files, matching the vizzhub spec 2026-04-19-devstack-project-contexts-design.md."
 ```
 
-- [ ] **Step 4: Return PR URL to the user**
-
-Report the PR URL in the task summary so the maintainer of `claude-code-standards` can merge.
+Use `/tmp/claude-code-standards` as clone location so it doesn't pollute the user's workspace. Capture the PR URL from `gh pr create` output — it must be included in the final execution report so the user can merge it as part of Task 16.
 
 ---
 
@@ -3147,6 +3148,50 @@ git commit -m "test(devstack): assert private content never appears in structlog
 
 ---
 
+---
+
+### Task 16: Post-implementation checklist (USER-DRIVEN)
+
+**This task is NOT run by the subagent.** When the subagent's final report lands, the user runs the checklist below. The subagent should surface this entire task in the final summary so the user knows exactly what to do.
+
+**Prerequisites for the feature to work end-to-end** (infra — human only):
+
+- [ ] **Create the private GitHub repo** `Vizzuality/project-contexts` (monorepo). Add a minimal `README.md` so the default branch exists. Nothing else — folders are created on-demand by the push flow as commits are made.
+
+- [ ] **Grant the DevStack backend token `contents:write`** on `Vizzuality/project-contexts`. The token is the same one used today for the catalog (`devstack_github_token` setting). If it's a GitHub App installation, add the new repo to the installation and ensure the app has Contents:Write. If it's a PAT, rotate with the `repo` scope covering the new repo.
+
+- [ ] **Merge the external skill PR**. The subagent's final report includes the PR URL in `Vizzuality/claude-code-standards` for the `devstack-sync` skill update. Review and merge it there — this is what publishes the new "Per-project private context" procedure to every developer on their next skill sync.
+
+**Smoke tests (browser + real data):**
+
+- [ ] **Frontend UI**. Start the dev server (`cd frontend && npm run dev`). Log in with your admin account. Navigate to `/devstack/contexts`. Confirm:
+  - Sidebar shows "Project Contexts" under DevStack.
+  - Page renders "No project contexts yet" initially.
+  - "New Project Context" button opens the modal; project dropdown lists existing projects; selecting one auto-slugs the Slug field.
+  - Create a test context pointing at any VizzHub project.
+  - Edit opens the modal with Slug disabled.
+  - Delete shows the confirmation dialog.
+
+- [ ] **Permission gating**. Log out, log in with a non-admin user (or impersonate via `/admin/users/<id>/impersonate`). Confirm:
+  - Sidebar entry is visible (read permission in `user` role).
+  - List page renders but the "New Project Context" / Edit / Delete buttons are hidden.
+
+- [ ] **End-to-end round trip** (requires the repo + token prereqs above). In a test project checkout:
+  1. Create a `<slug>/CLAUDE.md` file in the private repo via GitHub web (content: anything distinctive).
+  2. Start a Claude Code session in the test project, answer the first-time prompt with the slug.
+  3. Verify `./CLAUDE.md` appears with the distinctive content.
+  4. Edit `./CLAUDE.md` locally, ask Claude to "publica los cambios".
+  5. Verify a new commit appears in the private repo, author = your email, committer = VizzHub bot.
+  6. Check the command queue in VizzHub — the row exists and is marked approved.
+
+**Production deployment (when ready):**
+
+- [ ] Run `alembic upgrade head` on the production DB to apply migration `062_devstack_proj_ctx`.
+- [ ] Deploy backend + MCP server + frontend together (the migration must land before the API starts serving requests, as always).
+- [ ] Re-run the end-to-end round trip against the production environment with a disposable test context.
+
+---
+
 ## Self-review summary
 
 **Spec coverage:**
@@ -3172,6 +3217,7 @@ git commit -m "test(devstack): assert private content never appears in structlog
 | Success criterion: conversational merge | 13 |
 | Success criterion: sidebar sub-entry | 12 |
 | Markers logic (`.devstack-context` / `.devstack-skip`) | 13 |
+| Post-implementation manual checklist (user-driven) | 16 |
 
 **Type consistency**: `ProjectContext` type (frontend) matches `ProjectContextResponse` shape (backend). `project_context_service.py` methods (`create`, `update`, `delete`, `get_by_slug`, `list`, `get`) used consistently across API and tests. `push_context` return shape (`committed` / `up_to_date` / `conflict`) used identically in `project_contexts.py` data layer, MCP tool, and skill procedure.
 
