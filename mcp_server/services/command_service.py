@@ -44,6 +44,39 @@ class CommandService:
         await self._session.refresh(cmd)
         return cmd
 
+    async def enqueue_approved(
+        self,
+        *,
+        module: str,
+        action: str,
+        target: str | None,
+        payload: dict,
+        summary: str,
+        user_id: UUID,
+    ) -> CommandDB:
+        """Enqueue a command row that is already in the `approved` state.
+
+        Used by flows where the act of invoking the tool IS the approval —
+        the audit record is created after the side-effect has succeeded,
+        inside the same DB transaction.
+        """
+        now = datetime.now(timezone.utc)
+        cmd = CommandDB(
+            module=module,
+            action=action,
+            target=target,
+            payload=payload,
+            summary=summary,
+            requested_by=user_id,
+            status="approved",
+            reviewed_by=user_id,
+            reviewed_at=now,
+        )
+        self._session.add(cmd)
+        await self._session.flush()
+        await self._session.refresh(cmd)
+        return cmd
+
     async def approve(
         self,
         command_id: UUID,

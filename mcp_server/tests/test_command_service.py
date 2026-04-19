@@ -195,3 +195,21 @@ async def test_approve_nonexistent_raises(
 
     with pytest.raises(ValueError, match="not found"):
         await svc.approve(uuid4(), test_user.id, executor=noop)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_approved_sets_status_immediately(
+    db_session: AsyncSession, test_user: UserDB,
+) -> None:
+    svc = CommandService(db_session)
+    cmd = await svc.enqueue_approved(
+        module="devstack",
+        action="update_project_context",
+        target="acme-corp",
+        payload={"sha": "abc123"},
+        summary="Update acme-corp CLAUDE.md",
+        user_id=test_user.id,
+    )
+    assert cmd.status == "approved"
+    assert cmd.reviewed_by == test_user.id
+    assert cmd.reviewed_at is not None
