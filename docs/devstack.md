@@ -426,6 +426,36 @@ We piloted a strict PreToolUse hook during the 2026-04-18 distribution validatio
 
 The right place for this enforcement is the backend (via `devstack_get_installable`) and a warn-only client hook as a secondary signal. Both are captured in the roadmap above.
 
+## Project Contexts (private CLAUDE.md distribution)
+
+For projects where `CLAUDE.md` cannot be committed to the public repo
+(NDA, compliance), DevStack distributes it via a private monorepo and
+a bidirectional sync in the `devstack-sync` skill.
+
+### Model
+
+- Table: `devstack_project_contexts` — `slug` (unique), `project_id` (FK, NOT NULL), `description`.
+- Private repo: `Vizzuality/project-contexts` (monorepo, one folder per slug).
+- Backend token: reuses the existing DevStack GitHub token — needs contents:read + contents:write on the private repo.
+
+### MCP tools
+
+- `devstack_list_project_contexts()` — discovery of slugs.
+- `devstack_get_project_context(slug, at_sha=None)` — fetch CLAUDE.md content (HEAD or historical blob).
+- `devstack_update_project_context(slug, content, expected_remote_sha)` — optimistic-lock commit push. Auto-approved command-queue row in the same transaction. Commit attributed to the dev (author) with the VizzHub bot as committer.
+
+### Merge strategy
+
+LLM-mediated in the skill, not server-side. On divergence the skill fetches
+the common-ancestor blob via `at_sha=base_sha`, presents the three versions
+to the dev in prose, proposes a merged version, writes only after explicit
+approval. See `docs/superpowers/specs/2026-04-19-devstack-project-contexts-design.md`
+for rationale and flows.
+
+### Skill behaviour
+
+Detailed procedure lives in `Vizzuality/claude-code-standards` → `skills/devstack-sync/SKILL.md`. Two marker files in the project root's `.claude/` directory (`.devstack-context` and `.devstack-skip`) drive the state machine.
+
 ## Validation Log
 
 | Test | Result | Date |
