@@ -29,7 +29,10 @@ import {
   useCreateProjectContext,
   useUpdateProjectContext,
 } from '../hooks/useProjectContexts';
-import type { ProjectContext } from '../types/projectContexts';
+import type {
+  GithubFileExistsDetail,
+  ProjectContext,
+} from '../types/projectContexts';
 
 interface ProjectContextFormProps {
   readonly context: ProjectContext | null;
@@ -66,6 +69,8 @@ export function ProjectContextForm({
   const [description, setDescription] = useState(context?.description ?? '');
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [existingPrompt, setExistingPrompt] =
+    useState<GithubFileExistsDetail | null>(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
 
   const selectedProjectName = isEdit
@@ -81,8 +86,52 @@ export function ProjectContextForm({
     }
   };
 
+  const submitCreate = (associateExisting: boolean): void => {
+    createMutation.mutate(
+      {
+        slug,
+        project_id: projectId,
+        description: description || null,
+        ...(associateExisting ? { associate_existing: true } : {}),
+      },
+      {
+        onSuccess: (created) => {
+          // If the GitHub seed failed (real error: token missing, commit
+          // rejected), keep the dialog open so the admin reads the warning.
+          // The DB mapping is already saved — closing via "Close" keeps it.
+          if (created.github_error) {
+            setWarning(created.github_error);
+          } else {
+            onClose();
+          }
+        },
+        onError: (err: unknown) => {
+          const axiosErr = err as {
+            response?: { status?: number; data?: { detail?: unknown } };
+          };
+          const detail = axiosErr?.response?.data?.detail;
+          if (
+            axiosErr?.response?.status === 409 &&
+            typeof detail === 'object' &&
+            detail !== null &&
+            (detail as GithubFileExistsDetail).code === 'github_file_exists'
+          ) {
+            setExistingPrompt(detail as GithubFileExistsDetail);
+            return;
+          }
+          setError(
+            typeof detail === 'string'
+              ? detail
+              : 'Failed to create project context.',
+          );
+        },
+      },
+    );
+  };
+
   const handleSubmit = (): void => {
     setError(null);
+    setExistingPrompt(null);
     if (!isEdit && !SLUG_REGEX.test(slug)) {
       setError('Slug must contain only lowercase letters, digits, hyphens.');
       return;
@@ -94,30 +143,51 @@ export function ProjectContextForm({
         { onSuccess: onClose },
       );
     } else {
-      createMutation.mutate(
-        {
-          slug,
-          project_id: projectId,
-          description: description || null,
-        },
-        {
-          onSuccess: (created) => {
-            // If the GitHub seed failed, keep the dialog open so the admin
-            // reads the warning. The DB mapping is already saved — closing
-            // via "Close" keeps it.
-            if (created.github_error) {
-              setWarning(created.github_error);
-            } else {
-              onClose();
-            }
-          },
-        },
-      );
+      submitCreate(false);
     }
+  };
+
+  const handleAssociate = (): void => {
+    setError(null);
+    submitCreate(true);
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const canSubmit = isEdit ? true : Boolean(projectId && slug);
+
+  if (existingPrompt) {
+    return (
+      <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>GitHub file already exists</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              <code className="font-mono">{existingPrompt.slug}/CLAUDE.md</code>{' '}
+              already exists in the private repo.
+            </p>
+            <p>
+              Associate this project context with the existing file? The file
+              will not be modified.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setExistingPrompt(null)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAssociate} disabled={isPending}>
+              {isPending ? 'Associating...' : 'Associate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>

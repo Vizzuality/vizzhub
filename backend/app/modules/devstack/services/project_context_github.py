@@ -73,6 +73,25 @@ class ProjectContextGitHubClient:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
+    async def file_exists(self, slug: str) -> bool:
+        """Return True if `<slug>/CLAUDE.md` exists at the default branch.
+
+        Used as a pre-check on project-context creation so the caller can
+        decide whether to seed a new file or associate with the existing one
+        without ever writing.
+        """
+        url = f"{GITHUB_API}/repos/{self.repo}/contents/{slug}/CLAUDE.md"
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url, headers=self._headers())
+
+        if resp.status_code == 404:
+            return False
+        if resp.status_code == 200:
+            return True
+        raise FetchError(
+            f"file_exists check: {resp.status_code} {resp.text}"
+        )
+
     async def fetch_head(self, slug: str) -> tuple[str, str]:
         """Return (content, sha) of `<slug>/CLAUDE.md` at the default branch."""
         url = f"{GITHUB_API}/repos/{self.repo}/contents/{slug}/CLAUDE.md"

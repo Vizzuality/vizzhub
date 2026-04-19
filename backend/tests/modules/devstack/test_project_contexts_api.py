@@ -226,6 +226,97 @@ async def test_create_reports_github_error_when_no_token(
 
 
 @pytest.mark.asyncio
+async def test_create_returns_409_when_github_file_exists(
+    client: AsyncClient, sample_project: ProjectDB, db_session: AsyncSession, monkeypatch
+) -> None:
+    """When the GitHub pre-check reports the file already exists, the endpoint
+    must bounce with a structured 409 and NOT create a DB row."""
+    from app.core.services import integration_token_service as its_mod
+    from app.modules.devstack.api import project_contexts as pc_mod
+    from sqlalchemy import select
+    from app.modules.devstack.models.project_context import DevstackProjectContextDB
+    from unittest.mock import AsyncMock, MagicMock
+
+    async def _fake_get_token(db, provider):
+        return "fake-token"
+
+    monkeypatch.setattr(its_mod.IntegrationTokenService, "get_token", _fake_get_token)
+
+    fake_client = MagicMock()
+    fake_client.file_exists = AsyncMock(return_value=True)
+    fake_client.create_file = AsyncMock()
+    monkeypatch.setattr(
+        pc_mod, "ProjectContextGitHubClient", lambda **kw: fake_client
+    )
+
+    resp = await client.post(
+        "/api/devstack/project-contexts",
+        json={
+            "slug": "existing-slug",
+            "project_id": str(sample_project.id),
+            "description": None,
+        },
+    )
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["code"] == "github_file_exists"
+    assert detail["slug"] == "existing-slug"
+    assert "associate_existing" in detail["message"]
+
+    # Row must NOT have been created — the whole point of the pre-check.
+    result = await db_session.execute(
+        select(DevstackProjectContextDB).where(
+            DevstackProjectContextDB.slug == "existing-slug"
+        )
+    )
+    assert result.scalar_one_or_none() is None
+
+    # And we didn't try to write either.
+    fake_client.create_file.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_with_associate_existing_skips_seed(
+    client: AsyncClient, sample_project: ProjectDB, monkeypatch
+) -> None:
+    """With associate_existing=true, the endpoint skips both the pre-check
+    and the seed call — it just creates the DB row pointing at the
+    pre-existing GitHub file."""
+    from app.core.services import integration_token_service as its_mod
+    from app.modules.devstack.api import project_contexts as pc_mod
+    from unittest.mock import AsyncMock, MagicMock
+
+    async def _fake_get_token(db, provider):
+        return "fake-token"
+
+    monkeypatch.setattr(its_mod.IntegrationTokenService, "get_token", _fake_get_token)
+
+    fake_client = MagicMock()
+    fake_client.file_exists = AsyncMock()  # must not be called
+    fake_client.create_file = AsyncMock()  # must not be called
+    monkeypatch.setattr(
+        pc_mod, "ProjectContextGitHubClient", lambda **kw: fake_client
+    )
+
+    resp = await client.post(
+        "/api/devstack/project-contexts",
+        json={
+            "slug": "linked-slug",
+            "project_id": str(sample_project.id),
+            "description": "associate flow",
+            "associate_existing": True,
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["github_seeded"] is True
+    assert body["github_error"] is None
+
+    fake_client.file_exists.assert_not_awaited()
+    fake_client.create_file.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_create_seeds_github_when_token_present(
     client: AsyncClient, sample_project: ProjectDB, db_session: AsyncSession, monkeypatch
 ) -> None:
@@ -241,6 +332,7 @@ async def test_create_seeds_github_when_token_present(
     monkeypatch.setattr(its_mod.IntegrationTokenService, "get_token", _fake_get_token)
 
     fake_client = MagicMock()
+    fake_client.file_exists = AsyncMock(return_value=False)
     fake_client.create_file = AsyncMock(return_value="seed-sha")
     monkeypatch.setattr(
         pc_mod, "ProjectContextGitHubClient", lambda **kw: fake_client
