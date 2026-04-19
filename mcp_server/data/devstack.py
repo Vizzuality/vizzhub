@@ -20,6 +20,8 @@ _CATALOG_FIELDS = frozenset((
     "name", "description", "type", "install_method", "url",
     "package", "package_version", "latest_package_version",
     "required", "origin", "tech", "github_sha", "featured",
+    "install_count", "last_installed_at",
+    "deprecated", "deprecation_message", "vulnerabilities",
 ))
 
 _DISCOVER_FIELDS = frozenset(("name", "type", "description"))

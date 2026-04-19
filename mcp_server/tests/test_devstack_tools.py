@@ -168,6 +168,43 @@ class TestGetCatalog:
         assert "deprecated-plugin" not in names
         assert len(data) == 1
 
+    @pytest.mark.asyncio
+    async def test_catalog_includes_lifecycle_fields(
+        self, db_session: AsyncSession,
+    ) -> None:
+        from mcp_server.data import devstack as devstack_data
+
+        entry = DevstackEntryDB(
+            name="lc-test",
+            description="d",
+            type="plugin",
+            install_method="npm",
+            package="lodash",
+            package_version="4.17.0",
+            active=True,
+            origin="external",
+            deprecated=True,
+            deprecation_message="migrate",
+            vulnerabilities={
+                "critical": 1, "high": 0, "moderate": 0, "low": 0, "advisories": []
+            },
+            install_count=7,
+        )
+        db_session.add(entry)
+        await db_session.commit()
+
+        async with override_session(db_session):
+            async with override_mcp_user(USER_CTX):
+                result = await devstack_get_catalog()
+
+        data = json.loads(result)
+        target = next(e for e in data if e["name"] == "lc-test")
+
+        assert target["install_count"] == 7
+        assert target["deprecated"] is True
+        assert target["deprecation_message"] == "migrate"
+        assert target["vulnerabilities"]["critical"] == 1
+
 
 class TestDiscover:
     @pytest.mark.asyncio
