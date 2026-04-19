@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProjectContextForm } from './ProjectContextForm';
 
 vi.mock('@/core/hooks/useProjects', () => ({
-  useAllProjectSummaries: () => ({
+  useActiveProjectSummaries: () => ({
     data: [{ id: 'p1', name: 'Acme Corp' }],
   }),
 }));
