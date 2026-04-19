@@ -276,12 +276,15 @@ export default function EntryDetail(): JSX.Element {
       )}
 
       {/* Edit form dialog */}
-      {editOpen && (
+      {canManage && editOpen && (
         <EntryForm selectedId={entry.id} onClose={() => setEditOpen(false)} />
       )}
 
       {/* Delete confirmation */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog
+        open={canManage && deleteOpen}
+        onOpenChange={setDeleteOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete entry?</AlertDialogTitle>

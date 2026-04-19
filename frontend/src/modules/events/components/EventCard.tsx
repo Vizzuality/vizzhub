@@ -11,6 +11,7 @@ import type { EventSummary } from '../types/events';
 interface EventCardProps {
   readonly event: EventSummary;
   readonly onClick: (id: string) => void;
+  readonly clickable?: boolean;
 }
 
 function formatDateRange(start: string, end: string | null): string {
@@ -28,15 +29,23 @@ function formatDateRange(start: string, end: string | null): string {
   return `${s} \u2014 ${e}`;
 }
 
-export function EventCard({ event, onClick }: EventCardProps): JSX.Element {
+export function EventCard({
+  event,
+  onClick,
+  clickable = true,
+}: EventCardProps): JSX.Element {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const themeColor = getThemeColor(event.theme_primary, isDark);
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow flex flex-col"
-      onClick={() => onClick(event.id)}
+      className={
+        clickable
+          ? 'cursor-pointer hover:shadow-md transition-shadow flex flex-col'
+          : 'flex flex-col'
+      }
+      onClick={clickable ? () => onClick(event.id) : undefined}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
