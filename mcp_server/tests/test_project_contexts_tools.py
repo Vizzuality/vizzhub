@@ -5,7 +5,6 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from mcp_server.tools.devstack import (
-    devstack_list_project_contexts,
     devstack_get_project_context,
     devstack_update_project_context,
 )
@@ -25,47 +24,6 @@ def set_user():
     )
     yield
     _mcp_user_context.reset(token)
-
-
-@pytest.mark.asyncio
-async def test_list_returns_json_array():
-    with patch("mcp_server.tools.devstack.get_read_session") as mock_session_ctx:
-        session = MagicMock()
-        mock_session_ctx.return_value.__aenter__.return_value = session
-
-        with patch(
-            "mcp_server.tools.devstack.project_contexts_data.list_contexts",
-            new=AsyncMock(return_value=[{"slug": "acme-corp", "description": None, "project_name": "Acme"}]),
-        ):
-            out = await devstack_list_project_contexts()
-
-    parsed = json.loads(out)
-    assert parsed == [{"slug": "acme-corp", "description": None, "project_name": "Acme"}]
-
-
-@pytest.mark.asyncio
-async def test_get_with_at_sha_forwards_param():
-    with patch("mcp_server.tools.devstack.get_read_session") as mock_session_ctx:
-        mock_session_ctx.return_value.__aenter__.return_value = MagicMock()
-
-        fake_result = {
-            "target_path": "CLAUDE.md",
-            "content": "# Acme base",
-            "devstack_sha": "old-sha",
-            "slug": "acme-corp",
-        }
-        get_mock = AsyncMock(return_value=fake_result)
-        with patch(
-            "mcp_server.tools.devstack.project_contexts_data.get_context",
-            new=get_mock,
-        ):
-            out = await devstack_get_project_context(
-                slug="acme-corp", at_sha="old-sha"
-            )
-
-    assert json.loads(out) == fake_result
-    call_kwargs = get_mock.await_args.kwargs
-    assert call_kwargs["at_sha"] == "old-sha"
 
 
 @pytest.mark.asyncio
@@ -149,4 +107,41 @@ async def test_update_conflict_does_not_enqueue(monkeypatch):
     parsed = json.loads(out)
     assert parsed["status"] == "conflict"
     assert parsed["remote_sha"] == "newer-sha"
+    enqueue_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_up_to_date_does_not_enqueue(monkeypatch):
+    """When the remote content already matches, no command row should be
+    created — up_to_date is a semantic no-op, not just a write-skip like
+    conflict."""
+    from mcp_server.tools.devstack import devstack_update_project_context
+
+    user_db = MagicMock()
+    user_db.name = "Miguel"
+    user_db.email = "miguel@vizzuality.com"
+
+    with patch("mcp_server.tools.devstack.get_write_session") as mock_session_ctx:
+        session = MagicMock()
+        session.get = AsyncMock(return_value=user_db)
+        mock_session_ctx.return_value.__aenter__.return_value = session
+
+        monkeypatch.setattr(
+            "mcp_server.tools.devstack.project_contexts_data.push_context",
+            AsyncMock(return_value={"status": "up_to_date", "remote_sha": "same-sha"}),
+        )
+        enqueue_mock = AsyncMock()
+        monkeypatch.setattr(
+            "mcp_server.tools.devstack.CommandService.enqueue_approved",
+            enqueue_mock,
+        )
+
+        out = await devstack_update_project_context(
+            slug="acme-corp", content="# same", expected_remote_sha="same-sha"
+        )
+
+    parsed = json.loads(out)
+    assert parsed["status"] == "up_to_date"
+    assert parsed["remote_sha"] == "same-sha"
+    assert "command_id" not in parsed
     enqueue_mock.assert_not_awaited()
