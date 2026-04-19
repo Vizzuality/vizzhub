@@ -77,9 +77,10 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int]:
                     entry.package, version_to_check, github_token
                 )
                 if advisories is not None:
-                    entry.vulnerabilities = advisories
+                    if advisories != entry.vulnerabilities:
+                        entry.vulnerabilities = advisories
+                        changed = True
                     entry.vulnerabilities_checked_at = datetime.now(timezone.utc)
-                    changed = True
 
                 if changed:
                     updated += 1
