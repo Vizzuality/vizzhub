@@ -340,20 +340,21 @@ No bootstrap command needed on the developer side. Admin-side steps are document
 - VizzHub UI: Catalog page (admin)
 - Backend tests (9) + MCP tests (2)
 
-### Phase 1.5 — SHA tracking (next)
+### Phase 1.5 — SHA tracking (shipped)
 
-- Add `github_sha` column to `devstack_entries`
+- `github_sha` column on `devstack_entries`
 - Auto-fetch SHA from GitHub API on entry create/edit
-- Return `github_sha` in MCP catalog response
-- Write sync instructions in org CLAUDE.md
+- `github_sha` returned in MCP catalog response
+- Initial sync instructions in the managed org CLAUDE.md
 
-### Phase 2 — Discovery + Maintenance
+### Phase 2 — Discovery + Maintenance (shipped)
 
-- MCP tools: `devstack_list`, `devstack_recommend`
-- Cron job to refresh GitHub SHAs periodically
-- "Refresh SHAs" button in UI
-- `devstack_recommend` cross-references Tech Radar
-- Orphan detection (local files not in catalog)
+- MCP tools: `devstack_discover(type, tech, featured_only)` (replaced the earlier `devstack_list` idea), `devstack_get_tech_radar(file)`, `devstack_get_installable(name)`
+- Daily cron `refresh_devstack_sources` to refresh GitHub SHAs + npm `latest_package_version`
+- "Refresh SHAs" button in the admin UI
+- `DEVSTACK_VIEW` permission granted to the `user` role → discovery + catalog tools callable by any authenticated dev
+- Managed org CLAUDE.md updated to use `devstack_get_installable` for writes (Miradore re-deployed 2026-04-18)
+- Orphan detection — **dropped** on 2026-04-19 (see Roadmap § "Dropped")
 
 ### Phase 3 — Lifecycle signals (shipped 2026-04-19)
 
@@ -361,6 +362,24 @@ No bootstrap command needed on the developer side. Admin-side steps are document
 - Daily cron (`refresh_devstack_sources`) pulls deprecation from the npm registry and advisories from the GitHub Advisory DB for every npm entry.
 - MCP `devstack_get_installable` bumps `install_count` via fire-and-log direct write (see `docs/mcp.md` § "Direct-Write Exception: Telemetry").
 - Frontend surfaces badges on EntryCard (critical/high/deprecated) and Security / Deprecation / Stats sections on EntryDetail. Sort by "Most installed" available.
+
+### Phase 4 — Sync instructions as a skill (next)
+
+Move the full sync/discovery/lifecycle protocol out of the managed CLAUDE.md and into a dedicated catalog skill (`devstack-sync`), so future protocol changes ship via DevStack Sync without a Miradore re-deploy.
+
+- **Write the `devstack-sync` skill** — source in `Vizzuality/claude-code-standards/Settings/skills/devstack-sync/SKILL.md`. Contains:
+  - Session-start sync contract (catalog drift detection + confirmation flow)
+  - Installable protocol (`devstack_get_installable` + write verbatim + preserve `devstack_sha`)
+  - Discovery (`devstack_discover`) instructions and when to use it
+  - **Lifecycle warnings** — after drift report, surface `deprecated: true` entries and `vulnerabilities.critical/high > 0` counts to the user once per session, recommending updates
+  - Failure modes (MCP unavailable, auth expired, write denied)
+- **Add it as a catalog entry** (`type: skill`, `required: true`, `install_method: github`) so every dev gets it via Sync. Target path: `~/.claude/skills/devstack-sync/SKILL.md`.
+- **Shrink the managed CLAUDE.md** to the org-wide minimum:
+  - Tech Radar rule (stays top-level because it applies to every task, not just DevStack)
+  - A single instruction to invoke the `devstack-sync` skill at session start
+  - Escalation boilerplate
+- **Last Miradore re-deploy** to ship the shrunk CLAUDE.md. After that, every change to the sync protocol is a normal catalog entry edit → picked up by each dev in the next session with no admin action.
+- Validation: a fresh Claude Code session on a clean machine should (1) bootstrap CLAUDE.md from Miradore, (2) run the sync contract from the pointer in CLAUDE.md, (3) install `devstack-sync` as part of sync, (4) subsequent sessions invoke the skill directly.
 
 ### Roadmap — what's next after v1 rollout
 
