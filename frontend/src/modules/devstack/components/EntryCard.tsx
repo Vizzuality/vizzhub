@@ -1,4 +1,4 @@
-import { ExternalLink, Star } from 'lucide-react';
+import { ExternalLink, Star, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { InstallMethodBadge } from './EntryBadges';
@@ -11,6 +11,10 @@ interface EntryCardProps {
 
 export function EntryCard({ entry, onClick }: EntryCardProps): JSX.Element {
   const shaShort = entry.github_sha ? entry.github_sha.slice(0, 7) : null;
+
+  const vulns = entry.vulnerabilities;
+  const criticalCount = vulns?.critical ?? 0;
+  const highCount = vulns?.high ?? 0;
 
   return (
     <Card
@@ -48,6 +52,21 @@ export function EntryCard({ entry, onClick }: EntryCardProps): JSX.Element {
               update available
             </Badge>
           )}
+          {criticalCount > 0 && (
+            <Badge className="text-xs bg-red-600 hover:bg-red-600 text-white">
+              {criticalCount} critical
+            </Badge>
+          )}
+          {criticalCount === 0 && highCount > 0 && (
+            <Badge className="text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-100">
+              {highCount} high
+            </Badge>
+          )}
+          {entry.deprecated && (
+            <Badge className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-100">
+              deprecated
+            </Badge>
+          )}
         </div>
       </CardHeader>
 
@@ -68,13 +87,22 @@ export function EntryCard({ entry, onClick }: EntryCardProps): JSX.Element {
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t">
-          {shaShort ? (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {shaShort}
-            </span>
-          ) : (
-            <span />
-          )}
+          <div className="flex items-center gap-2">
+            {shaShort && (
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {shaShort}
+              </span>
+            )}
+            {entry.install_count > 0 && (
+              <span
+                data-testid="install-chip"
+                className="flex items-center gap-0.5 text-[10px] text-muted-foreground"
+              >
+                <Download size={10} />
+                {entry.install_count}
+              </span>
+            )}
+          </div>
           {entry.url && (
             <a
               href={entry.url}
