@@ -22,6 +22,19 @@ class ContextNotFoundError(Exception):
     """Slug is not registered in VizzHub."""
 
 
+class GitHubTokenMissingError(Exception):
+    """No GitHub integration token configured in VizzHub."""
+
+
+async def _require_github_token(session: AsyncSession) -> str:
+    token = await IntegrationTokenService.get_token(session, "github")
+    if not token:
+        raise GitHubTokenMissingError(
+            "GitHub integration token not configured — set it in VizzHub admin"
+        )
+    return token
+
+
 def _build_github_client(token: str) -> ProjectContextGitHubClient:
     s = get_settings()
     return ProjectContextGitHubClient(
@@ -70,7 +83,7 @@ async def get_context(
     Returns {target_path, content, devstack_sha, slug}.
     """
     await _get_or_raise(session, slug)
-    token = await IntegrationTokenService.get_token(session, "github")
+    token = await _require_github_token(session)
     client = _build_github_client(token)
     if at_sha is None:
         try:
@@ -109,7 +122,7 @@ async def push_context(
     row (this helper does not touch the queue).
     """
     await _get_or_raise(session, slug)
-    token = await IntegrationTokenService.get_token(session, "github")
+    token = await _require_github_token(session)
     client = _build_github_client(token)
 
     try:
