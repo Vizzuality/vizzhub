@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import json
 from typing import Literal
+from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.auth.permissions import mcp_requires
-from mcp_server.data.base import get_read_session
+from mcp_server.data.base import get_mcp_user, get_read_session, get_write_session
 from mcp_server.data import devstack as devstack_data
 from mcp_server.data import project_contexts as project_contexts_data
 from mcp_server.data.project_contexts import ContextNotFoundError
+from mcp_server.services.command_service import CommandService
+from app.core.models.user import UserDB
 
 
 @mcp_requires("devstack:view")
@@ -146,6 +149,65 @@ async def devstack_get_project_context(
     return json.dumps(data, default=str)
 
 
+@mcp_requires("devstack:view")
+async def devstack_update_project_context(
+    slug: str,
+    content: str,
+    expected_remote_sha: str,
+) -> str:
+    """Publish an update to a project's private CLAUDE.md.
+
+    Only call this when the dev explicitly asks to publish ("publica los
+    cambios", "push my CLAUDE.md changes"). The push uses optimistic locking
+    against `expected_remote_sha`:
+      - If remote still matches → commit with author=<dev>, committer=bot,
+        create an auto-approved command-queue entry, return
+        {status: "committed", new_sha, command_id}.
+      - If remote already equals content → no-op, return
+        {status: "up_to_date", remote_sha}.
+      - If remote advanced → return {status: "conflict", remote_sha};
+        you must re-fetch the new head, re-run the LLM-mediated merge,
+        and retry with the new expected_remote_sha.
+
+    Args:
+        slug: Registered context slug.
+        content: The full new content of CLAUDE.md (not a diff).
+        expected_remote_sha: The blob SHA you last synced against.
+    """
+    user = get_mcp_user()
+
+    async with get_write_session() as session:
+        user_row = await session.get(UserDB, UUID(user.user_id))
+        author_name = user_row.name if user_row and user_row.name else user.email
+        author_email = user.email
+
+        result = await project_contexts_data.push_context(
+            session,
+            slug=slug,
+            content=content,
+            expected_remote_sha=expected_remote_sha,
+            author_name=author_name,
+            author_email=author_email,
+        )
+
+        if result["status"] == "committed":
+            cmd_svc = CommandService(session)
+            cmd = await cmd_svc.enqueue_approved(
+                module="devstack",
+                action="update_project_context",
+                target=slug,
+                payload={
+                    "slug": slug,
+                    "new_sha": result["new_sha"],
+                },
+                summary=f"Published update to {slug}/CLAUDE.md",
+                user_id=UUID(user.user_id),
+            )
+            result["command_id"] = str(cmd.id)
+
+    return json.dumps(result, default=str)
+
+
 def register_devstack_tools(server: FastMCP) -> None:
     """Register all DevStack tools on the given MCP server instance."""
     server.tool()(devstack_get_catalog)
@@ -154,3 +216,4 @@ def register_devstack_tools(server: FastMCP) -> None:
     server.tool()(devstack_get_installable)
     server.tool()(devstack_list_project_contexts)
     server.tool()(devstack_get_project_context)
+    server.tool()(devstack_update_project_context)
