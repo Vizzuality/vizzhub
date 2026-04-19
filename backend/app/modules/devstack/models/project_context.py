@@ -31,6 +31,7 @@ class DevstackProjectContextDB(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="RESTRICT"),
         nullable=False,
+        unique=True,
     )
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
