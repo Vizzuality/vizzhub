@@ -168,3 +168,43 @@ async def test_push_optimistic_lock_fails_when_remote_advanced(client):
             message="msg",
         )
     assert excinfo.value.current_sha == "actually-newer-sha"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_create_file_returns_blob_sha(client):
+    respx.put(
+        "https://api.github.com/repos/Vizzuality/project-contexts/contents/acme-corp/CLAUDE.md"
+    ).mock(
+        return_value=httpx.Response(
+            201,
+            json={"content": {"sha": "seed-blob-sha"}, "commit": {"sha": "c-seed"}},
+        )
+    )
+    sha = await client.create_file(
+        slug="acme-corp",
+        content="# Acme\n",
+        author_name="Miguel",
+        author_email="miguel@vizzuality.com",
+        message="Seed acme-corp/CLAUDE.md",
+    )
+    assert sha == "seed-blob-sha"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_create_file_raises_when_exists(client):
+    from app.modules.devstack.services.project_context_github import AlreadyExistsError
+
+    respx.put(
+        "https://api.github.com/repos/Vizzuality/project-contexts/contents/acme-corp/CLAUDE.md"
+    ).mock(return_value=httpx.Response(422, json={"message": "sha required"}))
+
+    with pytest.raises(AlreadyExistsError):
+        await client.create_file(
+            slug="acme-corp",
+            content="ignored",
+            author_name="Miguel",
+            author_email="miguel@vizzuality.com",
+            message="msg",
+        )

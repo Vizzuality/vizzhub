@@ -202,3 +202,64 @@ async def test_viewer_cannot_create_403(
         json={"slug": "acme-corp", "project_id": str(sample_project.id)},
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_create_reports_github_error_when_no_token(
+    client: AsyncClient, sample_project: ProjectDB
+) -> None:
+    """Without a GitHub integration token, creation still succeeds but the
+    response exposes github_seeded=false with a descriptive error."""
+    resp = await client.post(
+        "/api/devstack/project-contexts",
+        json={
+            "slug": "no-token-slug",
+            "project_id": str(sample_project.id),
+            "description": None,
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["github_seeded"] is False
+    assert body["github_error"] is not None
+    assert "token" in body["github_error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_create_seeds_github_when_token_present(
+    client: AsyncClient, sample_project: ProjectDB, db_session: AsyncSession, monkeypatch
+) -> None:
+    """With a token configured, the API seeds <slug>/CLAUDE.md via the GitHub
+    client. Mock the client so no network is hit."""
+    from app.core.services import integration_token_service as its_mod
+    from app.modules.devstack.api import project_contexts as pc_mod
+    from unittest.mock import AsyncMock, MagicMock
+
+    async def _fake_get_token(db, provider):
+        return "fake-token"
+
+    monkeypatch.setattr(its_mod.IntegrationTokenService, "get_token", _fake_get_token)
+
+    fake_client = MagicMock()
+    fake_client.create_file = AsyncMock(return_value="seed-sha")
+    monkeypatch.setattr(
+        pc_mod, "ProjectContextGitHubClient", lambda **kw: fake_client
+    )
+
+    resp = await client.post(
+        "/api/devstack/project-contexts",
+        json={
+            "slug": "seeded-slug",
+            "project_id": str(sample_project.id),
+            "description": "hello",
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["github_seeded"] is True
+    assert body["github_error"] is None
+
+    call_kwargs = fake_client.create_file.await_args.kwargs
+    assert call_kwargs["slug"] == "seeded-slug"
+    assert "hello" in call_kwargs["content"]
+    assert "# Acme Corp" in call_kwargs["content"]
