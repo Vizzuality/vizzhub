@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import select
 
 from app.core.api.deps import DBSession
 from app.core.models.project import ProjectDB
@@ -67,8 +68,6 @@ def _to_response(
 async def list_project_contexts(
     db: DBSession, user: DevstackViewer
 ) -> list[ProjectContextResponse]:
-    from sqlalchemy import select
-
     result = await db.execute(
         select(DevstackProjectContextDB, ProjectDB.name)
         .join(ProjectDB, DevstackProjectContextDB.project_id == ProjectDB.id)
