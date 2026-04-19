@@ -130,12 +130,21 @@ class TestRefreshGithub:
 class TestRefreshNpm:
     @pytest.mark.asyncio
     @patch(
-        "app.modules.devstack.services.sha_refresh.fetch_npm_latest_version",
+        "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
         new_callable=AsyncMock,
-        return_value="18.3.1",
+        return_value=None,
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
+        new_callable=AsyncMock,
+        return_value={"version": "18.3.1", "deprecation_message": None},
     )
     async def test_updates_changed_version(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+        self,
+        mock_info: AsyncMock,
+        mock_advisories: AsyncMock,
+        db_session: AsyncSession,
+        npm_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         await db_session.refresh(npm_entry)
@@ -145,12 +154,21 @@ class TestRefreshNpm:
 
     @pytest.mark.asyncio
     @patch(
-        "app.modules.devstack.services.sha_refresh.fetch_npm_latest_version",
+        "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
         new_callable=AsyncMock,
-        return_value="18.3.1",
+        return_value=None,
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
+        new_callable=AsyncMock,
+        return_value={"version": "18.3.1", "deprecation_message": None},
     )
     async def test_skips_unchanged_version(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+        self,
+        mock_info: AsyncMock,
+        mock_advisories: AsyncMock,
+        db_session: AsyncSession,
+        npm_entry: DevstackEntryDB,
     ) -> None:
         npm_entry.latest_package_version = "18.3.1"
         db_session.add(npm_entry)
@@ -162,15 +180,81 @@ class TestRefreshNpm:
 
     @pytest.mark.asyncio
     @patch(
-        "app.modules.devstack.services.sha_refresh.fetch_npm_latest_version",
+        "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
         new_callable=AsyncMock,
         return_value=None,
     )
     async def test_counts_npm_failures(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+        self, mock_info: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         assert result["failed"] == 1
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
+        new_callable=AsyncMock,
+        return_value={
+            "critical": 1, "high": 0, "moderate": 0, "low": 0,
+            "advisories": [
+                {"id": "GHSA-a", "severity": "critical", "title": "t", "url": "u"}
+            ],
+        },
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
+        new_callable=AsyncMock,
+        return_value={"version": "4.17.21", "deprecation_message": "use foo"},
+    )
+    async def test_updates_deprecation_and_vulnerabilities(
+        self,
+        mock_info: AsyncMock,
+        mock_advisories: AsyncMock,
+        db_session: AsyncSession,
+        npm_entry: DevstackEntryDB,
+    ) -> None:
+        result = await refresh_all_sources(db_session)
+        await db_session.refresh(npm_entry)
+
+        assert result["updated"] >= 1
+        assert npm_entry.latest_package_version == "4.17.21"
+        assert npm_entry.deprecated is True
+        assert npm_entry.deprecation_message == "use foo"
+        assert npm_entry.vulnerabilities["critical"] == 1
+        assert len(npm_entry.vulnerabilities["advisories"]) == 1
+        assert npm_entry.vulnerabilities_checked_at is not None
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
+        new_callable=AsyncMock,
+        return_value={
+            "critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []
+        },
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
+        new_callable=AsyncMock,
+        return_value={"version": "1.0.1", "deprecation_message": None},
+    )
+    async def test_clears_deprecation_when_unset(
+        self,
+        mock_info: AsyncMock,
+        mock_advisories: AsyncMock,
+        db_session: AsyncSession,
+        npm_entry: DevstackEntryDB,
+    ) -> None:
+        # Pre-mark the entry as deprecated to verify the cron clears it
+        npm_entry.deprecated = True
+        npm_entry.deprecation_message = "old"
+        db_session.add(npm_entry)
+        await db_session.commit()
+
+        await refresh_all_sources(db_session)
+        await db_session.refresh(npm_entry)
+
+        assert npm_entry.deprecated is False
+        assert npm_entry.deprecation_message is None
 
 
 class TestClaudePluginSkipped:
