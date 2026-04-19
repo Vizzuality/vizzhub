@@ -526,3 +526,104 @@ class TestGetInstallable:
 
         data = json.loads(result)
         assert data["code"] == "FETCH_FAILED"
+
+
+class TestTrackInstall:
+    """Verify track_install bumps install_count + last_installed_at."""
+
+    @pytest.mark.asyncio
+    async def test_increments_count_and_sets_timestamp(
+        self, db_session: AsyncSession, skill_entry: DevstackEntryDB,
+    ) -> None:
+        from mcp_server.data import devstack as devstack_data
+
+        async with override_session(db_session):
+            await devstack_data.track_install("finalize")
+
+        await db_session.refresh(skill_entry)
+        assert skill_entry.install_count == 1
+        assert skill_entry.last_installed_at is not None
+
+    @pytest.mark.asyncio
+    async def test_missing_entry_is_silent_noop(
+        self, db_session: AsyncSession,
+    ) -> None:
+        """Must not raise when entry doesn't exist."""
+        from mcp_server.data import devstack as devstack_data
+
+        async with override_session(db_session):
+            await devstack_data.track_install("does-not-exist")
+
+    @pytest.mark.asyncio
+    async def test_inactive_entry_not_tracked(
+        self, db_session: AsyncSession,
+    ) -> None:
+        """Inactive entries should not have their counter bumped."""
+        from mcp_server.data import devstack as devstack_data
+
+        entry = DevstackEntryDB(
+            name="inactive-entry",
+            description="d",
+            type="skill",
+            install_method="github",
+            url="https://github.com/a/b/blob/main/x.md",
+            github_sha="b" * 40,
+            active=False,
+            origin="internal",
+        )
+        db_session.add(entry)
+        await db_session.commit()
+        await db_session.refresh(entry)
+
+        async with override_session(db_session):
+            await devstack_data.track_install("inactive-entry")
+
+        await db_session.refresh(entry)
+        assert entry.install_count == 0
+
+
+class TestGetInstallableTracksCount:
+    @pytest.mark.asyncio
+    async def test_successful_call_increments_counter(
+        self, db_session: AsyncSession, skill_entry: DevstackEntryDB,
+    ) -> None:
+        source = "---\nname: finalize\n---\nbody\n"
+        with (
+            patch(
+                "mcp_server.data.devstack.IntegrationTokenService.get_token",
+                return_value="tok",
+            ),
+            patch(
+                "mcp_server.data.devstack.fetch_github_content",
+                return_value=source,
+            ),
+        ):
+            async with override_session(db_session):
+                async with override_mcp_user(USER_CTX):
+                    await devstack_get_installable(name="finalize")
+
+        await db_session.refresh(skill_entry)
+        assert skill_entry.install_count == 1
+        assert skill_entry.last_installed_at is not None
+
+    @pytest.mark.asyncio
+    async def test_failed_fetch_does_not_increment(
+        self, db_session: AsyncSession, skill_entry: DevstackEntryDB,
+    ) -> None:
+        with (
+            patch(
+                "mcp_server.data.devstack.IntegrationTokenService.get_token",
+                return_value="tok",
+            ),
+            patch(
+                "mcp_server.data.devstack.fetch_github_content",
+                return_value=None,  # simulate fetch failure
+            ),
+        ):
+            async with override_session(db_session):
+                async with override_mcp_user(USER_CTX):
+                    await devstack_get_installable(name="finalize")
+
+        await db_session.refresh(skill_entry)
+        assert skill_entry.install_count == 0
+        assert skill_entry.last_installed_at is None
