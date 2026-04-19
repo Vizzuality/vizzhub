@@ -78,6 +78,35 @@ class TestEntryList:
         assert resp_optional.json()["items"][0]["name"] == "my-command"
 
 
+    @pytest.mark.asyncio
+    async def test_list_sort_by_install_count(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        from app.modules.devstack.models.entry import DevstackEntryDB
+
+        low = DevstackEntryDB(
+            name="lo", description="d", type="skill",
+            install_method="github", url="https://github.com/a/b/blob/main/x.md",
+            install_count=1, active=True, origin="internal",
+        )
+        hi = DevstackEntryDB(
+            name="hi", description="d", type="skill",
+            install_method="github", url="https://github.com/a/b/blob/main/y.md",
+            install_count=99, active=True, origin="internal",
+        )
+        db_session.add_all([low, hi])
+        await db_session.commit()
+
+        resp = await client.get(
+            "/api/devstack",
+            params={"sort_by": "install_count", "sort_dir": "desc"},
+        )
+
+        assert resp.status_code == 200
+        names = [e["name"] for e in resp.json()["items"]]
+        assert names.index("hi") < names.index("lo")
+
+
 class TestEntryCRUD:
     @pytest.mark.asyncio
     async def test_create(self, client: AsyncClient) -> None:
