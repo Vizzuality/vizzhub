@@ -43,7 +43,7 @@ async def fetch_npm_advisories(
         )
         return None
 
-    summary: dict = {k: 0 for k in _SEVERITY_KEYS}
+    summary: dict = dict.fromkeys(_SEVERITY_KEYS, 0)
     advisories: list[dict] = []
 
     for item in data:
