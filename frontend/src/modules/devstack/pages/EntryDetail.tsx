@@ -26,6 +26,17 @@ import {
 import { EntryForm } from '../components/EntryForm';
 import { InstallMethodBadge } from '../components/EntryBadges';
 
+function formatRelative(iso: string | null): string {
+  if (!iso) return 'never';
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
 export default function EntryDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -153,6 +164,72 @@ export default function EntryDetail(): JSX.Element {
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {entry.deprecated && (
+        <Card className="border-amber-500/40 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="pt-6">
+            <p className="font-semibold text-amber-900 dark:text-amber-100">
+              Deprecated
+            </p>
+            {entry.deprecation_message && (
+              <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">
+                {entry.deprecation_message}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {entry.vulnerabilities && entry.vulnerabilities.advisories.length > 0 && (
+        <Card className="border-red-500/40">
+          <CardContent className="pt-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Security advisories</h2>
+              <div className="flex gap-2 text-xs">
+                {(['critical', 'high', 'moderate', 'low'] as const).map((sev) => {
+                  const count = entry.vulnerabilities![sev];
+                  if (count === 0) return null;
+                  return (
+                    <Badge key={sev} variant="outline" className="capitalize">
+                      {count} {sev}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {entry.vulnerabilities.advisories.map((a) => (
+                <li key={a.id} className="flex items-start gap-3 text-sm">
+                  <Badge
+                    variant="outline"
+                    className="capitalize shrink-0 mt-0.5"
+                  >
+                    {a.severity}
+                  </Badge>
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 hover:underline"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground mr-2">
+                      {a.id}
+                    </span>
+                    {a.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="pt-6 text-sm text-muted-foreground flex flex-wrap gap-x-6 gap-y-1">
+          <span>Installed {entry.install_count} times</span>
+          <span>Last install: {formatRelative(entry.last_installed_at)}</span>
         </CardContent>
       </Card>
 
