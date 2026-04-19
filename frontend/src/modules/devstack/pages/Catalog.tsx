@@ -28,6 +28,7 @@ const SORT_OPTIONS = [
   { value: 'created_at:desc', label: 'Newest first' },
   { value: 'created_at:asc', label: 'Oldest first' },
   { value: 'type:asc', label: 'Type A-Z' },
+  { value: 'install_count:desc', label: 'Most installed' },
 ] as const;
 
 const urlSchema = {
