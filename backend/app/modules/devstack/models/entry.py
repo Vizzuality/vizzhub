@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint, func, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -61,9 +61,7 @@ class DevstackEntryDB(Base):
     github_sha: Mapped[str | None] = mapped_column(String(40))
     latest_package_version: Mapped[str | None] = mapped_column(String(50))
     featured: Mapped[bool] = mapped_column(Boolean, server_default="false")
-    install_count: Mapped[int] = mapped_column(
-        "install_count", server_default="0"
-    )
+    install_count: Mapped[int] = mapped_column(Integer, server_default="0")
     last_installed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
