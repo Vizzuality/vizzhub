@@ -250,7 +250,10 @@ See `Vizzuality/claude-code-standards/Settings/managed/CLAUDE.md` for the live v
 - **Catalog** — call `devstack_get_catalog` to detect drift (compare frontmatter `devstack_sha` vs catalog `github_sha`).
 - **Install / update** — for `skill`/`command`/`agent`, call `devstack_get_installable(name)` and write the returned `content` to `target_path` verbatim. The sha is injected server-side.
 - **Discovery** — `devstack_discover(type?, tech?, featured_only?)` for "what's available?" questions.
+- **Lifecycle warnings (pending)** — the sync contract does NOT yet alert the user when an entry is `deprecated: true` or has `vulnerabilities.critical/high > 0`. This is planned as part of the "extract to skill" work (roadmap item 7–8 below) so we can iterate on the warning text without re-deploying Miradore.
 - **Managed CLAUDE.md** — Miradore-owned; on drift report and ask to re-run Miradore, do not auto-update.
+
+> **Planned refactor:** the canonical home for these instructions will move from the managed CLAUDE.md to a dedicated skill distributed via DevStack Sync. The managed CLAUDE.md will shrink to a minimal pointer. See roadmap item 7 for the reasoning and mechanics.
 
 ### Tech Radar
 
@@ -352,10 +355,12 @@ No bootstrap command needed on the developer side. Admin-side steps are document
 - `devstack_recommend` cross-references Tech Radar
 - Orphan detection (local files not in catalog)
 
-### Phase 3 — npm + Lifecycle
+### Phase 3 — Lifecycle signals (shipped 2026-04-19)
 
-- npm install support in sync instructions (with user confirmation)
-- Dry-run mode (show what would change without doing it)
+- `install_count`, `last_installed_at`, `deprecated`, `deprecation_message`, `vulnerabilities` on `devstack_entries`.
+- Daily cron (`refresh_devstack_sources`) pulls deprecation from the npm registry and advisories from the GitHub Advisory DB for every npm entry.
+- MCP `devstack_get_installable` bumps `install_count` via fire-and-log direct write (see `docs/mcp.md` § "Direct-Write Exception: Telemetry").
+- Frontend surfaces badges on EntryCard (critical/high/deprecated) and Security / Deprecation / Stats sections on EntryDetail. Sort by "Most installed" available.
 
 ### Roadmap — what's next after v1 rollout
 
@@ -366,24 +371,30 @@ Ordered by priority. All items move reliability/ergonomics from "Claude follows 
 1. ~~**`devstack_get_tech_radar(file)`**~~ — shipped. Removes per-user `gh auth login` prerequisite for Tech Radar consultation. Accepts `development` | `devops` | `tools-and-libraries` | `data-science-gis`.
 2. ~~**`devstack_discover(type, tech, featured_only)`**~~ — shipped. Lightweight dev-facing view returning only `name`, `type`, `description`. Replaces the Phase 2 `devstack_list` idea.
 3. ~~**`DEVSTACK_VIEW` added to `user` role**~~ — catalog and discovery tools now callable by any authenticated dev.
+4. ~~**`devstack_get_installable(name)`**~~ — shipped. Backend injects `devstack_sha` into frontmatter and returns `{target_path, content}`. Removes the main failure mode of the sync contract.
+5. ~~**Update org CLAUDE.md**~~ — shipped. Sync contract now uses `devstack_get_installable` and `devstack_get_tech_radar` throughout. Miradore re-deployed 2026-04-18.
+6. ~~**npm lifecycle + install metrics**~~ — shipped 2026-04-19. See "Phase 3" above.
 
-**Done (continued)**
+**Dropped on 2026-04-19** (prefer observing real usage first)
 
-4. ~~**`devstack_get_installable(name)`**~~ — shipped. Backend injects `devstack_sha` into frontmatter and returns `{target_path, content}`. Unblocks hook v2 and removes the main failure mode of the sync contract.
+- Hook v2 (warn-only PreToolUse). Self-healing via Sync already handles drift well in practice; instrumenting the hook would add friction without a concrete signal we need.
+- Orphan detection in sync. Same reasoning.
 
-**Next**
+**Next — highest priority**
 
-5. **Hook v2 — warn-only, broad coverage** — reintroduce the PreToolUse hook as non-blocking (logs to a file, exits 0 always). Matcher expanded to `Write|Edit|MultiEdit`. Becomes a visible drift signal without obstructing developers. Works in tandem with `devstack_get_installable`: the install path is guaranteed correct by the server, the hook catches manual/edit deviations.
+7. **Extract DevStack instructions into a dedicated skill (`devstack-sync` or similar).** The managed CLAUDE.md is growing each iteration (sync contract + tech radar + discovery + lifecycle warnings + failure modes). Every edit requires a Miradore re-deploy to 30 devs. Instead:
+   - Create a skill named e.g. `devstack-sync` (catalog entry with `type: skill`) containing the full sync contract, installable protocol, discovery, lifecycle warnings, failure modes.
+   - The managed CLAUDE.md shrinks to the org-wide minimum: Tech Radar reference + an instruction to invoke the `devstack-sync` skill at session start.
+   - The skill itself is distributed via DevStack Sync — so future edits to the sync protocol ship via the catalog (no Miradore re-deploy), and every dev gets them the next time Claude Code opens.
+   - Self-referential caveat: the first time the skill is installed, it has to come from the catalog drift detection that the managed CLAUDE.md triggers. Works fine because the CLAUDE.md knows the tool names (`devstack_get_catalog`, `devstack_get_installable`) that bootstrap the skill.
 
-6. **Update org CLAUDE.md** — switch sync contract instructions from "read source, compose frontmatter" to "call `devstack_get_installable(name)` and write verbatim".
+8. **Surface deprecated / vulnerable warnings to the user** — today the data flows to the UI but the sync contract does NOT instruct Claude to warn the user when a catalog entry is flagged `deprecated: true` or has `vulnerabilities.critical > 0 || high > 0`. Add to the sync protocol (inside the new skill, once extracted): after drift report, for every entry in the sync scope, surface lifecycle warnings once per session, with the advisory IDs / deprecation message, and recommend updating or migrating.
 
-7. **Orphan detection in sync** — during the session-start sync pass, scan `~/.claude/{skills,commands,agents}/` for files whose name isn't in the catalog. Surface them as "untracked" so the dev can decide: add to catalog, mark local (`devstack_sha: local`), or remove.
+**Later**
 
-**Later (Phase 3)**
-
-8. **`devstack_recommend`** — weighted tech-match ranking (on top of the existing `devstack_discover(tech=...)`).
-9. **npm install lifecycle** — npm-based entries with version comparison.
-10. **Dry-run mode for sync** — show what would change without applying.
+9. **`devstack_recommend`** — weighted tech-match ranking. Needs popularity signal interpretation, not just the raw `install_count` we now expose. Worth revisiting once we have a few weeks of real install data.
+10. **Dry-run mode for sync** — show what would change without applying. Low priority; sync is already self-healing and the user confirms before installs.
+11. **npm install lifecycle for `claude_plugin` type** — today we track `latest_package_version` + deprecation + CVEs but don't offer to install/upgrade plugins from MCP. Plugins have their own lifecycle (managed by the user via `npx claude-plugins install`). Worth exploring if admins want an install button from the catalog.
 
 ### Why the hook was dropped in v1
 
