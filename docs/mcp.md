@@ -788,3 +788,38 @@ POST /api/commands/{id}/reject
 - All write operations require the same permission as the corresponding UI action.
 - Failed executions are recorded with error details for audit.
 - User attribution: all changes are attributed to the authenticated user, not "system".
+
+## Direct-Write Exception: Telemetry
+
+The "all writes go through the command queue" rule has one deliberate exception: **internal telemetry**. Today this is used only by `track_install` (bumps `install_count` + `last_installed_at` after a successful `devstack_get_installable`).
+
+### Why it's allowed
+
+Command queue exists to protect against two failure modes:
+1. **Malicious writes** — prompt injection, compromised sessions. Rare but high-impact.
+2. **Hallucinated writes** — the LLM calls a tool because it *thinks* it should, not because the user asked. Common and low-impact individually, but eroding.
+
+Telemetry sidesteps both concerns when it meets all of these criteria:
+- **No user-visible state change.** The effect is invisible to the human operating the app; at worst it skews admin-facing analytics.
+- **No value from the caller.** The UPDATE is a fixed column expression (e.g. `install_count + 1`). The LLM cannot inject a value that gets written.
+- **Failure-swallowing.** A DB error in the telemetry path logs and returns — it cannot cascade into the user-facing response.
+- **Scoped permission.** The calling tool is already permission-gated; the side effect cannot exceed the read surface of the tool that triggered it.
+
+If any of those is missing, the write goes through the command queue instead.
+
+### What to do when adding a new direct write
+
+1. Write down which of the four criteria above apply in the PR description. If any is unclear, default to the command queue.
+2. Use `get_write_session()` from `mcp_server/data/base.py` inside a try/except that logs with a `{entity}_tracker_failed` event name.
+3. Fix the UPDATE shape — never interpolate caller-supplied values into `.values(...)`.
+4. Add a test that verifies the counter is NOT bumped on failure paths (e.g. `InstallableError`, inactive entry).
+5. After the 3rd direct-write use case, extract a shared `fire_and_log_write` helper instead of duplicating the try/except.
+
+### What direct writes never do
+
+- Modify user-visible content (pages, articles, registry rows, projects, users)
+- Change permissions or access control
+- Expose data outside the caller's read scope
+- Retry on failure (one attempt, log, move on)
+
+If you find yourself reaching for one of those, the answer is the command queue, not a new direct-write exception.

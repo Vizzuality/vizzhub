@@ -179,6 +179,10 @@ async def track_install(name: str) -> None:
 
     Opens its own write session (the read session is postgresql_readonly).
     Any DB error is logged and swallowed — install must not block on tracking.
+
+    Direct-write exception to the MCP command-queue rule. Allowed because the
+    UPDATE is value-fixed, user-invisible, and failure-swallowing. See
+    `docs/mcp.md` § "Direct-Write Exception: Telemetry" before adding another.
     """
     from mcp_server.data.base import get_write_session  # noqa: PLC0415 — avoid cycle
 
