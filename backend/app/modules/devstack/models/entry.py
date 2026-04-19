@@ -61,6 +61,18 @@ class DevstackEntryDB(Base):
     github_sha: Mapped[str | None] = mapped_column(String(40))
     latest_package_version: Mapped[str | None] = mapped_column(String(50))
     featured: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    install_count: Mapped[int] = mapped_column(
+        "install_count", server_default="0"
+    )
+    last_installed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    deprecated: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    deprecation_message: Mapped[str | None] = mapped_column(Text)
+    vulnerabilities: Mapped[dict | None] = mapped_column(JSONB)
+    vulnerabilities_checked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     created_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
