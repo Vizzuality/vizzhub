@@ -7,6 +7,21 @@ export type InstallMethod = typeof INSTALL_METHODS[number];
 export const ENTRY_ORIGINS = ['internal', 'external'] as const;
 export type EntryOrigin = typeof ENTRY_ORIGINS[number];
 
+export interface DevstackAdvisory {
+  id: string;
+  severity: string;
+  title: string;
+  url: string;
+}
+
+export interface DevstackVulnerabilities {
+  critical: number;
+  high: number;
+  moderate: number;
+  low: number;
+  advisories: DevstackAdvisory[];
+}
+
 export interface DevstackEntry {
   id: string;
   name: string;
@@ -23,6 +38,11 @@ export interface DevstackEntry {
   github_sha: string | null;
   latest_package_version: string | null;
   featured: boolean;
+  install_count: number;
+  last_installed_at: string | null;
+  deprecated: boolean;
+  deprecation_message: string | null;
+  vulnerabilities: DevstackVulnerabilities | null;
   created_at: string;
   updated_at: string;
 }
