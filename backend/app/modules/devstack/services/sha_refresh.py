@@ -11,7 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.services.github_sha import fetch_github_sha
-from app.modules.devstack.services.npm_version import fetch_npm_latest_version
+from app.modules.devstack.services.npm_security import fetch_npm_advisories
+from app.modules.devstack.services.npm_version import (
+    fetch_npm_latest_version,  # kept for backward compat
+    fetch_npm_package_info,
+)
 from app.modules.notifications.public import ScheduledJobRunDB
 
 logger = structlog.get_logger()
@@ -50,14 +54,37 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int]:
                 unchanged += 1
         elif entry.install_method == "npm" and entry.package:
             processed += 1
-            new_version = await fetch_npm_latest_version(entry.package)
-            if new_version is None:
+            info = await fetch_npm_package_info(entry.package)
+            if info is None:
                 failed += 1
-            elif new_version != entry.latest_package_version:
-                entry.latest_package_version = new_version
-                updated += 1
             else:
-                unchanged += 1
+                changed = False
+                if info["version"] != entry.latest_package_version:
+                    entry.latest_package_version = info["version"]
+                    changed = True
+                new_message = info["deprecation_message"]
+                new_deprecated = new_message is not None
+                if (
+                    new_deprecated != entry.deprecated
+                    or new_message != entry.deprecation_message
+                ):
+                    entry.deprecated = new_deprecated
+                    entry.deprecation_message = new_message
+                    changed = True
+
+                version_to_check = entry.package_version or info["version"]
+                advisories = await fetch_npm_advisories(
+                    entry.package, version_to_check, github_token
+                )
+                if advisories is not None:
+                    entry.vulnerabilities = advisories
+                    entry.vulnerabilities_checked_at = datetime.now(timezone.utc)
+                    changed = True
+
+                if changed:
+                    updated += 1
+                else:
+                    unchanged += 1
         # claude_plugin: skipped
 
     if updated > 0:
