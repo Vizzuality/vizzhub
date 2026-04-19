@@ -19,6 +19,7 @@ from app.modules.devstack.models.project_context import DevstackProjectContextDB
 from app.modules.devstack.services.project_context_github import (
     AlreadyExistsError,
     CommitError,
+    FetchError,
     ProjectContextGitHubClient,
 )
 from app.modules.devstack.services.project_context_service import (
@@ -41,9 +42,10 @@ class ProjectContextResponse(BaseModel):
     project_name: str | None
     description: str | None
     # Populated only by the POST (create) endpoint. github_seeded is True if
-    # <slug>/CLAUDE.md was created remotely during this request; False with
-    # github_error set if the attempt failed (missing token, repo not
-    # reachable, file already there). GET/PUT/LIST leave both as None.
+    # <slug>/CLAUDE.md exists in the repo after this request — either freshly
+    # seeded here or pre-existing and explicitly associated. False with
+    # github_error set if seeding failed (missing token, repo unreachable,
+    # commit rejected). GET/PUT/LIST leave both as None.
     github_seeded: bool | None = None
     github_error: str | None = None
 
@@ -52,6 +54,10 @@ class ProjectContextCreate(BaseModel):
     slug: Annotated[str, Field(min_length=1, max_length=64)]
     project_id: UUID
     description: str | None = None
+    # When True, skip the GitHub seed and assume `<slug>/CLAUDE.md` already
+    # exists in the repo. Set by the UI after the user confirms association
+    # with a pre-existing file (the pre-check surfaced it via 409).
+    associate_existing: bool = False
 
     @field_validator("slug")
     @classmethod
@@ -105,6 +111,30 @@ def _render_seed_template(slug: str, project_name: str, description: str | None)
         ]
     )
     return "\n".join(lines)
+
+
+async def _check_github_file_exists(db, slug: str) -> bool | None:
+    """Return whether `<slug>/CLAUDE.md` already lives in the private repo.
+
+    Returns True/False if we could check, or None if we couldn't (token
+    missing or GitHub unreachable). In the None case the caller should
+    fall through to the normal seed flow — any underlying issue will be
+    surfaced again via `github_error`.
+    """
+    token = await IntegrationTokenService.get_token(db, "github")
+    if not token:
+        return None
+    settings = get_settings()
+    client = ProjectContextGitHubClient(
+        repo=settings.devstack_project_contexts_repo,
+        token=token,
+        committer_name=settings.devstack_project_contexts_committer_name,
+        committer_email=settings.devstack_project_contexts_committer_email,
+    )
+    try:
+        return await client.file_exists(slug)
+    except FetchError:
+        return None
 
 
 async def _seed_github_claude_md(
@@ -174,13 +204,44 @@ async def list_project_contexts(
     status_code=201,
     responses={
         403: {"description": "Not authorized"},
-        409: {"description": "Slug already exists or project already linked"},
-        422: {"description": "Invalid slug shape"},
+        409: {
+            "description": (
+                "Slug already registered, project already linked, or "
+                "`<slug>/CLAUDE.md` already exists in GitHub (code="
+                "github_file_exists; resubmit with associate_existing=true)."
+            )
+        },
+        422: {"description": "Invalid slug shape or project not found"},
     },
 )
 async def create_project_context(
     body: ProjectContextCreate, db: DBSession, user: DevstackManager
 ) -> ProjectContextResponse:
+    project = await db.get(ProjectDB, body.project_id)
+    if project is None:
+        raise HTTPException(status_code=422, detail="Project not found")
+
+    # Pre-check: if the file is already in GitHub and the caller hasn't
+    # explicitly opted into linking to it, bounce with a structured 409 so
+    # the UI can ask the user to confirm association. Never creates a row
+    # in this branch — prevents the "DB row orphaned by seed fail" trap.
+    if not body.associate_existing:
+        exists = await _check_github_file_exists(db, body.slug)
+        if exists is True:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "github_file_exists",
+                    "slug": body.slug,
+                    "message": (
+                        f"{body.slug}/CLAUDE.md already exists in GitHub. "
+                        "Resubmit with associate_existing=true to link "
+                        "this mapping to the existing file without "
+                        "modifying it."
+                    ),
+                },
+            )
+
     svc = DevstackProjectContextService(db)
     try:
         ctx = await svc.create(
@@ -196,27 +257,32 @@ async def create_project_context(
             detail=f"Project {body.project_id} already has a linked context",
         )
 
-    project = await db.get(ProjectDB, body.project_id)
-    if project is None:
-        raise HTTPException(status_code=422, detail="Project not found")
-
-    github_seeded, github_error = await _seed_github_claude_md(
-        db,
-        slug=body.slug,
-        project_name=project.name,
-        description=body.description,
-        user_id=UUID(user.user_id),
-        user_email=user.email,
-    )
-    if github_seeded:
-        logger.info("project_context_seeded", slug=body.slug, project_id=str(project.id))
-    else:
-        logger.warning(
-            "project_context_seed_failed",
+    if body.associate_existing:
+        github_seeded = True
+        github_error = None
+        logger.info(
+            "project_context_associated",
             slug=body.slug,
             project_id=str(project.id),
-            reason=github_error,
         )
+    else:
+        github_seeded, github_error = await _seed_github_claude_md(
+            db,
+            slug=body.slug,
+            project_name=project.name,
+            description=body.description,
+            user_id=UUID(user.user_id),
+            user_email=user.email,
+        )
+        if github_seeded:
+            logger.info("project_context_seeded", slug=body.slug, project_id=str(project.id))
+        else:
+            logger.warning(
+                "project_context_seed_failed",
+                slug=body.slug,
+                project_id=str(project.id),
+                reason=github_error,
+            )
 
     return _to_response(
         ctx,

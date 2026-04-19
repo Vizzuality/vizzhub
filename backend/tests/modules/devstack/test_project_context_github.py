@@ -54,6 +54,25 @@ async def test_fetch_head_404(client):
 
 @respx.mock
 @pytest.mark.asyncio
+async def test_file_exists_true_and_false(client):
+    respx.get(
+        "https://api.github.com/repos/Vizzuality/project-contexts/contents/there/CLAUDE.md"
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={"sha": "s", "content": base64.b64encode(b"x").decode(), "encoding": "base64"},
+        )
+    )
+    respx.get(
+        "https://api.github.com/repos/Vizzuality/project-contexts/contents/absent/CLAUDE.md"
+    ).mock(return_value=httpx.Response(404))
+
+    assert await client.file_exists("there") is True
+    assert await client.file_exists("absent") is False
+
+
+@respx.mock
+@pytest.mark.asyncio
 async def test_fetch_at_sha_returns_historical_blob(client):
     respx.get(
         "https://api.github.com/repos/Vizzuality/project-contexts/git/blobs/oldsha"
