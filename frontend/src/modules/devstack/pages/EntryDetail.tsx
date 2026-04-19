@@ -26,6 +26,34 @@ import {
 import { EntryForm } from '../components/EntryForm';
 import { InstallMethodBadge } from '../components/EntryBadges';
 
+interface MarkdownContentProps {
+  mdLoading: boolean;
+  markdown: string | null;
+  mdError: boolean;
+  resolvedTheme: string | undefined;
+}
+
+function renderMarkdownContent({
+  mdLoading,
+  markdown,
+  mdError,
+  resolvedTheme,
+}: MarkdownContentProps): JSX.Element {
+  if (mdLoading) return <LoadingSpinner />;
+  if (!markdown || mdError) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Could not load content from source URL.
+      </p>
+    );
+  }
+  return (
+    <div data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}>
+      <MDEditor.Markdown source={markdown} />
+    </div>
+  );
+}
+
 function formatRelative(iso: string | null): string {
   if (!iso) return 'never';
   const diff = Date.now() - new Date(iso).getTime();
@@ -237,17 +265,12 @@ export default function EntryDetail(): JSX.Element {
       {entry.install_method === 'github' && (
         <Card>
           <CardContent className="pt-6">
-            {mdLoading ? (
-              <LoadingSpinner />
-            ) : markdown && !mdError ? (
-              <div data-color-mode={resolvedTheme === 'dark' ? 'dark' : 'light'}>
-                <MDEditor.Markdown source={markdown} />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Could not load content from source URL.
-              </p>
-            )}
+            {renderMarkdownContent({
+              mdLoading,
+              markdown,
+              mdError,
+              resolvedTheme,
+            })}
           </CardContent>
         </Card>
       )}
