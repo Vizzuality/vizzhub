@@ -111,3 +111,18 @@ async def test_fetch_advisories_sends_auth_header(monkeypatch):
     assert captured["headers"]["Authorization"] == "token ghp_test123"
     assert captured["params"]["ecosystem"] == "npm"
     assert captured["params"]["affects"] == "lodash@4.17.0"
+
+
+@pytest.mark.asyncio
+async def test_fetch_advisories_no_auth_when_no_token(monkeypatch):
+    captured = {}
+
+    async def fake_get(self, url, **kwargs):
+        captured["headers"] = kwargs.get("headers", {})
+        return MockResponse(200, [])
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    await fetch_npm_advisories("lodash", "4.17.0", token=None)
+
+    assert "Authorization" not in captured["headers"]
+    assert captured["headers"]["Accept"] == "application/vnd.github+json"
