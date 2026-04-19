@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,13 +12,19 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
-import { useAllProjectSummaries } from '@/core/hooks/useProjects';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command';
+import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import {
   useCreateProjectContext,
   useUpdateProjectContext,
@@ -45,7 +52,7 @@ export function ProjectContextForm({
   onClose,
 }: ProjectContextFormProps): JSX.Element {
   const isEdit = context !== null;
-  const { data: projects } = useAllProjectSummaries();
+  const { data: projects = [] } = useActiveProjectSummaries();
   const createMutation = useCreateProjectContext();
   const updateMutation = useUpdateProjectContext();
 
@@ -53,11 +60,17 @@ export function ProjectContextForm({
   const [slug, setSlug] = useState(context?.slug ?? '');
   const [description, setDescription] = useState(context?.description ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
+
+  const selectedProjectName = isEdit
+    ? context?.project_name ?? ''
+    : projects.find((p) => p.id === projectId)?.name ?? '';
 
   const handleProjectSelect = (id: string): void => {
     setProjectId(id);
+    setProjectPickerOpen(false);
     if (!isEdit) {
-      const project = (projects ?? []).find((p) => p.id === id);
+      const project = projects.find((p) => p.id === id);
       if (project) setSlug(slugify(project.name));
     }
   };
@@ -100,22 +113,49 @@ export function ProjectContextForm({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="project">Project</Label>
-            <Select
-              value={projectId}
-              onValueChange={handleProjectSelect}
-              disabled={isEdit}
+            <Popover
+              open={projectPickerOpen}
+              onOpenChange={setProjectPickerOpen}
             >
-              <SelectTrigger id="project">
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {(projects ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <PopoverTrigger asChild>
+                <Button
+                  id="project"
+                  role="combobox"
+                  aria-expanded={projectPickerOpen}
+                  variant="outline"
+                  disabled={isEdit}
+                  className="w-full justify-between font-normal"
+                >
+                  {selectedProjectName || 'Select a project...'}
+                  <ChevronsUpDown className="h-4 w-4 ml-2 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandInput placeholder="Search project..." />
+                  <CommandList>
+                    <CommandEmpty>No project found.</CommandEmpty>
+                    <CommandGroup>
+                      {projects.map((p) => (
+                        <CommandItem
+                          key={p.id}
+                          value={p.name}
+                          onSelect={() => handleProjectSelect(p.id)}
+                        >
+                          <Check
+                            className={`h-4 w-4 mr-2 ${projectId === p.id ? 'opacity-100' : 'opacity-0'}`}
+                          />
+                          {p.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
