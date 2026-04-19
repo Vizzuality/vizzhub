@@ -257,6 +257,41 @@ class TestRefreshNpm:
         assert npm_entry.deprecation_message is None
 
 
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
+        new_callable=AsyncMock,
+        return_value={
+            "critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []
+        },
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
+        new_callable=AsyncMock,
+        return_value={"version": "18.3.1", "deprecation_message": None},
+    )
+    async def test_unchanged_advisories_do_not_count_as_update(
+        self,
+        mock_info: AsyncMock,
+        mock_advisories: AsyncMock,
+        db_session: AsyncSession,
+        npm_entry: DevstackEntryDB,
+    ) -> None:
+        """If version, deprecation AND advisories are all unchanged, entry is 'unchanged'."""
+        # Pre-load the npm entry with matching state so only checked_at changes
+        npm_entry.latest_package_version = "18.3.1"
+        npm_entry.vulnerabilities = {
+            "critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []
+        }
+        db_session.add(npm_entry)
+        await db_session.commit()
+
+        result = await refresh_all_sources(db_session)
+
+        assert result["updated"] == 0
+        assert result["unchanged"] == 1
+
+
 class TestClaudePluginSkipped:
     @pytest.mark.asyncio
     async def test_claude_plugin_not_counted(

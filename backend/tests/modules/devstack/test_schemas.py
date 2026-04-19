@@ -29,7 +29,6 @@ def test_entry_response_includes_new_fields():
             "low": 0,
             "advisories": [{"id": "GHSA-x", "severity": "critical", "title": "t", "url": "u"}],
         },
-        vulnerabilities_checked_at=now,
         created_at=now,
         updated_at=now,
     )
@@ -38,4 +37,3 @@ def test_entry_response_includes_new_fields():
     assert dumped["install_count"] == 42
     assert dumped["deprecated"] is True
     assert dumped["vulnerabilities"]["critical"] == 1
-    assert dumped["vulnerabilities_checked_at"] == now

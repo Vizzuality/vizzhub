@@ -86,7 +86,6 @@ class EntryResponse(BaseModel):
     deprecated: bool = False
     deprecation_message: str | None = None
     vulnerabilities: dict | None = None
-    vulnerabilities_checked_at: datetime | None = None
     created_by_id: UUID | None = None
     updated_by_id: UUID | None = None
     created_at: datetime
