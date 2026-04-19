@@ -104,6 +104,7 @@ const EVENTS_TABS = [
 
 const DEVSTACK_TABS = [
   { to: '/devstack', label: 'Catalog' },
+  { to: '/devstack/contexts', label: 'Project Contexts' },
 ] as const;
 
 function GuardedLink({
