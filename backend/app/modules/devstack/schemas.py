@@ -81,6 +81,12 @@ class EntryResponse(BaseModel):
     github_sha: str | None = None
     latest_package_version: str | None = None
     featured: bool
+    install_count: int = 0
+    last_installed_at: datetime | None = None
+    deprecated: bool = False
+    deprecation_message: str | None = None
+    vulnerabilities: dict | None = None
+    vulnerabilities_checked_at: datetime | None = None
     created_by_id: UUID | None = None
     updated_by_id: UUID | None = None
     created_at: datetime
