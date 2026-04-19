@@ -6,20 +6,12 @@ canary does not appear in captured structlog output.
 """
 
 import base64
-import sys
-import os
 import pytest
 import pytest_asyncio
 import respx
 import httpx
 from unittest.mock import AsyncMock, MagicMock, patch
 from structlog.testing import capture_logs
-
-# mcp_server lives one level above backend/ — add the repo root to sys.path
-# so imports like `from mcp_server.tools.devstack import ...` resolve correctly.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
 
 from mcp_server.tools.devstack import (
     devstack_get_project_context,
