@@ -63,6 +63,17 @@ class Settings(BaseSettings):
     mcp_oauth_client_id: str = ""
     mcp_oauth_client_secret: str = ""
 
+    # DevStack project-contexts
+    devstack_project_contexts_repo: str = "Vizzuality/project-contexts"
+    # Owner/name of the private GitHub repo hosting per-project CLAUDE.md files.
+    # Backend must have a GitHub token with contents:read + contents:write on this repo.
+
+    devstack_project_contexts_committer_name: str = "VizzHub Bot"
+    devstack_project_contexts_committer_email: str = "bot@vizzuality.com"
+    # Committer identity used on every commit pushed by the backend to the
+    # project-contexts repo. The author is the proposing dev (from the MCP
+    # session JWT); the committer is always this bot identity.
+
     # Observability
     log_format: str = "console"
     log_level: str = "INFO"
