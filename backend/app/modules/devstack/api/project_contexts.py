@@ -106,7 +106,7 @@ def _render_seed_template(slug: str, project_name: str, description: str | None)
         [
             "<!-- Private project context synced via VizzHub DevStack.",
             f"     Slug: {slug}",
-            "     Edit through Claude Code and publish with \"publica los cambios\". -->",
+            "     Edit through Claude Code and ask it to push your changes. -->",
             "",
         ]
     )
