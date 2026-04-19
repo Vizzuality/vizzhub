@@ -10,6 +10,8 @@ from mcp.server.fastmcp import FastMCP
 from mcp_server.auth.permissions import mcp_requires
 from mcp_server.data.base import get_read_session
 from mcp_server.data import devstack as devstack_data
+from mcp_server.data import project_contexts as project_contexts_data
+from mcp_server.data.project_contexts import ContextNotFoundError
 
 
 @mcp_requires("devstack:view")
@@ -102,9 +104,53 @@ async def devstack_get_installable(name: str) -> str:
     return json.dumps(data)
 
 
+@mcp_requires("devstack:view")
+async def devstack_list_project_contexts() -> str:
+    """List registered per-project private CLAUDE.md contexts.
+
+    Returns a JSON array of {slug, description, project_name}. Use for
+    discovery when the dev doesn't know the slug of the context linked
+    to the current project.
+    """
+    async with get_read_session() as session:
+        data = await project_contexts_data.list_contexts(session)
+    return json.dumps(data, default=str)
+
+
+@mcp_requires("devstack:view")
+async def devstack_get_project_context(
+    slug: str,
+    at_sha: str | None = None,
+) -> str:
+    """Fetch a project's private CLAUDE.md content.
+
+    With `at_sha` omitted, returns the current HEAD content. With `at_sha`,
+    returns the content of that specific immutable blob — used by the skill
+    to fetch the common-ancestor ("base") version during an LLM-mediated
+    merge at session start.
+
+    Returns JSON: {target_path: "CLAUDE.md", content, devstack_sha, slug}.
+
+    Args:
+        slug: The registered context slug.
+        at_sha: Optional blob SHA to fetch a historical version.
+    """
+    try:
+        async with get_read_session() as session:
+            data = await project_contexts_data.get_context(
+                session, slug=slug, at_sha=at_sha
+            )
+    except ContextNotFoundError as exc:
+        return json.dumps({"error": str(exc), "code": "NOT_FOUND"})
+
+    return json.dumps(data, default=str)
+
+
 def register_devstack_tools(server: FastMCP) -> None:
     """Register all DevStack tools on the given MCP server instance."""
     server.tool()(devstack_get_catalog)
     server.tool()(devstack_discover)
     server.tool()(devstack_get_tech_radar)
     server.tool()(devstack_get_installable)
+    server.tool()(devstack_list_project_contexts)
+    server.tool()(devstack_get_project_context)
