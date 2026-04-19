@@ -43,7 +43,7 @@ async def list_entries(
     featured: bool | None = None,
     sort_by: Annotated[
         str | None,
-        Query(pattern=r"^(name|type|created_at)$"),
+        Query(pattern=r"^(name|type|created_at|install_count)$"),
     ] = None,
     sort_dir: Annotated[
         str | None,
