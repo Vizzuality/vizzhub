@@ -83,9 +83,7 @@ class DevstackProjectContextService:
         project_id: UUID | None = None,
     ) -> DevstackProjectContextDB:
         if slug is not None or project_id is not None:
-            raise SlugImmutableError(
-                "slug and project_id are immutable after creation"
-            )
+            raise SlugImmutableError("slug and project_id are immutable after creation")
 
         ctx = await self.db.get(DevstackProjectContextDB, context_id)
         if ctx is None:

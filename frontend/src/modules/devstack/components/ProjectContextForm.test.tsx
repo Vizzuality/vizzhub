@@ -45,6 +45,7 @@ describe('ProjectContextForm', () => {
       onClose: vi.fn(),
     });
     expect(screen.getByLabelText(/slug/i)).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: /project/i })).toBeDisabled();
   });
 
   it('rejects invalid slug shape', () => {

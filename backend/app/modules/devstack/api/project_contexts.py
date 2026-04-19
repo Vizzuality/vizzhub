@@ -126,10 +126,8 @@ async def _seed_github_claude_md(
         return False, "GitHub integration token not configured in VizzHub"
 
     settings = get_settings()
-    user_row = await db.get(UserDB, user_id) if user_id else None
-    author_name = (
-        user_row.name if user_row and user_row.name else (user_email or "VizzHub User")
-    )
+    user_row = await db.get(UserDB, user_id)
+    author_name = user_row.name if user_row and user_row.name else (user_email or "VizzHub User")
     author_email = user_email or settings.devstack_project_contexts_committer_email
 
     client = ProjectContextGitHubClient(

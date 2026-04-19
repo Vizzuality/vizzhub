@@ -36,12 +36,12 @@ async def _require_github_token(session: AsyncSession) -> str:
 
 
 def _build_github_client(token: str) -> ProjectContextGitHubClient:
-    s = get_settings()
+    settings = get_settings()
     return ProjectContextGitHubClient(
-        repo=s.devstack_project_contexts_repo,
+        repo=settings.devstack_project_contexts_repo,
         token=token,
-        committer_name=s.devstack_project_contexts_committer_name,
-        committer_email=s.devstack_project_contexts_committer_email,
+        committer_name=settings.devstack_project_contexts_committer_name,
+        committer_email=settings.devstack_project_contexts_committer_email,
     )
 
 

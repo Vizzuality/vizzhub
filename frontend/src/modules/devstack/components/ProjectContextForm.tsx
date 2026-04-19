@@ -38,6 +38,11 @@ interface ProjectContextFormProps {
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 
+function submitLabel(isPending: boolean, isEdit: boolean): string {
+  if (isPending) return 'Saving...';
+  return isEdit ? 'Save' : 'Create';
+}
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -64,8 +69,8 @@ export function ProjectContextForm({
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
 
   const selectedProjectName = isEdit
-    ? context?.project_name ?? ''
-    : projects.find((p) => p.id === projectId)?.name ?? '';
+    ? (context.project_name ?? '')
+    : (projects.find((p) => p.id === projectId)?.name ?? '');
 
   const handleProjectSelect = (id: string): void => {
     setProjectId(id);
@@ -218,7 +223,7 @@ export function ProjectContextForm({
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={!canSubmit || isPending}>
-                {isPending ? 'Saving...' : isEdit ? 'Save' : 'Create'}
+                {submitLabel(isPending, isEdit)}
               </Button>
             </>
           )}

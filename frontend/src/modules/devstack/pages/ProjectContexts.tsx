@@ -31,7 +31,7 @@ import type { ProjectContext } from '../types/projectContexts';
 
 export default function ProjectContexts(): JSX.Element {
   const canManage = usePermission(Action.DEVSTACK_MANAGE);
-  const { data, isLoading } = useProjectContexts();
+  const { data: contexts = [], isLoading } = useProjectContexts();
   const deleteMutation = useDeleteProjectContext();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -46,8 +46,6 @@ export default function ProjectContexts(): JSX.Element {
   };
 
   if (isLoading) return <LoadingSpinner />;
-
-  const contexts = data ?? [];
 
   return (
     <div className="space-y-4">

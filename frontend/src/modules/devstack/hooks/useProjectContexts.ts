@@ -1,15 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectContextsApi } from '../services/projectContexts';
-import type {
-  ProjectContextCreate,
-  ProjectContextUpdate,
-} from '../types/projectContexts';
+import type { ProjectContextUpdate } from '../types/projectContexts';
 
 export function useProjectContexts() {
   return useQuery({
     queryKey: queryKeys.devstackProjectContexts.list(),
-    queryFn: () => projectContextsApi.list(),
+    queryFn: projectContextsApi.list,
   });
 }
 
@@ -24,7 +21,7 @@ export function useProjectContext(id: string) {
 export function useCreateProjectContext() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ProjectContextCreate) => projectContextsApi.create(data),
+    mutationFn: projectContextsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.devstackProjectContexts.all,
@@ -49,7 +46,7 @@ export function useUpdateProjectContext() {
 export function useDeleteProjectContext() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => projectContextsApi.delete(id),
+    mutationFn: projectContextsApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.devstackProjectContexts.all,
