@@ -86,6 +86,7 @@ export default function Events(): JSX.Element {
   );
 
   const handleCardClick = (id: string): void => {
+    if (!canManage) return;
     setSelectedEventId(id);
   };
 
@@ -230,6 +231,7 @@ export default function Events(): JSX.Element {
               key={event.id}
               event={event}
               onClick={handleCardClick}
+              clickable={canManage}
             />
           ))}
         </div>
@@ -253,7 +255,7 @@ export default function Events(): JSX.Element {
         </Card>
       )}
 
-      {selectedEventId && (
+      {canManage && selectedEventId && (
         <EventForm
           eventId={selectedEventId}
           onClose={() => setSelectedEventId(null)}
