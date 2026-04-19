@@ -95,6 +95,10 @@ async def devstack_get_installable(name: str) -> str:
             data = await devstack_data.get_installable(session, name)
     except devstack_data.InstallableError as exc:
         return json.dumps({"error": exc.message, "code": exc.code})
+
+    # Fire-and-log — never blocks the response.
+    await devstack_data.track_install(name)
+
     return json.dumps(data)
 
 

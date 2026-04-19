@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
-from sqlalchemy import or_, select
+import structlog
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryResponse
 from app.modules.devstack.services.github_sha import fetch_github_content
+
+logger = structlog.get_logger()
 
 _CATALOG_FIELDS = frozenset((
     "name", "description", "type", "install_method", "url",
@@ -166,3 +170,28 @@ async def get_installable(session: AsyncSession, name: str) -> dict:
         "target_path": target_template.format(name=entry.name),
         "content": _inject_devstack_sha(content, entry.github_sha),
     }
+
+
+async def track_install(name: str) -> None:
+    """Fire-and-log: bump install_count + last_installed_at for an active entry.
+
+    Opens its own write session (the read session is postgresql_readonly).
+    Any DB error is logged and swallowed — install must not block on tracking.
+    """
+    from mcp_server.data.base import get_write_session  # noqa: PLC0415 — avoid cycle
+
+    try:
+        async with get_write_session() as session:
+            await session.execute(
+                update(DevstackEntryDB)
+                .where(
+                    DevstackEntryDB.name == name,
+                    DevstackEntryDB.active.is_(True),
+                )
+                .values(
+                    install_count=DevstackEntryDB.install_count + 1,
+                    last_installed_at=datetime.now(timezone.utc),
+                )
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("devstack_install_counter_failed", name=name, error=str(exc))
