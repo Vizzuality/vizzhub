@@ -236,6 +236,12 @@ export const queryKeys = {
     detail: (id: string) => ['devstack', id] as const,
     content: (id: string) => ['devstack', 'content', id] as const,
   },
+  devstackProjectContexts: {
+    all: ['devstack-project-contexts'] as const,
+    list: () => [...queryKeys.devstackProjectContexts.all, 'list'] as const,
+    detail: (id: string) =>
+      [...queryKeys.devstackProjectContexts.all, 'detail', id] as const,
+  },
   isoDocs: {
     tree: ['iso-docs', 'tree'] as const,
     page: (id: string) => ['iso-docs', 'page', id] as const,
