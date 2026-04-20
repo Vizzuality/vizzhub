@@ -23,6 +23,7 @@ from app.core.models.mcp_oauth import (
     MCPOAuthCodeDB,
     MCPOAuthRefreshTokenDB,
 )
+from app.core.permissions.resolver import resolve_permissions
 from mcp_server.auth.token_verifier import VizzHubTokenVerifier
 
 logger = structlog.get_logger()
@@ -273,12 +274,20 @@ class VizzHubOAuthProvider:
             )
 
             effective_scopes = row.scopes or []
+            if row.user_id:
+                fresh_roles, fresh_permissions = await resolve_permissions(
+                    session, str(row.user_id)
+                )
+            else:
+                fresh_roles, fresh_permissions = (row.user_roles or []), (
+                    row.user_permissions or []
+                )
             access_token, _ = self._build_access_token(
                 user_id=str(row.user_id) if row.user_id else None,
                 email=row.user_email,
                 client_id=client.client_id,
-                roles=row.user_roles or [],
-                permissions=row.user_permissions or [],
+                roles=fresh_roles,
+                permissions=fresh_permissions,
                 scopes=effective_scopes,
             )
 
@@ -286,8 +295,8 @@ class VizzHubOAuthProvider:
                 client_id=client.client_id,
                 user_id=row.user_id,
                 user_email=row.user_email,
-                user_roles=row.user_roles,
-                user_permissions=row.user_permissions,
+                user_roles=fresh_roles,
+                user_permissions=fresh_permissions,
                 scopes=row.scopes,
                 resource=row.resource,
             )
@@ -361,12 +370,20 @@ class VizzHubOAuthProvider:
             )
 
             effective_scopes = scopes if scopes else (old_row.scopes or [])
+            if old_row.user_id:
+                fresh_roles, fresh_permissions = await resolve_permissions(
+                    session, str(old_row.user_id)
+                )
+            else:
+                fresh_roles, fresh_permissions = (old_row.user_roles or []), (
+                    old_row.user_permissions or []
+                )
             new_access_token, _ = self._build_access_token(
                 user_id=str(old_row.user_id) if old_row.user_id else None,
                 email=old_row.user_email,
                 client_id=client.client_id,
-                roles=old_row.user_roles or [],
-                permissions=old_row.user_permissions or [],
+                roles=fresh_roles,
+                permissions=fresh_permissions,
                 scopes=effective_scopes,
             )
 
@@ -374,8 +391,8 @@ class VizzHubOAuthProvider:
                 client_id=client.client_id,
                 user_id=old_row.user_id,
                 user_email=old_row.user_email,
-                user_roles=old_row.user_roles,
-                user_permissions=old_row.user_permissions,
+                user_roles=fresh_roles,
+                user_permissions=fresh_permissions,
                 scopes=effective_scopes,
                 resource=old_row.resource,
             )
