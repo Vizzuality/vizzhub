@@ -6,6 +6,8 @@ DevStack manages and distributes developer environment configuration across the 
 
 The org-level CLAUDE.md is deployed via Miradore (MDM) for initial bootstrap, then updated via MCP. Managed settings (hooks, permissions, env vars) are configured via the claude.ai org admin panel. DevStack focuses exclusively on the catalog of installable artifacts.
 
+> **Looking for the operational guide?** See [`devstack-onboarding.md`](./devstack-onboarding.md) — admin deployment via Miradore, what lands on each dev's Mac, the session-start flow, and how per-project private CLAUDE.md sync works. This document is the design spec; the onboarding guide covers day-to-day usage.
+
 ## Architecture
 
 Three layers, each with a clear owner:
