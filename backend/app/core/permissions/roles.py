@@ -31,6 +31,10 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.EVENTS_VIEW,
         Action.EVENTS_MANAGE,
     },
+    "devstack_manager": {
+        Action.DEVSTACK_VIEW,
+        Action.DEVSTACK_MANAGE,
+    },
     "admin": {
         Action.ALL,
     },
