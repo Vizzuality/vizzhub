@@ -17,7 +17,9 @@ from app.core.models.mcp_oauth import (
     MCPOAuthCodeDB,
     MCPOAuthRefreshTokenDB,
 )
+from app.core.models.role import RoleDB, UserRoleDB
 from app.core.models.user import UserDB
+from app.core.permissions.actions import Action
 from app.database import Base
 from mcp_server.auth.provider import (
     ACCESS_TOKEN_TTL_HOURS,
@@ -87,6 +89,17 @@ async def test_user_id(session_maker) -> uuid.UUID:
         )
         await session.commit()
     return user_id
+
+
+async def _assign_role(
+    session_maker: async_sessionmaker, user_id: uuid.UUID, role_name: str
+) -> None:
+    async with session_maker() as session:
+        role = RoleDB(id=uuid.uuid4(), name=role_name)
+        session.add(role)
+        await session.flush()
+        session.add(UserRoleDB(user_id=user_id, role_id=role.id))
+        await session.commit()
 
 
 @pytest_asyncio.fixture
@@ -321,8 +334,11 @@ async def test_exchange_authorization_code_returns_tokens(
     provider: VizzHubOAuthProvider,
     registered_client: OAuthClientInformationFull,
     code_row_with_user: MCPOAuthCodeDB,
+    session_maker,
 ) -> None:
     from mcp.server.auth.provider import AuthorizationCode
+
+    await _assign_role(session_maker, code_row_with_user.user_id, "user")
 
     auth_code = AuthorizationCode(
         code=code_row_with_user.code,
@@ -341,7 +357,6 @@ async def test_exchange_authorization_code_returns_tokens(
     assert token.token_type == "Bearer"
     assert token.expires_in == ACCESS_TOKEN_TTL_HOURS * 3600
 
-    # Verify the JWT payload
     payload = jwt.decode(
         token.access_token,
         JWT_SECRET,
@@ -351,11 +366,61 @@ async def test_exchange_authorization_code_returns_tokens(
     )
     assert payload["sub"] == str(code_row_with_user.user_id)
     assert payload["email"] == "test@vizzuality.com"
-    assert payload["roles"] == ["user", "manager"]
-    assert payload["permissions"] == ["read:iso", "write:iso"]
+    assert payload["roles"] == ["user"]
+    assert Action.DEVSTACK_VIEW in payload["permissions"]
     assert payload["scopes"] == ["read"]
     assert payload["iss"] == "vizzhub"
     assert payload["aud"] == "vizzhub-mcp"
+
+
+@pytest.mark.asyncio
+async def test_exchange_authorization_code_refreshes_stale_permissions(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    code_row_with_user: MCPOAuthCodeDB,
+    session_maker,
+) -> None:
+    """The code row carries a stale permission snapshot (pre role update).
+    The exchange must re-resolve from the DB and mint a JWT with the
+    current role permissions, not the stored snapshot.
+    """
+    from mcp.server.auth.provider import AuthorizationCode
+
+    await _assign_role(session_maker, code_row_with_user.user_id, "user")
+
+    auth_code = AuthorizationCode(
+        code=code_row_with_user.code,
+        client_id=TEST_CLIENT_ID,
+        code_challenge="challenge-for-exchange",
+        redirect_uri="http://localhost:3000/callback",
+        redirect_uri_provided_explicitly=True,
+        scopes=["read"],
+        expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp(),
+    )
+
+    token = await provider.exchange_authorization_code(registered_client, auth_code)
+
+    payload = jwt.decode(
+        token.access_token,
+        JWT_SECRET,
+        algorithms=["HS256"],
+        audience="vizzhub-mcp",
+        issuer="vizzhub",
+    )
+    assert "read:iso" not in payload["permissions"]
+    assert "write:iso" not in payload["permissions"]
+    assert payload["roles"] == ["user"]
+    assert Action.DEVSTACK_VIEW in payload["permissions"]
+
+    async with session_maker() as session:
+        new_refresh = await session.execute(
+            select(MCPOAuthRefreshTokenDB).where(
+                MCPOAuthRefreshTokenDB.token == token.refresh_token
+            )
+        )
+        new_refresh_row = new_refresh.scalar_one()
+        assert new_refresh_row.user_roles == ["user"]
+        assert Action.DEVSTACK_VIEW in (new_refresh_row.user_permissions or [])
 
 
 @pytest.mark.asyncio
@@ -560,6 +625,8 @@ async def test_exchange_refresh_token_rotates_tokens(
 ) -> None:
     from mcp.server.auth.provider import RefreshToken
 
+    await _assign_role(session_maker, refresh_token_row.user_id, "user")
+
     old_refresh = RefreshToken(
         token=refresh_token_row.token,
         client_id=TEST_CLIENT_ID,
@@ -574,7 +641,6 @@ async def test_exchange_refresh_token_rotates_tokens(
     assert token.refresh_token is not None
     assert token.refresh_token != refresh_token_row.token
 
-    # Old token should be gone
     async with session_maker() as session:
         result = await session.execute(
             select(MCPOAuthRefreshTokenDB).where(
@@ -583,7 +649,6 @@ async def test_exchange_refresh_token_rotates_tokens(
         )
         assert result.scalar_one_or_none() is None
 
-    # New token should exist
     async with session_maker() as session:
         result = await session.execute(
             select(MCPOAuthRefreshTokenDB).where(
@@ -593,6 +658,44 @@ async def test_exchange_refresh_token_rotates_tokens(
         new_row = result.scalar_one_or_none()
         assert new_row is not None
         assert new_row.user_email == "refresh@vizzuality.com"
+        assert new_row.user_roles == ["user"]
+        assert Action.DEVSTACK_VIEW in (new_row.user_permissions or [])
+
+
+@pytest.mark.asyncio
+async def test_exchange_refresh_token_refreshes_stale_permissions(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    refresh_token_row: MCPOAuthRefreshTokenDB,
+    session_maker,
+) -> None:
+    """A refresh token stored with an old permission snapshot must mint a
+    new access token with the current permissions after the user's role
+    gains a new permission.
+    """
+    from mcp.server.auth.provider import RefreshToken
+
+    await _assign_role(session_maker, refresh_token_row.user_id, "user")
+
+    old_refresh = RefreshToken(
+        token=refresh_token_row.token,
+        client_id=TEST_CLIENT_ID,
+        scopes=["read"],
+    )
+
+    token = await provider.exchange_refresh_token(
+        registered_client, old_refresh, scopes=["read"]
+    )
+
+    payload = jwt.decode(
+        token.access_token,
+        JWT_SECRET,
+        algorithms=["HS256"],
+        audience="vizzhub-mcp",
+        issuer="vizzhub",
+    )
+    assert payload["roles"] == ["user"]
+    assert Action.DEVSTACK_VIEW in payload["permissions"]
 
 
 @pytest.mark.asyncio
