@@ -36,6 +36,12 @@ def test_manager_has_tracker_management():
     assert Action.TRACKER_MANAGE_OWN_REPORTS in manager_perms
 
 
+def test_devstack_manager_grants_view_and_manage():
+    perms = ROLE_PERMISSIONS["devstack_manager"]
+    assert Action.DEVSTACK_VIEW in perms
+    assert Action.DEVSTACK_MANAGE in perms
+
+
 def test_all_permission_values_are_valid_actions():
     valid_actions = {
         getattr(Action, attr)
