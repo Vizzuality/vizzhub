@@ -102,11 +102,6 @@ const EVENTS_TABS = [
   { to: '/events/dashboard', label: 'Dashboard' },
 ] as const;
 
-const DEVSTACK_TABS = [
-  { to: '/devstack', label: 'Catalog' },
-  { to: '/devstack/contexts', label: 'Project Contexts' },
-] as const;
-
 function GuardedLink({
   to,
   children,
@@ -302,12 +297,18 @@ export function AppSidebar(): JSX.Element {
                 items={EVENTS_TABS}
               />
 
-              <CollapsibleMenuItem
-                icon={Blocks}
-                label="DevStack"
-                isActive={isActive('/devstack')}
-                items={DEVSTACK_TABS}
-              />
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive('/devstack')}
+                  tooltip="DevStack"
+                >
+                  <GuardedLink to="/devstack">
+                    <Blocks />
+                    <span>DevStack</span>
+                  </GuardedLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {isAdmin && (
                 <SidebarMenuItem>

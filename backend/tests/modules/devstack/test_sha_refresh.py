@@ -87,12 +87,21 @@ async def claude_plugin_entry(db_session: AsyncSession) -> DevstackEntryDB:
 class TestRefreshGithub:
     @pytest.mark.asyncio
     @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_content",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    @patch(
         "app.modules.devstack.services.sha_refresh.fetch_github_sha",
         new_callable=AsyncMock,
         return_value="new_sha_" + "y" * 32,
     )
     async def test_updates_changed_sha(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
+        self,
+        mock_fetch: AsyncMock,
+        mock_content: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         await db_session.refresh(github_entry)
@@ -125,6 +134,56 @@ class TestRefreshGithub:
         result = await refresh_all_sources(db_session)
         assert result["failed"] == 1
         assert result["updated"] == 0
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_content",
+        new_callable=AsyncMock,
+        return_value=(
+            "---\n"
+            "name: test-skill\n"
+            "description: Refreshed description from frontmatter\n"
+            "devstack_sha: abc\n"
+            "---\n\n# Body\n"
+        ),
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="new_sha_" + "y" * 32,
+    )
+    async def test_refreshes_description_from_frontmatter_on_sha_change(
+        self,
+        mock_fetch: AsyncMock,
+        mock_content: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+    ) -> None:
+        await refresh_all_sources(db_session)
+        await db_session.refresh(github_entry)
+
+        assert github_entry.description == "Refreshed description from frontmatter"
+        assert github_entry.github_sha == "new_sha_" + "y" * 32
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_content",
+        new_callable=AsyncMock,
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="old_sha_" + "x" * 32,
+    )
+    async def test_skips_content_fetch_when_sha_unchanged(
+        self,
+        mock_fetch: AsyncMock,
+        mock_content: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+    ) -> None:
+        await refresh_all_sources(db_session)
+        assert mock_content.await_count == 0
 
 
 class TestRefreshNpm:

@@ -5,12 +5,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import structlog
+import yaml
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.models.entry import DevstackEntryDB
-from app.modules.devstack.services.github_sha import fetch_github_sha
+from app.modules.devstack.services.github_sha import (
+    fetch_github_content,
+    fetch_github_sha,
+)
 from app.modules.devstack.services.npm_security import fetch_npm_advisories
 from app.modules.devstack.services.npm_version import (
     fetch_npm_latest_version,  # kept for backward compat
@@ -23,6 +27,37 @@ logger = structlog.get_logger()
 JOB_NAME = "refresh_devstack_sources"
 
 
+def _parse_frontmatter(content: str) -> dict:
+    """Extract the YAML frontmatter block from a markdown file. Empty dict on failure."""
+    if not content.startswith("---"):
+        return {}
+    end = content.find("\n---", 3)
+    if end == -1:
+        return {}
+    try:
+        parsed = yaml.safe_load(content[3:end])
+        return parsed if isinstance(parsed, dict) else {}
+    except yaml.YAMLError:
+        return {}
+
+
+async def _sync_github_frontmatter(
+    entry: DevstackEntryDB, github_token: str | None
+) -> None:
+    """Pull `description` (and `name`) from the skill/command/agent frontmatter."""
+    content = await fetch_github_content(entry.url, github_token)
+    if content is None:
+        logger.warning("devstack_content_fetch_failed_for_frontmatter", name=entry.name)
+        return
+    fm = _parse_frontmatter(content)
+    new_description = fm.get("description")
+    if isinstance(new_description, str) and new_description != entry.description:
+        entry.description = new_description
+    new_name = fm.get("name")
+    if isinstance(new_name, str) and new_name != entry.name:
+        entry.name = new_name
+
+
 async def _refresh_github_entry(
     entry: DevstackEntryDB, github_token: str | None
 ) -> str:
@@ -32,6 +67,7 @@ async def _refresh_github_entry(
         return "failed"
     if new_sha != entry.github_sha:
         entry.github_sha = new_sha
+        await _sync_github_frontmatter(entry, github_token)
         return "updated"
     return "unchanged"
 
