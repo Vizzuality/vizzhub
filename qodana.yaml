@@ -1,0 +1,41 @@
+version: "1.0"
+
+linter: jetbrains/qodana-python:latest
+
+profile:
+  name: qodana.recommended
+
+bootstrap: |
+  set -e
+  pip install --no-cache-dir -r backend/requirements.txt
+  (cd frontend && npm ci --no-audit --no-fund --ignore-scripts)
+
+exclude:
+  - name: All
+    paths:
+      - backend/alembic
+      - backend/tests
+      - backend/seeds
+      - frontend/src/shared/components/ui
+      - frontend/node_modules
+      - frontend/dist
+      - frontend/build
+      - frontend/coverage
+      - infrastructure
+      - scripts
+      - docs
+      - data
+      - Support
+      - temp
+      - audits
+      - mcp_server/tests
+      - "**/__pycache__"
+      - "**/.venv"
+      - "**/venv"
+      - "**/.worktrees"
+      - "**/*.test.ts"
+      - "**/*.test.tsx"
+      - "**/*.spec.ts"
+      - "**/*.spec.tsx"
+      - "**/test_*.py"
+      - "**/conftest.py"
