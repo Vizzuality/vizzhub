@@ -51,6 +51,7 @@ interface FlatRow {
   is_other?: boolean;
   cells: Record<string, number>;
   comments?: Record<string, string>;
+  weekSums?: Record<string, number>;
 }
 
 interface PlannerGridProps {
@@ -76,12 +77,19 @@ interface PlannerGridProps {
   readonly addRowOptions: { id: string; name: string; extra?: string }[];
 }
 
-function getISOWeekNumber(weekStr: string): number {
-  const d = new Date(weekStr + 'T00:00:00');
-  const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-  return Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+function ordinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
+function mondayDayLabel(weekStr: string): string {
+  const day = new Date(weekStr + 'T00:00:00').getDate();
+  return `${day}${ordinalSuffix(day)}`;
 }
 
 const STICKY_LEFT: Record<number, number> = { 0: 0, 1: 50 };
@@ -349,12 +357,22 @@ export function PlannerGrid({
       const groupHasWarning = groupBy === 'user'
         ? warningSet.has(group.id)
         : group.rows.some((r) => warningSet.has(r.user_id));
+      let weekSums: Record<string, number> | undefined;
+      if (groupBy === 'user') {
+        weekSums = {};
+        for (const row of group.rows) {
+          for (const [week, val] of Object.entries(row.cells)) {
+            weekSums[week] = (weekSums[week] ?? 0) + val;
+          }
+        }
+      }
       result.push({
         _type: 'header',
         groupId: group.id,
         groupName: group.name,
         hasWarning: groupHasWarning,
         cells: {},
+        weekSums,
       });
       for (const row of group.rows) {
         result.push({
@@ -582,7 +600,7 @@ export function PlannerGrid({
       cell: () => null,
       meta: {
         week,
-        weekLabel: `W${getISOWeekNumber(week)}`,
+        weekLabel: mondayDayLabel(week),
         hasComment: weeksWithComments.has(week),
         isExpanded: expandedWeek === week,
         onToggle: toggleWeek,
@@ -701,12 +719,26 @@ export function PlannerGrid({
                   </td>
                   {weekCells.map((cell) => {
                     const weekKey = weeks[cell.column.getIndex() - 2];
+                    const sum = row.original.weekSums?.[weekKey];
+                    const overAllocated = sum !== undefined && sum > 100;
                     return (
                       <td
                         key={cell.id}
-                        className="border-l bg-muted"
+                        className="border-l bg-muted text-center text-xs tabular-nums"
                         style={{ height: 28, ...weekCellStyle(weekKey, weekStyleConfigMuted) }}
-                      />
+                      >
+                        {sum !== undefined && sum > 0 && (
+                          <span
+                            className={
+                              overAllocated
+                                ? 'font-semibold text-yellow-600 dark:text-yellow-400'
+                                : 'text-muted-foreground'
+                            }
+                          >
+                            {sum}
+                          </span>
+                        )}
+                      </td>
                     );
                   })}
                 </tr>
@@ -783,7 +815,6 @@ export function PlannerGrid({
                           value={orig.cells[coord.week]}
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
-                          absence={orig.is_absence}
                           canComment={!orig.is_absence && !orig.is_other}
                           comment={orig.comments?.[coord.week]}
                           onCommentChange={(text) =>

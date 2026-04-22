@@ -1,6 +1,6 @@
 version: "1.0"
 
-linter: jetbrains/qodana-python:latest
+linter: qodana-python
 
 profile:
   name: qodana.recommended
@@ -8,7 +8,6 @@ profile:
 bootstrap: |
   set -e
   pip install --no-cache-dir -r backend/requirements.txt
-  (cd frontend && npm ci --no-audit --no-fund --ignore-scripts)
 
 exclude:
   - name: All

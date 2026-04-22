@@ -8,18 +8,12 @@ interface PlannerCellProps {
   readonly onChange: (value: number | null) => void;
   readonly isOwnRow: boolean;
   readonly selected?: boolean;
-  readonly absence?: boolean;
   readonly canComment?: boolean;
   readonly comment?: string;
   readonly onCommentChange?: (value: string | null) => void;
   readonly onMouseDown?: (e: React.MouseEvent) => void;
   readonly onMouseEnter?: () => void;
 }
-
-const STRIPED_BG = {
-  dark: 'repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 6px)',
-  light: 'repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 6px)',
-} as const;
 
 const HOVER_TRIANGLE_DARK = 'rgba(255,255,255,0.45)';
 const HOVER_TRIANGLE_LIGHT = 'rgba(0,0,0,0.35)';
@@ -112,7 +106,6 @@ export function PlannerCell({
   onChange,
   isOwnRow,
   selected,
-  absence,
   canComment,
   comment,
   onCommentChange,
@@ -142,9 +135,7 @@ export function PlannerCell({
     return <EditingInput initial={value?.toString() ?? ''} onCommit={commitDraft} />;
   }
 
-  const cellStyle = absence
-    ? { background: STRIPED_BG[isDark ? 'dark' : 'light'], color: cellColors?.text }
-    : { backgroundColor: cellColors?.bg, color: cellColors?.text };
+  const cellStyle = { backgroundColor: cellColors?.bg, color: cellColors?.text };
 
   const ringClass = [
     !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : '',

@@ -35,7 +35,9 @@ export function PlannerAddRow({
 }: PlannerAddRowProps): JSX.Element {
   const [open, setOpen] = useState(false);
 
-  const available = options.filter((o) => !existingIds.has(o.id));
+  const available = options
+    .filter((o) => !existingIds.has(o.id))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
