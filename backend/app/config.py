@@ -63,13 +63,6 @@ class Settings(BaseSettings):
     mcp_oauth_client_id: str = ""
     mcp_oauth_client_secret: str = ""
 
-    # DevStack project-contexts: owner/name of the private repo hosting CLAUDE.md files.
-    # Token stored in DB via integrations must have contents:read + contents:write.
-    devstack_project_contexts_repo: str = "Vizzuality/project-contexts"
-    # Committer identity on every commit; author is always the requesting dev (from JWT).
-    devstack_project_contexts_committer_name: str = "VizzHub Bot"
-    devstack_project_contexts_committer_email: str = "bot@vizzuality.com"
-
     # Observability
     log_format: str = "console"
     log_level: str = "INFO"

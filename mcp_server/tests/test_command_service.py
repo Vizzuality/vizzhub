@@ -203,11 +203,11 @@ async def test_enqueue_approved_sets_status_immediately(
 ) -> None:
     svc = CommandService(db_session)
     cmd = await svc.enqueue_approved(
-        module="devstack",
-        action="update_project_context",
-        target="acme-corp",
+        module="iso",
+        action="patch_page_content",
+        target="some-slug",
         payload={"sha": "abc123"},
-        summary="Update acme-corp CLAUDE.md",
+        summary="Patch some-slug",
         user_id=test_user.id,
     )
     assert cmd.status == "approved"

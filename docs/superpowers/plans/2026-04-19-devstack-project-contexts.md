@@ -1,4 +1,6 @@
-# DevStack Project Contexts Implementation Plan
+# DevStack Project Contexts Implementation Plan — ABANDONED
+
+> **Status (2026-04-22):** ABANDONED. The project-contexts feature was removed — it was deemed too intrusive (auto-sync at session start, per-project CLAUDE.md distribution). All backend code, MCP tools, frontend page, and the SessionStart hook were deleted. See the "Dropped" section in `docs/devstack.md`. This document is kept as historical record of what was built and why it didn't stick.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

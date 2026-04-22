@@ -1,6 +1,6 @@
-# DevStack Project Contexts — Design
+# DevStack Project Contexts — Design — ABANDONED
 
-**Status:** Approved
+**Status:** ABANDONED (2026-04-22). The feature was shipped, then removed. Too intrusive — auto-prompting to link projects at every session start, hook-driven sync, and the heavy LLM-mediated merge flow created more friction than value. Backend tables, MCP tools, frontend page, and SessionStart hook all deleted. Kept as historical record.
 **Date:** 2026-04-19
 **Module:** DevStack
 **Related:** `docs/devstack.md`, `project_devstack-module.md` (memory)

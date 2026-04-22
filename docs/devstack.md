@@ -10,7 +10,7 @@ The org-level CLAUDE.md is deployed via Miradore (MDM) for initial bootstrap, th
 
 ## Architecture
 
-Three layers, each with a clear owner:
+Two layers, each with a clear owner:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -18,31 +18,22 @@ Three layers, each with a clear owner:
 │  Target: /Library/Application Support/ClaudeCode/CLAUDE.md              │
 │  Purpose: initial deployment of org CLAUDE.md on new machines           │
 │  After bootstrap: CLAUDE.md updated via MCP + devstack-sync             │
-│  Status: VALIDATED                                                      │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Layer 2: claude.ai org admin panel                                     │
-│  Target: server-managed settings.json (propagates to all org members)   │
-│  Manages: hooks, permissions, env vars                                  │
-│  Enforcement: hard — user cannot override                               │
-│  Status: VALIDATED                                                      │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────┐     ┌──────────────────────────────────┐
-│  Layer 3: DevStack              │     │     Developer machine (local)    │
+│  Layer 2: DevStack              │     │     Developer machine (local)    │
 │  VizzHub (server-side)          │     │                                  │
 │                                 │     │  /Library/App.../ClaudeCode/     │
 │  DevStack catalog ←── VizzHub UI│     │    └── CLAUDE.md (org, managed)  │
 │       (DB table)                │     │                                  │
 │           │                     │     │  ~/.claude/                      │
-│           ▼                     │     │    ├── skills/                    │
-│  MCP tool (read-only)           │     │    ├── commands/                  │
+│           ▼                     │     │    ├── skills/                   │
+│  MCP tools (read-only)          │     │    ├── commands/                 │
 │   • devstack_get_catalog        │     │    └── agents/                   │
-│                                 │     │                                  │
-│  Phase 2:                       │     │  Org CLAUDE.md instructs Claude: │
-│   • devstack_list               │     │    "sync required entries, check │
-│   • devstack_recommend          │     │     SHAs, report what's outdated"│
+│   • devstack_get_tech_radar     │     │                                  │
+│   • devstack_get_installable    │     │  The dev invokes the devstack-   │
+│   • devstack_discover           │     │  sync skill on demand to detect  │
+│                                 │     │  drift and install updates.      │
 └─────────────────────────────────┘     └──────────────────────────────────┘
 ```
 
@@ -51,8 +42,7 @@ Three layers, each with a clear owner:
 | Layer | What it manages | How | Enforcement |
 |-------|----------------|-----|-------------|
 | **Miradore** | Org CLAUDE.md (bootstrap only) | MDM script → filesystem | Hard — initial deployment |
-| **claude.ai admin** | settings.json (hooks, permissions, env vars) | Server-managed, auto-propagates | Hard — cannot override |
-| **DevStack** | Skills, commands, agents, configs, plugins + org CLAUDE.md updates | MCP catalog + instructions in org CLAUDE.md | Soft — Claude follows instructions |
+| **DevStack** | Skills, commands, agents, npm packages, Tech Radar | MCP catalog + on-demand `devstack-sync` skill | Soft — dev triggers sync |
 
 **Key principles:**
 - The MCP tool is a read-only data provider. It returns the catalog with GitHub SHAs.
@@ -76,22 +66,7 @@ curl -sL "https://raw.githubusercontent.com/Vizzuality/claude-code-standards/mai
 
 **After bootstrap:** The org CLAUDE.md contains instructions for Claude to call `devstack_get_catalog`, compare SHAs, and update files — including the CLAUDE.md itself. Miradore does not need to run again.
 
-## Layer 2: claude.ai Admin — Managed Settings
-
-Hooks, permissions, and env vars are configured in the **claude.ai org admin panel** under "Managed settings (settings.json)". Settings propagate automatically to all org members.
-
-**Current config:**
-
-```json
-{
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  }
-}
-```
-
-## Layer 3: DevStack — Artifact Catalog
+## Layer 2: DevStack — Artifact Catalog
 
 ### Data Model
 
@@ -365,23 +340,11 @@ No bootstrap command needed on the developer side. Admin-side steps are document
 - MCP `devstack_get_installable` bumps `install_count` via fire-and-log direct write (see `docs/mcp.md` § "Direct-Write Exception: Telemetry").
 - Frontend surfaces badges on EntryCard (critical/high/deprecated) and Security / Deprecation / Stats sections on EntryDetail. Sort by "Most installed" available.
 
-### Phase 4 — Sync instructions as a skill (next)
+### Phase 4 — Sync instructions as a skill (shipped)
 
-Move the full sync/discovery/lifecycle protocol out of the managed CLAUDE.md and into a dedicated catalog skill (`devstack-sync`), so future protocol changes ship via DevStack Sync without a Miradore re-deploy.
+The full sync/discovery/lifecycle protocol lives in the `devstack-sync` skill (`Vizzuality/claude-code-standards/Skills/devstack-sync.md`), distributed as a catalog entry. The managed CLAUDE.md stays minimal — Tech Radar rule + a pointer to DevStack MCP tools + escalation boilerplate.
 
-- **Write the `devstack-sync` skill** — source in `Vizzuality/claude-code-standards/Settings/skills/devstack-sync/SKILL.md`. Contains:
-  - Session-start sync contract (catalog drift detection + confirmation flow)
-  - Installable protocol (`devstack_get_installable` + write verbatim + preserve `devstack_sha`)
-  - Discovery (`devstack_discover`) instructions and when to use it
-  - **Lifecycle warnings** — after drift report, surface `deprecated: true` entries and `vulnerabilities.critical/high > 0` counts to the user once per session, recommending updates
-  - Failure modes (MCP unavailable, auth expired, write denied)
-- **Add it as a catalog entry** (`type: skill`, `required: true`, `install_method: github`) so every dev gets it via Sync. Target path: `~/.claude/skills/devstack-sync/SKILL.md`.
-- **Shrink the managed CLAUDE.md** to the org-wide minimum:
-  - Tech Radar rule (stays top-level because it applies to every task, not just DevStack)
-  - A single instruction to invoke the `devstack-sync` skill at session start
-  - Escalation boilerplate
-- **Last Miradore re-deploy** to ship the shrunk CLAUDE.md. After that, every change to the sync protocol is a normal catalog entry edit → picked up by each dev in the next session with no admin action.
-- Validation: a fresh Claude Code session on a clean machine should (1) bootstrap CLAUDE.md from Miradore, (2) run the sync contract from the pointer in CLAUDE.md, (3) install `devstack-sync` as part of sync, (4) subsequent sessions invoke the skill directly.
+The skill is invoked **on demand** (e.g. *"sync the devstack catalog"*, *"what skills are available for X?"*) — there is no SessionStart hook forcing it. See "Why the SessionStart hook was dropped" below.
 
 ### Roadmap — what's next after v1 rollout
 
@@ -396,28 +359,21 @@ Ordered by priority. All items move reliability/ergonomics from "Claude follows 
 5. ~~**Update org CLAUDE.md**~~ — shipped. Sync contract now uses `devstack_get_installable` and `devstack_get_tech_radar` throughout. Miradore re-deployed 2026-04-18.
 6. ~~**npm lifecycle + install metrics**~~ — shipped 2026-04-19. See "Phase 3" above.
 
-**Dropped on 2026-04-19** (prefer observing real usage first)
+**Dropped**
 
-- Hook v2 (warn-only PreToolUse). Self-healing via Sync already handles drift well in practice; instrumenting the hook would add friction without a concrete signal we need.
-- Orphan detection in sync. Same reasoning.
-
-**Next — highest priority**
-
-7. **Extract DevStack instructions into a dedicated skill (`devstack-sync` or similar).** The managed CLAUDE.md is growing each iteration (sync contract + tech radar + discovery + lifecycle warnings + failure modes). Every edit requires a Miradore re-deploy to 30 devs. Instead:
-   - Create a skill named e.g. `devstack-sync` (catalog entry with `type: skill`) containing the full sync contract, installable protocol, discovery, lifecycle warnings, failure modes.
-   - The managed CLAUDE.md shrinks to the org-wide minimum: Tech Radar reference + an instruction to invoke the `devstack-sync` skill at session start.
-   - The skill itself is distributed via DevStack Sync — so future edits to the sync protocol ship via the catalog (no Miradore re-deploy), and every dev gets them the next time Claude Code opens.
-   - Self-referential caveat: the first time the skill is installed, it has to come from the catalog drift detection that the managed CLAUDE.md triggers. Works fine because the CLAUDE.md knows the tool names (`devstack_get_catalog`, `devstack_get_installable`) that bootstrap the skill.
-
-8. **Surface deprecated / vulnerable warnings to the user** — today the data flows to the UI but the sync contract does NOT instruct Claude to warn the user when a catalog entry is flagged `deprecated: true` or has `vulnerabilities.critical > 0 || high > 0`. Add to the sync protocol (inside the new skill, once extracted): after drift report, for every entry in the sync scope, surface lifecycle warnings once per session, with the advisory IDs / deprecation message, and recommend updating or migrating.
+- **SessionStart hook** (2026-04-22). Re-ran `devstack-sync` on every session start / resume / clear. Automatic project-context sync, auto-catalog-sync, and auto-skill-install all hit the "too intrusive" bar. Skill is now invoked on demand. See "Why the SessionStart hook was dropped" below.
+- **Per-project private context sync** (2026-04-22). Dropped together with the hook — without a session-start pull trigger the remaining push-on-demand flow wasn't worth the surface area. Private project CLAUDE.md files now live wherever the team chooses (local, separate repo), outside DevStack.
+- **Hook v2 (warn-only PreToolUse)** (2026-04-19). Self-healing via Sync already handles drift in practice.
+- **Orphan detection in sync** (2026-04-19). Same reasoning.
 
 **Later**
 
-9. **`devstack_recommend`** — weighted tech-match ranking. Needs popularity signal interpretation, not just the raw `install_count` we now expose. Worth revisiting once we have a few weeks of real install data.
-10. **Dry-run mode for sync** — show what would change without applying. Low priority; sync is already self-healing and the user confirms before installs.
-11. **npm install lifecycle for `claude_plugin` type** — today we track `latest_package_version` + deprecation + CVEs but don't offer to install/upgrade plugins from MCP. Plugins have their own lifecycle (managed by the user via `npx claude-plugins install`). Worth exploring if admins want an install button from the catalog.
+7. **Surface deprecated / vulnerable warnings to the user** — today the data flows to the UI but the skill does NOT instruct Claude to warn the user when a catalog entry is flagged `deprecated: true` or has `vulnerabilities.critical > 0 || high > 0`. Add to the skill: on any catalog drift report, surface lifecycle warnings once per session with advisory IDs / deprecation message.
+8. **`devstack_recommend`** — weighted tech-match ranking. Needs popularity signal interpretation, not just the raw `install_count` we now expose. Worth revisiting once we have a few weeks of real install data.
+9. **Dry-run mode for sync** — show what would change without applying. Low priority; sync is already self-healing and the user confirms before installs.
+10. **npm install lifecycle for `claude_plugin` type** — today we track `latest_package_version` + deprecation + CVEs but don't offer to install/upgrade plugins from MCP. Plugins have their own lifecycle (managed by the user via `npx claude-plugins install`). Worth exploring if admins want an install button from the catalog.
 
-### Why the hook was dropped in v1
+### Why the PreToolUse hook was dropped
 
 We piloted a strict PreToolUse hook during the 2026-04-18 distribution validation. Shipped, debugged, deployed end-to-end. Then rolled back before group rollout for these reasons:
 
@@ -426,37 +382,15 @@ We piloted a strict PreToolUse hook during the 2026-04-18 distribution validatio
 - **Partial coverage**: only the `Write` tool was intercepted. `Edit`, `MultiEdit`, and `Bash` (`cat > file`) all bypassed the hook silently.
 - **Redundant with Sync**: DevStack Sync already detects drift (missing or wrong sha → reinstall next session). The hook only shortened the drift window within a session, at the cost of all of the above.
 
-The right place for this enforcement is the backend (via `devstack_get_installable`) and a warn-only client hook as a secondary signal. Both are captured in the roadmap above.
+### Why the SessionStart hook was dropped (2026-04-22)
 
-## Project Contexts (private CLAUDE.md distribution)
+The `SessionStart` hook that auto-invoked `devstack-sync` on every session start / resume / clear was dropped together with the per-project private-context sync. Reasons:
 
-For projects where `CLAUDE.md` cannot be committed to the public repo
-(NDA, compliance), DevStack distributes it via a private monorepo and
-a bidirectional sync in the `devstack-sync` skill.
+- **Intrusive**: every `/clear` inside an existing session re-ran the full sync contract (MCP precheck + catalog drift + per-project context). For devs who open and clear sessions often, this turned into a visible tax on each turn.
+- **Auto-sync ran without consent**: the skill detected "local `CLAUDE.md` exists but no marker" and started prompting about linking to a DevStack slug. Devs with their own per-project CLAUDE.md conventions got prompted in projects that had nothing to do with DevStack.
+- **The managed CLAUDE.md can carry the "what's DevStack" information without a hook** — devs see the MCP tools and invoke the skill when they need it.
 
-### Model
-
-- Table: `devstack_project_contexts` — `slug` (unique), `project_id` (FK, NOT NULL), `description`.
-- Private repo: `Vizzuality/project-contexts` (monorepo, one folder per slug).
-- Backend token: reuses the existing DevStack GitHub token — needs contents:read + contents:write on the private repo.
-
-### MCP tools
-
-- `devstack_list_project_contexts()` — discovery of slugs.
-- `devstack_get_project_context(slug, at_sha=None)` — fetch CLAUDE.md content (HEAD or historical blob).
-- `devstack_update_project_context(slug, content, expected_remote_sha)` — optimistic-lock commit push. Auto-approved command-queue row in the same transaction. Commit attributed to the dev (author) with the VizzHub bot as committer.
-
-### Merge strategy
-
-LLM-mediated in the skill, not server-side. On divergence the skill fetches
-the common-ancestor blob via `at_sha=base_sha`, presents the three versions
-to the dev in prose, proposes a merged version, writes only after explicit
-approval. See `docs/superpowers/specs/2026-04-19-devstack-project-contexts-design.md`
-for rationale and flows.
-
-### Skill behaviour
-
-Detailed procedure lives in `Vizzuality/claude-code-standards` → `skills/devstack-sync/SKILL.md`. Two marker files in the project root's `.claude/` directory (`.devstack-context` and `.devstack-skip`) drive the state machine.
+After the rollback, the skill is on-demand. Catalog updates land when the dev asks (*"sync the devstack catalog"*, *"install finalize"*, etc.); Tech Radar is still mandatory at the LLM level via the managed CLAUDE.md rule.
 
 ## Validation Log
 
