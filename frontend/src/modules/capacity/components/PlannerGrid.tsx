@@ -815,7 +815,7 @@ export function PlannerGrid({
                           value={orig.cells[coord.week]}
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
-                          canComment={!orig.is_absence && !orig.is_other}
+                          canComment
                           comment={orig.comments?.[coord.week]}
                           onCommentChange={(text) =>
                             onCommentChange?.(coord.projectId, coord.userId, coord.week, text)
