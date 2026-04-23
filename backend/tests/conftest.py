@@ -1,9 +1,7 @@
 """Test configuration and fixtures."""
 
-import csv
 import os
 from decimal import Decimal
-from pathlib import Path
 from unittest.mock import patch
 
 # CRITICAL: Set test environment variables BEFORE any app imports
@@ -46,15 +44,89 @@ TEST_DATABASE_URL = os.environ.get(
 )
 
 
+_TEST_CONFIG_DEFAULTS: dict[str, Decimal] = {
+    "target_defect_density": Decimal("6"),
+    "target_escaped_rate": Decimal("3"),
+    "target_mttr_hours": Decimal("24"),
+    "target_spi": Decimal("0.8"),
+    "target_cpi": Decimal("0.8"),
+    "target_milestones_on_time": Decimal("85"),
+    "target_lead_time_days": Decimal("10"),
+    "target_high_vuln_count": Decimal("5"),
+    "target_gov_exceptions": Decimal("3"),
+    "target_pr_no_review_ratio": Decimal("10"),
+    "target_pr_size_lines": Decimal("400"),
+    "target_review_turnaround_hours": Decimal("24"),
+    "target_deployment_frequency": Decimal("1"),
+    "target_change_failure_rate": Decimal("15"),
+    "target_post_contract_tasks": Decimal("3"),
+    "target_test_maturity": Decimal("60"),
+    "target_architecture": Decimal("80"),
+    "target_pm_satisfaction": Decimal("85"),
+    "target_client_satisfaction": Decimal("85"),
+    "target_story_review_ratio": Decimal("85"),
+    "target_commitment_reliability": Decimal("80"),
+    "target_budget_variance": Decimal("85"),
+    "target_governance_compliance": Decimal("80"),
+    "target_okr_impact": Decimal("70"),
+    "ideal_spi": Decimal("1.0"),
+    "ideal_cpi": Decimal("1.0"),
+    "weight_global_time": Decimal("0.12"),
+    "weight_global_cost": Decimal("0.10"),
+    "weight_global_quality": Decimal("0.205"),
+    "weight_global_value": Decimal("0.05"),
+    "weight_global_satisfaction": Decimal("0.12"),
+    "weight_global_flow": Decimal("0.15"),
+    "weight_global_engineering": Decimal("0.205"),
+    "weight_global_risk": Decimal("0.05"),
+    "weight_time_spi": Decimal("0.60"),
+    "weight_time_milestones": Decimal("0.40"),
+    "weight_cost_cpi": Decimal("0.70"),
+    "weight_cost_variance": Decimal("0.30"),
+    "weight_quality_defect_density": Decimal("0.05"),
+    "weight_quality_escaped_rate": Decimal("0.15"),
+    "weight_quality_mttr": Decimal("0.05"),
+    "weight_quality_story_review": Decimal("0.25"),
+    "weight_quality_governance": Decimal("0.20"),
+    "weight_quality_pr_review": Decimal("0.10"),
+    "weight_quality_change_failure_rate": Decimal("0.15"),
+    "weight_quality_post_contract_tasks": Decimal("0.05"),
+    "weight_value_okr_impact": Decimal("1.00"),
+    "weight_satisfaction_client_survey": Decimal("0.90"),
+    "weight_satisfaction_pm_estimation": Decimal("0.10"),
+    "weight_survey_understanding": Decimal("0.12"),
+    "weight_survey_proactivity": Decimal("0.12"),
+    "weight_survey_communication": Decimal("0.10"),
+    "weight_survey_time": Decimal("0.14"),
+    "weight_survey_response": Decimal("0.10"),
+    "weight_survey_quality": Decimal("0.24"),
+    "weight_survey_expectations": Decimal("0.12"),
+    "weight_survey_recommend": Decimal("0.06"),
+    "weight_flow_lead_time": Decimal("0.35"),
+    "weight_flow_commitment_reliability": Decimal("0.25"),
+    "weight_flow_pr_size": Decimal("0.15"),
+    "weight_flow_review_turnaround": Decimal("0.10"),
+    "weight_flow_deployment_frequency": Decimal("0.15"),
+    "weight_engineering_test_maturity": Decimal("0.50"),
+    "weight_engineering_pr_review": Decimal("0.20"),
+    "weight_engineering_architecture": Decimal("0.30"),
+    "weight_risk_pr_no_review": Decimal("0.50"),
+    "weight_risk_high_vulns": Decimal("0.50"),
+    "weight_test_e2e": Decimal("0.40"),
+    "weight_test_unit": Decimal("0.10"),
+    "weight_test_accessibility": Decimal("0.10"),
+    "weight_test_security": Decimal("0.20"),
+    "weight_test_frontend": Decimal("0.20"),
+    "const_sev1_cap": Decimal("60"),
+    "const_grace_days": Decimal("3"),
+    "const_threshold_green": Decimal("80"),
+    "const_threshold_yellow": Decimal("60"),
+}
+
+
 def load_config_from_csv() -> dict[str, Decimal]:
-    """Load config parameters from CSV seed file for testing."""
-    csv_path = Path(__file__).parent.parent / "seeds" / "config_parameters.csv"
-    config_dict = {}
-    with open(csv_path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            config_dict[row["name"]] = Decimal(row["value"])
-    return config_dict
+    """Return the test scoring config defaults (name kept for backward compat)."""
+    return dict(_TEST_CONFIG_DEFAULTS)
 
 
 @pytest.fixture(scope="session")
