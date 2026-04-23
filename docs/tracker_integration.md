@@ -77,8 +77,6 @@ Admin role always bypasses project-level checks.
 
 ### Key Architectural Decisions
 
-Full details in `docs/plans/tracker-data-migration-design.md`.
-
 1. **Contract → Project flattening**: Each legacy VizzTracker contract becomes a vizzhub project. Legacy projects with multiple contracts become programs (grouping entity).
 2. **Users — vizzhub is source of truth**: Legacy users matched by email. Devise auth deprecated. New fields (name, functional_area, rate, dedication, active) added to core users.
 3. **Teams deprecated**: Legacy teams not migrated.
@@ -307,9 +305,7 @@ For any PR that touches module boundaries:
 
 ## Reference Docs
 
-- `docs/plans/tracker-data-migration-design.md` — Field-by-field mapping, constraints, indexes, import rules, legacy method analysis
-- `docs/legacy/schema.rb` — Legacy VizzTracker database schema
-- `docs/legacy/models.md` — Legacy Rails models with associations, validations, state machines, business logic
+- `docs/legacy/models.md` — Legacy Rails models reference (associations, validations, state machines)
 
 ## MCP Server Design
 

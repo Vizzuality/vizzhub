@@ -42,6 +42,7 @@ Local development (stdio):
 
 ### Key design decisions
 
+- **Two-tier API.** ISO gets a generic schema-driven API (`iso_get_registries`, `iso_get_registry_rows`) because its spreadsheet-like model admits new registries at runtime without MCP changes. Relational modules (Tracker, Scorecard, Capacity, Playbook, Users) get semantic domain-specific tools because their schemas are stable and explicit tool descriptions give the LLM better grounding than a generic row API would.
 - **Sub-app, not separate process.** The MCP Starlette app is mounted on the existing FastAPI backend at `/mcp` via `app.mount()`. Same container, same DB pool, same deploy pipeline.
 - **Transport-agnostic server.** `create_mcp_server()` factory produces a `FastMCP` instance. `__main__.py` uses it with stdio; `main.py` uses it with SSE transport via `sse_app()`. The server object doesn't know which transport is active.
 - **SSE transport, not StreamableHTTP.** Claude Code (and all current MCP clients) only support `type: "sse"` in declarative config. StreamableHTTP is SDK-only. SSE uses GET `/sse` for the event stream and POST `/messages/` for client messages. No session manager or lifespan setup needed — each SSE connection creates its own server instance.
@@ -727,7 +728,7 @@ TransportSecuritySettings(
 | 4 | Planned | Transactions (Saga pattern with cross-command references) |
 | 5 | Planned | Policy engine (risk-based routing, role-based approval) |
 
-See `docs/MCP_plan.md` for the full architecture vision.
+Phase 4 adds cross-command references via a saga pattern: commands in the same transaction can reference the result of earlier commands (e.g. a corrective action that references a nonconformity created in the same transaction) using a `$ref` syntax resolved at execution time. If any command fails, the transaction rolls back.
 
 ## Write Operations (Command Queue)
 
@@ -788,6 +789,10 @@ POST /api/commands/{id}/reject
 - All write operations require the same permission as the corresponding UI action.
 - Failed executions are recorded with error details for audit.
 - User attribution: all changes are attributed to the authenticated user, not "system".
+
+### Audit trail
+
+Every row in `command_transactions` + `command_queue` answers *what* was proposed (action, target, payload), *why* (context, linked process), *who* requested it (session), *when* it was proposed and executed, *who* approved it, and *what happened* (result or error). This is the audit evidence used to demonstrate AI change control for ISO 27001 / ISO 9001 audits.
 
 ## Direct-Write Exception: Telemetry
 

@@ -185,10 +185,8 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 
 ## Reference Docs
 
-- `docs/CLAUDE_REFERENCE.md` — Auth, Slack, jobs, Redis cache, AWS, API endpoints
 - `docs/tracker_integration.md` — Multi-module architecture spec
 - `docs/OAUTH_SETUP.md` — Jira OAuth setup
 - `docs/API.md` — Full API documentation
-- `docs/mcp.md` — MCP server: tools, OAuth auth, transport, deployment
+- `docs/mcp.md` — MCP server: tools, OAuth auth, transport, deployment, architecture vision
 - `docs/mcp/vizzhub-skill.md` — MCP data model guide (full reference, served as `vizzhub://data-model` resource + Claude Code skill)
-- `docs/MCP_plan.md` — MCP architecture vision (all phases)
