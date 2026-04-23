@@ -132,17 +132,17 @@ Playbook ── standalone (articles, linked by slug)
 **Returns:** `iso_get_registries` → slug, name, description, is_yearly, columns (schema). `iso_get_registry_rows` → registry metadata + rows with JSONB data and computed fields. `iso_get_documents` → slug, title, category, doc_version, summary. `iso_get_document` → full markdown content. `iso_search_documents` → snippet, section heading, ts_rank score.
 
 **Conventions:**
-- Registries use `slug` as identifier (e.g., `incident-register`, `risk-register`)
+- Registries use `slug` as identifier (e.g., `security-incident-register`, `risk-register`)
 - `iso_search_documents` uses PostgreSQL full-text search (tsvector). `rank` is ts_rank — use only for ordering, not as a relevance percentage
 - `iso_get_documents(search=...)` does title substring match only. For content search, use `iso_search_documents`
 - Document categories: `policy`, `procedure`, `plan`, `record`, `manual`
 - There are ~34 registry types and ~40 documents
 
 **Yearly registries** (require `year` param, defaults to current year if omitted):
-`audit-findings-register`, `audit-plan-results`, `authorization-matrix`, `awareness-plan`, `continual-improvement-register`, `corrective-action-register`, `incident-register`, `management-review-register`, `management-system-objectives`, `opportunity-register`, `purchases-register`, `risk-register`, `security-incident-register`, `supplier-evaluation-register`, `swot-analysis`, `test-calendar`, `training-register`
+`asset-risk-assessment`, `audit-findings-register`, `audit-plan-results`, `awareness-plan`, `corrective-action-register`, `management-system-objectives`, `opportunity-register`, `purchases-register`, `risk-register`, `risk-treatment-plan`, `security-incident-register`, `supplier-evaluation-register`, `swot-analysis`, `test-calendar`, `training-plan`
 
 **Non-yearly registries** (no year param needed):
-`access-control-register`, `asset-inventory`, `asset-inventory---intellectual-property`, `asset-inventory---licenses`, `asset-inventory---movements`, `authorities-contact-register`, `business-continuity-plan`, `change-management-register`, `communication-register`, `document-control-register`, `guest-access-register`, `interested-parties-register`, `legal-regulatory-register`, `statement-of-applicability`, `supplier-register`, `threat-monitoring-register`
+`asset-inventory-equipments`, `asset-inventory-intellectual-property`, `asset-inventory-licenses`, `asset-inventory-movements`, `authorities-contact-register`, `authorization-matrix`, `change-management-register`, `communication-register`, `continual-improvement-register`, `document-control-register`, `guest-access-register`, `interested-parties-register`, `legal-regulatory-register`, `statement-of-applicability`, `supplier-register`, `threat-monitoring-register`
 
 ### Playbook (3 tools)
 
