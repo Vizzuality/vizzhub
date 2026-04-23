@@ -138,11 +138,7 @@ Playbook ── standalone (articles, linked by slug)
 - Document categories: `policy`, `procedure`, `plan`, `record`, `manual`
 - There are ~34 registry types and ~40 documents
 
-**Yearly registries** (require `year` param, defaults to current year if omitted):
-`asset-risk-assessment`, `audit-findings-register`, `audit-plan-results`, `awareness-plan`, `corrective-action-register`, `management-system-objectives`, `opportunity-register`, `purchases-register`, `risk-register`, `risk-treatment-plan`, `security-incident-register`, `supplier-evaluation-register`, `swot-analysis`, `test-calendar`, `training-plan`
-
-**Non-yearly registries** (no year param needed):
-`asset-inventory-equipments`, `asset-inventory-intellectual-property`, `asset-inventory-licenses`, `asset-inventory-movements`, `authorities-contact-register`, `authorization-matrix`, `change-management-register`, `communication-register`, `continual-improvement-register`, `document-control-register`, `guest-access-register`, `interested-parties-register`, `legal-regulatory-register`, `statement-of-applicability`, `supplier-register`, `threat-monitoring-register`
+**Yearly vs non-yearly registries:** call `iso_get_registries` for the current list — each entry includes `is_yearly: bool`. For yearly registries, pass `year` to `iso_get_registry_rows` (defaults to current cycle year if omitted). Do not rely on hardcoded enumerations; the set of registries changes over time as the management system evolves.
 
 ### Playbook (3 tools)
 
