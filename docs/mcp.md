@@ -636,7 +636,7 @@ docker logs hub-backend 2>&1 | grep mcp
 Common causes:
 - `MCP_ENABLED` not set to `true` in `.env`
 - `mcp_server/` not included in the Docker image (check Dockerfile build context is repo root, not `./backend`)
-- `requirements-mcp.txt` not installed (check Dockerfile installs both requirement files)
+- `mcp` package missing from `backend/uv.lock` (it's a runtime dep in `pyproject.toml` — sync with `cd backend && uv sync`)
 - Mount failed with exception (look for `mcp_server_mount_failed` in logs)
 
 ### `/mcp/` returns 404 without trailing slash

@@ -185,7 +185,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 
 ## Code Quality / CI
 
-- After implementing features, run SonarCloud-compatible code only. Do not use PEP 695 type syntax (Python 3.12+) — CI runs Python 3.11. Always verify CI compatibility before pushing.
+- After implementing features, run SonarCloud-compatible code only. Avoid PEP 695 type syntax (`type X = ...`) for SonarCloud and IDE plugin compatibility. CI runs Python 3.13. Always verify CI compatibility before pushing.
 
 ## Backend Development
 

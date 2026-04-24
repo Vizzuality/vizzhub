@@ -52,8 +52,7 @@ JIRA_OAUTH_REDIRECT_URI=http://localhost:8000/api/oauth/jira/callback
 
 ```bash
 cd backend
-source venv/bin/activate
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### Step 5: Authorize the App

@@ -8,16 +8,15 @@ Internal tracking platform.
 
 ### Prerequisites
 
-- Python 3.11+, Node.js 18+, PostgreSQL 16, Redis (optional)
+- [uv](https://docs.astral.sh/uv/) (Python toolchain), Node.js 18+, PostgreSQL 16, Redis (optional). uv installs the right Python automatically.
 
 ### Backend
 
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # edit as needed
-python run_server.py  # http://localhost:8000, docs at /docs
+uv sync                 # installs Python 3.13 + all deps from uv.lock
+cp .env.example .env    # edit as needed
+uv run python run_server.py  # http://localhost:8000, docs at /docs
 ```
 
 ### Frontend
@@ -32,7 +31,7 @@ npm run dev  # http://localhost:5173
 
 ```bash
 cd backend
-arq app.worker.settings.WorkerSettings
+uv run arq app.worker.settings.WorkerSettings
 ```
 
 ### Docker alternative
