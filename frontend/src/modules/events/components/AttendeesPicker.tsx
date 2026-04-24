@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/components/ui/button';
-import { Badge } from '@/shared/components/ui/badge';
+import { Input } from '@/shared/components/ui/input';
 import {
   Command,
   CommandEmpty,
@@ -26,17 +26,25 @@ import {
 import { useUserSummaries } from '@/core/hooks/useUsers';
 import { getFullName } from '@/utils/formatters';
 import { useEventOptions } from '../hooks/useEventOptions';
-import { ROLE_COLORS } from '../utils/constants';
-import type { Attendee } from '../types/events';
+
+export interface LocalAttendee {
+  user_id: string;
+  role: string;
+  cost: number | null;
+  _persistedId?: string;
+  user_name?: string | null;
+  user_email?: string | null;
+  functional_area?: string | null;
+}
 
 interface AttendeesPickerProps {
-  readonly attendees: Attendee[];
-  readonly onAdd: (attendees: { user_id: string; role: string }[]) => void;
-  readonly onRemove: (userId: string) => void;
+  readonly attendees: LocalAttendee[];
+  readonly onChange: (next: LocalAttendee[]) => void;
 }
 
 export function AttendeesPicker({
-  attendees, onAdd, onRemove,
+  attendees,
+  onChange,
 }: AttendeesPickerProps): JSX.Element {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('Attendee');
@@ -50,18 +58,42 @@ export function AttendeesPicker({
     () => new Set(attendees.map((a) => a.user_id)),
     [attendees],
   );
-
   const availableUsers = useMemo(
     () => (users ?? []).filter((u) => u.active && !existingUserIds.has(u.id)),
     [users, existingUserIds],
   );
-
   const selectedUser = availableUsers.find((u) => u.id === selectedUserId);
 
   const handleAdd = (): void => {
-    if (!selectedUserId || !selectedRole) return;
-    onAdd([{ user_id: selectedUserId, role: selectedRole }]);
+    if (!selectedUserId) return;
+    const user = availableUsers.find((u) => u.id === selectedUserId);
+    onChange([
+      ...attendees,
+      {
+        user_id: selectedUserId,
+        role: selectedRole,
+        cost: null,
+        user_name: user
+          ? getFullName(user.first_name, user.last_name, user.email)
+          : null,
+      },
+    ]);
     setSelectedUserId('');
+  };
+
+  const updateAttendee = (
+    userId: string,
+    patch: Partial<LocalAttendee>,
+  ): void => {
+    onChange(
+      attendees.map((a) =>
+        a.user_id === userId ? { ...a, ...patch } : a,
+      ),
+    );
+  };
+
+  const removeAttendee = (userId: string): void => {
+    onChange(attendees.filter((a) => a.user_id !== userId));
   };
 
   return (
@@ -70,37 +102,50 @@ export function AttendeesPicker({
 
       {attendees.length > 0 && (
         <div className="space-y-1.5">
-          {attendees.map((attendee) => (
+          {attendees.map((a) => (
             <div
-              key={attendee.id}
-              className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm"
+              key={a.user_id}
+              className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="truncate">
-                  {attendee.user_name ?? attendee.user_email ?? 'Unknown'}
-                </span>
-                <Badge
-                  variant="outline"
-                  className="shrink-0 text-xs"
-                  style={{
-                    borderColor: ROLE_COLORS[attendee.role] ?? '#64748b',
-                    color: ROLE_COLORS[attendee.role] ?? '#64748b',
-                  }}
-                >
-                  {attendee.role}
-                </Badge>
-                {attendee.functional_area && (
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {attendee.functional_area}
-                  </span>
-                )}
-              </div>
+              <span className="flex-1 truncate">
+                {a.user_name ?? a.user_email ?? 'Unknown'}
+              </span>
+              <Select
+                value={a.role}
+                onValueChange={(v) => updateAttendee(a.user_id, { role: v })}
+              >
+                <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="—"
+                className="w-[100px] h-8 text-xs"
+                value={a.cost ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateAttendee(a.user_id, {
+                    cost: val === '' ? null : Number(val),
+                  });
+                }}
+                aria-label="Cost"
+              />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0"
-                onClick={() => onRemove(attendee.user_id)}
+                className="h-7 w-7 shrink-0"
+                onClick={() => removeAttendee(a.user_id)}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
