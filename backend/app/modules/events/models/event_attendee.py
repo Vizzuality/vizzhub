@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -19,6 +20,10 @@ class EventAttendeeDB(Base):
     __tablename__ = "event_attendees"
     __table_args__ = (
         UniqueConstraint("event_id", "user_id", name="uq_event_attendees_event_user"),
+        CheckConstraint(
+            "cost IS NULL OR cost >= 0",
+            name="ck_event_attendees_cost_positive",
+        ),
         Index("ix_event_attendees_event_id", "event_id"),
         Index("ix_event_attendees_user_id", "user_id"),
     )
@@ -37,6 +42,7 @@ class EventAttendeeDB(Base):
         nullable=False,
     )
     role: Mapped[str] = mapped_column(String(50), nullable=False)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

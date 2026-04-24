@@ -30,7 +30,7 @@ class EventDB(Base):
     __tablename__ = "events"
     __table_args__ = (
         CheckConstraint("rating >= 1 AND rating <= 5", name="ck_events_rating_range"),
-        CheckConstraint("cost >= 0", name="ck_events_cost_positive"),
+        CheckConstraint("other_costs >= 0", name="ck_events_other_costs_positive"),
         Index("ix_events_start_date", "start_date"),
     )
 
@@ -46,7 +46,7 @@ class EventDB(Base):
     location_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    cost: Mapped[Decimal] = mapped_column(
+    other_costs: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), nullable=False, server_default="0"
     )
     rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
