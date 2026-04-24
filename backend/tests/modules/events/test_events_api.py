@@ -224,7 +224,7 @@ class TestEventFiltering:
         assert data["items"][0]["name"] == "Ocean Conference"
 
     @pytest.mark.asyncio
-    async def test_list_events_sort_by_cost(self, client: AsyncClient):
+    async def test_list_events_sort_by_total_cost_asc(self, client: AsyncClient):
         await client.post(
             "/api/events",
             json=_event_payload(name="Cheap Event", other_costs=100),
