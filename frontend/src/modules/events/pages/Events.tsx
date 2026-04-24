@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, LayoutGrid, List } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { usePermission, Action } from '@/core/permissions';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { Button } from '@/shared/components/ui/button';
@@ -15,6 +16,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { EventCard } from '../components/EventCard';
 import { EventForm } from '../components/EventForm';
+import { EventsTable } from '../components/EventsTable';
 import { useEvents } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
 import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
@@ -27,8 +29,8 @@ const SORT_OPTIONS = [
   { value: 'start_date:asc', label: 'Oldest first' },
   { value: 'name:asc', label: 'Name A-Z' },
   { value: 'name:desc', label: 'Name Z-A' },
-  { value: 'cost:desc', label: 'Highest cost' },
-  { value: 'cost:asc', label: 'Lowest cost' },
+  { value: 'total_cost:desc', label: 'Highest cost' },
+  { value: 'total_cost:asc', label: 'Lowest cost' },
   { value: 'rating:desc', label: 'Highest rating' },
   { value: 'rating:asc', label: 'Lowest rating' },
 ] as const;
@@ -40,6 +42,7 @@ const urlSchema = {
   type: { defaultValue: '' },
   region: { defaultValue: '' },
   sort: { defaultValue: 'start_date:desc' },
+  view: { defaultValue: 'grid' },
 };
 
 export default function Events(): JSX.Element {
@@ -214,6 +217,31 @@ export default function Events(): JSX.Element {
             ))}
           </SelectContent>
         </Select>
+
+        <div className="flex items-center rounded-md border">
+          <button
+            type="button"
+            aria-label="Grid view"
+            className={cn(
+              'h-9 px-2.5 flex items-center gap-1',
+              state.view === 'grid' ? 'bg-muted' : 'hover:bg-muted/50',
+            )}
+            onClick={() => setState({ view: 'grid' })}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="List view"
+            className={cn(
+              'h-9 px-2.5 flex items-center gap-1 border-l',
+              state.view === 'list' ? 'bg-muted' : 'hover:bg-muted/50',
+            )}
+            onClick={() => setState({ view: 'list' })}
+          >
+            <List className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Count display */}
@@ -223,18 +251,29 @@ export default function Events(): JSX.Element {
         </p>
       )}
 
-      {/* Card grid */}
+      {/* Card grid / list view */}
       {events.length > 0 ? (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onClick={handleCardClick}
-              clickable={canManage}
-            />
-          ))}
-        </div>
+        state.view === 'list' ? (
+          <EventsTable
+            events={events}
+            canManage={canManage}
+            onRowClick={(id) => setSelectedEventId(id)}
+            sortKey={sortBy}
+            sortDir={sortDir as 'asc' | 'desc'}
+            onSortChange={(k, d) => setState({ sort: `${k}:${d}` })}
+          />
+        ) : (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onClick={handleCardClick}
+                clickable={canManage}
+              />
+            ))}
+          </div>
+        )
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
