@@ -48,6 +48,8 @@ dependencies = [
     "Jinja2>=3.1.0,<4.0.0",
     # AWS (S3 assets, CloudFront invalidations)
     "boto3>=1.34.0,<2.0.0",
+    # MCP server (mounted as FastAPI extension in the same process)
+    "mcp>=1.12.0,<2.0.0",
 ]
 
 [dependency-groups]

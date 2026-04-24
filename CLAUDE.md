@@ -19,9 +19,7 @@ Frontend: `cd frontend && npm test` / `npm run dev`
 
 ### Python deps
 
-`backend/pyproject.toml` + `backend/uv.lock` are the source of truth.
-`backend/requirements.txt` is auto-generated for CI / Docker — never edit by hand. Regenerate with:
-`cd backend && uv export --no-dev --no-hashes --output-file requirements.txt`
+`backend/pyproject.toml` + `backend/uv.lock` are the single source of truth. CI, Qodana and the Dockerfiles all consume them directly via `uv sync --frozen`. There is no `requirements.txt`.
 
 ## Project Structure
 

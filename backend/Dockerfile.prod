@@ -4,34 +4,36 @@
 
 FROM python:3.13-slim AS builder
 
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /bin/
+
 WORKDIR /app
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies (backend + MCP server)
-COPY backend/requirements.txt ./requirements.txt
-COPY requirements-mcp.txt ./requirements-mcp.txt
-RUN pip install --no-cache-dir --user -r requirements.txt -r requirements-mcp.txt
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Production stage
 FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash appuser
 
-# Copy Python packages from builder with secure permissions (read-only except bins)
-# --chmod=555 = r-xr-xr-x (read+execute, no write)
-COPY --from=builder --chown=appuser:appuser --chmod=555 /root/.local /home/appuser/.local
+# Copy the venv outside /app so the chmod 444 below doesn't strip execute
+# permissions from the interpreter and the scripts it installs.
+COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 
 # Copy application code with read-only permissions (no write)
 # --chmod=555 sets dirs traversable; find then strips execute from files
@@ -40,15 +42,12 @@ COPY --chown=appuser:appuser --chmod=555 mcp_server/ ./mcp_server/
 COPY --chown=appuser:appuser --chmod=555 docs/mcp/vizzhub-skill.md ./docs/mcp/vizzhub-skill.md
 RUN find /app -type f -exec chmod 444 {} \; && chmod 555 /app/entrypoint.sh
 
-# Set environment
-ENV PATH=/home/appuser/.local/bin:$PATH
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Switch to non-root user
 USER appuser
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
