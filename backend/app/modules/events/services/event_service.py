@@ -13,6 +13,7 @@ from app.core.sql_helpers import user_display_name_expr
 from app.modules.events.models.event import EventDB
 from app.modules.events.models.event_attendee import EventAttendeeDB
 from app.modules.events.models.event_rsvp import EventRsvpDB
+from app.modules.events.services.rsvp_service import get_rsvps_for_event
 
 
 EVENT_FIELDS = [
@@ -293,27 +294,5 @@ async def get_event_with_attendees(
     data["my_rsvp_status"] = (
         await _load_my_rsvp_map(db, [event_id], viewer_id)
     ).get(event_id)
-    data["rsvps"] = await load_rsvps_grouped(db, event_id)
+    data["rsvps"] = await get_rsvps_for_event(db, event_id)
     return data
-
-
-async def load_rsvps_grouped(
-    db: AsyncSession, event_id: UUID
-) -> dict[str, list[dict]]:
-    user_alias = aliased(UserDB)
-    stmt = (
-        select(
-            EventRsvpDB.status,
-            user_alias.id, user_alias.first_name, user_alias.last_name,
-            user_alias.email,
-        )
-        .join(user_alias, user_alias.id == EventRsvpDB.user_id)
-        .where(EventRsvpDB.event_id == event_id)
-        .order_by(user_display_name_expr(user_alias))
-    )
-    out: dict[str, list[dict]] = {"going": [], "maybe": [], "not_going": []}
-    for status, uid, first, last, email in (await db.execute(stmt)).all():
-        out[status].append({
-            "id": uid, "first_name": first, "last_name": last, "email": email,
-        })
-    return out
