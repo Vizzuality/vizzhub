@@ -1,47 +1,13 @@
 """Tests for events module API endpoints."""
 
 from decimal import Decimal
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
-
-DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def debug_user(db_session: AsyncSession) -> UserDB:
-    """Create the user that DEBUG auth bypass references as created_by."""
-    user = UserDB(
-        id=DEBUG_USER_ID,
-        email="debug@vizzuality.com",
-        first_name="Debug",
-        last_name="User",
-        active=True,
-    )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
-
-
-@pytest_asyncio.fixture
-async def test_user(db_session: AsyncSession) -> UserDB:
-    """Create a second user for attendee operations."""
-    user = UserDB(
-        email="event-tester@vizzuality.com",
-        first_name="Event",
-        last_name="Tester",
-        active=True,
-    )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
 
 
 def _event_payload(**overrides) -> dict:
@@ -68,7 +34,7 @@ class TestEventsCRUD:
 
     @pytest.mark.asyncio
     async def test_create_event(self, client: AsyncClient):
-        payload = _event_payload(cost=1500, location_city="Madrid")
+        payload = _event_payload(other_costs=1500, location_city="Madrid")
         resp = await client.post("/api/events", json=payload)
         assert resp.status_code == 201
         data = resp.json()
@@ -78,7 +44,7 @@ class TestEventsCRUD:
         assert data["region_focus"] == "Europe"
         assert data["start_date"] == "2026-06-15"
         assert data["location_city"] == "Madrid"
-        assert Decimal(str(data["cost"])) == Decimal("1500")
+        assert Decimal(str(data["other_costs"])) == Decimal("1500")
         assert data["attendee_count"] == 0
         assert "id" in data
         assert "created_at" in data
@@ -102,12 +68,12 @@ class TestEventsCRUD:
 
         resp = await client.put(
             f"/api/events/{event_id}",
-            json={"name": "Updated Summit", "cost": 3000},
+            json={"name": "Updated Summit", "other_costs": 3000},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "Updated Summit"
-        assert Decimal(str(data["cost"])) == Decimal("3000")
+        assert Decimal(str(data["other_costs"])) == Decimal("3000")
 
     @pytest.mark.asyncio
     async def test_delete_event(self, client: AsyncClient):
@@ -159,7 +125,7 @@ class TestEventStats:
     ):
         create_resp = await client.post(
             "/api/events",
-            json=_event_payload(cost=500, start_date="2025-03-10"),
+            json=_event_payload(other_costs=500, start_date="2025-03-10"),
         )
         event_id = create_resp.json()["id"]
         await client.post(
@@ -238,6 +204,94 @@ class TestEventAttendees:
         )
         assert resp.status_code == 409
 
+    @pytest.mark.asyncio
+    async def test_add_attendee_with_cost(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: UserDB
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+
+        event = EventDB(
+            name="Cost Test", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 7, 1),
+            other_costs=Decimal("0"),
+        )
+        db_session.add(event)
+        await db_session.commit()
+
+        r = await client.post(
+            f"/api/events/{event.id}/attendees",
+            json=[{
+                "user_id": str(test_user.id),
+                "role": "Speaker",
+                "cost": "150.50",
+            }],
+        )
+        assert r.status_code == 201
+        assert r.json()[0]["cost"] == "150.50"
+
+    @pytest.mark.asyncio
+    async def test_patch_attendee_updates_role_and_cost(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: UserDB
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+        from app.modules.events.models.event_attendee import EventAttendeeDB
+
+        event = EventDB(
+            name="Patch Test", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 7, 2),
+            other_costs=Decimal("0"),
+        )
+        db_session.add(event)
+        await db_session.flush()
+        db_session.add(
+            EventAttendeeDB(
+                event_id=event.id, user_id=test_user.id,
+                role="Attendee", cost=None,
+            )
+        )
+        await db_session.commit()
+
+        r = await client.patch(
+            f"/api/events/{event.id}/attendees/{test_user.id}",
+            json={"role": "Panelist", "cost": "200.00"},
+        )
+        assert r.status_code == 200
+        assert r.json()["role"] == "Panelist"
+        assert r.json()["cost"] == "200.00"
+
+    @pytest.mark.asyncio
+    async def test_patch_attendee_rejects_negative_cost(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: UserDB
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+        from app.modules.events.models.event_attendee import EventAttendeeDB
+
+        event = EventDB(
+            name="Neg Test", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 7, 3),
+            other_costs=Decimal("0"),
+        )
+        db_session.add(event)
+        await db_session.flush()
+        db_session.add(
+            EventAttendeeDB(
+                event_id=event.id, user_id=test_user.id, role="Attendee",
+            )
+        )
+        await db_session.commit()
+
+        r = await client.patch(
+            f"/api/events/{event.id}/attendees/{test_user.id}",
+            json={"cost": "-1"},
+        )
+        assert r.status_code == 400
+
 
 class TestEventFiltering:
     @pytest.mark.asyncio
@@ -258,23 +312,80 @@ class TestEventFiltering:
         assert data["items"][0]["name"] == "Ocean Conference"
 
     @pytest.mark.asyncio
-    async def test_list_events_sort_by_cost(self, client: AsyncClient):
+    async def test_list_events_sort_by_total_cost_asc(self, client: AsyncClient):
         await client.post(
             "/api/events",
-            json=_event_payload(name="Cheap Event", cost=100),
+            json=_event_payload(name="Cheap Event", other_costs=100),
         )
         await client.post(
             "/api/events",
-            json=_event_payload(name="Expensive Event", cost=9000),
+            json=_event_payload(name="Expensive Event", other_costs=9000),
         )
 
         resp = await client.get(
             "/api/events",
-            params={"sort_by": "cost", "sort_dir": "asc"},
+            params={"sort_by": "total_cost", "sort_dir": "asc"},
         )
         assert resp.status_code == 200
         items = resp.json()["items"]
         assert len(items) == 2
-        assert Decimal(str(items[0]["cost"])) < Decimal(str(items[1]["cost"]))
+        assert Decimal(str(items[0]["total_cost"])) < Decimal(str(items[1]["total_cost"]))
         assert items[0]["name"] == "Cheap Event"
         assert items[1]["name"] == "Expensive Event"
+
+    @pytest.mark.asyncio
+    async def test_list_events_exposes_total_cost_and_rsvp_counts(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+        from app.modules.events.models.event_attendee import EventAttendeeDB
+        from tests.modules.events.conftest import DEBUG_USER_ID
+
+        event = EventDB(
+            name="TC", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 5, 1),
+            other_costs=Decimal("50.00"),
+        )
+        db_session.add(event)
+        await db_session.flush()
+        db_session.add(
+            EventAttendeeDB(
+                event_id=event.id, user_id=DEBUG_USER_ID,
+                role="Attendee", cost=Decimal("75.00"),
+            )
+        )
+        await db_session.commit()
+
+        r = await client.get("/api/events")
+        assert r.status_code == 200
+        item = next(i for i in r.json()["items"] if i["name"] == "TC")
+        assert item["total_cost"] == "125.00"
+        assert item["rsvp_counts"] == {"going": 0, "maybe": 0, "not_going": 0}
+        assert item["my_rsvp_status"] is None
+
+    @pytest.mark.asyncio
+    async def test_list_events_sort_by_total_cost(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        from datetime import date
+        from app.modules.events.models.event import EventDB
+
+        db_session.add_all([
+            EventDB(
+                name="A_pricey", event_type="Conference", theme_primary="Climate",
+                region_focus="Global", start_date=date(2026, 6, 1),
+                other_costs=Decimal("1000.00"),
+            ),
+            EventDB(
+                name="B_cheap", event_type="Conference", theme_primary="Climate",
+                region_focus="Global", start_date=date(2026, 6, 2),
+                other_costs=Decimal("10.00"),
+            ),
+        ])
+        await db_session.commit()
+
+        r = await client.get("/api/events?sort_by=total_cost&sort_dir=desc")
+        names = [i["name"] for i in r.json()["items"]]
+        assert names.index("A_pricey") < names.index("B_cheap")

@@ -16,8 +16,10 @@ from app.modules.events.schemas.event import (
     EventResponse,
     EventUpdate,
     EventWithAttendeesResponse,
+    RsvpCounts,
 )
 from app.modules.events.services.event_service import (
+    event_to_dict,
     get_event_with_attendees,
     list_events,
 )
@@ -28,9 +30,14 @@ router = APIRouter()
 
 
 def _event_to_response(event: EventDB, attendee_count: int = 0) -> EventResponse:
-    resp = EventResponse.model_validate(event)
-    resp.attendee_count = attendee_count
-    return resp
+    return EventResponse(
+        **event_to_dict(event),
+        attendee_count=attendee_count,
+        attendee_names=[],
+        total_cost=event.other_costs,
+        rsvp_counts=RsvpCounts(),
+        my_rsvp_status=None,
+    )
 
 
 @router.get("")
@@ -46,7 +53,7 @@ async def list_events_endpoint(
     location_country: str | None = None,
     sort_by: Annotated[
         str | None,
-        Query(pattern=r"^(start_date|cost|rating|name)$"),
+        Query(pattern=r"^(start_date|total_cost|rating|name)$"),
     ] = None,
     sort_dir: Annotated[
         str | None,
@@ -58,6 +65,7 @@ async def list_events_endpoint(
     offset = (page - 1) * page_size
     items, total = await list_events(
         db,
+        viewer_id=UUID(user.user_id),
         search=search,
         year=year,
         quarter=quarter,
@@ -87,7 +95,9 @@ async def get_event(
     db: DBSession,
     user: EventsViewer,
 ) -> EventWithAttendeesResponse:
-    result = await get_event_with_attendees(event_id, db)
+    result = await get_event_with_attendees(
+        event_id, db, viewer_id=UUID(user.user_id)
+    )
     if result is None:
         raise HTTPException(status_code=404, detail="Event not found")
     return EventWithAttendeesResponse(**result)

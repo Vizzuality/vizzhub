@@ -1,9 +1,8 @@
-"""Event attendee (many-to-many with role) database model."""
+"""Event RSVP (per-user going/maybe/not_going) database model."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -11,7 +10,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
-    Numeric,
     String,
     UniqueConstraint,
 )
@@ -22,18 +20,17 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
-class EventAttendeeDB(Base):
-    """Links a user to an event with a participation role."""
+class EventRsvpDB(Base):
+    """Records a user's RSVP response to an event."""
 
-    __tablename__ = "event_attendees"
+    __tablename__ = "event_rsvps"
     __table_args__ = (
-        UniqueConstraint("event_id", "user_id", name="uq_event_attendees_event_user"),
         CheckConstraint(
-            "cost IS NULL OR cost >= 0",
-            name="ck_event_attendees_cost_positive",
+            "status IN ('going','maybe','not_going')",
+            name="ck_event_rsvps_status",
         ),
-        Index("ix_event_attendees_event_id", "event_id"),
-        Index("ix_event_attendees_user_id", "user_id"),
+        UniqueConstraint("event_id", "user_id", name="uq_event_rsvps_event_user"),
+        Index("ix_event_rsvps_event_id", "event_id"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -46,11 +43,13 @@ class EventAttendeeDB(Base):
     )
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="RESTRICT"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    role: Mapped[str] = mapped_column(String(50), nullable=False)
-    cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )

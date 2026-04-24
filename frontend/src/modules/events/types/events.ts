@@ -23,6 +23,16 @@ export const ATTENDEE_ROLES = [
 ] as const;
 export type AttendeeRole = typeof ATTENDEE_ROLES[number];
 
+export const RSVP_STATUSES = ['going', 'maybe', 'not_going'] as const;
+export type RsvpStatus = typeof RSVP_STATUSES[number];
+
+export interface UserSummary {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+}
+
 export interface EventSummary {
   id: string;
   name: string;
@@ -34,7 +44,10 @@ export interface EventSummary {
   location_country: string | null;
   start_date: string;
   end_date: string | null;
-  cost: number;
+  other_costs: number;
+  total_cost: number;
+  rsvp_counts: { going: number; maybe: number; not_going: number };
+  my_rsvp_status: RsvpStatus | null;
   rating: number | null;
   url: string | null;
   observations: string | null;
@@ -50,6 +63,7 @@ export interface Attendee {
   event_id: string;
   user_id: string;
   role: string;
+  cost: number | null;
   user_name: string | null;
   user_email: string | null;
   functional_area: string | null;
@@ -58,6 +72,16 @@ export interface Attendee {
 
 export interface EventDetail extends EventSummary {
   attendees: Attendee[];
+  rsvps: {
+    going: UserSummary[];
+    maybe: UserSummary[];
+    not_going: UserSummary[];
+  };
+}
+
+export interface AttendeeUpdate {
+  role?: string;
+  cost?: number | null;
 }
 
 export interface EventCreate {
@@ -70,7 +94,7 @@ export interface EventCreate {
   location_country?: string | null;
   start_date: string;
   end_date?: string | null;
-  cost?: number;
+  other_costs?: number;
   rating?: number | null;
   url?: string | null;
   observations?: string | null;

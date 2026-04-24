@@ -1,5 +1,7 @@
 import api from '@/core/services/client';
 import type {
+  Attendee,
+  AttendeeUpdate,
   EventCreate,
   EventDetail,
   EventListParams,
@@ -37,9 +39,21 @@ export const eventsApi = {
 
   addAttendees: async (
     eventId: string,
-    attendees: { user_id: string; role: string }[],
+    attendees: { user_id: string; role: string; cost?: number | null }[],
   ): Promise<void> => {
     await api.post(`/events/${eventId}/attendees`, attendees);
+  },
+
+  updateAttendee: async (
+    eventId: string,
+    userId: string,
+    data: AttendeeUpdate,
+  ): Promise<Attendee> => {
+    const response = await api.patch<Attendee>(
+      `/events/${eventId}/attendees/${userId}`,
+      data,
+    );
+    return response.data;
   },
 
   removeAttendee: async (eventId: string, userId: string): Promise<void> => {
