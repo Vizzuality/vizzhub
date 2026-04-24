@@ -9,9 +9,19 @@ Only Adopt tier is auto-approved. Trial/Assess/Hold requires team discussion. If
 
 ## Commands
 
-Backend: `cd backend && pytest` / `python run_server.py`
+Backend (managed with `uv`; venv at `backend/.venv`, prompt `vizzhub`):
+- Install / sync: `cd backend && uv sync --all-groups`
+- Tests: `cd backend && uv run pytest`
+- Dev server: `cd backend && uv run python run_server.py`
+- Worker: `cd backend && uv run arq app.worker.settings.WorkerSettings`
+
 Frontend: `cd frontend && npm test` / `npm run dev`
-Worker: `cd backend && arq app.worker.settings.WorkerSettings`
+
+### Python deps
+
+`backend/pyproject.toml` + `backend/uv.lock` are the source of truth.
+`backend/requirements.txt` is auto-generated for CI / Docker — never edit by hand. Regenerate with:
+`cd backend && uv export --no-dev --no-hashes --output-file requirements.txt`
 
 ## Project Structure
 
