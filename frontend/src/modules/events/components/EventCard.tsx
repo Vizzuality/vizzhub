@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ExternalLink, MapPin, MessageSquareText, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
@@ -20,6 +20,15 @@ interface EventCardProps {
 
 export function EventCard({ event }: EventCardProps): JSX.Element {
   const navigate = useNavigate();
+  const goToDetail = (): void => {
+    navigate(`/events/${event.id}`);
+  };
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      goToDetail();
+    }
+  };
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const themeColor = getThemeColor(event.theme_primary, isDark);
@@ -38,8 +47,12 @@ export function EventCard({ event }: EventCardProps): JSX.Element {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow flex flex-col"
-      onClick={() => navigate(`/events/${event.id}`)}
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${event.name}`}
+      className="cursor-pointer hover:shadow-md transition-shadow flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={goToDetail}
+      onKeyDown={handleKeyDown}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">

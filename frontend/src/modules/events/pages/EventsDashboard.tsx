@@ -11,10 +11,20 @@ import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { StatsCharts } from '../components/StatsCharts';
 import { useEventStats } from '../hooks/useEventStats';
 import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
+import type { EventStats } from '../types/events';
 
 const urlSchema = {
   year: { defaultValue: '' },
 };
+
+function renderStatsContent(
+  isLoading: boolean,
+  stats: EventStats | undefined,
+): JSX.Element | null {
+  if (isLoading) return <LoadingSpinner />;
+  if (stats) return <StatsCharts stats={stats} />;
+  return null;
+}
 
 export default function EventsDashboard(): JSX.Element {
   const { state, setState } = useUrlState(urlSchema);
@@ -44,11 +54,7 @@ export default function EventsDashboard(): JSX.Element {
         </Select>
       </div>
 
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : stats ? (
-        <StatsCharts stats={stats} />
-      ) : null}
+      {renderStatsContent(isLoading, stats)}
     </div>
   );
 }

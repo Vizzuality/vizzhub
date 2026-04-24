@@ -262,6 +262,10 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
   const showDeleteButton = !isNew || !!currentEventId;
   const inCreateMode = isNew && !currentEventId;
 
+  let submitLabel = 'Save';
+  if (isPending) submitLabel = 'Saving...';
+  else if (inCreateMode) submitLabel = 'Create';
+
   return (
     <Dialog open={eventId !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -269,11 +273,7 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
           <DialogTitle>{inCreateMode ? 'New Event' : 'Edit Event'}</DialogTitle>
         </DialogHeader>
 
-        {!isNew && isLoading ? (
-          <div className="flex justify-center py-8">
-            <LoadingSpinner />
-          </div>
-        ) : (
+        {isNew || !isLoading ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
             <div className="space-y-1.5">
@@ -491,15 +491,15 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isPending}>
-                  {isPending
-                    ? 'Saving...'
-                    : inCreateMode
-                      ? 'Create'
-                      : 'Save'}
+                  {submitLabel}
                 </Button>
               </div>
             </DialogFooter>
           </form>
+        ) : (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner />
+          </div>
         )}
       </DialogContent>
 
