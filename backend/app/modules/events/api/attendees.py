@@ -122,8 +122,6 @@ async def update_attendee(
     if "role" in updates:
         attendee.role = updates["role"]
     if "cost" in updates:
-        if updates["cost"] is not None and updates["cost"] < 0:
-            raise HTTPException(status_code=422, detail="cost must be non-negative")
         attendee.cost = updates["cost"]
 
     await db.commit()
