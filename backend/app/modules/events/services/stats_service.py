@@ -95,7 +95,7 @@ async def get_stats(
     total_attendees = (await db.execute(total_attendees_stmt)).scalar() or 0
 
     total_cost_stmt = (
-        select(func.coalesce(func.sum(EventDB.cost), 0)).where(yf)
+        select(func.coalesce(func.sum(EventDB.other_costs), 0)).where(yf)
     )
     total_cost = (await db.execute(total_cost_stmt)).scalar()
 

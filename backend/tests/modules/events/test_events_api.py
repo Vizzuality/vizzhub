@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
 
@@ -33,7 +34,7 @@ class TestEventsCRUD:
 
     @pytest.mark.asyncio
     async def test_create_event(self, client: AsyncClient):
-        payload = _event_payload(cost=1500, location_city="Madrid")
+        payload = _event_payload(other_costs=1500, location_city="Madrid")
         resp = await client.post("/api/events", json=payload)
         assert resp.status_code == 201
         data = resp.json()
@@ -43,7 +44,7 @@ class TestEventsCRUD:
         assert data["region_focus"] == "Europe"
         assert data["start_date"] == "2026-06-15"
         assert data["location_city"] == "Madrid"
-        assert Decimal(str(data["cost"])) == Decimal("1500")
+        assert Decimal(str(data["other_costs"])) == Decimal("1500")
         assert data["attendee_count"] == 0
         assert "id" in data
         assert "created_at" in data
@@ -67,12 +68,12 @@ class TestEventsCRUD:
 
         resp = await client.put(
             f"/api/events/{event_id}",
-            json={"name": "Updated Summit", "cost": 3000},
+            json={"name": "Updated Summit", "other_costs": 3000},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "Updated Summit"
-        assert Decimal(str(data["cost"])) == Decimal("3000")
+        assert Decimal(str(data["other_costs"])) == Decimal("3000")
 
     @pytest.mark.asyncio
     async def test_delete_event(self, client: AsyncClient):
@@ -124,7 +125,7 @@ class TestEventStats:
     ):
         create_resp = await client.post(
             "/api/events",
-            json=_event_payload(cost=500, start_date="2025-03-10"),
+            json=_event_payload(other_costs=500, start_date="2025-03-10"),
         )
         event_id = create_resp.json()["id"]
         await client.post(
@@ -226,20 +227,77 @@ class TestEventFiltering:
     async def test_list_events_sort_by_cost(self, client: AsyncClient):
         await client.post(
             "/api/events",
-            json=_event_payload(name="Cheap Event", cost=100),
+            json=_event_payload(name="Cheap Event", other_costs=100),
         )
         await client.post(
             "/api/events",
-            json=_event_payload(name="Expensive Event", cost=9000),
+            json=_event_payload(name="Expensive Event", other_costs=9000),
         )
 
         resp = await client.get(
             "/api/events",
-            params={"sort_by": "cost", "sort_dir": "asc"},
+            params={"sort_by": "total_cost", "sort_dir": "asc"},
         )
         assert resp.status_code == 200
         items = resp.json()["items"]
         assert len(items) == 2
-        assert Decimal(str(items[0]["cost"])) < Decimal(str(items[1]["cost"]))
+        assert Decimal(str(items[0]["total_cost"])) < Decimal(str(items[1]["total_cost"]))
         assert items[0]["name"] == "Cheap Event"
         assert items[1]["name"] == "Expensive Event"
+
+    @pytest.mark.asyncio
+    async def test_list_events_exposes_total_cost_and_rsvp_counts(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+        from app.modules.events.models.event_attendee import EventAttendeeDB
+        from tests.modules.events.conftest import DEBUG_USER_ID
+
+        event = EventDB(
+            name="TC", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 5, 1),
+            other_costs=Decimal("50.00"),
+        )
+        db_session.add(event)
+        await db_session.flush()
+        db_session.add(
+            EventAttendeeDB(
+                event_id=event.id, user_id=DEBUG_USER_ID,
+                role="Attendee", cost=Decimal("75.00"),
+            )
+        )
+        await db_session.commit()
+
+        r = await client.get("/api/events")
+        assert r.status_code == 200
+        item = next(i for i in r.json()["items"] if i["name"] == "TC")
+        assert item["total_cost"] == "125.00"
+        assert item["rsvp_counts"] == {"going": 0, "maybe": 0, "not_going": 0}
+        assert item["my_rsvp_status"] is None
+
+    @pytest.mark.asyncio
+    async def test_list_events_sort_by_total_cost(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        from datetime import date
+        from app.modules.events.models.event import EventDB
+
+        db_session.add_all([
+            EventDB(
+                name="A_pricey", event_type="Conference", theme_primary="Climate",
+                region_focus="Global", start_date=date(2026, 6, 1),
+                other_costs=Decimal("1000.00"),
+            ),
+            EventDB(
+                name="B_cheap", event_type="Conference", theme_primary="Climate",
+                region_focus="Global", start_date=date(2026, 6, 2),
+                other_costs=Decimal("10.00"),
+            ),
+        ])
+        await db_session.commit()
+
+        r = await client.get("/api/events?sort_by=total_cost&sort_dir=desc")
+        names = [i["name"] for i in r.json()["items"]]
+        assert names.index("A_pricey") < names.index("B_cheap")
