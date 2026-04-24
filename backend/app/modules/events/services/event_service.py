@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
+from sqlalchemy.sql.elements import Label
 
 from app.core.models.functional_area import FunctionalAreaDB
 from app.core.models.user import UserDB
@@ -46,7 +47,7 @@ def _attendees_cost_subquery() -> Select:
     )
 
 
-def _total_cost_expr():
+def _total_cost_expr() -> Label:
     return (EventDB.other_costs + _attendees_cost_subquery()).label("total_cost")
 
 
