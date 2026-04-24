@@ -1,12 +1,17 @@
+import { useState } from 'react';
 import { Calendar, ExternalLink, MapPin, MessageSquareText, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import { useTheme } from 'next-themes';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/core/hooks/queryKeys';
 import { StarRating } from './StarRating';
+import { RsvpChips } from './RsvpChips';
+import { eventsApi } from '../services/events';
 import { getThemeColor } from '../utils/constants';
-import type { EventSummary } from '../types/events';
+import type { EventSummary, RsvpStatus, UserSummary } from '../types/events';
 
 interface EventCardProps {
   readonly event: EventSummary;
@@ -37,6 +42,18 @@ export function EventCard({
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const themeColor = getThemeColor(event.theme_primary, isDark);
+  const queryClient = useQueryClient();
+  const [hydratedNames, setHydratedNames] =
+    useState<Record<RsvpStatus, UserSummary[]> | null>(null);
+
+  const prefetchNames = async (): Promise<void> => {
+    if (hydratedNames) return;
+    const detail = await queryClient.fetchQuery({
+      queryKey: queryKeys.events.detail(event.id),
+      queryFn: () => eventsApi.get(event.id),
+    });
+    setHydratedNames(detail.rsvps);
+  };
 
   return (
     <Card
@@ -97,7 +114,7 @@ export function EventCard({
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">
-              {formatCurrency(Number(event.cost))}
+              {formatCurrency(Number(event.total_cost))}
             </span>
             {event.observations && (
               <TooltipProvider>
@@ -130,6 +147,19 @@ export function EventCard({
               <span>Link</span>
             </a>
           )}
+        </div>
+        <div
+          className="mt-3 pt-3 border-t"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <RsvpChips
+            eventId={event.id}
+            counts={event.rsvp_counts}
+            myStatus={event.my_rsvp_status}
+            names={hydratedNames ?? undefined}
+            onHover={() => { void prefetchNames(); }}
+            size="sm"
+          />
         </div>
       </CardContent>
     </Card>
