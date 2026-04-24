@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,12 +28,12 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
-import { useEvent, useAddAttendees, useRemoveAttendee } from '../hooks/useEvent';
+import { useEvent, useBatchAttendees, type AttendeeBatch } from '../hooks/useEvent';
 import { useCreateEvent, useUpdateEvent, useDeleteEvent } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
 import { StarRating } from './StarRating';
-import { AttendeesPicker } from './AttendeesPicker';
-import type { EventCreate } from '../types/events';
+import { AttendeesPicker, type LocalAttendee } from './AttendeesPicker';
+import type { Attendee, EventCreate } from '../types/events';
 
 const NONE_SENTINEL = '__none__';
 
@@ -52,7 +52,7 @@ interface FormState {
   end_date: string;
   location_city: string;
   location_country: string;
-  cost: string;
+  other_costs: string;
   rating: number | null;
   url: string;
   observations: string;
@@ -68,11 +68,54 @@ const INITIAL_FORM: FormState = {
   end_date: '',
   location_city: '',
   location_country: '',
-  cost: '0',
+  other_costs: '0',
   rating: null,
   url: '',
   observations: '',
 };
+
+function attendeeToLocal(a: Attendee): LocalAttendee {
+  return {
+    user_id: a.user_id,
+    role: a.role,
+    cost: a.cost,
+    _persistedId: a.id,
+    user_name: a.user_name,
+    user_email: a.user_email,
+    functional_area: a.functional_area,
+  };
+}
+
+function computeBatch(
+  current: LocalAttendee[],
+  original: LocalAttendee[],
+): AttendeeBatch {
+  const origByUser = new Map(original.map((a) => [a.user_id, a]));
+  const currByUser = new Map(current.map((a) => [a.user_id, a]));
+
+  const toAdd = current
+    .filter((a) => !a._persistedId)
+    .map((a) => ({ user_id: a.user_id, role: a.role, cost: a.cost }));
+
+  const toRemove = original
+    .filter((a) => !currByUser.has(a.user_id))
+    .map((a) => a.user_id);
+
+  const toUpdate: AttendeeBatch['toUpdate'] = [];
+  for (const a of current) {
+    if (!a._persistedId) continue;
+    const prev = origByUser.get(a.user_id);
+    if (!prev) continue;
+    const changes: { role?: string; cost?: number | null } = {};
+    if (prev.role !== a.role) changes.role = a.role;
+    if ((prev.cost ?? null) !== (a.cost ?? null)) changes.cost = a.cost;
+    if (Object.keys(changes).length > 0) {
+      toUpdate.push({ user_id: a.user_id, changes });
+    }
+  }
+
+  return { toAdd, toRemove, toUpdate };
+}
 
 export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
   const isNew = eventId === 'new';
@@ -83,11 +126,14 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
-  const addAttendees = useAddAttendees();
-  const removeAttendee = useRemoveAttendee();
+  const batchAttendees = useBatchAttendees();
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [attendees, setAttendees] = useState<LocalAttendee[]>([]);
+  const [originalAttendees, setOriginalAttendees] = useState<LocalAttendee[]>([]);
+  const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -102,21 +148,31 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
         end_date: existingEvent.end_date ?? '',
         location_city: existingEvent.location_city ?? '',
         location_country: existingEvent.location_country ?? '',
-        cost: String(existingEvent.cost ?? 0),
+        other_costs: String(existingEvent.other_costs ?? 0),
         rating: existingEvent.rating,
         url: existingEvent.url ?? '',
         observations: existingEvent.observations ?? '',
       });
+      const mapped = existingEvent.attendees.map(attendeeToLocal);
+      setAttendees(mapped);
+      setOriginalAttendees(mapped);
     }
   }, [existingEvent, isNew]);
+
+  const totalCost = useMemo(() => {
+    const other = Number(form.other_costs) || 0;
+    const sum = attendees.reduce((acc, a) => acc + (a.cost ?? 0), 0);
+    return other + sum;
+  }, [form.other_costs, attendees]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]): void => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent): void => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setError(null);
+    setWarning(null);
 
     if (!form.name.trim()) {
       setError('Name is required.');
@@ -140,49 +196,77 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
       end_date: form.end_date || null,
       location_city: form.location_city || null,
       location_country: form.location_country || null,
-      cost: Number(form.cost) || 0,
+      other_costs: Number(form.other_costs) || 0,
       rating: form.rating,
       url: form.url || null,
       observations: form.observations || null,
     };
 
-    const onError = (err: unknown): void => {
-      const detail = (err as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail;
-      setError(detail ?? 'Something went wrong.');
-    };
+    const extractDetail = (err: unknown): string | undefined =>
+      (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
 
-    if (isNew) {
-      createEvent.mutate(payload, { onSuccess: onClose, onError });
-    } else {
-      updateEvent.mutate(
-        { id: editId, data: payload },
-        { onSuccess: onClose, onError },
-      );
+    let targetId: string;
+    try {
+      if (isNew && !currentEventId) {
+        const created = await createEvent.mutateAsync(payload);
+        targetId = created.id;
+        setCurrentEventId(created.id);
+      } else {
+        const existingId = editId || currentEventId || '';
+        targetId = existingId;
+        await updateEvent.mutateAsync({ id: existingId, data: payload });
+      }
+    } catch (err) {
+      setError(extractDetail(err) ?? 'Something went wrong.');
+      return;
     }
+
+    const batch = computeBatch(attendees, originalAttendees);
+    const hasBatchWork =
+      batch.toAdd.length > 0 || batch.toRemove.length > 0 || batch.toUpdate.length > 0;
+
+    if (hasBatchWork) {
+      try {
+        const result = await batchAttendees.mutateAsync({
+          eventId: targetId,
+          batch,
+        });
+        if (result.failed.length > 0) {
+          setWarning(
+            `Event saved, but ${result.failed.length} attendee change(s) failed. Please retry.`,
+          );
+          // Refresh original baseline from current server state would require a refetch;
+          // keep form open so the user can retry.
+          return;
+        }
+      } catch (err) {
+        setWarning(
+          extractDetail(err) ?? 'Event saved, but attendee updates failed.',
+        );
+        return;
+      }
+    }
+
+    onClose();
   };
 
   const handleDelete = (): void => {
-    deleteEvent.mutate(editId, { onSuccess: onClose });
+    const deleteId = editId || currentEventId;
+    if (!deleteId) return;
+    deleteEvent.mutate(deleteId, { onSuccess: onClose });
   };
 
-  const isPending = createEvent.isPending || updateEvent.isPending;
+  const isPending =
+    createEvent.isPending || updateEvent.isPending || batchAttendees.isPending;
 
-  const handleAddAttendees = (
-    attendees: { user_id: string; role: string }[],
-  ): void => {
-    addAttendees.mutate({ eventId: editId, attendees });
-  };
-
-  const handleRemoveAttendee = (userId: string): void => {
-    removeAttendee.mutate({ eventId: editId, userId });
-  };
+  const showDeleteButton = !isNew || !!currentEventId;
+  const inCreateMode = isNew && !currentEventId;
 
   return (
     <Dialog open={eventId !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isNew ? 'New Event' : 'Edit Event'}</DialogTitle>
+          <DialogTitle>{inCreateMode ? 'New Event' : 'Edit Event'}</DialogTitle>
         </DialogHeader>
 
         {!isNew && isLoading ? (
@@ -319,18 +403,27 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
               </div>
             </div>
 
-            {/* Cost + Rating */}
+            {/* Other costs + Rating */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="evt-cost">Cost (EUR)</Label>
+                <Label htmlFor="evt-other-costs">Other costs (EUR)</Label>
                 <Input
-                  id="evt-cost"
+                  id="evt-other-costs"
                   type="number"
                   min="0"
                   step="0.01"
-                  value={form.cost}
-                  onChange={(e) => setField('cost', e.target.value)}
+                  value={form.other_costs}
+                  onChange={(e) => setField('other_costs', e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Event-level costs not tied to an attendee (venue, booth, etc.).
+                </p>
+                <div className="flex items-center justify-between pt-1 text-sm">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-medium">
+                    {`€${totalCost.toFixed(2)}`}
+                  </span>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Rating</Label>
@@ -368,23 +461,23 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
               />
             </div>
 
-            {/* Attendees (edit only) */}
-            {!isNew && existingEvent && (
-              <div className="border-t pt-4">
-                <AttendeesPicker
-                  attendees={existingEvent.attendees}
-                  onAdd={handleAddAttendees}
-                  onRemove={handleRemoveAttendee}
-                />
-              </div>
-            )}
+            {/* Attendees (always visible, collects batch locally) */}
+            <div className="border-t pt-4">
+              <AttendeesPicker
+                attendees={attendees}
+                onChange={setAttendees}
+              />
+            </div>
 
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
+            {warning && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">{warning}</p>
+            )}
 
             <DialogFooter className="flex !justify-between">
-              {!isNew ? (
+              {showDeleteButton ? (
                 <Button
                   type="button"
                   variant="destructive"
@@ -400,7 +493,7 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
                 <Button type="submit" disabled={isPending}>
                   {isPending
                     ? 'Saving...'
-                    : isNew
+                    : inCreateMode
                       ? 'Create'
                       : 'Save'}
                 </Button>
