@@ -1,5 +1,4 @@
 import { ArrowUp, ArrowDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -17,7 +16,6 @@ type SortDir = 'asc' | 'desc';
 
 interface EventsTableProps {
   readonly events: EventSummary[];
-  readonly canManage: boolean;
   readonly onRowClick: (id: string) => void;
   readonly sortKey: SortKey | string;
   readonly sortDir: SortDir;
@@ -68,7 +66,6 @@ function SortableHead({
 
 export function EventsTable({
   events,
-  canManage,
   onRowClick,
   sortKey,
   sortDir,
@@ -119,8 +116,8 @@ export function EventsTable({
           {events.map((e) => (
             <TableRow
               key={e.id}
-              className={cn(canManage && 'cursor-pointer hover:bg-muted/30')}
-              onClick={() => canManage && onRowClick(e.id)}
+              className="cursor-pointer hover:bg-muted/30"
+              onClick={() => onRowClick(e.id)}
             >
               <TableCell className="font-medium">{e.name}</TableCell>
               <TableCell>{e.event_type}</TableCell>
@@ -132,7 +129,7 @@ export function EventsTable({
                   .filter(Boolean)
                   .join(' · ') || '—'}
               </TableCell>
-              <TableCell>€{e.total_cost.toFixed(2)}</TableCell>
+              <TableCell>€{Number(e.total_cost).toFixed(2)}</TableCell>
               <TableCell>{e.attendee_count}</TableCell>
               <TableCell onClick={(ev) => ev.stopPropagation()}>
                 <RsvpChips

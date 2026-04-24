@@ -78,7 +78,7 @@ function attendeeToLocal(a: Attendee): LocalAttendee {
   return {
     user_id: a.user_id,
     role: a.role,
-    cost: a.cost,
+    cost: a.cost == null ? null : Number(a.cost),
     _persistedId: a.id,
     user_name: a.user_name,
     user_email: a.user_email,

@@ -55,3 +55,15 @@ export function buildYearOptions(): string[] {
   }
   return years;
 }
+
+export function formatEventDateRange(start: string, end: string | null): string {
+  const fmt = (d: string): string =>
+    new Date(d).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  const s = fmt(start);
+  if (!end || end === start) return s;
+  return `${s} — ${fmt(end)}`;
+}

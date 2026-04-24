@@ -129,7 +129,7 @@ export function AttendeesPicker({
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder="—"
+                placeholder="Cost €"
                 className="w-[100px] h-8 text-xs"
                 value={a.cost ?? ''}
                 onChange={(e) => {

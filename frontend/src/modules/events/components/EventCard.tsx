@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, ExternalLink, MapPin, MessageSquareText, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
@@ -10,35 +11,15 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { StarRating } from './StarRating';
 import { RsvpChips } from './RsvpChips';
 import { eventsApi } from '../services/events';
-import { getThemeColor } from '../utils/constants';
+import { formatEventDateRange, getThemeColor } from '../utils/constants';
 import type { EventSummary, RsvpStatus, UserSummary } from '../types/events';
 
 interface EventCardProps {
   readonly event: EventSummary;
-  readonly onClick: (id: string) => void;
-  readonly clickable?: boolean;
 }
 
-function formatDateRange(start: string, end: string | null): string {
-  const s = new Date(start).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  if (!end || end === start) return s;
-  const e = new Date(end).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  return `${s} \u2014 ${e}`;
-}
-
-export function EventCard({
-  event,
-  onClick,
-  clickable = true,
-}: EventCardProps): JSX.Element {
+export function EventCard({ event }: EventCardProps): JSX.Element {
+  const navigate = useNavigate();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const themeColor = getThemeColor(event.theme_primary, isDark);
@@ -57,12 +38,8 @@ export function EventCard({
 
   return (
     <Card
-      className={
-        clickable
-          ? 'cursor-pointer hover:shadow-md transition-shadow flex flex-col'
-          : 'flex flex-col'
-      }
-      onClick={clickable ? () => onClick(event.id) : undefined}
+      className="cursor-pointer hover:shadow-md transition-shadow flex flex-col"
+      onClick={() => navigate(`/events/${event.id}`)}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
@@ -89,7 +66,7 @@ export function EventCard({
         <div className="space-y-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <Calendar size={12} />
-            <span>{formatDateRange(event.start_date, event.end_date)}</span>
+            <span>{formatEventDateRange(event.start_date, event.end_date)}</span>
           </div>
           {(event.location_city || event.location_country) && (
             <div className="flex items-center gap-1.5">

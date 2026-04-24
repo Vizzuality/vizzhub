@@ -44,7 +44,6 @@ describe('EventsTable', () => {
   it('renders a row per event', () => {
     render_({
       events,
-      canManage: false,
       onRowClick: () => {},
       sortKey: 'start_date',
       sortDir: 'desc',
@@ -53,31 +52,15 @@ describe('EventsTable', () => {
     expect(screen.getByText('First')).toBeInTheDocument();
   });
 
-  it('row click calls onRowClick only when canManage', () => {
+  it('row click calls onRowClick with event id', () => {
     const cb = vi.fn();
-    const { rerender } = render_({
+    render_({
       events,
-      canManage: false,
       onRowClick: cb,
       sortKey: 'start_date',
       sortDir: 'desc',
       onSortChange: () => {},
     });
-    fireEvent.click(screen.getByText('First'));
-    expect(cb).not.toHaveBeenCalled();
-
-    rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <EventsTable
-          events={events}
-          canManage={true}
-          onRowClick={cb}
-          sortKey="start_date"
-          sortDir="desc"
-          onSortChange={() => {}}
-        />
-      </QueryClientProvider>,
-    );
     fireEvent.click(screen.getByText('First'));
     expect(cb).toHaveBeenCalledWith('e1');
   });

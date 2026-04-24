@@ -45,6 +45,7 @@ import CapacityPlanner from './modules/capacity/pages/Planner';
 import Playbook from './modules/playbook/pages/Playbook';
 import Events from './modules/events/pages/Events';
 import EventsDashboard from './modules/events/pages/EventsDashboard';
+import EventDetail from './modules/events/pages/EventDetail';
 import DevstackCatalog from './modules/devstack/pages/Catalog';
 import EntryDetail from './modules/devstack/pages/EntryDetail';
 import IsoDocs from './modules/iso-docs/pages/IsoDocs';
@@ -116,6 +117,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/playbook" element={<Playbook />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/dashboard" element={<EventsDashboard />} />
+          <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/devstack" element={<DevstackCatalog />} />
           <Route path="/devstack/:id" element={<EntryDetail />} />
           <Route path="/iso/docs" element={<IsoDocs />} />
@@ -151,6 +153,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/playbook" element={<Playbook />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/dashboard" element={<EventsDashboard />} />
+          <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/devstack" element={<DevstackCatalog />} />
           <Route path="/devstack/:id" element={<EntryDetail />} />
           <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>

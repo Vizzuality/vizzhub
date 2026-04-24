@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermission, Action } from '@/core/permissions';
@@ -46,12 +47,13 @@ const urlSchema = {
 };
 
 export default function Events(): JSX.Element {
+  const navigate = useNavigate();
   const canManage = usePermission(Action.EVENTS_MANAGE);
   const { state, setState } = useUrlState(urlSchema);
   const { data: options } = useEventOptions();
 
   const [localSearch, setLocalSearch] = useState(state.search);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     setLocalSearch(state.search);
@@ -88,11 +90,6 @@ export default function Events(): JSX.Element {
     state.search || state.year || state.theme || state.type || state.region
   );
 
-  const handleCardClick = (id: string): void => {
-    if (!canManage) return;
-    setSelectedEventId(id);
-  };
-
   const handleSelectChange = (
     key: keyof typeof urlSchema,
     value: string,
@@ -122,7 +119,7 @@ export default function Events(): JSX.Element {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Events</h1>
         {canManage && (
-          <Button size="sm" onClick={() => setSelectedEventId('new')}>
+          <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             New Event
           </Button>
@@ -256,8 +253,7 @@ export default function Events(): JSX.Element {
         state.view === 'list' ? (
           <EventsTable
             events={events}
-            canManage={canManage}
-            onRowClick={(id) => setSelectedEventId(id)}
+            onRowClick={(id) => navigate(`/events/${id}`)}
             sortKey={sortBy}
             sortDir={sortDir as 'asc' | 'desc'}
             onSortChange={(k, d) => setState({ sort: `${k}:${d}` })}
@@ -265,12 +261,7 @@ export default function Events(): JSX.Element {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onClick={handleCardClick}
-                clickable={canManage}
-              />
+              <EventCard key={event.id} event={event} />
             ))}
           </div>
         )
@@ -283,10 +274,7 @@ export default function Events(): JSX.Element {
                 : 'No events yet'}
             </p>
             {canManage && !hasActiveFilters && (
-              <Button
-                className="mt-4"
-                onClick={() => setSelectedEventId('new')}
-              >
+              <Button className="mt-4" onClick={() => setCreating(true)}>
                 Create your first event
               </Button>
             )}
@@ -294,11 +282,8 @@ export default function Events(): JSX.Element {
         </Card>
       )}
 
-      {canManage && selectedEventId && (
-        <EventForm
-          eventId={selectedEventId}
-          onClose={() => setSelectedEventId(null)}
-        />
+      {canManage && creating && (
+        <EventForm eventId="new" onClose={() => setCreating(false)} />
       )}
     </div>
   );
