@@ -204,6 +204,94 @@ class TestEventAttendees:
         )
         assert resp.status_code == 409
 
+    @pytest.mark.asyncio
+    async def test_add_attendee_with_cost(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: UserDB
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+
+        event = EventDB(
+            name="Cost Test", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 7, 1),
+            other_costs=Decimal("0"),
+        )
+        db_session.add(event)
+        await db_session.commit()
+
+        r = await client.post(
+            f"/api/events/{event.id}/attendees",
+            json=[{
+                "user_id": str(test_user.id),
+                "role": "Speaker",
+                "cost": "150.50",
+            }],
+        )
+        assert r.status_code == 201
+        assert r.json()[0]["cost"] == "150.50"
+
+    @pytest.mark.asyncio
+    async def test_patch_attendee_updates_role_and_cost(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: UserDB
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+        from app.modules.events.models.event_attendee import EventAttendeeDB
+
+        event = EventDB(
+            name="Patch Test", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 7, 2),
+            other_costs=Decimal("0"),
+        )
+        db_session.add(event)
+        await db_session.flush()
+        db_session.add(
+            EventAttendeeDB(
+                event_id=event.id, user_id=test_user.id,
+                role="Attendee", cost=None,
+            )
+        )
+        await db_session.commit()
+
+        r = await client.patch(
+            f"/api/events/{event.id}/attendees/{test_user.id}",
+            json={"role": "Panelist", "cost": "200.00"},
+        )
+        assert r.status_code == 200
+        assert r.json()["role"] == "Panelist"
+        assert r.json()["cost"] == "200.00"
+
+    @pytest.mark.asyncio
+    async def test_patch_attendee_rejects_negative_cost(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: UserDB
+    ):
+        from datetime import date
+
+        from app.modules.events.models.event import EventDB
+        from app.modules.events.models.event_attendee import EventAttendeeDB
+
+        event = EventDB(
+            name="Neg Test", event_type="Conference", theme_primary="Climate",
+            region_focus="Global", start_date=date(2026, 7, 3),
+            other_costs=Decimal("0"),
+        )
+        db_session.add(event)
+        await db_session.flush()
+        db_session.add(
+            EventAttendeeDB(
+                event_id=event.id, user_id=test_user.id, role="Attendee",
+            )
+        )
+        await db_session.commit()
+
+        r = await client.patch(
+            f"/api/events/{event.id}/attendees/{test_user.id}",
+            json={"cost": "-1"},
+        )
+        assert r.status_code == 400
+
 
 class TestEventFiltering:
     @pytest.mark.asyncio

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.api.deps import DBSession
 from app.modules.events.api.deps import EventsManager, get_event_or_404
 from app.modules.events.models.event_attendee import EventAttendeeDB
-from app.modules.events.schemas.event_attendee import AttendeeCreate, AttendeeResponse
+from app.modules.events.schemas.event_attendee import AttendeeCreate, AttendeeResponse, AttendeeUpdate
 from app.modules.events.services.event_service import load_attendee_details
 
 logger = structlog.get_logger()
@@ -40,6 +40,7 @@ async def add_attendees(
             event_id=event_id,
             user_id=item.user_id,
             role=item.role,
+            cost=item.cost,
         )
         db.add(attendee)
         try:
@@ -90,3 +91,49 @@ async def remove_attendee(
         event_id=str(event_id),
         user_id=str(user_id),
     )
+
+
+@router.patch(
+    "/{event_id}/attendees/{user_id}",
+    responses={
+        400: {"description": "Invalid cost"},
+        404: {"description": "Event or attendee not found"},
+    },
+)
+async def update_attendee(
+    event_id: UUID,
+    user_id: UUID,
+    body: AttendeeUpdate,
+    db: DBSession,
+    user: EventsManager,
+) -> AttendeeResponse:
+    await get_event_or_404(db, event_id)
+    result = await db.execute(
+        select(EventAttendeeDB).where(
+            EventAttendeeDB.event_id == event_id,
+            EventAttendeeDB.user_id == user_id,
+        )
+    )
+    attendee = result.scalar_one_or_none()
+    if attendee is None:
+        raise HTTPException(status_code=404, detail="Attendee not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    if "role" in updates:
+        attendee.role = updates["role"]
+    if "cost" in updates:
+        if updates["cost"] is not None and updates["cost"] < 0:
+            raise HTTPException(status_code=422, detail="cost must be non-negative")
+        attendee.cost = updates["cost"]
+
+    await db.commit()
+    logger.info(
+        "attendee_updated",
+        event_id=str(event_id),
+        user_id=str(user_id),
+        fields=list(updates.keys()),
+    )
+    details = await load_attendee_details(
+        db, [event_id], attendee_ids=[attendee.id]
+    )
+    return AttendeeResponse(**details[0])
