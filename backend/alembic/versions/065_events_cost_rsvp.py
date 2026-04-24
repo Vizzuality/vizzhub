@@ -60,7 +60,8 @@ def upgrade() -> None:
         ")"
     )
     op.execute(
-        "CREATE INDEX ix_event_rsvps_event_id ON event_rsvps (event_id)"
+        "CREATE INDEX IF NOT EXISTS ix_event_rsvps_event_id "
+        "ON event_rsvps (event_id)"
     )
 
 
