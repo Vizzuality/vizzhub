@@ -186,6 +186,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 ## Code Quality / CI
 
 - After implementing features, run SonarCloud-compatible code only. Avoid PEP 695 type syntax (`type X = ...`) for SonarCloud and IDE plugin compatibility. CI runs Python 3.13. Always verify CI compatibility before pushing.
+- CI auto-skips `**/*.md` and `docs/**` changes via `paths-ignore`. For other commits that obviously can't break CI (memory notes, comments-only edits, infra-only `.tf` changes that don't touch tests/code), append `[skip ci]` to the commit message to avoid wasting a 7-min CI run. Never use `[skip ci]` on code, dependency, Dockerfile, schema, migration, or CI-config commits.
 
 ## Backend Development
 
