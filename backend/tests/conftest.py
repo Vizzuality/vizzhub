@@ -1,18 +1,60 @@
 """Test configuration and fixtures."""
 
+import asyncio
 import os
 from decimal import Decimal
 from unittest.mock import patch
+from urllib.parse import urlparse, urlunparse
+
+
+def _worker_database_url(base_url: str, worker_id: str) -> str:
+    """Append worker suffix to the DB name in a SQLAlchemy URL."""
+    parsed = urlparse(base_url)
+    new_path = f"{parsed.path}_{worker_id}"
+    return urlunparse(parsed._replace(path=new_path))
+
+
+def _ensure_worker_database(worker_db_url: str) -> None:
+    """Create the worker-specific Postgres DB if it doesn't already exist."""
+    import asyncpg
+
+    parsed = urlparse(worker_db_url.replace("postgresql+asyncpg", "postgresql"))
+    db_name = parsed.path.lstrip("/")
+    admin_url = urlunparse(parsed._replace(path="/postgres"))
+
+    async def _create() -> None:
+        conn = await asyncpg.connect(admin_url)
+        try:
+            exists = await conn.fetchval(
+                "SELECT 1 FROM pg_database WHERE datname = $1", db_name
+            )
+            if not exists:
+                await conn.execute(f'CREATE DATABASE "{db_name}"')
+        finally:
+            await conn.close()
+
+    asyncio.run(_create())
+
+
+# Each pytest-xdist worker gets its own Postgres database so parallel runs
+# don't trip over the per-test drop_all/create_all on shared tables. The same
+# URL is exported as both DATABASE_URL (read by app settings, used by code paths
+# that build their own engine, e.g. oauth_service) and TEST_DATABASE_URL.
+_WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "main")
+_BASE_DB_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test",
+)
+_TEST_DB_URL = _worker_database_url(_BASE_DB_URL, _WORKER_ID)
+_ensure_worker_database(_TEST_DB_URL)
 
 # CRITICAL: Set test environment variables BEFORE any app imports
 # This ensures the settings object is initialized with test values
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("SESSION_SECRET_KEY", "test-session-secret-key-for-testing")
-os.environ.setdefault(
-    "DATABASE_URL",
-    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test",
-)
+os.environ["DATABASE_URL"] = _TEST_DB_URL
+os.environ["TEST_DATABASE_URL"] = _TEST_DB_URL
 
 from collections.abc import AsyncGenerator
 
@@ -29,6 +71,8 @@ from app.main import app
 
 _TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
 
+TEST_DATABASE_URL = _TEST_DB_URL
+
 
 @pytest.fixture(autouse=True)
 def _mock_encryption_key():
@@ -36,12 +80,6 @@ def _mock_encryption_key():
     with patch("app.core.token_encryption.get_settings") as mock:
         mock.return_value.oauth_encryption_key = _TEST_ENCRYPTION_KEY
         yield
-
-
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://scorecard:scorecard@localhost:5432/scorecard_test",
-)
 
 
 _TEST_CONFIG_DEFAULTS: dict[str, Decimal] = {
