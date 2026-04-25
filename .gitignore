@@ -135,7 +135,8 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
-infrastructure/tfplanSupport/
+infrastructure/tfplan
+Support/
 
 # Ephemeral brainstorming outputs (Superpowers specs/plans)
 docs/superpowers/
