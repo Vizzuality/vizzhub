@@ -232,6 +232,15 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides.clear()
 
+    # Endpoints like /health/ready and load_scoring_config_from_db build sessions
+    # from app.database.async_session_maker directly, bypassing the get_db override.
+    # Connections in that pool are bound to this test's event loop, which
+    # pytest-asyncio closes between tests; reusing them next test triggers
+    # asyncpg "another operation in progress". Drain the pool so the next test
+    # starts with fresh connections.
+    from app.database import engine as app_engine
+    await app_engine.dispose()
+
 
 async def seed_roles(db_session: AsyncSession) -> dict[str, RoleDB]:
     """Seed roles table for tests. Returns name->RoleDB mapping."""
