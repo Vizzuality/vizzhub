@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 
 import pytest
 import pytest_asyncio
 from mcp.server.fastmcp.exceptions import ToolError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
@@ -195,6 +197,86 @@ async def test_iso_update_page_metadata_changelog_valid(
             data = json.loads(result[0][0].text)
             assert data["status"] == "queued"
             assert "command_id" in data
+
+
+@pytest.mark.asyncio
+async def test_iso_update_page_metadata_classification_invalid_rejected_at_queue_time(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """`internal` is not a valid classification (the enum is `internal_use`)."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            with pytest.raises(ToolError):
+                await mcp.call_tool(
+                    "iso_update_page_metadata",
+                    {"slug": "security-policy", "classification": "internal"},
+                )
+
+
+@pytest.mark.asyncio
+async def test_iso_update_page_metadata_status_invalid_rejected_at_queue_time(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """`obsolete` is not a real status; only draft/approved/under_review exist."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            with pytest.raises(ToolError):
+                await mcp.call_tool(
+                    "iso_update_page_metadata",
+                    {"slug": "security-policy", "status": "obsolete"},
+                )
+
+
+@pytest.mark.asyncio
+async def test_iso_update_page_metadata_document_date_invalid_format_rejected(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Malformed date string fails at queue time, not at approve."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            with pytest.raises(ToolError):
+                await mcp.call_tool(
+                    "iso_update_page_metadata",
+                    {"slug": "security-policy", "document_date": "not-a-date"},
+                )
+
+
+@pytest.mark.asyncio
+async def test_iso_update_page_metadata_document_date_iso_string_round_trip(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """ISO date string travels through the JSONB queue and lands as a Date in DB."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            result = await mcp.call_tool(
+                "iso_update_page_metadata",
+                {"slug": "security-policy", "document_date": "2026-04-27"},
+            )
+            data = json.loads(result[0][0].text)
+            assert data["status"] == "queued"
+
+            approve_result = await mcp.call_tool(
+                "approve_command",
+                {"command_id": data["command_id"]},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "executed"
+
+    meta_row = await db_session.execute(
+        select(IsoDocMetadataDB).where(
+            IsoDocMetadataDB.node_id == seeded_iso["page"].id
+        )
+    )
+    meta = meta_row.scalar_one()
+    assert meta.document_date == date(2026, 4, 27)
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -186,6 +187,71 @@ async def test_update_metadata(
     meta = meta_result.scalar_one()
     assert meta.status == "approved"
     assert meta.code == "POL-002"
+
+
+@pytest.mark.asyncio
+async def test_update_metadata_document_date_string_payload_parses_to_date(
+    db_session: AsyncSession, test_user: UserDB, iso_tree: dict,
+) -> None:
+    """Defense in depth: a JSONB payload with a string date is parsed to date."""
+    await execute(
+        "update_metadata",
+        "security-policy",
+        {"document_date": "2026-04-27"},
+        test_user.id,
+        db_session,
+    )
+
+    meta_result = await db_session.execute(
+        select(IsoDocMetadataDB).where(
+            IsoDocMetadataDB.node_id == iso_tree["page"].id
+        )
+    )
+    meta = meta_result.scalar_one()
+    assert meta.document_date == date(2026, 4, 27)
+
+
+@pytest.mark.asyncio
+async def test_update_metadata_invalid_classification_rejected_by_handler(
+    db_session: AsyncSession, test_user: UserDB, iso_tree: dict,
+) -> None:
+    """Handler rejects invalid enum values without round-tripping to asyncpg."""
+    with pytest.raises(ValueError, match="classification"):
+        await execute(
+            "update_metadata",
+            "security-policy",
+            {"classification": "internal"},
+            test_user.id,
+            db_session,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_metadata_invalid_status_rejected_by_handler(
+    db_session: AsyncSession, test_user: UserDB, iso_tree: dict,
+) -> None:
+    with pytest.raises(ValueError, match="status"):
+        await execute(
+            "update_metadata",
+            "security-policy",
+            {"status": "obsolete"},
+            test_user.id,
+            db_session,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_metadata_invalid_document_date_rejected_by_handler(
+    db_session: AsyncSession, test_user: UserDB, iso_tree: dict,
+) -> None:
+    with pytest.raises(ValueError, match="document_date"):
+        await execute(
+            "update_metadata",
+            "security-policy",
+            {"document_date": "not-a-date"},
+            test_user.id,
+            db_session,
+        )
 
 
 @pytest.mark.asyncio

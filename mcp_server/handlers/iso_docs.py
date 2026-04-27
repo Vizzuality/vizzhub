@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -35,6 +37,39 @@ _versions = ContentVersionService(
     model_class=IsoDocVersionDB,
     entity_fk_field="node_id",
 )
+
+_VALID_CLASSIFICATIONS = ("internal_use", "confidential")
+_VALID_STATUSES = ("draft", "approved", "under_review")
+
+
+def _coerce_metadata_field(field: str, value: Any) -> Any:
+    """Validate and cast a metadata field value coming from the JSONB queue.
+
+    The command queue stores payloads as JSONB, so dates arrive as strings
+    and enum columns receive whatever the caller wrote. This helper rejects
+    invalid enum values up-front and parses ISO date strings to date objects
+    so asyncpg sees the right Python type at flush time.
+    """
+    if value is None:
+        return None
+    if field == "document_date" and isinstance(value, str):
+        try:
+            return date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid document_date '{value}': expected ISO format YYYY-MM-DD"
+            ) from exc
+    if field == "classification" and value not in _VALID_CLASSIFICATIONS:
+        raise ValueError(
+            f"Invalid classification '{value}': must be one of "
+            f"{', '.join(_VALID_CLASSIFICATIONS)}"
+        )
+    if field == "status" and value not in _VALID_STATUSES:
+        raise ValueError(
+            f"Invalid status '{value}': must be one of "
+            f"{', '.join(_VALID_STATUSES)}"
+        )
+    return value
 
 
 async def _get_user_display_name(session: AsyncSession, user_id: UUID) -> str:
@@ -277,7 +312,11 @@ async def _update_metadata(
         "code", "standard", "clauses", "classification", "status",
         "document_date", "original_filename", "guidance", "changelog",
     }
-    update = {k: v for k, v in payload.items() if k in allowed_fields}
+    update = {
+        k: _coerce_metadata_field(k, v)
+        for k, v in payload.items()
+        if k in allowed_fields
+    }
 
     if "changelog" in update and update["changelog"]:
         await _fill_changelog_authors(session, update["changelog"], user_id)

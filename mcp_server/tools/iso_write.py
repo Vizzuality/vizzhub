@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from mcp.server.fastmcp import FastMCP
@@ -9,6 +12,10 @@ from mcp.server.fastmcp import FastMCP
 from app.modules.iso_docs.schemas.metadata import ChangelogEntry
 from mcp_server.auth.permissions import mcp_requires
 from mcp_server.tools._shared import enqueue_command
+
+
+ClassificationLiteral = Literal["internal_use", "confidential"]
+StatusLiteral = Literal["draft", "approved", "under_review"]
 
 
 class PatchOperation(BaseModel):
@@ -120,9 +127,9 @@ async def iso_update_page_metadata(
     code: str | None = None,
     standard: list[str] | None = None,
     clauses: list[str] | None = None,
-    classification: str | None = None,
-    status: str | None = None,
-    document_date: str | None = None,
+    classification: ClassificationLiteral | None = None,
+    status: StatusLiteral | None = None,
+    document_date: date | None = None,
     original_filename: str | None = None,
     guidance: str | None = None,
     changelog: list[ChangelogEntry] | None = None,
@@ -138,9 +145,12 @@ async def iso_update_page_metadata(
         code: Document code (e.g. "POL-001", "PRO-012").
         standard: List of applicable standards (e.g. ["ISO 27001"]).
         clauses: List of clause references (e.g. ["A.5.1", "A.8.1"]).
-        classification: Document classification (e.g. "internal", "public").
-        status: Document status (e.g. "draft", "approved", "obsolete").
-        document_date: Date string in ISO format (YYYY-MM-DD).
+        classification: Document classification. Must be exactly one of:
+                        "internal_use", "confidential".
+        status: Document status. Must be exactly one of:
+                "draft", "approved", "under_review".
+        document_date: Date in ISO format (YYYY-MM-DD). Invalid formats are
+                       rejected at queue time.
         original_filename: Original filename if imported from a file.
         guidance: Implementation guidance text.
         changelog: List of changelog entries. Each entry MUST include all
@@ -159,7 +169,7 @@ async def iso_update_page_metadata(
         "clauses": clauses,
         "classification": classification,
         "status": status,
-        "document_date": document_date,
+        "document_date": document_date.isoformat() if document_date else None,
         "original_filename": original_filename,
         "guidance": guidance,
     }
