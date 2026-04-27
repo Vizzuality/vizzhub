@@ -138,10 +138,7 @@ export function EventCard({ event }: EventCardProps): JSX.Element {
             </a>
           )}
         </div>
-        <div
-          className="mt-3 pt-3 border-t"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="mt-3 pt-3 border-t">
           <RsvpChips
             eventId={event.id}
             counts={event.rsvp_counts}
