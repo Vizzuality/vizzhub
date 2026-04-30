@@ -18,11 +18,11 @@ import { SELECT_CLASS } from '../utils/constants';
 import type { Report } from '../types/tracker';
 
 interface ReportEditorProps {
-  report: Report;
-  title: string;
-  emptyMessage?: string;
-  collapsible?: boolean;
-  periodDate?: string;
+  readonly report: Report;
+  readonly title: string;
+  readonly emptyMessage?: string;
+  readonly collapsible?: boolean;
+  readonly periodDate?: string;
 }
 
 export default function ReportEditor({
