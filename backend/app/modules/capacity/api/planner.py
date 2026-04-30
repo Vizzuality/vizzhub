@@ -298,6 +298,7 @@ async def get_planner_suggestions(
         .join(ProjectDB, CapacityPlanDB.project_id == ProjectDB.id)
         .where(CapacityPlanDB.user_id == user.user_id)
         .where(CapacityPlanDB.week_start.in_(mondays))
+        .where(ProjectDB.status != ProjectStatus.FINISHED)
         .group_by(CapacityPlanDB.project_id, ProjectDB.name, ProjectDB.is_absence, ProjectDB.is_billable)
     )
 

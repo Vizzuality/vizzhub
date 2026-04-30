@@ -63,11 +63,15 @@ export default function ReportEditor({
     return map;
   }, [suggestions]);
 
-  // Auto-create report parts for planning projects not yet in the report
+  // Auto-create report parts for planning projects not yet in the report.
+  // Only for projects still active — avoids resurrecting finished projects
+  // even if a stale planning row sneaks past the backend filter.
   const autoCreatedRef = useRef(new Set<string>());
   useEffect(() => {
-    if (!suggestions?.suggestions || !reportWithParts) return;
+    if (!suggestions?.suggestions || !reportWithParts || !projects) return;
+    const activeIds = new Set(projects.map((p) => p.id));
     for (const s of suggestions.suggestions) {
+      if (!activeIds.has(s.project_id)) continue;
       if (!existingProjectIds.has(s.project_id) && !autoCreatedRef.current.has(s.project_id)) {
         autoCreatedRef.current.add(s.project_id);
         createPart.mutate({
@@ -78,7 +82,7 @@ export default function ReportEditor({
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestions, reportWithParts]);
+  }, [suggestions, reportWithParts, projects]);
 
   const handleAddProject = (projectId: string): void => {
     if (!projectId) return;

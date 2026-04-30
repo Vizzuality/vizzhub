@@ -15,6 +15,7 @@ from app.core.models.user import UserDB
 DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
 from app.modules.tracker.models.report import ReportDB
+from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 from app.core.models.project import ProjectDB
 
@@ -471,3 +472,107 @@ class TestMoodOnReport:
         )
         assert resp.status_code == 200
         assert resp.json()["mood"] is None
+
+
+class TestPrepopulateParts:
+    """Creating a report copies parts from the previous period, with filters."""
+
+    async def _seed_prev_report_with_parts(
+        self,
+        db_session: AsyncSession,
+        setup_reporting: dict,
+        prev_parts: list[tuple[ProjectDB, Decimal | None]],
+    ) -> ReportingPeriodDB:
+        """Create a previous period + report owned by setup_reporting['user']
+        with the given (project, percentage) parts. Returns the new active period."""
+        prev_period = ReportingPeriodDB(
+            date=dt.date(2026, 2, 1), base_rate=Decimal("175"), status="closed",
+        )
+        db_session.add(prev_period)
+        await db_session.flush()
+
+        prev_report = ReportDB(
+            user_id=setup_reporting["user"].id,
+            reporting_period_id=prev_period.id,
+            estimated=False,
+        )
+        db_session.add(prev_report)
+        await db_session.flush()
+
+        for project, pct in prev_parts:
+            db_session.add(ReportPartDB(
+                report_id=prev_report.id,
+                project_id=project.id,
+                percentage=pct,
+            ))
+        await db_session.commit()
+
+        # Move the active period to one strictly after prev_period.
+        active = setup_reporting["period"]
+        active.date = dt.date(2026, 3, 1)
+        await db_session.commit()
+        return active
+
+    @pytest.mark.asyncio
+    async def test_skips_finished_projects(
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
+        db_session: AsyncSession,
+    ):
+        live = setup_reporting["project"]
+        finished = ProjectDB(name="Old", status="finished")
+        db_session.add(finished)
+        await db_session.flush()
+
+        active = await self._seed_prev_report_with_parts(
+            db_session, setup_reporting,
+            [(live, Decimal("0.6")), (finished, Decimal("0.4"))],
+        )
+
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(active.id)},
+        )
+        assert resp.status_code == 201
+        report_id = resp.json()["id"]
+
+        detail = await client.get(f"/api/tracker/reports/{report_id}")
+        project_ids = {p["project_id"] for p in detail.json()["parts"]}
+        assert str(live.id) in project_ids
+        assert str(finished.id) not in project_ids
+
+    @pytest.mark.asyncio
+    async def test_skips_zero_or_null_percentage_parts(
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
+        db_session: AsyncSession,
+    ):
+        live = setup_reporting["project"]
+        zero_project = ProjectDB(name="ZeroPct", status="live")
+        null_project = ProjectDB(name="NullPct", status="live")
+        db_session.add_all([zero_project, null_project])
+        await db_session.flush()
+
+        active = await self._seed_prev_report_with_parts(
+            db_session, setup_reporting,
+            [
+                (live, Decimal("1.0")),
+                (zero_project, Decimal("0")),
+                (null_project, None),
+            ],
+        )
+
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(active.id)},
+        )
+        assert resp.status_code == 201
+        report_id = resp.json()["id"]
+
+        detail = await client.get(f"/api/tracker/reports/{report_id}")
+        project_ids = {p["project_id"] for p in detail.json()["parts"]}
+        assert str(live.id) in project_ids
+        assert str(zero_project.id) not in project_ids
+        assert str(null_project.id) not in project_ids

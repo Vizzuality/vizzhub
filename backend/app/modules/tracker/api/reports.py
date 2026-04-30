@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.auth import TokenData
+from app.core.models.project import ProjectDB, ProjectStatus
 from app.core.models.user import UserDB
 from app.core.permissions import Action, require_permission
 from app.modules.tracker.api.enrichment import (
@@ -66,7 +67,11 @@ async def _prepopulate_parts(report: ReportDB, db: AsyncSession) -> None:
         return
 
     prev_parts_result = await db.execute(
-        select(ReportPartDB).where(ReportPartDB.report_id == prev_report.id)
+        select(ReportPartDB)
+        .join(ProjectDB, ReportPartDB.project_id == ProjectDB.id)
+        .where(ReportPartDB.report_id == prev_report.id)
+        .where(ReportPartDB.percentage > 0)
+        .where(ProjectDB.status != ProjectStatus.FINISHED)
     )
     for prev_part in prev_parts_result.scalars().all():
         new_part = ReportPartDB(

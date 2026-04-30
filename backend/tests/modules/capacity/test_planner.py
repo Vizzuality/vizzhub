@@ -623,6 +623,46 @@ class TestSuggestions:
         assert result["suggestions"] == []
         assert result["others_percentage"] is None
 
+    @pytest.mark.asyncio
+    async def test_finished_projects_excluded(self, db_session):
+        """Finished projects with planning rows must NOT appear as suggestions."""
+        from app.modules.capacity.api.planner import get_planner_suggestions
+
+        user = UserDB(id=uuid4(), email="f@t.com", name="Fin")
+        live = ProjectDB(
+            id=uuid4(), name="Live", status="live", is_billable=True,
+        )
+        finished = ProjectDB(
+            id=uuid4(), name="Old", status="finished", is_billable=True,
+        )
+        db_session.add_all([user, live, finished])
+        await db_session.flush()
+
+        db_session.add_all([
+            CapacityPlanDB(
+                project_id=live.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=60,
+                created_by=user.id, updated_by=user.id,
+            ),
+            CapacityPlanDB(
+                project_id=finished.id, user_id=user.id,
+                week_start=date(2026, 1, 5), percentage=40,
+                created_by=user.id, updated_by=user.id,
+            ),
+        ])
+        await db_session.flush()
+
+        result = await get_planner_suggestions(
+            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+        )
+
+        names = [s["project_name"] for s in result["suggestions"]]
+        assert "Old" not in names
+        assert "Live" in names
+        # Live alone normalises to 100% once finished is filtered out.
+        live_pct = next(s["percentage"] for s in result["suggestions"] if s["project_name"] == "Live")
+        assert live_pct == 100.0
+
 
 class TestUpdatedAt:
     @pytest.mark.asyncio
