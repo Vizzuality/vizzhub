@@ -575,19 +575,24 @@ export default function IsoDocs(): JSX.Element {
     printStyle.id = 'iso-print-style';
     printStyle.textContent = `
       @media print {
-        /* Reset all ancestors to flow naturally */
-        html, body, #root, #root > *, #root > * > *,
-        [data-iso-root], [data-iso-content] {
+        /* Hide every element that is NOT an ancestor/descendant of the print
+           target. Layout-agnostic: resilient to AppLayout wrappers being
+           added or restructured (sidebar, top header, breadcrumb, etc.). */
+        body *:not(:has([data-iso-content])):not([data-iso-content]):not([data-iso-content] *) {
+          display: none !important;
+        }
+        /* Reset the ancestor chain so the content flows naturally instead of
+           staying clipped inside flex/overflow/sticky wrappers. */
+        html, body, [data-iso-content], body :has([data-iso-content]) {
           display: block !important; position: static !important;
           overflow: visible !important; height: auto !important;
           max-height: none !important; min-height: 0 !important;
           width: 100% !important; flex: none !important;
+          margin: 0 !important; transform: none !important;
         }
         [data-iso-content] { padding: 0.5cm !important; }
-        /* Hide sidebar, toolbar, actions */
-        [data-iso-root] > *:not([data-iso-content]) { display: none !important; }
+        /* Hide intra-content chrome that should not appear in the PDF. */
         [data-registry-toolbar], [data-iso-actions], [data-print-hide] { display: none !important; }
-        nav, aside { display: none !important; }
         /* Unclip table content */
         .truncate { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
         .max-w-xs { max-width: none !important; }
