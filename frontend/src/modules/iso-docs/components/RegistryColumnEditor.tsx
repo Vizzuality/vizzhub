@@ -97,7 +97,7 @@ function SortableColumn({ id, col, index, onUpdate, onRemove }: SortableColumnPr
         <Input
           placeholder="Column label"
           value={col.label}
-          onChange={(e) => onUpdate(index, { label: e.target.value, key: toKey(e.target.value) })}
+          onChange={(e) => onUpdate(index, { label: e.target.value })}
         />
         <Select
           value={col.type}

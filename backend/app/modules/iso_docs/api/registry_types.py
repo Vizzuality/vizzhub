@@ -6,7 +6,8 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.iso_docs.api.deps import IsoDocsEditor
@@ -38,6 +39,57 @@ async def _get_registry_type_or_404(db: DBSession, type_id: UUID) -> RegistryTyp
     if not rt:
         raise HTTPException(status_code=404, detail=_NOT_FOUND)
     return rt
+
+
+def _detect_column_renames(
+    old_schema: list[dict], new_schema: list[dict],
+) -> dict[str, str]:
+    """Detect columns whose key changed between two schemas.
+
+    Pairs keys removed from the old schema with keys added in the new schema
+    by their position among the unmatched columns, but only when both have
+    the same `type` (renaming a string column should not be confused with
+    deleting a string and adding a date). Returns {old_key: new_key}.
+    """
+    new_keys = {col["key"] for col in new_schema}
+    old_keys = {col["key"] for col in old_schema}
+    removed = [col for col in old_schema if col["key"] not in new_keys]
+    added = [col for col in new_schema if col["key"] not in old_keys]
+    renames: dict[str, str] = {}
+    for old_col, new_col in zip(removed, added):
+        if old_col.get("type") == new_col.get("type"):
+            renames[old_col["key"]] = new_col["key"]
+    return renames
+
+
+async def _migrate_renamed_keys(
+    db: AsyncSession, type_id: UUID, renames: dict[str, str],
+) -> int:
+    """Rewrite renamed keys in registry_rows.data for all rows of nodes
+    using this registry type. Each rename is a single jsonb statement.
+    Returns total rows touched.
+    """
+    if not renames:
+        return 0
+    affected = 0
+    for old_key, new_key in renames.items():
+        result = await db.execute(
+            text("""
+                UPDATE registry_rows
+                SET data = (data - CAST(:old_key AS text))
+                       || jsonb_build_object(
+                              CAST(:new_key AS text),
+                              data -> CAST(:old_key AS text)
+                          )
+                WHERE node_id IN (
+                    SELECT id FROM iso_doc_nodes WHERE registry_type_id = :type_id
+                )
+                AND data ? CAST(:old_key AS text)
+            """),
+            {"old_key": old_key, "new_key": new_key, "type_id": type_id},
+        )
+        affected += result.rowcount or 0
+    return affected
 
 
 @router.get("/registry-types")
@@ -102,6 +154,7 @@ async def update_registry_type(
     type_id: UUID, data: RegistryTypeUpdate, db: DBSession, user: IsoDocsEditor
 ) -> RegistryTypeResponse:
     rt = await _get_registry_type_or_404(db, type_id)
+    old_schema = list(rt.schema or [])
 
     update = data.model_dump(exclude_unset=True)
     if "schema_" in update:
@@ -112,7 +165,23 @@ async def update_registry_type(
     for field, value in update.items():
         setattr(rt, field, value)
     rt.updated_by_id = UUID(user.user_id)
+
+    renames = (
+        _detect_column_renames(old_schema, rt.schema)
+        if "schema" in update else {}
+    )
+
     await db.flush()
+
+    if renames:
+        rows_migrated = await _migrate_renamed_keys(db, type_id, renames)
+        logger.info(
+            "registry_type_columns_renamed",
+            type_id=str(type_id),
+            renames=renames,
+            rows_migrated=rows_migrated,
+        )
+
     await db.refresh(rt)
     logger.info("registry_type_updated", type_id=str(type_id))
     return RegistryTypeResponse.model_validate(rt)
