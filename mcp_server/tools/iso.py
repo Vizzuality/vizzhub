@@ -24,21 +24,24 @@ def _to_json(data: Any) -> str:
 async def iso_get_registries() -> str:
     """List all ISO registry types with their column schemas.
 
-    Returns a JSON array of registry types. Each entry includes the slug
-    (used as identifier in other tools), name, description, whether it
-    uses yearly grouping, and the full column schema.
+    Returns a JSON array of registry types. Each entry includes the
+    canonical slug (the IsoDocNode slug — pass this to other registry
+    tools and use it in /iso/docs?page=<slug> URLs), the registry type
+    slug (the schema identifier), name, description, whether it uses
+    yearly grouping, and the full column schema.
     """
     async with get_read_session() as session:
         types = await iso_data.get_registry_types(session)
     return _to_json([
         {
-            "slug": rt.slug,
+            "slug": node_slug or rt.slug,
+            "type_slug": rt.slug,
             "name": rt.name,
             "description": rt.description,
             "is_yearly": rt.is_yearly,
             "columns": rt.schema,
         }
-        for rt in types
+        for rt, node_slug in types
     ])
 
 
@@ -47,7 +50,9 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
     """Get all rows from an ISO registry by its slug.
 
     Args:
-        slug: Registry type slug (from iso_get_registries).
+        slug: Registry slug (from iso_get_registries). The IsoDocNode slug
+              is canonical; the registry type slug is also accepted for
+              backwards compatibility.
         year: Optional year filter for yearly registries. Defaults to
               current year if the registry uses yearly grouping.
 
@@ -56,7 +61,9 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
     """
     async with get_read_session() as session:
         try:
-            rt, node_id = await iso_data.resolve_registry_node(session, slug)
+            rt, node_id, node_slug = await iso_data.resolve_registry_node(
+                session, slug,
+            )
         except ValueError as e:
             return _to_json({"error": str(e)})
 
@@ -68,7 +75,8 @@ async def iso_get_registry_rows(slug: str, year: int | None = None) -> str:
 
     return _to_json({
         "registry": rt.name,
-        "slug": rt.slug,
+        "slug": node_slug,
+        "type_slug": rt.slug,
         "year": effective_year,
         "total_rows": len(rows),
         "columns": rt.schema,

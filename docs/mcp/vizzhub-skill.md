@@ -134,10 +134,10 @@ Playbook ── standalone (articles, linked by slug)
 | `iso_get_document(slug)` | Full content of one document | `slug` |
 | `iso_search_documents(query)` | Full-text search across document content | `query` |
 
-**Returns:** `iso_get_registries` → slug, name, description, is_yearly, columns (schema). `iso_get_registry_rows` → registry metadata + rows with JSONB data and computed fields. `iso_get_documents` → slug, title, category, doc_version, summary. `iso_get_document` → full markdown content. `iso_search_documents` → snippet, section heading, ts_rank score.
+**Returns:** `iso_get_registries` → slug, type_slug, name, description, is_yearly, columns (schema). `iso_get_registry_rows` → registry metadata + rows with JSONB data and computed fields. `iso_get_documents` → slug, title, category, doc_version, summary. `iso_get_document` → full markdown content. `iso_search_documents` → snippet, section heading, ts_rank score.
 
 **Conventions:**
-- Registries use `slug` as identifier (e.g., `security-incident-register`, `risk-register`)
+- Registries use `slug` as identifier (e.g., `security-incident-register`, `risk-register`). `slug` is the IsoDocNode slug — the canonical id that round-trips through every registry tool (read and write) and matches the URL `/iso/docs?page=<slug>`. `type_slug` is the registry type (schema) slug; the two can diverge when the title contains non-URL-safe characters (e.g. `Audit Plan & Results` → node `audit-plan-results`, type `audit-plan-&-results`). Always pass `slug` to the write tools (`iso_create_registry_row`, `iso_update_registry_row`, `iso_delete_registry_row`)
 - `iso_search_documents` uses PostgreSQL full-text search (tsvector). `rank` is ts_rank — use only for ordering, not as a relevance percentage
 - `iso_get_documents(search=...)` does title substring match only. For content search, use `iso_search_documents`
 - Document categories: `policy`, `procedure`, `plan`, `record`, `manual`

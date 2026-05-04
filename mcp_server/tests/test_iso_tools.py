@@ -72,6 +72,78 @@ async def test_iso_get_registry_rows_invalid_slug(db_session, seed_tool_registry
 
 
 @pytest_asyncio.fixture
+async def seed_registry_with_divergent_slugs(db_session: AsyncSession) -> None:
+    """Registry whose node slug differs from its registry type slug — the
+    real-world case that surfaced the bug (e.g. 'Audit Plan & Results')."""
+    rt = RegistryTypeDB(
+        name="Audit Plan & Results",
+        slug="audit-plan-&-results",
+        description="Annual audit plan",
+        is_yearly=False,
+        schema=[{"key": "title", "label": "Title", "type": "string"}],
+    )
+    db_session.add(rt)
+    await db_session.flush()
+    node = IsoDocNodeDB(
+        title="Audit Plan & Results",
+        slug="audit-plan-results",
+        type="registry",
+        registry_type_id=rt.id,
+    )
+    db_session.add(node)
+    await db_session.flush()
+    db_session.add(RegistryRowDB(
+        node_id=node.id, year=None, row_index=0,
+        data={"title": "Internal audit"},
+    ))
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_iso_get_registries_returns_node_slug_as_canonical(
+    db_session, seed_registry_with_divergent_slugs,
+) -> None:
+    """Regression: iso_get_registries must surface the node slug as `slug`
+    (canonical, accepted by write tools) and the type slug as `type_slug`."""
+    async with override_session(db_session):
+        result = await mcp.call_tool("iso_get_registries", {})
+    data = json.loads(result[0][0].text)
+    entry = next(r for r in data if r["name"] == "Audit Plan & Results")
+    assert entry["slug"] == "audit-plan-results"
+    assert entry["type_slug"] == "audit-plan-&-results"
+
+
+@pytest.mark.asyncio
+async def test_iso_get_registry_rows_accepts_node_slug(
+    db_session, seed_registry_with_divergent_slugs,
+) -> None:
+    """The slug returned by iso_get_registries must round-trip through
+    iso_get_registry_rows."""
+    async with override_session(db_session):
+        result = await mcp.call_tool(
+            "iso_get_registry_rows", {"slug": "audit-plan-results"},
+        )
+    data = json.loads(result[0][0].text)
+    assert data["slug"] == "audit-plan-results"
+    assert data["type_slug"] == "audit-plan-&-results"
+    assert data["total_rows"] == 1
+
+
+@pytest.mark.asyncio
+async def test_iso_get_registry_rows_accepts_type_slug_for_compat(
+    db_session, seed_registry_with_divergent_slugs,
+) -> None:
+    """Legacy callers that have the registry type slug must keep working."""
+    async with override_session(db_session):
+        result = await mcp.call_tool(
+            "iso_get_registry_rows", {"slug": "audit-plan-&-results"},
+        )
+    data = json.loads(result[0][0].text)
+    assert data["slug"] == "audit-plan-results"
+    assert data["total_rows"] == 1
+
+
+@pytest_asyncio.fixture
 async def seed_tool_documents(db_session: AsyncSession) -> None:
     page = IsoDocNodeDB(
         title="Test Policy",

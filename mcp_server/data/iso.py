@@ -227,39 +227,64 @@ async def search_documents(
     ]
 
 
-async def get_registry_types(session: AsyncSession) -> list[RegistryTypeDB]:
-    """Return all registry types ordered by name."""
-    result = await session.execute(
-        select(RegistryTypeDB).order_by(RegistryTypeDB.name)
-    )
-    return list(result.scalars().all())
+async def get_registry_types(
+    session: AsyncSession,
+) -> list[tuple[RegistryTypeDB, str | None]]:
+    """Return all registry types ordered by name, paired with node slug.
 
-
-async def resolve_registry_node(
-    session: AsyncSession, slug: str,
-) -> tuple[RegistryTypeDB, UUID]:
-    """Resolve a registry type slug to (RegistryTypeDB, node_id).
-
-    ISO registries live as nodes in the ISO document tree (iso_doc_nodes),
-    each linked to a registry_type that defines the schema. This function
-    encapsulates the JOIN between the two tables.
-
-    Raises ValueError if the slug does not match any registry type or
-    no node is linked to that registry type.
+    Returns a list of (RegistryTypeDB, node_slug) tuples. node_slug is the
+    slug of the IsoDocNode that mounts the registry in the tree — that is
+    the canonical identifier for read/write tools and matches the URL
+    /iso/docs?page=<slug>. node_slug may be None if a registry type exists
+    in the catalog without a mounting node (rare).
     """
     result = await session.execute(
-        select(RegistryTypeDB, IsoDocNodeDB.id).join(
+        select(RegistryTypeDB, IsoDocNodeDB.slug)
+        .outerjoin(
             IsoDocNodeDB,
             and_(
                 IsoDocNodeDB.registry_type_id == RegistryTypeDB.id,
                 IsoDocNodeDB.type == "registry",
             ),
-        ).where(RegistryTypeDB.slug == slug)
+        )
+        .order_by(RegistryTypeDB.name)
     )
-    row = result.first()
+    return [(rt, node_slug) for rt, node_slug in result.all()]
+
+
+async def resolve_registry_node(
+    session: AsyncSession, slug: str,
+) -> tuple[RegistryTypeDB, UUID, str]:
+    """Resolve a registry slug to (RegistryTypeDB, node_id, node_slug).
+
+    ISO registries live as nodes in the ISO document tree (iso_doc_nodes),
+    each linked to a registry_type that defines the schema. The slug
+    argument is matched against the node slug first (canonical) and then
+    against the registry type slug as a backwards-compatible fallback.
+
+    Raises ValueError if the slug matches neither.
+    """
+    stmt = (
+        select(RegistryTypeDB, IsoDocNodeDB.id, IsoDocNodeDB.slug)
+        .join(
+            IsoDocNodeDB,
+            and_(
+                IsoDocNodeDB.registry_type_id == RegistryTypeDB.id,
+                IsoDocNodeDB.type == "registry",
+            ),
+        )
+    )
+
+    by_node = await session.execute(stmt.where(IsoDocNodeDB.slug == slug))
+    row = by_node.first()
+    if row is not None:
+        return row[0], row[1], row[2]
+
+    by_type = await session.execute(stmt.where(RegistryTypeDB.slug == slug))
+    row = by_type.first()
     if row is None:
         raise ValueError(f"Registry '{slug}' not found")
-    return row[0], row[1]
+    return row[0], row[1], row[2]
 
 
 async def get_registry_rows(

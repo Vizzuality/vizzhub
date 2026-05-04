@@ -50,9 +50,9 @@ async def test_get_registry_types_returns_all(
 
     result = await get_registry_types(db_session)
     assert len(result) == 2
-    slugs = [rt.slug for rt in result]
-    assert "incident-register" in slugs
-    assert "risk-treatment-plan" in slugs
+    type_slugs = [rt.slug for rt, _ in result]
+    assert "incident-register" in type_slugs
+    assert "risk-treatment-plan" in type_slugs
 
 
 @pytest.mark.asyncio
@@ -62,8 +62,52 @@ async def test_get_registry_types_ordered_by_name(
     from mcp_server.data.iso import get_registry_types
 
     result = await get_registry_types(db_session)
-    names = [rt.name for rt in result]
+    names = [rt.name for rt, _ in result]
     assert names == sorted(names)
+
+
+@pytest.mark.asyncio
+async def test_get_registry_types_returns_node_slug_when_mounted(
+    db_session: AsyncSession, seed_registry_with_rows: dict,
+) -> None:
+    from mcp_server.data.iso import get_registry_types
+
+    result = await get_registry_types(db_session)
+    by_type = {rt.slug: node_slug for rt, node_slug in result}
+    # incident-register is mounted (fixture creates a node), risk-treatment-plan is not
+    assert by_type["incident-register"] == "incident-register"
+    assert by_type["risk-treatment-plan"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_registry_types_node_slug_can_diverge_from_type_slug(
+    db_session: AsyncSession,
+) -> None:
+    """Regression: when the title contains non-URL-safe chars, the node
+    slug is sanitised but the registry type slug isn't, so the two diverge.
+    The MCP read tool must surface the node slug as the canonical id."""
+    from mcp_server.data.iso import get_registry_types
+
+    rt = RegistryTypeDB(
+        name="Audit Plan & Results",
+        slug="audit-plan-&-results",
+        description="Annual audit plan",
+        is_yearly=True,
+        schema=[{"key": "title", "label": "Title", "type": "string"}],
+    )
+    db_session.add(rt)
+    await db_session.flush()
+    db_session.add(IsoDocNodeDB(
+        title="Audit Plan & Results",
+        slug="audit-plan-results",
+        type="registry",
+        registry_type_id=rt.id,
+    ))
+    await db_session.commit()
+
+    result = await get_registry_types(db_session)
+    by_type = {rt.slug: node_slug for rt, node_slug in result}
+    assert by_type["audit-plan-&-results"] == "audit-plan-results"
 
 
 @pytest_asyncio.fixture
@@ -105,9 +149,12 @@ async def test_resolve_registry_node_found(
 ) -> None:
     from mcp_server.data.iso import resolve_registry_node
 
-    rt, node_id = await resolve_registry_node(db_session, "incident-register")
+    rt, node_id, node_slug = await resolve_registry_node(
+        db_session, "incident-register",
+    )
     assert rt.slug == "incident-register"
     assert node_id == seed_registry_with_rows["node"].id
+    assert node_slug == "incident-register"
 
 
 @pytest.mark.asyncio
@@ -116,6 +163,43 @@ async def test_resolve_registry_node_not_found(db_session: AsyncSession) -> None
 
     with pytest.raises(ValueError, match="not found"):
         await resolve_registry_node(db_session, "nonexistent-slug")
+
+
+@pytest.mark.asyncio
+async def test_resolve_registry_node_accepts_divergent_slugs(
+    db_session: AsyncSession,
+) -> None:
+    """Regression: the resolver must accept BOTH the node slug (canonical)
+    and the registry type slug (backwards-compat) when they diverge."""
+    from mcp_server.data.iso import resolve_registry_node
+
+    rt = RegistryTypeDB(
+        name="Audit Plan & Results",
+        slug="audit-plan-&-results",
+        description="Annual audit plan",
+        is_yearly=False,
+        schema=[{"key": "title", "label": "Title", "type": "string"}],
+    )
+    db_session.add(rt)
+    await db_session.flush()
+    node = IsoDocNodeDB(
+        title="Audit Plan & Results",
+        slug="audit-plan-results",
+        type="registry",
+        registry_type_id=rt.id,
+    )
+    db_session.add(node)
+    await db_session.commit()
+
+    by_node = await resolve_registry_node(db_session, "audit-plan-results")
+    assert by_node[0].id == rt.id
+    assert by_node[1] == node.id
+    assert by_node[2] == "audit-plan-results"
+
+    by_type = await resolve_registry_node(db_session, "audit-plan-&-results")
+    assert by_type[0].id == rt.id
+    assert by_type[1] == node.id
+    assert by_type[2] == "audit-plan-results"
 
 
 @pytest.mark.asyncio
