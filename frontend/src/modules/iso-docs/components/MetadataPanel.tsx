@@ -31,10 +31,17 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
   const hasInstructions = Boolean(metadata.instructions?.trim());
 
   const documentDate = useMemo(() => {
+    const validEntries = (metadata.changelog ?? [])
+      .filter((c) => !Number.isNaN(new Date(c.date).getTime()));
+    if (validEntries.length) {
+      const latest = validEntries.reduce((a, b) =>
+        new Date(a.date).getTime() >= new Date(b.date).getTime() ? a : b,
+      );
+      return formatDate(latest.date);
+    }
     if (metadata.document_date) return formatDate(metadata.document_date);
-    if (metadata.changelog?.length) return formatDate(metadata.changelog[0].date);
     return formatDate(metadata.created_at);
-  }, [metadata.document_date, metadata.changelog, metadata.created_at]);
+  }, [metadata.changelog, metadata.document_date, metadata.created_at]);
 
   return (
     <div className="px-3 py-2.5 text-xs space-y-1.5">
