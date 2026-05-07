@@ -34,8 +34,8 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
     const validEntries = (metadata.changelog ?? [])
       .filter((c) => !Number.isNaN(new Date(c.date).getTime()));
     if (validEntries.length) {
-      const latest = validEntries.reduce((a, b) =>
-        new Date(a.date).getTime() >= new Date(b.date).getTime() ? a : b,
+      const [latest] = [...validEntries].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
       return formatDate(latest.date);
     }
