@@ -54,6 +54,7 @@ interface FormState {
   location_country: string;
   other_costs: string;
   rating: number | null;
+  attending: 'yes' | 'no' | 'maybe' | null;
   url: string;
   observations: string;
 }
@@ -70,6 +71,7 @@ const INITIAL_FORM: FormState = {
   location_country: '',
   other_costs: '0',
   rating: null,
+  attending: null,
   url: '',
   observations: '',
 };
@@ -150,6 +152,7 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
         location_country: existingEvent.location_country ?? '',
         other_costs: String(existingEvent.other_costs ?? 0),
         rating: existingEvent.rating,
+        attending: existingEvent.attending,
         url: existingEvent.url ?? '',
         observations: existingEvent.observations ?? '',
       });
@@ -198,6 +201,7 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
       location_country: form.location_country || null,
       other_costs: Number(form.other_costs) || 0,
       rating: form.rating,
+      attending: form.attending,
       url: form.url || null,
       observations: form.observations || null,
     };
@@ -400,6 +404,49 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
                   onChange={(e) => setField('location_country', e.target.value)}
                   placeholder="Country"
                 />
+              </div>
+            </div>
+
+            {/* Attending */}
+            <div className="space-y-1.5">
+              <Label>Attending</Label>
+              <div
+                role="radiogroup"
+                aria-label="Attending"
+                className="flex flex-wrap gap-2"
+              >
+                {(
+                  [
+                    { value: null, label: 'Sin decidir' },
+                    { value: 'yes', label: 'Yes' },
+                    { value: 'maybe', label: 'Maybe' },
+                    { value: 'no', label: 'No' },
+                  ] as const
+                ).map((opt) => {
+                  const id = `evt-attending-${opt.value ?? 'none'}`;
+                  const checked = form.attending === opt.value;
+                  return (
+                    <label
+                      key={id}
+                      htmlFor={id}
+                      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm cursor-pointer ${
+                        checked
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-input hover:bg-accent'
+                      }`}
+                    >
+                      <input
+                        id={id}
+                        type="radio"
+                        name="evt-attending"
+                        checked={checked}
+                        onChange={() => setField('attending', opt.value)}
+                        className="sr-only"
+                      />
+                      {opt.label}
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
