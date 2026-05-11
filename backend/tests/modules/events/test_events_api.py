@@ -92,6 +92,47 @@ class TestEventsCRUD:
         resp = await client.get(f"/api/events/{fake_id}")
         assert resp.status_code == 404
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("attending", ["yes", "no", "maybe", None])
+    async def test_attending_round_trip(self, client: AsyncClient, attending):
+        payload = _event_payload(attending=attending)
+        create_resp = await client.post("/api/events", json=payload)
+        assert create_resp.status_code == 201
+        created = create_resp.json()
+        assert created["attending"] == attending
+
+        get_resp = await client.get(f"/api/events/{created['id']}")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["attending"] == attending
+
+    @pytest.mark.asyncio
+    async def test_attending_update(self, client: AsyncClient):
+        create_resp = await client.post("/api/events", json=_event_payload())
+        event_id = create_resp.json()["id"]
+        assert create_resp.json()["attending"] is None
+
+        put_resp = await client.put(
+            f"/api/events/{event_id}",
+            json={"attending": "yes"},
+        )
+        assert put_resp.status_code == 200
+        assert put_resp.json()["attending"] == "yes"
+
+        put_resp2 = await client.put(
+            f"/api/events/{event_id}",
+            json={"attending": None},
+        )
+        assert put_resp2.status_code == 200
+        assert put_resp2.json()["attending"] is None
+
+    @pytest.mark.asyncio
+    async def test_attending_invalid_value_rejected(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/events",
+            json=_event_payload(attending="going"),
+        )
+        assert resp.status_code == 422
+
 
 class TestEventOptions:
     @pytest.mark.asyncio
