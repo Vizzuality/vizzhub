@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import Select, and_, func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import Label
@@ -12,15 +12,13 @@ from app.core.models.user import UserDB
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.events.models.event import EventDB
 from app.modules.events.models.event_attendee import EventAttendeeDB
-from app.modules.events.models.event_rsvp import EventRsvpDB
-from app.modules.events.services.rsvp_service import get_rsvps_for_event
 
 
 EVENT_FIELDS = [
     "id", "name", "event_type", "theme_primary", "theme_secondary",
     "region_focus", "location_city", "location_country", "start_date",
-    "end_date", "other_costs", "rating", "url", "observations", "created_by",
-    "created_at", "updated_at",
+    "end_date", "other_costs", "rating", "url", "observations", "attending",
+    "created_by", "created_at", "updated_at",
 ]
 
 
@@ -177,46 +175,6 @@ async def _load_attendee_names_map(
     return out
 
 
-async def _load_rsvp_counts_map(
-    db: AsyncSession, event_ids: list[UUID]
-) -> dict[UUID, dict[str, int]]:
-    if not event_ids:
-        return {}
-    stmt = (
-        select(
-            EventRsvpDB.event_id,
-            EventRsvpDB.status,
-            func.count(EventRsvpDB.id),
-        )
-        .where(EventRsvpDB.event_id.in_(event_ids))
-        .group_by(EventRsvpDB.event_id, EventRsvpDB.status)
-    )
-    result = (await db.execute(stmt)).all()
-    out: dict[UUID, dict[str, int]] = {
-        eid: {"going": 0, "maybe": 0, "not_going": 0} for eid in event_ids
-    }
-    for event_id, status, count in result:
-        out[event_id][status] = count
-    return out
-
-
-async def _load_my_rsvp_map(
-    db: AsyncSession, event_ids: list[UUID], viewer_id: UUID | None
-) -> dict[UUID, str]:
-    if not event_ids or viewer_id is None:
-        return {}
-    stmt = (
-        select(EventRsvpDB.event_id, EventRsvpDB.status)
-        .where(
-            and_(
-                EventRsvpDB.event_id.in_(event_ids),
-                EventRsvpDB.user_id == viewer_id,
-            )
-        )
-    )
-    return {event_id: status for event_id, status in (await db.execute(stmt)).all()}
-
-
 async def list_events(
     db: AsyncSession,
     *,
@@ -252,8 +210,6 @@ async def list_events(
 
     event_ids = [row[0].id for row in rows]
     attendee_names_map = await _load_attendee_names_map(db, event_ids)
-    rsvp_counts_map = await _load_rsvp_counts_map(db, event_ids)
-    my_rsvp_map = await _load_my_rsvp_map(db, event_ids, viewer_id)
 
     items = []
     for event, attendee_count, attendees_cost in rows:
@@ -261,10 +217,6 @@ async def list_events(
         data["attendee_count"] = attendee_count or 0
         data["attendee_names"] = attendee_names_map.get(event.id, [])
         data["total_cost"] = event.other_costs + (attendees_cost or 0)
-        data["rsvp_counts"] = rsvp_counts_map.get(
-            event.id, {"going": 0, "maybe": 0, "not_going": 0}
-        )
-        data["my_rsvp_status"] = my_rsvp_map.get(event.id)
         items.append(data)
 
     return items, total
@@ -288,11 +240,4 @@ async def get_event_with_attendees(
     data["attendee_count"] = attendee_count or 0
     data["attendees"] = attendees
     data["total_cost"] = event.other_costs + (attendees_cost or 0)
-    data["rsvp_counts"] = (
-        await _load_rsvp_counts_map(db, [event_id])
-    ).get(event_id, {"going": 0, "maybe": 0, "not_going": 0})
-    data["my_rsvp_status"] = (
-        await _load_my_rsvp_map(db, [event_id], viewer_id)
-    ).get(event_id)
-    data["rsvps"] = await get_rsvps_for_event(db, event_id)
     return data
