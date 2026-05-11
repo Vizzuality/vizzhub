@@ -5,7 +5,6 @@ from fastapi import APIRouter
 from app.modules.events.api import attendees as attendees_router
 from app.modules.events.api import events as events_router
 from app.modules.events.api import options as options_router
-from app.modules.events.api import rsvps as rsvps_router
 from app.modules.events.api import stats as stats_router
 
 router = APIRouter()
@@ -19,4 +18,3 @@ router.include_router(options_router.router, tags=["events:options"])
 # (FastAPI rejects include_router with both empty prefix and empty path)
 router.routes.extend(events_router.router.routes)
 router.include_router(attendees_router.router, tags=["events:attendees"])
-router.include_router(rsvps_router.router, tags=["events:rsvps"])
