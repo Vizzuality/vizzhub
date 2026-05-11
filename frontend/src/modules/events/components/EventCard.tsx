@@ -7,7 +7,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import { useTheme } from 'next-themes';
 import { StarRating } from './StarRating';
-import { formatEventDateRange, getThemeColor } from '../utils/constants';
+import {
+  ATTENDING_DOT_COLORS,
+  ATTENDING_LABELS,
+  formatEventDateRange,
+  getThemeColor,
+} from '../utils/constants';
 import type { EventSummary } from '../types/events';
 
 interface EventCardProps {
@@ -109,18 +114,28 @@ export function EventCard({ event }: EventCardProps): JSX.Element {
               </TooltipProvider>
             )}
           </div>
-          {event.url && (
-            <a
-              href={event.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 -mr-2 rounded-md hover:bg-muted transition-colors"
-            >
-              <ExternalLink size={14} />
-              <span>Link</span>
-            </a>
-          )}
+          <div className="flex items-center gap-3">
+            {event.attending && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full shrink-0 ${ATTENDING_DOT_COLORS[event.attending]}`}
+                />
+                {ATTENDING_LABELS[event.attending]}
+              </span>
+            )}
+            {event.url && (
+              <a
+                href={event.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 -mr-2 rounded-md hover:bg-muted transition-colors"
+              >
+                <ExternalLink size={14} />
+                <span>Link</span>
+              </a>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -8,6 +8,7 @@ import {
   TableRow,
 } from '@/shared/components/ui/table';
 import { StarRating } from './StarRating';
+import { ATTENDING_DOT_COLORS, ATTENDING_LABELS } from '../utils/constants';
 import type { EventSummary } from '../types/events';
 
 type SortKey = 'name' | 'start_date' | 'total_cost' | 'rating';
@@ -93,6 +94,7 @@ export function EventsTable({
               onSortChange={onSortChange}
             />
             <TableHead>Location</TableHead>
+            <TableHead>Attending</TableHead>
             <SortableHead
               label="Total cost"
               colKey="total_cost"
@@ -126,6 +128,18 @@ export function EventsTable({
                 {[e.location_city, e.location_country]
                   .filter(Boolean)
                   .join(' · ') || '—'}
+              </TableCell>
+              <TableCell>
+                {e.attending ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full shrink-0 ${ATTENDING_DOT_COLORS[e.attending]}`}
+                    />
+                    {ATTENDING_LABELS[e.attending]}
+                  </span>
+                ) : (
+                  '—'
+                )}
               </TableCell>
               <TableCell>€{Number(e.total_cost).toFixed(2)}</TableCell>
               <TableCell>{e.attendee_count}</TableCell>

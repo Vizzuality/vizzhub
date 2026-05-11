@@ -35,6 +35,12 @@ export const ATTENDING_LABELS: Record<Attending, string> = {
   no: 'No',
 };
 
+export const ATTENDING_DOT_COLORS: Record<Attending, string> = {
+  yes: 'bg-emerald-500',
+  maybe: 'bg-amber-500',
+  no: 'bg-gray-400',
+};
+
 export function buildYearOptions(): string[] {
   const currentYear = new Date().getFullYear();
   const years: string[] = [];
