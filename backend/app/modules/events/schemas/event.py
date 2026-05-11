@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.events.constants import EventType, RegionFocus, Theme
 
+Attending = Literal["yes", "no", "maybe"]
+
 
 class EventCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=300)
@@ -24,6 +26,7 @@ class EventCreate(BaseModel):
     rating: int | None = Field(None, ge=1, le=5)
     url: str | None = Field(None, max_length=500)
     observations: str | None = None
+    attending: Attending | None = None
 
 
 class EventUpdate(BaseModel):
@@ -40,27 +43,7 @@ class EventUpdate(BaseModel):
     rating: int | None = Field(None, ge=1, le=5)
     url: str | None = Field(None, max_length=500)
     observations: str | None = None
-
-
-class RsvpCounts(BaseModel):
-    going: int = 0
-    maybe: int = 0
-    not_going: int = 0
-
-
-class UserSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    first_name: str | None = None
-    last_name: str | None = None
-    email: str
-
-
-class RsvpLists(BaseModel):
-    going: list[UserSummary] = []
-    maybe: list[UserSummary] = []
-    not_going: list[UserSummary] = []
+    attending: Attending | None = None
 
 
 class EventResponse(BaseModel):
@@ -81,18 +64,16 @@ class EventResponse(BaseModel):
     rating: int | None = None
     url: str | None = None
     observations: str | None = None
+    attending: Attending | None = None
     created_by: UUID | None = None
     attendee_count: int = 0
     attendee_names: list[str] = []
     created_at: datetime
     updated_at: datetime
-    rsvp_counts: RsvpCounts = Field(default_factory=RsvpCounts)
-    my_rsvp_status: Literal["going", "maybe", "not_going"] | None = None
 
 
 class EventWithAttendeesResponse(EventResponse):
     attendees: list["AttendeeResponse"] = []
-    rsvps: RsvpLists = Field(default_factory=RsvpLists)
 
 
 from app.modules.events.schemas.event_attendee import AttendeeResponse  # noqa: E402
