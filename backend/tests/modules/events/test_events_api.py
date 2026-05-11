@@ -375,7 +375,7 @@ class TestEventFiltering:
         assert items[1]["name"] == "Expensive Event"
 
     @pytest.mark.asyncio
-    async def test_list_events_exposes_total_cost_and_rsvp_counts(
+    async def test_list_events_exposes_total_cost(
         self, client: AsyncClient, db_session: AsyncSession
     ):
         from datetime import date
@@ -403,8 +403,7 @@ class TestEventFiltering:
         assert r.status_code == 200
         item = next(i for i in r.json()["items"] if i["name"] == "TC")
         assert item["total_cost"] == "125.00"
-        assert item["rsvp_counts"] == {"going": 0, "maybe": 0, "not_going": 0}
-        assert item["my_rsvp_status"] is None
+        assert item["attending"] is None
 
     @pytest.mark.asyncio
     async def test_list_events_sort_by_total_cost(
