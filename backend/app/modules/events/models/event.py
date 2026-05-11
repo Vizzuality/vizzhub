@@ -31,6 +31,10 @@ class EventDB(Base):
     __table_args__ = (
         CheckConstraint("rating >= 1 AND rating <= 5", name="ck_events_rating_range"),
         CheckConstraint("other_costs >= 0", name="ck_events_other_costs_positive"),
+        CheckConstraint(
+            "attending IN ('yes','no','maybe')",
+            name="ck_events_attending",
+        ),
         Index("ix_events_start_date", "start_date"),
     )
 
@@ -50,6 +54,7 @@ class EventDB(Base):
         Numeric(12, 2), nullable=False, server_default="0"
     )
     rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    attending: Mapped[str | None] = mapped_column(String(10), nullable=True)
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[UUID | None] = mapped_column(
