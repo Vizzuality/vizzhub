@@ -1,3 +1,6 @@
+export const ATTENDING_VALUES = ['yes', 'no', 'maybe'] as const;
+export type Attending = typeof ATTENDING_VALUES[number];
+
 export const EVENT_TYPES = [
   'Conference', 'Summit', 'Forum', 'Workshop', 'Symposium',
   'Multi-event', 'Networking event', 'Roundtable', 'Training',
@@ -23,16 +26,6 @@ export const ATTENDEE_ROLES = [
 ] as const;
 export type AttendeeRole = typeof ATTENDEE_ROLES[number];
 
-export const RSVP_STATUSES = ['going', 'maybe', 'not_going'] as const;
-export type RsvpStatus = typeof RSVP_STATUSES[number];
-
-export interface UserSummary {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string;
-}
-
 export interface EventSummary {
   id: string;
   name: string;
@@ -46,8 +39,7 @@ export interface EventSummary {
   end_date: string | null;
   other_costs: number;
   total_cost: number;
-  rsvp_counts: { going: number; maybe: number; not_going: number };
-  my_rsvp_status: RsvpStatus | null;
+  attending: Attending | null;
   rating: number | null;
   url: string | null;
   observations: string | null;
@@ -72,11 +64,6 @@ export interface Attendee {
 
 export interface EventDetail extends EventSummary {
   attendees: Attendee[];
-  rsvps: {
-    going: UserSummary[];
-    maybe: UserSummary[];
-    not_going: UserSummary[];
-  };
 }
 
 export interface AttendeeUpdate {
@@ -98,6 +85,7 @@ export interface EventCreate {
   rating?: number | null;
   url?: string | null;
   observations?: string | null;
+  attending?: Attending | null;
 }
 
 export type EventUpdate = Partial<EventCreate>;
