@@ -17,7 +17,7 @@ type SortDir = 'asc' | 'desc';
 interface EventsTableProps {
   readonly events: EventSummary[];
   readonly onRowClick: (id: string) => void;
-  readonly sortKey: SortKey | string;
+  readonly sortKey: string;
   readonly sortDir: SortDir;
   readonly onSortChange: (key: SortKey, dir: SortDir) => void;
 }
@@ -44,11 +44,11 @@ function SortableHead({
   dir,
   onSortChange,
 }: {
-  label: string;
-  colKey: SortKey;
-  current: string;
-  dir: SortDir;
-  onSortChange: (k: SortKey, d: SortDir) => void;
+  readonly label: string;
+  readonly colKey: SortKey;
+  readonly current: string;
+  readonly dir: SortDir;
+  readonly onSortChange: (k: SortKey, d: SortDir) => void;
 }): JSX.Element {
   const active = current === colKey;
   return (
@@ -135,14 +135,14 @@ export function EventsTable({
               <TableCell>€{Number(e.total_cost).toFixed(2)}</TableCell>
               <TableCell>{e.attendee_count}</TableCell>
               <TableCell>
-                {e.rating != null ? (
+                {e.rating == null ? (
+                  '—'
+                ) : (
                   <StarRating
                     value={e.rating}
                     onChange={() => {}}
                     size={14}
                   />
-                ) : (
-                  '—'
                 )}
               </TableCell>
             </TableRow>

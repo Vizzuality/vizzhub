@@ -290,23 +290,7 @@ export default function Events(): JSX.Element {
       )}
 
       {/* Card grid / list view */}
-      {events.length > 0 ? (
-        state.view === 'list' ? (
-          <EventsTable
-            events={events}
-            onRowClick={(id) => navigate(`/events/${id}`)}
-            sortKey={sortBy}
-            sortDir={sortDir as 'asc' | 'desc'}
-            onSortChange={(k, d) => setState({ sort: `${k}:${d}` })}
-          />
-        ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {events.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        )
-      ) : (
+      {events.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-muted-foreground">
@@ -321,6 +305,20 @@ export default function Events(): JSX.Element {
             )}
           </CardContent>
         </Card>
+      ) : state.view === 'list' ? (
+        <EventsTable
+          events={events}
+          onRowClick={(id) => navigate(`/events/${id}`)}
+          sortKey={sortBy}
+          sortDir={sortDir as 'asc' | 'desc'}
+          onSortChange={(k, d) => setState({ sort: `${k}:${d}` })}
+        />
+      ) : (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {events.map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))}
+        </div>
       )}
 
       {canManage && creating && (

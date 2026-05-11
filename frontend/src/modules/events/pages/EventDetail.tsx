@@ -36,7 +36,7 @@ export default function EventDetail(): JSX.Element {
   const [linkCopied, setLinkCopied] = useState(false);
 
   const copyLink = async (): Promise<void> => {
-    await navigator.clipboard.writeText(window.location.href);
+    await navigator.clipboard.writeText(globalThis.location.href);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 1500);
   };

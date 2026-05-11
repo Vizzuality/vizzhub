@@ -198,11 +198,16 @@ async def list_events(
     offset: int = 0,
     limit: int = 50,
 ) -> tuple[list[dict], int]:
-    filter_kwargs = dict(
-        search=search, year=year, quarter=quarter, event_type=event_type,
-        theme_primary=theme_primary, region_focus=region_focus,
-        location_country=location_country, attending=attending,
-    )
+    filter_kwargs = {
+        "search": search,
+        "year": year,
+        "quarter": quarter,
+        "event_type": event_type,
+        "theme_primary": theme_primary,
+        "region_focus": region_focus,
+        "location_country": location_country,
+        "attending": attending,
+    }
 
     base = _base_list_query()
     filtered = apply_filters(base, **filter_kwargs)
