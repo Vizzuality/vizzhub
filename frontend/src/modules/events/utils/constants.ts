@@ -27,24 +27,12 @@ export const ROLE_COLORS: Record<string, string> = {
 
 export const ALL_SENTINEL = '__all__';
 
-import type { RsvpStatus } from '../types/events';
+import type { Attending } from '../types/events';
 
-export const RSVP_COLORS: Record<RsvpStatus, string> = {
-  going: 'text-emerald-600 border-emerald-600/40 bg-emerald-50',
-  maybe: 'text-amber-600 border-amber-600/40 bg-amber-50',
-  not_going: 'text-gray-500 border-gray-400/40 bg-gray-50',
-};
-
-export const RSVP_LABELS: Record<RsvpStatus, string> = {
-  going: 'Going',
+export const ATTENDING_LABELS: Record<Attending, string> = {
+  yes: 'Yes',
   maybe: 'Maybe',
-  not_going: 'Not going',
-};
-
-export const RSVP_ICONS: Record<RsvpStatus, string> = {
-  going: '✓',
-  maybe: '?',
-  not_going: '✗',
+  no: 'No',
 };
 
 export function buildYearOptions(): string[] {
