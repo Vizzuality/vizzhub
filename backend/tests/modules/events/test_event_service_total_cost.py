@@ -58,7 +58,7 @@ async def test_get_event_total_cost_sums_attendees_and_other(
 async def test_list_events_includes_total_cost(
     db_session: AsyncSession, event_with_attendees: EventDB
 ):
-    items, _ = await list_events(db_session, viewer_id=None)
+    items, _ = await list_events(db_session)
     assert len(items) == 1
     assert items[0]["total_cost"] == Decimal("600.00")
 
@@ -81,6 +81,6 @@ async def test_list_events_sort_by_total_cost_desc(
     await db_session.commit()
 
     items, _ = await list_events(
-        db_session, viewer_id=None, sort_by="total_cost", sort_dir="desc",
+        db_session, sort_by="total_cost", sort_dir="desc",
     )
     assert [i["name"] for i in items] == ["Pricey", "Cheap"]

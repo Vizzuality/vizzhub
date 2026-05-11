@@ -185,7 +185,6 @@ async def _load_attendee_names_map(
 async def list_events(
     db: AsyncSession,
     *,
-    viewer_id: UUID | None,
     search: str | None = None,
     year: int | None = None,
     quarter: int | None = None,
@@ -233,7 +232,6 @@ async def list_events(
 async def get_event_with_attendees(
     event_id: UUID,
     db: AsyncSession,
-    viewer_id: UUID | None = None,
 ) -> dict | None:
     row = (
         await db.execute(_base_list_query().where(EventDB.id == event_id))

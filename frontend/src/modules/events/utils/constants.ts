@@ -1,3 +1,5 @@
+import type { Attending } from '../types/events';
+
 export const THEME_COLORS: Record<string, { light: string; dark: string }> = {
   'Climate': { light: '#2563eb', dark: '#60a5fa' },
   'Nature & Biodiversity': { light: '#16a34a', dark: '#4ade80' },
@@ -26,8 +28,6 @@ export const ROLE_COLORS: Record<string, string> = {
 };
 
 export const ALL_SENTINEL = '__all__';
-
-import type { Attending } from '../types/events';
 
 export const ATTENDING_LABELS: Record<Attending, string> = {
   yes: 'Yes',

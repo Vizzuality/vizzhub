@@ -8,7 +8,7 @@ import {
   TableRow,
 } from '@/shared/components/ui/table';
 import { StarRating } from './StarRating';
-import { ATTENDING_DOT_COLORS, ATTENDING_LABELS } from '../utils/constants';
+import { AttendingIndicator } from './AttendingIndicator';
 import type { EventSummary } from '../types/events';
 
 type SortKey = 'name' | 'start_date' | 'total_cost' | 'rating';
@@ -130,16 +130,7 @@ export function EventsTable({
                   .join(' · ') || '—'}
               </TableCell>
               <TableCell>
-                {e.attending ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className={`inline-block w-2 h-2 rounded-full shrink-0 ${ATTENDING_DOT_COLORS[e.attending]}`}
-                    />
-                    {ATTENDING_LABELS[e.attending]}
-                  </span>
-                ) : (
-                  '—'
-                )}
+                {e.attending ? <AttendingIndicator value={e.attending} /> : '—'}
               </TableCell>
               <TableCell>€{Number(e.total_cost).toFixed(2)}</TableCell>
               <TableCell>{e.attendee_count}</TableCell>

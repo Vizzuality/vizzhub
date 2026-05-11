@@ -66,7 +66,6 @@ async def list_events_endpoint(
     offset = (page - 1) * page_size
     items, total = await list_events(
         db,
-        viewer_id=UUID(user.user_id),
         search=search,
         year=year,
         quarter=quarter,
@@ -97,9 +96,7 @@ async def get_event(
     db: DBSession,
     user: EventsViewer,
 ) -> EventWithAttendeesResponse:
-    result = await get_event_with_attendees(
-        event_id, db, viewer_id=UUID(user.user_id)
-    )
+    result = await get_event_with_attendees(event_id, db)
     if result is None:
         raise HTTPException(status_code=404, detail="Event not found")
     return EventWithAttendeesResponse(**result)

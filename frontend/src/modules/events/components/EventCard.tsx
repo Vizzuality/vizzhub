@@ -7,12 +7,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import { useTheme } from 'next-themes';
 import { StarRating } from './StarRating';
-import {
-  ATTENDING_DOT_COLORS,
-  ATTENDING_LABELS,
-  formatEventDateRange,
-  getThemeColor,
-} from '../utils/constants';
+import { formatEventDateRange, getThemeColor } from '../utils/constants';
+import { AttendingIndicator } from './AttendingIndicator';
 import type { EventSummary } from '../types/events';
 
 interface EventCardProps {
@@ -118,12 +114,7 @@ export function EventCard({ event }: EventCardProps): JSX.Element {
             {event.attending && (
               <span className="inline-flex items-center gap-1.5 text-xs">
                 <span className="text-muted-foreground">Attending:</span>
-                <span
-                  className={`inline-block w-2 h-2 rounded-full shrink-0 ${ATTENDING_DOT_COLORS[event.attending]}`}
-                />
-                <span className="text-foreground">
-                  {ATTENDING_LABELS[event.attending]}
-                </span>
+                <AttendingIndicator value={event.attending} />
               </span>
             )}
             {event.url && (
