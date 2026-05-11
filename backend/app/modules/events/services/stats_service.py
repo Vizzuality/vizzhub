@@ -94,10 +94,20 @@ async def get_stats(
     )
     total_attendees = (await db.execute(total_attendees_stmt)).scalar() or 0
 
-    total_cost_stmt = (
-        select(func.coalesce(func.sum(EventDB.other_costs), 0)).where(yf)
-    )
-    total_cost = (await db.execute(total_cost_stmt)).scalar()
+    other_costs_sum = (
+        await db.execute(
+            select(func.coalesce(func.sum(EventDB.other_costs), 0)).where(yf)
+        )
+    ).scalar() or 0
+    attendees_cost_sum = (
+        await db.execute(
+            select(func.coalesce(func.sum(EventAttendeeDB.cost), 0))
+            .select_from(EventAttendeeDB)
+            .join(EventDB, EventDB.id == EventAttendeeDB.event_id)
+            .where(yf)
+        )
+    ).scalar() or 0
+    total_cost = other_costs_sum + attendees_cost_sum
 
     by_quarter = await _group_count(
         db,
