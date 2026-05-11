@@ -16,7 +16,6 @@ from app.modules.events.schemas.event import (
     EventResponse,
     EventUpdate,
     EventWithAttendeesResponse,
-    RsvpCounts,
 )
 from app.modules.events.services.event_service import (
     event_to_dict,
@@ -35,8 +34,6 @@ def _event_to_response(event: EventDB, attendee_count: int = 0) -> EventResponse
         attendee_count=attendee_count,
         attendee_names=[],
         total_cost=event.other_costs,
-        rsvp_counts=RsvpCounts(),
-        my_rsvp_status=None,
     )
 
 

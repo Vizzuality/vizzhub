@@ -131,7 +131,7 @@ class TestEventsCRUD:
             "/api/events",
             json=_event_payload(attending="going"),
         )
-        assert resp.status_code == 422
+        assert resp.status_code == 400
 
 
 class TestEventOptions:
