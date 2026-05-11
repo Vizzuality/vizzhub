@@ -116,11 +116,14 @@ export function EventCard({ event }: EventCardProps): JSX.Element {
           </div>
           <div className="flex items-center gap-3">
             {event.attending && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">Attending:</span>
                 <span
                   className={`inline-block w-2 h-2 rounded-full shrink-0 ${ATTENDING_DOT_COLORS[event.attending]}`}
                 />
-                {ATTENDING_LABELS[event.attending]}
+                <span className="text-foreground">
+                  {ATTENDING_LABELS[event.attending]}
+                </span>
               </span>
             )}
             {event.url && (
