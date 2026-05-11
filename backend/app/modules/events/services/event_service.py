@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import Label
@@ -76,6 +76,7 @@ def apply_filters(
     theme_primary: str | None = None,
     region_focus: str | None = None,
     location_country: str | None = None,
+    attending: str | None = None,
 ) -> Select:
     if search:
         stmt = stmt.where(EventDB.name.ilike(f"%{search}%"))
@@ -95,6 +96,12 @@ def apply_filters(
         stmt = stmt.where(EventDB.region_focus == region_focus)
     if location_country:
         stmt = stmt.where(EventDB.location_country == location_country)
+    if attending == "maybe":
+        stmt = stmt.where(
+            or_(EventDB.attending == "maybe", EventDB.attending.is_(None))
+        )
+    elif attending in ("yes", "no"):
+        stmt = stmt.where(EventDB.attending == attending)
     return stmt
 
 
@@ -186,6 +193,7 @@ async def list_events(
     theme_primary: str | None = None,
     region_focus: str | None = None,
     location_country: str | None = None,
+    attending: str | None = None,
     sort_by: str | None = None,
     sort_dir: str | None = None,
     offset: int = 0,
@@ -194,7 +202,7 @@ async def list_events(
     filter_kwargs = dict(
         search=search, year=year, quarter=quarter, event_type=event_type,
         theme_primary=theme_primary, region_focus=region_focus,
-        location_country=location_country,
+        location_country=location_country, attending=attending,
     )
 
     base = _base_list_query()

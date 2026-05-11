@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,8 +20,12 @@ import { EventForm } from '../components/EventForm';
 import { EventsTable } from '../components/EventsTable';
 import { useEvents } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
-import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
-import type { EventListParams } from '../types/events';
+import {
+  ALL_SENTINEL,
+  ATTENDING_LABELS,
+  buildYearOptions,
+} from '../utils/constants';
+import type { Attending, EventListParams } from '../types/events';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -42,6 +46,7 @@ const urlSchema = {
   theme: { defaultValue: '' },
   type: { defaultValue: '' },
   region: { defaultValue: '' },
+  attending: { defaultValue: '' },
   sort: { defaultValue: 'start_date:desc' },
   view: { defaultValue: 'grid' },
 };
@@ -70,6 +75,21 @@ export default function Events(): JSX.Element {
 
   const yearOptions = useMemo(() => buildYearOptions(), []);
 
+  // On first mount, if the URL has no year param at all, default to the most
+  // recent year that has events (so the landing view shows data instead of
+  // a stale "all years" set ordered by creation). Explicit ?year= in URL or
+  // an explicit "All Years" selection is preserved.
+  const didDefaultYear = useRef(false);
+  useEffect(() => {
+    if (didDefaultYear.current) return;
+    if (!options?.years_with_data?.length) return;
+    const urlHasYear = new URLSearchParams(window.location.search).has('year');
+    if (!urlHasYear && state.year === '') {
+      setState({ year: String(options.years_with_data[0]) });
+    }
+    didDefaultYear.current = true;
+  }, [options, state.year, setState]);
+
   const [sortBy, sortDir] = state.sort.split(':');
 
   const queryParams: EventListParams = {
@@ -78,6 +98,7 @@ export default function Events(): JSX.Element {
     ...(state.theme && { theme_primary: state.theme }),
     ...(state.type && { event_type: state.type }),
     ...(state.region && { region_focus: state.region }),
+    ...(state.attending && { attending: state.attending as Attending }),
     sort_by: sortBy,
     sort_dir: sortDir,
     page_size: 100,
@@ -87,7 +108,12 @@ export default function Events(): JSX.Element {
   const events = data?.items ?? [];
   const total = data?.total ?? 0;
   const hasActiveFilters = !!(
-    state.search || state.year || state.theme || state.type || state.region
+    state.search ||
+    state.year ||
+    state.theme ||
+    state.type ||
+    state.region ||
+    state.attending
   );
 
   const handleSelectChange = (
@@ -196,6 +222,21 @@ export default function Events(): JSX.Element {
             {(options?.regions ?? []).map((r) => (
               <SelectItem key={r} value={r}>{r}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={state.attending || ALL_SENTINEL}
+          onValueChange={(v) => handleSelectChange('attending', v)}
+        >
+          <SelectTrigger className="w-[140px] h-9 text-sm">
+            <SelectValue placeholder="Attending" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_SENTINEL}>All Attending</SelectItem>
+            <SelectItem value="yes">{ATTENDING_LABELS.yes}</SelectItem>
+            <SelectItem value="maybe">{ATTENDING_LABELS.maybe}</SelectItem>
+            <SelectItem value="no">{ATTENDING_LABELS.no}</SelectItem>
           </SelectContent>
         </Select>
 

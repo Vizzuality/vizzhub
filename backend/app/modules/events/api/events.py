@@ -48,6 +48,10 @@ async def list_events_endpoint(
     theme_primary: str | None = None,
     region_focus: str | None = None,
     location_country: str | None = None,
+    attending: Annotated[
+        str | None,
+        Query(pattern=r"^(yes|no|maybe)$"),
+    ] = None,
     sort_by: Annotated[
         str | None,
         Query(pattern=r"^(start_date|total_cost|rating|name)$"),
@@ -70,6 +74,7 @@ async def list_events_endpoint(
         theme_primary=theme_primary,
         region_focus=region_focus,
         location_country=location_country,
+        attending=attending,
         sort_by=sort_by,
         sort_dir=sort_dir,
         offset=offset,

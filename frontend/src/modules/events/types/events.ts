@@ -105,6 +105,7 @@ export interface EventListParams {
   theme_primary?: string;
   region_focus?: string;
   location_country?: string;
+  attending?: Attending;
   sort_by?: string;
   sort_dir?: string;
   page?: number;
@@ -134,4 +135,5 @@ export interface EventOptions {
   themes: string[];
   regions: string[];
   attendee_roles: string[];
+  years_with_data: number[];
 }

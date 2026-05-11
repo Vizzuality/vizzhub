@@ -133,6 +133,52 @@ class TestEventsCRUD:
         )
         assert resp.status_code == 400
 
+    @pytest.mark.asyncio
+    async def test_filter_attending_yes_excludes_others(
+        self, client: AsyncClient
+    ):
+        await client.post("/api/events", json=_event_payload(
+            name="Yes Event", attending="yes",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="No Event", attending="no",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="Maybe Event", attending="maybe",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="Null Event",
+        ))
+
+        resp = await client.get("/api/events?attending=yes")
+        assert resp.status_code == 200
+        names = sorted(i["name"] for i in resp.json()["items"])
+        assert names == ["Yes Event"]
+
+    @pytest.mark.asyncio
+    async def test_filter_attending_maybe_includes_null(
+        self, client: AsyncClient
+    ):
+        await client.post("/api/events", json=_event_payload(
+            name="Yes Event", attending="yes",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="Maybe Event", attending="maybe",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="Null Event",
+        ))
+
+        resp = await client.get("/api/events?attending=maybe")
+        assert resp.status_code == 200
+        names = sorted(i["name"] for i in resp.json()["items"])
+        assert names == ["Maybe Event", "Null Event"]
+
+    @pytest.mark.asyncio
+    async def test_filter_attending_invalid_rejected(self, client: AsyncClient):
+        resp = await client.get("/api/events?attending=going")
+        assert resp.status_code == 400
+
 
 class TestEventOptions:
     @pytest.mark.asyncio
@@ -144,10 +190,27 @@ class TestEventOptions:
         assert "themes" in data
         assert "regions" in data
         assert "attendee_roles" in data
+        assert "years_with_data" in data
         assert "Summit" in data["event_types"]
         assert "Climate" in data["themes"]
         assert "Europe" in data["regions"]
         assert "Speaker" in data["attendee_roles"]
+
+    @pytest.mark.asyncio
+    async def test_years_with_data_sorted_desc(self, client: AsyncClient):
+        await client.post("/api/events", json=_event_payload(
+            name="Old Event", start_date="2024-01-15",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="New Event", start_date="2026-06-15",
+        ))
+        await client.post("/api/events", json=_event_payload(
+            name="Mid Event", start_date="2025-03-10",
+        ))
+
+        resp = await client.get("/api/events/options")
+        assert resp.status_code == 200
+        assert resp.json()["years_with_data"] == [2026, 2025, 2024]
 
 
 class TestEventStats:
