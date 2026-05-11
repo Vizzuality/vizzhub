@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EventForm } from '../EventForm';
 
@@ -57,5 +58,22 @@ describe('EventForm create flow', () => {
   it('renders AttendeesPicker on create', () => {
     renderForm('new');
     expect(screen.getByText(/Attendees/i)).toBeInTheDocument();
+  });
+
+  it('submits attending=yes when the Yes radio is selected', async () => {
+    const user = userEvent.setup();
+    renderForm('new');
+
+    await user.type(screen.getByLabelText(/^Name \*$/), 'Test Event');
+    await user.type(screen.getByLabelText(/^Start Date \*$/), '2026-06-15');
+    await user.click(screen.getByLabelText(/^Yes$/));
+    await user.click(screen.getByRole('button', { name: /^Create$/ }));
+
+    await vi.waitFor(() => {
+      expect(createMock).toHaveBeenCalled();
+    });
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ attending: 'yes' }),
+    );
   });
 });
