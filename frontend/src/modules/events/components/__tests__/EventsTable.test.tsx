@@ -24,8 +24,6 @@ const events: EventSummary[] = [
     created_by: null,
     attendee_count: 2,
     attendee_names: [],
-    rsvp_counts: { going: 1, maybe: 0, not_going: 0 },
-    my_rsvp_status: null,
     created_at: '',
     updated_at: '',
   },

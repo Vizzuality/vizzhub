@@ -7,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table';
-import { RsvpChips } from './RsvpChips';
 import { StarRating } from './StarRating';
 import type { EventSummary } from '../types/events';
 
@@ -102,7 +101,6 @@ export function EventsTable({
               onSortChange={onSortChange}
             />
             <TableHead>Attendees</TableHead>
-            <TableHead>RSVP</TableHead>
             <SortableHead
               label="Rating"
               colKey="rating"
@@ -131,14 +129,6 @@ export function EventsTable({
               </TableCell>
               <TableCell>€{Number(e.total_cost).toFixed(2)}</TableCell>
               <TableCell>{e.attendee_count}</TableCell>
-              <TableCell onClick={(ev) => ev.stopPropagation()}>
-                <RsvpChips
-                  eventId={e.id}
-                  counts={e.rsvp_counts}
-                  myStatus={e.my_rsvp_status}
-                  size="sm"
-                />
-              </TableCell>
               <TableCell>
                 {e.rating != null ? (
                   <StarRating

@@ -25,7 +25,6 @@ import { Can, Action } from '@/core/permissions';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import { useEvent } from '../hooks/useEvent';
 import { EventForm } from '../components/EventForm';
-import { RsvpChips } from '../components/RsvpChips';
 import { StarRating } from '../components/StarRating';
 import { formatEventDateRange } from '../utils/constants';
 
@@ -164,14 +163,6 @@ export default function EventDetail(): JSX.Element {
             </div>
           )}
 
-          <div className="pt-3 border-t">
-            <RsvpChips
-              eventId={event.id}
-              counts={event.rsvp_counts}
-              myStatus={event.my_rsvp_status}
-              names={event.rsvps}
-            />
-          </div>
         </CardContent>
       </Card>
 
