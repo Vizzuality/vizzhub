@@ -417,13 +417,12 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
               >
                 {(
                   [
-                    { value: null, label: 'Sin decidir' },
                     { value: 'yes', label: 'Yes' },
                     { value: 'maybe', label: 'Maybe' },
                     { value: 'no', label: 'No' },
                   ] as const
                 ).map((opt) => {
-                  const id = `evt-attending-${opt.value ?? 'none'}`;
+                  const id = `evt-attending-${opt.value}`;
                   const checked = form.attending === opt.value;
                   return (
                     <label
