@@ -543,6 +543,7 @@ export default function ProjectForm(): JSX.Element {
     statusMutation.mutate(
       { status: 'finished', finished_at: new Date().toISOString().split('T')[0] },
       {
+        onSuccess: () => setValue('status', 'finished', { shouldDirty: false }),
         onError: (error) => setApiError(getApiErrorMessage(error)),
       },
     );
@@ -555,6 +556,7 @@ export default function ProjectForm(): JSX.Element {
     statusMutation.mutate(
       { status: 'live' },
       {
+        onSuccess: () => setValue('status', 'live', { shouldDirty: false }),
         onError: (error) => setApiError(getApiErrorMessage(error)),
       },
     );
