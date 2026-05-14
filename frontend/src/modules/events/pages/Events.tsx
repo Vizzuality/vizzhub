@@ -51,6 +51,23 @@ const urlSchema = {
   view: { defaultValue: 'grid' },
 };
 
+type UrlState = { [K in keyof typeof urlSchema]: string };
+
+function buildQueryParams(state: UrlState): EventListParams {
+  const [sortBy, sortDir] = state.sort.split(':');
+  return {
+    ...(state.search && { search: state.search }),
+    ...(state.year && { year: Number(state.year) }),
+    ...(state.theme && { theme_primary: state.theme }),
+    ...(state.type && { event_type: state.type }),
+    ...(state.region && { region_focus: state.region }),
+    ...(state.attending && { attending: state.attending as Attending }),
+    sort_by: sortBy,
+    sort_dir: sortDir,
+    page_size: 100,
+  };
+}
+
 export default function Events(): JSX.Element {
   const navigate = useNavigate();
   const canManage = usePermission(Action.EVENTS_MANAGE);
@@ -91,19 +108,7 @@ export default function Events(): JSX.Element {
   }, [options, state.year, setState]);
 
   const [sortBy, sortDir] = state.sort.split(':');
-
-  const queryParams: EventListParams = {
-    ...(state.search && { search: state.search }),
-    ...(state.year && { year: Number(state.year) }),
-    ...(state.theme && { theme_primary: state.theme }),
-    ...(state.type && { event_type: state.type }),
-    ...(state.region && { region_focus: state.region }),
-    ...(state.attending && { attending: state.attending as Attending }),
-    sort_by: sortBy,
-    sort_dir: sortDir,
-    page_size: 100,
-  };
-
+  const queryParams = buildQueryParams(state);
   const { data, isLoading, error } = useEvents(queryParams);
   const events = data?.items ?? [];
   const total = data?.total ?? 0;
