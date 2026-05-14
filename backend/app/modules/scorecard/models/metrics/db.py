@@ -285,23 +285,13 @@ class MetricsDB(Base):
             "period_end": period_end,
         }
 
-        # Extract Jira fields
-        if jira_data:
-            for key, (db_field, default) in MetricsDB.JIRA_FIELD_MAPPING.items():
-                result[db_field] = jira_data.get(key, default)
-        else:
-            for _, (db_field, _) in MetricsDB.JIRA_FIELD_MAPPING.items():
-                result[db_field] = None
+        for mapping, source in (
+            (MetricsDB.JIRA_FIELD_MAPPING, jira_data),
+            (MetricsDB.GITHUB_FIELD_MAPPING, github_data),
+        ):
+            for key, (db_field, default) in mapping.items():
+                result[db_field] = source.get(key, default) if source else None
 
-        # Extract GitHub fields
-        if github_data:
-            for key, (db_field, default) in MetricsDB.GITHUB_FIELD_MAPPING.items():
-                result[db_field] = github_data.get(key, default)
-        else:
-            for _, (db_field, _) in MetricsDB.GITHUB_FIELD_MAPPING.items():
-                result[db_field] = None
-
-        # Add preserved fields
         if preserved:
             result.update(preserved)
 

@@ -30,6 +30,17 @@ RUNNING_STALE_AFTER = timedelta(hours=1)
 
 router = APIRouter(prefix="/admin/jobs", tags=["scheduled-jobs"])
 
+
+def _effective_status(run: ScheduledJobRunDB) -> str:
+    """Return run.status, flipping `running` to `stale` past the worker timeout."""
+    if (
+        run.status == "running"
+        and run.started_at is not None
+        and datetime.now(timezone.utc) - run.started_at > RUNNING_STALE_AFTER
+    ):
+        return "stale"
+    return run.status
+
 SCHEDULED_JOBS = {
     "check_dependabot_alerts": {
         "name": "check_dependabot_alerts",
@@ -112,19 +123,11 @@ async def list_scheduled_jobs(
 
         last_run = None
         if last_run_record:
-            effective_status = last_run_record.status
-            if (
-                effective_status == "running"
-                and last_run_record.started_at is not None
-                and datetime.now(timezone.utc) - last_run_record.started_at
-                > RUNNING_STALE_AFTER
-            ):
-                effective_status = "stale"
             last_run = ScheduledJobLastRun(
                 id=last_run_record.id,
                 started_at=last_run_record.started_at,
                 completed_at=last_run_record.completed_at,
-                status=effective_status,
+                status=_effective_status(last_run_record),
                 projects_checked=last_run_record.projects_checked,
                 alerts_sent=last_run_record.alerts_sent,
                 error_message=last_run_record.error_message,
@@ -184,11 +187,11 @@ async def trigger_scheduled_job(
                 message=f"Job '{job_name}' has been enqueued",
                 job_id=arq_job.job_id,
             )
-        else:
-            return JobTriggerResponse(
-                success=False,
-                message=f"Job '{job_name}' could not be enqueued (may already be queued)",
-            )
+
+        return JobTriggerResponse(
+            success=False,
+            message=f"Job '{job_name}' could not be enqueued (may already be queued)",
+        )
 
     except Exception as e:
         logger.exception("job_enqueue_failed", job_name=job_name)

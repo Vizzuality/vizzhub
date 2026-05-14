@@ -55,6 +55,9 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
     db.add(job_run)
     await db.commit()
     await db.refresh(job_run)
+    # Hold the PK as a plain int so the outer except can use it even after a
+    # rollback expires the ORM instance.
+    job_run_id = job_run.id
 
     try:
         today = date.today()
@@ -144,7 +147,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
 
         return {
             "status": "completed",
-            "job_run_id": str(job_run.id),
+            "job_run_id": str(job_run_id),
             "year": year,
             "month": month,
             "captured": captured,
@@ -161,7 +164,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
         await db.rollback()
         await db.execute(
             update(ScheduledJobRunDB)
-            .where(ScheduledJobRunDB.id == job_run.id)
+            .where(ScheduledJobRunDB.id == job_run_id)
             .values(
                 status="error",
                 completed_at=datetime.now(timezone.utc),
@@ -172,6 +175,6 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
 
         return {
             "status": "error",
-            "job_run_id": str(job_run.id),
+            "job_run_id": str(job_run_id),
             "error": str(e),
         }
