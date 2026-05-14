@@ -1,6 +1,6 @@
 """Tests for Scheduled Jobs API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -269,6 +269,59 @@ class TestScheduledJobsWithRunHistory:
         assert dependabot_job["last_run"]["status"] == "running"
         assert dependabot_job["last_run"]["completed_at"] is None
         assert dependabot_job["last_run"]["projects_checked"] == 3
+
+    @pytest.mark.asyncio
+    async def test_running_job_past_timeout_reports_stale(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        """A row stuck in 'running' past the worker job_timeout reports as 'stale'."""
+        started = datetime.now(timezone.utc) - timedelta(hours=3)
+        job_run = ScheduledJobRunDB(
+            job_name="monthly_scorecard_capture",
+            started_at=started,
+            completed_at=None,
+            status="running",
+            projects_checked=0,
+            alerts_sent=0,
+        )
+        db_session.add(job_run)
+        await db_session.commit()
+
+        response = await client.get("/api/admin/jobs/scheduled")
+        assert response.status_code == 200
+        data = response.json()
+
+        job = next(
+            (j for j in data if j["name"] == "monthly_scorecard_capture"), None
+        )
+        assert job["last_run"]["status"] == "stale"
+        assert job["last_run"]["completed_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_recent_running_job_stays_running(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        """A recent 'running' row (within job_timeout) keeps the 'running' label."""
+        started = datetime.now(timezone.utc) - timedelta(minutes=10)
+        job_run = ScheduledJobRunDB(
+            job_name="monthly_scorecard_capture",
+            started_at=started,
+            completed_at=None,
+            status="running",
+            projects_checked=2,
+            alerts_sent=0,
+        )
+        db_session.add(job_run)
+        await db_session.commit()
+
+        response = await client.get("/api/admin/jobs/scheduled")
+        assert response.status_code == 200
+        data = response.json()
+
+        job = next(
+            (j for j in data if j["name"] == "monthly_scorecard_capture"), None
+        )
+        assert job["last_run"]["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_error_job_with_message(

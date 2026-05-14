@@ -1,6 +1,7 @@
 """Scheduled jobs API endpoints."""
 
 import structlog
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -22,6 +23,10 @@ from app.utils.redis import get_redis_pool
 logger = structlog.get_logger()
 
 JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
+
+# Mirrors WorkerSettings.job_timeout: a row stuck in `running` past this
+# window means the worker died mid-job without updating the status.
+RUNNING_STALE_AFTER = timedelta(hours=1)
 
 router = APIRouter(prefix="/admin/jobs", tags=["scheduled-jobs"])
 
@@ -107,11 +112,19 @@ async def list_scheduled_jobs(
 
         last_run = None
         if last_run_record:
+            effective_status = last_run_record.status
+            if (
+                effective_status == "running"
+                and last_run_record.started_at is not None
+                and datetime.now(timezone.utc) - last_run_record.started_at
+                > RUNNING_STALE_AFTER
+            ):
+                effective_status = "stale"
             last_run = ScheduledJobLastRun(
                 id=last_run_record.id,
                 started_at=last_run_record.started_at,
                 completed_at=last_run_record.completed_at,
-                status=last_run_record.status,
+                status=effective_status,
                 projects_checked=last_run_record.projects_checked,
                 alerts_sent=last_run_record.alerts_sent,
                 error_message=last_run_record.error_message,

@@ -73,7 +73,7 @@ class MetricsDB(Base):
     review_turnaround_hours: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     deployment_frequency: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
     release_count_90d: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    change_failure_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    change_failure_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     total_releases: Mapped[int | None] = mapped_column(Integer, nullable=True)
     failed_releases: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

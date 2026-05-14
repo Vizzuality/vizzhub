@@ -8,7 +8,7 @@ import asyncio
 import structlog
 from datetime import date, datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
@@ -121,6 +121,10 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
                 logger.info("project_captured", project=project.name)
 
             except Exception as e:
+                # Rollback so the session is usable for the next project.
+                # Without this, SQLAlchemy raises PendingRollbackError on every
+                # subsequent operation and one bad row poisons the whole run.
+                await db.rollback()
                 errors.append({"project": project.name, "error": str(e)})
                 logger.error("project_capture_failed", project=project.name, error=str(e))
 
@@ -150,9 +154,20 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
 
     except Exception as e:
         logger.exception("job_failed")
-        job_run.status = "error"
-        job_run.completed_at = datetime.now(timezone.utc)
-        job_run.error_message = str(e)
+        # Rollback any half-finished transaction, then write the error status
+        # via a raw UPDATE rather than via the ORM instance — `job_run` may be
+        # in an inconsistent state after the failed flush. Without this dual
+        # safeguard, a poisoned session leaves the row stuck in `running`.
+        await db.rollback()
+        await db.execute(
+            update(ScheduledJobRunDB)
+            .where(ScheduledJobRunDB.id == job_run.id)
+            .values(
+                status="error",
+                completed_at=datetime.now(timezone.utc),
+                error_message=str(e)[:2000],
+            )
+        )
         await db.commit()
 
         return {
