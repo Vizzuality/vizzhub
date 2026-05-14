@@ -13,6 +13,7 @@ from app.modules.iso.public import (
     GoogleWorkspaceOAuth,
     JiraCollector,
 )
+from app.modules.iso.services.review_service import create_review_for_snapshot
 from app.modules.notifications.public import ScheduledJobRunDB, SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.utils import complete_with_error
@@ -41,44 +42,32 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
     results: dict[str, dict] = {}
     errors: list[str] = []
 
-    # Google Workspace
-    if await _is_gw_connected(db):
+    providers: list[tuple[str, type, bool]] = [
+        ("google_workspace", GoogleWorkspaceCollector, await _is_gw_connected(db)),
+        ("github", GitHubCollector, await _is_github_connected(db)),
+        ("jira", JiraCollector, await _is_jira_connected(db)),
+    ]
+    for name, collector_cls, connected in providers:
+        if not connected:
+            continue
         try:
-            collector = GoogleWorkspaceCollector(db)
-            snapshot = await collector.capture(run_mode="cron")
+            snapshot = await collector_cls(db).capture(run_mode="cron")
+            review = await create_review_for_snapshot(db, snapshot)
             await db.commit()
-            results["google_workspace"] = {"snapshot_id": str(snapshot.id)}
-            logger.info("snapshot_captured", provider="google_workspace", snapshot_id=str(snapshot.id))
+            results[name] = {
+                "snapshot_id": str(snapshot.id),
+                "review_id": str(review.id),
+            }
+            logger.info(
+                "snapshot_captured",
+                provider=name,
+                snapshot_id=str(snapshot.id),
+                review_id=str(review.id),
+            )
         except Exception as e:
-            error_msg = f"google_workspace: {e}"
-            logger.error("snapshot_failed", provider="google_workspace", error=str(e), exc_info=True)
-            errors.append(error_msg)
-
-    # GitHub
-    if await _is_github_connected(db):
-        try:
-            collector = GitHubCollector(db)
-            snapshot = await collector.capture(run_mode="cron")
-            await db.commit()
-            results["github"] = {"snapshot_id": str(snapshot.id)}
-            logger.info("snapshot_captured", provider="github", snapshot_id=str(snapshot.id))
-        except Exception as e:
-            error_msg = f"github: {e}"
-            logger.error("snapshot_failed", provider="github", error=str(e), exc_info=True)
-            errors.append(error_msg)
-
-    # Jira
-    if await _is_jira_connected(db):
-        try:
-            collector = JiraCollector(db)
-            snapshot = await collector.capture(run_mode="cron")
-            await db.commit()
-            results["jira"] = {"snapshot_id": str(snapshot.id)}
-            logger.info("snapshot_captured", provider="jira", snapshot_id=str(snapshot.id))
-        except Exception as e:
-            error_msg = f"jira: {e}"
-            logger.error("snapshot_failed", provider="jira", error=str(e), exc_info=True)
-            errors.append(error_msg)
+            await db.rollback()
+            logger.error("snapshot_failed", provider=name, error=str(e), exc_info=True)
+            errors.append(f"{name}: {e}")
 
     if errors:
         combined_error = "; ".join(errors)

@@ -24,18 +24,13 @@ from app.modules.iso.schemas import (
     AccessReviewDetailResponse,
     AccessSnapshotResponse,
     AccessSnapshotSummary,
-    ReviewStatus,
 )
 from app.modules.iso.services.collectors import (
     GoogleWorkspaceCollector,
     GitHubCollector,
     JiraCollector,
 )
-from app.modules.iso.services.diff_engine import (
-    build_diff_summary,
-    compute_diff,
-    create_review_actions,
-)
+from app.modules.iso.services.review_service import create_review_for_snapshot
 from app.modules.iso.api.helpers import load_review_with_actions
 
 logger = structlog.get_logger()
@@ -53,15 +48,6 @@ def _get_collector(provider: str, db):
     if provider == "jira":
         return JiraCollector(db)
     raise ValueError(f"Unknown provider: {provider}")
-
-
-def _get_diff_context(snapshot: AccessSnapshotDB) -> str:
-    metadata = snapshot.source_metadata or {}
-    if snapshot.provider == "github":
-        return metadata.get("org", "")
-    if snapshot.provider == "jira":
-        return metadata.get("site_url", "")
-    return metadata.get("domain", "")
 
 
 @router.post(
@@ -104,32 +90,9 @@ async def capture_snapshot(
             status_code=502, detail=f"Failed to connect to {provider}"
         )
 
-    result = await db.execute(
-        select(AccessSnapshotDB)
-        .where(AccessSnapshotDB.provider == provider)
-        .where(AccessSnapshotDB.id != snapshot.id)
-        .order_by(AccessSnapshotDB.captured_at.desc())
-        .limit(1)
+    review = await create_review_for_snapshot(
+        db, snapshot, reviewer_id=snapshot.captured_by
     )
-    previous = result.scalar_one_or_none()
-
-    review = AccessReviewDB(
-        snapshot_id=snapshot.id,
-        previous_snapshot_id=previous.id if previous else None,
-        reviewer_id=snapshot.captured_by,
-        status=ReviewStatus.DRAFT,
-        scope="All users and groups",
-    )
-    db.add(review)
-    await db.flush()
-
-    if previous:
-        context = _get_diff_context(snapshot)
-        changes = compute_diff(snapshot.data, previous.data, context, provider)
-        review.diff_summary = build_diff_summary(changes)
-        await create_review_actions(db, review.id, changes)
-        await db.flush()
-
     logger.info("snapshot_captured", review_id=str(review.id))
     return snapshot
 

@@ -1,5 +1,6 @@
 """Tests for ISO snapshot cron job and failure alerts."""
 
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.token_encryption import encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.worker.collect_iso_snapshot import (
     collect_iso_snapshot,
@@ -158,6 +160,19 @@ class TestCollectIsoSnapshot:
         db_session.add_all([gw_token, gh_token, gh_setting])
         await db_session.flush()
 
+        async def fake_gh_capture(*_args, **_kwargs):
+            snap = AccessSnapshotDB(
+                provider="github",
+                captured_at=datetime(2026, 5, 1, 6, tzinfo=timezone.utc),
+                data_version="1",
+                source_metadata={"org": "acme-corp"},
+                data={"members": [], "teams": [], "outside_collaborators": []},
+                summary={},
+            )
+            db_session.add(snap)
+            await db_session.flush()
+            return snap
+
         with (
             patch(
                 "app.worker.collect_iso_snapshot.GoogleWorkspaceCollector.capture",
@@ -166,14 +181,13 @@ class TestCollectIsoSnapshot:
             ),
             patch(
                 "app.worker.collect_iso_snapshot.GitHubCollector.capture",
-                new_callable=AsyncMock,
-            ) as mock_gh_capture,
+                new=fake_gh_capture,
+            ),
             patch(
                 "app.worker.collect_iso_snapshot.send_iso_failure_alert",
                 new_callable=AsyncMock,
             ),
         ):
-            mock_gh_capture.return_value = MagicMock(id="gh-snap-1")
             result = await collect_iso_snapshot({"db": db_session})
 
         assert result["status"] == "completed"
