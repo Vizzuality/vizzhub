@@ -1695,11 +1695,11 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 - **OK: 14** — #1 SPI, #2 CPI, #3 budget_variance(None), #8 Flow, #9 Quality, #11 Satisfaction, #12 Value, #13 Engineering, #15 disabled-governance toggle, #19 SV (not implemented; SPI covers), #22 percent_completed, #23 percent_planned, #29 estimated-flag exclusion, #32 prepopulate_parts (VHUB-124).
 - **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed]**.
 - **SUSPICIOUS, fixed:** ~~#4~~, ~~#5~~, ~~#6~~, ~~#7~~ (3/4 sub-issues; UTC business window deferred), ~~#10~~, ~~#14~~, ~~#16~~ (2/3 sub-issues; cache↔cron race deferred), ~~#17~~ (all 4 sub-issues addressed: status filter dropped → MetricsDB presence is the oracle, weighting exposed both equal+budget side-by-side, normalizers fixed via #14, stale projects flagged in `/scorecard` index).
-- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical lookup, #27 invoice MAX(postponed_to) vs most-recent, #28 postponement backdate bug, #30 mood aggregation contaminated by estimated, #31 period rotation idempotency, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
+- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical lookup, #27 invoice MAX(postponed_to) vs most-recent, ~~#28 postponement backdate~~ **[fixed `f084e0de`]**, #30 mood aggregation contaminated by estimated, #31 period rotation idempotency, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
 
 **Module status:**
 - **Scorecard (8 SUSPICIOUS):** all addressed (some with deliberate partial scope; see entries for ACCEPT/TO DISCUSS markers).
-- **Tracker (11 SUSPICIOUS):** untouched. Quick wins ready: #28, #31, #25, #27.
+- **Tracker (11 SUSPICIOUS):** in progress. #28 closed 2026-05-16. Remaining quick wins: #31, #25, #27.
 - **Capacity (4 SUSPICIOUS):** untouched. Needs product decision on partial-reporter semantics.
 - **Frontend (#38):** untouched. TS types lie about Decimal-as-string wire format.
 
@@ -1994,7 +1994,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
   - Fix: change postponement subquery to `DISTINCT ON (invoice_id) ORDER BY invoice_id, created_at DESC` so "latest" reflects intent, not date magnitude. Deduplicate the Python copy by reusing the SQL expression (one source of truth) or by always going through the list endpoint's `effective_status`.
   - Added: 2026-05-15 (calc-audit row #27)
 
-- **Postponement accepts a `postponed_to` in the past when base_date is even older** — `backend/app/modules/tracker/api/postponements.py:127-141`.
+- **Postponement accepts a `postponed_to` in the past when base_date is even older** — `backend/app/modules/tracker/api/postponements.py:127-141`. **[FIXED 2026-05-16 — commit `f084e0de`]**
   - Module: `tracker`
   - Formula: `base_date = latest_postponement.postponed_to ?? invoice.due_date`; `window_base = max(base_date, today)`; valid range = `(base_date, window_base + 30 days]`. Upper bound is correct.
   - Repro of the lower-bound bug: due_date = today−10, POST `postponed_to = today−5`. The check `postponed_to <= base_date` is `today−5 <= today−10` → False (passes), and upper-bound check `today−5 > window_base + 30` is also False (passes). Result: 201, a postponement is created to a date already in the past. The invoice's effective status immediately flips back to `pending_to_issue`, so the postponement record is a no-op that confuses the audit trail.

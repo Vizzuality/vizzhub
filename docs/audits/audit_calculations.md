@@ -70,7 +70,7 @@ Deep verification of domain math in scorecard + tracker + capacity. One formula 
 | 25 | Cost-to-date aggregation | cost_service.py:25-114 + aggregation_service.py | done | SUSPICIOUS — formula is percentage×monthly_rate×dedication×contract/base (NOT hours×rate). base_rate=0 → ZeroDivisionError. Currency gap. Historical freeze correct. |
 | 26 | Currency conversion via ECB rates | exchange_rate_service.py | done | SUSPICIOUS — formula+direction correct; missing rate=0 guard, no historical lookup (blocker for #24/#25 fix), no stale-rate warning. |
 | 27 | Invoice effective status (CASE SQL) | invoice_status.py:28-54 + invoices.py:56-62 | done | SUSPICIOUS — MAX(postponed_to) instead of most-recent; Python/SQL duplicated logic. CASE branches correct otherwise. |
-| 28 | Postponement max date | postponements.py:127-141 | done | SUSPICIOUS — upper bound correct; lower-bound bug allows backdated postponement (due=today-10, postponed_to=today-5 → 201 instead of 400). |
+| 28 | Postponement max date | postponements.py:127-141 | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: lower-bound now `max(base_date, today)`. +3 regression tests in `test_postponements.py`. Commit `f084e0de`. |
 | 29 | Estimated flag exclusion from burn | tracker module-wide | done | OK — all consumers respect "exclude in burn, include in capacity/UI" rule. Latent: mood persists on reopen; mood denominator includes estimated. |
 | 30 | Mood aggregation (monthly avg, distribution) | moods.py:38-217 | done | SUSPICIOUS — null-mood + anonymity correct; estimated reports contaminate; trend silently drops current month; 0 tests on /trend. |
 | 31 | Period rotation (mid-month, 45-day offset) | worker/rotate_reporting_period.py | done | SUSPICIOUS — double-run on day 15 flips freshly-rotated period to FINISHED. No catch-up if worker down. (45-day offset is FE-only, not backend.) |
@@ -115,6 +115,10 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 - **#14 addendum (2026-05-16)** — root-cause patch: `_build_evm_data` and `_build_jira_defects` deserializers were silently coercing NULL DB columns to 0, defeating the original #14 fix one layer up. SPI=0/p_time=0/final=0 for brand-new projects (e.g. SKI - maintenance with `percent_completed=NULL`). Now `EVMData` and `JiraDefectMetrics` carry `None` through hydration, and the normalizers guard against it. +9 regression tests. Commit `48b4d961`.
 - **Cache flush script** `scripts/invalidate_score_cache.py` for the post-deploy Redis wipe. Shipped with `48b4d961`.
 - **SonarCloud cleanup** — `dict.fromkeys` + removed non-native interactive `<span onClick>` in `StaleMetricsIcon`. Commit `988f7cf3`.
+
+## Fixes log (2026-05-16 — Tracker pass)
+
+- **#28 postponement backdate** — lower-bound check now `max(base_date, today)` instead of `base_date`. `backend/app/modules/tracker/api/postponements.py:132-136`. +3 regression tests (`test_postpone_to_past_date_rejected`, `test_postpone_exactly_at_window_boundary`, `test_postpone_when_base_date_is_today`) in `backend/tests/modules/tracker/test_postponements.py`. Commit `f084e0de`. Tracker SUSPICIOUS remaining: 10.
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 
