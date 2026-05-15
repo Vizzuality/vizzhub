@@ -129,10 +129,10 @@ async def postpone_invoice(
     today = date.today()
     window_base = max(base_date, today)
 
-    if body.postponed_to <= base_date:
+    if body.postponed_to <= max(base_date, today):
         raise HTTPException(
             status_code=400,
-            detail=f"New date must be after {base_date}",
+            detail="New date must be after today and after the current due/postponed date",
         )
     if body.postponed_to > window_base + timedelta(days=MAX_POSTPONE_DAYS):
         raise HTTPException(

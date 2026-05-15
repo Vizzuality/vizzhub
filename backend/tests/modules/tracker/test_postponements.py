@@ -150,6 +150,95 @@ class TestPostponeWindow:
         assert r2.status_code == 400
         assert "pending" in r2.json()["detail"].lower()
 
+    async def test_postpone_to_past_date_rejected(
+        self, client: AsyncClient, setup_pending_invoice: dict,
+    ) -> None:
+        """Backdated postponement (postponed_to in the past) must be rejected
+        even when base_date is older than today. Audit finding #28."""
+        pid = setup_pending_invoice["project_id"]
+        inv_id = setup_pending_invoice["invoice_id"]
+
+        past = (date.today() - timedelta(days=5)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": past, "reason": "should not work"},
+        )
+        assert resp.status_code == 400
+        assert "after" in resp.json()["detail"].lower()
+
+    async def test_postpone_exactly_at_window_boundary(
+        self, client: AsyncClient, setup_pending_invoice: dict,
+    ) -> None:
+        """window_base + 30 succeeds; +31 fails. Boundary is inclusive on the high side."""
+        pid = setup_pending_invoice["project_id"]
+        inv_id = setup_pending_invoice["invoice_id"]
+
+        # window_base = today (due_date is today-10), so today+30 is the inclusive max.
+        at_boundary = (date.today() + timedelta(days=30)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": at_boundary, "reason": "max allowed"},
+        )
+        assert resp.status_code == 201, resp.text
+
+        # Clear the postponement so we can retry with the over-boundary date.
+        await client.delete(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
+        )
+
+        past_boundary = (date.today() + timedelta(days=31)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": past_boundary, "reason": "over"},
+        )
+        assert resp.status_code == 400
+        assert "30 days" in resp.json()["detail"]
+
+    async def test_postpone_when_base_date_is_today(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """When base_date == today, today+30 is allowed; today+31 is not."""
+        user = UserDB(id=DEBUG_USER_ID, email="test@example.com", name="Test User")
+        db_session.add(user)
+        await db_session.flush()
+        project = ProjectDB(name="Today Proj", status="live")
+        db_session.add(project)
+        await db_session.commit()
+        await db_session.refresh(project)
+        pid = str(project.id)
+
+        today_iso = date.today().isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices",
+            json={
+                "amount": 1000,
+                "code": "INV-TODAY",
+                "due_date": today_iso,
+                "milestone": "M1",
+            },
+        )
+        assert resp.status_code == 201, resp.text
+        inv_id = resp.json()["id"]
+
+        at_boundary = (date.today() + timedelta(days=30)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": at_boundary, "reason": "max"},
+        )
+        assert resp.status_code == 201, resp.text
+
+        await client.delete(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
+        )
+
+        past_boundary = (date.today() + timedelta(days=31)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": past_boundary, "reason": "over"},
+        )
+        assert resp.status_code == 400
+        assert "30 days" in resp.json()["detail"]
+
     async def test_delete_latest_postponement(
         self, client: AsyncClient, setup_pending_invoice: dict,
     ) -> None:
