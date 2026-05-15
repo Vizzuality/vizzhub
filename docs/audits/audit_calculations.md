@@ -112,6 +112,9 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 - **#17 weighting policy** — expose equal-weighted AND budget-weighted aggregates side by side. Migration `070_global_by_budget` + `BudgetWeightedScores` schema + service `_average_scores_by_budget` + FE two `GlobalScoreCard`s. Route moved to `/scorecard/global` (user-accessible). Calculate/Recalculate gated to admin. Commit `2efa2c47`.
 - **#17 oracle = MetricsDB presence** — dropped status filter entirely. Membership for month M = has a captured row for M. The cron filters status=live upstream, so historical FINISHED rows stay (correct), no spurious future rows (correct). Commit `8f8a93b6`.
 - **Post-deploy script** `scripts/recalc_global_history.py` for backfilling legacy `global_metrics` rows with the new logic and the new `_by_budget` columns. Commit `91fa9d78`.
+- **#14 addendum (2026-05-16)** — root-cause patch: `_build_evm_data` and `_build_jira_defects` deserializers were silently coercing NULL DB columns to 0, defeating the original #14 fix one layer up. SPI=0/p_time=0/final=0 for brand-new projects (e.g. SKI - maintenance with `percent_completed=NULL`). Now `EVMData` and `JiraDefectMetrics` carry `None` through hydration, and the normalizers guard against it. +9 regression tests. Commit `48b4d961`.
+- **Cache flush script** `scripts/invalidate_score_cache.py` for the post-deploy Redis wipe. Shipped with `48b4d961`.
+- **SonarCloud cleanup** — `dict.fromkeys` + removed non-native interactive `<span onClick>` in `StaleMetricsIcon`. Commit `988f7cf3`.
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 

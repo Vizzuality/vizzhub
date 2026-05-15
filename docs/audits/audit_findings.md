@@ -1703,7 +1703,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 - **Capacity (4 SUSPICIOUS):** untouched. Needs product decision on partial-reporter semantics.
 - **Frontend (#38):** untouched. TS types lie about Decimal-as-string wire format.
 
-**Commits delivered 2026-05-15 PM (10):**
+**Commits delivered 2026-05-15 PM (11):**
 - `082fe9d0` #37 + #14 (formatCurrency + normalizers)
 - `fbfee1ea` #5 + #10 (CFR + risk docstring)
 - `7a1e236d` #6 (DORA Elite threshold)
@@ -1715,8 +1715,19 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 - `2efa2c47` #17 budget-weighted dashboard
 - `8f8a93b6` #17 drop status filter (MetricsDB presence as oracle)
 - `91fa9d78` post-deploy recalc script
+- `19607a4a` docs(audit) refresh
 
-**Backend 1860+ / FE 450 green. Pushed to `dev` + `main` 2026-05-16.**
+**Commits delivered 2026-05-16 (3):**
+- `48b4d961` #14 addendum: NULL EVM/Jira columns preserved through deserialization (root cause of brand-new projects scoring 0).
+- `988f7cf3` SonarCloud cleanup (dict.fromkeys + remove non-native interactive span in StaleMetricsIcon).
+- `scripts/invalidate_score_cache.py` shipped alongside #14 addendum for the post-deploy cache flush.
+
+**Post-deploy 2026-05-16 ops completed:**
+- Old admin/operational projects (2018-2020) flipped to `has_scorecard=false`. 18 projects affected, all without MetricsDB, no recalc needed.
+- KPI registry export (`iso_docs/services/kpi_export_service.py`) deliberately left reading equal-weighted aggregates only — semantically right for ISO 9001 (quality independent of project size).
+- Cache invalidated + `recalc_global_history.py` re-run after #14-addendum deploy: 48 months processed, 48 budgeted.
+
+**Backend 1879 / FE 450 green. All commits pushed to `dev` + `main` 2026-05-16.**
 
 **Multi-step families still open:**
 - **Currency end-to-end** (#18 / #24 / #25 / #26 / #38): backend cost paths still implicit EUR + no historical FX lookup. FE display (#37) already correct.
