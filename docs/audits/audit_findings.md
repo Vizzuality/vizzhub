@@ -6,66 +6,15 @@ Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each 
 
 ## Status (2026-05-15 PM)
 
-**109 fixed · 18 won't do · 136 warning.** Full backend (1843) + frontend (433) test suites pass on a clean run. Tier 1 + Tier 2 priority pass closed; previously-deferred "disabled governance tool" UX item now landed. The remaining 136 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
+**112 fixed · 18 won't do · 133 warning.** Full backend (1844) + frontend (433) + MCP (310) test suites pass on a clean run. Tier 1 + Tier 2 priority pass closed; previously-deferred "disabled governance tool" UX item now landed; and the 3 High-priority items (HP-1, HP-2, HP-3) closed in the same session. The remaining 133 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
 
-**3 items have been promoted to "High priority — attack first" below**: they are not catastrophic today, but each has a failure mode that becomes silent or unrecoverable in the next change to its area. Address them before the next boy-scout pass through the same files.
-
----
-
-## High priority — attack first
-
-These three remained `[warning]` for scope reasons but stand out from the rest: each is "safe today, dangerous on the next change to this area". Order is by blast radius if not fixed.
-
-### HP-1. MCP permission gating is invisible in CI
-
-**File:** `mcp_server/data/base.py:41-46`, all MCP tests.
-**Risk class:** silent regression on auth surface.
-
-`FULL_ACCESS = McpUserContext(permissions=["*"])` is the default test user. Every MCP test that doesn't explicitly override it passes every `@mcp_requires` gate. **The day someone removes a `@mcp_requires` decorator on a write tool, CI stays green** — the regression has no test that would fail. Combined with HP-2 below, the audit trail for the change would also be silent.
-
-**Fix (~30 min):**
-1. Add a `restricted_user` fixture: `McpUserContext(permissions=["iso_docs:view"])`.
-2. For each write tool (iso_*, playbook_*), add one test that calls it with `restricted_user` and asserts the gate raises / blocks.
-3. Optionally invert the default: `FULL_ACCESS` fixtures must be opted into explicitly; default = `restricted_user`. (Bigger change; do as follow-up.)
-
-Added: 2026-05-14 by audit_tech_debt iteration #15. Promoted to HP: 2026-05-15.
-
----
-
-### HP-2. `mcp_requires` denials look like successful tool runs
-
-**File:** `mcp_server/auth/permissions.py:11-29`.
-**Risk class:** broken audit trail + LLM-agent confusion.
-
-On permission failure the decorator returns `{"error": "..."}` as a JSON string. FastMCP treats that as a *successful* return value. The caller (LLM agent or UI) cannot distinguish "tool ran and reported a failure" from "tool was blocked at the gate". An LLM reading the denial message may decide to try an alternate route, and from the server's perspective nothing logs the access attempt as a denial.
-
-**Fix (~10 min):** `raise ToolError(f"Permission denied: requires {permission}")`. FastMCP surfaces it as a tool error distinguishable from a return value; add a structlog event `mcp_permission_denied(tool, permission, user_id)` for the audit trail.
-
-Added: 2026-05-14 by audit_tech_debt iteration #15. Promoted to HP: 2026-05-15.
-
----
-
-### HP-3. XSS / Slack mrkdwn injection latent in two rendering paths
-
-Two files share the same shape — *safe today by accident, unsafe the next time someone touches them*. Treat as one piece of work.
-
-**Files:**
-- `backend/app/modules/playbook/services/publish_service.py:47` — Jinja `autoescape=False`. Currently safe because markdown-it pre-renders content to sanitized HTML before Jinja sees it. The next template that adds a placeholder taking a raw string inherits the unsafe default.
-- `backend/app/modules/notifications/services/alert_service.py:38` — `render_template` does `str(value)` with no Slack mrkdwn escaping. Currently safe because project/user names come from trusted DB rows. The next template that interpolates a Jira-sourced field (controlled by external users) becomes a Slack-mrkdwn injection vector.
-
-**Risk class:** XSS / formatting injection. Low likelihood today, but the project actively adds templates and interpolations.
-
-**Fix (~30 min each):**
-- Jinja: flip `autoescape=True`; register a `safe_html` filter (or use `Markup`) for the one pre-rendered content block.
-- AlertService: add `markdown_escape(value)` that escapes `*`, `_`, `` ` ``, `>`, `<`, `|`; apply to every interpolated value (or whitelist trusted fields).
-
-Added: 2026-05-14 by audit_tech_debt iterations #7, #12. Promoted to HP: 2026-05-15.
+No High priority items currently open. Next audit pass should focus on what's new since 2026-05-15.
 
 ---
 
 ## Pending — by criticality
 
-Open `[warning]` items grouped by audit severity. Touch the file? Fix the warning in the same PR. 4 promoted to "High priority" above.
+Open `[warning]` items grouped by audit severity. Touch the file? Fix the warning in the same PR.
 
 ### Major (66)
 
@@ -989,9 +938,31 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
 
 ## Fixed
 
-109 items closed across the dead-code, test-sweep, Tier 1 and Tier 2 passes. Kept for traceability of what was changed and why.
+112 items closed across the dead-code, test-sweep, Tier 1, Tier 2, and HP passes. Kept for traceability of what was changed and why.
 
-### Blocker (11)
+### Blocker (14)
+
+- **HP-1: MCP permission gating is invisible in CI** — `mcp_server/data/base.py:41-46`, all MCP write tools [fixed]
+  - Module: `mcp_server`
+  - Detail: `FULL_ACCESS = McpUserContext(permissions=["*"])` was the de-facto default for tests that overrode the read session but never the user context. Combined with HP-2, removing a `@mcp_requires` decorator from a write tool would have left CI green AND left no audit-log trace at runtime.
+  - Fix: New `restricted_user` pytest fixture (`mcp_server/tests/conftest.py:67`) returns a `McpUserContext` with only `tracker:view`. New `mcp_server/tests/test_write_tool_gating.py` parametrizes over the 13 write tools (9 iso_*, 4 playbook_*) and asserts each raises `ToolError` under that fixture. The day someone deletes a decorator or changes the required permission string, one of these 13 tests fails.
+  - Added: 2026-05-14 by audit_tech_debt iteration #15 · promoted to HP: 2026-05-15 · fixed: 2026-05-15 PM
+
+- **HP-2: `mcp_requires` denials looked like successful tool runs** — `mcp_server/auth/permissions.py` [fixed]
+  - Module: `mcp_server / auth`
+  - Detail: The decorator returned `json.dumps({"error": "..."})` on permission failure. FastMCP wrapped that as a successful tool return, so callers (LLM agents, UIs) could not distinguish "blocked at the gate" from "tool ran and returned a failure structure". An LLM reading the denial message had no signal to stop, and the server emitted no audit event.
+  - Fix: Now `raise ToolError(f"Permission denied: requires {permission}")` from `mcp.server.fastmcp.exceptions`, which FastMCP surfaces as a true tool error (the message ends up on the raised exception, not the return). Added a `mcp_permission_denied` structlog warning event with `tool`, `permission`, `user_id`, and `user_email` for the audit trail. All existing tests (`TestMcpRequires`, `TestToolGating`, `test_permission_denied_for_write_tool`) updated to `pytest.raises(ToolError, match=...)`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #15 · promoted to HP: 2026-05-15 · fixed: 2026-05-15 PM
+
+- **HP-3: XSS / Slack mrkdwn injection latent in two rendering paths** — `backend/app/modules/playbook/services/publish_service.py:46`, `backend/app/modules/notifications/services/alert_service.py` [fixed]
+  - Module: `playbook / publish` + `notifications / alerts`
+  - Detail: Two "safe today by accident" rendering paths that the next template-author would have made unsafe without realising.
+    - **Jinja** — `_get_jinja_env()` used `autoescape=False`. Only safe because the lone interpolation that handled markdown-pre-rendered HTML went through `{{ content | safe }}` and all other templates happened to only render trusted strings (titles, slugs). Any future `{{ user_supplied_field }}` would have inherited an unsafe default.
+    - **AlertService** — `render_template()` stringified context values with no Slack mrkdwn escaping. Currently project/user names come from trusted DB rows, but a Jira-sourced placeholder (e.g. `package_name` from a dependabot alert, or a Jira issue summary) is one template away from a mrkdwn-injection vector that can open hidden bold / italic / link blocks in leadership Slack messages.
+  - Fix:
+    - `publish_service.py` — flipped to `autoescape=select_autoescape(["html"])`. The single content interpolation (`page.html`) already uses `{{ content | safe }}`, so no double-escape. Full playbook test suite (58) re-runs clean.
+    - `alert_service.py` — added module-level `markdown_escape(value)` that escapes `*`, `_`, `` ` ``, `>`, `<`, `|` with a backslash. `render_template` now routes every substituted value through it (missing keys still pass through unchanged so `{missing}` placeholders survive as literal text). New `test_render_template_escapes_mrkdwn_meta` test pins the behaviour against a hostile context.
+  - Added: 2026-05-14 by audit_tech_debt iterations #7, #12 · promoted to HP: 2026-05-15 · fixed: 2026-05-15 PM
 
 - **Cross-module import bypasses public.py (MetricsDB)** — `backend/app/core/api/projects_v2.py:31` [fixed]
   - Module: `core/api → scorecard`
@@ -1686,6 +1657,9 @@ _(No blockers. Permission gating verified: reads use `DevstackViewer`, writes us
 
 <!-- iteration #15: mcp_server -->
 _(Path correction: mcp_server lives at repo root `/mcp_server/`, not under `backend/`. No blockers verified: write-queue pattern intact, OAuth client_id/secret stored as-is per memory rule, data layer enforces per-user visibility via `_get_visible_node_ids()` at `mcp_server/data/iso.py:45-67`, so the unprotected read tools are still filtered by McpUserContext.)_
+
+<!-- HP-pass: 2026-05-15 PM -->
+_(HP-1/HP-2/HP-3 closed in one session. 1844 backend + 310 MCP + 433 frontend pass clean. Net new tests: +14 (13 write-tool gate tests + 1 mrkdwn-escape regression test). Audit trail for MCP denials now lands in structlog as `mcp_permission_denied`. Playbook Jinja autoescape on; AlertService values are mrkdwn-escaped.)_
 
 <!-- iteration #16: frontend/src/core -->
 _(No blockers. Verified: the `/admin` route is properly gated in production at `frontend/src/App.tsx:159` via `<PermissionRoute require={Action.ADMIN_USERS}>`. The agent's "missing admin gating" finding was the dev-only `BYPASS_AUTH` route tree above it, which doesn't apply in production. Bare permission checks inside pages would be defense-in-depth, not a hole.)_
