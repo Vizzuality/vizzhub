@@ -1819,7 +1819,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
     - In `capture.py:289` (and the other write-through site): prefer `cache.invalidate(project_id)` over `cache.set(...)` so a later rollback can't leave Redis ahead of DB. Read-through will re-populate on the next request.
   - Added: 2026-05-15 (calc-audit row #16)
 
-- **Global metrics aggregation includes archived/cancelled projects + equal-weighted** — `backend/app/modules/scorecard/services/global_metrics_service.py:75` (`calculate_and_store`), :134 (`_average_indicators`), :163 (`_average_scores`).
+- **[partially fixed 2026-05-15] Global metrics aggregation includes archived/cancelled projects + equal-weighted** — `backend/app/modules/scorecard/services/global_metrics_service.py:75` (`calculate_and_store`), :134 (`_average_indicators`), :163 (`_average_scores`). Resolution: aggregator now JOINs `ProjectDB` and filters to `ACTIVE_PORTFOLIO_STATUSES = (LIVE, FINISHED)` — `PROPOSAL` projects no longer pollute the portfolio average. `strategic_impact.strip().lower()` so trailing whitespace doesn't fall to None. **Still open (deliberate):** sub-issues #2 (equal weighting) and #4 (stale-snapshot leakage) — both need product decisions, not code changes. Sub-issue #3 was the #14 normalizer cluster, already fixed.
   - Module: `scorecard`
   - What it does well: None-handling is correct — `_average_indicators` and `_average_scores` filter `is not None` before averaging; empty period yields `(value=None, count=0)`; idempotent upsert by `(period_year, period_month)`. The None-exclusion contract holds at the portfolio layer.
   - Issues:

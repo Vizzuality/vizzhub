@@ -317,6 +317,36 @@ class TestGlobalMetricsServiceCalculation:
         assert result.spi is not None or result.spi_count >= 0
 
     @pytest.mark.asyncio
+    async def test_calculate_and_store_excludes_proposal_projects(
+        self,
+        db_session: AsyncSession,
+        global_metrics_service: GlobalMetricsService,
+    ) -> None:
+        """Audit #17: PROPOSAL projects must not contribute to the
+        portfolio average (they haven't started)."""
+        today = date.today()
+        year, month = today.year, today.month
+
+        live = await create_test_project(
+            db_session, "Live", "LIVE", "v/live"
+        )
+        proposal = await create_test_project(
+            db_session, "Draft", "DRAFT", "v/draft"
+        )
+        proposal.status = "proposal"
+        db_session.add(proposal)
+        await db_session.flush()
+
+        await create_test_metrics(db_session, live, year, month)
+        await create_test_metrics(db_session, proposal, year, month)
+
+        result = await global_metrics_service.calculate_and_store(
+            db_session, year, month
+        )
+
+        assert result.project_count == 1  # only the live one
+
+    @pytest.mark.asyncio
     async def test_calculate_and_store_empty_period(
         self,
         db_session: AsyncSession,

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig, get_scoring_config
+from app.core.models.project import ProjectDB, ProjectStatus
 from app.modules.scorecard.models.global_metrics import (
     GlobalIndicators,
     GlobalMetricsDB,
@@ -17,6 +18,11 @@ from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, SnapshotType
 from app.modules.scorecard.models.scores import FinalScore
 from app.modules.scorecard.services.score_computation import ScoreComputationService
+
+
+# Statuses included in the portfolio aggregation. PROPOSAL is excluded
+# because draft projects shouldn't shape the live portfolio average.
+ACTIVE_PORTFOLIO_STATUSES = (ProjectStatus.LIVE.value, ProjectStatus.FINISHED.value)
 
 
 # Indicator fields to average (must match GlobalMetricsDB columns)
@@ -96,9 +102,11 @@ class GlobalMetricsService:
         """
         result = await db.execute(
             select(MetricsDB)
+            .join(ProjectDB, ProjectDB.id == MetricsDB.project_id)
             .where(MetricsDB.period_year == year)
             .where(MetricsDB.period_month == month)
             .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
+            .where(ProjectDB.status.in_(ACTIVE_PORTFOLIO_STATUSES))
         )
         metrics_list = list(result.scalars().all())
 
@@ -119,7 +127,7 @@ class GlobalMetricsService:
 
             if metrics_db.strategic_impact:
                 impact_value = STRATEGIC_IMPACT_VALUES.get(
-                    metrics_db.strategic_impact.lower()
+                    metrics_db.strategic_impact.strip().lower()
                 )
                 if impact_value is not None:
                     strategic_impacts.append(impact_value)
