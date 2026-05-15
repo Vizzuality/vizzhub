@@ -67,6 +67,48 @@ class TestFetchGithubSha:
         result = await fetch_github_sha("")
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_returns_none_on_rate_limit(self, respx_mock) -> None:
+        """GitHub 429 must surface as None without raising — never block sync."""
+        import httpx
+        respx_mock.get(
+            "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
+        ).mock(
+            return_value=httpx.Response(
+                429,
+                headers={"X-RateLimit-Remaining": "0"},
+                json={"message": "API rate limit exceeded"},
+            )
+        )
+        result = await fetch_github_sha(
+            "https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_malformed_json(self, respx_mock) -> None:
+        """Body that isn't JSON must not crash the worker."""
+        import httpx
+        respx_mock.get(
+            "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
+        ).mock(return_value=httpx.Response(200, text="<html>not json</html>"))
+        result = await fetch_github_sha(
+            "https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_sha_missing(self, respx_mock) -> None:
+        """Valid JSON but no 'sha' key → None."""
+        import httpx
+        respx_mock.get(
+            "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
+        ).mock(return_value=httpx.Response(200, json={"name": "test.md"}))
+        result = await fetch_github_sha(
+            "https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+        )
+        assert result is None
+
 
 class TestFetchGithubContent:
     @pytest.mark.asyncio
@@ -77,4 +119,16 @@ class TestFetchGithubContent:
     @pytest.mark.asyncio
     async def test_returns_none_for_empty_url(self) -> None:
         result = await fetch_github_content("")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_malformed_json(self, respx_mock) -> None:
+        """Malformed JSON body must not raise."""
+        import httpx
+        respx_mock.get(
+            "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
+        ).mock(return_value=httpx.Response(200, text="not-json"))
+        result = await fetch_github_content(
+            "https://github.com/Vizzuality/devstack/blob/main/skills/test.md",
+        )
         assert result is None

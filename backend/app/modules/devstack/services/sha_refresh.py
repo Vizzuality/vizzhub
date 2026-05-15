@@ -20,25 +20,36 @@ from app.modules.devstack.services.npm_version import (
     fetch_npm_latest_version,  # kept for backward compat
     fetch_npm_package_info,
 )
-from app.modules.notifications.public import ScheduledJobRunDB
+from app.modules.notifications.public import ScheduledJobRunDB, SlackService
+from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 
 logger = structlog.get_logger()
 
 JOB_NAME = "refresh_devstack_sources"
 
 
-def _parse_frontmatter(content: str) -> dict:
-    """Extract the YAML frontmatter block from a markdown file. Empty dict on failure."""
+def _parse_frontmatter(content: str, *, name: str) -> dict:
+    """Extract the YAML frontmatter block from a markdown file.
+
+    Returns an empty dict on any failure but logs the failure mode so the
+    operator can distinguish a stub skill from a malformed one (audit #13).
+    """
     if not content.startswith("---"):
+        logger.warning("devstack_frontmatter_missing_opening", name=name)
         return {}
     end = content.find("\n---", 3)
     if end == -1:
+        logger.warning("devstack_frontmatter_missing_closing", name=name)
         return {}
     try:
         parsed = yaml.safe_load(content[3:end])
-        return parsed if isinstance(parsed, dict) else {}
-    except yaml.YAMLError:
+    except yaml.YAMLError as exc:
+        logger.warning("devstack_frontmatter_parse_failed", name=name, error=str(exc))
         return {}
+    if not isinstance(parsed, dict):
+        logger.warning("devstack_frontmatter_not_a_dict", name=name)
+        return {}
+    return parsed
 
 
 async def _sync_github_frontmatter(
@@ -49,7 +60,7 @@ async def _sync_github_frontmatter(
     if content is None:
         logger.warning("devstack_content_fetch_failed_for_frontmatter", name=entry.name)
         return
-    fm = _parse_frontmatter(content)
+    fm = _parse_frontmatter(content, name=entry.name)
     new_description = fm.get("description")
     if isinstance(new_description, str) and new_description != entry.description:
         entry.description = new_description
@@ -120,14 +131,16 @@ async def _refresh_npm_entry(
     return "updated" if changed else "unchanged"
 
 
-async def refresh_all_sources(db: AsyncSession) -> dict[str, int]:
+async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | bool]:
     """Refresh github_sha and latest_package_version for all active entries.
 
     - github entries: refetch blob SHA
     - npm entries: refetch latest published version + deprecation + advisories
     - claude_plugin entries: skipped (no auto-tracking)
 
-    Returns: {total, updated, unchanged, failed}.
+    Returns: {total, updated, unchanged, failed, partial_failure, required_failures}.
+    `required_failures` is the list of names of failed entries flagged
+    `required: true` — surfaced separately so callers can escalate (audit #13).
     """
     result = await db.execute(
         select(DevstackEntryDB).where(DevstackEntryDB.active.is_(True))
@@ -136,27 +149,84 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int]:
     github_token = await IntegrationTokenService.get_token(db, "github")
 
     counters: dict[str, int] = {"updated": 0, "unchanged": 0, "failed": 0}
+    required_failures: list[str] = []
     processed = 0
 
     for entry in entries:
         if entry.install_method == "github" and entry.url:
             processed += 1
-            counters[await _refresh_github_entry(entry, github_token)] += 1
+            status = await _refresh_github_entry(entry, github_token)
         elif entry.install_method == "npm" and entry.package:
             processed += 1
-            counters[await _refresh_npm_entry(entry, github_token)] += 1
-        # claude_plugin: skipped
+            status = await _refresh_npm_entry(entry, github_token)
+        else:
+            # claude_plugin: skipped
+            continue
+        counters[status] += 1
+        if status == "failed" and entry.required:
+            required_failures.append(entry.name)
 
     if counters["updated"] > 0:
         await db.commit()
 
-    summary = {"total": processed, **counters}
-    logger.info("devstack_sources_refresh_completed", **summary)
+    summary: dict[str, int | list[str] | bool] = {
+        "total": processed,
+        "partial_failure": counters["failed"] > 0,
+        "required_failures": required_failures,
+        **counters,
+    }
+    if required_failures:
+        logger.error(
+            "devstack_required_entry_sync_failed",
+            required_failures=required_failures,
+            total=processed,
+            failed=counters["failed"],
+            updated=counters["updated"],
+            unchanged=counters["unchanged"],
+        )
+    elif counters["failed"] > 0:
+        logger.warning("devstack_sources_refresh_partial_failure", **summary)
+    else:
+        logger.info("devstack_sources_refresh_completed", **summary)
     return summary
 
 
-async def refresh_all_sources_tracked(db: AsyncSession) -> dict[str, int]:
-    """Run refresh_all_sources and record the run in ScheduledJobRunDB."""
+async def _alert_required_failures(db: AsyncSession, names: list[str]) -> None:
+    """Slack-notify leadership when a `required: true` catalog entry fails to refresh."""
+    try:
+        bot_token = await get_slack_bot_token(db)
+        if not bot_token:
+            logger.warning(
+                "devstack_required_failure_slack_not_configured",
+                required_failures=names,
+            )
+            return
+        channel_id = await get_slack_leadership_channel(db)
+        if not channel_id:
+            logger.warning(
+                "devstack_required_failure_channel_not_configured",
+                required_failures=names,
+            )
+            return
+        message = (
+            ":rotating_light: *DevStack — Required entries failed to refresh*\n"
+            f"Entries: {', '.join(f'`{n}`' for n in names)}\n"
+            "Required catalog items are out of date. "
+            "Investigate GitHub access / npm registry availability."
+        )
+        await SlackService.send_message(bot_token, channel_id, message)
+        logger.info(
+            "devstack_required_failure_alert_sent", required_failures=names
+        )
+    except Exception:
+        logger.exception(
+            "devstack_required_failure_alert_send_failed",
+            required_failures=names,
+        )
+
+
+async def refresh_all_sources_tracked(db: AsyncSession) -> dict[str, int | list[str] | bool]:
+    """Run refresh_all_sources, record the run, escalate required-entry failures."""
     job_run = ScheduledJobRunDB(job_name=JOB_NAME, status="running")
     db.add(job_run)
     await db.commit()
@@ -169,6 +239,11 @@ async def refresh_all_sources_tracked(db: AsyncSession) -> dict[str, int]:
         job_run.projects_checked = result["total"]
         job_run.alerts_sent = result["updated"]
         await db.commit()
+
+        required_failures = result.get("required_failures") or []
+        if required_failures:
+            await _alert_required_failures(db, list(required_failures))
+
         return result
     except Exception as e:
         job_run.status = "error"

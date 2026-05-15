@@ -73,7 +73,7 @@ async def fetch_github_sha(url: str, token: str | None = None) -> str | None:
             if sha:
                 logger.info("devstack_sha_fetched", url=url, sha=sha[:8])
             return sha
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("devstack_sha_fetch_failed", url=url, error=str(exc))
         return None
 

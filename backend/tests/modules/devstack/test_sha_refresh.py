@@ -134,6 +134,21 @@ class TestRefreshGithub:
         result = await refresh_all_sources(db_session)
         assert result["failed"] == 1
         assert result["updated"] == 0
+        assert result["partial_failure"] is True
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="old_sha_" + "x" * 32,
+    )
+    async def test_partial_failure_false_when_no_failures(
+        self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
+    ) -> None:
+        """`partial_failure` should be False on a clean run so callers can branch on it."""
+        result = await refresh_all_sources(db_session)
+        assert result["failed"] == 0
+        assert result["partial_failure"] is False
 
     @pytest.mark.asyncio
     @patch(
@@ -358,3 +373,122 @@ class TestClaudePluginSkipped:
     ) -> None:
         result = await refresh_all_sources(db_session)
         assert result["total"] == 0
+
+
+class TestRequiredEntryEscalation:
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    async def test_required_failure_listed_in_summary(
+        self,
+        mock_fetch: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+    ) -> None:
+        """A failed `required: true` entry must surface by name in the summary."""
+        result = await refresh_all_sources(db_session)
+        assert result["required_failures"] == [github_entry.name]
+        assert result["partial_failure"] is True
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    async def test_optional_failure_not_listed(
+        self,
+        mock_fetch: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+    ) -> None:
+        """A failed optional entry counts as `failed` but does NOT escalate."""
+        github_entry.required = False
+        db_session.add(github_entry)
+        await db_session.commit()
+
+        result = await refresh_all_sources(db_session)
+        assert result["failed"] == 1
+        assert result["required_failures"] == []
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh._alert_required_failures",
+        new_callable=AsyncMock,
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    async def test_tracked_run_escalates_required_failures(
+        self,
+        mock_fetch: AsyncMock,
+        mock_alert: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+    ) -> None:
+        """`refresh_all_sources_tracked` must Slack-notify on required failures."""
+        from app.modules.devstack.services.sha_refresh import (
+            refresh_all_sources_tracked,
+        )
+
+        await refresh_all_sources_tracked(db_session)
+        mock_alert.assert_awaited_once()
+        args, _ = mock_alert.call_args
+        assert args[1] == [github_entry.name]
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh._alert_required_failures",
+        new_callable=AsyncMock,
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="old_sha_" + "x" * 32,
+    )
+    async def test_tracked_run_skips_alert_on_clean_run(
+        self,
+        mock_fetch: AsyncMock,
+        mock_alert: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+    ) -> None:
+        """No Slack alert when everything succeeds."""
+        from app.modules.devstack.services.sha_refresh import (
+            refresh_all_sources_tracked,
+        )
+
+        await refresh_all_sources_tracked(db_session)
+        mock_alert.assert_not_awaited()
+
+
+class TestFrontmatterLogging:
+    @pytest.mark.asyncio
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_content",
+        new_callable=AsyncMock,
+        return_value="---\nname: x\ndescription: y: z: w\n  bad indent\n---\n# body",
+    )
+    @patch(
+        "app.modules.devstack.services.sha_refresh.fetch_github_sha",
+        new_callable=AsyncMock,
+        return_value="new_sha_" + "y" * 32,
+    )
+    async def test_yaml_parse_failure_logged_not_silent(
+        self,
+        mock_fetch: AsyncMock,
+        mock_content: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Malformed YAML must surface in logs — silent stub-vs-broken is the bug we're fixing."""
+        await refresh_all_sources(db_session)
+        # Description must not have changed: parsing failed.
+        await db_session.refresh(github_entry)
+        assert github_entry.description == "A test skill"
