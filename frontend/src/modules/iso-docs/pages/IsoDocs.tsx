@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { Plus, FileText, MoreHorizontal, Trash2, History, File, Folder, Table2, Blocks, ArrowLeft, Pencil, Filter, Download, Printer, Upload, Loader2, PanelLeftClose, PanelLeftOpen, MessageSquare } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -337,7 +338,30 @@ export default function IsoDocs(): JSX.Element {
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [metadataEditOpen, setMetadataEditOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [metadataFilters, setMetadataFilters] = useState<MetadataFilterParams>({});
+  const metadataFiltersSchema = useMemo(() => ({
+    fCategory: { defaultValue: '' },
+    fStatus: { defaultValue: '' },
+    fStandard: { defaultValue: '' },
+    fClause: { defaultValue: '' },
+  }), []);
+  const { state: filtersState, setState: setFiltersState } = useUrlState(metadataFiltersSchema);
+  const metadataFilters = useMemo<MetadataFilterParams>(() => ({
+    ...(filtersState.fCategory ? { category: filtersState.fCategory } : {}),
+    ...(filtersState.fStatus ? { status: filtersState.fStatus } : {}),
+    ...(filtersState.fStandard ? { standard: filtersState.fStandard } : {}),
+    ...(filtersState.fClause ? { clause: filtersState.fClause } : {}),
+  }), [filtersState]);
+  const setMetadataFilters = useCallback(
+    (next: MetadataFilterParams) => {
+      setFiltersState({
+        fCategory: next.category ?? '',
+        fStatus: next.status ?? '',
+        fStandard: next.standard ?? '',
+        fClause: next.clause ?? '',
+      });
+    },
+    [setFiltersState],
+  );
   const [driveJobId, setDriveJobId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 

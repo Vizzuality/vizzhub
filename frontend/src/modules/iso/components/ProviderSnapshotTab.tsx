@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { usePermission, Action } from '@/core/permissions';
+import { useUrlState } from '@/shared/hooks/useUrlState';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import {
@@ -74,6 +76,7 @@ export default function ProviderSnapshotTab({
   page,
   onPageChange,
 }: ProviderSnapshotTabProps): JSX.Element {
+  const canManage = usePermission(Action.ISO_MANAGE);
   const { data, isLoading } = useIsoSnapshots({ provider, page, page_size: 20 });
   const deleteSnapshot = useDeleteSnapshot();
   const capture = useCaptureSnapshot();
@@ -82,10 +85,13 @@ export default function ProviderSnapshotTab({
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-  const [fromMonth, setFromMonth] = useState(currentMonth);
-  const [fromYear, setFromYear] = useState(currentYear - 1);
-  const [toMonth, setToMonth] = useState(currentMonth);
-  const [toYear, setToYear] = useState(currentYear);
+  const { state: range, setState: setRange } = useUrlState({
+    fromMonth: { defaultValue: currentMonth },
+    fromYear: { defaultValue: currentYear - 1 },
+    toMonth: { defaultValue: currentMonth },
+    toYear: { defaultValue: currentYear },
+  });
+  const { fromMonth, fromYear, toMonth, toYear } = range;
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const handleDelete = (e: React.MouseEvent): void => {
@@ -127,7 +133,7 @@ export default function ProviderSnapshotTab({
         </p>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <Select value={String(fromMonth)} onValueChange={(v) => setFromMonth(Number(v))}>
+            <Select value={String(fromMonth)} onValueChange={(v) => setRange({ fromMonth: Number(v) })}>
               <SelectTrigger className="w-20" aria-label="From month">
                 <SelectValue />
               </SelectTrigger>
@@ -139,7 +145,7 @@ export default function ProviderSnapshotTab({
                 ))}
               </SelectContent>
             </Select>
-            <Select value={String(fromYear)} onValueChange={(v) => setFromYear(Number(v))}>
+            <Select value={String(fromYear)} onValueChange={(v) => setRange({ fromYear: Number(v) })}>
               <SelectTrigger className="w-24" aria-label="From year">
                 <SelectValue />
               </SelectTrigger>
@@ -150,7 +156,7 @@ export default function ProviderSnapshotTab({
               </SelectContent>
             </Select>
             <span className="text-sm text-muted-foreground">&ndash;</span>
-            <Select value={String(toMonth)} onValueChange={(v) => setToMonth(Number(v))}>
+            <Select value={String(toMonth)} onValueChange={(v) => setRange({ toMonth: Number(v) })}>
               <SelectTrigger className="w-20" aria-label="To month">
                 <SelectValue />
               </SelectTrigger>
@@ -162,7 +168,7 @@ export default function ProviderSnapshotTab({
                 ))}
               </SelectContent>
             </Select>
-            <Select value={String(toYear)} onValueChange={(v) => setToYear(Number(v))}>
+            <Select value={String(toYear)} onValueChange={(v) => setRange({ toYear: Number(v) })}>
               <SelectTrigger className="w-24" aria-label="To year">
                 <SelectValue />
               </SelectTrigger>
@@ -173,21 +179,36 @@ export default function ProviderSnapshotTab({
               </SelectContent>
             </Select>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const from = `${fromYear}-${String(fromMonth).padStart(2, '0')}-01`;
-              const lastDay = new Date(toYear, toMonth, 0).getDate();
-              const to = `${toYear}-${String(toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-              exportSnapshots(from, to, provider);
-            }}
-            disabled={isExporting}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            {isExporting ? 'Exporting...' : 'Export'}
-          </Button>
-          {isConnected && (
+          {canManage && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const from = `${fromYear}-${String(fromMonth).padStart(2, '0')}-01`;
+                const lastDay = new Date(toYear, toMonth, 0).getDate();
+                const to = `${toYear}-${String(toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                const fromDate = new Date(`${from}T00:00:00`);
+                const toDate = new Date(`${to}T23:59:59`);
+                const inRange = (data?.items ?? []).some((s) => {
+                  const d = new Date(s.captured_at);
+                  return d >= fromDate && d <= toDate;
+                });
+                if (!inRange) {
+                  alert(
+                    `No ${providerLabel} snapshots in ${from} – ${to}. ` +
+                      'Adjust the range or capture a snapshot first.',
+                  );
+                  return;
+                }
+                exportSnapshots(from, to, provider);
+              }}
+              disabled={isExporting}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isExporting ? 'Exporting...' : 'Export'}
+            </Button>
+          )}
+          {canManage && isConnected && (
             <Button
               onClick={() => capture.mutate(provider)}
               disabled={capture.isPending}

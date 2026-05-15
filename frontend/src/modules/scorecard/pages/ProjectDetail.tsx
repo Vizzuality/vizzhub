@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUrlState } from '@/shared/hooks/useUrlState';
+import { usePermission, Action } from '@/core/permissions';
 import { useProject, useDeleteProject, useUpdateProjectStatus } from '@/core/hooks/useProjects';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
@@ -43,7 +44,17 @@ export default function ProjectDetail(): JSX.Element {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
-  const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(new Set(ALL_DIMENSIONS));
+  const canEditMetrics = usePermission(Action.SCORECARD_EDIT_METRICS);
+  const dimensionsSchema = useMemo(() => ({
+    hiddenDimensions: { defaultValue: '' },
+  }), []);
+  const { state: dimsState, setState: setDimsState } = useUrlState(dimensionsSchema);
+  const visibleDimensions = useMemo<Set<Dimension>>(() => {
+    const hidden = new Set(
+      dimsState.hiddenDimensions.split(',').filter(Boolean) as Dimension[],
+    );
+    return new Set(ALL_DIMENSIONS.filter((d) => !hidden.has(d)));
+  }, [dimsState.hiddenDimensions]);
   const periodSchema = useMemo(() => ({
     year: { defaultValue: 0 },
     month: { defaultValue: 0 },
@@ -65,20 +76,22 @@ export default function ProjectDetail(): JSX.Element {
   const [pendingUpdate, setPendingUpdate] = useState<(() => Promise<void>) | null>(null);
 
   const handleToggleDimension = useCallback((dimension: Dimension) => {
-    setVisibleDimensions((prev) => {
-      const next = new Set(prev);
-      if (next.has(dimension)) {
-        next.delete(dimension);
-      } else {
-        next.add(dimension);
-      }
-      return next;
+    const hidden = new Set(
+      dimsState.hiddenDimensions.split(',').filter(Boolean) as Dimension[],
+    );
+    if (hidden.has(dimension)) {
+      hidden.delete(dimension);
+    } else {
+      hidden.add(dimension);
+    }
+    setDimsState({
+      hiddenDimensions: Array.from(hidden).sort().join(','),
     });
-  }, []);
+  }, [dimsState.hiddenDimensions, setDimsState]);
 
   const handleResetFilters = useCallback(() => {
-    setVisibleDimensions(new Set(ALL_DIMENSIONS));
-  }, []);
+    setDimsState({ hiddenDimensions: '' });
+  }, [setDimsState]);
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(
@@ -326,6 +339,7 @@ export default function ProjectDetail(): JSX.Element {
             snapshots={snapshots}
             visibleDimensions={visibleDimensions}
             currency={project?.currency}
+            budgetAlertsEnabled={project?.has_budget_alerts ?? true}
           />
         </>
       )}
@@ -351,6 +365,7 @@ export default function ProjectDetail(): JSX.Element {
           isUpdatingClientSurvey={updateClientSurvey.isPending}
           snapshots={snapshots}
           visibleDimensions={visibleDimensions}
+          editable={canEditMetrics}
         />
       )}
 

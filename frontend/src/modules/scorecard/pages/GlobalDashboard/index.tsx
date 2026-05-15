@@ -52,9 +52,16 @@ export default function GlobalDashboard(): JSX.Element {
     },
     [setPeriodState],
   );
-  const [visibleDimensions, setVisibleDimensions] = useState<Set<Dimension>>(
-    new Set(ALL_DIMENSIONS),
-  );
+  const dimensionsSchema = useMemo(() => ({
+    hiddenDimensions: { defaultValue: '' },
+  }), []);
+  const { state: dimsState, setState: setDimsState } = useUrlState(dimensionsSchema);
+  const visibleDimensions = useMemo<Set<Dimension>>(() => {
+    const hidden = new Set(
+      dimsState.hiddenDimensions.split(',').filter(Boolean) as Dimension[],
+    );
+    return new Set(ALL_DIMENSIONS.filter((d) => !hidden.has(d)));
+  }, [dimsState.hiddenDimensions]);
 
   const { data: globalMetrics, isLoading } = useGlobalMetrics(
     selectedPeriod.year,
@@ -100,16 +107,16 @@ export default function GlobalDashboard(): JSX.Element {
   );
 
   const handleToggleDimension = useCallback((dimension: Dimension) => {
-    setVisibleDimensions((prev) => {
-      const next = new Set(prev);
-      if (next.has(dimension)) {
-        next.delete(dimension);
-      } else {
-        next.add(dimension);
-      }
-      return next;
-    });
-  }, []);
+    const hidden = new Set(
+      dimsState.hiddenDimensions.split(',').filter(Boolean) as Dimension[],
+    );
+    if (hidden.has(dimension)) {
+      hidden.delete(dimension);
+    } else {
+      hidden.add(dimension);
+    }
+    setDimsState({ hiddenDimensions: Array.from(hidden).sort().join(',') });
+  }, [dimsState.hiddenDimensions, setDimsState]);
 
   const handleCalculateAll = (): void => {
     const startYear = now.getFullYear() - 1;
