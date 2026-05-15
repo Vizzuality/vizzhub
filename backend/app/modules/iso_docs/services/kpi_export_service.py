@@ -31,9 +31,7 @@ MANUAL_KPI_HEADERS = ["Name", "Scope", "Responsible", "Methodology", "Formula", 
 ISO_CYCLE_MONTHS = 12
 
 
-def generate_iso_periods(
-    start_year: int, start_month: int, end_year: int, end_month: int,
-) -> list[tuple[int, int]]:
+def generate_iso_periods(start_year: int, start_month: int) -> list[tuple[int, int]]:
     """Return exactly 12 (year, month) tuples for a fixed ISO cycle."""
     periods: list[tuple[int, int]] = []
     year, month = int(start_year), int(start_month)
@@ -61,11 +59,9 @@ class KpiExportService:
         manual_rows: list,
         start_year: int,
         start_month: int,
-        end_year: int,
-        end_month: int,
     ) -> BytesIO:
         """Build workbook with two sheets: Global Scorecard and KPIs manuales."""
-        periods = generate_iso_periods(start_year, start_month, end_year, end_month)
+        periods = generate_iso_periods(start_year, start_month)
 
         wb = Workbook()
         ws_scorecard = wb.active

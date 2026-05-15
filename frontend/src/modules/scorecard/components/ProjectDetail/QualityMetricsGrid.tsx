@@ -49,6 +49,10 @@ const DIMENSION_ABBREV: Record<Dimension, string> = {
   Risk: 'R',
 };
 
+function toPercent(value: number | null | undefined): number | null {
+  return value !== null && value !== undefined ? value * 100 : null;
+}
+
 function AlertsOffBadge({ tooltip }: { tooltip: string }): JSX.Element {
   return (
     <TooltipProvider>
@@ -183,6 +187,10 @@ export default function QualityMetricsGrid({
   const showEngineering = isDimensionVisible(visibleDimensions, 'Engineering');
   const showRisk = isDimensionVisible(visibleDimensions, 'Risk');
 
+  const storyReviewRatioPct = toPercent(indicators.story_review_ratio);
+  const commitmentReliabilityPct = toPercent(indicators.commitment_reliability);
+  const prReviewRatioPct = toPercent(metrics.github_metrics?.pr_review_ratio);
+
   return (
     <>
       <Separator className="my-6" />
@@ -241,11 +249,7 @@ export default function QualityMetricsGrid({
                 <SubIndicatorCard
                   title="Story Review Ratio"
                   dimension="Quality"
-                  indicatorValue={
-                    indicators.story_review_ratio !== null
-                      ? indicators.story_review_ratio * 100
-                      : null
-                  }
+                  indicatorValue={storyReviewRatioPct}
                   indicatorLabel="Stories with reviewer"
                   indicatorSuffix="%"
                   description="User stories with assigned reviewer"
@@ -352,11 +356,7 @@ export default function QualityMetricsGrid({
               <SubIndicatorCard
                 title="Commitment Reliability"
                 dimension="Flow"
-                indicatorValue={
-                  indicators.commitment_reliability !== null
-                    ? indicators.commitment_reliability * 100
-                    : null
-                }
+                indicatorValue={commitmentReliabilityPct}
                 indicatorLabel="Single-sprint ratio"
                 indicatorSuffix="%"
                 description="Issues completed in original sprint"
@@ -388,12 +388,7 @@ export default function QualityMetricsGrid({
                 <SubIndicatorCard
                   title="PR Review Coverage"
                   dimension="Engineering"
-                  indicatorValue={
-                    metrics.github_metrics.pr_review_ratio !== null &&
-                    metrics.github_metrics.pr_review_ratio !== undefined
-                      ? metrics.github_metrics.pr_review_ratio * 100
-                      : null
-                  }
+                  indicatorValue={prReviewRatioPct}
                   indicatorLabel="Review coverage"
                   indicatorSuffix="%"
                   description="PRs reviewed before merge"

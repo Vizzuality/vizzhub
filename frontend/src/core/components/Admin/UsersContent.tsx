@@ -260,9 +260,10 @@ export function UsersContent(): JSX.Element {
             {filteredUsers.map((user) => {
               const isCurrentUser = currentUser?.id === user.id;
               const fullName = getFullName(user.first_name, user.last_name, user.email);
-              const statusTitle = isCurrentUser
-                ? 'Cannot change your own status'
-                : user.active ? 'Click to deactivate' : 'Click to activate';
+              let statusTitle: string;
+              if (isCurrentUser) statusTitle = 'Cannot change your own status';
+              else if (user.active) statusTitle = 'Click to deactivate';
+              else statusTitle = 'Click to activate';
 
               return (
                 <tr key={user.id} className={`border-t ${!user.active ? 'opacity-60' : ''}`}>

@@ -168,7 +168,10 @@ async def delete_progress(
 _MAX_BATCH_PROGRESS_PROJECTS = 50
 
 
-@router.post("/batch-progress")
+@router.post(
+    "/batch-progress",
+    responses={400: {"description": "project_ids exceeds maximum allowed per request"}},
+)
 async def batch_progress(
     body: dict,
     db: DBSession,

@@ -88,7 +88,10 @@ export function RatesContent(): JSX.Element {
   }
 
   const isSaving = createRate.isPending || updateRate.isPending;
-  const submitLabel = isSaving ? 'Saving...' : isEditing ? 'Save' : 'Create';
+  let submitLabel: string;
+  if (isSaving) submitLabel = 'Saving...';
+  else if (isEditing) submitLabel = 'Save';
+  else submitLabel = 'Create';
 
   return (
     <div className="space-y-4">

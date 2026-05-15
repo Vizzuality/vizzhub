@@ -28,6 +28,8 @@ from app.modules.playbook.services.tree_service import (
     validate_not_circular,
 )
 
+_MAX_DEPTH_ERROR_DETAIL = "Maximum tree depth exceeded (10 levels)"
+
 router = APIRouter()
 
 
@@ -79,7 +81,7 @@ async def create_node(
     if not await validate_depth(db, data.parent_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Maximum tree depth exceeded (10 levels)",
+            detail=_MAX_DEPTH_ERROR_DETAIL,
         )
 
     slug = generate_slug(data.title)
@@ -132,7 +134,7 @@ async def update_node(
         if not await validate_depth(db, new_parent):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum tree depth exceeded (10 levels)",
+                detail=_MAX_DEPTH_ERROR_DETAIL,
             )
 
     if "title" in update and update["title"] != node.title:
@@ -207,7 +209,7 @@ async def reorder_nodes(
             if not await validate_depth(db, item.parent_id):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Maximum tree depth exceeded (10 levels)",
+                    detail=_MAX_DEPTH_ERROR_DETAIL,
                 )
         node.parent_id = item.parent_id
         node.position = item.position

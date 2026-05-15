@@ -2,6 +2,7 @@
 
 import calendar
 import math
+from dataclasses import dataclass
 from datetime import date
 from typing import Annotated, Any
 from uuid import UUID
@@ -109,32 +110,37 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.project_manager_id = data.project_manager_id
 
 
+@dataclass
+class ProjectListFilters:
+    search: str | None = None
+    filter_status: Annotated[str | None, Query(alias="status")] = None
+    start_date_from: date | None = None
+    start_date_to: date | None = None
+    has_scorecard: bool | None = None
+    project_manager_id: UUID | None = None
+
+
 @router.get("")
 @limiter.limit("100/minute")
 async def list_projects(
     request: Request,
     current_user: CurrentUser,
     db: DBSession,
+    f: Annotated[ProjectListFilters, Depends()],
     lightweight: bool = False,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 45,
-    search: str | None = None,
-    filter_status: Annotated[str | None, Query(alias="status")] = None,
     sort: str | None = None,
     order: str | None = None,
-    start_date_from: date | None = None,
-    start_date_to: date | None = None,
-    has_scorecard: bool | None = None,
-    project_manager_id: UUID | None = None,
 ):
     if lightweight:
         q = select(ProjectDB).order_by(ProjectDB.name)
-        if has_scorecard is not None:
-            q = q.where(ProjectDB.has_scorecard.is_(has_scorecard))
-        if filter_status and filter_status in ("proposal", "live", "finished"):
-            q = q.where(ProjectDB.status == filter_status)
-        if project_manager_id:
-            q = q.where(ProjectDB.project_manager_id == project_manager_id)
+        if f.has_scorecard is not None:
+            q = q.where(ProjectDB.has_scorecard.is_(f.has_scorecard))
+        if f.filter_status and f.filter_status in ("proposal", "live", "finished"):
+            q = q.where(ProjectDB.status == f.filter_status)
+        if f.project_manager_id:
+            q = q.where(ProjectDB.project_manager_id == f.project_manager_id)
         result = await db.execute(q)
         projects = result.scalars().all()
         return [ProjectSummary.model_validate(p) for p in projects]
@@ -153,8 +159,8 @@ async def list_projects(
     count_query = select(func.count()).select_from(ProjectDB)
 
     filters = _build_project_filters(
-        search, filter_status, start_date_from, start_date_to, has_scorecard,
-        project_manager_id,
+        f.search, f.filter_status, f.start_date_from, f.start_date_to, f.has_scorecard,
+        f.project_manager_id,
     )
     if filters:
         query = query.where(*filters)

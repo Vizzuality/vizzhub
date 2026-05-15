@@ -73,8 +73,7 @@ async def export_kpi_widget(
 async def _build_widget_xlsx(db, node_id: UUID, year: int, config) -> BytesIO:
     """Build XLSX for KPI widget — shared by download and Drive export."""
     start_year, start_month = year, 3
-    end_year, end_month = year + 1, 2
-    periods = generate_iso_periods(start_year, start_month, end_year, end_month)
+    periods = generate_iso_periods(start_year, start_month)
 
     global_rows_result = await db.execute(
         select(GlobalMetricsDB).where(
@@ -100,8 +99,6 @@ async def _build_widget_xlsx(db, node_id: UUID, year: int, config) -> BytesIO:
         manual_rows=manual_rows,
         start_year=start_year,
         start_month=start_month,
-        end_year=end_year,
-        end_month=end_month,
     )
 
 

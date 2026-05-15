@@ -42,8 +42,6 @@ def test_generates_xlsx_with_two_sheets(mock_config):
         manual_rows=[],
         start_year=2025,
         start_month=3,
-        end_year=2026,
-        end_month=2,
     )
 
     wb = load_workbook(result)
@@ -60,8 +58,6 @@ def test_scorecard_sheet_has_metric_rows(mock_config):
         manual_rows=[],
         start_year=2025,
         start_month=3,
-        end_year=2026,
-        end_month=2,
     )
 
     wb = load_workbook(result)
@@ -95,8 +91,6 @@ def test_manual_kpis_sheet_with_rows(mock_config):
         manual_rows=[mock_row],
         start_year=2025,
         start_month=3,
-        end_year=2025,
-        end_month=4,
     )
 
     wb = load_workbook(result)
@@ -119,8 +113,6 @@ def test_month_columns_follow_iso_cycle(mock_config):
         manual_rows=[],
         start_year=2025,
         start_month=3,
-        end_year=2026,
-        end_month=2,
     )
 
     wb = load_workbook(result)

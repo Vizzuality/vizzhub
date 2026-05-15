@@ -112,7 +112,10 @@ async def _build_export_data(
 
 @router.get(
     "",
-    responses={400: {"description": "Invalid date format or range"}},
+    responses={
+        400: {"description": "Invalid date format or range"},
+        404: {"description": "No snapshots in the requested range"},
+    },
 )
 @limiter.limit("10/minute")
 async def export_snapshot_range(

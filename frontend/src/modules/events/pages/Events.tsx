@@ -25,7 +25,7 @@ import {
   ATTENDING_LABELS,
   buildYearOptions,
 } from '../utils/constants';
-import type { Attending, EventListParams } from '../types/events';
+import type { Attending, EventListParams, EventSummary } from '../types/events';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -66,6 +66,65 @@ function buildQueryParams(state: UrlState): EventListParams {
     sort_dir: sortDir,
     page_size: 100,
   };
+}
+
+interface EventsContentProps {
+  events: EventSummary[];
+  hasActiveFilters: boolean;
+  canManage: boolean;
+  view: string;
+  sortBy: string;
+  sortDir: string;
+  onCreate: () => void;
+  onRowClick: (id: string) => void;
+  onSortChange: (key: string, dir: string) => void;
+}
+
+function renderEventsContent({
+  events,
+  hasActiveFilters,
+  canManage,
+  view,
+  sortBy,
+  sortDir,
+  onCreate,
+  onRowClick,
+  onSortChange,
+}: EventsContentProps): JSX.Element {
+  if (events.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <p className="text-muted-foreground">
+            {hasActiveFilters ? 'No events match your filters' : 'No events yet'}
+          </p>
+          {canManage && !hasActiveFilters && (
+            <Button className="mt-4" onClick={onCreate}>
+              Create your first event
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+  if (view === 'list') {
+    return (
+      <EventsTable
+        events={events}
+        onRowClick={onRowClick}
+        sortKey={sortBy}
+        sortDir={sortDir as 'asc' | 'desc'}
+        onSortChange={onSortChange}
+      />
+    );
+  }
+  return (
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      {events.map((event) => (
+        <EventCard key={event.id} event={event} />
+      ))}
+    </div>
+  );
 }
 
 export default function Events(): JSX.Element {
@@ -295,36 +354,17 @@ export default function Events(): JSX.Element {
       )}
 
       {/* Card grid / list view */}
-      {events.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground">
-              {hasActiveFilters
-                ? 'No events match your filters'
-                : 'No events yet'}
-            </p>
-            {canManage && !hasActiveFilters && (
-              <Button className="mt-4" onClick={() => setCreating(true)}>
-                Create your first event
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : state.view === 'list' ? (
-        <EventsTable
-          events={events}
-          onRowClick={(id) => navigate(`/events/${id}`)}
-          sortKey={sortBy}
-          sortDir={sortDir as 'asc' | 'desc'}
-          onSortChange={(k, d) => setState({ sort: `${k}:${d}` })}
-        />
-      ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
+      {renderEventsContent({
+        events,
+        hasActiveFilters,
+        canManage,
+        view: state.view,
+        sortBy,
+        sortDir,
+        onCreate: () => setCreating(true),
+        onRowClick: (id) => navigate(`/events/${id}`),
+        onSortChange: (k, d) => setState({ sort: `${k}:${d}` }),
+      })}
 
       {canManage && creating && (
         <EventForm eventId="new" onClose={() => setCreating(false)} />

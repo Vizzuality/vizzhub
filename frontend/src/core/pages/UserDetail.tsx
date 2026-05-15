@@ -140,9 +140,10 @@ export default function UserDetail(): JSX.Element {
   }
 
   const fullName = getFullName(user.first_name, user.last_name, user.email);
-  const slackButtonLabel = syncSlack.isPending
-    ? 'Syncing...'
-    : user.slack_display_name ? 'Re-sync' : 'Link Slack';
+  let slackButtonLabel: string;
+  if (syncSlack.isPending) slackButtonLabel = 'Syncing...';
+  else if (user.slack_display_name) slackButtonLabel = 'Re-sync';
+  else slackButtonLabel = 'Link Slack';
 
   return (
     <div className="space-y-6 max-w-2xl">

@@ -16,7 +16,7 @@ _DEFAULT_REGION = "eu-west-3"
 
 def _region_from_url(url: str) -> str:
     for part in url.split("."):
-        if part.startswith("s3-") or part.startswith("s3."):
+        if part.startswith(("s3-", "s3.")):
             region = part.replace("s3-", "").replace("s3.", "")
             if region:
                 return region

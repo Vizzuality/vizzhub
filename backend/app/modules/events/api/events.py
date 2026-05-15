@@ -1,10 +1,11 @@
 """Events CRUD endpoints."""
 
+from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 
 from app.core.api.deps import DBSession
@@ -37,45 +38,49 @@ def _event_to_response(event: EventDB, attendee_count: int = 0) -> EventResponse
     )
 
 
+@dataclass
+class EventListFilters:
+    search: str | None = None
+    year: int | None = None
+    quarter: Annotated[int | None, Query(ge=1, le=4)] = None
+    event_type: str | None = None
+    theme_primary: str | None = None
+    region_focus: str | None = None
+    location_country: str | None = None
+    attending: Annotated[str | None, Query(pattern=r"^(yes|no|maybe)$")] = None
+
+
+@dataclass
+class EventListSort:
+    sort_by: Annotated[
+        str | None,
+        Query(pattern=r"^(start_date|total_cost|rating|name)$"),
+    ] = None
+    sort_dir: Annotated[str | None, Query(pattern=r"^(asc|desc)$")] = None
+
+
 @router.get("")
 async def list_events_endpoint(
     db: DBSession,
     user: EventsViewer,
-    search: str | None = None,
-    year: int | None = None,
-    quarter: Annotated[int | None, Query(ge=1, le=4)] = None,
-    event_type: str | None = None,
-    theme_primary: str | None = None,
-    region_focus: str | None = None,
-    location_country: str | None = None,
-    attending: Annotated[
-        str | None,
-        Query(pattern=r"^(yes|no|maybe)$"),
-    ] = None,
-    sort_by: Annotated[
-        str | None,
-        Query(pattern=r"^(start_date|total_cost|rating|name)$"),
-    ] = None,
-    sort_dir: Annotated[
-        str | None,
-        Query(pattern=r"^(asc|desc)$"),
-    ] = None,
+    f: Annotated[EventListFilters, Depends()],
+    s: Annotated[EventListSort, Depends()],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> dict:
     offset = (page - 1) * page_size
     items, total = await list_events(
         db,
-        search=search,
-        year=year,
-        quarter=quarter,
-        event_type=event_type,
-        theme_primary=theme_primary,
-        region_focus=region_focus,
-        location_country=location_country,
-        attending=attending,
-        sort_by=sort_by,
-        sort_dir=sort_dir,
+        search=f.search,
+        year=f.year,
+        quarter=f.quarter,
+        event_type=f.event_type,
+        theme_primary=f.theme_primary,
+        region_focus=f.region_focus,
+        location_country=f.location_country,
+        attending=f.attending,
+        sort_by=s.sort_by,
+        sort_dir=s.sort_dir,
         offset=offset,
         limit=page_size,
     )

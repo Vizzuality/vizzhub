@@ -138,7 +138,7 @@ async def main():
 
     print(f"\nAll {len(jobs)} jobs enqueued. Monitor progress in /admin/jobs.")
     print("When all jobs complete, recalculate global metrics via:")
-    print(f"  POST /api/metrics/global/calculate")
+    print("  POST /api/metrics/global/calculate")
     print(f'  Body: {{"from_year": 2022, "from_month": 1, "to_year": {to_year}, "to_month": {to_month}}}')
     print()
 
