@@ -8,13 +8,66 @@ Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each 
 
 **109 fixed · 18 won't do · 136 warning.** Full backend (1843) + frontend (433) test suites pass on a clean run. Tier 1 + Tier 2 priority pass closed; previously-deferred "disabled governance tool" UX item now landed. The remaining 136 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
 
+**3 items have been promoted to "High priority — attack first" below**: they are not catastrophic today, but each has a failure mode that becomes silent or unrecoverable in the next change to its area. Address them before the next boy-scout pass through the same files.
+
+---
+
+## High priority — attack first
+
+These three remained `[warning]` for scope reasons but stand out from the rest: each is "safe today, dangerous on the next change to this area". Order is by blast radius if not fixed.
+
+### HP-1. MCP permission gating is invisible in CI
+
+**File:** `mcp_server/data/base.py:41-46`, all MCP tests.
+**Risk class:** silent regression on auth surface.
+
+`FULL_ACCESS = McpUserContext(permissions=["*"])` is the default test user. Every MCP test that doesn't explicitly override it passes every `@mcp_requires` gate. **The day someone removes a `@mcp_requires` decorator on a write tool, CI stays green** — the regression has no test that would fail. Combined with HP-2 below, the audit trail for the change would also be silent.
+
+**Fix (~30 min):**
+1. Add a `restricted_user` fixture: `McpUserContext(permissions=["iso_docs:view"])`.
+2. For each write tool (iso_*, playbook_*), add one test that calls it with `restricted_user` and asserts the gate raises / blocks.
+3. Optionally invert the default: `FULL_ACCESS` fixtures must be opted into explicitly; default = `restricted_user`. (Bigger change; do as follow-up.)
+
+Added: 2026-05-14 by audit_tech_debt iteration #15. Promoted to HP: 2026-05-15.
+
+---
+
+### HP-2. `mcp_requires` denials look like successful tool runs
+
+**File:** `mcp_server/auth/permissions.py:11-29`.
+**Risk class:** broken audit trail + LLM-agent confusion.
+
+On permission failure the decorator returns `{"error": "..."}` as a JSON string. FastMCP treats that as a *successful* return value. The caller (LLM agent or UI) cannot distinguish "tool ran and reported a failure" from "tool was blocked at the gate". An LLM reading the denial message may decide to try an alternate route, and from the server's perspective nothing logs the access attempt as a denial.
+
+**Fix (~10 min):** `raise ToolError(f"Permission denied: requires {permission}")`. FastMCP surfaces it as a tool error distinguishable from a return value; add a structlog event `mcp_permission_denied(tool, permission, user_id)` for the audit trail.
+
+Added: 2026-05-14 by audit_tech_debt iteration #15. Promoted to HP: 2026-05-15.
+
+---
+
+### HP-3. XSS / Slack mrkdwn injection latent in two rendering paths
+
+Two files share the same shape — *safe today by accident, unsafe the next time someone touches them*. Treat as one piece of work.
+
+**Files:**
+- `backend/app/modules/playbook/services/publish_service.py:47` — Jinja `autoescape=False`. Currently safe because markdown-it pre-renders content to sanitized HTML before Jinja sees it. The next template that adds a placeholder taking a raw string inherits the unsafe default.
+- `backend/app/modules/notifications/services/alert_service.py:38` — `render_template` does `str(value)` with no Slack mrkdwn escaping. Currently safe because project/user names come from trusted DB rows. The next template that interpolates a Jira-sourced field (controlled by external users) becomes a Slack-mrkdwn injection vector.
+
+**Risk class:** XSS / formatting injection. Low likelihood today, but the project actively adds templates and interpolations.
+
+**Fix (~30 min each):**
+- Jinja: flip `autoescape=True`; register a `safe_html` filter (or use `Markup`) for the one pre-rendered content block.
+- AlertService: add `markdown_escape(value)` that escapes `*`, `_`, `` ` ``, `>`, `<`, `|`; apply to every interpolated value (or whitelist trusted fields).
+
+Added: 2026-05-14 by audit_tech_debt iterations #7, #12. Promoted to HP: 2026-05-15.
+
 ---
 
 ## Pending — by criticality
 
-Open `[warning]` items grouped by audit severity. Touch the file? Fix the warning in the same PR.
+Open `[warning]` items grouped by audit severity. Touch the file? Fix the warning in the same PR. 4 promoted to "High priority" above.
 
-### Major (70)
+### Major (66)
 
 - **Files exceed 400 LOC** — `backend/app/core/api/projects_v2.py` (464 LOC), `backend/app/core/api/admin_users.py` (416 LOC) [warning] — split deferred; high refactor cost vs. current value, files are cohesive CRUD modules. Revisit when adding a new concern.
   - Module: `core/api`
@@ -128,12 +181,6 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Module: `playbook / api`
   - Detail: `core/services/tree_service.py` is parameterized by model class for exactly this use case. ISO docs has the same problem (iteration #11). Two modules reimplementing the same tree traversal is the wrong direction.
   - Fix: Replace `_build_tree` with a `TreeService(PlaybookNodeDB).build_admin_tree(rows)` call. Same for `iso_docs`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #12
-
-- **Jinja `autoescape=False` justified only by an inline comment** — `backend/app/modules/playbook/services/publish_service.py:47` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `playbook / services`
-  - Detail: `autoescape=False` is currently safe because markdown-it pre-renders content to sanitized HTML before Jinja sees it. But any future template that introduces a new placeholder taking a raw user string will quietly inherit the unsafe default. The pattern "default-on autoescape + explicit `| safe` for the rendered-HTML block" is the safer shape.
-  - Fix: Flip to `autoescape=True`, register a small `safe_html` filter (or use Jinja's `Markup`), and update templates to apply it only to the pre-rendered content block.
   - Added: 2026-05-14 by audit_tech_debt iteration #12
 
 - **No GitHub rate-limit handling on catalog/sha fetches** — `backend/app/modules/devstack/services/github_sha.py:69, 102` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
@@ -468,12 +515,6 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Return a structured error (`{"type": "weight_sum", "delta": ..., "group": ...}`) and let the endpoint format.
   - Added: 2026-05-14 by audit_tech_debt iteration #5
 
-- **`AlertService.render_template` casts via `str()` with no markdown/HTML escaping** — `backend/app/modules/notifications/services/alert_service.py:38` [warning] — Slack mrkdwn is the only consumer and project/user names come from trusted DB rows. Worth doing if templates ever interpolate user-submitted text. Deferred.
-  - Module: `notifications / services`
-  - Detail: Slack `mrkdwn=True` interprets the body. Untrusted text injected via context (e.g., a project name pulled from Jira) can render unexpected formatting or links. Slack blocks downgrade most attack vectors, but the principle is the same — sanitize at the rendering boundary.
-  - Fix: Add a `markdown_escape(value)` helper that escapes `*`, `_`, `\``, `>`, `<`, `|`, and call it on every interpolated value (or keep an allowlist of trusted fields).
-  - Added: 2026-05-14 by audit_tech_debt iteration #7
-
 - **`_upsert_batch(include_comment)` is a flag carrying schema branching** — `backend/app/modules/capacity/api/planner.py:333-365` [warning] — minor design nit; the dual-call pattern is correct. Deferred.
   - Module: `capacity / api`
   - Detail: `include_comment` only toggles whether one dict key is added to `update_set`. The caller then splits the batch into "with comment" vs "without comment" and calls the helper twice. The flag couples two responsibilities.
@@ -576,22 +617,10 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Define a small `MCP_PERMISSIONS` enum (or use the existing `Action` enum values) and reference symbolically.
   - Added: 2026-05-14 by audit_tech_debt iteration #15
 
-- **`mcp_requires` returns an error JSON instead of raising ToolError** — `mcp_server/auth/permissions.py:11-29` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / auth`
-  - Detail: On permission failure, the decorator returns a JSON `{"error": "..."}` string. FastMCP treats it as a successful return value. Callers cannot distinguish "tool ran and reported a failure" from "tool was blocked".
-  - Fix: Raise `ToolError(f"Permission denied: requires {permission}")`; FastMCP surfaces it as a tool error to the client.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
-
 - **`enqueue_command` lets `generate_summary` exceptions bubble as opaque ToolErrors** — `mcp_server/tools/_shared.py:24` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `mcp_server / tools`
   - Detail: When summary generation fails (missing node, bad slug, query timeout), the human sees a generic ToolError with no context.
   - Fix: Wrap in try/except, log `mcp_summary_generation_failed(module, action, err)`, and fall back to a minimal summary so the queue still records the intent.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
-
-- **Test fixtures default to FULL_ACCESS, masking permission denials** — `mcp_server/data/base.py:41-46`, tests [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / tests`
-  - Detail: `FULL_ACCESS = McpUserContext(permissions=["*"])`. Every test using the default user passes every `@mcp_requires` gate. A regression that removes a decorator looks fine in CI.
-  - Fix: Add a `restricted_user` fixture (`permissions=["iso_docs:view"]`) and use it on at least one test per write tool to verify the gate still blocks.
   - Added: 2026-05-14 by audit_tech_debt iteration #15
 
 - **Hybrid local-state + URL-state for search in `UsersContent`** — `frontend/src/core/components/Admin/UsersContent.tsx:93-121` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
