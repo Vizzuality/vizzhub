@@ -3,15 +3,17 @@ Normalization patterns for Project Scorecard.
 
 Design Principles:
 1. All ratios normalized to 0-1 before weighting
-2. Neutral (0.5) only when data genuinely unavailable
-3. Penalize when governance tools are disabled
-4. "Lower is better" metrics use inverted normalization
+2. "Lower is better" metrics use inverted normalization
+3. Missing indicators are excluded by the calculator layer
+   (`BaseCalculator._weighted_average` drops `None` values and
+   redistributes weights). Disabled tools, missing collectors,
+   absent data sources all flow through as `None` and are excluded —
+   never zeroed (no penalty) and never neutralized at 0.5.
 
 Normalization Patterns:
 - "Higher is better" (direct): normalized = min(1, value)
 - "Lower is better" (inverted): normalized = min(1, target / max(value, 0.001))
-- Missing data (neutral): return 0.5
-- Disabled governance tool: return 0 (worst case penalty)
+- Missing data: return None so the calculator can exclude it
 - Strict zero target: if target=0 and value>0, return 0
 """
 

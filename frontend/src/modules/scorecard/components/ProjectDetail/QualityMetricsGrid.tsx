@@ -1,4 +1,4 @@
-import { Info } from 'lucide-react';
+import { Info, BellOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -48,6 +48,27 @@ const DIMENSION_ABBREV: Record<Dimension, string> = {
   Engineering: 'E',
   Risk: 'R',
 };
+
+function AlertsOffBadge({ tooltip }: { tooltip: string }): JSX.Element {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            data-testid="alerts-off-badge"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs font-medium text-muted-foreground cursor-help"
+          >
+            <BellOff className="h-3 w-3" />
+            Alerts off
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs max-w-xs">{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 function MutedCard({ title, dimension, description, message }: { title: string; dimension: Dimension; description: string; message: string }): JSX.Element {
   return (
@@ -116,6 +137,7 @@ interface QualityMetricsGridProps {
   readonly isUpdatingClientSurvey: boolean;
   readonly snapshots?: MetricsWithScores[];
   readonly visibleDimensions?: Set<Dimension>;
+  readonly editable?: boolean;
 }
 
 function isDimensionVisible(visibleDimensions: Set<Dimension> | undefined, dimension: Dimension): boolean {
@@ -147,6 +169,7 @@ export default function QualityMetricsGrid({
   isUpdatingClientSurvey,
   snapshots,
   visibleDimensions,
+  editable = true,
 }: QualityMetricsGridProps): JSX.Element | null {
   if (!metrics.jira_defects) return null;
 
@@ -245,6 +268,7 @@ export default function QualityMetricsGrid({
                 onSave={onUpdateTestMaturity}
                 isPending={isUpdatingTestMaturity}
                 historicalData={getHistoricalData(snapshots, 'test_maturity')}
+                editable={editable}
               />
               {metrics.github_metrics ? (
                 <SubIndicatorCard
@@ -262,6 +286,9 @@ export default function QualityMetricsGrid({
                     { label: 'Older than 30d', value: metrics.github_metrics.high_severity_vulns },
                   ]}
                   historicalData={getHistoricalData(snapshots, 'high_vulns')}
+                  badge={!project.has_dependabot_alerts ? (
+                    <AlertsOffBadge tooltip="Dependabot Slack alerting is disabled in project settings. The score reflects collected vulnerability data; only the alert workflow is muted." />
+                  ) : undefined}
                 />
               ) : (
                 <MutedCard title="Security Vulnerabilities" dimension="Quality" description="Dependabot alerts unaddressed for 30+ days" message="No GitHub data available" />
@@ -275,6 +302,7 @@ export default function QualityMetricsGrid({
               value={metrics.strategic_impact}
               onSave={onUpdateStrategicImpact}
               isPending={isUpdatingStrategicImpact}
+              editable={editable}
             />
           )}
 
@@ -288,6 +316,7 @@ export default function QualityMetricsGrid({
                 onSave={onUpdatePMSatisfaction}
                 isPending={isUpdatingPMSatisfaction}
                 historicalData={getHistoricalData(snapshots, 'pm_satisfaction')}
+                editable={editable}
               />
               <ClientSurveyCard
                 data={metrics.client_survey}
@@ -297,6 +326,7 @@ export default function QualityMetricsGrid({
                 onSave={onUpdateClientSurvey}
                 isPending={isUpdatingClientSurvey}
                 getWeight={(name) => getWeight('Client Survey Weights', name)}
+                editable={editable}
               />
             </>
           )}
@@ -352,6 +382,7 @@ export default function QualityMetricsGrid({
                 onSave={onUpdateArchitecture}
                 isPending={isUpdatingArchitecture}
                 historicalData={getHistoricalData(snapshots, 'arch_checklist')}
+                editable={editable}
               />
               {metrics.github_metrics ? (
                 <SubIndicatorCard
@@ -439,6 +470,7 @@ export default function QualityMetricsGrid({
                 onSave={onUpdateGovernance}
                 isPending={isUpdatingGovernance}
                 historicalData={getHistoricalData(snapshots, 'governance_compliance')}
+                editable={editable}
               />
               {renderConditionalCard({
                 hasData: indicators.post_contract_tasks !== null,

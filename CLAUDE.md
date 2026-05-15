@@ -149,7 +149,7 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 
 - **Targets vs Ideals**: Target = minimum acceptable (color coding). Ideal = perfect score (100 pts). SPI 0.85 → green (above target) but 85 points (not 100). Only SPI/CPI have explicit ideals.
 - **Snapshot types**: Capture creates BOTH cumulative and punctual. Manual fields synced between types; collector fields are NOT. EVM fields (cost_to_date, percent_completed, percent_planned) are derived from tracker data, not manual — see `TRACKER_EVM_FIELDS` in `MetricsDB`.
-- **Disabled governance tools** → score 0, not neutral.
+- **Missing indicators are excluded, not penalized**: when an indicator value is `None` (data not collected, tool disabled, no source repo, etc.) the calculator drops it from the weighted average and redistributes weights among the available components. It does NOT contribute 0 (penalty) and does NOT contribute 0.5 (neutral). See `_weighted_average` in `app/modules/scorecard/services/calculators/base.py`.
 - **No trailing slashes**: Routes use `""` not `"/"`. `redirect_slashes=False` in main.py.
 - **DBSession manages transactions**: Do NOT use `async with db.begin()` inside endpoints — nested transaction error. Only use manual `db.begin()` outside request context.
 - **Alembic + asyncpg enums**: Migrations with PostgreSQL enums MUST use raw SQL (`op.execute()`). One statement per call — asyncpg rejects multiple. Use `DO $$ BEGIN CREATE TYPE ... EXCEPTION WHEN duplicate_object THEN NULL; END $$` for enums, `CREATE TABLE IF NOT EXISTS` for tables. Model Enum columns must always have `create_type=False`. `metadata.create_all()` only runs in debug mode.

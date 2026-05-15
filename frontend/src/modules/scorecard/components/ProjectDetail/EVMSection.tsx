@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
+import { Pencil, BellOff } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import SubIndicatorCard from '../SubIndicatorCard';
 import { EVMDataGrid } from './EVM';
 import { getHistoricalData } from '@/utils/chartUtils';
@@ -18,6 +19,31 @@ interface EVMSectionProps {
   readonly snapshots?: MetricsWithScores[];
   readonly visibleDimensions?: Set<Dimension>;
   readonly currency?: string;
+  readonly budgetAlertsEnabled?: boolean;
+}
+
+function BudgetAlertsOffBadge(): JSX.Element {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            data-testid="alerts-off-badge"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs font-medium text-muted-foreground cursor-help"
+          >
+            <BellOff className="h-3 w-3" />
+            Alerts off
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs max-w-xs">
+            Budget Slack alerting is disabled in project settings. The CPI score reflects collected
+            EVM data; only the alert workflow is muted.
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 function isDimensionVisible(visibleDimensions: Set<Dimension> | undefined, dimension: Dimension): boolean {
@@ -34,6 +60,7 @@ export default function EVMSection({
   snapshots,
   visibleDimensions,
   currency,
+  budgetAlertsEnabled = true,
 }: EVMSectionProps): JSX.Element {
   const showTime = isDimensionVisible(visibleDimensions, 'Time');
   const showCost = isDimensionVisible(visibleDimensions, 'Cost');
@@ -99,6 +126,7 @@ export default function EVMSection({
                   { label: 'Cost to Date', value: formatCurrency(evmData.cost_to_date, currency) },
                 ]}
                 historicalData={getHistoricalData(snapshots, 'cpi', 100)}
+                badge={!budgetAlertsEnabled ? <BudgetAlertsOffBadge /> : undefined}
               />
             )}
 
