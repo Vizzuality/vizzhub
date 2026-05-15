@@ -8,7 +8,7 @@ Postpone rules (see app/modules/tracker/api/postponements.py):
 - Paid / voided invoices cannot have their postponements deleted.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
+from app.modules.tracker.models.invoice import InvoiceDB
+from app.modules.tracker.models.postponement import InvoicePostponementDB
 
 DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -261,3 +263,184 @@ class TestPostponeWindow:
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
         )
         assert resp.status_code == 404
+
+
+# --- Effective-status regression tests (audit finding #27) -------------------
+
+
+async def _seed_user_project_invoice(
+    db_session: AsyncSession, due_offset_days: int = -10
+) -> tuple[str, str, InvoiceDB]:
+    """Helper: seed user + project + pending_to_issue invoice via direct DB
+    inserts so individual postponements can be controlled per test."""
+    user = UserDB(id=DEBUG_USER_ID, email="test@example.com", name="Test User")
+    db_session.add(user)
+    await db_session.flush()
+
+    project = ProjectDB(name="Postpone Project", status="live")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    invoice = InvoiceDB(
+        project_id=project.id,
+        code="INV-RGS",
+        amount=1000,
+        due_date=date.today() + timedelta(days=due_offset_days),
+        milestone="M1",
+        status="pending_to_issue",
+    )
+    db_session.add(invoice)
+    await db_session.flush()
+    await db_session.refresh(invoice)
+    await db_session.commit()
+    return str(project.id), str(invoice.id), invoice
+
+
+@pytest.mark.asyncio
+class TestEffectiveStatusMostRecent:
+    async def test_effective_status_uses_most_recent_postponement_not_max_date(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """When two postponements exist, the most-recently-created one wins —
+        not the one with the maximum ``postponed_to`` date. Audit #27."""
+        pid, inv_id, invoice = await _seed_user_project_invoice(db_session)
+
+        far_future = date.today() + timedelta(days=30)
+        correction = date.today() + timedelta(days=5)
+
+        # Insert the far-future postponement first, then the corrective one.
+        # created_at is set via server_default=func.now(); we set explicit
+        # values to guarantee ordering regardless of DB clock resolution.
+        now = datetime.now(timezone.utc)
+        db_session.add(
+            InvoicePostponementDB(
+                invoice_id=invoice.id,
+                postponed_to=far_future,
+                reason="initial postpone",
+                created_at=now - timedelta(minutes=10),
+            )
+        )
+        db_session.add(
+            InvoicePostponementDB(
+                invoice_id=invoice.id,
+                postponed_to=correction,
+                reason="corrected closer in",
+                created_at=now,
+            )
+        )
+        await db_session.commit()
+
+        # SQL CASE path (list endpoint).
+        resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert resp.status_code == 200, resp.text
+        items = resp.json()
+        assert len(items) == 1
+        inv = items[0]
+        assert inv["status"] == "postponed"
+        assert inv["postponed_to"] == correction.isoformat()
+        assert inv["postpone_count"] == 2
+
+    async def test_effective_status_boundary_today(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """``postponed_to == today`` → ``pending_to_issue`` (postponed branch
+        uses strict ``> today``). Audit #27 boundary."""
+        pid, _inv_id, invoice = await _seed_user_project_invoice(db_session)
+        db_session.add(
+            InvoicePostponementDB(
+                invoice_id=invoice.id,
+                postponed_to=date.today(),
+                reason="expires today",
+            )
+        )
+        await db_session.commit()
+
+        resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert resp.status_code == 200, resp.text
+        items = resp.json()
+        assert len(items) == 1
+        assert items[0]["status"] == "pending_to_issue"
+        # postponed_to is only surfaced when status is "postponed".
+        assert items[0]["postponed_to"] is None
+        assert items[0]["postpone_count"] == 1
+
+    async def test_invoice_status_info_python_matches_sql(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """The Python ``_invoice_status_info`` (used by create/update/transition
+        responses) must agree with the SQL CASE (used by the list endpoint) on
+        the same fixture. Guards the duplication called out in audit #27."""
+        pid, inv_id, invoice = await _seed_user_project_invoice(db_session)
+
+        now = datetime.now(timezone.utc)
+        db_session.add(
+            InvoicePostponementDB(
+                invoice_id=invoice.id,
+                postponed_to=date.today() + timedelta(days=20),
+                reason="first",
+                created_at=now - timedelta(minutes=5),
+            )
+        )
+        db_session.add(
+            InvoicePostponementDB(
+                invoice_id=invoice.id,
+                postponed_to=date.today() + timedelta(days=8),
+                reason="correction",
+                created_at=now,
+            )
+        )
+        await db_session.commit()
+
+        list_resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert list_resp.status_code == 200, list_resp.text
+        sql_view = list_resp.json()[0]
+
+        # Trigger the Python path via update (no-op patch).
+        update_resp = await client.put(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}",
+            json={"observations": "ping"},
+        )
+        assert update_resp.status_code == 200, update_resp.text
+        py_view = update_resp.json()
+
+        assert sql_view["status"] == py_view["status"] == "postponed"
+        assert sql_view["postponed_to"] == py_view["postponed_to"]
+        assert sql_view["postpone_count"] == py_view["postpone_count"] == 2
+
+    async def test_postponement_correction_updates_effective_status(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """End-to-end: an earlier far-future postponement plus a later corrective
+        one must surface the corrective date through the GET list endpoint.
+        Closes audit #27 against the read path."""
+        pid, inv_id, invoice = await _seed_user_project_invoice(db_session)
+
+        # First postponement via the API (the legitimate happy path).
+        far = (date.today() + timedelta(days=30)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": far, "reason": "client delay"},
+        )
+        assert resp.status_code == 201, resp.text
+
+        # Corrective postponement (closer in). The API blocks a second
+        # postponement while one is active, so insert directly — the bug under
+        # test is on the read path, not the write path.
+        near = date.today() + timedelta(days=10)
+        db_session.add(
+            InvoicePostponementDB(
+                invoice_id=invoice.id,
+                postponed_to=near,
+                reason="corrected",
+                created_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+            )
+        )
+        await db_session.commit()
+
+        resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert resp.status_code == 200, resp.text
+        inv = resp.json()[0]
+        assert inv["status"] == "postponed"
+        assert inv["postponed_to"] == near.isoformat()
+        assert inv["postpone_count"] == 2

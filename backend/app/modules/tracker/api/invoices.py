@@ -43,15 +43,24 @@ from app.modules.tracker.services.invoice_status import (
 async def _invoice_status_info(
     inv: InvoiceDB, db: AsyncSession
 ) -> tuple[str, int, date | None]:
-    """Single query: return (effective_status, postpone_count, latest_postponed_to)."""
-    result = await db.execute(
-        select(
-            func.count().label("cnt"),
-            func.max(InvoicePostponementDB.postponed_to).label("latest"),
-        ).where(InvoicePostponementDB.invoice_id == inv.id)
+    """Single query: return (effective_status, postpone_count, latest_postponed_to).
+
+    ``latest_postponed_to`` is the ``postponed_to`` of the most recently
+    *created* postponement (not the furthest-future one) — keeps this
+    Python mirror semantically aligned with ``postponement_subquery``.
+    """
+    count_result = await db.execute(
+        select(func.count()).where(InvoicePostponementDB.invoice_id == inv.id)
     )
-    row = result.one()
-    count, latest = row.cnt, row.latest
+    count = count_result.scalar() or 0
+
+    latest_result = await db.execute(
+        select(InvoicePostponementDB.postponed_to)
+        .where(InvoicePostponementDB.invoice_id == inv.id)
+        .order_by(InvoicePostponementDB.created_at.desc())
+        .limit(1)
+    )
+    latest = latest_result.scalar_one_or_none()
 
     if inv.status in ("scheduled", "pending_to_issue") and latest is not None:
         eff = "postponed" if latest > date.today() else "pending_to_issue"

@@ -13,14 +13,36 @@ from app.modules.tracker.models.postponement import InvoicePostponementDB
 
 
 def postponement_subquery():
-    """Latest ``postponed_to`` + count per invoice."""
-    return (
+    """Most-recent ``postponed_to`` (by ``created_at``) + count per invoice.
+
+    Picks the postponement row with the latest ``created_at`` per invoice
+    rather than the maximum ``postponed_to`` date, so a corrective
+    postponement closer in time supersedes an earlier far-future one
+    (audit finding #27).
+    """
+    ranked = (
         select(
             InvoicePostponementDB.invoice_id,
-            func.max(InvoicePostponementDB.postponed_to).label("postponed_to"),
-            func.count().label("postpone_count"),
+            InvoicePostponementDB.postponed_to,
+            func.row_number()
+            .over(
+                partition_by=InvoicePostponementDB.invoice_id,
+                order_by=InvoicePostponementDB.created_at.desc(),
+            )
+            .label("rn"),
+            func.count()
+            .over(partition_by=InvoicePostponementDB.invoice_id)
+            .label("postpone_count"),
         )
-        .group_by(InvoicePostponementDB.invoice_id)
+        .subquery()
+    )
+    return (
+        select(
+            ranked.c.invoice_id,
+            ranked.c.postponed_to,
+            ranked.c.postpone_count,
+        )
+        .where(ranked.c.rn == 1)
         .subquery()
     )
 
