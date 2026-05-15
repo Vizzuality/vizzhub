@@ -1695,11 +1695,11 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 - **OK: 14** — #1 SPI, #2 CPI, #3 budget_variance(None), #8 Flow, #9 Quality, #11 Satisfaction, #12 Value, #13 Engineering, #15 disabled-governance toggle, #19 SV (not implemented; SPI covers), #22 percent_completed, #23 percent_planned, #29 estimated-flag exclusion, #32 prepopulate_parts (VHUB-124).
 - **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed]**.
 - **SUSPICIOUS, fixed:** ~~#4~~, ~~#5~~, ~~#6~~, ~~#7~~ (3/4 sub-issues; UTC business window deferred), ~~#10~~, ~~#14~~, ~~#16~~ (2/3 sub-issues; cache↔cron race deferred), ~~#17~~ (all 4 sub-issues addressed: status filter dropped → MetricsDB presence is the oracle, weighting exposed both equal+budget side-by-side, normalizers fixed via #14, stale projects flagged in `/scorecard` index).
-- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical lookup, #27 invoice MAX(postponed_to) vs most-recent, ~~#28 postponement backdate~~ **[fixed `f084e0de`]**, #30 mood aggregation contaminated by estimated, #31 period rotation idempotency, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
+- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical lookup, #27 invoice MAX(postponed_to) vs most-recent, ~~#28 postponement backdate~~ **[fixed `f084e0de`]**, #30 mood aggregation contaminated by estimated, ~~#31 period rotation idempotency~~ **[fixed `9921bcaf`]**, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
 
 **Module status:**
 - **Scorecard (8 SUSPICIOUS):** all addressed (some with deliberate partial scope; see entries for ACCEPT/TO DISCUSS markers).
-- **Tracker (11 SUSPICIOUS):** in progress. #28 closed 2026-05-16. Remaining quick wins: #31, #25, #27.
+- **Tracker (11 SUSPICIOUS):** in progress. #28, #31 closed 2026-05-16. Remaining quick wins: #25, #27.
 - **Capacity (4 SUSPICIOUS):** untouched. Needs product decision on partial-reporter semantics.
 - **Frontend (#38):** untouched. TS types lie about Decimal-as-string wire format.
 
@@ -2029,7 +2029,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
   - Fix: (a) add `.where(ReportDB.estimated.is_(False))` at moods.py:90 and :149 to align with the rest of the burn/EVM rule; (b) decide and document whether `/trend` includes the in-progress month, add the test that pins the choice.
   - Added: 2026-05-15 (calc-audit row #30)
 
-- **Period rotation cron is not idempotent on day 15** — `backend/app/worker/rotate_reporting_period.py:39-81` (rotate logic), `:40` (day-15 guard), `backend/app/worker/settings.py:143` (`cron(rotate_reporting_period, day=15, hour=0, minute=0)`).
+- **Period rotation cron is not idempotent on day 15** — `backend/app/worker/rotate_reporting_period.py:39-81` (rotate logic), `:40` (day-15 guard), `backend/app/worker/settings.py:143` (`cron(rotate_reporting_period, day=15, hour=0, minute=0)`). **[FIXED 2026-05-16 — commit `9921bcaf`]**
   - Module: `tracker`
   - **Premise correction**: the "45-day offset" mentioned in the checkpoint exists only in the frontend (`Moods.tsx:80`) for the mood admin page's default month. The *backend* rotation is purely calendar-driven by cron firing on the 15th at 00:00 UTC — no offset arithmetic. "Current period" is DB-driven via `status=ACTIVE` flag.
   - **Idempotency bug**: if the cron fires twice on day 15 (worker restart at midnight, manual retrigger, ARQ retry, etc.) AND the freshly-created period is already ACTIVE:

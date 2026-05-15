@@ -73,7 +73,7 @@ Deep verification of domain math in scorecard + tracker + capacity. One formula 
 | 28 | Postponement max date | postponements.py:127-141 | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: lower-bound now `max(base_date, today)`. +3 regression tests in `test_postponements.py`. Commit `f084e0de`. |
 | 29 | Estimated flag exclusion from burn | tracker module-wide | done | OK — all consumers respect "exclude in burn, include in capacity/UI" rule. Latent: mood persists on reopen; mood denominator includes estimated. |
 | 30 | Mood aggregation (monthly avg, distribution) | moods.py:38-217 | done | SUSPICIOUS — null-mood + anonymity correct; estimated reports contaminate; trend silently drops current month; 0 tests on /trend. |
-| 31 | Period rotation (mid-month, 45-day offset) | worker/rotate_reporting_period.py | done | SUSPICIOUS — double-run on day 15 flips freshly-rotated period to FINISHED. No catch-up if worker down. (45-day offset is FE-only, not backend.) |
+| 31 | Period rotation (mid-month, 45-day offset) | worker/rotate_reporting_period.py | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: guard `if active and active.date != new_date` prevents flipping the freshly-rotated period. +2 regression tests. Commit `9921bcaf`. Catch-up/missed-15th deferred. |
 | 32 | _prepopulate_parts (percentage > 0, status != FINISHED) | reports.py:40 (not period_service) | done | OK — VHUB-124 fix verified. Both filters in place; tests pin them. PROPOSAL status carries by design. |
 
 ### Capacity
@@ -119,6 +119,7 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 ## Fixes log (2026-05-16 — Tracker pass)
 
 - **#28 postponement backdate** — lower-bound check now `max(base_date, today)` instead of `base_date`. `backend/app/modules/tracker/api/postponements.py:132-136`. +3 regression tests (`test_postpone_to_past_date_rejected`, `test_postpone_exactly_at_window_boundary`, `test_postpone_when_base_date_is_today`) in `backend/tests/modules/tracker/test_postponements.py`. Commit `f084e0de`. Tracker SUSPICIOUS remaining: 10.
+- **#31 period rotation idempotency** — guard tightened from `if active:` to `if active and active.date != new_date:` so a second run on day 15 cannot flip the freshly-rotated period to FINISHED. `backend/app/worker/rotate_reporting_period.py:59`. +2 regression tests (`test_idempotent_second_run_same_day`, `test_active_period_for_current_month_not_finished`) in `backend/tests/test_rotate_reporting_period_job.py`. Commit `9921bcaf`. Tracker SUSPICIOUS remaining: 9. Catch-up/missed-15th deferred (still wants alerting).
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 
