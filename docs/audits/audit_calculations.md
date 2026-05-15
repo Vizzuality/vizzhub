@@ -97,6 +97,13 @@ Deep verification of domain math in scorecard + tracker + capacity. One formula 
 
 All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 
+## Fixes log (2026-05-15 PM)
+
+- **#37 formatCurrency** — FE renders ISO-4217 codes correctly. Commit `082fe9d0`.
+- **#14 normalizers** — 6 paths now return None on missing data; weights redistributed. Commit `082fe9d0`.
+- **#10 risk docstring** — sync with seeded config target. Commit pending.
+- **#5 CFR upper bound** — `le=100` + collector clamp + collector docstring synced with classifier. Commit pending.
+
 ## Final summary (2026-05-15)
 
 - **Total audited:** 39/39 rows.

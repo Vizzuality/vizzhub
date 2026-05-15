@@ -1745,7 +1745,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
   - Fix: when `available` set is empty, return `score=None` and zero `weights_applied`. Update the existing test to assert None. Run `rg "score" frontend/src/modules/scorecard/` to find any `.toFixed()` / arithmetic on `finalScore.score` that needs a null guard.
   - Added: 2026-05-15 (calc-audit row #4)
 
-- **DORA Change Failure Rate — upper bound contract not enforced** — `backend/app/modules/scorecard/services/collectors/github/change_failure_rate.py:120`, schema `backend/app/modules/scorecard/models/indicators.py:69`.
+- **[fixed 2026-05-15] DORA Change Failure Rate — upper bound contract not enforced** — `backend/app/modules/scorecard/services/collectors/github/change_failure_rate.py:120`, schema `backend/app/modules/scorecard/models/indicators.py:69`. Resolution: added `le=100` to `IndicatorsCreate.change_failure_rate`, defensive `min(cfr, 100.0)` clamp at the collector, and synchronized the collector docstring with the actual classifier thresholds (Elite 0-5/High 5-10/Medium 10-15/Low >15). 4 contract tests in `test_github_change_failure_rate.py`.
   - Module: `scorecard`
   - Background: the production-incident commit `7774abb2` widened the DB column from `NUMERIC(5,4)` to `NUMERIC(5,2)`. Root cause was the column being too narrow to store a legitimate 41.7% CFR. The widening fixed the immediate crash, but the *contract* that CFR is `0 ≤ x ≤ 100` is still not enforced anywhere: no `le=100` on Pydantic `IndicatorsCreate.change_failure_rate`, no defensive clamp in the collector, and `NUMERIC(5,2)` silently absorbs any 100 < x < 1000 anomaly without flagging.
   - Repro for the silent-absorption case (hypothetical, not currently reachable from production code): future collector change that uses a different denominator → emits `cfr=150.0` → Pydantic accepts (only `ge=0`) → DB stores 150.00 → classifier returns "Low", no alert.
@@ -1781,7 +1781,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
     - Long-term: rename the metric on screen + in docs from "DORA Lead Time" to "Jira cycle time" until a real commit→deploy collector exists.
   - Added: 2026-05-15 (calc-audit row #7)
 
-- **Risk calculator docstring drift on PR-review target** — `backend/app/modules/scorecard/services/calculators/risk_calculator.py:12`.
+- **[fixed 2026-05-15] Risk calculator docstring drift on PR-review target** — `backend/app/modules/scorecard/services/calculators/risk_calculator.py:12`. Resolution: docstring updated from "target 2% of total PRs" to "target ~10% of total PRs (see config `target_pr_no_review_ratio`)".
   - Module: `scorecard`
   - Repro: docstring claims "target 2% of total PRs" but seeded default in `tests/conftest.py:95` is 10 (10%). Functionally the calculator reads the value from config so the math is right; the doc is just stale and misleads anyone debugging Risk scores.
   - Edge cases otherwise handled: high_vulns=0 → 1.0; high_vulns≥target → floor 0; target=0 strict mode (1.0 if 0 else 0.0); prs_without_review None / total_prs=0 → PR component excluded; weights 0.50/0.50 sum 1.00; Pydantic `ge=0` blocks negatives; CLAUDE alerts-toggle rule honored (no `has_dependabot_alerts` references anywhere in `services/calculators/`).

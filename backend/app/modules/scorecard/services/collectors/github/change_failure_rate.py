@@ -30,11 +30,11 @@ Edge Cases:
     - Single release: return 0%
     - Non-semver tags: name-based detection only
 
-DORA Benchmarks:
-    - Elite: 0-15%
-    - High: 16-30%
-    - Medium: 31-45%
-    - Low: >45%
+DORA Benchmarks (see dora._classify_change_failure_rate):
+    - Elite: 0-5%
+    - High: 5-10%
+    - Medium: 10-15%
+    - Low: >15%
 
 == END SPEC ==
 """
@@ -117,7 +117,7 @@ async def collect_change_failure_rate(
             "failed_releases": 0,
         }
 
-    cfr = (failed_releases / total_for_calculation) * 100
+    cfr = min((failed_releases / total_for_calculation) * 100, 100.0)
 
     return {
         "change_failure_rate": round(cfr, 1),

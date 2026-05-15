@@ -9,7 +9,8 @@ class RiskCalculator(BaseCalculator):
     P_risk: Risk posture score.
 
     Components:
-    - PRs without review (0.5) - lower is better, target 2% of total PRs
+    - PRs without review (0.5) - lower is better, target ~10% of total PRs
+      (see config `target_pr_no_review_ratio`)
     - High vulnerabilities >30d (0.5) - strict zero tolerance (target=0)
 
     Special logic:

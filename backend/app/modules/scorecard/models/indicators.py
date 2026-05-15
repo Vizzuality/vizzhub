@@ -67,7 +67,7 @@ class IndicatorsCreate(BaseModel):
         default=None, ge=0, description="Releases per day (90d)"
     )
     change_failure_rate: float | None = Field(
-        default=None, ge=0, description="Change failure rate % (DORA)"
+        default=None, ge=0, le=100, description="Change failure rate % (DORA)"
     )
     post_contract_tasks: int | None = Field(
         default=None, ge=0, description="Tasks created >30 days after contract end"

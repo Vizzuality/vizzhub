@@ -155,3 +155,43 @@ class TestCollectChangeFailureRate:
         # 1 failure out of 2 pairs = 50%
         assert result["failed_releases"] == 1
         assert result["total_releases"] == 3
+
+
+class TestCFRContract:
+    """Pin-down tests for the CFR upper-bound contract (audit row #5)."""
+
+    def test_pydantic_rejects_cfr_above_100(self) -> None:
+        from pydantic import ValidationError
+        from app.modules.scorecard.models.indicators import IndicatorsCreate
+        with pytest.raises(ValidationError):
+            IndicatorsCreate(change_failure_rate=150.0)
+
+    def test_pydantic_accepts_100_boundary(self) -> None:
+        from app.modules.scorecard.models.indicators import IndicatorsCreate
+        ind = IndicatorsCreate(change_failure_rate=100.0)
+        assert ind.change_failure_rate == 100.0
+
+    def test_pydantic_rejects_negative(self) -> None:
+        from pydantic import ValidationError
+        from app.modules.scorecard.models.indicators import IndicatorsCreate
+        with pytest.raises(ValidationError):
+            IndicatorsCreate(change_failure_rate=-1.0)
+
+    @pytest.mark.asyncio
+    async def test_collector_clamps_at_100(self, mock_github_client) -> None:
+        """Defensive: collector clamps at 100% even if every pair is a hotfix."""
+        mock_http = AsyncMock()
+        releases = [
+            make_release("v1.0.0", "Release", 20),
+            make_release("v1.0.1", "Hotfix", 18),
+            make_release("v1.0.2", "Hotfix", 16),
+            make_release("v1.0.3", "Hotfix", 14),
+        ]
+        mock_http.get.return_value = MagicMock(status_code=200, json=lambda: releases)
+        mock_github_client.get_client = AsyncMock(return_value=mock_http)
+
+        result = await collect_change_failure_rate(mock_github_client, "owner/repo")
+
+        assert result["change_failure_rate"] is not None
+        assert result["change_failure_rate"] <= 100.0
+
