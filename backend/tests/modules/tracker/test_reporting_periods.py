@@ -47,6 +47,28 @@ class TestReportingPeriodsCRUD:
         assert resp.json()["base_rate"] == pytest.approx(190)
 
     @pytest.mark.asyncio
+    async def test_reporting_period_create_rejects_zero_base_rate(
+        self, client: AsyncClient,
+    ):
+        """Audit #25: base_rate=0 would crash cost calc with ZeroDivisionError."""
+        resp = await client.post(
+            "/api/tracker/reporting-periods",
+            json={"date": "2026-03-01", "base_rate": 0},
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_reporting_period_create_rejects_negative_base_rate(
+        self, client: AsyncClient,
+    ):
+        """Audit #25: negative base_rate would invert the cost multiplier."""
+        resp = await client.post(
+            "/api/tracker/reporting-periods",
+            json={"date": "2026-03-01", "base_rate": -5},
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
     async def test_list_periods(self, client: AsyncClient, period: ReportingPeriodDB):
         resp = await client.get("/api/tracker/reporting-periods")
         assert resp.status_code == 200

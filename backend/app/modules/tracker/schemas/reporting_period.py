@@ -11,7 +11,7 @@ from app.modules.tracker.constants import DEFAULT_RATE
 
 class ReportingPeriodCreate(BaseModel):
     date: dt.date
-    base_rate: Decimal = Field(default=DEFAULT_RATE, ge=0)
+    base_rate: Decimal = Field(default=DEFAULT_RATE, gt=0)
 
     @field_validator('date')
     @classmethod
@@ -21,7 +21,7 @@ class ReportingPeriodCreate(BaseModel):
 
 class ReportingPeriodUpdate(BaseModel):
     date: dt.date | None = None
-    base_rate: Decimal | None = Field(default=None, ge=0)
+    base_rate: Decimal | None = Field(default=None, gt=0)
 
     @field_validator('date')
     @classmethod

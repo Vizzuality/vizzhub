@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, Numeric, String
+from sqlalchemy import CheckConstraint, Date, DateTime, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -27,6 +27,12 @@ class ReportingPeriodDB(Base):
     """Monthly reporting period."""
 
     __tablename__ = "reporting_periods"
+    __table_args__ = (
+        CheckConstraint(
+            "base_rate > 0",
+            name="ck_reporting_periods_base_rate_positive",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid4
