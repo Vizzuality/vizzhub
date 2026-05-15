@@ -1689,27 +1689,45 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 
 ## CALCULATIONS
 
-**Audit complete (2026-05-15).** 39/39 rows reviewed. Counts:
+**Audit complete (2026-05-15).** 39/39 rows reviewed. Scorecard block fully closed on 2026-05-15 PM. Tracker / Capacity / FE-types still open.
 
+**Current state (2026-05-15 PM):**
 - **OK: 14** — #1 SPI, #2 CPI, #3 budget_variance(None), #8 Flow, #9 Quality, #11 Satisfaction, #12 Value, #13 Engineering, #15 disabled-governance toggle, #19 SV (not implemented; SPI covers), #22 percent_completed, #23 percent_planned, #29 estimated-flag exclusion, #32 prepopulate_parts (VHUB-124).
-- **SUSPICIOUS: 24** — #4 final-score weights + all-None, #5 CFR upper bound, #6 DORA freq Elite threshold, #7 DORA lead-time (4 nested issues), #10 risk docstring drift, ~~#14 normalizers None-rule violations~~ **[fixed 2026-05-15]**, #16 cache invalidation, #17 global metrics, #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical, #27 invoice MAX(postponed_to) vs most-recent, #28 postponement backdate bug, #30 mood aggregation, #31 period rotation idempotency, #33 FA averages partial-reporter, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
-- **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed 2026-05-15]**.
+- **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed]**.
+- **SUSPICIOUS, fixed:** ~~#4~~, ~~#5~~, ~~#6~~, ~~#7~~ (3/4 sub-issues; UTC business window deferred), ~~#10~~, ~~#14~~, ~~#16~~ (2/3 sub-issues; cache↔cron race deferred), ~~#17~~ (all 4 sub-issues addressed: status filter dropped → MetricsDB presence is the oracle, weighting exposed both equal+budget side-by-side, normalizers fixed via #14, stale projects flagged in `/scorecard` index).
+- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical lookup, #27 invoice MAX(postponed_to) vs most-recent, #28 postponement backdate bug, #30 mood aggregation contaminated by estimated, #31 period rotation idempotency, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
 
-**Fixed on 2026-05-15 PM** (the two most critical findings):
-- **#37 formatCurrency (was WRONG)** — `evmCalculations.ts:20-35` now accepts ISO-4217 codes alongside the legacy `euro`/`dollar` keys, with explicit locale mapping for the common cases and en-US fallback for the rest. 9 new unit tests pin USD/GBP/EUR/lowercase/empty/decimals/unknown-ISO. Every invoice screen now renders the right currency symbol.
-- **#14 normalizers (was the highest-leverage SUSPICIOUS)** — 6 paths in `normalizers/indicators.py` rewritten to drop None / redistribute weights instead of substituting `0.5`/`0.75`/`0.0`. `_normalize_test_maturity` and `_normalize_pm_satisfaction` follow the `_normalize_client_survey` weighted-average pattern. `_calculate_defect_density`, `_calculate_escaped_rate`, `_get_mttr`, and `_normalize_okr_impact` now return None on missing-denominator / no-incidents / unknown-enum. `NEUTRAL_VALUE` import dropped from the file. 14 new regression tests in `test_normalizers_missing_excluded.py` + 1 updated test in `test_mttr.py`. Project + global scores will move on the next capture for projects with partial data — the prior behaviour silently flattered them toward ~50%.
+**Module status:**
+- **Scorecard (8 SUSPICIOUS):** all addressed (some with deliberate partial scope; see entries for ACCEPT/TO DISCUSS markers).
+- **Tracker (11 SUSPICIOUS):** untouched. Quick wins ready: #28, #31, #25, #27.
+- **Capacity (4 SUSPICIOUS):** untouched. Needs product decision on partial-reporter semantics.
+- **Frontend (#38):** untouched. TS types lie about Decimal-as-string wire format.
 
-**Top remaining quick wins**:
-1. **#28 postponement backdate** — one-line lower-bound check.
-2. **#31 period rotation idempotency** — one-line guard `if active and active.date != new_date`.
-3. **#5 CFR contract** — add `le=100` + defensive clamp.
-4. **#25 base_rate=0** — `Field(gt=0)` + DB CHECK.
-5. **#38 TS type lies re: Decimal-as-string** — companion to the #37 fix but lives in `types/`.
+**Commits delivered 2026-05-15 PM (10):**
+- `082fe9d0` #37 + #14 (formatCurrency + normalizers)
+- `fbfee1ea` #5 + #10 (CFR + risk docstring)
+- `7a1e236d` #6 (DORA Elite threshold)
+- `1c7f39dd` #17 status filter (later refined)
+- `fd553a13` #4 (final-score None)
+- `3ef06293` #16 (cache holes)
+- `7399aba4` #7 (lead-time business-days + median)
+- `4fb88ed5` #17 stale warning UI
+- `2efa2c47` #17 budget-weighted dashboard
+- `8f8a93b6` #17 drop status filter (MetricsDB presence as oracle)
+- `91fa9d78` post-deploy recalc script
 
-**Multi-step families still open**:
-- **Currency end-to-end** (#18 / #24 / #25 / #26 / #38): backend assumes single project currency; rates implicitly EUR; no historical FX lookup. The FE display (#37) is now correct, but the cost path still needs fixing.
-- **Capacity completeness** (#33 / #34 / #35 / #36): needs a product decision before code.
+**Backend 1860+ / FE 450 green. Pushed to `dev` + `main` 2026-05-16.**
+
+**Multi-step families still open:**
+- **Currency end-to-end** (#18 / #24 / #25 / #26 / #38): backend cost paths still implicit EUR + no historical FX lookup. FE display (#37) already correct.
+- **Capacity completeness** (#33 / #34 / #35 / #36): single product decision before code.
 - **EVM modernization** (#18 / #20 / #21): CV/EAC/ETC missing or non-standard.
+
+**Deliberately deferred sub-issues** (revisit if real signal):
+- #7 UTC business window for lead-time (bias is proportional across single-TZ teams).
+- #16 race condition between cache and cron (bounded by 1h TTL, no incident).
+- #17 equal-weighting policy: superseded by exposing both equal+budget side by side.
+- #17 stale-snapshot leakage: surfaced in UI instead of backend filtering.
 
 ---
 

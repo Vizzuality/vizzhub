@@ -101,20 +101,24 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 
 - **#37 formatCurrency** — FE renders ISO-4217 codes correctly. Commit `082fe9d0`.
 - **#14 normalizers** — 6 paths now return None on missing data; weights redistributed. Commit `082fe9d0`.
-- **#10 risk docstring** — sync with seeded config target. Commit pending.
+- **#10 risk docstring** — sync with seeded config target. Commit `fbfee1ea`.
 - **#5 CFR upper bound** — `le=100` + collector clamp + collector docstring synced with classifier. Commit `fbfee1ea`.
 - **#6 DORA deploy freq Elite** — classifier tightened to `> 1.0` (was `>=`). Daily-once → High. Commit `7a1e236d`.
-- **#17 global metrics (partial)** — exclude PROPOSAL projects from the portfolio aggregation + `strip()` strategic_impact label. Equal-weighting + stale-snapshot deliberately deferred. Commit `1c7f39dd`.
+- **#17 global metrics (initial PROPOSAL filter)** — superseded by `8f8a93b6`. Original commit `1c7f39dd`.
 - **#4 final-score returns None when all dimensions None** — `int | None`, FE renders `—`. Commit `fd553a13`.
-- **#16 score cache holes** — DELETE invalidates; capture endpoint switched from write-through to invalidate (no more cache-ahead-of-DB on rollback). TOCTOU deliberately deferred. Commit `3ef06293`.
-- **#7 DORA lead-time (mostly)** — business-day thresholds in classifier, median (not mean) in collector, label clarified as Jira cycle time (not DORA Lead Time for Changes). UTC-only business window deferred. Commit pending.
+- **#16 score cache holes** — DELETE invalidates; capture endpoint switched from write-through to invalidate (no more cache-ahead-of-DB on rollback). Cache↔cron race deferred (ACCEPT). Commit `3ef06293`.
+- **#7 DORA lead-time (mostly)** — business-day thresholds in classifier, median (not mean) in collector, label clarified as Jira cycle time (not DORA Lead Time for Changes). UTC-only business window deferred (ACCEPT). Commit `7399aba4`.
+- **#17 stale-snapshot UI** — warning icon next to stale project titles on `/scorecard` index. Commit `4fb88ed5`.
+- **#17 weighting policy** — expose equal-weighted AND budget-weighted aggregates side by side. Migration `070_global_by_budget` + `BudgetWeightedScores` schema + service `_average_scores_by_budget` + FE two `GlobalScoreCard`s. Route moved to `/scorecard/global` (user-accessible). Calculate/Recalculate gated to admin. Commit `2efa2c47`.
+- **#17 oracle = MetricsDB presence** — dropped status filter entirely. Membership for month M = has a captured row for M. The cron filters status=live upstream, so historical FINISHED rows stay (correct), no spurious future rows (correct). Commit `8f8a93b6`.
+- **Post-deploy script** `scripts/recalc_global_history.py` for backfilling legacy `global_metrics` rows with the new logic and the new `_by_budget` columns. Commit `91fa9d78`.
 
-## Final summary (2026-05-15)
+## Final summary (2026-05-15, updated 2026-05-16)
 
 - **Total audited:** 39/39 rows.
-- **OK:** 14 (Scorecard 9 + Tracker 4 + FE 0 + Capacity 0 + intentional-non-impl 1).
-- **SUSPICIOUS:** 24 (Scorecard 8 + Tracker 11 + Capacity 4 + FE 1).
-- **WRONG:** 1 (#37 formatCurrency — every ISO-4217 currency code renders as € on the FE).
+- **OK:** 14 (unchanged).
+- **SUSPICIOUS:** 24 originally; **8 closed** in the scorecard PR pass (all of scorecard's SUSPICIOUS block, some with documented partial scope). **16 still open** (tracker 11, capacity 4, FE 1).
+- **WRONG:** 0 (was 1 — #37 formatCurrency, closed 2026-05-15 PM).
 
 Top-priority fixes (smallest diff, highest impact, listed by ROI):
 
