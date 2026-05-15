@@ -40,7 +40,7 @@ export interface DoraScore {
 }
 
 export interface FinalScore {
-  score: number;
+  score: number | null;
   dimensions: DimensionScores;
   weights_applied: Record<string, number>;
   dora: DoraScore | null;

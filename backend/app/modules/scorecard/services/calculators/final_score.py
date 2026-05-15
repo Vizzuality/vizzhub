@@ -96,21 +96,6 @@ class FinalScoreCalculator:
         ]
         available_names = {name for name, _, _ in available}
 
-        if not available:
-            final = 0
-            weights = config_weights
-        else:
-            total_weight = sum(w for _, _, w in available)
-            weights = {
-                name: (
-                    config_weights[name] / total_weight
-                    if total_weight > 0 and name in available_names
-                    else 0.0
-                )
-                for name in dimension_names
-            }
-            final = sum(weights[name] * score for name, score, _ in available)
-
         dora_result = self.dora_calc.calculate(indicators)
         dora_score = DoraScore(
             score=dora_result["score"],
@@ -118,6 +103,25 @@ class FinalScoreCalculator:
             metrics=dora_result["metrics"],
             available_metrics=dora_result["available_metrics"],
         )
+
+        if not available:
+            return FinalScore(
+                score=None,
+                dimensions=dimensions,
+                weights_applied={name: 0.0 for name in dimension_names},
+                dora=dora_score,
+            )
+
+        total_weight = sum(w for _, _, w in available)
+        weights = {
+            name: (
+                config_weights[name] / total_weight
+                if total_weight > 0 and name in available_names
+                else 0.0
+            )
+            for name in dimension_names
+        }
+        final = sum(weights[name] * score for name, score, _ in available)
 
         return FinalScore(
             score=round(min(100, max(0, final))),

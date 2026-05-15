@@ -1737,7 +1737,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 
 ### SUSPICIOUS
 
-- **Final score returns 0 (not None) when all dimensions are None** — `backend/app/modules/scorecard/services/calculators/final_score.py:99-101`.
+- **[fixed 2026-05-15] Final score returns 0 (not None) when all dimensions are None** — `backend/app/modules/scorecard/services/calculators/final_score.py:99-101`. Resolution: `FinalScore.score` loosened to `int | None`; `calculate_all` now returns `score=None` with all weights at 0 when no dimension has data. Frontend `FinalScore` type updated to match; `ScoreCard.tsx` renders `—` when score is null. Test `test_no_data_final_score` updated to assert None; new `test_weights_all_zero_when_no_data` pins the contract. **Production impact:** brand-new / no-metric projects now render as "—" instead of a flat 0 in dashboards.
   - Module: `scorecard`
   - Repro: `FinalScoreCalculator(cfg).calculate_all(IndicatorsCreate())` → `FinalScore(score=0, ...)` — expected `score=None` per CLAUDE rule "missing indicators are excluded, not penalized". The existing test `tests/test_calculators.py::TestFinalScoreCalculator::test_no_data_final_score` actively pins the wrong behaviour (`assert result.score == 0`).
   - Why this matters: a brand-new project (no metrics yet) appears in dashboards as a flat 0, indistinguishable from a project that genuinely scored 0 across all dimensions. Per-dimension calculators correctly return None in this case; only the final aggregator diverges.

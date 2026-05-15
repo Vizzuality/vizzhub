@@ -41,9 +41,13 @@ class DoraScore(BaseModel):
 
 
 class FinalScore(BaseModel):
-    """Final weighted aggregate score."""
+    """Final weighted aggregate score.
 
-    score: int = Field(..., ge=0, le=100)
+    `score` is None when no dimension has data — distinguishes "brand-new
+    project, no measurements yet" from "every dimension genuinely scored 0".
+    """
+
+    score: int | None = Field(None, ge=0, le=100)
     dimensions: DimensionScores
     weights_applied: dict[str, float]
     dora: DoraScore | None = Field(None, description="Separate DORA score")

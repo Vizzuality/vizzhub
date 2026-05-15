@@ -155,7 +155,7 @@ export default function ScoreCard({
             >
               <span className="text-5xl font-semibold text-foreground flex items-center gap-2">
                 <span className={cn('inline-block w-3 h-3 rounded-full shrink-0', getScoreDotClass(score.score, thresholds))} />
-                {score.score}
+                {score.score ?? '—'}
               </span>
             </div>
           </div>

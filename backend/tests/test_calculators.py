@@ -513,16 +513,29 @@ class TestFinalScoreCalculator:
         assert result.dimensions.p_flow is None
         assert result.dimensions.p_engineering is None
         assert result.dimensions.p_risk is None
-        assert result.score == 0  # No data means score is 0
+        # Audit #4: no data → score is None (distinguishes "no measurements yet"
+        # from "every dimension genuinely scored 0").
+        assert result.score is None
+        assert all(w == 0.0 for w in result.weights_applied.values())
 
     def test_weights_redistributed_for_available_dimensions(
         self, config: ScoringConfig
     ) -> None:
+        """When some dimensions have data, weights must sum to 1.0."""
         calc = FinalScoreCalculator(config)
-        indicators = IndicatorsCreate()
+        # SPI present → at least Time dimension is computable
+        indicators = IndicatorsCreate(spi=1.0)
         result = calc.calculate_all(indicators)
         total_weight = sum(result.weights_applied.values())
         assert abs(total_weight - 1.0) < 0.001
+
+    def test_weights_all_zero_when_no_data(self, config: ScoringConfig) -> None:
+        """Audit #4: when no dimension has data, all weights are 0 (signaling
+        "no measurements") instead of redistributing to nothing."""
+        calc = FinalScoreCalculator(config)
+        result = calc.calculate_all(IndicatorsCreate())
+        assert result.score is None
+        assert all(w == 0.0 for w in result.weights_applied.values())
 
     def test_partial_data_excludes_missing(self, config: ScoringConfig) -> None:
         calc = FinalScoreCalculator(config)
