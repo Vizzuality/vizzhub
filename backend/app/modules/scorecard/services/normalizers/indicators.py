@@ -68,8 +68,16 @@ class IndicatorNormalizer:
         )
 
     def _normalize_spi(self, evm: EVMData | None) -> float | None:
-        """Calculate SPI from EVM data."""
+        """Calculate SPI from EVM data.
+
+        Returns None when either percent_completed or percent_planned is
+        missing or non-positive. Critical: a NULL `percent_completed`
+        must NOT be treated as zero — that would flatten the score to 0
+        for any project with PV set but no progress captured yet.
+        """
         if evm is None:
+            return None
+        if evm.percent_completed is None or evm.percent_planned is None:
             return None
         if evm.percent_planned <= 0:
             return None
@@ -78,6 +86,8 @@ class IndicatorNormalizer:
     def _normalize_cpi(self, evm: EVMData | None) -> float | None:
         """Calculate CPI from EVM data."""
         if evm is None:
+            return None
+        if evm.cost_to_date is None or evm.percent_completed is None:
             return None
         if evm.cost_to_date <= 0:
             return None
@@ -135,10 +145,11 @@ class IndicatorNormalizer:
     ) -> float | None:
         """Calculate defect density per 100 tasks.
 
-        Returns None when there are no completed tasks: defect density is
-        undefined, not zero. Excluded from the weighted average upstream.
+        Returns None when bugs_total or tasks_completed is missing, or
+        when there are no completed tasks. Defect density is undefined,
+        not zero — excluded from the weighted average upstream.
         """
-        if jira is None:
+        if jira is None or jira.bugs_total is None or jira.tasks_completed is None:
             return None
         if jira.tasks_completed <= 0:
             return None
@@ -147,9 +158,10 @@ class IndicatorNormalizer:
     def _calculate_escaped_rate(self, jira: JiraDefectMetrics | None) -> float | None:
         """Calculate escaped defect rate per 100 tasks.
 
-        Returns None when there are no completed tasks: the rate is undefined.
+        Returns None when escaped_defects or tasks_completed is missing,
+        or when there are no completed tasks.
         """
-        if jira is None:
+        if jira is None or jira.escaped_defects is None or jira.tasks_completed is None:
             return None
         if jira.tasks_completed <= 0:
             return None

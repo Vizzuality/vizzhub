@@ -4,15 +4,21 @@ from pydantic import BaseModel, Field
 
 
 class EVMData(BaseModel):
-    """Earned Value Management data for P_time and P_cost."""
+    """Earned Value Management data for P_time and P_cost.
+
+    Only `budget_total` is required (it gates whether the project has any
+    EVM at all). The other three are nullable so the deserializer can
+    preserve "not yet measured" instead of silently defaulting to 0.
+    Normalizers downstream (SPI/CPI/budget_variance) handle None.
+    """
 
     budget_total: float = Field(..., ge=0, description="Planned Value total (PV)")
-    cost_to_date: float = Field(..., ge=0, description="Actual Cost (AC)")
-    percent_completed: float = Field(
-        ..., ge=0, le=1, description="Completion ratio 0-1 for EV calculation"
+    cost_to_date: float | None = Field(default=None, ge=0, description="Actual Cost (AC)")
+    percent_completed: float | None = Field(
+        default=None, ge=0, le=1, description="Completion ratio 0-1 for EV calculation"
     )
-    percent_planned: float = Field(
-        ..., ge=0, le=1, description="Planned progress ratio 0-1"
+    percent_planned: float | None = Field(
+        default=None, ge=0, le=1, description="Planned progress ratio 0-1"
     )
 
 
@@ -34,11 +40,18 @@ class EVMDataPartial(BaseModel):
 
 
 class JiraDefectMetrics(BaseModel):
-    """Defect and incident metrics from Jira."""
+    """Defect and incident metrics from Jira.
 
-    bugs_total: int = Field(..., ge=0)
-    tasks_completed: int = Field(..., ge=0)
-    escaped_defects: int = Field(default=0, ge=0)
+    `bugs_total` and `tasks_completed` are nullable so the deserializer
+    can preserve "not measured" instead of defaulting to 0. The defect-
+    density / escaped-rate normalizers return None when the denominator
+    is None or 0, so missing data is excluded from the score rather than
+    counted as "perfect zero".
+    """
+
+    bugs_total: int | None = Field(default=None, ge=0)
+    tasks_completed: int | None = Field(default=None, ge=0)
+    escaped_defects: int | None = Field(default=None, ge=0)
     mttr_hours: float | None = Field(default=None, ge=0)
     incidents_count: int = Field(default=0, ge=0)
     post_contract_tasks: int | None = Field(

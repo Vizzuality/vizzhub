@@ -129,25 +129,40 @@ class MetricsCreate(BaseModel):
 
     @staticmethod
     def _build_evm_data(db: "MetricsDB") -> EVMData | None:
-        """Build EVMData from DB columns."""
+        """Build EVMData from DB columns.
+
+        Preserves NULL fields as None so downstream normalizers can
+        distinguish "not measured" from "measured as zero". Previously
+        defaulted everything to 0, which made SPI=0 for projects that
+        had only set budget_total without any progress capture yet.
+        """
         if db.budget_total is None:
             return None
         return EVMData(
             budget_total=float(db.budget_total),
-            cost_to_date=float(db.cost_to_date) if db.cost_to_date else 0,
-            percent_completed=float(db.percent_completed) if db.percent_completed else 0,
-            percent_planned=float(db.percent_planned) if db.percent_planned else 0,
+            cost_to_date=float(db.cost_to_date) if db.cost_to_date is not None else None,
+            percent_completed=(
+                float(db.percent_completed) if db.percent_completed is not None else None
+            ),
+            percent_planned=(
+                float(db.percent_planned) if db.percent_planned is not None else None
+            ),
         )
 
     @staticmethod
     def _build_jira_defects(db: "MetricsDB") -> JiraDefectMetrics | None:
-        """Build JiraDefectMetrics from DB columns."""
+        """Build JiraDefectMetrics from DB columns.
+
+        Preserves NULL columns as None (instead of defaulting to 0) so
+        the defect-density / escaped-rate normalizers can exclude missing
+        data from the score instead of treating it as a perfect zero.
+        """
         if db.bugs_total is None and db.tasks_completed is None:
             return None
         return JiraDefectMetrics(
-            bugs_total=db.bugs_total or 0,
-            tasks_completed=db.tasks_completed or 0,
-            escaped_defects=db.escaped_defects or 0,
+            bugs_total=db.bugs_total,
+            tasks_completed=db.tasks_completed,
+            escaped_defects=db.escaped_defects,
             mttr_hours=float(db.mttr_hours) if db.mttr_hours is not None else None,
             incidents_count=db.incidents_count or 0,
             post_contract_tasks=db.post_contract_tasks,

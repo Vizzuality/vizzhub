@@ -15,6 +15,7 @@ import pytest
 
 from app.modules.scorecard.models.metrics import (
     ComplaintStatus,
+    EVMData,
     JiraDefectMetrics,
     PMSatisfaction,
     StrategicImpact,
@@ -149,6 +150,70 @@ class TestPmSatisfactionWeightRedistribution:
         )
         result = normalizer._normalize_pm_satisfaction(pm)
         assert result == pytest.approx(1.0)
+
+
+class TestEvmNoneSemantics:
+    """Audit follow-up (2026-05-16): EVMData nullable fields must not be
+    coerced to 0 by the deserializer. SPI/CPI return None when their
+    inputs are missing."""
+
+    def test_spi_returns_none_when_percent_completed_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        evm = EVMData(budget_total=1000, cost_to_date=None,
+                      percent_completed=None, percent_planned=0.5)
+        assert normalizer._normalize_spi(evm) is None
+
+    def test_spi_returns_none_when_percent_planned_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        evm = EVMData(budget_total=1000, cost_to_date=None,
+                      percent_completed=0.5, percent_planned=None)
+        assert normalizer._normalize_spi(evm) is None
+
+    def test_spi_real_values(self, normalizer: IndicatorNormalizer) -> None:
+        evm = EVMData(budget_total=1000, cost_to_date=500,
+                      percent_completed=0.5, percent_planned=0.4)
+        assert normalizer._normalize_spi(evm) == pytest.approx(1.25)
+
+    def test_cpi_returns_none_when_cost_to_date_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        evm = EVMData(budget_total=1000, cost_to_date=None,
+                      percent_completed=0.5, percent_planned=0.5)
+        assert normalizer._normalize_cpi(evm) is None
+
+    def test_cpi_returns_none_when_percent_completed_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        evm = EVMData(budget_total=1000, cost_to_date=500,
+                      percent_completed=None, percent_planned=0.5)
+        assert normalizer._normalize_cpi(evm) is None
+
+
+class TestDefectAndEscapedAllowNullInputs:
+    """Audit follow-up (2026-05-16): JiraDefectMetrics nullable fields
+    must not crash the normalizers — they return None for the indicator."""
+
+    def test_defect_density_returns_none_when_bugs_total_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        jira = JiraDefectMetrics(bugs_total=None, tasks_completed=100)
+        assert normalizer._calculate_defect_density(jira) is None
+
+    def test_defect_density_returns_none_when_tasks_completed_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        jira = JiraDefectMetrics(bugs_total=3, tasks_completed=None)
+        assert normalizer._calculate_defect_density(jira) is None
+
+    def test_escaped_rate_returns_none_when_escaped_defects_missing(
+        self, normalizer: IndicatorNormalizer
+    ) -> None:
+        jira = JiraDefectMetrics(
+            bugs_total=0, tasks_completed=100, escaped_defects=None
+        )
+        assert normalizer._calculate_escaped_rate(jira) is None
 
 
 class TestOkrImpactNone:
