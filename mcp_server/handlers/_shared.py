@@ -1,15 +1,10 @@
 """Shared helpers for command handlers (iso_docs, playbook)."""
 
-from __future__ import annotations
-
-from typing import TypeVar
 from uuid import UUID
 
 from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-
-T = TypeVar("T", bound=DeclarativeBase)
 
 
 def extract_h1(content: str) -> str | None:
@@ -23,7 +18,7 @@ def extract_h1(content: str) -> str | None:
     return None
 
 
-async def resolve_node_by_slug(
+async def resolve_node_by_slug[T: DeclarativeBase](
     session: AsyncSession,
     model: type[T],
     slug: str,
@@ -44,7 +39,7 @@ async def resolve_node_by_slug(
     return node
 
 
-async def delete_leaf_node(
+async def delete_leaf_node[T: DeclarativeBase](
     session: AsyncSession,
     model: type[T],
     slug: str,
@@ -67,7 +62,7 @@ async def delete_leaf_node(
     await session.flush()
 
 
-async def update_node_tree(
+async def update_node_tree[T: DeclarativeBase](
     session: AsyncSession,
     model: type[T],
     slug: str,
@@ -108,7 +103,7 @@ async def update_node_tree(
     }
 
 
-async def get_node_title(
+async def get_node_title[T: DeclarativeBase](
     session: AsyncSession,
     model: type[T],
     slug: str,
