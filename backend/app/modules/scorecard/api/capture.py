@@ -21,7 +21,6 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardCapturer = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_CAPTURE))]
-from app.modules.scorecard.api.scores import ScoreResponse
 from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.core.models.project import ProjectDB
 from app.modules.scorecard.services.collectors.github import GitHubCollector
@@ -284,26 +283,12 @@ async def capture_period(
     punctual_response = _build_response(punctual_db, config)
     cumulative_response = _build_response(cumulative_db, config)
 
-    # Write-through: cache the freshly computed scores
-    # Build ScoreResponse to guarantee consistent shape with read-through path
+    # Invalidate cache so the next read recomputes from the DB.
+    # Audit #16: previous write-through ran before the request commit; a
+    # rollback would leave Redis ahead of DB for up to 1h TTL. Invalidating
+    # instead means the cache always trails the DB — never leads it.
     if cache:
-        pid = str(project_id)
-        await cache.set(
-            pid,
-            ScoreResponse(
-                indicators=cumulative_response.indicators,
-                scores=cumulative_response.scores,
-            ).model_dump(),
-            "cumulative",
-        )
-        await cache.set(
-            pid,
-            ScoreResponse(
-                indicators=punctual_response.indicators,
-                scores=punctual_response.scores,
-            ).model_dump(),
-            "punctual",
-        )
+        await cache.invalidate(str(project_id))
 
     logger.info(
         "scorecard_capture_completed",

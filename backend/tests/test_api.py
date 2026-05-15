@@ -478,4 +478,7 @@ async def test_calculate_scores_adhoc(client: AsyncClient) -> None:
     assert "indicators" in data
     assert "scores" in data
     assert "score" in data["scores"]
-    assert 0 <= data["scores"]["score"] <= 100
+    # Audit #4: score can be None when no dimension is fully computable.
+    # When a number, it must be in 0-100.
+    score_value = data["scores"]["score"]
+    assert score_value is None or 0 <= score_value <= 100

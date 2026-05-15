@@ -338,7 +338,11 @@ async def update_project(
 )
 @limiter.limit("10/minute")
 async def delete_project(
-    request: Request, project_id: UUID, admin: ProjectManager, db: DBSession
+    request: Request,
+    project_id: UUID,
+    admin: ProjectManager,
+    db: DBSession,
+    cache: OptionalScoreCache,
 ) -> None:
     project = await get_project_or_404(db, project_id)
 
@@ -350,6 +354,8 @@ async def delete_project(
 
     await delete_project_metrics(db, project_id)
     await db.delete(project)
+    if cache:
+        await cache.invalidate(str(project_id))
     logger.info(
         "project_deleted",
         project_id=str(project_id),
