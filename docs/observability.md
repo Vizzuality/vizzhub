@@ -124,15 +124,60 @@ Alloy runs as a Docker container (`hub-alloy`) on EC2. Config at `infrastructure
 
 ### Grafana Cloud Alert Rules
 
-Three alert rules configured in Grafana Cloud (folder "VizzHub"):
+Alert rules configured in Grafana Cloud (folder "VizzHub"):
 
 | Rule | Condition | Severity |
 |------|-----------|----------|
 | **Backend Down** | No metrics scraped for 2+ min | Critical |
 | **High Error Rate** | 5xx rate exceeds threshold | Warning |
 | **High Latency P95** | P95 latency exceeds threshold | Warning |
+| **MCP Permission Denied** | Any `mcp_permission_denied` log line in 5m | Warning |
 
 Contact point: Slack `#vizzhub` channel (bot token).
+
+#### MCP Permission Denied — paste-ready spec
+
+When the `@mcp_requires` decorator rejects a tool call, the backend
+emits a `warning`-level structlog event `mcp_permission_denied`. In
+normal operation this should be **zero** — either an LLM agent is
+calling tools beyond its scope, or someone is probing the MCP surface
+with a token that lacks the right permissions. Either way: investigate.
+
+**Datasource:** `grafanacloud-vizzhub-logs` (Loki, UID `grafanacloud-logs`).
+
+**LogQL query (Loki):**
+
+```logql
+sum by (tool, user_email) (
+  count_over_time(
+    {service="backend"}
+    | json
+    | event = `mcp_permission_denied`
+    [5m]
+  )
+)
+```
+
+**Rule config:**
+
+- **Folder:** VizzHub
+- **Group:** Security
+- **Evaluation:** every 1m, for 0m (fire on first occurrence)
+- **Threshold:** `is above 0`
+- **Severity label:** `warning`
+- **Summary:** `MCP permission denied for {{ $labels.tool }}`
+- **Description:** `User {{ $labels.user_email }} was denied access to MCP tool {{ $labels.tool }}. Check logs and verify whether the caller's permissions are correct or whether an LLM agent is over-reaching.`
+- **Contact point:** Slack `#vizzhub`
+
+**Runbook on fire:**
+
+1. Open Loki, filter `{service="backend"} | json | event="mcp_permission_denied"` for the last 1h.
+2. Identify `user_email` and `tool` — is this a known user/agent or unknown caller?
+3. If known: confirm whether their role should grant the listed `permission`. If yes, fix role assignment. If no, the gate worked — the agent prompt needs adjusting, not the role.
+4. If unknown email: rotate any leaked tokens, check `mcp_server/auth/token_verifier.py` for the issuer claim. Treat as a security incident.
+
+Two upstream files matter here: `mcp_server/auth/permissions.py` (emits the
+event) and `mcp_server/data/base.py` (`McpUserContext` shape).
 
 ### Sentry Alerts
 
