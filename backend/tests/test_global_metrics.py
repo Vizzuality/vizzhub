@@ -395,34 +395,38 @@ class TestGlobalMetricsServiceCalculation:
         assert result.spi is not None or result.spi_count >= 0
 
     @pytest.mark.asyncio
-    async def test_calculate_and_store_excludes_proposal_projects(
+    async def test_calculate_and_store_uses_metrics_presence_as_oracle(
         self,
         db_session: AsyncSession,
         global_metrics_service: GlobalMetricsService,
     ) -> None:
-        """Audit #17: PROPOSAL projects must not contribute to the
-        portfolio average (they haven't started)."""
+        """Audit #17 (2026-05-15 refinement): membership in the portfolio
+        aggregate for month M is determined by the presence of a MetricsDB
+        row for that month, not by the project's current status. The monthly
+        capture cron only writes rows for status=live, so FINISHED/PROPOSAL
+        projects don't grow new rows — but if they do have rows for that
+        month, they belong in the aggregate."""
         today = date.today()
         year, month = today.year, today.month
 
-        live = await create_test_project(
-            db_session, "Live", "LIVE", "v/live"
-        )
-        proposal = await create_test_project(
-            db_session, "Draft", "DRAFT", "v/draft"
-        )
+        live = await create_test_project(db_session, "Live", "LIVE", "v/live")
+        finished = await create_test_project(db_session, "Done", "DONE", "v/done")
+        finished.status = "finished"
+        proposal = await create_test_project(db_session, "Draft", "DRAFT", "v/draft")
         proposal.status = "proposal"
-        db_session.add(proposal)
+        db_session.add_all([finished, proposal])
         await db_session.flush()
 
         await create_test_metrics(db_session, live, year, month)
+        await create_test_metrics(db_session, finished, year, month)
         await create_test_metrics(db_session, proposal, year, month)
 
         result = await global_metrics_service.calculate_and_store(
             db_session, year, month
         )
 
-        assert result.project_count == 1  # only the live one
+        # All three contributed because all three had a captured row.
+        assert result.project_count == 3
 
     @pytest.mark.asyncio
     async def test_calculate_and_store_empty_period(

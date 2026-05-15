@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig, get_scoring_config
-from app.core.models.project import ProjectDB, ProjectStatus
+from app.core.models.project import ProjectDB
 from app.modules.scorecard.models.global_metrics import (
     BudgetWeightedScores,
     GlobalIndicators,
@@ -21,9 +21,11 @@ from app.modules.scorecard.models.scores import FinalScore
 from app.modules.scorecard.services.score_computation import ScoreComputationService
 
 
-# Statuses included in the portfolio aggregation. PROPOSAL is excluded
-# because draft projects shouldn't shape the live portfolio average.
-ACTIVE_PORTFOLIO_STATUSES = (ProjectStatus.LIVE.value, ProjectStatus.FINISHED.value)
+# Audit #17 / 2026-05-15: portfolio membership for month M = "has a
+# MetricsDB row for that month". The monthly capture cron filters by
+# status == 'live' upstream, so FINISHED / PROPOSAL projects don't grow
+# new rows but their historical rows still represent reality. No
+# additional status filter here.
 
 
 # Indicator fields to average (must match GlobalMetricsDB columns)
@@ -107,7 +109,6 @@ class GlobalMetricsService:
             .where(MetricsDB.period_year == year)
             .where(MetricsDB.period_month == month)
             .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
-            .where(ProjectDB.status.in_(ACTIVE_PORTFOLIO_STATUSES))
         )
         rows = list(result.all())
 
