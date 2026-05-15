@@ -167,20 +167,21 @@ class TestBusinessHoursDiff:
 class TestMTTRNormalizer:
     """Test MTTR normalization in IndicatorNormalizer."""
 
-    def test_no_incidents_returns_zero_mttr(self) -> None:
-        """When incidents_count is 0, MTTR should be 0 (perfect score)."""
+    def test_no_incidents_returns_none(self) -> None:
+        """Without incidents, MTTR is undefined and must be excluded
+        from the weighted average (not neutralized to 0)."""
         normalizer = IndicatorNormalizer()
         jira = JiraDefectMetrics(
             bugs_total=5,
             tasks_completed=100,
             escaped_defects=0,
-            mttr_hours=None,  # No MTTR data
-            incidents_count=0,  # No incidents
+            mttr_hours=None,
+            incidents_count=0,
         )
 
         result = normalizer._get_mttr(jira)
 
-        assert result == pytest.approx(0.0)
+        assert result is None
 
     def test_with_incidents_returns_mttr_value(self) -> None:
         """When incidents exist, should return actual MTTR."""

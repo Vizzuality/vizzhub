@@ -1689,14 +1689,600 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 
 ## CALCULATIONS
 
+**Audit complete (2026-05-15).** 39/39 rows reviewed. Counts:
+
+- **OK: 14** — #1 SPI, #2 CPI, #3 budget_variance(None), #8 Flow, #9 Quality, #11 Satisfaction, #12 Value, #13 Engineering, #15 disabled-governance toggle, #19 SV (not implemented; SPI covers), #22 percent_completed, #23 percent_planned, #29 estimated-flag exclusion, #32 prepopulate_parts (VHUB-124).
+- **SUSPICIOUS: 24** — #4 final-score weights + all-None, #5 CFR upper bound, #6 DORA freq Elite threshold, #7 DORA lead-time (4 nested issues), #10 risk docstring drift, ~~#14 normalizers None-rule violations~~ **[fixed 2026-05-15]**, #16 cache invalidation, #17 global metrics, #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, #25 base_rate=0 ZeroDivisionError, #26 ECB rate=0 + no historical, #27 invoice MAX(postponed_to) vs most-recent, #28 postponement backdate bug, #30 mood aggregation, #31 period rotation idempotency, #33 FA averages partial-reporter, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
+- **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed 2026-05-15]**.
+
+**Fixed on 2026-05-15 PM** (the two most critical findings):
+- **#37 formatCurrency (was WRONG)** — `evmCalculations.ts:20-35` now accepts ISO-4217 codes alongside the legacy `euro`/`dollar` keys, with explicit locale mapping for the common cases and en-US fallback for the rest. 9 new unit tests pin USD/GBP/EUR/lowercase/empty/decimals/unknown-ISO. Every invoice screen now renders the right currency symbol.
+- **#14 normalizers (was the highest-leverage SUSPICIOUS)** — 6 paths in `normalizers/indicators.py` rewritten to drop None / redistribute weights instead of substituting `0.5`/`0.75`/`0.0`. `_normalize_test_maturity` and `_normalize_pm_satisfaction` follow the `_normalize_client_survey` weighted-average pattern. `_calculate_defect_density`, `_calculate_escaped_rate`, `_get_mttr`, and `_normalize_okr_impact` now return None on missing-denominator / no-incidents / unknown-enum. `NEUTRAL_VALUE` import dropped from the file. 14 new regression tests in `test_normalizers_missing_excluded.py` + 1 updated test in `test_mttr.py`. Project + global scores will move on the next capture for projects with partial data — the prior behaviour silently flattered them toward ~50%.
+
+**Top remaining quick wins**:
+1. **#28 postponement backdate** — one-line lower-bound check.
+2. **#31 period rotation idempotency** — one-line guard `if active and active.date != new_date`.
+3. **#5 CFR contract** — add `le=100` + defensive clamp.
+4. **#25 base_rate=0** — `Field(gt=0)` + DB CHECK.
+5. **#38 TS type lies re: Decimal-as-string** — companion to the #37 fix but lives in `types/`.
+
+**Multi-step families still open**:
+- **Currency end-to-end** (#18 / #24 / #25 / #26 / #38): backend assumes single project currency; rates implicitly EUR; no historical FX lookup. The FE display (#37) is now correct, but the cost path still needs fixing.
+- **Capacity completeness** (#33 / #34 / #35 / #36): needs a product decision before code.
+- **EVM modernization** (#18 / #20 / #21): CV/EAC/ETC missing or non-standard.
+
+---
+
 ### WRONG
-_(empty)_
+
+- **[fixed 2026-05-15] `formatCurrency` silently shows EUR for every non-legacy currency code** — `frontend/src/shared/utils/evmCalculations.ts:25` (base), `frontend/src/modules/tracker/utils/constants.ts:4` (wrapper). Resolution: `LEGACY_CURRENCY_MAP` keeps backward compat for `euro`/`dollar` callsites; any other input is uppercased and passed directly to `Intl.NumberFormat`, with `ISO_LOCALE_MAP` providing locales for EUR/USD/GBP/CHF/JPY/AUD/CAD and en-US as default fallback. 9 tests added in `frontend/src/shared/utils/__tests__/evmCalculations.test.ts`.
+  - Module: `tracker` (worst affected, but cross-cutting on every invoice + EVM screen)
+  - Repro: backend normalizes `invoice.currency` to ISO-4217 codes (`admin_invoices.py:147-150`: `"USD"`, `"EUR"`, `"GBP"`, `upper(other)`). FE `CURRENCY_MAP` has ONLY `"euro"` / `"dollar"` keys. Any ISO code falls through to `?? CURRENCY_MAP.euro` (de-DE locale, € symbol). So:
+    - `formatCurrency(100, "USD", 2)` → `"100,00 €"` (WRONG — should be `"$100.00"`).
+    - `formatCurrency(100, "GBP", 2)` → `"100,00 €"` (WRONG — should be `"£100.00"`).
+    - `formatCurrency(100, "EUR", 2)` → `"100,00 €"` (right symbol by accident, wrong locale logic).
+  - Affected call sites: `InvoicesCard.tsx:75`, `AdminInvoices.tsx:91`, `invoice-shared.tsx:184/270/504`, `InvoiceDetail.tsx:144` — every place that renders invoice amounts.
+  - This is the user-visible part of the currency-handling family (cross-ref #18, #24, #25, #26). The backend correctly stores and serves the currency code; the FE just doesn't know what to do with it. Easy to fix and high impact.
+  - Other latent: `null`/`undefined` not guarded (`Intl.NumberFormat.format(undefined)` → `"NaN €"`); string input from Pydantic Decimal coerces in Intl but breaks upstream arithmetic; zero-decimal currencies (JPY) get forced two-decimal format.
+  - Tests today: **none**. No test imports `formatCurrency` anywhere. Two helpers, zero coverage on either.
+  - Suggested:
+    - `formatCurrency(100, "USD", 2) → "$100.00"` (would fail today).
+    - `formatCurrency(100, "GBP", 2) → "£100.00"` (would fail today).
+    - `formatCurrency(100, "euro", 2) → "100,00 €"` (legacy passthrough still works).
+    - `formatCurrency(null, "USD") → ""` or `"—"` (currently `"NaN €"`).
+    - `formatCurrency(-50, "USD", 2) → "-$50.00"`.
+  - Fix: make `CURRENCY_MAP` accept both legacy (`euro`/`dollar`) and ISO-4217 keys (case-insensitive). For ISO codes, pass the code directly to `Intl.NumberFormat(undefined, { style: 'currency', currency: code, ... })` and let the runtime pick the locale. Drop the hardcoded `de-DE` / `en-US` mapping for unknown codes. Adds full ECB-supported currency coverage in one change.
+  - Added: 2026-05-15 (calc-audit row #37)
+
 
 ### SUSPICIOUS
-_(empty)_
+
+- **Final score returns 0 (not None) when all dimensions are None** — `backend/app/modules/scorecard/services/calculators/final_score.py:99-101`.
+  - Module: `scorecard`
+  - Repro: `FinalScoreCalculator(cfg).calculate_all(IndicatorsCreate())` → `FinalScore(score=0, ...)` — expected `score=None` per CLAUDE rule "missing indicators are excluded, not penalized". The existing test `tests/test_calculators.py::TestFinalScoreCalculator::test_no_data_final_score` actively pins the wrong behaviour (`assert result.score == 0`).
+  - Why this matters: a brand-new project (no metrics yet) appears in dashboards as a flat 0, indistinguishable from a project that genuinely scored 0 across all dimensions. Per-dimension calculators correctly return None in this case; only the final aggregator diverges.
+  - Schema constraint: `FinalScore.score` is typed `int` — fixing requires loosening to `int | None`, then audit FE renderers (likely `formatCellValue` already handles null → "—").
+  - Fix: when `available` set is empty, return `score=None` and zero `weights_applied`. Update the existing test to assert None. Run `rg "score" frontend/src/modules/scorecard/` to find any `.toFixed()` / arithmetic on `finalScore.score` that needs a null guard.
+  - Added: 2026-05-15 (calc-audit row #4)
+
+- **DORA Change Failure Rate — upper bound contract not enforced** — `backend/app/modules/scorecard/services/collectors/github/change_failure_rate.py:120`, schema `backend/app/modules/scorecard/models/indicators.py:69`.
+  - Module: `scorecard`
+  - Background: the production-incident commit `7774abb2` widened the DB column from `NUMERIC(5,4)` to `NUMERIC(5,2)`. Root cause was the column being too narrow to store a legitimate 41.7% CFR. The widening fixed the immediate crash, but the *contract* that CFR is `0 ≤ x ≤ 100` is still not enforced anywhere: no `le=100` on Pydantic `IndicatorsCreate.change_failure_rate`, no defensive clamp in the collector, and `NUMERIC(5,2)` silently absorbs any 100 < x < 1000 anomaly without flagging.
+  - Repro for the silent-absorption case (hypothetical, not currently reachable from production code): future collector change that uses a different denominator → emits `cfr=150.0` → Pydantic accepts (only `ge=0`) → DB stores 150.00 → classifier returns "Low", no alert.
+  - Edge case missed: documentation drift — collector docstring at `change_failure_rate.py:33-37` claims bands "Elite 0-15%, High 16-30%, Medium 31-45%, Low >45%" but the actual `_classify_change_failure_rate` in `dora.py:184-191` uses standard DORA thresholds (5/10/15). Confusing for future readers, runtime unaffected.
+  - Tests today: thresholds at 5/10/15/16 covered, no test pins 100% boundary, no test pins NUMERIC(5,2) round-trip for realistic values like 41.7.
+  - Suggested: `test_cfr_100_percent_classifies_low`, `test_cfr_collector_returns_100_when_every_pair_is_hotfix`, `test_metrics_db_accepts_realistic_cfr_41_7` (regression for the original incident).
+  - Fix: add `le=100` to `IndicatorsCreate.change_failure_rate` and `min(cfr, 100.0)` defensive clamp at `change_failure_rate.py:120`. Update the collector docstring to match the actual DORA thresholds in `dora.py`.
+  - Added: 2026-05-15 (calc-audit row #5)
+
+- **DORA deployment frequency — Elite threshold inconsistent with its own docstring** — `backend/app/modules/scorecard/services/calculators/dora.py:141-156`.
+  - Module: `scorecard`
+  - Repro: `IndicatorsCreate(deployment_frequency=1.0)` → classifier returns Elite (score 100). The classifier docstring at `dora.py:41` says "Elite: Multiple deploys per day" (i.e. >1), but the threshold uses `>= 1.0`. A team deploying exactly once per day gets Elite when both the in-file documentation and the DORA literature say High.
+  - Either tighten classifier to `> 1.0` and update tests, or update the docstring/comments to acknowledge the threshold is "≥ 1.0". Small thing but it muddies the meaning of the tier.
+  - Cosmetic finding (same agent): the collector returns key `release_count_90d` even when running in punctual mode over an arbitrary window (`deployment_frequency.py`). Misleading name; consider `release_count` + a separate `window_days` field.
+  - Tests today: thresholds at 1.0 / 0.143 / 0.034 / 0.01 covered but boundary `>1.0` and exact-1/7 / exact-1/30 not pinned.
+  - Suggested: `test_elite_requires_multiple_per_day`, `test_punctual_uses_period_window` (asserts key name doesn't lie), `test_collector_excludes_zero_division` (1-day window with 1 release → 1.0/day, no div-by-zero).
+  - Fix: either tighten the classifier or update docs; rename or split the collector return key. One-line each.
+  - Added: 2026-05-15 (calc-audit row #6)
+
+- **DORA "Lead Time" — unit mismatch + mean instead of median + UTC-only business window + mislabeled metric** — calculator `backend/app/modules/scorecard/services/calculators/dora.py:158-174`, collector `backend/app/modules/scorecard/services/collectors/jira/lead_time.py:91` (and `_calculate_issue_lead_time` at :72), business-time helper `backend/app/modules/scorecard/services/collectors/jira/utils.py:98`.
+  - Module: `scorecard`
+  - Stacked findings (one row = several issues, all in the same code path):
+    1. **Unit mismatch (most important).** Collector emits *business days* (1 unit = 9 working hours, 09:00–18:00 UTC, Mon–Fri). DB column is `Numeric(10,2)` named `lead_time_days`. Classifier compares against calendar-day thresholds (Elite `<1/24`, High `<1`, Medium `<7`, Low `≥7`). So 7 business days ≈ 9.8 calendar days; a 1-business-day issue is `1.0` and the classifier reads it as "1 calendar day → High". The unit is silently inconsistent across collector → DB → classifier.
+    2. **Mean, not median.** Collector aggregates with `sum/len` (lead_time.py:131). DORA literature and any robust statistic on cycle time uses median to tame outliers. Repro: 9 issues × 1 day + 1 × 90 days → mean 9.9 (classified Low), median 1 (High). The current "score" is the kind that a single neglected ticket can flip.
+    3. **UTC-only business window.** `business_days_diff` uses 09:00–18:00 UTC. Madrid 09:00 = 07:00 UTC → counted as "before hours". Repro: in-progress `2024-06-03T09:00:00+02:00`, resolved `2024-06-03T18:00:00+02:00` → ~0.78 business days. Madrid teams systematically score worse than their work day actually was.
+    4. **Mislabeled metric.** DORA "Lead Time for Changes" = commit → production deploy. This implementation measures Jira issue cycle time (first-in-progress → resolved). Tier comparisons are nonsensical against the DORA spec; there is no commit-to-deploy correlation in the pipeline.
+    5. **No upper cap / no tz-naive guard / re-opened issues counted only on first cycle.** Stale-issue tail dominates the mean. tz-naive datetimes sneaking in would raise `TypeError`.
+  - Tests today: collector path covered (JQL shape, In-Progress changelog, business-days math, weekend skip). Calculator thresholds covered. None of the above semantic issues are pinned.
+  - Suggested: `test_collect_lead_time_outlier_dominates_mean`, `test_collect_lead_time_with_local_timezone`, `test_collect_lead_time_negative_or_zero_excluded`.
+  - Fix (layered, pick the smallest one first):
+    - Minimum: rename `lead_time_days` → `lead_time_business_days` everywhere, and either re-express classifier thresholds in business-day units (1h ≈ 1/9, 1 day = 1, 1 week = 5) OR convert at the boundary. Stop the silent unit-confusion.
+    - Better: switch aggregation from `sum/len` to `statistics.median(lead_times)`.
+    - Long-term: rename the metric on screen + in docs from "DORA Lead Time" to "Jira cycle time" until a real commit→deploy collector exists.
+  - Added: 2026-05-15 (calc-audit row #7)
+
+- **Risk calculator docstring drift on PR-review target** — `backend/app/modules/scorecard/services/calculators/risk_calculator.py:12`.
+  - Module: `scorecard`
+  - Repro: docstring claims "target 2% of total PRs" but seeded default in `tests/conftest.py:95` is 10 (10%). Functionally the calculator reads the value from config so the math is right; the doc is just stale and misleads anyone debugging Risk scores.
+  - Edge cases otherwise handled: high_vulns=0 → 1.0; high_vulns≥target → floor 0; target=0 strict mode (1.0 if 0 else 0.0); prs_without_review None / total_prs=0 → PR component excluded; weights 0.50/0.50 sum 1.00; Pydantic `ge=0` blocks negatives; CLAUDE alerts-toggle rule honored (no `has_dependabot_alerts` references anywhere in `services/calculators/`).
+  - Tests today: TestRiskCalculator covers perfect, gradual vuln penalty, no-data, single-component, zero-total-prs. Missing: `target=0` zero-tolerance branch, `pr_target=0` strict branch, `high_vulns >> target` floor-at-0.
+  - Suggested: `test_strict_zero_vuln_tolerance`, `test_vulns_far_above_target_floors_at_zero`, `test_pr_target_zero_strict`.
+  - Fix: update docstring to match seeded default ("target ~10% of total PRs (see config `target_pr_no_review_ratio`)"). Trivial doc edit.
+  - Added: 2026-05-15 (calc-audit row #10)
+
+- **[fixed 2026-05-15] Indicator normalizers violate the "missing excluded, not neutralized" rule in 5 places** — `backend/app/modules/scorecard/services/normalizers/indicators.py`. Resolution: all 6 paths rewritten. `_normalize_test_maturity` + `_normalize_pm_satisfaction` now follow the `_normalize_client_survey` weighted-average pattern (skip None / `ComplaintStatus.NA`, redistribute remaining weights, return None when nothing remains). `_calculate_defect_density` and `_calculate_escaped_rate` return None when `tasks_completed <= 0` instead of 0.0. `_get_mttr` returns None when `incidents_count == 0` instead of 0.0. `_normalize_okr_impact` drops the `NEUTRAL_VALUE` fallback. `NEUTRAL_VALUE` import removed from the file. 14 regression tests in `backend/tests/test_normalizers_missing_excluded.py` + `test_mttr.py::test_no_incidents_returns_none` updated. **Expected production impact:** projects with partial data will see scores move on the next capture (previously inflated toward ~50%).
+  - Module: `scorecard`
+  - The CLAUDE rule promises that a `None` indicator is dropped from the weighted average. The base helper `_weighted_average` enforces this faithfully, and `_normalize_client_survey` (indicators.py:269) is a clean reference implementation: it drops None sub-fields, redistributes weights, returns None when nothing remains. The *other* composite normalizers diverge — they silently substitute neutral values, so a project with zero data scores ~50% instead of being marked "no data".
+  - Specific violators:
+    1. `_normalize_test_maturity` (indicators.py:197) — each missing sub-rating (e2e/unit/accessibility/security/frontend) substitutes `NEUTRAL_VALUE` (0.5). Repro: `TestMaturity(e2e=None, unit=None, accessibility=None, security=None, frontend=None)` → expected None, actual ≈0.5.
+    2. `_normalize_pm_satisfaction` (indicators.py:252) — `default_complaint_score=0.75` for `ComplaintStatus.NA` and `NEUTRAL_VALUE=0.5` for missing `overall_estimation`. Repro: `PMSatisfaction()` with all defaults → expected None, actual 0.65.
+    3. `_calculate_defect_density` (indicators.py:134) — collapses "tasks_completed ≤ 0" to 0.0 (= "perfect"), making zero-tracking identical to perfect-quality. Repro: `JiraDefectMetrics(bugs_total=3, tasks_completed=0)` → expected None (no denominator), actual 0.0.
+    4. `_calculate_escaped_rate` (indicators.py:144) — same fallback as defect_density.
+    5. `_get_mttr` (indicators.py:152) — returns 0.0 when `incidents_count==0`. Documented as intentional ("no incidents = perfect MTTR"), but inconsistent with the rest of the file and indistinguishable from "incidents not tracked". Projects without incident tracking are flattered.
+    6. `_normalize_okr_impact` (indicators.py:239) — `NEUTRAL_VALUE` fallback for unknown enum (cross-referenced from row #12). Currently unreachable thanks to Pydantic, but the dead branch encodes the wrong policy.
+  - Why this matters: these violations flatten the score upward whenever data is missing. A new project with no Jira → defect_density 0 → Quality dim looks better than reality. A team without test_maturity self-assessment → Engineering dim sits near 50 instead of being marked "no data". The "missing excluded" rule is the load-bearing fairness invariant of the whole scoring system; broken in 5 places.
+  - Tests: base-layer helpers (`normalize_lower_is_better`, `normalize_governance_compliance`, etc.) are thoroughly tested. The `_normalize_*` / `_calculate_*` private methods on the composite normalizers have no direct unit coverage. Integration tests cover perfect/poor paths only.
+  - Suggested: `test_normalize_test_maturity_all_none_returns_none`, `test_normalize_pm_satisfaction_all_defaults_returns_none`, `test_calculate_defect_density_zero_tasks_returns_none`.
+  - Fix: rewrite `_normalize_test_maturity` and `_normalize_pm_satisfaction` after the `_normalize_client_survey` pattern (drop None / NA fields, redistribute weights, return None when `weight_sum == 0`). Flip `_calculate_defect_density`, `_calculate_escaped_rate`, `_get_mttr`, and `_normalize_okr_impact` from silent neutral fallbacks to None so the calculator's `_weighted_average` can exclude them. Each fix is localized; tests update accordingly.
+  - Added: 2026-05-15 (calc-audit row #14)
+
+- **Score cache: two real invalidation holes + TOCTOU on concurrent writers** — `backend/app/modules/scorecard/services/score_cache.py:35`. Redis-backed, keys `scores:latest:{project_id}:{snapshot_type}`, 1h TTL safety net.
+  - Module: `scorecard`
+  - Hole 1 — **Project deletion does not invalidate** (`backend/app/core/api/projects_v2.py:351`). DELETE removes the project + metrics but leaves the Redis key in place until the 1h TTL expires. Practical impact: minor (the project is gone so the API returns 404 before consulting cache), but the key takes memory and leaks if UUIDs are ever recycled (e.g., test fixtures restoring from a backup).
+  - Hole 2 — **Write-through cache.set runs before request commit**. The capture-period endpoint at `backend/app/modules/scorecard/api/capture.py:289` calls `cache.set(...)` after `db.flush()` but before the FastAPI request commit. If the transaction later rolls back, Redis holds scores that never persisted to DB → stale-positive cache for up to 1h. Same pattern around `config.py:130` `invalidate_all` — clears cache, then commit may fail; until next write, cache will re-fill from the OLD DB row.
+  - TOCTOU window — concurrent writers (e.g. cron `monthly_scorecard_capture` running at the same time an API capture is triggered for the same project) can interleave invalidate/set. No CAS / version stamp / Lua. Window is short but real; eventually consistent within 1h TTL.
+  - None-guard pattern (`if cache:`) is consistently applied at every call site — no violators.
+  - Tests today: `tests/test_score_cache.py` covers unit-level get/mget/set/invalidate including silent degradation on Redis errors. No test for the deletion hole, the rollback hole, or the concurrent-writer race.
+  - Suggested: `test_delete_project_invalidates_cache`, `test_capture_rollback_does_not_leave_stale_set`, `test_concurrent_invalidate_set_last_writer` (documents TOCTOU as bounded by TTL).
+  - Fix:
+    - In `delete_project` (`projects_v2.py:~352`): `if cache: await cache.invalidate(str(project_id))` before the response.
+    - In `capture.py:289` (and the other write-through site): prefer `cache.invalidate(project_id)` over `cache.set(...)` so a later rollback can't leave Redis ahead of DB. Read-through will re-populate on the next request.
+  - Added: 2026-05-15 (calc-audit row #16)
+
+- **Global metrics aggregation includes archived/cancelled projects + equal-weighted** — `backend/app/modules/scorecard/services/global_metrics_service.py:75` (`calculate_and_store`), :134 (`_average_indicators`), :163 (`_average_scores`).
+  - Module: `scorecard`
+  - What it does well: None-handling is correct — `_average_indicators` and `_average_scores` filter `is not None` before averaging; empty period yields `(value=None, count=0)`; idempotent upsert by `(period_year, period_month)`. The None-exclusion contract holds at the portfolio layer.
+  - Issues:
+    1. **No project-status filter.** Line 97-102 joins `MetricsDB` for the period only. Archived / cancelled / on-hold / draft projects with a stale CUMULATIVE row in the period get folded into the portfolio average and into `project_count`. Repro: cancel a project today; the same project shows up in next month's global average with its last-known score. The metric is supposed to reflect the portfolio "right now", not the portfolio "ever existed".
+    2. **Equal weighting** — a 1M€ project and a 10k€ side experiment count the same. Not a bug per se, but it makes the headline number unreliable as a portfolio-health signal. Document the choice or weight by budget/headcount.
+    3. **Cross-ref to row #14** — the per-project pipeline produces false 0.0 / 0.5 scores when normalizers like test_maturity / pm_satisfaction / defect_density swallow missing data with a neutral fallback. The global aggregator treats those zeros as real, so the global score is also polluted. Fixing #14 fixes this transitively.
+    4. **Stale-snapshot leakage** — if a project stops capturing (worker disabled or repo gone), its CUMULATIVE row from the last successful month persists into later period aggregations only if MetricsDB rows are re-created with new period anchors; otherwise the project silently disappears from later months and `project_count` shrinks without explanation. Visible in `available_months` history; needs to be surfaced or filtered explicitly.
+    5. **Minor** — `metrics_db.strategic_impact.lower()` (line 122) doesn't `.strip()`, so a label `"High "` falls to None silently.
+  - Tests today: 17 tests cover indicator-mean / score-mean / upsert / API / batch / history. Missing: project-status filtering, "0 is real" vs None semantics, count decoupled from project_count integration test.
+  - Suggested:
+    - `test_excludes_archived_projects` (insert 2 live + 1 archived, expect `project_count == 2`).
+    - `test_zero_score_is_not_excluded` (pin "score=0.0 is a real measurement, included in mean").
+    - `test_count_decoupled_from_project_count` (3 projects, only 1 reports cpi → `project_count=3` but `cpi_count=1`).
+  - Fix: at line 97, JOIN to `ProjectDB` and filter `ProjectDB.status.in_(...)` based on product call. Decide weighting policy explicitly and document. Strip-and-lower for strategic_impact label.
+  - Added: 2026-05-15 (calc-audit row #17)
+
+- **EVM Cost Variance (CV = EV − AC) not implemented; only CPI + clamped overrun** — `backend/app/modules/scorecard/services/normalizers/indicators.py:85` (EV), `:79` (CPI), and `backend/app/modules/scorecard/services/normalizers/base.py:125-148` (budget_variance overrun).
+  - Module: `tracker` (consumer) + `scorecard` (producer)
+  - What exists today: EV is computed (`budget_total × percent_completed`) backend and frontend (`evmCalculations.ts:14`); CPI is computed (`EV/AC`); `budget_variance` is `max(0, AC/budget − 1)` — i.e. clamped to ≥0, sign discarded.
+  - What is missing: CV = EV − AC. No backend field, no API exposure, no frontend rendering. EVMSection shows EV and Cost-to-Date as separate cells but never their difference.
+  - Why the clamp is a problem: `budget_variance` lumps "on budget" and "under budget" together — a project with EV=120k, AC=100k (CV=+20k under) reports the same `budget_variance=0.0` as a project running exactly on budget. The signal that you're *ahead* on cost is lost. Stakeholders asking "how much money over/under?" get a ratio (CPI) or a clamped overrun, never the absolute number.
+  - Currency: `EVMData` carries no currency tag. `budget_total` (project currency) and `cost_to_date` (aggregated tracker reports, possibly mixed-currency via rates) are subtracted/divided as raw floats. No FX call in the normalizer path. If the project currency differs from any contributor's rate currency, EV − AC and AC/PV are arithmetically wrong. Document the single-currency assumption or call `exchange_rate_service` at the boundary.
+  - Decimal precision: `MetricsDB.cost_to_date` / `budget_total` are Decimal in DB but float in `EVMData` (`api_models.py:6`). Precision lost on the way into the scorecard snapshot.
+  - Tests today: no test asserts `CV = EV − AC` anywhere. `weight_cost_variance` is a config key (a scoring weight) — not the same thing.
+  - Suggested (if CV is added):
+    - `test_cost_variance_basic`: BAC=100k, %completed=0.5, AC=40k → CV=+10k.
+    - `test_cost_variance_negative_preserved`: BAC=100k, %completed=0.5, AC=70k → CV=−20k (sign kept).
+    - `test_cost_variance_missing_inputs_returns_none`: cost_to_date=None or percent_completed=None → CV=None.
+  - Fix: add `cv = ev − cost_to_date` in `evmCalculations.ts:14-17` and surface as a third row in `EVMSection.tsx` with sign-preserving `formatCurrency`. Backend: expose `cost_variance` in `EVMData` returning None when any input is None and preserving sign. Decide whether the clamped `budget_variance` should remain for scoring or be replaced by signed CV.
+  - Added: 2026-05-15 (calc-audit row #18)
+
+- **EAC (Estimate at Completion) uses a non-standard time-based forecast, ignoring CPI/BAC/EV** — `frontend/src/modules/tracker/components/BurnDashboard.tsx:82` (`forecastFinal`), with helpers `weightedMonthlyAvg` and `buildForecastPoints` in the same file.
+  - Module: `tracker`
+  - Formula used: `forecastFinal = totalBurn + (weightedMonthlyAvg × remainingMonths)`. `weightedMonthlyAvg` weights the last 3 months 3/2/1 (older months weight 1). `remainingMonths` is calendar months between the last burn period and `project_end_date`. This is effectively `AC + ETC` where ETC is a time-driven extrapolation of recent burn — *not* the standard EVM `EAC = BAC/CPI` nor `EAC = AC + (BAC − EV)`. CPI, BAC, and percent_completed are not consulted.
+  - API exposure: none. Computed client-side only inside `useChartData`. Backend exposes `burn_percentage` but no EAC/forecast field.
+  - Edge cases handled: missing `project_end_date` skips forecast; `remainingMonths ≤ 0` (already past end) returns `totalBurn`; empty/single-period inputs handled.
+  - Edge cases missed / minor:
+    - Day-of-month is ignored — period dated `2026-01-31` and end date `2026-02-01` yields `remainingMonths=1`, inflating the forecast by a full month of burn.
+    - Months with zero spend (paused / holidays) drag `weightedMonthlyAvg` down → optimistic forecast. A single anomalous high-spend month near the end (weight 3) skews the projection dramatically.
+    - Chart caps at 24 forecast points but `forecastFinal` is still computed for the full `remainingMonths` — chart and KPI silently disagree past 24 months.
+    - No comparison against BAC (budget), so no "projected overrun" alert in the data layer.
+    - Currency: assumes all `period.total` values are already in project currency; no FX guard (same family of finding as row #18).
+  - Tests today: **none**. No test imports `BurnDashboard`, `useChartData`, `weightedMonthlyAvg`, `buildForecastPoints`, or `evmCalculations`. The entire forecast path is uncovered.
+  - Suggested:
+    - `weightedMonthlyAvg`: `[100,100,100,100]` → 100; `[0,0,0,300]` → ~150 (weight-3 dominates); `[]` → 0; `[50]` → 50.
+    - `useChartData.forecastFinal`: 3 months at €1k each, end date +2 months → forecastFinal ≈ 5000; end date in past → forecastFinal === totalBurn.
+    - `useChartData` truncation: end date +30 months → cumulative array has 24 forecast points but `forecastFinal` reflects all 30 months (document the asymmetry).
+  - Fix: rename `forecastFinal` → `projectedFinalCost` and document the formula `AC + (weighted_recent_burn × remaining_calendar_months)`. Add a sibling EVM-based EAC (`budget_total / cpi` when `cpi > 0`) so users can compare time-trend vs cost-performance projections; flag a divergence > 15%.
+  - Added: 2026-05-15 (calc-audit row #20)
+
+- **ETC (Estimate to Complete) not exposed separately; only implicit inside EAC** — sister finding to row #20. `frontend/src/modules/tracker/components/BurnDashboard.tsx:82`.
+  - Module: `tracker`
+  - Implicit formula: `ETC = weightedMonthlyAvg × remainingMonths` (the "remaining work cost" term of the EAC forecast from #20). Stakeholders only see the EAC ("Forecast Final"), never the remaining-cost number on its own.
+  - Same non-EVM design as row #20 (time-trend, ignores BAC/EV/CPI). Additional ETC-specific edge cases not handled:
+    - `weightedMonthlyAvg` can go negative when a period contains a refund/reversal (PeriodCostBreakdown.total is signed) → forecast < totalBurn, no clamp.
+    - **Gap-in-reporting inflation**: `remainingMonths` is calendar months between the *last reported period* and `projectEndDate`. If a team stops reporting for 3 months and reports again right before the end date, those gap months get treated as future months and multiplied by `weightedMonthlyAvg` → double-counted overshoot.
+    - **NaN leak guard**: `new Date(endDate + 'T00:00:00')` on a malformed date yields NaN; `NaN > 0` is false so it falls through silently. Defensible (forecastFinal stays null) but not surfaced.
+    - Single zero-cost period (paused/holiday) → weightedAvg=0 → forecast = totalBurn → masks under-reporting.
+  - Tests today: none (same as #20).
+  - Suggested: `weightedMonthlyAvg([100,200,300]) → 233.33`, `weightedMonthlyAvg([]) → 0`, `buildForecastPoints(remainingMonths=3, totalBurn=1000, weightedAvg=200)` → forecastFinal=1600 / 3 points, refund-period test, malformed end-date test.
+  - Fix: same as #20 — expose backend ETC alongside EAC using EVM-standard inputs (`max(0, BAC − EV)` and `(BAC − EV) / max(CPI, ε)`) so stakeholders see "Remaining" as a separate KPI and the time-trend forecast is one method among several. Also: add a "last reporting gap" warning when there's a gap > 1 month between the last reported period and today.
+  - Added: 2026-05-15 (calc-audit row #21)
+
+- **Burn percentage — single-vs-batch precision divergence + null-when-zero conflation + currency gap** — `backend/app/modules/tracker/services/aggregation_service.py:129` (single) and `:199` (batch).
+  - Module: `tracker`
+  - Formula: `burn_percentage = (Σ valid report-part cost + Σ non-staff cost) / project.budget × 100`, where `valid` excludes `estimated=true` parts and `percentage<=0` parts (per CLAUDE rule). Returns null when `budget` is falsy.
+  - Issues:
+    1. **Precision divergence**: line 128 (single-project endpoint) does NOT round `total_cost` before dividing; line 198-199 (batch endpoint) rounds to 2dp before dividing. Same project queried via both endpoints returns slightly different `burn_percentage` (existing tests paper over with `abs=0.01`). Repro: a project whose total_cost is `7822.06` → single endpoint divides `7822.06 / budget × 100`, batch divides `7822.06 → 7822.06 → same` (in this case OK), but with longer decimals the rounding diverges. Pick one precision policy and apply consistently.
+    2. **budget=0 vs budget=None conflation**: `if budget else None` (truthy check) treats `Decimal("0")` and `None` identically. ProjectDB.budget has `ge=0` so 0 is a valid stored value. Currently masquerades as the "null when zero" rule but actually short-circuits on falsy. Not pinned by any test — a future refactor that switches to `if budget is None` would change behavior for legitimate-zero projects.
+    3. **Currency mismatch** (same family as #18): `project.budget` is in `project.currency`; `report_part.cost` and `non_staff_cost.cost` are stored as raw numerics with no currency tag. They're silently assumed to share project.currency. No `exchange_rate_service` call. If a user's `rate` is in a different currency from `project.currency`, burn% is arithmetically meaningless.
+    4. **Non-staff costs never excluded as estimated**: there's no `estimated` flag on `non_staff_cost` (project-level, not report-level), so they enter every cumulative regardless of whether report-level data is estimated. Documented? Probably intentional; flagging for clarity.
+    5. Uncapped overrun: cost > budget → e.g. 150%. Design choice; not a bug. Worth pinning in a test so it doesn't accidentally regress to a cap.
+  - Tests today: happy path + estimated-exclusion + null-budget + empty-project covered. Missing:
+    - `test_cost_summary_budget_zero` (budget=Decimal("0") with cost>0 → null, not ZeroDivisionError; pin truthy behavior).
+    - `test_cost_summary_overrun` (cost > budget → >100, uncapped, exact value e.g. 150.0).
+    - `test_cost_summary_zero_cost_positive_budget` (budget=50000, no report parts → 0.0, NOT null).
+    - `test_batch_vs_single_consistency` (same project both endpoints → burn% matches; would fail today due to rounding asymmetry).
+  - Fix: (a) align rounding policy at line 128 with line 198; (b) optionally tighten the null guard to `if budget is None` and add an explicit `if budget == 0: return None` branch so the rule "null when zero" is testable separately from "null when None"; (c) stash `project.currency` in `ProjectCostSummary` and document the single-currency assumption.
+  - Added: 2026-05-15 (calc-audit row #24)
+
+- **Cost-to-date aggregation — base_rate=0 raises 500; checkpoint premise about hours×rate is wrong** — `backend/app/modules/tracker/services/cost_service.py:25-114` (per-part calc), aggregated by `backend/app/modules/tracker/services/aggregation_service.py:42-140` via `SUM(report_part.cost)`.
+  - Module: `tracker`
+  - **Formula correction**: it is NOT `hours × hourly_rate`. The actual math is `cost = percentage × rate_value × dedication × (contract_rate / base_rate)`, where `percentage` ∈ [0,1] is fraction of month, `rate_value` is a *monthly* rate from `RateDB` (e.g. band B = 15365), `dedication` ∈ [0,1] is FTE fraction, and `contract_rate/base_rate` adjusts for project-specific pricing. The constant "20 days/month" feeds only `days`, never `cost`. There is no concept of hours in this path.
+  - **Rate selection (good)**: rates are *frozen at write time*. When a `report_part` is created/updated, the user's current `rate_id`, the period's `base_rate`, and project's `contract_rate` are dereferenced and the resulting `cost` is persisted in `report_part.cost (Numeric(12,2))`. Later changes to user rate or period base_rate do NOT recost history. Historical preservation is correct.
+  - **Bug — `base_rate=0` raises `ZeroDivisionError`**: `cost_service.py:37` does `contract_rate / base_rate`. The Pydantic schema accepts `Field(ge=0)` and the DB column has no `CHECK > 0`. Repro: create a `reporting_period` with `base_rate=0`, then try to create a `report_part` → 500 instead of validation error.
+  - **Currency mismatch (same family as #24)**: confirmed. `RateDB` has no currency field; `rate_value` is implicitly in some currency (EUR by convention). `aggregation_service` sums `report_part.cost` directly into `project_cost_summary`, which is then displayed as `project.currency`. If a project is non-EUR and rates are EUR, totals are silently wrong-labeled. Same fix family as #24.
+  - Other edge cases handled: percentage=None → cost=None; rate_id=None / dedication=None → cost=None (excluded from aggregate, not zeroed); deleted Rate row → cost=None; estimated/percentage≤0 parts → excluded; missing project settings → DEFAULT_RATE(175) fallback; DB CHECK `percentage∈[0,1]` + `cost >= 0`.
+  - Minor: `contract_rate/base_rate` produces an unquantized Decimal; cost storage truncates to Numeric(12,2). Aggregate rounding error scales with row count but is bounded.
+  - Tests today: `TestCalculateCostAndDays` covers the pure-math path (all 4 bands, contract>base, contract<base, zero-percentage, changed base_rate). `apply_cost_and_days` I/O paths and base_rate=0 are NOT covered.
+  - Suggested:
+    - `apply_cost_and_days_user_without_rate` (cost=None, no crash).
+    - `apply_cost_and_days_base_rate_zero` — currently raises ZeroDivisionError; documents the bug.
+    - `apply_cost_and_days_rate_change_does_not_recost_history` (pin the historical-freeze invariant).
+    - `apply_cost_and_days_rate_missing` (FK orphan → cost=None).
+  - Fix: add `Field(gt=0)` on `ReportingPeriodCreate.base_rate` (and DB CHECK) so the zero case is rejected at write. Document on `RateDB` that `rate_value` is EUR-monthly so callers can FX-convert when `project.currency != EUR` (cross-ref #24).
+  - Added: 2026-05-15 (calc-audit row #25)
+
+- **ECB currency conversion — no rate=0 guard, no historical lookup, no staleness check** — `backend/app/core/services/exchange_rate_service.py` (`convert_to_eur` :97, `get_latest_rate` :82, `currency_to_code` :30, `get_available_currencies` :112).
+  - Module: `core/services`
+  - Formula and direction are correct: `EUR = amount / rate` (rate stored as foreign units per 1 EUR, ECB convention). EUR passthrough short-circuits at `:100-101` and `:84-85`. Legacy `"dollar"` label normalized via `CURRENCY_NAME_MAP`. Negative amounts (refunds) handled by Decimal sign.
+  - Issues:
+    1. **rate=0 raises `decimal.DivisionByZero`** at `:109`. Repro: insert `ExchangeRateDB(currency_code="USD", rate=Decimal("0"))` (no DB CHECK > 0 either), call `convert_to_eur(100, "USD")` → unhandled exception.
+    2. **No historical lookup**. Always uses the latest-stored rate (`order_by rate_date.desc().limit(1)` at `:90-91`). No `as_of: date | None` parameter. Tracker reports dated months ago will be FX'd at today's rate when #24/#25 are eventually wired through this service. **This is a blocker for the #24/#25 currency fix** — without historical lookup, calling this service would re-FX a 2024 report at 2026 rates and produce wrong totals.
+    3. **No stale-rate warning**. If the daily 14:30 UTC cron silently fails for weeks, `get_latest_rate` returns a month-old rate with no warning. No max-age check on `rate_date`.
+    4. **No None/empty-string guard**: `convert_to_eur(amount, None)` raises `AttributeError` on `.lower()`. `convert_to_eur(amount, "")` silently looks up empty code → None. Either both should validate or both should fail loudly.
+    5. **Decimal precision** — `100 / 1.10` yields repeating digits at default `decimal` context (28 places). No `quantize` to a money scale; callers must format.
+  - Existing tests: 9 tests added during the Tier-2 audit sweep (legacy-label normalization, EUR passthrough, divide-by-rate direction, missing-rate, ordering). The five issues above are not covered.
+  - Suggested:
+    - `test_convert_to_eur_zero_rate_guarded`: rate=Decimal("0"), amount=100 → expect None + warning log (NOT DivisionByZero).
+    - `test_convert_to_eur_at_date(as_of)`: rate on 2024-01-15 ≠ today → conversion picks on-or-before-date row.
+    - `test_get_latest_rate_stale_warning`: only rate >7 days old → still returned, emits stale-rate warning.
+    - `test_convert_to_eur_negative_amount`: rate=1.10, amount=-110 → -100 (refund roundtrip pin).
+    - `test_currency_to_code_empty_or_none`: "" / None → ValueError (or documented passthrough).
+  - Fix order (smallest first):
+    - Add `if rate == 0: logger.warning("exchange_rate_zero", currency=code); return None` at `convert_to_eur` (one-liner, defensive).
+    - Add optional `as_of: date | None` parameter on `get_latest_rate` / `convert_to_eur` filtering `rate_date <= as_of`. Required before wiring #24/#25 through this service.
+    - Log `exchange_rate_stale` warning if latest rate is >2 days old (alert ops separately).
+  - Added: 2026-05-15 (calc-audit row #26)
+
+- **Invoice effective_status — MAX(postponed_to) vs most-recent + Python/SQL duplication** — `backend/app/modules/tracker/services/invoice_status.py:28-54` (SQL CASE) + sibling Python `_invoice_status_info` at `backend/app/modules/tracker/api/invoices.py:56-62`.
+  - Module: `tracker`
+  - CASE structure (correct overall):
+    - `status IN ('scheduled','pending_to_issue') AND pp.postponed_to > today` → `postponed`
+    - `status IN ('scheduled','pending_to_issue') AND pp.postponed_to <= today` → `pending_to_issue`
+    - `status = 'scheduled' AND due_date <= today` → `pending_to_issue`
+    - ELSE → stored status (waiting_for_payment / paid / cancelled / scheduled-future)
+  - Postponement subquery: `SELECT invoice_id, MAX(postponed_to) AS postponed_to, COUNT(*) FROM invoice_postponements GROUP BY invoice_id`. Boundary `postponed_to == today` → expired (`pending_to_issue`) because the postponed branch uses strict `> today`.
+  - Issues:
+    1. **MAX-by-date instead of most-recent-by-created_at**. If a later postponement record corrects the date closer in (e.g. earlier postponement `today+30`, later correction `today+5`), `MAX(postponed_to)` keeps the further-future date and the invoice stays "postponed" past its intended new date. Mostly safe if postponements only push outward, but a correction is silently ignored. Repro: create postponements [today+30, then today+5]; subquery returns today+30 → invoice stays postponed until the older far date.
+    2. **Python/SQL duplication**: the SQL CASE is mirrored in Python (`_invoice_status_info` in `invoices.py:56-62`) for detail-endpoint responses. Two copies of the same rule = drift hazard.
+    3. Timezone: `date.today()` is naive local-server date. Boundary day depends on server TZ vs client TZ. Same family as #23/#22 latent gotcha.
+    4. Boundary `postponed_to == today` → `pending_to_issue` is consistent in the SQL but not pinned by any test.
+  - Tests today: `test_postponements.py` covers transition blocks, postponement window, 30-day rule, delete-latest. NO test asserts:
+    - boundary `postponed_to == today` resolves to `pending_to_issue`.
+    - MAX-vs-most-recent behavior with non-monotonic postponements.
+    - SQL CASE vs Python `_invoice_status_info` agreement on the same fixture.
+    - admin list sort pushing paid rows last.
+  - Suggested:
+    - `test_effective_status_boundary_today` (postponed_to=today → pending_to_issue).
+    - `test_effective_status_multiple_postponements_uses_max_date` (documents current MAX-wins behavior).
+    - `test_invoice_status_info_python_matches_sql` (cross-check list vs detail endpoint on same fixtures).
+    - `test_admin_list_sort_due_date_pushes_paid_last`.
+  - Fix: change postponement subquery to `DISTINCT ON (invoice_id) ORDER BY invoice_id, created_at DESC` so "latest" reflects intent, not date magnitude. Deduplicate the Python copy by reusing the SQL expression (one source of truth) or by always going through the list endpoint's `effective_status`.
+  - Added: 2026-05-15 (calc-audit row #27)
+
+- **Postponement accepts a `postponed_to` in the past when base_date is even older** — `backend/app/modules/tracker/api/postponements.py:127-141`.
+  - Module: `tracker`
+  - Formula: `base_date = latest_postponement.postponed_to ?? invoice.due_date`; `window_base = max(base_date, today)`; valid range = `(base_date, window_base + 30 days]`. Upper bound is correct.
+  - Repro of the lower-bound bug: due_date = today−10, POST `postponed_to = today−5`. The check `postponed_to <= base_date` is `today−5 <= today−10` → False (passes), and upper-bound check `today−5 > window_base + 30` is also False (passes). Result: 201, a postponement is created to a date already in the past. The invoice's effective status immediately flips back to `pending_to_issue`, so the postponement record is a no-op that confuses the audit trail.
+  - Why it slipped through: validation compares against `base_date`, not against `window_base`. The "strict after" check enforces "after base_date" but not "after today".
+  - Other edge cases handled correctly: base_date in past → window = today+30d; base_date == today → today+30d; second-postpone blocked while previous still active (`postponed` eff status); restack after previous expires; same-date submission rejected.
+  - Tests today: 6 tests in `test_postponements.py` cover window math, base-date semantics, can't-postpone-already-postponed, delete-latest. The backdate case is not covered.
+  - Suggested:
+    - `test_postpone_to_past_date_rejected` (due_date=today−10, postponed_to=today−5 → 400; currently 201).
+    - `test_postpone_exactly_at_window_boundary` (postponed_to=today+30 → 201; today+31 → 400).
+    - `test_postpone_when_base_date_is_today` (today+30 → 201; today+31 → 400).
+  - Fix: change the lower-bound check to compare against `window_base`, not `base_date`:
+    `if body.postponed_to <= max(base_date, today): raise HTTPException(400, "New date must be after today and after the current due/postponed date")`.
+  - Added: 2026-05-15 (calc-audit row #28)
+
+- **Mood aggregation — estimated reports contaminate the average + trend silently skips current month + no `/trend` test** — `backend/app/modules/tracker/api/moods.py:38-217`.
+  - Module: `tracker`
+  - Monthly formula (`moods.py:96`): `average_mood = round(sum(non_null_moods)/len(non_null_moods), 1) if moods else None`. Distribution = `Counter(non_null_moods)`. `total_reports` counts all rows (including null-mood), `total_responses` counts only non-null. Correct math on null-mood exclusion.
+  - Anonymity invariant verified: `AnonymousFeedbackDB` queried by `(month, year)` only; DELETE matches by `id` alone; schema-level tests (`test_anonymous_feedback_only_has_allowed_columns`, `test_anonymous_feedback_has_no_fk`) pin the contract. ✓
+  - Issues:
+    1. **`estimated=True` reports contaminate aggregation** (cross-ref #29's latent observation). `moods.py:88-92` and `:146-150` do NOT filter `ReportDB.estimated.is_(False)`. If an admin pre-creates estimated reports carrying stale mood from a prior cycle, they enter `average_mood`, `mood_distribution`, `named_feedback`, AND inflate `total_reports`. Per CLAUDE the mood dialog only writes mood on Confirm, so estimated reports *should* have mood=null in practice — but the code doesn't enforce this defensively.
+    2. **Trend silently excludes the current month**. `_last_12_months` builds 12 months ending at *last completed* month. In May 2026 the trend returns May 2025 … Apr 2026 (no May 2026). Likely intentional ("only closed months"), but undocumented and UI may expect rolling-12 inclusive. Pin the contract with a test.
+    3. **No `mood ∈ {1..5}` validation at aggregation time**. If a stray 0 or 6 ever lands in `reports.mood` (e.g. via direct DB write or a future schema change), it silently affects the average. Defensible to rely on DB CHECK + Pydantic, but a value-range filter at aggregation would be belt-and-braces.
+    4. **No tests for `/trend` endpoint at all**. Trend formula, empty-month bucketing, year-boundary, named_feedback-per-month — all uncovered.
+    5. Minor: `round(x, 1)` uses banker's rounding (`2.55 → 2.5`). `named_feedback` has no pagination bound.
+  - Tests today: 6 tests for monthly endpoint (distribution, anon merge, named merge, admin gate, empty month). 2 schema tests for anonymity invariant. **0 tests for `/trend`.** No test for estimated-reports contamination, no test for null+non-null mix, no test for mood DELETE or anonymous DELETE.
+  - Suggested (per agent):
+    - `test_get_moods_excludes_null_mood_from_avg` (moods=[5,None,3] → avg=4.0, total_responses=2, total_reports=3).
+    - `test_get_moods_trend_returns_12_months` (seed sparse months → exactly 12 entries chronological, empty months avg=None).
+    - `test_get_moods_trend_excludes_current_month` (pin the design choice).
+    - `test_get_moods_estimated_reports_excluded` (after fixing).
+    - `test_delete_anonymous_feedback_unknown_404` + `_204` (idempotency contract).
+  - Fix: (a) add `.where(ReportDB.estimated.is_(False))` at moods.py:90 and :149 to align with the rest of the burn/EVM rule; (b) decide and document whether `/trend` includes the in-progress month, add the test that pins the choice.
+  - Added: 2026-05-15 (calc-audit row #30)
+
+- **Period rotation cron is not idempotent on day 15** — `backend/app/worker/rotate_reporting_period.py:39-81` (rotate logic), `:40` (day-15 guard), `backend/app/worker/settings.py:143` (`cron(rotate_reporting_period, day=15, hour=0, minute=0)`).
+  - Module: `tracker`
+  - **Premise correction**: the "45-day offset" mentioned in the checkpoint exists only in the frontend (`Moods.tsx:80`) for the mood admin page's default month. The *backend* rotation is purely calendar-driven by cron firing on the 15th at 00:00 UTC — no offset arithmetic. "Current period" is DB-driven via `status=ACTIVE` flag.
+  - **Idempotency bug**: if the cron fires twice on day 15 (worker restart at midnight, manual retrigger, ARQ retry, etc.) AND the freshly-created period is already ACTIVE:
+    - First run: finishes previous active period, creates the new one, activates it.
+    - Second run: `get_active_period(db)` returns *the new one we just created*; line 60-65 calls `finish_period(active.id)` on it — flipping the freshly-rotated period to FINISHED. Then the `if existing_period.status != ACTIVE` branch is skipped (already ACTIVE → not re-activated), so the period ends up FINISHED with no replacement.
+    - The existing `test_noop_when_current_month_already_active` test only passes because the fixture's active period is February, not the just-rotated March — so the bug isn't exercised.
+  - Other gaps:
+    - **No catch-up**: if the worker is down on the 15th, day 16's run hits `day != 15` and skips. The period stays on the old month until manual intervention. No alert.
+    - **Timezone drift**: `date.today()` is server-local; ARQ cron is UTC. Fine in current UTC container, but a future Docker TZ change would shift the boundary.
+    - **Year boundary** is actually safe (`today.replace(day=1)` preserves year/month), no Dec→Jan month=13 issue.
+    - Relies on the Pydantic first-of-month validator at `schemas/reporting_period.py:16-19,26-31` to normalize `date=today (day=15)` → `day=1`. If that validator is ever removed, the unique-on-first-of-month invariant breaks.
+  - Tests today: 6 tests in `test_rotate_reporting_period_job.py` cover guard + happy path + no-active + pre-created + same-month-already-active + job-run record. None cover the **double-run idempotency case**, the missed-15th case, or the year boundary.
+  - Suggested:
+    - `test_idempotent_second_run_same_day` — pre-seed active period for current month (Mar 1), run rotate twice on Mar 15, assert period still ACTIVE on second run.
+    - `test_active_period_for_current_month_not_finished` — explicitly assert the guard.
+    - `test_dec_to_jan_year_boundary` — mock today=2026-12-15, pre-seed active Nov 1, assert new period Dec 1 2026 created (and document that Jan rotation requires Jan 15 to fire).
+    - `test_first_of_month_normalization_in_create_period` — assert created `period.date.day == 1` even when `ReportingPeriodCreate(date=today)` passes day=15.
+  - Fix (one line): guard before `finish_period`:
+    `if active and active.date != new_date: await finish_period(active.id)`. Repeat runs on the 15th no longer flip the freshly-created month's period to FINISHED.
+  - Added: 2026-05-15 (calc-audit row #31)
+
+- **Capacity FA averages — partial reporters drag the average down; over-reporters not clamped; internal/admin invisible** — `backend/app/core/services/capacity_insights.py:388-417` (`_aggregate_fa_period`), user query at `:316-318`, per-user totals at `:326-349`, on-leave skip at `:403`.
+  - Module: `capacity` (lives in `core/services` because it's a cross-module analytical view)
+  - Formula: `avg_billable_pct = sum(user.billable_pct) / count(users where total_pct > 0)`, same shape for `avg_absence_pct`. Each `user.X_pct` is a sum of `ReportPartDB.percentage` segmented by `ProjectDB.is_billable` / `is_absence`. `estimated` reports are intentionally included (per CLAUDE rule, confirmed by row #29).
+  - Filters work as documented: `UserDB.active=True`, `requires_project_reporting=True`, FA in the 6 target FAs, total_pct > 0 (drops on-leave). FAs with 0 eligible users are omitted from the response entirely (not returned as 0).
+  - Issues:
+    1. **Partial reporters skew the average without warning**. The formula uses raw per-user totals, not per-user ratios-of-reported. Repro: FE has 2 users; A reports parts summing to 1.0 with billable=0.8, B reports a single billable=0.3 part (didn't fill the rest). `avg_billable = (0.8 + 0.3) / 2 = 0.55`. If both reported in full, A=0.8 and B's 0.3 would imply B's true billable share is unknown — the result silently penalises FE for B's incomplete report.
+    2. **Over-reporting (sum > 1.0) not clamped**. A user filling 1.2 in parts contributes 1.2 to the numerator. No warning, no clamp.
+    3. **Internal/admin invisible**. Projects flagged neither `is_billable` nor `is_absence` (e.g. internal initiatives, training, ops admin) feed `total_pct` but NOT `avg_billable_pct` or `avg_absence_pct`. So `billable + absence < total` silently — the FE cannot tell "low billable because lots of internal" from "low billable because few projects". No `internal_pct` (or `other_pct`) field exposed.
+    4. **Active-but-zero-billable**: a user who only reports absence (e.g. 0.4 sick leave) counts in the denominator but contributes 0 to billable_pct. Distinct from total=0 (excluded). Consistent, but documents that "FA billable average" mixes apples (full reporters) with oranges (mostly-out reporters).
+    5. **No mutual-exclusion check between `is_billable` and `is_absence`**. A project flagged both would double-count.
+  - Tests today: 7 tests in `test_capacity_insights.py::TestGetCapacityInsights` cover the happy path (`test_billable_pct_averaged_across_users`), non-reporting exclusion, on-leave exclusion, target-FA filter, absence separation, multiple periods.
+  - Suggested:
+    - `test_partial_reporter_drags_fa_average_down` (lock the current behavior with the 0.55 example, or change to per-user ratio normalization).
+    - `test_over_reporting_user_not_clamped` (1.2 → contributes 1.0 to numerator).
+    - `test_user_with_only_internal_work_drags_billable` (total=1.0, billable=0, absence=0 → counted, billable_pct contribution=0).
+    - `test_inactive_user_excluded` (active=False with full report → not counted).
+    - `test_estimated_report_included` (lock CLAUDE rule).
+  - Fix (pick one):
+    - (a) Normalize per-user contribution by dividing by `total_pct` (`avg_billable = mean(billable / total)`), so each user weighs equally regardless of how much they reported.
+    - (b) Or keep raw averages but surface `avg_total_pct` + `avg_internal_pct` so the FE can detect underreporting and expose the gap. This preserves the current semantic.
+  - Added: 2026-05-15 (calc-audit row #33)
+
+- **Capacity user detail — same project shows twice when split across FAs + no gap segment for partial reporters + sum=1.0 invariant only enforced at Confirm** — `backend/app/core/services/capacity_insights.py:225-271` (user detail), `:116-148` + `:161-168` (FA detail). Confirm gate at `backend/app/modules/tracker/api/reports.py:180-194` (`math.isclose(total, 1.0, rel_tol=1e-4)`). Report-part unique constraint at `backend/app/modules/tracker/models/report_part.py:21` = `(project_id, report_id, functional_area_id)` — NOT unique on `(project_id, report_id)`.
+  - Module: `capacity`
+  - Issues:
+    1. **Duplicate row when same project is split across FAs**. The user-detail SQL returns one row per `ReportPartDB` (no `GROUP BY (period_id, project_id)`). A user reporting Project A as FE=0.4 and Project A as BE=0.3 (allowed by the FA-aware unique constraint) renders in the response as two separate entries `{"name":"A", "percentage":0.4}` and `{"name":"A", "percentage":0.3}` instead of one consolidated `{"name":"A", "percentage":0.7}`. **FA detail aggregates correctly** via SQL SUM, so the bug is user-detail-specific. Repro: parts (A, FE, 0.4) + (A, BE, 0.3) → user detail returns two rows; FA detail returns 0.7 in one row.
+    2. **Partial reporters' gap is invisible** (sister of #33 finding for averages). A user with a single `ReportPart(percentage=0.3)` on one billable project shows that project at 30% and the remaining 70% disappears. UI cannot distinguish "user only worked 30% of a month" from "user only filled out 30% of their report".
+    3. **Over-reporter not clamped**. Parts summing to 1.2 → all percentages rendered raw, stacked-bar overflows 100% with no flag.
+    4. **Sum=1.0 invariant only enforced at the estimated→false transition**. Once confirmed, editing a part can break the invariant without re-validation. No hook re-checks `total ≈ 1.0` on subsequent PATCH/PUT.
+    5. **Internal/admin work hidden in user detail too** (same as #33). `test_excludes_non_billable_projects` is currently *locked in as expected behavior*; that test itself documents the hide-internal bug.
+    6. `billable_project_count` counts DISTINCT project_id even when percentage is 0 (filters NULL not 0). User with `0.0` part on a billable project gets `count=1, billable_pct=0`.
+  - Tests today: 5 tests on user/FA detail (per-project happy path, exclude-non-billable, absence rollup). Missing: duplicate-project-multi-FA, partial-reporter gap, over-reporter clamp, edit-after-confirm sum drift, internal_pct surfacing.
+  - Suggested:
+    - `test_user_detail_dedups_same_project_multi_fa` (parts (A,FE,0.4) + (A,BE,0.3) → one row `{"name":"A", "percentage":0.7}`). **Would fail today.**
+    - `test_partial_reporter_surfaces_unreported_gap` (parts=[0.3 billable] → response includes `unreported_pct=0.7` or equivalent).
+    - `test_over_reporter_clamped_or_flagged` (parts=[0.7, 0.5] → `total_pct=1.2` returned, UI can flag).
+    - `test_confirmed_report_sum_invariant_after_edit` (confirm at 100% then PATCH part → assert re-validation or alert).
+    - `test_internal_project_pct_surfaced` (parts=[0.5 billable, 0.5 internal] → user detail surfaces internal explicitly).
+  - Fix: in `get_capacity_user_detail`, `GROUP BY (period_id, project_id)` at the SQL layer with `SUM(percentage)` so multi-FA parts collapse to one row. Add `other_pct` paralleling `absence_pct` for non-billable-non-absence work. Compute `unreported_pct = max(0, 1 - billable_sum - absence_pct - other_pct)` so partial reporters surface a "Unreported" segment. Return raw `total_pct` so the UI can flag over-reporters.
+  - Added: 2026-05-15 (calc-audit row #34)
+
+- **Reportable-users filter inconsistent — 3 paths leak inactive/exempt users** — `backend/app/core/services/capacity_insights.py:627` (`get_allocation_projects`), `backend/app/modules/capacity/api/planner.py:179` (planner main query), `capacity_insights.py:197` (`get_capacity_user_detail`).
+  - Module: `capacity`
+  - The CLAUDE rule (`active=True` + `requires_project_reporting=True` + on-leave skip) is correctly applied in: `get_capacity_insights`, `get_capacity_fa_detail`, `get_reportable_users`, `get_allocation_users`, `planner._add_empty_groups`, `planner` by-project view.
+  - Leaks:
+    1. **`get_allocation_projects`** (used by allocation "By Project" chart) — joins `UserDB` via `ReportDB.user_id` but does NOT filter `UserDB.active` or `UserDB.requires_project_reporting`. Inactive or exempt users with `ReportPartDB` rows on a live billable project appear as segments. Repro: deactivate a user who has logged time, query allocation projects → user still shows in the segment legend.
+    2. **`planner.py:179`** (main allocation query) — filters `UserDB.active=True` but NOT `requires_project_reporting=True`. Asymmetric with `_add_empty_groups` (line 127-128) which filters both. So a non-reporting user with `CapacityPlanDB` rows can show up in the data path but never get an empty-row placeholder. Repro: set `requires_project_reporting=False` on a user with plan entries → user appears in main query data, missing from empty-groups.
+    3. **`get_capacity_user_detail`** (`GET /api/capacity/insights/user-detail`) accepts any `user_id` with no gating. Only the FE selector restricts the choice; a direct API call with an inactive or admin user_id returns data instead of 404/empty. Backend trusts the FE.
+  - Edge cases otherwise handled: exempt users with reports excluded from insights/FA-detail/allocation-users/empty-groups; inactive users with recent reports filtered in same five; on-leave (total_pct=0) dropped from FA averages but denominator preserves meaning. Also note: `get_reportable_users` has NO FA scoping, so users in non-target FAs (e.g. "DevOps") appear in the selector but yield sparse downstream views — UX-only inconsistency.
+  - Tests today: cover `get_reportable_users` (active+reporting filter), `get_capacity_insights` exempt-user exclusion, `get_capacity_fa_detail` exempt-user exclusion, `get_allocation_users` both filters. **No tests** on `get_allocation_projects` user-filter, planner main query, or `get_capacity_user_detail` with non-eligible user_id.
+  - Suggested:
+    - `test_allocation_projects_excludes_inactive_user_segments` + `_excludes_exempt_user_segments` (would fail today).
+    - `test_planner_main_query_excludes_exempt_users` (asymmetric with `_add_empty_groups`).
+    - `test_user_detail_returns_empty_for_inactive_user` + `_for_exempt_user`.
+    - `test_reportable_users_excludes_non_target_fa` (or document the selector is FA-agnostic).
+  - Fix:
+    - Add `UserDB.active.is_(True)` + `UserDB.requires_project_reporting.is_(True)` to the join in `get_allocation_projects` (~line 662).
+    - Add `UserDB.requires_project_reporting.is_(True)` to `planner.py:179`.
+    - Gate `get_capacity_user_detail` with a `UserDB` existence check (`active + reporting`) returning `[]` (or 404) for non-eligible user_id.
+  - Added: 2026-05-15 (calc-audit row #35)
+
+- **On-leave detection: "total=0" semantic too narrow; full-PTO reporters drag FA averages** — `backend/app/core/services/capacity_insights.py:159` (FA detail), `:403` (FA aggregator), `:602-604` (allocation_users).
+  - Module: `capacity`
+  - Current definition: `total_pct = SUM(percentage)` over a user's non-NULL parts ≤ 0 → "on leave / didn't report" → excluded. Catches: no report at all (LEFT-join miss); report with all parts=0 or NULL; orphan ReportDB. Estimated reports with sum>0 count as "reporting" (per CLAUDE / row #29).
+  - **The semantic is too narrow**. A user on full PTO who diligently logs `ReportPart(absence_project, 1.0)` is statistically equivalent to one who logged nothing — but the two are treated oppositely. The diligent one is counted in the FA average with `billable_pct=0`, dragging the FA mean down. Repro: seed FA-FE user with a single `ReportPart(absence_project, 1.0)` for Jan → FA-FE billable_pct drops; not excluded.
+  - Inconsistency across endpoints: FA detail + FA aggregator use `total_pct <= 0`. `get_allocation_users` uses "user has any report row in period range" (`proj_map` truthy). Subtle drift, but mostly equivalent.
+  - Tests today: 3 tests cover no-report, all-zero-parts, FA detail mirror. None cover the full-absence case.
+  - Suggested:
+    - `test_user_full_absence_not_on_leave` (lock the current behavior or document the bug).
+    - `test_estimated_report_with_data_counts_as_reporting` (pin CLAUDE rule).
+    - `test_estimated_zero_report_excluded` (estimated flag orthogonal to on-leave).
+    - `test_under_reported_user_not_on_leave` (0.3 billable → still counted).
+  - Fix (product decision): if "all-absence = on leave", change gate to something like `billable_pct > 0 OR (absence_pct == 0 AND total > 0)`. If not, document explicitly in CLAUDE.md that filed-full-PTO lowers the FA billable average by design — and consider an `internal_pct`/`absence_pct` average so consumers can read context, not just a depressed billable number (cross-ref #33 same fix).
+  - Added: 2026-05-15 (calc-audit row #36)
+
+- **TypeScript types lie about Decimal-as-string wire format** — Events types (`frontend/src/modules/events/types/events.ts:40-41,123`), Rate type, untyped Stats response.
+  - Module: `events` (most exposed), cross-cutting on every endpoint that returns a Pydantic `Decimal` without explicit `float` coercion.
+  - Background (per memory `gotcha_pydantic-decimal-serialization.md`): Pydantic `Decimal` serializes as JSON string by default. The FE must `Number(x)` before arithmetic or `.toFixed`. Tracker / Scorecard / Project schemas dodge this by coercing to `float` at the boundary (e.g. `EVMData.budget_total: float`), so their TS types are honest. **Events does not**: `EventDetail.total_cost`, `event.other_costs`, `EventAttendee.cost`, `stats.total_cost`, and `Rate.value` are all `Decimal` server-side but typed as `number` on the FE.
+  - Call sites mostly survive *only* because defensive `Number(...)` calls were sprinkled in: `EventDetail.tsx:68-69/201`, `EventCard.tsx:92`, `EventsTable.tsx:135`, `EventForm.tsx:83/166`, `ProjectTrackerDetail.tsx:65-66`, `RatesContent.tsx:120/52/57`. The pattern works today but is one careless refactor away from a NaN or string-concat bug, because tsc allows everything (the types claim it's already a `number`).
+  - Specific latent hot spot: `StatsCharts.tsx:152` passes `stats.total_cost` straight into `formatCurrency` (which calls `Intl.NumberFormat.format(value)`). It works only because `Intl.NumberFormat.format` does ToNumber coercion internally. If anyone later does `stats.total_cost + somethingElse` they'll concatenate.
+  - **Premise refinement for #20**: `BurnDashboard.tsx:277` `staff + nonStaff` is NOT vulnerable — those come from `ProjectCostSummary` which serializes as `float` server-side (`schemas/project_cost.py:12-13`). Same for `PerformanceCard.tsx:311` arithmetic on `evmData.*`. Audit row #20's comment on "no test imports formatCurrency" still holds, but the BurnDashboard arithmetic is safe.
+  - Tests today: zero. Existing event/rate/stats fixtures use number literals (not the actual string wire format), so tests cannot catch a regression where someone drops a `Number()` wrapper.
+  - Suggested:
+    - `EventsTable renders total_cost when wire format is string` (fixture `{ total_cost: "3911.03" }` → renders "€3911.03").
+    - `EventDetail handles string total_cost/other_costs/a.cost` (no NaN).
+    - `StatsCharts.total_cost as string "1234.5" → formatCurrency renders correctly`.
+    - `EventForm with existing event.other_costs="100.00" string → totalCost arithmetic does not concatenate`.
+    - `RatesContent rate.value="750.00" string → display "750.00"` (not "750.00.00").
+  - Fix: change the lying TS types (`total_cost: number` → `string`, etc.) so tsc forces every consumer to call `Number(x)` explicitly. StatsCharts.tsx:152 becomes a tsc error pointing to the missing coercion. Alternative: coerce to `float` at the Pydantic boundary on the backend (mirror the tracker/scorecard pattern) — moves the discipline server-side and keeps wire types honest.
+  - Added: 2026-05-15 (calc-audit row #38)
+
+- **Capacity charts default to oldest 6 months instead of latest** — `frontend/src/modules/capacity/components/ChartPagination.tsx:11-21`, consumers `InsightsChart.tsx:40`, `FADetailChart.tsx:99`, `UserDetailChart.tsx:89`.
+  - Module: `capacity`
+  - Math is sound: window size = 6 (`MAX_VISIBLE`), disjoint pages (`start = safePage * 6`), `safePage = min(page, totalPages-1)`, `null` returned when `totalPages === 1`. No off-by-one in the slice itself.
+  - **UX bug**: all three chart consumers initialize `useState(0)` → page 0 → `data.slice(0, 6)`. Backend returns chronological ascending, so the user opening Insights / FA Detail / User Detail sees months from 6+ ago and must click `>` repeatedly to reach the current period. The expected default for an operations dashboard is "latest window first".
+  - Other latent gaps:
+    - Negative `page` (`-1`) would silently produce `slice(-6, 0) = []` — unreachable today because buttons disable at `safePage===0`, but the hook itself doesn't clamp the lower bound.
+    - `data.length === 7` yields a lone trailing page with one bar on a wide chart (disjoint pages, no sliding window) — minor visual surprise.
+    - `safePage` is computed locally but never synced back to the parent `page` state; if `page` drifts above `totalPages-1`, the local state stays stale.
+  - Tests today: **none** for `ChartPagination`. The only `paginate*` tests target the different `ProjectAllocationList` / `UserAllocationList` (show-more lists), not the chart window.
+  - Suggested:
+    - `useChartPagination empty data → { visible: [], totalPages: 1, safePage: 0 }`.
+    - `useChartPagination 7 items → page 0 has 6, page 1 has 1`.
+    - `useChartPagination 12 items, page 1 → disjoint from page 0`.
+    - `useChartPagination page > totalPages-1 → clamped via safePage`.
+    - `ChartPagination renders null when totalPages === 1`.
+    - `InsightsChart default page lands on the latest window when data.length > 6` (regression guard for the default-oldest UX bug).
+  - Fix: initialize page to last window in each chart consumer, e.g. `useState(Math.max(0, Math.ceil(chartData.length / 6) - 1))`, or a `useEffect` that sets `page = totalPages-1` when data length changes. One-liner per consumer (3 sites). Alternative: change default inside the hook itself so all chart consumers benefit at once.
+  - Added: 2026-05-15 (calc-audit row #39)
+
+- **Final-score weights are not validated at runtime; misconfig fails silently** — `backend/app/modules/scorecard/services/calculators/final_score.py:50-127` (consumer) + `backend/app/config.py:274-350` (`ScoringConfig.validate_weights` — informational only, never raises).
+  - Module: `scorecard`
+  - Repro: edit `config_parameters` row `weight_global_time = 0.5` and leave siblings untouched so the global group sums to 0.7 — calculator still produces a defensible-looking number by normalizing internally; no warning, no log. Similarly, setting all global weights to 0 yields `final = 0` indistinguishable from a real zero score, and a negative weight produces arbitrary results.
+  - Detail: the calculator divides by `sum(config_weights for available dims)`, so any positive scaling is silently absorbed. `validate_weights()` exists but returns a dict that nobody inspects; startup does not reject bad configs.
+  - Fix: at startup (in `load_scoring_config_from_db` or its caller) call `validate_weights()` and `logger.warning("scoring_weights_misconfigured", group=..., total=...)` for any group where `abs(total - 1.0) > 0.001`. Optionally refuse to boot in production. Reject negative/zero individual weights.
+  - Added: 2026-05-15 (calc-audit row #4)
 
 ### OK
-_(empty — record explicit confirmations here so you don't re-audit later)_
+_(record explicit confirmations here so you don't re-audit later)_
+
+- **SPI normalization** — `backend/app/modules/scorecard/services/calculators/time_calculator.py:32` — single-anchor `value/ideal` map; matches CLAUDE rule (SPI 0.85 → 85 pts).
+  - Formula: `spi_norm = clamp(spi/ideal, 0, 1)`; `time_score = round(100 * weighted_avg([(0.6, spi_norm), (0.4, milestones_norm)]))`. Target is UI-only; not consumed by the calculator.
+  - Edge cases handled: None (redistributes weights), 0 (→0 pts), >ideal (cap 1.0), negative (floor 0), `ideal<=0` short-circuit (no div-by-zero), all-None inputs (→ None).
+  - Tests: `test_calculators.py::TestNormalizeToIdeal` (ideal=0, negatives, >ideal, zero), `TestGetIdeal::*`, `TestTimeCalculator::*` (perfect, no-data, only-SPI, only-milestones, partial). Coverage strong.
+  - Suggested low-priority additions: `test_spi_zero_floors_to_zero_contribution`, `test_spi_very_high_caps_at_ideal`, `test_spi_negative_floors_to_zero_in_calculate`.
+  - Audited: 2026-05-15 (calc-audit row #1)
+
+- **CPI normalization** — `backend/app/modules/scorecard/services/calculators/cost_calculator.py:27` — `_normalize_to_ideal(cpi, ideal=1.0)`, same helper as SPI.
+  - Formula: `clamp(cpi/ideal, 0, 1)` combined with budget_variance via `_weighted_average([(0.7, cpi_norm), (0.3, variance_norm)])`, then scaled 0-100.
+  - Same-as-SPI: yes — mechanically identical pattern in TimeCalculator/CostCalculator. Target only drives UI color.
+  - Edge cases handled: None, 0, >ideal (cap 1.0), negative (floor 0), `ideal<=0` short-circuit, 0/0 → None, all-None → None.
+  - Tests: `TestNormalizeToIdeal` (full matrix), `TestGetIdeal::test_get_ideal_cpi`, `TestCostCalculator::*` (perfect, over-budget, no-data, only-CPI, only-variance, low-CPI), integration `test_cpi_calculation_from_evm`.
+  - Suggested additions: `test_high_cpi_capped_at_100` (cpi=2.0 → 100), `test_zero_cpi_with_perfect_variance` (cpi=0.0,var=0.0 → 30), `test_negative_cpi_treated_as_zero`.
+  - Audited: 2026-05-15 (calc-audit row #2)
+
+- **budget_variance returns None when cost_to_date ≤ 0** — `backend/app/modules/scorecard/services/normalizers/indicators.py:88-94` (the None branch); calculator consumer at `backend/app/modules/scorecard/services/calculators/cost_calculator.py:28-32`.
+  - Upstream producer: `MetricsBase._build_evm_data` (`backend/app/modules/scorecard/models/metrics/schemas.py:131-140`); `budget_variance` is derived per-request, never stored.
+  - Formula: raw = `max(0, cost_to_date/budget_total - 1)` when both >0 else None; component = `max(0, 1 - raw)`; combined with CPI via `_weighted_average([(0.7, cpi), (0.3, variance)])`.
+  - Callers: backend None-handled via `_weighted_average` (drops + redistributes); API ships `number | null` (`indicators.py:12`); frontend types match (`frontend/src/modules/scorecard/types/scores.ts:53`); only frontend display is `ScorecardTable.tsx:59` and renders "—" for null. No runtime arithmetic on `.budget_variance` anywhere on the FE.
+  - Edge cases handled: `cost_to_date=0` (None), `cost_to_date<0` blocked by Pydantic `Field(ge=0)`, `cost_to_date=None` triple-guarded, `budget_total=None` triple-guarded, overrun floored at 0, very-high variance auto-capped.
+  - Minor edge case noted (out of scope for the rule): `budget_total=0` with `cost_to_date>0` falls through to `normalize_budget_variance` and yields 1.0 (perfect variance). Data-quality scenario; flag if it surfaces in real projects.
+  - Tests: helper-level `TestBudgetVariance` covers `normalize_budget_variance` exhaustively; calculator-level `TestCostCalculator` covers over-budget, no-data, only-CPI, only-variance — but **the specific `_calculate_budget_variance` returns-None-on-zero-cost branch is not directly tested**.
+  - Suggested additions: `test_calculate_budget_variance_returns_none_when_cost_to_date_zero`, `test_calculate_budget_variance_returns_none_when_budget_only`, `test_cost_score_with_zero_cost_uses_cpi_only` (regression: cost-only unstarted projects must not score 100 on variance).
+  - Audited: 2026-05-15 (calc-audit row #3)
+
+- **Flow dimension calculator** — `backend/app/modules/scorecard/services/calculators/flow_calculator.py:26-70` — 5-component weighted composite, not a single "active/total" efficiency ratio.
+  - Note: the checkpoint described this as "flow efficiency / active_time / total_time, beware /0" — that indicator does NOT exist in the codebase. Flow dim is `lead_time(0.35) + commitment_reliability(0.25) + pr_size(0.15) + review_turnaround(0.10) + deployment_frequency(0.15)`.
+  - Components/units (all match between collector and target):
+    - lead_time_days (lower-better), target in days
+    - commitment_reliability (already 0..1, ge=0 le=1, pass-through)
+    - pr_size_median lines (lower-better)
+    - review_turnaround_hours (lower-better)
+    - deployment_frequency releases/day (higher-better, capped at target)
+  - Edge cases handled: all-None → None, weight redistribution, value≤0 with lower-better → 1.0 (perfect), value>target naturally bounded by `min(1.0, ratio)`, Pydantic `ge=0` blocks negatives everywhere.
+  - **Caveat**: `lead_time_days` is consumed from the same Jira collector audited under #7. Within Flow, units are consistent (collector emits business days, flow target is also "days" of the same meaning). The unit-confusion bug only surfaces at the DORA classifier in `dora.py`. So Flow is OK *given the producer's contract*; fixing #7 may shift Flow numbers too.
+  - Tests: `TestFlowCalculator` covers only-lead-time, slow-lead-time penalty, all-missing → None, happy path.
+  - Suggested low-priority additions: `test_zero_deployment_frequency` (≈85 expected), `test_lead_time_well_above_target` (no underflow), `test_partial_inputs_redistribute`.
+  - Audited: 2026-05-15 (calc-audit row #8)
+
+- **Quality dimension calculator** — `backend/app/modules/scorecard/services/calculators/quality_calculator.py:7-101`. 8 components, weights sum to 1.00.
+  - Components (weight, normalization, unit): defect_density (0.05, lower-better, /100 tasks), escaped_rate (0.15, lower-better, /100 tasks), mttr (0.05, lower-better, hours), story_review (0.25, ratio 0..1 passthrough), governance (0.20, ratio 0..1), pr_review (0.10, ratio 0..1), change_failure_rate (0.15, lower-better, percent 0..100), post_contract_tasks (0.05, lower-better, raw count).
+  - Unit consistency: all targets match producer scales. CFR is percent (target 15 against producer's `*100`).
+  - CLAUDE alerts-toggle rule honored: Quality only consumes `IndicatorsCreate`; `has_dependabot_alerts` / `has_budget_alerts` never read here. Score is independent of Slack-mute toggles.
+  - Note on premise correction: the checkpoint mentioned "security vulnerabilities" — that field lives in `RiskCalculator`, not Quality. Recorded for the auditor of #10.
+  - Edge cases handled: all-None → None, weight redistribution, lower-better with value=0 → 1.0, Pydantic `ge=0` blocks negatives, ratio components have `le=1` upstream so >1.0 inputs are rejected.
+  - Cross-reference to #5: a caller mistakenly sending CFR as 0..1 (e.g. 0.15) instead of percent (15) → normalizer sees `target/0.15 → clamped 1.0 → perfect score`. The `le=100` recommendation from #5 doesn't catch the under-1 case; an additional sanity check (`>=1 ` when target is in percent) would, but is outside the scope of this row. Logged.
+  - Tests: `TestQualityCalculator::*` covers perfect, partial, sev1 cap, no-data, defect density penalty, story-review-only.
+  - Suggested: `test_change_failure_rate_at_double_target` (CFR=30, others perfect → 92), `test_post_contract_tasks_threshold` (count=6, others perfect → 98), `test_governance_only_partial` (governance=0.5 alone → 50).
+  - Audited: 2026-05-15 (calc-audit row #9)
+
+- **Satisfaction dimension calculator** — `backend/app/modules/scorecard/services/calculators/satisfaction_calculator.py:27-48`. 2 manual components, weights sum to 1.00.
+  - Components: `client_satisfaction` (weight 0.90, target 0.85, ratio 0..1) and `pm_satisfaction` (weight 0.10, target 0.85, ratio 0..1). Both Pydantic `ge=0 le=1`.
+  - Targets stored as percentages in config (e.g. 85) and divided by 100 at `base.py:28-29` so they live in the same 0..1 scale.
+  - Edge cases handled: all-None → None, single-component redistribution, value > target capped at 1.0, Pydantic enforces bounds, zero is preserved as a legitimate "very unhappy" signal (distinct from None).
+  - Latent (not in scope of audit row): if config target=0 (admin sets "zero tolerance" on satisfaction, unusual), `_normalize_to_target` returns 1.0 for any positive value — same observation surfaced under #9/#10 for the helper. Not satisfaction-specific.
+  - Tests: `TestSatisfactionCalculator::*` covers full + partial + no-data + perfect. Missing: `test_zero_is_real_score`, `test_below_target_not_capped`, `test_partial_zero`.
+  - Audited: 2026-05-15 (calc-audit row #11)
+
+- **Value dimension calculator** — `backend/app/modules/scorecard/services/calculators/value_calculator.py:27-30`. Single-component, no weighted average.
+  - Component: `okr_impact` only (StrategicImpact enum Low/Med/High/Trans → normalized at `normalizers/indicators.py:239-250` to 0.25/0.55/0.80/1.0). Calculator passes through `_to_score`. ROI intentionally excluded (docstring) to avoid double-counting with CPI/SPI.
+  - Pydantic `ge=0 le=1` on the indicator field.
+  - Edge cases handled: None → None, 0.0 preserved as legitimate score, out-of-range rejected at Pydantic.
+  - Minor observations (not blockers):
+    - Config row `weight_value_okr_impact` exists but is never consulted — dead config. Admin edits have no effect.
+    - Unknown StrategicImpact enum falls through to `NEUTRAL_VALUE` (0.5) at `normalizers/indicators.py:250` instead of None — violates "missing excluded, not neutralized" rule in spirit. Currently unreachable because Pydantic StrEnum rejects unknowns at the boundary; treat as latent-only.
+  - Tests: `TestValueCalculator::*` covers Trans/High/Med/Low + no-data. Missing: `test_zero_impact_returns_zero_not_none`, `test_value_above_one_rejected_by_pydantic`, `test_unknown_strategic_impact_normalizes_to_none` (would currently fail, exposing the NEUTRAL_VALUE fallback).
+  - Audited: 2026-05-15 (calc-audit row #12)
+
+- **Engineering dimension calculator** — `backend/app/modules/scorecard/services/calculators/engineering_calculator.py:24-50`. 3 manual components, weights sum to 1.00.
+  - Components: `test_maturity` (0.50, target=0.60), `pr_review_ratio` (0.20, raw passthrough, implicit target=1.0), `arch_checklist` (0.30, target=0.80). All Pydantic `ge=0 le=1`. Targets stored as 0..100 in config, divided by 100 to match indicator scale.
+  - Not Sonar-fed (Sonar coverage flows into Quality, not Engineering). All inputs are manual/judgement.
+  - Edge cases handled: all-None → None, single-component redistribution, value > target capped at 1.0, Pydantic bounds enforced.
+  - Minor observations (non-blockers):
+    - `pr_review_ratio` is the only component without a configurable target — design asymmetry vs `test_maturity` / `arch_checklist`. If someone wants `target_pr_review=0.9`, no hook exists.
+    - Stale comment in `test_partial_data_redistributes_weights` says "vs target=1.0" but actual config target is 0.80; test passes only because value 1.0 caps either way.
+  - Tests: `TestEngineeringCalculator::*` covers perfect, no-data, single-component, partial, low-maturity. Missing: `test_arch_checklist_below_target`, `test_pr_review_passthrough_low`, `test_pr_review_only_weight_redistribution`.
+  - Audited: 2026-05-15 (calc-audit row #13)
+
+- **Disabled governance toggle does NOT zero scores (path B fully wired)** — `backend/app/modules/scorecard/services/calculators/dimensions.py` and the scorecard calc path.
+  - The historical CLAUDE rule "disabled governance tool → 0 not neutral" was deliberately *not* implemented (per prior audit-warnings-followup decision). Path B chosen: keep scores unaffected, badge the UI instead. Verified.
+  - `has_dependabot_alerts` and `has_budget_alerts` appear ONLY in: notification workers (`worker/check_dependabot.py:167`, `worker/check_business_alerts.py:174`), project CRUD (`projects_v2.py`, `core/models/project.py`), migration `022_add_alert_flags.py`, frontend project form, and the two badge components. Zero references in `services/calculators/`, `services/normalizers/`, or any score-producing service.
+  - Badges confirmed: `AlertsOffBadge` (`QualityMetricsGrid.tsx:56`, rendered on `!has_dependabot_alerts`) and `BudgetAlertsOffBadge` (`EVMSection.tsx:25`, rendered on `!budgetAlertsEnabled`). Both pure presentational; tooltips state "alerting muted, score unaffected".
+  - CLAUDE.md is already aligned — the stale "disabled → 0" line is not present (line 152 has only the correct "missing indicators are excluded, not penalized" rule). No doc-debt remains on this rule.
+  - Suggested invariant tests (low priority, not blockers): `test_score_unaffected_by_dependabot_alerts_flag`, `test_score_unaffected_by_budget_alerts_flag`, plus the symmetric worker-filter tests. These would pin "alert toggle does not move score" as an explicit invariant.
+  - Audited: 2026-05-15 (calc-audit row #15)
+
+- **Schedule Variance (SV = EV − PV) not implemented — SPI is the substitute** — `frontend/src/shared/utils/evmCalculations.ts:15` (SPI), `backend/app/modules/scorecard/services/normalizers/indicators.py:71` (SPI normalization).
+  - Note: unlike CV (row #18 SUSPICIOUS — `budget_variance` clamps to ≥0 and loses the under-budget signal), the schedule equivalent SPI does NOT clamp. SPI > 1 = ahead, SPI < 1 = behind; the direction is preserved as a ratio. So the absence of an absolute signed SV is acceptable: the unitless ratio carries the same schedule-health signal currency-free and is what the scoring system already consumes.
+  - If a reporting need surfaces (e.g. "how many euros of work are we behind?"), add `sv = ev − budgetTotal × percentPlanned` to `calculateEVMValues` with null guard for missing `percent_planned`, inheriting the single-currency assumption from row #18.
+  - Audited: 2026-05-15 (calc-audit row #19)
+
+- **percent_completed is a manual progress percentage (not a burn ratio)** — `backend/app/modules/tracker/public.py:75-85` (`_get_latest_progress`), wired through `get_evm_from_tracker` and `refresh_tracker_evm` (`scorecard/public.py:57-103`).
+  - Checkpoint premise was wrong (`hours_logged / hours_budget` is not the formula). `percent_completed` is the user-entered `ProgressReportDB.percentage` for the latest reporting period, divided by 100 on write, stored as `Decimal(5,4)` 0..1.
+  - Contracts: DB CHECK `percentage >= 0 AND percentage <= 1` + Pydantic `Field(ge=0, le=100)` on input. Cap enforced at both ends; >100 → 422; >1 cannot be stored. Consumer `EVMData.percent_completed` declares `ge=0, le=1` — unit matches.
+  - Estimated-reports flag does NOT apply here: `percent_completed` comes from `progress_reports`, an independent table from `reports`/`report_parts`. The `estimated` filter only governs `cost_to_date` aggregation (correctly applied via `ReportDB.estimated.is_(False)`).
+  - Edge case worth flagging (not a bug, more like a UX gap): a stale latest progress (project paused N months) keeps EV pinned while `percent_planned` advances linearly with `date.today()` → SPI drifts artificially low. No "must be from current period" guard. A "progress report is N months old" banner on EVMSection would close this.
+  - Latent: `delete_project_metrics` does not wipe cached EVM if progress reports are deleted; stale `percent_completed` can linger on MetricsDB rows. Same family as cache invalidation findings in row #16.
+  - Tests today: many tests seed `MetricsDB.percent_completed` directly, but **no test exercises `_get_latest_progress` or the tracker→scorecard propagation**. Suggested: `test_get_latest_progress_picks_latest_period`, `test_get_latest_progress_unit_is_ratio` (0.75 ≠ 75), `test_refresh_tracker_evm_propagates_percent_completed`.
+  - Audited: 2026-05-15 (calc-audit row #22)
+
+- **percent_planned (time-based interpolation)** — `backend/app/modules/tracker/public.py:88-101` (`_calculate_expected_progress`), call site at `public.py:42` inside `get_evm_from_tracker`.
+  - Formula: `percent_planned = clamp((today - start_date).days / (end_date - start_date).days, 0.0, 1.0)`. Both date columns are `date` (timezone-less); `date.today()` uses server local time.
+  - Edge cases handled: None for either date → None; `end == start` (zero-duration) → None via `total_days <= 0` guard; `end < start` blocked at DB by CHECK constraint + Pydantic validator + this guard; `today < start` clamped to 0.0; `today > end` clamped to 1.0.
+  - Latent (not bugs):
+    - Server-local timezone causes ±1 day drift around midnight for projects elsewhere. Coarse daily granularity makes this harmless.
+    - Project marked `FINISHED` with `end_date` in the future: `percent_planned` keeps growing toward 1.0 even when work is done. Semantic gap (the project is "done", so planned vs completed makes less sense), not a calc bug — could short-circuit to 1.0 when status is FINISHED.
+  - Tests today: **none** — no test imports `_calculate_expected_progress` or exercises `get_evm_from_tracker` with start/end inputs. All `percent_planned` mentions in tests pre-seed a Decimal into MetricsDB rather than deriving it.
+  - Suggested: `test_planned_none_when_dates_missing`, `test_planned_zero_before_start`, `test_planned_one_after_end`, `test_planned_midpoint` (~0.5), `test_planned_exact_end` (=1.0).
+  - Audited: 2026-05-15 (calc-audit row #23)
+
+- **`estimated=true` flag exclusion** — `backend/app/modules/tracker/models/report.py:40` (Boolean, default=True, per-report not per-part).
+  - Verified consumers (each behavior consistent with CLAUDE rule "estimated flag only affects burn"):
+    - `aggregation_service._valid_parts_filter:36` (burn/cost summary/batch/FA-user/FA-only) → **excludes** estimated. ✓
+    - `tracker.public._get_total_cost:58` (feeds scorecard EVM `cost_to_date` → SPI/CPI/budget_variance) → **excludes** estimated. ✓
+    - `worker/report_confirmation_reminder.py:44` (DM reminder picks users without confirmed report) → uses `estimated.is_(False)` correctly. ✓
+    - `aggregation_service.get_project_report_parts:213` (list view) → **includes**; surfaces `estimated` so UI can render badge. ✓
+    - `core/services/capacity_insights.py:116/225/328/569/652` (insights, FA detail, user detail, allocation views) → **includes** estimated. Matches CLAUDE rule (capacity reflects intended/in-progress allocation). ✓
+    - `api/moods.py:88/147` (mood distribution + trend) → **includes** all reports. Mood is captured on Confirm (write-once), so estimated reports have mood=null anyway; the `total_reports` denominator counts all reports.
+    - `cost_service.apply_cost_and_days:54` → reads ReportDB only for user/period resolution; estimated flag irrelevant.
+  - Default for new reports: `estimated=True`. Confirm requires parts summing to 100% (`reports.py:190`); Reopen unrestricted.
+  - Latent observations (not calc bugs):
+    - Moods denominator includes estimated reports: a period with many estimated submissions makes "response rate" misleading. Likely intentional but undocumented.
+    - Mood on Reopen: if a user confirms (writes mood) then Reopens, the old mood persists in DB. CLAUDE says "write-once per confirm cycle" but there's no DB-level reset on reopen — a re-Confirm would silently keep the original mood.
+  - Tests today cover: `test_cost_summary_excludes_estimated` (burn), `TestConfirmValidation` (write toggle), `test_create_with_estimated` (schema default), reminder-worker tests.
+  - Suggested additions: `test_evm_cost_to_date_excludes_estimated` (direct path through scorecard public, no test today), `test_aggregation_fa_user_excludes_estimated` (FA breakdowns), `test_get_project_report_parts_includes_estimated_with_flag` (list view contract), `test_reopen_preserves_or_clears_mood` (pin the mood-on-reopen behavior).
+  - Audited: 2026-05-15 (calc-audit row #29)
+
+- **`_prepopulate_parts` — VHUB-124 fix verified** — `backend/app/modules/tracker/api/reports.py:40` (invoked at `:132` from `create_report`).
+  - Filters applied (both required by VHUB-124):
+    - `ReportPartDB.percentage > 0` (SQL `>` correctly drops both `0` and `NULL`, since `NULL > 0` is NULL/false).
+    - `ProjectDB.status != ProjectStatus.FINISHED`.
+    - Implicit: user_id match + immediately-previous reporting period (LIMIT 1).
+  - New parts inserted as skeletons: `percentage=None, cost=None, days=None`. Values are NOT carried — only the row presence.
+  - Edge cases handled: no previous period (first-ever) → 0 parts; user had no prior report → 0 parts; FINISHED project at create-time → excluded; percentage=0 or NULL → excluded; concurrent project-finish flips self-heal next period.
+  - Latent observations (intentional / undocumented):
+    - `ProjectStatus.PROPOSAL` is NOT filtered — a proposal-status project carries forward. Probably fine (target was finished), but if a project regresses LIVE → PROPOSAL it still seeds. Pin with a test if the contract matters.
+    - Only looks at the immediately previous period (`LIMIT 1`). A user who skipped a month gets nothing pre-populated — does NOT walk further back. Likely intentional.
+    - `ProjectStatus` enum has only PROPOSAL / LIVE / FINISHED — no `cancelled` value, so the "skip cancelled too" angle is moot.
+  - Tests today (`test_reports.py::TestPrepopulateParts`): `test_skips_finished_projects` and `test_skips_zero_or_null_percentage_parts` both pin the VHUB-124 filters.
+  - Suggested low-priority additions: `test_user_skipped_a_month_gets_empty_report`, `test_proposal_status_is_carried` (lock current behavior), `test_other_users_prev_report_not_used`, `test_prepopulate_strips_values` (assert all three fields are None).
+  - Audited: 2026-05-15 (calc-audit row #32)
 
 ---
 

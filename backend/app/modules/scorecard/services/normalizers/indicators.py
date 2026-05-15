@@ -23,7 +23,6 @@ from app.modules.scorecard.models.metrics import (
     TestMaturity,
 )
 from app.modules.scorecard.services.normalizers.base import (
-    NEUTRAL_VALUE,
     normalize_budget_variance,
     normalize_governance_compliance,
 )
@@ -134,27 +133,38 @@ class IndicatorNormalizer:
     def _calculate_defect_density(
         self, jira: JiraDefectMetrics | None
     ) -> float | None:
-        """Calculate defect density per 100 tasks."""
+        """Calculate defect density per 100 tasks.
+
+        Returns None when there are no completed tasks: defect density is
+        undefined, not zero. Excluded from the weighted average upstream.
+        """
         if jira is None:
             return None
         if jira.tasks_completed <= 0:
-            return 0.0
+            return None
         return (jira.bugs_total / jira.tasks_completed) * 100
 
     def _calculate_escaped_rate(self, jira: JiraDefectMetrics | None) -> float | None:
-        """Calculate escaped defect rate per 100 tasks."""
+        """Calculate escaped defect rate per 100 tasks.
+
+        Returns None when there are no completed tasks: the rate is undefined.
+        """
         if jira is None:
             return None
         if jira.tasks_completed <= 0:
-            return 0.0
+            return None
         return (jira.escaped_defects / jira.tasks_completed) * 100
 
     def _get_mttr(self, jira: JiraDefectMetrics | None) -> float | None:
-        """Get MTTR in hours. Returns 0 if no incidents (perfect score)."""
+        """Get MTTR in hours.
+
+        Returns None when there are no incidents: MTTR cannot be measured
+        without data. Zero would mislead as 'perfect repair time'.
+        """
         if jira is None:
             return None
         if jira.incidents_count == 0:
-            return 0.0
+            return None
         return jira.mttr_hours
 
     def _normalize_governance(self, exceptions: int | None) -> float | None:
@@ -195,7 +205,11 @@ class IndicatorNormalizer:
         return github.high_severity_vulns
 
     def _normalize_test_maturity(self, test: TestMaturity | None) -> float | None:
-        """Calculate weighted test maturity score."""
+        """Calculate weighted test maturity score.
+
+        Missing fields are excluded (None) and weights are redistributed
+        among available components. Returns None when no field is rated.
+        """
         if test is None:
             return None
 
@@ -208,12 +222,18 @@ class IndicatorNormalizer:
         ]
 
         total = 0.0
+        weight_sum = 0.0
         for value, key in field_mapping:
+            if value is None:
+                continue
             weight = self.config.get_weight("test_maturity", key)
-            normalized = value / 5.0 if value is not None else NEUTRAL_VALUE
-            total += normalized * weight
+            total += (value / 5.0) * weight
+            weight_sum += weight
 
-        return round(total, 2)
+        if weight_sum <= 0:
+            return None
+
+        return round(total / weight_sum, 2) if weight_sum < 1.0 else round(total, 2)
 
     def _normalize_architecture(self, arch: ArchitectureChecklist | None) -> float | None:
         """Calculate architecture checklist score (0-1)."""
@@ -237,7 +257,12 @@ class IndicatorNormalizer:
         return min(1.0, max(0.0, flow.stories_with_reviewer / flow.total_stories))
 
     def _normalize_okr_impact(self, impact: StrategicImpact | None) -> float | None:
-        """Map strategic impact to numeric score."""
+        """Map strategic impact to numeric score.
+
+        Returns None if the value is not in the mapping (defensive — the
+        enum exhausts the mapping, but a stray value should be excluded
+        from the weighted average rather than neutralized).
+        """
         if impact is None:
             return None
 
@@ -247,10 +272,16 @@ class IndicatorNormalizer:
             StrategicImpact.HIGH: 0.80,
             StrategicImpact.TRANSFORMATIONAL: 1.0,
         }
-        return mapping.get(impact, NEUTRAL_VALUE)
+        return mapping.get(impact)
 
     def _normalize_pm_satisfaction(self, pm: PMSatisfaction | None) -> float | None:
-        """Calculate PM satisfaction estimation score."""
+        """Calculate PM satisfaction estimation score.
+
+        Each component (delivery complaints, design complaints, overall
+        estimation) is excluded when not provided (ComplaintStatus.NA or
+        overall_estimation=None). Weights are redistributed among the
+        available components. Returns None when nothing was rated.
+        """
         if pm is None:
             return None
 
@@ -258,13 +289,29 @@ class IndicatorNormalizer:
             ComplaintStatus.NO: 1.0,
             ComplaintStatus.YES: 0.4,
         }
-        default_complaint_score = 0.75
 
-        delivery_score = complaint_scores.get(pm.delivery_complaints, default_complaint_score)
-        design_score = complaint_scores.get(pm.design_complaints, default_complaint_score)
-        overall_score = pm.overall_estimation / 5.0 if pm.overall_estimation else NEUTRAL_VALUE
+        delivery = complaint_scores.get(pm.delivery_complaints)
+        design = complaint_scores.get(pm.design_complaints)
+        overall = pm.overall_estimation / 5.0 if pm.overall_estimation is not None else None
 
-        return round(0.3 * delivery_score + 0.3 * design_score + 0.4 * overall_score, 2)
+        components: list[tuple[float | None, float]] = [
+            (delivery, 0.3),
+            (design, 0.3),
+            (overall, 0.4),
+        ]
+
+        total = 0.0
+        weight_sum = 0.0
+        for value, weight in components:
+            if value is None:
+                continue
+            total += value * weight
+            weight_sum += weight
+
+        if weight_sum <= 0:
+            return None
+
+        return round(total / weight_sum, 2) if weight_sum < 1.0 else round(total, 2)
 
     def _normalize_client_survey(self, survey: ClientSurvey | None) -> float | None:
         """Calculate weighted client survey score."""

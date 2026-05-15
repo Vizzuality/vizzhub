@@ -17,13 +17,25 @@ export function calculateEVMValues(
   return { ev, spi, cpi, hasData: budgetTotal > 0 };
 }
 
-const CURRENCY_MAP: Record<string, { code: string; locale: string }> = {
+const LEGACY_CURRENCY_MAP: Record<string, { code: string; locale: string }> = {
   euro: { code: 'EUR', locale: 'de-DE' },
   dollar: { code: 'USD', locale: 'en-US' },
 };
 
+const ISO_LOCALE_MAP: Record<string, string> = {
+  EUR: 'de-DE',
+  USD: 'en-US',
+  GBP: 'en-GB',
+  CHF: 'de-CH',
+  JPY: 'ja-JP',
+  AUD: 'en-AU',
+  CAD: 'en-CA',
+};
+
 export function formatCurrency(value: number, currency = 'euro', decimals = 0): string {
-  const { code, locale } = CURRENCY_MAP[currency] ?? CURRENCY_MAP.euro;
+  const legacy = LEGACY_CURRENCY_MAP[currency];
+  const code = legacy ? legacy.code : (currency || 'EUR').toUpperCase();
+  const locale = legacy ? legacy.locale : (ISO_LOCALE_MAP[code] ?? 'en-US');
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: code,
