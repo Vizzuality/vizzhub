@@ -120,6 +120,66 @@ async def test_get_latest_rate_eur_is_synthetic(db_session: AsyncSession) -> Non
 
 
 @pytest.mark.asyncio
+async def test_convert_to_eur_zero_rate_returns_none(db_session: AsyncSession) -> None:
+    """rate=0 must not raise DivisionByZero — return None instead."""
+    db_session.add(
+        ExchangeRateDB(
+            rate_date=date.today(),
+            currency_code="USD",
+            rate=Decimal("0"),
+        )
+    )
+    await db_session.flush()
+
+    result = await convert_to_eur(db_session, Decimal("100"), "USD")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_convert_to_eur_none_code_returns_none(db_session: AsyncSession) -> None:
+    """None currency must not raise AttributeError — return None instead."""
+    result = await convert_to_eur(db_session, Decimal("100"), None)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_convert_to_eur_empty_code_returns_none(db_session: AsyncSession) -> None:
+    """Empty-string currency must not silently look up empty code — return None."""
+    result = await convert_to_eur(db_session, Decimal("100"), "")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_convert_to_eur_at_date_picks_on_or_before_row(db_session: AsyncSession) -> None:
+    """Historical lookup picks the latest rate with rate_date <= as_of."""
+    db_session.add_all(
+        [
+            ExchangeRateDB(
+                rate_date=date(2024, 1, 15),
+                currency_code="USD",
+                rate=Decimal("1.10"),
+            ),
+            ExchangeRateDB(
+                rate_date=date(2026, 5, 1),
+                currency_code="USD",
+                rate=Decimal("1.08"),
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    historical = await convert_to_eur(
+        db_session, Decimal("110"), "USD", as_of=date(2024, 6, 1)
+    )
+    assert historical is not None
+    assert historical == Decimal("100")
+
+    latest = await convert_to_eur(db_session, Decimal("108"), "USD")
+    assert latest is not None
+    assert latest == Decimal("100")
+
+
+@pytest.mark.asyncio
 async def test_get_available_currencies_includes_eur(db_session: AsyncSession) -> None:
     """EUR is added at the head even if no rows for it exist."""
     db_session.add(

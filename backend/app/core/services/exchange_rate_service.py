@@ -79,33 +79,79 @@ async def fetch_and_store_rates(db: AsyncSession) -> dict:
     return {"rate_date": str(rate_date), "currencies_stored": len(rows)}
 
 
-async def get_latest_rate(db: AsyncSession, currency_code: str) -> tuple[Decimal, date] | None:
-    """Get the most recent rate for a currency. Returns (rate, rate_date) or None."""
-    if currency_code == "EUR":
-        return (Decimal("1.0"), date.today())
+async def get_latest_rate(
+    db: AsyncSession,
+    currency_code: str | None,
+    as_of: date | None = None,
+) -> tuple[Decimal, date] | None:
+    """Get the most recent rate for a currency on or before ``as_of``.
 
-    result = await db.execute(
-        select(ExchangeRateDB.rate, ExchangeRateDB.rate_date)
-        .where(ExchangeRateDB.currency_code == currency_code)
-        .order_by(ExchangeRateDB.rate_date.desc())
-        .limit(1)
+    When ``as_of`` is None, returns the absolute latest stored rate. When
+    ``as_of`` is set, filters ``rate_date <= as_of`` so historical conversions
+    (e.g. tracker reports dated months ago) use the rate effective then.
+
+    Returns ``(rate, rate_date)`` or ``None`` when no rate is available. A
+    None/empty ``currency_code`` is treated as missing (returns None + warning),
+    matching the missing-rate semantics rather than raising.
+    """
+    if not currency_code:
+        logger.warning("exchange_rate_missing_code", as_of=str(as_of) if as_of else None)
+        return None
+
+    if currency_code == "EUR":
+        return (Decimal("1.0"), as_of or date.today())
+
+    stmt = select(ExchangeRateDB.rate, ExchangeRateDB.rate_date).where(
+        ExchangeRateDB.currency_code == currency_code
     )
+    if as_of is not None:
+        stmt = stmt.where(ExchangeRateDB.rate_date <= as_of)
+    stmt = stmt.order_by(ExchangeRateDB.rate_date.desc()).limit(1)
+
+    result = await db.execute(stmt)
     row = result.first()
     return (row.rate, row.rate_date) if row else None
 
 
-async def convert_to_eur(db: AsyncSession, amount: Decimal, currency: str) -> Decimal | None:
-    """Convert an amount to EUR using the latest rate. Returns None if no rate found."""
+async def convert_to_eur(
+    db: AsyncSession,
+    amount: Decimal,
+    currency: str | None,
+    as_of: date | None = None,
+) -> Decimal | None:
+    """Convert an amount to EUR using the rate effective on or before ``as_of``.
+
+    ``as_of=None`` keeps legacy behaviour (use the latest stored rate). When
+    set, looks up the most recent rate with ``rate_date <= as_of`` so historical
+    conversions are stable across re-runs.
+
+    Returns ``None`` (with a warning log) for any of:
+    - missing/empty currency code (was ``AttributeError`` on ``.lower()``)
+    - no rate found for the currency
+    - stored rate is zero (was ``decimal.DivisionByZero``)
+    """
+    if not currency:
+        logger.warning("exchange_rate_missing_code", amount=str(amount))
+        return None
+
     code = currency_to_code(currency)
     if code == "EUR":
         return amount
 
-    result = await get_latest_rate(db, code)
+    result = await get_latest_rate(db, code, as_of=as_of)
     if result is None:
-        logger.warning("exchange_rate_missing", currency=code, amount=str(amount))
+        logger.warning(
+            "exchange_rate_missing",
+            currency=code,
+            amount=str(amount),
+            as_of=str(as_of) if as_of else None,
+        )
         return None
 
     rate, _ = result
+    if rate == 0:
+        logger.warning("exchange_rate_zero", currency=code, amount=str(amount))
+        return None
     return amount / rate
 
 
