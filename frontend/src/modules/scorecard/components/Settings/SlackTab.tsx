@@ -25,7 +25,7 @@ import {
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
 import type { ProviderStatus, SlackTestResult } from '@/core/services/integrations';
-import { queryKeys } from '@/core/hooks/queryKeys';
+import { invalidateIntegrations } from '@/core/hooks/invalidations';
 
 interface SlackTabProps {
   readonly status?: ProviderStatus;
@@ -41,8 +41,7 @@ export default function SlackTab({ status }: SlackTabProps): JSX.Element {
   const saveToken = useMutation({
     mutationFn: (token: string) => integrationsApi.saveSlackToken(token),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.slackChannels });
+      invalidateIntegrations(queryClient);
       setBotToken('');
       setTestResult(null);
     },
@@ -61,7 +60,7 @@ export default function SlackTab({ status }: SlackTabProps): JSX.Element {
   const deleteSlack = useMutation({
     mutationFn: () => integrationsApi.deleteSlack(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+      invalidateIntegrations(queryClient);
       setDisconnectOpen(false);
       setTestResult(null);
     },

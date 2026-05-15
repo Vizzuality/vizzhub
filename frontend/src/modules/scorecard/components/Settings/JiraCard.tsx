@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/shared/components/ui/alert-dialog';
-import { queryKeys } from '@/core/hooks/queryKeys';
+import { invalidateIntegrations } from '@/core/hooks/invalidations';
 import api from '@/core/services/client';
 import type { ProviderStatus } from '@/core/services/integrations';
 
@@ -37,7 +37,7 @@ export default function JiraCard({ status }: JiraCardProps): JSX.Element {
       await api.delete('/oauth/jira/disconnect');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+      invalidateIntegrations(queryClient);
       setDisconnectOpen(false);
     },
   });

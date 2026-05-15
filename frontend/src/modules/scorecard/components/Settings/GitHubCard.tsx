@@ -24,7 +24,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
-import { queryKeys } from '@/core/hooks/queryKeys';
+import { invalidateIntegrations } from '@/core/hooks/invalidations';
 import {
   useGitHubIsoConfig,
   useSaveGitHubOrg,
@@ -72,7 +72,7 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
   const saveToken = useMutation({
     mutationFn: (pat: string) => integrationsApi.saveGitHubToken(pat),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+      invalidateIntegrations(queryClient);
       setToken('');
     },
   });
@@ -80,7 +80,7 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
   const deleteToken = useMutation({
     mutationFn: () => integrationsApi.deleteGitHub(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.status });
+      invalidateIntegrations(queryClient);
       setDisconnectOpen(false);
     },
   });
