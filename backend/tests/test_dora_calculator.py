@@ -133,6 +133,26 @@ class TestDoraClassificationThresholds:
         result = calc.calculate(IndicatorsCreate(deployment_frequency=0.01))
         assert result["metrics"]["deployment_frequency"]["level"] == "Low"
 
+    def test_lead_time_business_day_thresholds(self, config: ScoringConfig) -> None:
+        """Audit #7: thresholds expressed in BUSINESS days now."""
+        calc = DoraScoreCalculator(config)
+
+        # Elite: < 1 business hour (1/9 business day = 0.111)
+        result = calc.calculate(IndicatorsCreate(lead_time_days=0.05))
+        assert result["metrics"]["lead_time"]["level"] == "Elite"
+
+        # High: 1 business hour but < 1 business day
+        result = calc.calculate(IndicatorsCreate(lead_time_days=0.5))
+        assert result["metrics"]["lead_time"]["level"] == "High"
+
+        # Medium: >= 1 but < 5 business days (1 business week)
+        result = calc.calculate(IndicatorsCreate(lead_time_days=4.9))
+        assert result["metrics"]["lead_time"]["level"] == "Medium"
+
+        # Low: >= 5 business days
+        result = calc.calculate(IndicatorsCreate(lead_time_days=5.0))
+        assert result["metrics"]["lead_time"]["level"] == "Low"
+
     def test_lead_time_thresholds(self, config: ScoringConfig) -> None:
         """Test lead time classification thresholds."""
         calc = DoraScoreCalculator(config)

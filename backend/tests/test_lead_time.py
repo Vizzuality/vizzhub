@@ -101,8 +101,9 @@ class TestCollectLeadTime:
         assert result["lead_time_days"] is None
 
     @pytest.mark.asyncio
-    async def test_collect_lead_time_calculates_average(self) -> None:
-        """Should calculate average lead time in business days."""
+    async def test_collect_lead_time_calculates_median(self) -> None:
+        """Should calculate MEDIAN (audit #7) lead time in business days.
+        Two-sample median equals mean, so 1 + 2 days → 1.5 either way."""
         mock_client = AsyncMock()
         mock_client.search_issues = AsyncMock(return_value=[
             {
@@ -128,9 +129,49 @@ class TestCollectLeadTime:
         result = await collect_lead_time(mock_client, "TEST")
 
         assert result["sample_size"] == 2
-        assert result["lead_time_days"] is not None
-        # (1 day + 2 days) / 2 = 1.5 days average
         assert result["lead_time_days"] == pytest.approx(1.5)
+
+    @pytest.mark.asyncio
+    async def test_collect_lead_time_median_resists_outlier(self) -> None:
+        """Audit #7: one 30-day outlier must not pull the metric like
+        the old mean implementation would have."""
+        # 4 issues at 1 business day + 1 issue at 30 business days.
+        # Mean would be (4 + 30) / 5 = 6.8 (Low). Median is 1 (High).
+        def one_day_issue() -> dict:
+            return {
+                "fields": {
+                    "created": "2026-01-19T09:00:00+00:00",
+                    "resolutiondate": "2026-01-20T18:00:00+00:00",
+                },
+                "changelog": {"histories": [
+                    {"created": "2026-01-20T09:00:00+00:00",
+                     "items": [{"field": "status", "toString": "In Progress"}]}
+                ]},
+            }
+
+        outlier_issue = {
+            "fields": {
+                "created": "2026-01-01T09:00:00+00:00",
+                # 6 calendar weeks later (~30 business days)
+                "resolutiondate": "2026-02-13T18:00:00+00:00",
+            },
+            "changelog": {"histories": [
+                {"created": "2026-01-02T09:00:00+00:00",
+                 "items": [{"field": "status", "toString": "In Progress"}]}
+            ]},
+        }
+
+        mock_client = AsyncMock()
+        mock_client.search_issues = AsyncMock(return_value=[
+            one_day_issue(), one_day_issue(), one_day_issue(),
+            one_day_issue(), outlier_issue,
+        ])
+
+        result = await collect_lead_time(mock_client, "TEST")
+
+        assert result["sample_size"] == 5
+        # Median of [1, 1, 1, 1, ~30] = 1
+        assert result["lead_time_days"] == pytest.approx(1.0)
 
     @pytest.mark.asyncio
     async def test_collect_lead_time_skips_invalid_dates(self) -> None:

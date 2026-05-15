@@ -43,11 +43,12 @@ class DoraScoreCalculator:
         Medium: Between once per week and once per month
         Low: Less than once per month
 
-    Lead Time for Changes:
-        Elite: Less than one hour
-        High: Between one hour and one day
-        Medium: Between one day and one week
-        Low: More than one week
+    Lead Time (Jira cycle time, NOT DORA Lead Time for Changes):
+        Unit is BUSINESS days (1 = 9 working hours). Thresholds:
+        Elite: Less than one business hour (<1/9 business day)
+        High: Less than one business day
+        Medium: Less than one business week (<5 business days)
+        Low: 1 business week or more
 
     Change Failure Rate:
         Elite: 0-5%
@@ -157,21 +158,26 @@ class DoraScoreCalculator:
             return MEDIUM
         return LOW
 
-    def _classify_lead_time(self, days: float) -> str:
-        """Classify lead time for changes.
+    def _classify_lead_time(self, business_days: float) -> str:
+        """Classify Jira cycle time (NOT DORA Lead Time for Changes).
 
-        Elite: Less than 1 hour (<1/24 day)
-        High: Less than 1 day
-        Medium: Less than 1 week
-        Low: More than 1 week
+        Input unit is BUSINESS days (1 business day = 9 working hours,
+        Mon-Fri 09:00-18:00 UTC), produced by collectors/jira/lead_time.py.
+
+        Thresholds expressed in business days:
+            Elite:  < 1 business hour    (< 1/9 business day)
+            High:   < 1 business day
+            Medium: < 1 business week    (< 5 business days)
+            Low:    >= 1 business week
         """
-        ONE_HOUR_IN_DAYS = 1 / 24
+        ONE_BUSINESS_HOUR_IN_BD = 1 / 9
+        ONE_BUSINESS_WEEK_IN_BD = 5
 
-        if days < ONE_HOUR_IN_DAYS:
+        if business_days < ONE_BUSINESS_HOUR_IN_BD:
             return ELITE
-        if days < 1:
+        if business_days < 1:
             return HIGH
-        if days < 7:
+        if business_days < ONE_BUSINESS_WEEK_IN_BD:
             return MEDIUM
         return LOW
 

@@ -106,7 +106,8 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 - **#6 DORA deploy freq Elite** — classifier tightened to `> 1.0` (was `>=`). Daily-once → High. Commit `7a1e236d`.
 - **#17 global metrics (partial)** — exclude PROPOSAL projects from the portfolio aggregation + `strip()` strategic_impact label. Equal-weighting + stale-snapshot deliberately deferred. Commit `1c7f39dd`.
 - **#4 final-score returns None when all dimensions None** — `int | None`, FE renders `—`. Commit `fd553a13`.
-- **#16 score cache holes** — DELETE invalidates; capture endpoint switched from write-through to invalidate (no more cache-ahead-of-DB on rollback). TOCTOU deliberately deferred. Commit pending.
+- **#16 score cache holes** — DELETE invalidates; capture endpoint switched from write-through to invalidate (no more cache-ahead-of-DB on rollback). TOCTOU deliberately deferred. Commit `3ef06293`.
+- **#7 DORA lead-time (mostly)** — business-day thresholds in classifier, median (not mean) in collector, label clarified as Jira cycle time (not DORA Lead Time for Changes). UTC-only business window deferred. Commit pending.
 
 ## Final summary (2026-05-15)
 

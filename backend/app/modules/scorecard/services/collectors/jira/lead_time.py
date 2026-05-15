@@ -1,17 +1,27 @@
 """
-lead_time - Average lead time in business days
+lead_time - Jira cycle time in business days (NOT DORA "Lead Time for Changes")
 
 == SPEC ==
 
 Formula:
-    lead_time_days = avg(resolution_time - first_in_progress_time) in business days
+    lead_time_days = median(resolution_time - first_in_progress_time) in business days
 
 Definition:
-    Average business days from when an issue first enters "In Progress" status
+    Median business days from when an issue first enters "In Progress" status
     until it's resolved ("Done"). This measures development cycle time,
     excluding backlog waiting time.
 
-    Business day = 9 hours (09:00-18:00, Monday-Friday)
+    Business day = 9 hours (09:00-18:00 UTC, Monday-Friday).
+    Note: the business window is UTC, not the team's local TZ. Teams east
+    or west of UTC may see slight under-counting; not corrected here.
+
+    Important: this is NOT the DORA "Lead Time for Changes" metric (which
+    measures commit -> production deploy). The classifier in dora.py uses
+    business-day thresholds tuned for this Jira cycle-time measurement.
+
+Aggregation:
+    Median, not mean. Audit #7 (2026-05-15) moved from arithmetic mean to
+    median so a single neglected ticket doesn't flip the team's tier.
 
 In Progress statuses (case-insensitive):
     - In Progress
@@ -46,6 +56,7 @@ Edge Cases:
 """
 
 from datetime import date, datetime
+from statistics import median
 from typing import TYPE_CHECKING
 
 from app.modules.scorecard.services.collectors.jira.utils import (
@@ -128,7 +139,9 @@ async def collect_lead_time(
         if (lt := _calculate_issue_lead_time(issue)) is not None
     ]
 
-    lead_time_days = sum(lead_times) / len(lead_times) if lead_times else None
+    # Median (not mean): single outliers don't dominate the team's metric.
+    # See audit #7 for the trade-off discussion.
+    lead_time_days = float(median(lead_times)) if lead_times else None
 
     return {
         "lead_time_days": lead_time_days,
