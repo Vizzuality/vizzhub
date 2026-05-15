@@ -1912,7 +1912,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
   - Fix: same as #20 — expose backend ETC alongside EAC using EVM-standard inputs (`max(0, BAC − EV)` and `(BAC − EV) / max(CPI, ε)`) so stakeholders see "Remaining" as a separate KPI and the time-trend forecast is one method among several. Also: add a "last reporting gap" warning when there's a gap > 1 month between the last reported period and today.
   - Added: 2026-05-15 (calc-audit row #21)
 
-- **Burn percentage — single-vs-batch precision divergence + null-when-zero conflation + currency gap** — `backend/app/modules/tracker/services/aggregation_service.py:129` (single) and `:199` (batch).
+- **Burn percentage — single-vs-batch precision divergence + null-when-zero conflation + currency gap** — `backend/app/modules/tracker/services/aggregation_service.py:129` (single) and `:199` (batch). **[FIXED 2026-05-16 — commit `c9071f11`. Shared `_compute_burn_percentage` helper rounds `total_cost` to 2dp before dividing on both paths; explicit `budget is None or budget == 0` guard; `currency` surfaced on `ProjectCostSummary` + `ProjectCostSummaryLite`. FX thread-through (#26 cross-currency) intentionally deferred.]**
   - Module: `tracker`
   - Formula: `burn_percentage = (Σ valid report-part cost + Σ non-staff cost) / project.budget × 100`, where `valid` excludes `estimated=true` parts and `percentage<=0` parts (per CLAUDE rule). Returns null when `budget` is falsy.
   - Issues:
