@@ -85,7 +85,7 @@ export default function ProjectDetail(): JSX.Element {
       hidden.add(dimension);
     }
     setDimsState({
-      hiddenDimensions: Array.from(hidden).sort().join(','),
+      hiddenDimensions: Array.from(hidden).sort((a, b) => a.localeCompare(b)).join(','),
     });
   }, [dimsState.hiddenDimensions, setDimsState]);
 

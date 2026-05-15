@@ -115,7 +115,7 @@ export default function GlobalDashboard(): JSX.Element {
     } else {
       hidden.add(dimension);
     }
-    setDimsState({ hiddenDimensions: Array.from(hidden).sort().join(',') });
+    setDimsState({ hiddenDimensions: Array.from(hidden).sort((a, b) => a.localeCompare(b)).join(',') });
   }, [dimsState.hiddenDimensions, setDimsState]);
 
   const handleCalculateAll = (): void => {
