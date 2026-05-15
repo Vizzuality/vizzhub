@@ -25,6 +25,9 @@ export const Action = {
   DEVSTACK_VIEW: 'devstack:view',
   DEVSTACK_MANAGE: 'devstack:manage',
 
+  CAPACITY_VIEW: 'capacity:view',
+  CAPACITY_MANAGE: 'capacity:manage',
+
   ADMIN_USERS: 'admin:users',
   ADMIN_JOBS: 'admin:jobs',
   ADMIN_INTEGRATIONS: 'admin:integrations',

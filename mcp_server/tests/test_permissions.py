@@ -26,7 +26,9 @@ from mcp_server.tools.iso import iso_get_registries
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
     IsoDocNodeDB,
+    IsoDocNoteDB,
     IsoDocVersionDB,
+    RegistryTypeDB,
 )
 
 
@@ -175,15 +177,22 @@ class TestToolGating:
         assert "Permission denied" in result
 
     @pytest.mark.asyncio
-    async def test_iso_registries_blocked_without_iso_edit(self) -> None:
+    async def test_iso_registries_returns_filtered_list_for_non_editor(
+        self, db_session: AsyncSession,
+    ) -> None:
+        """Audit Tier 1 #4: registry reads no longer require iso_docs:edit.
+        Non-editors get a visibility-filtered list (empty here, no registries
+        seeded under policies/procedures), not a permission error."""
         user = McpUserContext(
             user_id="u1", email="a@b.com",
             roles=["user"], permissions=["tracker:view", "scorecard:view"],
         )
-        async with override_mcp_user(user):
-            result = await iso_get_registries()
-        assert "Permission denied" in result
-        assert "iso_docs:edit" in result
+        async with override_session(db_session):
+            async with override_mcp_user(user):
+                result = await iso_get_registries()
+        parsed = json.loads(result)
+        assert isinstance(parsed, list)
+        assert parsed == []
 
     @pytest.mark.asyncio
     async def test_iso_registries_allowed_for_editor(
@@ -334,6 +343,156 @@ class TestIsoDocVisibility:
         slugs = {r["slug"] for r in results}
         assert "data-protection" in slugs
         assert "bcp-plan" in slugs
+
+
+@pytest_asyncio.fixture
+async def iso_registry_tree(db_session: AsyncSession):
+    """ISO tree with registries mounted under both visible and hidden roots.
+
+    Tree:
+      policies (group)      <- visible
+        +-- visible-reg (registry, type 'visible-register')
+      plans (group)         <- hidden from non-editors
+        +-- hidden-reg (registry, type 'hidden-register')
+    """
+    policies = IsoDocNodeDB(title="Policies", slug="policies", type="group", parent_id=None, position=0)
+    plans = IsoDocNodeDB(title="Plans", slug="plans", type="group", parent_id=None, position=1)
+    db_session.add_all([policies, plans])
+    await db_session.flush()
+
+    visible_type = RegistryTypeDB(
+        name="Visible Register", slug="visible-register",
+        is_yearly=False,
+        schema=[{"key": "name", "label": "Name", "type": "string", "required": True}],
+    )
+    hidden_type = RegistryTypeDB(
+        name="Hidden Register", slug="hidden-register",
+        is_yearly=False,
+        schema=[{"key": "name", "label": "Name", "type": "string", "required": True}],
+    )
+    db_session.add_all([visible_type, hidden_type])
+    await db_session.flush()
+
+    visible_reg = IsoDocNodeDB(
+        title="Visible Reg", slug="visible-reg",
+        type="registry", parent_id=policies.id, position=0,
+        registry_type_id=visible_type.id,
+    )
+    hidden_reg = IsoDocNodeDB(
+        title="Hidden Reg", slug="hidden-reg",
+        type="registry", parent_id=plans.id, position=0,
+        registry_type_id=hidden_type.id,
+    )
+    db_session.add_all([visible_reg, hidden_reg])
+    await db_session.flush()
+    return {
+        "visible_node": visible_reg,
+        "hidden_node": hidden_reg,
+        "visible_type": visible_type,
+        "hidden_type": hidden_type,
+    }
+
+
+class TestIsoRegistryVisibility:
+    """Audit Tier 1 #4: non-editors only see registries mounted under policies/procedures."""
+
+    REGULAR_USER = McpUserContext(
+        user_id="u1", email="user@vizzuality.com",
+        roles=["user"], permissions=["tracker:view"],
+    )
+    ISO_EDITOR = McpUserContext(
+        user_id="u2", email="editor@vizzuality.com",
+        roles=["iso_docs_editor"], permissions=["iso_docs:edit"],
+    )
+
+    @pytest.mark.asyncio
+    async def test_editor_sees_all_registry_types(
+        self, db_session: AsyncSession, iso_registry_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.ISO_EDITOR):
+                types = await iso_data.get_registry_types(db_session)
+        slugs = {rt.slug for rt, _ in types}
+        assert "visible-register" in slugs
+        assert "hidden-register" in slugs
+
+    @pytest.mark.asyncio
+    async def test_regular_user_sees_only_visible_registry_types(
+        self, db_session: AsyncSession, iso_registry_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                types = await iso_data.get_registry_types(db_session)
+        slugs = {rt.slug for rt, _ in types}
+        assert "visible-register" in slugs
+        assert "hidden-register" not in slugs
+
+    @pytest.mark.asyncio
+    async def test_regular_user_cannot_resolve_hidden_registry(
+        self, db_session: AsyncSession, iso_registry_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                with pytest.raises(ValueError, match="not found"):
+                    await iso_data.resolve_registry_node(db_session, "hidden-reg")
+
+    @pytest.mark.asyncio
+    async def test_regular_user_can_resolve_visible_registry(
+        self, db_session: AsyncSession, iso_registry_tree,
+    ) -> None:
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                rt, node_id, slug = await iso_data.resolve_registry_node(
+                    db_session, "visible-reg",
+                )
+        assert slug == "visible-reg"
+        assert rt.slug == "visible-register"
+
+
+class TestIsoNoteVisibility:
+    """Audit Tier 1 #4: non-editors only see notes attached to visible nodes."""
+
+    REGULAR_USER = McpUserContext(
+        user_id="u1", email="user@vizzuality.com",
+        roles=["user"], permissions=["tracker:view"],
+    )
+
+    @pytest.mark.asyncio
+    async def test_regular_user_cannot_list_notes_on_hidden_node(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        db_session.add(IsoDocNoteDB(
+            node_id=iso_doc_tree["plan_page"].id,
+            content="audit flag on hidden",
+            done=False,
+        ))
+        await db_session.flush()
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                with pytest.raises(ValueError, match="not found"):
+                    await iso_data.get_node_notes(
+                        db_session, "bcp-plan", include_done=False,
+                    )
+
+    @pytest.mark.asyncio
+    async def test_regular_user_pending_notes_excludes_hidden(
+        self, db_session: AsyncSession, iso_doc_tree,
+    ) -> None:
+        db_session.add(IsoDocNoteDB(
+            node_id=iso_doc_tree["policy_page"].id,
+            content="visible note", done=False,
+        ))
+        db_session.add(IsoDocNoteDB(
+            node_id=iso_doc_tree["plan_page"].id,
+            content="hidden note", done=False,
+        ))
+        await db_session.flush()
+        async with override_session(db_session):
+            async with override_mcp_user(self.REGULAR_USER):
+                notes = await iso_data.get_pending_notes(db_session)
+        contents = {n["content"] for n in notes}
+        assert "visible note" in contents
+        assert "hidden note" not in contents
 
 
 class TestTokenVerifierSetsContext:

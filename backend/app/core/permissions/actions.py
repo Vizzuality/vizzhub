@@ -30,7 +30,9 @@ class Action:
     DEVSTACK_VIEW = "devstack:view"
     DEVSTACK_MANAGE = "devstack:manage"
 
-    ADMIN_USERS = "admin:users"
+    CAPACITY_VIEW = "capacity:view"
+    CAPACITY_MANAGE = "capacity:manage"
+
     ADMIN_JOBS = "admin:jobs"
     ADMIN_INTEGRATIONS = "admin:integrations"
 

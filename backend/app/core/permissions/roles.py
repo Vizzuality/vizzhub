@@ -11,6 +11,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.PROJECTS_VIEW,
         Action.EVENTS_VIEW,
         Action.DEVSTACK_VIEW,
+        Action.CAPACITY_VIEW,
     },
     "manager": {
         Action.PROJECTS_VIEW,
@@ -20,6 +21,8 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.TRACKER_MANAGE_ALL_REPORTS,
         Action.TRACKER_MANAGE_OWN_REPORTS,
         Action.EVENTS_VIEW,
+        Action.CAPACITY_VIEW,
+        Action.CAPACITY_MANAGE,
     },
     "playbook_editor": {
         Action.PLAYBOOK_EDIT,

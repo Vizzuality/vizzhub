@@ -10,7 +10,7 @@ from app.core.permissions.dependencies import require_permission
 
 def test_admin_wildcard_passes_any_permission():
     user = TokenData(user_id="1", permissions=["*"])
-    checker = require_permission(Action.ADMIN_USERS)
+    checker = require_permission(Action.ADMIN_JOBS)
     result = checker(user)
     assert result.user_id == "1"
 

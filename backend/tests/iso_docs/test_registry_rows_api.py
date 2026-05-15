@@ -141,6 +141,103 @@ async def test_update_row(client: AsyncClient, registry_setup: dict):
 
 
 @pytest.mark.asyncio
+async def test_update_row_null_clears_optional_field(
+    client: AsyncClient, registry_setup: dict
+):
+    """PATCH with `key: null` for an optional column must clear that field."""
+    node_id = registry_setup["node"]["id"]
+    create_resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"name": "WithCount", "category": "A", "count": 42}},
+    )
+    row_id = create_resp.json()["id"]
+    assert create_resp.json()["data"]["count"] == 42
+
+    resp = await client.patch(
+        f"/api/iso-docs/registries/{node_id}/rows/{row_id}",
+        json={"data": {"count": None}},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["data"]["count"] is None
+    assert body["data"]["name"] == "WithCount"
+    assert body["data"]["category"] == "A"
+
+
+@pytest.mark.asyncio
+async def test_update_row_null_required_field_rejected(
+    client: AsyncClient, registry_setup: dict
+):
+    """PATCH that nulls a required field must fail validation (422)."""
+    node_id = registry_setup["node"]["id"]
+    create_resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"name": "Keep", "category": "A"}},
+    )
+    row_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/iso-docs/registries/{node_id}/rows/{row_id}",
+        json={"data": {"name": None}},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_row_unsent_keys_preserved(
+    client: AsyncClient, registry_setup: dict
+):
+    """PATCH with a partial data dict must preserve keys NOT in the payload.
+    Distinguishes 'not sent' from 'explicitly null' (audit Tier 2 #10)."""
+    node_id = registry_setup["node"]["id"]
+    create_resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={
+            "data": {
+                "name": "Original", "category": "A", "count": 5, "active": True,
+            },
+        },
+    )
+    row_id = create_resp.json()["id"]
+
+    # Send only `count: null` — name/category/active must survive untouched.
+    resp = await client.patch(
+        f"/api/iso-docs/registries/{node_id}/rows/{row_id}",
+        json={"data": {"count": None}},
+    )
+    assert resp.status_code == 200
+    body = resp.json()["data"]
+    assert body["count"] is None
+    assert body["name"] == "Original"
+    assert body["category"] == "A"
+    assert body["active"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_row_empty_data_no_op(
+    client: AsyncClient, registry_setup: dict
+):
+    """PATCH with `{data: {}}` must not change anything.
+    Guards against 'empty dict = clear all' misinterpretation."""
+    node_id = registry_setup["node"]["id"]
+    create_resp = await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"name": "Stable", "category": "B", "count": 7}},
+    )
+    row_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/iso-docs/registries/{node_id}/rows/{row_id}",
+        json={"data": {}},
+    )
+    assert resp.status_code == 200
+    body = resp.json()["data"]
+    assert body["name"] == "Stable"
+    assert body["category"] == "B"
+    assert body["count"] == 7
+
+
+@pytest.mark.asyncio
 async def test_delete_row(client: AsyncClient, registry_setup: dict):
     node_id = registry_setup["node"]["id"]
     create_resp = await client.post(

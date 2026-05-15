@@ -10,7 +10,11 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.modules.iso_docs.api.deps import IsoDocsEditor
+from app.modules.iso_docs.api.deps import (
+    IsoDocsEditor,
+    get_visible_node_ids,
+    is_iso_docs_editor,
+)
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
 from app.modules.iso_docs.schemas.registry import (
@@ -92,13 +96,42 @@ async def _migrate_renamed_keys(
     return affected
 
 
+async def _visible_registry_type_ids(
+    db: AsyncSession, user: CurrentUser
+) -> set[UUID] | None:
+    """Return the set of `registry_type_id`s referenced by nodes visible to the user.
+
+    Editors see all types — returns None as a sentinel for "no filter".
+    Non-editors see only types attached to nodes inside `policies` / `procedures`.
+    """
+    if is_iso_docs_editor(user):
+        return None
+    visible = await get_visible_node_ids(db)
+    if not visible:
+        return set()
+    result = await db.execute(
+        select(IsoDocNodeDB.registry_type_id)
+        .where(
+            IsoDocNodeDB.id.in_(visible),
+            IsoDocNodeDB.registry_type_id.is_not(None),
+        )
+        .distinct()
+    )
+    return {row[0] for row in result if row[0] is not None}
+
+
 @router.get("/registry-types")
 async def list_registry_types(
     db: DBSession, user: CurrentUser
 ) -> list[RegistryTypeResponse]:
-    result = await db.execute(
-        select(RegistryTypeDB).order_by(RegistryTypeDB.name)
-    )
+    """List registry types. Non-editors only see types attached to visible nodes."""
+    allowed = await _visible_registry_type_ids(db, user)
+    query = select(RegistryTypeDB).order_by(RegistryTypeDB.name)
+    if allowed is not None:
+        if not allowed:
+            return []
+        query = query.where(RegistryTypeDB.id.in_(allowed))
+    result = await db.execute(query)
     return [
         RegistryTypeResponse.model_validate(rt) for rt in result.scalars()
     ]
@@ -106,11 +139,18 @@ async def list_registry_types(
 
 @router.get(
     "/registry-types/{type_id}",
-    responses={404: {"description": _NOT_FOUND}},
+    responses={
+        403: {"description": "Access denied"},
+        404: {"description": _NOT_FOUND},
+    },
 )
 async def get_registry_type(
     type_id: UUID, db: DBSession, user: CurrentUser
 ) -> RegistryTypeResponse:
+    """Get a registry type. Non-editors only see types attached to visible nodes."""
+    allowed = await _visible_registry_type_ids(db, user)
+    if allowed is not None and type_id not in allowed:
+        raise HTTPException(status_code=403, detail="Access denied")
     rt = await _get_registry_type_or_404(db, type_id)
     return RegistryTypeResponse.model_validate(rt)
 

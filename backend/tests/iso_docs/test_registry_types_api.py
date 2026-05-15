@@ -1,8 +1,16 @@
 """Tests for registry types API."""
 
+from collections.abc import AsyncGenerator
+from uuid import UUID
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from httpx._transports.asgi import ASGITransport
+
+from app.core.api.deps import get_db
+from app.core.auth import TokenData, get_current_user
+from app.main import app
 
 SAMPLE_SCHEMA = [
     {"key": "name", "label": "Name", "type": "string", "required": True},
@@ -152,6 +160,71 @@ async def test_update_registry_type_does_not_migrate_when_types_differ(
 
 
 @pytest.mark.asyncio
+async def test_update_registry_type_renames_multiple_columns_in_one_call(
+    client: AsyncClient, registry_type: dict,
+):
+    """Two columns renamed in a single PATCH: BOTH renames must migrate.
+    Audit Tier 2 #10 — schema-rename drift risk on multi-rename."""
+    node_resp = await client.post(
+        "/api/iso-docs/nodes",
+        json={
+            "title": "Multi Rename Node",
+            "type": "registry",
+            "registry_type_id": registry_type["id"],
+        },
+    )
+    node_id = node_resp.json()["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"name": "Hello", "count": 99}},
+    )
+
+    new_schema = [
+        {"key": "label", "label": "Label", "type": "string", "required": True},
+        {"key": "quantity", "label": "Quantity", "type": "number", "required": False},
+    ]
+    resp = await client.patch(
+        f"/api/iso-docs/registry-types/{registry_type['id']}",
+        json={"schema": new_schema},
+    )
+    assert resp.status_code == 200
+
+    rows = (await client.get(f"/api/iso-docs/registries/{node_id}/rows")).json()
+    assert rows[0]["data"] == {"label": "Hello", "quantity": 99}
+
+
+@pytest.mark.asyncio
+async def test_update_registry_type_rename_with_no_row_data_is_safe(
+    client: AsyncClient, registry_type: dict,
+):
+    """Renaming a column that no row carries must be a clean no-op on data,
+    even though the rename detector fires. Audit Tier 2 #10."""
+    node_resp = await client.post(
+        "/api/iso-docs/nodes",
+        json={
+            "title": "Empty Node",
+            "type": "registry",
+            "registry_type_id": registry_type["id"],
+        },
+    )
+    node_id = node_resp.json()["id"]
+    # No rows.
+
+    new_schema = [
+        {"key": "full_name", "label": "Full Name", "type": "string", "required": True},
+        {"key": "count", "label": "Count", "type": "number", "required": False},
+    ]
+    resp = await client.patch(
+        f"/api/iso-docs/registry-types/{registry_type['id']}",
+        json={"schema": new_schema},
+    )
+    assert resp.status_code == 200
+
+    rows = (await client.get(f"/api/iso-docs/registries/{node_id}/rows")).json()
+    assert rows == []
+
+
+@pytest.mark.asyncio
 async def test_update_registry_type_name_only_does_not_touch_rows(
     client: AsyncClient, registry_type: dict,
 ):
@@ -278,3 +351,124 @@ async def test_update_column_visibility_ignores_unknown_keys(
     schema = resp.json()["schema"]
     for col in schema:
         assert "hidden" not in col or col["hidden"] is False
+
+
+# --- Visibility-gating tests (audit Tier 1 #3) -------------------------------
+# Non-editor users may only see registry-types that are attached to a node
+# under USER_VISIBLE_ROOT_SLUGS (`policies`, `procedures`). The schemas of
+# ISMS / legal registries are otherwise exposed as information disclosure.
+
+EDITOR_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+REGULAR_USER_ID = UUID("00000000-0000-0000-0000-000000000002")
+
+EDITOR_TOKEN = TokenData(
+    user_id=str(EDITOR_USER_ID),
+    email="editor@test.com",
+    roles=["user", "iso_docs_editor"],
+    permissions=["iso_docs:edit"],
+)
+
+REGULAR_TOKEN = TokenData(
+    user_id=str(REGULAR_USER_ID),
+    email="user@test.com",
+    roles=["user"],
+    permissions=["scorecard:view"],
+)
+
+
+def _override_user(token: TokenData):
+    async def _get_user() -> TokenData:
+        return token
+    return _get_user
+
+
+@pytest_asyncio.fixture
+async def _override_db_for_visibility(db_session):
+    async def override_get_db():
+        yield db_session
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def visibility_setup(_override_db_for_visibility):
+    """Build: a registry-type attached under `policies` (visible), and another
+    free-floating registry-type (hidden from regular users)."""
+    app.dependency_overrides[get_current_user] = _override_user(EDITOR_TOKEN)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        # Visible type: lives under `policies` root group.
+        visible_type = (await c.post(
+            "/api/iso-docs/registry-types",
+            json={"name": "Visible Register", "schema": SAMPLE_SCHEMA},
+        )).json()
+        policies = (await c.post(
+            "/api/iso-docs/nodes",
+            json={"title": "Policies", "type": "group"},
+        )).json()
+        await c.post(
+            "/api/iso-docs/nodes",
+            json={
+                "title": "Visible Reg Node",
+                "type": "registry",
+                "parent_id": policies["id"],
+                "registry_type_id": visible_type["id"],
+            },
+        )
+        # Hidden type: never attached to any node.
+        hidden_type = (await c.post(
+            "/api/iso-docs/registry-types",
+            json={"name": "Hidden Register", "schema": SAMPLE_SCHEMA},
+        )).json()
+    return {"visible": visible_type, "hidden": hidden_type}
+
+
+async def _client_as(token: TokenData) -> AsyncGenerator[AsyncClient, None]:
+    app.dependency_overrides[get_current_user] = _override_user(token)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        yield c
+
+
+@pytest.mark.asyncio
+async def test_editor_lists_all_registry_types(visibility_setup: dict):
+    async for c in _client_as(EDITOR_TOKEN):
+        resp = await c.get("/api/iso-docs/registry-types")
+        assert resp.status_code == 200
+        ids = {t["id"] for t in resp.json()}
+        assert visibility_setup["visible"]["id"] in ids
+        assert visibility_setup["hidden"]["id"] in ids
+
+
+@pytest.mark.asyncio
+async def test_regular_user_lists_only_visible_registry_types(visibility_setup: dict):
+    async for c in _client_as(REGULAR_TOKEN):
+        resp = await c.get("/api/iso-docs/registry-types")
+        assert resp.status_code == 200
+        ids = {t["id"] for t in resp.json()}
+        assert visibility_setup["visible"]["id"] in ids
+        assert visibility_setup["hidden"]["id"] not in ids
+
+
+@pytest.mark.asyncio
+async def test_regular_user_can_read_visible_registry_type(visibility_setup: dict):
+    async for c in _client_as(REGULAR_TOKEN):
+        resp = await c.get(
+            f"/api/iso-docs/registry-types/{visibility_setup['visible']['id']}"
+        )
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "Visible Register"
+
+
+@pytest.mark.asyncio
+async def test_regular_user_cannot_read_hidden_registry_type(visibility_setup: dict):
+    """Information-disclosure guard: a non-editor must not be able to
+    GET an unattached registry type by id."""
+    async for c in _client_as(REGULAR_TOKEN):
+        resp = await c.get(
+            f"/api/iso-docs/registry-types/{visibility_setup['hidden']['id']}"
+        )
+        assert resp.status_code == 403

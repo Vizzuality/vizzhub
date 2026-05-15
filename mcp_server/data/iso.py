@@ -237,8 +237,12 @@ async def get_registry_types(
     the canonical identifier for read/write tools and matches the URL
     /iso/docs?page=<slug>. node_slug may be None if a registry type exists
     in the catalog without a mounting node (rare).
+
+    Non-editors see only registry types that are mounted at a node under
+    USER_VISIBLE_ROOT_SLUGS — mirrors the BE registry_types visibility gate.
     """
-    result = await session.execute(
+    visible_ids = await _get_visible_node_ids(session)
+    stmt = (
         select(RegistryTypeDB, IsoDocNodeDB.slug)
         .outerjoin(
             IsoDocNodeDB,
@@ -249,6 +253,11 @@ async def get_registry_types(
         )
         .order_by(RegistryTypeDB.name)
     )
+    if visible_ids is not None:
+        # Restrict to types whose mounting node is visible. Drops rows where
+        # the registry type has no node or its node is outside visible roots.
+        stmt = stmt.where(IsoDocNodeDB.id.in_(visible_ids))
+    result = await session.execute(stmt)
     return [(rt, node_slug) for rt, node_slug in result.all()]
 
 
@@ -262,7 +271,9 @@ async def resolve_registry_node(
     argument is matched against the node slug first (canonical) and then
     against the registry type slug as a backwards-compatible fallback.
 
-    Raises ValueError if the slug matches neither.
+    Raises ValueError if the slug matches neither, or if the resolved node
+    is outside the user's visible roots (treated as "not found" rather than
+    "forbidden" to avoid leaking existence).
     """
     stmt = (
         select(RegistryTypeDB, IsoDocNodeDB.id, IsoDocNodeDB.slug)
@@ -277,12 +288,14 @@ async def resolve_registry_node(
 
     by_node = await session.execute(stmt.where(IsoDocNodeDB.slug == slug))
     row = by_node.first()
-    if row is not None:
-        return row[0], row[1], row[2]
-
-    by_type = await session.execute(stmt.where(RegistryTypeDB.slug == slug))
-    row = by_type.first()
     if row is None:
+        by_type = await session.execute(stmt.where(RegistryTypeDB.slug == slug))
+        row = by_type.first()
+    if row is None:
+        raise ValueError(f"Registry '{slug}' not found")
+
+    visible_ids = await _get_visible_node_ids(session)
+    if visible_ids is not None and row[1] not in visible_ids:
         raise ValueError(f"Registry '{slug}' not found")
     return row[0], row[1], row[2]
 
@@ -320,12 +333,18 @@ async def get_node_notes(
 ) -> dict:
     """Return notes attached to a node identified by slug.
 
-    Raises ValueError if the slug does not match any ISO doc node.
+    Raises ValueError if the slug does not match any ISO doc node, or if
+    the resolved node is outside the user's visible roots (returned as
+    "not found" to avoid leaking existence).
     """
     node_row = (await session.execute(
         select(IsoDocNodeDB).where(IsoDocNodeDB.slug == slug)
     )).scalar_one_or_none()
     if node_row is None:
+        raise ValueError(f"Node '{slug}' not found")
+
+    visible_ids = await _get_visible_node_ids(session)
+    if visible_ids is not None and node_row.id not in visible_ids:
         raise ValueError(f"Node '{slug}' not found")
 
     creator_alias = aliased(UserDB)
@@ -358,7 +377,8 @@ async def get_pending_notes(session: AsyncSession) -> list[dict]:
     """Return all pending (not done) notes across all ISO nodes.
 
     Each entry includes the node's slug, title and type so the caller
-    can group or link back to the source node.
+    can group or link back to the source node. Non-editors only see
+    notes attached to nodes inside their visible roots.
     """
     creator_alias = aliased(UserDB)
     stmt = (
@@ -374,6 +394,9 @@ async def get_pending_notes(session: AsyncSession) -> list[dict]:
         .where(IsoDocNoteDB.done.is_(False))
         .order_by(IsoDocNodeDB.title.asc(), IsoDocNoteDB.created_at.desc())
     )
+    visible_ids = await _get_visible_node_ids(session)
+    if visible_ids is not None:
+        stmt = stmt.where(IsoDocNoteDB.node_id.in_(visible_ids))
     rows = (await session.execute(stmt)).all()
     return [
         {
