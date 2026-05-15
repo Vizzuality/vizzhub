@@ -10,7 +10,7 @@ from pathlib import Path
 from uuid import UUID
 
 import structlog
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,7 +44,10 @@ CONTENT_TYPES = {
 
 
 def _get_jinja_env() -> Environment:
-    return Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=False)
+    return Environment(
+        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        autoescape=select_autoescape(["html"]),
+    )
 
 
 def _base_url(path: str) -> str:
