@@ -746,6 +746,8 @@ async def test_permission_denied_for_write_tool(
     db_session: AsyncSession,
     seeded_iso: dict,
 ) -> None:
+    from mcp.server.fastmcp.exceptions import ToolError
+
     no_perm_ctx = McpUserContext(
         user_id="no-perm-user",
         email="viewer@vizzuality.com",
@@ -754,11 +756,8 @@ async def test_permission_denied_for_write_tool(
     )
     async with override_session(db_session):
         async with override_mcp_user(no_perm_ctx):
-            result = await mcp.call_tool(
-                "iso_create_page",
-                {"parent_slug": "policies", "title": "Should Fail"},
-            )
-            data = json.loads(result[0][0].text)
-            assert "error" in data
-            assert "Permission denied" in data["error"]
-            assert "iso_docs:edit" in data["error"]
+            with pytest.raises(ToolError, match="requires iso_docs:edit"):
+                await mcp.call_tool(
+                    "iso_create_page",
+                    {"parent_slug": "policies", "title": "Should Fail"},
+                )

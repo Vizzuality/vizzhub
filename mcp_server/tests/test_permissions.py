@@ -5,6 +5,7 @@ import json
 import pytest
 import pytest_asyncio
 from jose import jwt as jose_jwt
+from mcp.server.fastmcp.exceptions import ToolError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcp_server.auth.permissions import mcp_requires
@@ -100,11 +101,8 @@ class TestMcpRequires:
             roles=["user"], permissions=["scorecard:view"],
         )
         async with override_mcp_user(user):
-            result = await my_tool()
-
-        parsed = json.loads(result)
-        assert "error" in parsed
-        assert "tracker:view" in parsed["error"]
+            with pytest.raises(ToolError, match="requires tracker:view"):
+                await my_tool()
 
     @pytest.mark.asyncio
     async def test_allows_with_permission(self) -> None:
@@ -151,9 +149,8 @@ class TestToolGating:
             user_id="u1", email="a@b.com", roles=[], permissions=[],
         )
         async with override_mcp_user(user):
-            result = await tracker_get_projects()
-        assert "Permission denied" in result
-        assert "tracker:view" in result
+            with pytest.raises(ToolError, match="requires tracker:view"):
+                await tracker_get_projects()
 
     @pytest.mark.asyncio
     async def test_scorecard_blocked_without_permission(self) -> None:
@@ -162,9 +159,8 @@ class TestToolGating:
             roles=[], permissions=["tracker:view"],
         )
         async with override_mcp_user(user):
-            result = await scorecard_get_project_scores()
-        assert "Permission denied" in result
-        assert "scorecard:view" in result
+            with pytest.raises(ToolError, match="requires scorecard:view"):
+                await scorecard_get_project_scores()
 
     @pytest.mark.asyncio
     async def test_capacity_uses_tracker_view(self) -> None:
@@ -173,8 +169,8 @@ class TestToolGating:
             roles=[], permissions=["scorecard:view"],
         )
         async with override_mcp_user(user):
-            result = await capacity_get_insights()
-        assert "Permission denied" in result
+            with pytest.raises(ToolError, match="Permission denied"):
+                await capacity_get_insights()
 
     @pytest.mark.asyncio
     async def test_iso_registries_returns_filtered_list_for_non_editor(

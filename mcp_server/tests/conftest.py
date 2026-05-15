@@ -62,3 +62,21 @@ async def use_test_db(db_session: AsyncSession):
     async with override_session(db_session):
         async with override_mcp_user(FULL_ACCESS):
             yield
+
+
+@pytest.fixture
+def restricted_user():
+    """A non-admin user with read-only permissions on a single module.
+
+    Use in gate-regression tests: any write tool called under this context
+    must raise ToolError. If a test passes with restricted_user, then someone
+    removed the @mcp_requires decorator (or its permission string drifted).
+    """
+    from mcp_server.data.base import McpUserContext
+
+    return McpUserContext(
+        user_id="restricted-uuid",
+        email="restricted@vizzuality.com",
+        roles=["user"],
+        permissions=["tracker:view"],
+    )
