@@ -6,7 +6,7 @@ export default function Admin(): JSX.Element {
   const canAdmin = usePermission(Action.ADMIN_USERS);
 
   if (isIndex) {
-    return <Navigate to={canAdmin ? 'global-scores' : 'tracker/periods'} replace />;
+    return <Navigate to={canAdmin ? 'scorecard-parameters' : 'tracker/periods'} replace />;
   }
 
   return <Outlet />;

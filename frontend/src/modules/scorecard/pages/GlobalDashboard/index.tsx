@@ -270,7 +270,7 @@ export default function GlobalDashboard(): JSX.Element {
         </Card>
       ) : (
         <>
-          {/* Score Overview */}
+          {/* Score Overview: equal-weighted + budget-weighted side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <GlobalScoreCard
               metrics={globalMetrics!}
@@ -278,7 +278,19 @@ export default function GlobalDashboard(): JSX.Element {
               history={history}
               visibleDimensions={visibleDimensions}
               onToggleDimension={handleToggleDimension}
+              weighting="equal"
             />
+            <GlobalScoreCard
+              metrics={globalMetrics!}
+              thresholds={thresholds}
+              history={history}
+              visibleDimensions={visibleDimensions}
+              onToggleDimension={handleToggleDimension}
+              weighting="budget"
+            />
+          </div>
+
+          <div className="mt-6">
             <DimensionBreakdownChart
               metrics={globalMetrics!}
               history={history}

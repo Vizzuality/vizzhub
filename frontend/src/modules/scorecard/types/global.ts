@@ -50,6 +50,23 @@ export interface GlobalScores {
   p_risk: ScoreValue;
 }
 
+// Audit #17: budget-weighted version of GlobalScores.
+// Each dimension is a weighted average of project scores using project.budget
+// (assumed already in EUR). Projects without budget are excluded; the
+// project_count tracks how many contributed.
+export interface BudgetWeightedScores {
+  project_count: number;
+  score: number | null;
+  p_time: number | null;
+  p_cost: number | null;
+  p_quality: number | null;
+  p_value: number | null;
+  p_satisfaction: number | null;
+  p_flow: number | null;
+  p_engineering: number | null;
+  p_risk: number | null;
+}
+
 export interface GlobalMetricsRecord {
   id: string;
   period_year: number;
@@ -57,6 +74,7 @@ export interface GlobalMetricsRecord {
   project_count: number;
   indicators: GlobalIndicators;
   scores: GlobalScores;
+  scores_by_budget: BudgetWeightedScores;
   created_at: string;
   updated_at: string;
 }

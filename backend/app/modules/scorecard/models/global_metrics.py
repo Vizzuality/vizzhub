@@ -128,6 +128,21 @@ class GlobalMetricsDB(Base):
     p_risk: Mapped[float | None] = mapped_column(Float, nullable=True)
     p_risk_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # === Budget-weighted scores (audit #17 weighting decision, 2026-05-15) ===
+    # Same 0-100 scale, weighted by project.budget. Projects without budget are
+    # excluded from this aggregate. budget_weighted_project_count tracks how
+    # many projects contributed.
+    budget_weighted_project_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_time_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_cost_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_quality_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_value_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_satisfaction_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_flow_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_engineering_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_risk_by_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     __table_args__ = (
         UniqueConstraint("period_year", "period_month", name="uq_global_metrics_period"),
     )
@@ -189,6 +204,27 @@ class GlobalScores(BaseModel):
     p_risk: ScoreValue = Field(default_factory=ScoreValue)
 
 
+class BudgetWeightedScores(BaseModel):
+    """Budget-weighted version of GlobalScores.
+
+    Same dimensions, but each score is a weighted average of project scores
+    using project.budget as the weight. Projects without a budget are
+    excluded; `project_count` reports how many contributed. Assumes
+    all budgets are already in the portfolio's base currency (EUR).
+    """
+
+    project_count: int = 0
+    score: float | None = None
+    p_time: float | None = None
+    p_cost: float | None = None
+    p_quality: float | None = None
+    p_value: float | None = None
+    p_satisfaction: float | None = None
+    p_flow: float | None = None
+    p_engineering: float | None = None
+    p_risk: float | None = None
+
+
 class GlobalMetricsRecord(BaseModel):
     """Response for a stored global metrics record."""
 
@@ -198,6 +234,9 @@ class GlobalMetricsRecord(BaseModel):
     project_count: int
     indicators: GlobalIndicators
     scores: GlobalScores
+    # Budget-weighted aggregate. Null fields when no budgeted projects
+    # contributed (legacy rows before audit #17 will have this empty).
+    scores_by_budget: BudgetWeightedScores = Field(default_factory=BudgetWeightedScores)
     created_at: datetime
     updated_at: datetime
 
@@ -233,6 +272,12 @@ class GlobalMetricsRecord(BaseModel):
                 count=getattr(db, f"{field}_count") or 0,
             )
 
+        by_budget_data: dict[str, float | int | None] = {
+            "project_count": getattr(db, "budget_weighted_project_count", None) or 0,
+        }
+        for field in score_fields:
+            by_budget_data[field] = getattr(db, f"{field}_by_budget", None)
+
         return cls(
             id=str(db.id),
             period_year=db.period_year,
@@ -240,6 +285,7 @@ class GlobalMetricsRecord(BaseModel):
             project_count=db.project_count,
             indicators=GlobalIndicators(**indicators_data),
             scores=GlobalScores(**scores_data),
+            scores_by_budget=BudgetWeightedScores(**by_budget_data),
             created_at=db.created_at,
             updated_at=db.updated_at,
         )

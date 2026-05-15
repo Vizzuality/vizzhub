@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import ScoringConfig, get_scoring_config
 from app.core.models.project import ProjectDB, ProjectStatus
 from app.modules.scorecard.models.global_metrics import (
+    BudgetWeightedScores,
     GlobalIndicators,
     GlobalMetricsDB,
     GlobalScores,
@@ -101,29 +102,33 @@ class GlobalMetricsService:
             GlobalMetricsDB record (created or updated)
         """
         result = await db.execute(
-            select(MetricsDB)
+            select(MetricsDB, ProjectDB.budget)
             .join(ProjectDB, ProjectDB.id == MetricsDB.project_id)
             .where(MetricsDB.period_year == year)
             .where(MetricsDB.period_month == month)
             .where(MetricsDB.snapshot_type == SnapshotType.CUMULATIVE.value)
             .where(ProjectDB.status.in_(ACTIVE_PORTFOLIO_STATUSES))
         )
-        metrics_list = list(result.scalars().all())
+        rows = list(result.all())
 
-        if not metrics_list:
+        if not rows:
             return await self._upsert_empty(db, year, month)
 
         all_indicators: list[IndicatorsCreate] = []
         all_scores: list[FinalScore] = []
+        # Parallel list to all_scores: budget or None per project. Used to
+        # compute the by-budget aggregate alongside the equal-weighted one.
+        budgets: list[float | None] = []
         strategic_impacts: list[float] = []
 
-        for metrics_db in metrics_list:
+        for metrics_db, budget in rows:
             metrics = MetricsCreate.from_db(metrics_db)
             indicators, scores = self.score_service.compute(
                 metrics, sev1_incident=metrics_db.sev1_incident
             )
             all_indicators.append(indicators)
             all_scores.append(scores)
+            budgets.append(float(budget) if budget is not None else None)
 
             if metrics_db.strategic_impact:
                 impact_value = STRATEGIC_IMPACT_VALUES.get(
@@ -134,9 +139,16 @@ class GlobalMetricsService:
 
         averaged_indicators = self._average_indicators(all_indicators, strategic_impacts)
         averaged_scores = self._average_scores(all_scores)
+        by_budget = self._average_scores_by_budget(all_scores, budgets)
 
         return await self._upsert(
-            db, year, month, len(metrics_list), averaged_indicators, averaged_scores
+            db,
+            year,
+            month,
+            len(rows),
+            averaged_indicators,
+            averaged_scores,
+            by_budget,
         )
 
     def _average_indicators(
@@ -189,6 +201,55 @@ class GlobalMetricsService:
 
         return GlobalScores(**result)
 
+    def _average_scores_by_budget(
+        self,
+        scores_list: list[FinalScore],
+        budgets: list[float | None],
+    ) -> BudgetWeightedScores:
+        """Compute budget-weighted average for each score dimension.
+
+        Excludes projects without a budget (budget is None or <= 0). The
+        excluded count is reported alongside the values so callers can show
+        an explanatory note.
+
+        Each dimension uses only the eligible projects that ALSO have a
+        non-null value for that dimension. The denominator is the sum of
+        those eligible budgets — so weights are correctly redistributed
+        among contributing projects.
+
+        Assumes all budgets are already in the portfolio's base currency
+        (EUR): conversion is the system's responsibility upstream.
+        """
+        eligible_pairs = [
+            (s, b) for s, b in zip(scores_list, budgets) if b is not None and b > 0
+        ]
+        eligible_count = len(eligible_pairs)
+
+        if not eligible_pairs:
+            return BudgetWeightedScores(project_count=0)
+
+        def _weighted(values: list[tuple[float, float]]) -> float | None:
+            total_weight = sum(w for _, w in values)
+            if total_weight <= 0:
+                return None
+            return sum(v * w for v, w in values) / total_weight
+
+        data: dict[str, float | None] = {"project_count": eligible_count}
+        for field in SCORE_FIELDS:
+            if field == "score":
+                pairs = [
+                    (float(s.score), b) for s, b in eligible_pairs if s.score is not None
+                ]
+            else:
+                pairs = [
+                    (float(getattr(s.dimensions, field)), b)
+                    for s, b in eligible_pairs
+                    if getattr(s.dimensions, field, None) is not None
+                ]
+            data[field] = _weighted(pairs)
+
+        return BudgetWeightedScores(**data)
+
     async def _upsert_empty(
         self,
         db: AsyncSession,
@@ -197,7 +258,13 @@ class GlobalMetricsService:
     ) -> GlobalMetricsDB:
         """Create or update with empty data (no projects with metrics)."""
         return await self._upsert(
-            db, year, month, 0, GlobalIndicators(), GlobalScores()
+            db,
+            year,
+            month,
+            0,
+            GlobalIndicators(),
+            GlobalScores(),
+            BudgetWeightedScores(project_count=0),
         )
 
     async def _upsert(
@@ -208,6 +275,7 @@ class GlobalMetricsService:
         project_count: int,
         indicators: GlobalIndicators,
         scores: GlobalScores,
+        by_budget: BudgetWeightedScores,
     ) -> GlobalMetricsDB:
         """Insert or update global metrics for a period."""
         result = await db.execute(
@@ -217,7 +285,7 @@ class GlobalMetricsService:
         )
         existing = result.scalar_one_or_none()
 
-        db_data = self._build_db_data(project_count, indicators, scores)
+        db_data = self._build_db_data(project_count, indicators, scores, by_budget)
 
         if existing:
             for key, value in db_data.items():
@@ -241,6 +309,7 @@ class GlobalMetricsService:
         project_count: int,
         indicators: GlobalIndicators,
         scores: GlobalScores,
+        by_budget: BudgetWeightedScores,
     ) -> dict:
         """Build dictionary of DB column values from indicators and scores."""
         data = {"project_count": project_count}
@@ -254,6 +323,10 @@ class GlobalMetricsService:
             score_value: ScoreValue = getattr(scores, field)
             data[field] = score_value.value
             data[f"{field}_count"] = score_value.count
+
+        data["budget_weighted_project_count"] = by_budget.project_count
+        for field in SCORE_FIELDS:
+            data[f"{field}_by_budget"] = getattr(by_budget, field)
 
         return data
 

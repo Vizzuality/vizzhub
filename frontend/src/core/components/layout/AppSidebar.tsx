@@ -316,20 +316,18 @@ export function AppSidebar(): JSX.Element {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/admin/global-scores')}
-                    tooltip="Global Scores"
-                  >
-                    <GuardedLink to="/admin/global-scores">
-                      <Globe />
-                      <span>Global Scores</span>
-                    </GuardedLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive('/scorecard/global')}
+                  tooltip="Global Scores"
+                >
+                  <GuardedLink to="/scorecard/global">
+                    <Globe />
+                    <span>Global Scores</span>
+                  </GuardedLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {isAdmin ? (
                 <CollapsibleMenuItem

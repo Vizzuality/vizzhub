@@ -280,6 +280,84 @@ class TestGlobalMetricsServiceAveraging:
         assert result.p_satisfaction.value == pytest.approx(75.0, rel=0.01)  # Only 1 value
         assert result.p_satisfaction.count == 1
 
+    def test_average_scores_by_budget(
+        self, global_metrics_service: GlobalMetricsService
+    ) -> None:
+        """Audit #17: weighted average uses project.budget as the weight.
+        Projects without budget are excluded."""
+        scores = [
+            FinalScore(
+                score=90.0,
+                dimensions=DimensionScores(p_time=90.0, p_cost=80.0),
+                weights_applied={},
+            ),
+            FinalScore(
+                score=60.0,
+                dimensions=DimensionScores(p_time=60.0, p_cost=40.0),
+                weights_applied={},
+            ),
+            FinalScore(  # excluded — no budget
+                score=10.0,
+                dimensions=DimensionScores(p_time=10.0, p_cost=5.0),
+                weights_applied={},
+            ),
+        ]
+        budgets = [800_000.0, 200_000.0, None]
+
+        result = global_metrics_service._average_scores_by_budget(scores, budgets)
+
+        assert result.project_count == 2
+        # 90 * 800k + 60 * 200k = 72M + 12M = 84M ; / 1M = 84
+        assert result.score == pytest.approx(84.0, rel=0.001)
+        assert result.p_time == pytest.approx(84.0, rel=0.001)
+        # 80 * 800k + 40 * 200k = 64M + 8M = 72M ; / 1M = 72
+        assert result.p_cost == pytest.approx(72.0, rel=0.001)
+
+    def test_average_scores_by_budget_all_without_budget(
+        self, global_metrics_service: GlobalMetricsService
+    ) -> None:
+        """Audit #17: when no project has a budget, return zero count and nulls."""
+        scores = [
+            FinalScore(
+                score=80.0,
+                dimensions=DimensionScores(p_time=70.0),
+                weights_applied={},
+            ),
+        ]
+        budgets: list[float | None] = [None]
+
+        result = global_metrics_service._average_scores_by_budget(scores, budgets)
+
+        assert result.project_count == 0
+        assert result.score is None
+        assert result.p_time is None
+
+    def test_average_scores_by_budget_excludes_dimension_when_none(
+        self, global_metrics_service: GlobalMetricsService
+    ) -> None:
+        """Audit #17: a dimension with None in the eligible project is still
+        excluded from the weighted average (weights redistributed among
+        projects that have a value)."""
+        scores = [
+            FinalScore(
+                score=90.0,
+                dimensions=DimensionScores(p_time=90.0, p_cost=None),
+                weights_applied={},
+            ),
+            FinalScore(
+                score=60.0,
+                dimensions=DimensionScores(p_time=60.0, p_cost=40.0),
+                weights_applied={},
+            ),
+        ]
+        budgets = [800_000.0, 200_000.0]
+
+        result = global_metrics_service._average_scores_by_budget(scores, budgets)
+
+        assert result.project_count == 2
+        # p_cost: only the 200k project contributes → 40.0
+        assert result.p_cost == pytest.approx(40.0, rel=0.001)
+
     def test_average_scores_empty_list(
         self, global_metrics_service: GlobalMetricsService
     ) -> None:

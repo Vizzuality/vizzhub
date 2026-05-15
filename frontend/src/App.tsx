@@ -81,7 +81,6 @@ function AdminTrackerRoutes(): JSX.Element {
 function AdminCoreRoutes(): JSX.Element {
   return (
     <>
-      <Route path="global-scores" element={<GlobalDashboard />} />
       <Route path="scorecard-parameters" element={<ConfigurationTab />} />
       <Route path="integrations" element={<IntegrationsTab />} />
       <Route path="notifications" element={<AdminNotificationsLayout />}>
@@ -111,6 +110,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/scorecard" element={<ScorecardProjects />} />
+          <Route path="/scorecard/global" element={<GlobalDashboard />} />
           <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route path="/admin" element={<Admin />}>
             {AdminCoreRoutes()}
@@ -153,6 +153,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/scorecard" element={<ScorecardProjects />} />
+          <Route path="/scorecard/global" element={<GlobalDashboard />} />
           <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route path="/tracker/my-report" element={<MyReport />} />
           <Route path="/tracker/my-report/:periodId" element={<MyReport />} />

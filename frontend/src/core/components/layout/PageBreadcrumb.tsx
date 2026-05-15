@@ -8,7 +8,6 @@ interface BreadcrumbSegment {
 }
 
 const ADMIN_LABELS: Record<string, string> = {
-  'global-scores': 'Global Scores',
   'scorecard-parameters': 'Scorecard Parameters',
   integrations: 'Integrations',
   jobs: 'Jobs',
@@ -28,6 +27,7 @@ interface RouteRule {
 }
 
 const ROUTE_RULES: RouteRule[] = [
+  { match: '/scorecard/global', crumbs: [{ label: 'Projects', to: '/scorecard' }, { label: 'Global Scores' }] },
   { match: '/scorecard', crumbs: [{ label: 'Projects' }] },
   { match: '/projects', crumbs: [{ label: 'Projects' }] },
   { match: '/tracker/how-to-report', crumbs: [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'How to Report' }] },
@@ -70,7 +70,7 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
   const { id } = useParams<{ id: string }>();
   const pathname = location.pathname;
 
-  const isProjectDetail = pathname.match(/^\/scorecard\/[^/]+$/);
+  const isProjectDetail = pathname.match(/^\/scorecard\/[^/]+$/) && pathname !== '/scorecard/global';
   const { data: project } = useProject(isProjectDetail && id ? id : '');
 
   if (isProjectDetail) {
