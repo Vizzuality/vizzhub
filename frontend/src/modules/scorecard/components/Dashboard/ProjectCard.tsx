@@ -1,11 +1,17 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Github, Calendar } from 'lucide-react';
+import { BarChart3, Github, Calendar, AlertTriangle } from 'lucide-react';
 import type { Project } from '@/core/types/project';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
 import { getScoreDotClass } from '@/utils/scoreColors';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/shared/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useScoreThresholds } from '@/modules/scorecard/hooks/useConfig';
 
@@ -13,6 +19,48 @@ interface ProjectCardProps {
   project: Project;
   viewMode?: 'list' | 'grid';
   score?: number | null;
+  latestPeriod?: string | null;
+}
+
+// Audit #17: a LIVE project whose last metrics capture is older than this
+// threshold gets a warning icon — it's invisible in the global aggregate.
+const STALE_METRICS_DAYS = 35;
+
+function isMetricsStale(
+  status: Project['status'],
+  latestPeriod: string | null | undefined,
+): boolean {
+  if (status !== 'live') return false;
+  if (!latestPeriod) return true;
+  const match = /^(\d{4})-(\d{2})$/.exec(latestPeriod);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const captureEnd = new Date(Date.UTC(year, month, 0));
+  const ageMs = Date.now() - captureEnd.getTime();
+  return ageMs > STALE_METRICS_DAYS * 24 * 60 * 60 * 1000;
+}
+
+function StaleMetricsIcon({ latestPeriod }: { latestPeriod: string | null | undefined }): JSX.Element {
+  const label = latestPeriod
+    ? `No fresh metrics since ${latestPeriod}. Re-capture from the project page.`
+    : 'No metrics captured yet. Re-capture from the project page.';
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className="shrink-0 text-aux-yellow"
+            onClick={(e) => e.preventDefault()}
+            aria-label={label}
+          >
+            <AlertTriangle className="w-4 h-4" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 function ScoreBadge({ score, thresholds }: { score: number | null | undefined; thresholds: { green: number; yellow: number } }): JSX.Element | null {
@@ -36,9 +84,10 @@ function ScoreBadge({ score, thresholds }: { score: number | null | undefined; t
   );
 }
 
-export default function ProjectCard({ project, viewMode = 'list', score }: ProjectCardProps): JSX.Element {
+export default function ProjectCard({ project, viewMode = 'list', score, latestPeriod }: ProjectCardProps): JSX.Element {
   const thresholds = useScoreThresholds();
   const hasDateRange = project.start_date || project.end_date;
+  const isStale = isMetricsStale(project.status, latestPeriod);
 
   if (viewMode === 'grid') {
     return (
@@ -46,7 +95,10 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
         <Card className="hover:shadow-lg transition-shadow h-full">
           <div className="p-5 space-y-3">
             <div className="flex items-start justify-between gap-2">
-              <CardTitle className="text-lg font-semibold line-clamp-2">{project.name}</CardTitle>
+              <div className="flex items-start gap-2 min-w-0 flex-1">
+                <CardTitle className="text-lg font-semibold line-clamp-2">{project.name}</CardTitle>
+                {isStale && <StaleMetricsIcon latestPeriod={latestPeriod} />}
+              </div>
               <Badge
                 variant={project.status === 'finished' ? 'default' : 'secondary'}
                 className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black shrink-0' : 'shrink-0'}
@@ -91,6 +143,7 @@ export default function ProjectCard({ project, viewMode = 'list', score }: Proje
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3">
             <CardTitle className="text-xl font-semibold">{project.name}</CardTitle>
+            {isStale && <StaleMetricsIcon latestPeriod={latestPeriod} />}
             <Badge
               variant={project.status === 'finished' ? 'default' : 'secondary'}
               className={project.status === 'finished' ? 'bg-score-green hover:bg-score-green/80 text-white dark:text-black' : ''}

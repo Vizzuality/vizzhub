@@ -67,6 +67,10 @@ class ScoreResponse(BaseModel):
 
     indicators: IndicatorsCreate
     scores: FinalScore
+    # Period of the metrics that produced these scores ("YYYY-MM").
+    # None on ad-hoc /calculate (no persisted metrics). Used by the
+    # frontend to flag stale projects on the scorecard index.
+    latest_period: str | None = None
 
 
 class BatchScoresRequest(BaseModel):
@@ -146,7 +150,11 @@ async def get_project_scores(
         metrics = MetricsCreate.from_db(metrics_db)
         score_service = ScoreComputationService(config)
         indicators, scores = score_service.compute(metrics, sev1_incident=metrics_db.sev1_incident)
-        return ScoreResponse(indicators=indicators, scores=scores)
+        return ScoreResponse(
+            indicators=indicators,
+            scores=scores,
+            latest_period=f"{metrics_db.period_year:04d}-{metrics_db.period_month:02d}",
+        )
 
     response = await _compute_latest_scores(db, project_id, snapshot_type, config)
     if response is None:
@@ -208,7 +216,11 @@ async def _compute_latest_scores(
 
     score_service = ScoreComputationService(config)
     indicators, scores = score_service.compute(metrics, sev1_incident=metrics_db.sev1_incident)
-    return ScoreResponse(indicators=indicators, scores=scores)
+    return ScoreResponse(
+        indicators=indicators,
+        scores=scores,
+        latest_period=f"{metrics_db.period_year:04d}-{metrics_db.period_month:02d}",
+    )
 
 
 @router.post("/batch")

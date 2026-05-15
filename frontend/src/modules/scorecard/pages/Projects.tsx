@@ -77,7 +77,7 @@ export default function Projects(): JSX.Element {
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;
 
-  const { scoresMap } = useProjectScoresMap(projects);
+  const { scoresMap, latestPeriodMap } = useProjectScoresMap(projects);
 
   const [localSearch, setLocalSearch] = useState(searchName);
 
@@ -175,6 +175,7 @@ export default function Projects(): JSX.Element {
               project={project}
               viewMode={viewMode}
               score={scoresMap[project.id]}
+              latestPeriod={latestPeriodMap[project.id]}
             />
           ))}
         </div>

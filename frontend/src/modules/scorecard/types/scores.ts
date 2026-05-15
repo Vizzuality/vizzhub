@@ -76,6 +76,7 @@ export interface Indicators {
 export interface ScoreResponse {
   indicators: Indicators;
   scores: FinalScore;
+  latest_period?: string | null;
 }
 
 export interface ScoringConfig {

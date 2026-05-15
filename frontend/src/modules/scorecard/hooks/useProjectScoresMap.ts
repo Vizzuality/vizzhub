@@ -5,6 +5,9 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { TIMING } from '@/shared/constants/timing';
 export interface UseProjectScoresMapReturn {
   scoresMap: Record<string, number | null>;
+  // Period of the latest captured metrics per project ("YYYY-MM").
+  // null when the project has no captured metrics yet.
+  latestPeriodMap: Record<string, string | null>;
   isLoading: boolean;
 }
 
@@ -31,8 +34,17 @@ export function useProjectScoresMap(
     return map;
   }, [projectIds, data]);
 
+  const latestPeriodMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    for (const id of projectIds) {
+      map[id] = data?.scores[id]?.latest_period ?? null;
+    }
+    return map;
+  }, [projectIds, data]);
+
   return {
     scoresMap,
+    latestPeriodMap,
     isLoading,
   };
 }

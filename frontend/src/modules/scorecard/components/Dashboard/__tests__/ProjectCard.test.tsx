@@ -348,4 +348,49 @@ describe('ProjectCard', () => {
       expect(screen.queryByText('View Details →')).toBeNull();
     });
   });
+
+  describe('Stale metrics warning (audit #17)', () => {
+    function currentPeriod(): string {
+      const now = new Date();
+      const y = now.getUTCFullYear();
+      const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+
+    function oldPeriod(): string {
+      // 6 months ago — well above the 35-day threshold
+      const now = new Date();
+      const ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 6, 1));
+      const y = ref.getUTCFullYear();
+      const m = String(ref.getUTCMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+
+    it('shows warning for LIVE project with no captured metrics', () => {
+      renderWithRouter(<ProjectCard project={mockProject} latestPeriod={null} />);
+      expect(screen.getByLabelText(/No metrics captured yet/i)).toBeDefined();
+    });
+
+    it('shows warning for LIVE project with old metrics', () => {
+      renderWithRouter(<ProjectCard project={mockProject} latestPeriod={oldPeriod()} />);
+      expect(screen.getByLabelText(/No fresh metrics since/i)).toBeDefined();
+    });
+
+    it('does NOT show warning for LIVE project with recent metrics', () => {
+      renderWithRouter(<ProjectCard project={mockProject} latestPeriod={currentPeriod()} />);
+      expect(screen.queryByLabelText(/No (fresh|metrics)/i)).toBeNull();
+    });
+
+    it('does NOT show warning for FINISHED project even with stale metrics', () => {
+      const finished: Project = { ...mockProject, status: 'finished' };
+      renderWithRouter(<ProjectCard project={finished} latestPeriod={oldPeriod()} />);
+      expect(screen.queryByLabelText(/No (fresh|metrics)/i)).toBeNull();
+    });
+
+    it('does NOT show warning for PROPOSAL project with no metrics', () => {
+      const proposal: Project = { ...mockProject, status: 'proposal' };
+      renderWithRouter(<ProjectCard project={proposal} latestPeriod={null} />);
+      expect(screen.queryByLabelText(/No (fresh|metrics)/i)).toBeNull();
+    });
+  });
 });
