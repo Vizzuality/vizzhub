@@ -83,6 +83,7 @@ export interface ProjectCostSummary {
   non_staff_cost: number;
   total_cost: number;
   burn_percentage: number | null;
+  currency?: string | null;
   periods: PeriodCostBreakdown[];
 }
 
@@ -105,6 +106,7 @@ export interface ProjectCostSummaryLite {
   non_staff_cost: number;
   burn_percentage: number | null;
   income: number;
+  currency?: string | null;
 }
 
 export interface BatchCostsResponse {

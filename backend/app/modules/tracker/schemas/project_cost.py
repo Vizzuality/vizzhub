@@ -23,6 +23,7 @@ class ProjectCostSummary(BaseModel):
     non_staff_cost: float
     total_cost: float
     burn_percentage: float | None
+    currency: str | None
     periods: list[PeriodCostBreakdown]
 
 
@@ -39,6 +40,7 @@ class ProjectCostSummaryLite(BaseModel):
     non_staff_cost: float
     burn_percentage: float | None
     income: float
+    currency: str | None
 
 
 class BatchCostsResponse(BaseModel):

@@ -39,6 +39,26 @@ def _valid_parts_filter(query):
     )
 
 
+def _compute_burn_percentage(total_cost: float, budget: float | None) -> float | None:
+    """Compute burn% using a single rounding policy across endpoints.
+
+    Round total_cost to 2dp BEFORE dividing so single and batch endpoints
+    agree to the cent. Returns None when budget is missing OR zero — the
+    "null when zero" rule is intentional, not a fallthrough on truthy.
+    """
+    if budget is None or budget == 0:
+        return None
+    return round(round(total_cost, 2) / budget * 100, 2)
+
+
+def _normalize_currency(currency: str | None) -> str | None:
+    """Surface project.currency on cost summaries; do not fabricate when missing."""
+    if currency is None:
+        return None
+    stripped = currency.strip()
+    return stripped or None
+
+
 async def get_project_cost_summary(
     db: AsyncSession,
     project_id: UUID,
@@ -46,6 +66,7 @@ async def get_project_cost_summary(
     """Aggregate staff and non-staff costs for a project across all periods."""
     project = await db.get(ProjectDB, project_id)
     budget = float(project.budget) if project and project.budget is not None else None
+    currency = _normalize_currency(project.currency) if project else None
 
     settings_result = await db.execute(
         select(TrackerProjectSettingsDB).where(
@@ -126,7 +147,7 @@ async def get_project_cost_summary(
     total_staff = sum(p.staff_cost for p in periods)
     total_non_staff = sum(p.non_staff_cost for p in periods)
     total_cost = total_staff + total_non_staff
-    burn_percentage = (total_cost / budget * 100) if budget else None
+    burn_percentage = _compute_burn_percentage(total_cost, budget)
 
     return ProjectCostSummary(
         project_id=project_id,
@@ -136,6 +157,7 @@ async def get_project_cost_summary(
         non_staff_cost=total_non_staff,
         total_cost=total_cost,
         burn_percentage=burn_percentage,
+        currency=currency,
         periods=periods,
     )
 
@@ -146,11 +168,15 @@ async def get_batch_cost_summaries(
 ) -> dict[UUID, ProjectCostSummaryLite]:
     """Batch cost summaries for multiple projects using 2 aggregate queries."""
     projects_result = await db.execute(
-        select(ProjectDB.id, ProjectDB.budget)
+        select(ProjectDB.id, ProjectDB.budget, ProjectDB.currency)
         .where(ProjectDB.id.in_(project_ids))
-        .where(ProjectDB.budget.isnot(None))
     )
-    budget_map = {row.id: float(row.budget) for row in projects_result.all()}
+    budget_map: dict[UUID, float] = {}
+    currency_map: dict[UUID, str | None] = {}
+    for row in projects_result.all():
+        if row.budget is not None:
+            budget_map[row.id] = float(row.budget)
+        currency_map[row.id] = _normalize_currency(row.currency)
 
     staff_query = _valid_parts_filter(
         select(
@@ -196,7 +222,7 @@ async def get_batch_cost_summaries(
         staff = staff_map.get(pid, 0.0)
         non_staff = non_staff_map.get(pid, 0.0)
         total = round(staff + non_staff, 2)
-        burn = round(total / budget * 100, 2) if budget else None
+        burn = _compute_burn_percentage(total, budget)
 
         results[pid] = ProjectCostSummaryLite(
             budget=budget,
@@ -205,6 +231,7 @@ async def get_batch_cost_summaries(
             non_staff_cost=round(non_staff, 2),
             burn_percentage=burn,
             income=round(income_map.get(pid, 0.0), 2),
+            currency=currency_map.get(pid),
         )
 
     return results

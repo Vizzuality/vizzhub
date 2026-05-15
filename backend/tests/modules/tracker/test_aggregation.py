@@ -140,7 +140,9 @@ class TestCostSummary:
         assert data["staff_cost"] == pytest.approx(3411.03, rel=1e-4)
         assert data["non_staff_cost"] == pytest.approx(500.0, rel=1e-4)
         assert data["total_cost"] == pytest.approx(3911.03, rel=1e-4)
-        assert data["burn_percentage"] == pytest.approx(7.82206, rel=1e-3)
+        # Single and batch now share a rounding policy: round(total_cost, 2)
+        # before divide, then round burn% to 2dp.
+        assert data["burn_percentage"] == 7.82
         assert len(data["periods"]) == 2
 
     @pytest.mark.asyncio
@@ -239,6 +241,106 @@ class TestCostSummary:
         assert data["burn_percentage"] is None
         assert data["periods"] == []
 
+    @pytest.mark.asyncio
+    async def test_cost_summary_budget_zero_returns_null_burn(
+        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+    ):
+        """budget == 0 returns null burn% (NOT ZeroDivisionError).
+
+        Pins the "null when zero" rule distinct from "null when None"
+        so the explicit `budget is None or budget == 0` guard can't be
+        accidentally collapsed back to `if budget`.
+        """
+        project = cost_data["project"]
+        project.budget = Decimal("0")
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/tracker/projects/{project.id}/cost-summary",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["budget"] == 0
+        # report parts exist (cost > 0) but budget=0 → null, not crash
+        assert data["total_cost"] > 0
+        assert data["burn_percentage"] is None
+
+    @pytest.mark.asyncio
+    async def test_cost_summary_overrun(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ):
+        """Uncapped overrun: cost > budget yields >100% (pin design choice)."""
+        rate = RateDB(code="OV", value=Decimal("15365"))
+        db_session.add(rate)
+        await db_session.flush()
+
+        user = UserDB(
+            email="overrun-user@example.com",
+            name="Overrun User",
+            rate_id=rate.id,
+            dedication=Decimal("1.0"),
+        )
+        db_session.add(user)
+        await db_session.flush()
+
+        period = ReportingPeriodDB(
+            date=dt.date(2026, 4, 1),
+            base_rate=Decimal("175"),
+            status="active",
+        )
+        db_session.add(period)
+        await db_session.flush()
+
+        project = ProjectDB(name="Overrun Project", status="live", budget=Decimal("1000"))
+        db_session.add(project)
+        await db_session.flush()
+
+        report = ReportDB(
+            user_id=user.id,
+            reporting_period_id=period.id,
+            estimated=False,
+        )
+        db_session.add(report)
+        await db_session.flush()
+
+        part = ReportPartDB(
+            report_id=report.id,
+            project_id=project.id,
+            percentage=Decimal("0.50"),
+            cost=Decimal("1500.00"),
+            days=Decimal("10.0"),
+        )
+        db_session.add(part)
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/tracker/projects/{project.id}/cost-summary",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_cost"] == pytest.approx(1500.0)
+        # 1500 / 1000 * 100 = 150.0 exactly. Uncapped.
+        assert data["burn_percentage"] == 150.0
+
+    @pytest.mark.asyncio
+    async def test_cost_summary_zero_cost_positive_budget(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ):
+        """Budget>0 with no report parts → burn% = 0.0, NOT null."""
+        project = ProjectDB(
+            name="No-Activity Project", status="live", budget=Decimal("50000")
+        )
+        db_session.add(project)
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/tracker/projects/{project.id}/cost-summary",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_cost"] == pytest.approx(0)
+        assert data["burn_percentage"] == 0.0
+
 
 class TestBatchCosts:
     @pytest.mark.asyncio
@@ -258,7 +360,7 @@ class TestBatchCosts:
         assert costs["non_staff_cost"] == pytest.approx(500.0, rel=1e-4)
         assert costs["total_cost"] == pytest.approx(3911.03, rel=1e-4)
         assert costs["budget"] == pytest.approx(50000)
-        assert costs["burn_percentage"] == pytest.approx(7.82, abs=0.01)
+        assert costs["burn_percentage"] == 7.82
 
     @pytest.mark.asyncio
     async def test_batch_empty_project(
@@ -289,6 +391,32 @@ class TestBatchCosts:
             json={"project_ids": []},
         )
         assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_batch_and_single_agree_on_burn_percentage(
+        self, client: AsyncClient, cost_data: dict,
+    ):
+        """Same project, both endpoints → identical burn_percentage to the cent.
+
+        Pins the shared rounding policy in `_compute_burn_percentage` so
+        single and batch can't drift apart again.
+        """
+        project_id = cost_data["project"].id
+
+        single_resp = await client.get(
+            f"/api/tracker/projects/{project_id}/cost-summary",
+        )
+        assert single_resp.status_code == 200
+        single_burn = single_resp.json()["burn_percentage"]
+
+        batch_resp = await client.post(
+            "/api/tracker/projects/batch-costs",
+            json={"project_ids": [str(project_id)]},
+        )
+        assert batch_resp.status_code == 200
+        batch_burn = batch_resp.json()["costs"][str(project_id)]["burn_percentage"]
+
+        assert single_burn == batch_burn
 
 
 class TestProjectReportParts:
