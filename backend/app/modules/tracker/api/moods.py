@@ -87,7 +87,10 @@ async def get_moods(
     reports_result = await db.execute(
         select(ReportDB, UserDB)
         .join(UserDB, ReportDB.user_id == UserDB.id)
-        .where(ReportDB.reporting_period_id.in_(period_ids))
+        .where(
+            ReportDB.reporting_period_id.in_(period_ids),
+            ReportDB.estimated.is_(False),
+        )
     )
     rows = reports_result.all()
 
@@ -146,7 +149,10 @@ async def _reports_by_month(
     reports_result = await db.execute(
         select(ReportDB, UserDB)
         .join(UserDB, ReportDB.user_id == UserDB.id)
-        .where(ReportDB.reporting_period_id.in_(list(period_to_month.keys())))
+        .where(
+            ReportDB.reporting_period_id.in_(list(period_to_month.keys())),
+            ReportDB.estimated.is_(False),
+        )
     )
     result: dict[tuple[int, int], list[tuple]] = defaultdict(list)
     for report, db_user in reports_result.all():
