@@ -1695,11 +1695,11 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 - **OK: 14** — #1 SPI, #2 CPI, #3 budget_variance(None), #8 Flow, #9 Quality, #11 Satisfaction, #12 Value, #13 Engineering, #15 disabled-governance toggle, #19 SV (not implemented; SPI covers), #22 percent_completed, #23 percent_planned, #29 estimated-flag exclusion, #32 prepopulate_parts (VHUB-124).
 - **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed]**.
 - **SUSPICIOUS, fixed:** ~~#4~~, ~~#5~~, ~~#6~~, ~~#7~~ (3/4 sub-issues; UTC business window deferred), ~~#10~~, ~~#14~~, ~~#16~~ (2/3 sub-issues; cache↔cron race deferred), ~~#17~~ (all 4 sub-issues addressed: status filter dropped → MetricsDB presence is the oracle, weighting exposed both equal+budget side-by-side, normalizers fixed via #14, stale projects flagged in `/scorecard` index).
-- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, ~~#25 base_rate=0 ZeroDivisionError~~ **[fixed `c4aaeac9` — currency sub-issue still under #24]**, #26 ECB rate=0 + no historical lookup, #27 invoice MAX(postponed_to) vs most-recent, ~~#28 postponement backdate~~ **[fixed `f084e0de`]**, #30 mood aggregation contaminated by estimated, ~~#31 period rotation idempotency~~ **[fixed `9921bcaf`]**, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
+- **SUSPICIOUS, still open:** #18 CV unimplemented + clamped variance, #20 EAC non-EVM, #21 ETC implicit, #24 burn precision divergence, ~~#25 base_rate=0 ZeroDivisionError~~ **[fixed `c4aaeac9` — currency sub-issue still under #24]**, #26 ECB rate=0 + no historical lookup, ~~#27 invoice MAX(postponed_to)~~ **[fixed `9e8661b9`]**, ~~#28 postponement backdate~~ **[fixed `f084e0de`]**, #30 mood aggregation contaminated by estimated, ~~#31 period rotation idempotency~~ **[fixed `9921bcaf`]**, #33 FA averages partial-reporter drag, #34 user-detail duplicate rows multi-FA, #35 capacity reportable-users 3 leak paths, #36 on-leave too narrow, #38 TS types lying re: Decimal-as-string, #39 chart default-page.
 
 **Module status:**
 - **Scorecard (8 SUSPICIOUS):** all addressed (some with deliberate partial scope; see entries for ACCEPT/TO DISCUSS markers).
-- **Tracker (11 SUSPICIOUS):** in progress. #28, #31, #25 closed 2026-05-16. Remaining quick win: #27. **Pre-deploy gate:** check prod `SELECT id, date, base_rate FROM reporting_periods WHERE base_rate <= 0` — if any rows exist, migration `071_period_base_rate_gt0` will fail.
+- **Tracker (11 SUSPICIOUS):** in progress. **All 4 quick wins closed 2026-05-16** (#28, #31, #25, #27). Remaining: #18, #20, #21, #24, #26, #30 (structural / currency family / mood). **Pre-deploy gate:** check prod `SELECT id, date, base_rate FROM reporting_periods WHERE base_rate <= 0` — if any rows exist, migration `071_period_base_rate_gt0` will fail.
 - **Capacity (4 SUSPICIOUS):** untouched. Needs product decision on partial-reporter semantics.
 - **Frontend (#38):** untouched. TS types lie about Decimal-as-string wire format.
 
@@ -1968,7 +1968,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
     - Log `exchange_rate_stale` warning if latest rate is >2 days old (alert ops separately).
   - Added: 2026-05-15 (calc-audit row #26)
 
-- **Invoice effective_status — MAX(postponed_to) vs most-recent + Python/SQL duplication** — `backend/app/modules/tracker/services/invoice_status.py:28-54` (SQL CASE) + sibling Python `_invoice_status_info` at `backend/app/modules/tracker/api/invoices.py:56-62`.
+- **Invoice effective_status — MAX(postponed_to) vs most-recent + Python/SQL duplication** — `backend/app/modules/tracker/services/invoice_status.py:28-54` (SQL CASE) + sibling Python `_invoice_status_info` at `backend/app/modules/tracker/api/invoices.py:56-62`. **[MAX-vs-most-recent FIXED 2026-05-16 — commit `9e8661b9`. Python/SQL deduplication deferred (semantic alignment kept; one source of truth would change blast radius).]**
   - Module: `tracker`
   - CASE structure (correct overall):
     - `status IN ('scheduled','pending_to_issue') AND pp.postponed_to > today` → `postponed`
