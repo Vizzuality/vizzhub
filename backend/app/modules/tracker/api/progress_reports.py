@@ -104,7 +104,7 @@ async def create_progress(
     )
     db.add(pr)
     try:
-        await db.commit()
+        await db.flush()
     except IntegrityError:
         await db.rollback()
         raise HTTPException(409, "Progress already exists for this project/period")
@@ -137,7 +137,7 @@ async def update_progress(
 
     pr.percentage = pct
     pr.delta = delta
-    await db.commit()
+    await db.flush()
     await db.refresh(pr)
     await refresh_scorecard_evm(db, project_id, score_cache=cache)
 
@@ -161,8 +161,11 @@ async def delete_progress(
     if not pr or pr.project_id != project_id:
         raise HTTPException(404, "Progress report not found")
     await db.delete(pr)
-    await db.commit()
+    await db.flush()
     await refresh_scorecard_evm(db, project_id, score_cache=cache)
+
+
+_MAX_BATCH_PROGRESS_PROJECTS = 50
 
 
 @router.post("/batch-progress")
@@ -172,7 +175,16 @@ async def batch_progress(
     user: TrackerManager,
 ) -> BatchProgressResponse:
     """Get latest progress for multiple projects."""
-    project_ids = [UUID(pid) for pid in body.get("project_ids", [])]
+    raw_ids = body.get("project_ids", [])
+    if len(raw_ids) > _MAX_BATCH_PROGRESS_PROJECTS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"project_ids exceeds maximum of {_MAX_BATCH_PROGRESS_PROJECTS} "
+                f"per request (got {len(raw_ids)})."
+            ),
+        )
+    project_ids = [UUID(pid) for pid in raw_ids]
     if not project_ids:
         return BatchProgressResponse(progress={})
 

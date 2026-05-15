@@ -61,7 +61,7 @@ async def create_period(
 ) -> ReportingPeriodResponse:
     period = await period_service.create_period(data, db)
     try:
-        await db.commit()
+        await db.flush()
     except IntegrityError:
         await db.rollback()
         month_name = data.date.strftime("%B %Y")
@@ -91,7 +91,7 @@ async def update_period(
     user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.update_period(period_id, data, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(period)
     return ReportingPeriodResponse.model_validate(period)
 
@@ -103,7 +103,7 @@ async def delete_period(
     user: TrackerManager,
 ) -> None:
     await period_service.delete_period(period_id, db)
-    await db.commit()
+    await db.flush()
 
 
 @router.post("/{period_id}/activate")
@@ -113,7 +113,7 @@ async def activate_period(
     user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.activate_period(period_id, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(period)
     return ReportingPeriodResponse.model_validate(period)
 
@@ -125,7 +125,7 @@ async def finish_period(
     user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.finish_period(period_id, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(period)
     return ReportingPeriodResponse.model_validate(period)
 
@@ -137,6 +137,6 @@ async def reactivate_period(
     user: TrackerManager,
 ) -> ReportingPeriodResponse:
     period = await period_service.activate_period(period_id, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(period)
     return ReportingPeriodResponse.model_validate(period)

@@ -33,7 +33,7 @@ export default function SnapshotManager({
   const [snapshotType, setSnapshotType] = useState('cumulative');
 
   const { exportProject, isExporting, error } = useExport();
-  const isAdmin = usePermission(Action.SCORECARD_MANAGE);
+  const canCapture = usePermission(Action.SCORECARD_CAPTURE);
 
   const handleExport = async (): Promise<void> => {
     await exportProject(
@@ -50,8 +50,8 @@ export default function SnapshotManager({
   const monthCount = (toYear - fromYear) * 12 + (toMonth - fromMonth) + 1;
 
   return (
-    <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-4`}>
-      {isAdmin && <HistoricalCaptureSection projectId={projectId} />}
+    <div className={`grid grid-cols-1 ${canCapture ? 'md:grid-cols-2' : ''} gap-4`}>
+      {canCapture && <HistoricalCaptureSection projectId={projectId} />}
 
       <Card>
         <CardHeader

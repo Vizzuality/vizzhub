@@ -29,12 +29,17 @@ async def get_or_404(
     return obj
 
 
-async def refresh_scorecard_evm(
+async def push_evm_to_scorecard(
     db: AsyncSession, project_id: UUID, score_cache=None,
 ) -> None:
-    """Refresh all EVM fields on scorecard metrics from tracker data."""
+    """Push tracker-derived EVM fields onto scorecard metrics."""
     try:
         from app.modules.scorecard.public import refresh_tracker_evm
         await refresh_tracker_evm(db, project_id, score_cache=score_cache)
     except Exception:
         logger.warning("scorecard_evm_refresh_failed", exc_info=True)
+
+
+# Backwards-compat alias — the helper used to read backwards (`refresh_scorecard_evm`).
+# Keep until callers migrate.
+refresh_scorecard_evm = push_evm_to_scorecard

@@ -71,10 +71,6 @@ export const registriesApi = {
     await api.delete(`/iso-docs/registries/${nodeId}/rows/${rowId}`);
   },
 
-  reorderRows: async (nodeId: string, rowIds: string[]): Promise<void> => {
-    await api.put(`/iso-docs/registries/${nodeId}/rows/reorder`, { row_ids: rowIds });
-  },
-
   exportRegistry: async (nodeId: string, format: 'xlsx' | 'csv', year?: number): Promise<Blob> => {
     const params: Record<string, string | number> = { format };
     if (year != null) params.year = year;

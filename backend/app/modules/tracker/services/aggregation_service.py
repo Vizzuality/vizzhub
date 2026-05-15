@@ -268,7 +268,7 @@ async def get_project_report_parts(
     ]
 
 
-ALLOWED_GROUP_BY = {"functional_area", "user", "functional_area_user"}
+from app.modules.tracker.constants import ALLOWED_GROUP_BY  # noqa: E402,F401
 
 
 async def _aggregate_fa_user(

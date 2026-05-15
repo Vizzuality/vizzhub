@@ -112,7 +112,13 @@ async def create_event(
     db.add(event)
     await db.commit()
     await db.refresh(event)
-    logger.info("event_created", event_id=str(event.id), name=event.name)
+    logger.info(
+        "event_created",
+        event_id=str(event.id),
+        name=event.name,
+        other_costs=str(event.other_costs) if event.other_costs is not None else None,
+        user_id=user.user_id,
+    )
     return _event_to_response(event, attendee_count=0)
 
 
@@ -134,7 +140,6 @@ async def update_event(
 
     await db.commit()
     await db.refresh(event)
-    logger.info("event_updated", event_id=str(event.id))
 
     count_result = await db.execute(
         select(func.count(EventAttendeeDB.id)).where(
@@ -142,6 +147,15 @@ async def update_event(
         )
     )
     attendee_count = count_result.scalar() or 0
+
+    logger.info(
+        "event_updated",
+        event_id=str(event.id),
+        fields=sorted(updates.keys()),
+        other_costs=str(event.other_costs) if event.other_costs is not None else None,
+        attendee_count=attendee_count,
+        user_id=user.user_id,
+    )
 
     return _event_to_response(event, attendee_count=attendee_count)
 
@@ -158,6 +172,15 @@ async def delete_event(
 ) -> None:
     event = await get_event_or_404(db, event_id)
 
+    other_costs = (
+        str(event.other_costs) if event.other_costs is not None else None
+    )
     await db.delete(event)
     await db.commit()
-    logger.info("event_deleted", event_id=str(event_id))
+    logger.info(
+        "event_deleted",
+        event_id=str(event_id),
+        name=event.name,
+        other_costs=other_costs,
+        user_id=user.user_id,
+    )

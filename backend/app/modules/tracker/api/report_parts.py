@@ -57,7 +57,7 @@ async def create_report_part(
     await db.flush()
 
     part = await apply_cost_and_days(part, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(part)
     await refresh_scorecard_evm(db, part.project_id, score_cache=cache)
     return await enrich_part(part, db)
@@ -88,7 +88,7 @@ async def update_report_part(
         setattr(part, field, value)
 
     part = await apply_cost_and_days(part, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(part)
     await refresh_scorecard_evm(db, part.project_id, score_cache=cache)
     return await enrich_part(part, db)
@@ -104,5 +104,5 @@ async def delete_report_part(
     part = await get_or_404(ReportPartDB, part_id, db, REPORT_PART_LABEL)
     project_id = part.project_id
     await db.delete(part)
-    await db.commit()
+    await db.flush()
     await refresh_scorecard_evm(db, project_id, score_cache=cache)

@@ -5,8 +5,13 @@ from __future__ import annotations
 from functools import lru_cache
 
 import boto3
+import structlog
 
 from app.config import get_settings
+
+logger = structlog.get_logger()
+
+_DEFAULT_REGION = "eu-west-3"
 
 
 def _region_from_url(url: str) -> str:
@@ -15,7 +20,13 @@ def _region_from_url(url: str) -> str:
             region = part.replace("s3-", "").replace("s3.", "")
             if region:
                 return region
-    return "eu-west-3"
+    logger.warning(
+        "s3_region_fallback",
+        url=url,
+        default_region=_DEFAULT_REGION,
+        hint="Set assets_bucket_url to an S3-style URL or set AWS_REGION explicitly.",
+    )
+    return _DEFAULT_REGION
 
 
 @lru_cache

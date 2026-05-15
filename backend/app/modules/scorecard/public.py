@@ -7,13 +7,37 @@ import structlog
 from datetime import date
 from uuid import UUID
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.scorecard.api.schemas.job import (
+    CaptureHistoryRequest,
+    JobDetailResponse,
+    JobResponse,
+    JobSummaryResponse,
+)
+from app.modules.scorecard.api.schemas.project import (
+    PaginatedProjectsResponse,
+    ProjectSummary,
+)
 from app.modules.scorecard.models.metrics import SnapshotType
+from app.modules.scorecard.models.metrics.db import MetricsDB
 from app.modules.scorecard.models.metrics.embedded import Milestone
 from app.modules.scorecard.services.metrics_service import MetricsService
 
-__all__ = ["MetricsService", "Milestone", "SnapshotType", "refresh_tracker_evm"]
+__all__ = [
+    "CaptureHistoryRequest",
+    "JobDetailResponse",
+    "JobResponse",
+    "JobSummaryResponse",
+    "MetricsService",
+    "Milestone",
+    "PaginatedProjectsResponse",
+    "ProjectSummary",
+    "SnapshotType",
+    "delete_project_metrics",
+    "refresh_tracker_evm",
+]
 
 logger = structlog.get_logger()
 
@@ -77,3 +101,12 @@ async def refresh_tracker_evm(
         await db.flush()
         if score_cache:
             await score_cache.invalidate(str(project_id))
+
+
+async def delete_project_metrics(db: AsyncSession, project_id: UUID) -> None:
+    """Delete every metrics row for a project.
+
+    Used by core when removing a project; keeps scorecard internals (MetricsDB)
+    out of cross-module call sites.
+    """
+    await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))

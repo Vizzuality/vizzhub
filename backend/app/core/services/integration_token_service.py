@@ -1,17 +1,27 @@
-"""Shared service for reading/writing integration tokens and settings."""
+"""Shared service for reading/writing integration tokens and settings.
+
+Transaction policy
+------------------
+Write methods flush only — they rely on the caller to commit. When called
+from an HTTP handler the ``get_db`` autocommit boundary covers it; worker
+contexts must call ``session.commit()`` themselves after the write.
+"""
 
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import decrypt_token, encrypt_token
 
 
 class IntegrationTokenService:
-    """Central abstraction for integration token and setting operations."""
+    """Central abstraction for integration token and setting operations.
+
+    Write methods flush only; callers commit (see module docstring).
+    """
 
     @staticmethod
     async def get_token(db: AsyncSession, provider: str) -> str | None:

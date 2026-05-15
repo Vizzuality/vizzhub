@@ -9,10 +9,11 @@ from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy import delete as sa_delete, select
 
 from app.config import get_settings
-from app.core.api.deps import AdminUser, CurrentUser, DBSession
+from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_or_404
 from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.role import RoleDB, UserRoleDB
 from app.core.models.user import User, UserDB, UserPublic, UserUpdate
+from app.core.permissions.dependencies import is_admin
 from app.core.permissions.resolver import get_user_roles, resolve_permissions
 from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token
@@ -124,7 +125,7 @@ async def sync_slack_all(
             )
             updated.append(user)
 
-    await db.commit()
+    await db.flush()
     logger.info("slack_sync_all_completed", synced=len(updated), total=len(users), admin=current_user.email)
     return [User.model_validate(u) for u in updated]
 
@@ -150,7 +151,7 @@ async def stop_impersonate(
             admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
         )
         token_permissions = payload.get("permissions", [])
-        if "*" not in token_permissions:
+        if not is_admin(token_permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Stored token is not an admin",
@@ -195,15 +196,7 @@ async def get_user(
     db: DBSession,
 ) -> User:
     """Get a single user by ID (admin only)."""
-    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=_USER_NOT_FOUND,
-        )
-
+    user = await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
     user_resp = User.model_validate(user)
     user_resp.roles = await get_user_roles(db, str(user_resp.id))
     return user_resp
@@ -238,10 +231,7 @@ async def assign_roles(
             detail=f"Unknown roles: {', '.join(sorted(missing))}",
         )
 
-    user_result = await db.execute(select(UserDB).where(UserDB.id == user_id))
-    user = user_result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=404, detail=_USER_NOT_FOUND)
+    await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
 
     await db.execute(
         sa_delete(UserRoleDB).where(UserRoleDB.user_id == user_id)
@@ -249,7 +239,13 @@ async def assign_roles(
     for role_name in body.roles:
         db.add(UserRoleDB(user_id=user_id, role_id=found_roles[role_name].id))
 
-    await db.commit()
+    await db.flush()
+    logger.info(
+        "user_roles_assigned",
+        user_id=str(user_id),
+        roles=sorted(body.roles),
+        admin=current_user.email,
+    )
 
     return UserRolesResponse(user_id=user_id, roles=sorted(body.roles))
 
@@ -261,14 +257,7 @@ async def sync_slack(
     db: DBSession,
 ) -> User:
     """Look up the user's Slack profile by email and store the Slack ID + display name."""
-    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=_USER_NOT_FOUND,
-        )
+    user = await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
 
     bot_token = await get_slack_bot_token(db)
     if not bot_token:
@@ -286,7 +275,7 @@ async def sync_slack(
 
     user.slack_user_id = slack_user["id"]
     user.slack_display_name = SlackService.extract_display_name(slack_user)
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
 
     logger.info("slack_sync_completed", email=user.email, display_name=user.slack_display_name)
@@ -301,14 +290,7 @@ async def update_user(
     db: DBSession,
 ) -> User:
     """Update a user (admin only). Role assignment uses PUT /{user_id}/roles."""
-    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=_USER_NOT_FOUND,
-        )
+    user = await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
 
     if update.active is False and str(user_id) == current_user.user_id:
         raise HTTPException(
@@ -323,8 +305,14 @@ async def update_user(
     if "active" in update_data:
         logger.info("user_active_changed", email=user.email, active=update.active, admin=current_user.email)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
+    logger.info(
+        "user_updated",
+        user_id=str(user_id),
+        fields=sorted(update_data.keys()),
+        admin=current_user.email,
+    )
 
     user_resp = User.model_validate(user)
     user_resp.roles = await get_user_roles(db, str(user_resp.id))
@@ -344,18 +332,10 @@ async def delete_user(
             detail="Cannot delete yourself",
         )
 
-    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=_USER_NOT_FOUND,
-        )
+    user = await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
 
     logger.info("user_deleted", email=user.email, admin=current_user.email)
     await db.delete(user)
-    await db.commit()
 
 
 @router.post("/{user_id}/impersonate")
@@ -372,14 +352,7 @@ async def impersonate_user(
             detail="Cannot impersonate yourself",
         )
 
-    result = await db.execute(select(UserDB).where(UserDB.id == user_id))
-    target = result.scalar_one_or_none()
-
-    if target is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=_USER_NOT_FOUND,
-        )
+    target = await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
 
     if not target.active:
         raise HTTPException(

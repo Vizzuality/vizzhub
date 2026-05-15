@@ -21,5 +21,5 @@ async def create_anonymous_feedback(
         text=data.text,
     )
     db.add(feedback)
-    await db.commit()
+    await db.flush()
     return {"status": "ok"}

@@ -228,6 +228,6 @@ async def update_scheduled_job_channel(
     await IntegrationTokenService.set_setting(
         db, "slack", channel_setting_key, body.channel_id
     )
-    await db.commit()
+    await db.flush()
 
     return {"channel_id": body.channel_id}

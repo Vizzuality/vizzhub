@@ -59,7 +59,7 @@ export default function Catalog(): JSX.Element {
     return () => clearTimeout(timer);
   }, [localSearch, state.search, setState]);
 
-  const [sortBy, sortDir] = state.sort.split(':');
+  const [sortBy = 'name', sortDir = 'asc'] = state.sort.split(':');
 
   const params = {
     ...(state.search && { search: state.search }),

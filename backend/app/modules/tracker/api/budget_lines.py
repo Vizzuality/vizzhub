@@ -90,5 +90,5 @@ async def bulk_replace_budget_lines(
             details=line.details,
         ))
 
-    await db.commit()
+    await db.flush()
     return await _list_budget_lines(db, project_id)

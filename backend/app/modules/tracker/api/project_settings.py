@@ -69,7 +69,7 @@ async def update_project_settings(
         )
         db.add(settings)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(settings)
 
     return ProjectSettingsResponse(

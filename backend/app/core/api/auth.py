@@ -55,7 +55,7 @@ async def _create_new_user(db, email: str, idinfo: dict, app_settings) -> UserDB
         db.add(UserRoleDB(user_id=user.id, role_id=admin_role_obj.id))
         logger.info("initial_admin_created", email=email)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
     return user
 
@@ -71,7 +71,7 @@ async def _update_existing_user(db, user: UserDB, idinfo: dict) -> None:
     user.first_name = idinfo.get("given_name") or user.first_name
     user.last_name = idinfo.get("family_name") or user.last_name
     user.picture = idinfo.get("picture") or user.picture
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
 
 

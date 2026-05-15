@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+import structlog
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,8 @@ from app.modules.tracker.schemas.reporting_period import (
     ReportingPeriodCreate,
     ReportingPeriodUpdate,
 )
+
+logger = structlog.get_logger()
 
 VALID_TRANSITIONS = {
     ReportingPeriodStatus.UNSTARTED: {ReportingPeriodStatus.ACTIVE},
@@ -97,11 +100,14 @@ async def get_active_period(db: AsyncSession) -> ReportingPeriodDB | None:
     return result.scalar_one_or_none()
 
 
-async def _deactivate_current_active(db: AsyncSession) -> None:
-    """Set any currently active period to finished."""
+async def _deactivate_current_active(
+    db: AsyncSession,
+) -> ReportingPeriodDB | None:
+    """Set any currently active period to finished. Returns the just-finished one."""
     active_period = await get_active_period(db)
     if active_period:
         active_period.status = ReportingPeriodStatus.FINISHED.value
+    return active_period
 
 
 async def _transition_period(
@@ -117,12 +123,23 @@ async def _transition_period(
             detail=f"Invalid transition: {current.value} → {target_status.value}",
         )
 
+    previous_active_id = None
     if target_status == ReportingPeriodStatus.ACTIVE:
-        await _deactivate_current_active(db)
+        previous = await _deactivate_current_active(db)
+        previous_active_id = str(previous.id) if previous else None
 
     period.status = target_status.value
     await db.flush()
     await db.refresh(period)
+
+    logger.info(
+        "reporting_period_transitioned",
+        period_id=str(period_id),
+        date=str(period.date),
+        from_status=current.value,
+        to_status=target_status.value,
+        previous_active_id=previous_active_id,
+    )
     return period
 
 

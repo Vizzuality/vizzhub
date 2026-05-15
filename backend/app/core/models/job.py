@@ -96,4 +96,5 @@ class Job(Base):
         Index("ix_jobs_status", "status"),
         Index("ix_jobs_project_id", "project_id"),
         Index("ix_jobs_created_at", "created_at"),
+        Index("ix_jobs_status_created", "status", "created_at"),
     )

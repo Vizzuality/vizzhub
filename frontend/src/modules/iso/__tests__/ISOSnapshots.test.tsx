@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import { AuthContext } from '@/core/contexts/AuthContext';
+import type { AuthContextType } from '@/core/types/auth';
 import ISOSnapshots from '../pages/ISOSnapshots';
 
 const mockGwSnapshot = {
@@ -59,7 +61,20 @@ function renderWithProviders(ui: React.ReactElement): ReturnType<typeof render> 
   const queryClient = createQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <AuthContext.Provider
+        value={{
+          user: null,
+          isAuthenticated: true,
+          isLoading: false,
+          permissions: ['*'],
+          roles: ['admin'],
+          login: vi.fn(),
+          logout: vi.fn(),
+          refresh: vi.fn(),
+        } as unknown as AuthContextType}
+      >
+        <MemoryRouter>{ui}</MemoryRouter>
+      </AuthContext.Provider>
     </QueryClientProvider>,
   );
 }

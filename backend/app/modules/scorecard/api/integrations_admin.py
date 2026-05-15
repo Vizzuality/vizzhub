@@ -82,7 +82,7 @@ async def save_github_token(
         token_type="pat",
         expires_in_days=GITHUB_PAT_EXPIRY_DAYS,
     )
-    await db.commit()
+    await db.flush()
 
     return ProviderStatus(
         connected=True,
@@ -107,7 +107,7 @@ async def delete_github_token(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="GitHub token not found",
         )
-    await db.commit()
+    await db.flush()
     return {"status": "disconnected"}
 
 
@@ -127,7 +127,7 @@ async def save_slack_token(
         token_type="bot",
         expires_in_days=None,
     )
-    await db.commit()
+    await db.flush()
 
     return ProviderStatus(
         connected=True,
@@ -152,7 +152,7 @@ async def delete_slack_token(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Slack token not found",
         )
-    await db.commit()
+    await db.flush()
     return {"status": "disconnected"}
 
 
@@ -169,7 +169,7 @@ async def update_slack_settings(
         await IntegrationTokenService.set_setting(
             db, "slack", "leadership_channel_id", body.leadership_channel_id
         )
-    await db.commit()
+    await db.flush()
 
     leadership_channel_id = await IntegrationTokenService.get_setting(
         db, "slack", "leadership_channel_id"

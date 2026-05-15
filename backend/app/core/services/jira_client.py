@@ -91,8 +91,15 @@ class JiraClient:
         try:
             client = await self._get_client()
             response = await client.get("/rest/api/3/serverInfo")
-            return response.status_code == 200
-        except Exception:
+            if response.status_code != 200:
+                logger.warning(
+                    "jira_test_connection_non_200",
+                    status_code=response.status_code,
+                )
+                return False
+            return True
+        except (httpx.HTTPError, ValueError):
+            logger.exception("jira_test_connection_failed")
             return False
 
     def validate_project_key(self, project_key: str) -> None:

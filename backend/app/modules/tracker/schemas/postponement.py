@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 class PostponeRequest(BaseModel):
     postponed_to: date
-    reason: str = Field(..., min_length=1)
+    reason: str = Field(..., min_length=1, max_length=500)
 
 
 class PostponementResponse(BaseModel):

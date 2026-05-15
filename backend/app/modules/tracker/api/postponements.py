@@ -147,12 +147,19 @@ async def postpone_invoice(
         created_by=user.user_id,
     )
     db.add(postponement)
-    await db.commit()
+    await db.flush()
     await db.refresh(postponement)
 
     project = await db.get(ProjectDB, project_id)
     project_name = project.name if project else "Unknown"
     await _notify_postponement(db, inv, project_name, body.postponed_to, body.reason)
+    logger.info(
+        "invoice_postponed",
+        invoice_id=str(invoice_id),
+        project_id=str(project_id),
+        user_id=user.user_id,
+        postponed_to=str(body.postponed_to),
+    )
 
     return PostponementResponse.model_validate(postponement)
 
@@ -214,6 +221,15 @@ async def delete_latest_postponement(
     if not inv or inv.project_id != project_id:
         raise HTTPException(status_code=404, detail=_INVOICE_NOT_FOUND)
 
+    if inv.status in ("paid", "voided"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot remove postponement: invoice is {inv.status} and "
+                "no longer eligible for postponement edits."
+            ),
+        )
+
     result = await db.execute(
         select(InvoicePostponementDB)
         .where(InvoicePostponementDB.invoice_id == invoice_id)
@@ -225,4 +241,9 @@ async def delete_latest_postponement(
         raise HTTPException(status_code=404, detail="No postponements to delete")
 
     await db.delete(latest)
-    await db.commit()
+    logger.info(
+        "invoice_postponement_deleted",
+        invoice_id=str(invoice_id),
+        project_id=str(project_id),
+        user_id=user.user_id,
+    )

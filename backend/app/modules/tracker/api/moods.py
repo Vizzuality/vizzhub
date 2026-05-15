@@ -214,7 +214,7 @@ async def delete_anonymous_feedback(
 ) -> None:
     feedback = await get_or_404(AnonymousFeedbackDB, feedback_id, db, "Feedback")
     await db.delete(feedback)
-    await db.commit()
+    await db.flush()
 
 
 @router.delete("/report/{report_id}/mood", status_code=204)
@@ -226,4 +226,4 @@ async def delete_report_mood(
     report = await get_or_404(ReportDB, report_id, db, "Report")
     report.mood = None
     report.feedback_text = None
-    await db.commit()
+    await db.flush()

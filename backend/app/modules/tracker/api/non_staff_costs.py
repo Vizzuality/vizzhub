@@ -57,7 +57,7 @@ async def create_non_staff_cost(
         details=data.details,
     )
     db.add(cost)
-    await db.commit()
+    await db.flush()
     await db.refresh(cost)
     return NonStaffCostResponse.model_validate(cost)
 
@@ -85,7 +85,7 @@ async def update_non_staff_cost(
     for field, value in update_data.items():
         setattr(cost, field, value)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(cost)
     return NonStaffCostResponse.model_validate(cost)
 
@@ -98,4 +98,4 @@ async def delete_non_staff_cost(
 ) -> None:
     cost = await get_or_404(NonStaffCostDB, cost_id, db, NON_STAFF_COST_LABEL)
     await db.delete(cost)
-    await db.commit()
+    await db.flush()

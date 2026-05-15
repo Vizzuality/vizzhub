@@ -40,6 +40,7 @@ export default function InvoiceDetail(): JSX.Element {
   const qc = useQueryClient();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: queryKeys.tracker.invoices.detail(invoiceId!),
@@ -60,12 +61,14 @@ export default function InvoiceDetail(): JSX.Element {
     enabled: !!invoice && invoice.postpone_count > 0,
   });
 
-  const handleDeletePostponement = async (): Promise<void> => {
+  const handleDeletePostponement = async (e: React.MouseEvent): Promise<void> => {
+    e.preventDefault();
     if (!invoice) return;
     setDeleting(true);
     try {
       await trackerApi.deleteLatestPostponement(invoice.project_id, invoiceId!);
       invalidate();
+      setDeleteDialogOpen(false);
     } finally {
       setDeleting(false);
     }
@@ -220,7 +223,7 @@ export default function InvoiceDetail(): JSX.Element {
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Postponement history
                 </span>
-                <AlertDialog>
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                   <AlertDialogTrigger asChild>
                     <button
                       className="text-muted-foreground hover:text-destructive transition-colors p-0.5 disabled:opacity-50"

@@ -40,6 +40,7 @@ interface ArchitectureCardProps {
   onSave: (data: Record<ChecklistKey, boolean>) => Promise<unknown>;
   isPending: boolean;
   historicalData?: HistoricalDataPoint[];
+  editable?: boolean;
 }
 
 const DEFAULT_FORM: Record<ChecklistKey, boolean> = {
@@ -56,6 +57,7 @@ export default function ArchitectureCard({
   onSave,
   isPending,
   historicalData,
+  editable = true,
 }: ArchitectureCardProps): JSX.Element {
   return (
     <EditableMetricCard<Record<ChecklistKey, boolean>>
@@ -69,6 +71,7 @@ export default function ArchitectureCard({
       data={data as Record<ChecklistKey, boolean> | null | undefined}
       onSave={onSave}
       isPending={isPending}
+      disabled={!editable}
       defaultFormState={DEFAULT_FORM}
       editButtonLabel={data ? 'Edit Checklist' : 'Add Checklist'}
       renderEditForm={(form, setForm) => {

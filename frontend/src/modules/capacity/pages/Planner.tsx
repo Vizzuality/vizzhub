@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
+import { usePermission, Action } from '@/core/permissions';
 import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import { useReportableUsers } from '@/modules/capacity/hooks/useReportableUsers';
 import { usePlannerData } from '@/modules/capacity/hooks/usePlannerData';
@@ -18,6 +19,7 @@ const defaultStartDate = defaultStart();
 const defaultEndDate = endFromStart(defaultStartDate);
 
 export default function Planner(): JSX.Element {
+  const canEditPlanner = usePermission(Action.CAPACITY_MANAGE);
   const { state, setState } = useUrlState({
     group: { defaultValue: 'project' },
     start: { defaultValue: defaultStartDate },
@@ -227,6 +229,7 @@ export default function Planner(): JSX.Element {
           onCommentChange={handleCommentChange}
           onAddRow={handleAddRow}
           addRowOptions={addRowOptions}
+          canEdit={canEditPlanner}
         />
       )}
     </div>

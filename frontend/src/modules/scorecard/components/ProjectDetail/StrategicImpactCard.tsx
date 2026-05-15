@@ -13,6 +13,7 @@ interface StrategicImpactCardProps {
   value: StrategicImpact | null | undefined;
   onSave: (value: StrategicImpact) => Promise<unknown>;
   isPending: boolean;
+  editable?: boolean;
 }
 
 function getScoreForValue(val: StrategicImpact): number {
@@ -32,6 +33,7 @@ export default function StrategicImpactCard({
   value,
   onSave,
   isPending,
+  editable = true,
 }: StrategicImpactCardProps): JSX.Element {
   return (
     <EditableMetricCard<StrategicImpact>
@@ -42,6 +44,7 @@ export default function StrategicImpactCard({
       data={value}
       onSave={onSave}
       isPending={isPending}
+      disabled={!editable}
       defaultFormState={'low' as StrategicImpact}
       editButtonLabel={value ? 'Edit Strategic Impact' : 'Set Strategic Impact'}
       renderEditForm={(form, setForm) => (

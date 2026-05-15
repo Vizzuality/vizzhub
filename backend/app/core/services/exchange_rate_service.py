@@ -28,7 +28,11 @@ CURRENCY_NAME_MAP: dict[str, str] = {
 
 
 def currency_to_code(currency: str) -> str:
-    """Map project currency string to ISO code. Passthrough if already a code."""
+    """Normalize a free-form currency string to its 3-letter ISO 4217 code.
+
+    Accepts legacy human labels (e.g. ``"dollar"``) via ``CURRENCY_NAME_MAP``
+    and otherwise upper-cases the input as a passthrough.
+    """
     return CURRENCY_NAME_MAP.get(currency.lower(), currency.upper())
 
 
@@ -98,6 +102,7 @@ async def convert_to_eur(db: AsyncSession, amount: Decimal, currency: str) -> De
 
     result = await get_latest_rate(db, code)
     if result is None:
+        logger.warning("exchange_rate_missing", currency=code, amount=str(amount))
         return None
 
     rate, _ = result

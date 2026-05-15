@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 class ReviewStatus(str, Enum):
     DRAFT = "draft"
-    COMPLETED = "completed"
     SIGNED = "signed"
 
 

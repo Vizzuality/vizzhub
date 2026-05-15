@@ -8,7 +8,6 @@ const STATUS_CONFIG: Record<
   { variant: 'default' | 'secondary' | 'outline'; label: string }
 > = {
   draft: { variant: 'secondary', label: 'Draft' },
-  completed: { variant: 'outline', label: 'Completed' },
   signed: { variant: 'default', label: 'Signed' },
 };
 

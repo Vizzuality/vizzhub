@@ -23,3 +23,27 @@ def user_display_name_expr(user_alias):
         user_alias.name,
         user_alias.email,
     )
+
+
+def format_user_display_name(
+    first_name: str | None,
+    last_name: str | None,
+    name: str | None = None,
+    email: str | None = None,
+) -> str:
+    """Python mirror of ``user_display_name_expr``.
+
+    Fallback chain: ``first_name last_name`` > ``first_name`` > ``last_name``
+    > ``name`` > email local-part > ``"Unknown"``.
+    """
+    if first_name and last_name:
+        return f"{first_name} {last_name}"
+    if first_name:
+        return first_name
+    if last_name:
+        return last_name
+    if name:
+        return name
+    if email:
+        return email.split("@")[0]
+    return "Unknown"

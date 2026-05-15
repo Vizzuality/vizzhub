@@ -75,6 +75,7 @@ interface PlannerGridProps {
     comment: string | null,
   ) => void;
   readonly addRowOptions: { id: string; name: string; extra?: string }[];
+  readonly canEdit?: boolean;
 }
 
 function ordinalSuffix(day: number): string {
@@ -314,6 +315,7 @@ export function PlannerGrid({
   onCommentChange,
   onAddRow,
   addRowOptions,
+  canEdit = false,
 }: PlannerGridProps): JSX.Element {
   const { user: authUser } = useAuth();
   const { theme } = useTheme();
@@ -336,6 +338,14 @@ export function PlannerGrid({
   const [showBatchInput, setShowBatchInput] = useState(false);
   const batchInputRef = useRef<HTMLInputElement>(null);
   const copiedValueRef = useRef<number | null>(null);
+
+  // When the user lacks write permission, every mutation entry-point becomes
+  // a no-op. We still pass handlers down so cell rendering / hover behaviour
+  // stays consistent, but the actual table state never changes.
+  const gatedCellChange = canEdit ? onCellChange : (() => undefined);
+  const gatedDeleteRow = canEdit ? onDeleteRow : (() => undefined);
+  const gatedCommentChange = canEdit ? onCommentChange : undefined;
+  const gatedAddRow = canEdit ? onAddRow : (() => undefined);
 
   const filteredGroups = useMemo(() => {
     if (fa === 'all') return groups;
@@ -445,13 +455,13 @@ export function PlannerGrid({
     (value: number | null): void => {
       for (const key of selection.selected) {
         const [projectId, userId, week] = key.split(':');
-        onCellChange(projectId, userId, week, value);
+        gatedCellChange(projectId, userId, week, value);
       }
       selection.clearSelection();
       setShowBatchInput(false);
       setBatchDraft('');
     },
-    [selection, onCellChange],
+    [selection, gatedCellChange],
   );
 
   // Lookup cell value by key
@@ -589,7 +599,7 @@ export function PlannerGrid({
         header: groupBy === 'project' ? 'Name' : 'Project',
         size: 200,
         cell: NameCell,
-        meta: { groupBy, warningSet, onDeleteRow } satisfies NameColumnMeta,
+        meta: { groupBy, warningSet, onDeleteRow: gatedDeleteRow } satisfies NameColumnMeta,
       },
     ];
 
@@ -608,7 +618,7 @@ export function PlannerGrid({
     }));
 
     return [...fixed, ...weekCols];
-  }, [weeks, groupBy, onDeleteRow, warningSet, weeksWithComments, expandedWeek, toggleWeek]);
+  }, [weeks, groupBy, gatedDeleteRow, warningSet, weeksWithComments, expandedWeek, toggleWeek]);
 
   const table = useReactTable({
     data: flatRows,
@@ -756,7 +766,7 @@ export function PlannerGrid({
                     <PlannerAddRow
                       options={addRowOptions}
                       existingIds={existingIdsByGroup.get(row.original.groupId) ?? new Set()}
-                      onSelect={(id) => onAddRow(row.original.groupId, id)}
+                      onSelect={(id) => gatedAddRow(row.original.groupId, id)}
                       label={groupBy === 'project' ? 'Add person' : 'Add project'}
                     />
                   </td>
@@ -818,10 +828,10 @@ export function PlannerGrid({
                           canComment
                           comment={orig.comments?.[coord.week]}
                           onCommentChange={(text) =>
-                            onCommentChange?.(coord.projectId, coord.userId, coord.week, text)
+                            gatedCommentChange?.(coord.projectId, coord.userId, coord.week, text)
                           }
                           onChange={(v) =>
-                            onCellChange(
+                            gatedCellChange(
                               coord.projectId,
                               coord.userId,
                               coord.week,

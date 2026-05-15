@@ -93,6 +93,74 @@ function buildReorderItems(
   }));
 }
 
+const MAX_TREE_DEPTH = 10;
+
+function getNodeDepth(tree: TreeNode[], nodeId: string, depth = 1): number | null {
+  for (const node of tree) {
+    if (node.id === nodeId) return depth;
+    if (node.children.length > 0) {
+      const found = getNodeDepth(node.children, nodeId, depth + 1);
+      if (found !== null) return found;
+    }
+  }
+  return null;
+}
+
+function getSubtreeDepth(node: TreeNode): number {
+  if (node.children.length === 0) return 1;
+  return 1 + Math.max(...node.children.map(getSubtreeDepth));
+}
+
+function findNodeById(tree: TreeNode[], id: string): TreeNode | null {
+  for (const node of tree) {
+    if (node.id === id) return node;
+    const found = findNodeById(node.children, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function collectDescendantIds(node: TreeNode, out: Set<string>): void {
+  for (const child of node.children) {
+    out.add(child.id);
+    collectDescendantIds(child, out);
+  }
+}
+
+function validateReorder(
+  tree: TreeNode[],
+  dragIds: string[],
+  parentId: string | null,
+): { ok: true } | { ok: false; reason: string } {
+  if (parentId !== null && dragIds.includes(parentId)) {
+    return { ok: false, reason: 'Cannot move a node into itself.' };
+  }
+
+  for (const dragId of dragIds) {
+    const dragNode = findNodeById(tree, dragId);
+    if (!dragNode) continue;
+
+    if (parentId !== null) {
+      const descendants = new Set<string>();
+      collectDescendantIds(dragNode, descendants);
+      if (descendants.has(parentId)) {
+        return { ok: false, reason: 'Cannot move a node into one of its descendants.' };
+      }
+    }
+
+    const parentDepth = parentId === null ? 0 : (getNodeDepth(tree, parentId) ?? 0);
+    const subtreeDepth = getSubtreeDepth(dragNode);
+    if (parentDepth + subtreeDepth > MAX_TREE_DEPTH) {
+      return {
+        ok: false,
+        reason: `Move would exceed the maximum tree depth of ${MAX_TREE_DEPTH}.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 function GroupChildren({
   nodes,
   onSelect,
@@ -235,6 +303,11 @@ export default function Playbook(): JSX.Element {
 
   const handleMove = useCallback(
     ({ dragIds, parentId, index }: { dragIds: string[]; parentId: string | null; index: number }) => {
+      const check = validateReorder(tree, dragIds, parentId);
+      if (!check.ok) {
+        alert(check.reason);
+        return;
+      }
       const items = buildReorderItems(tree, dragIds, parentId, index);
       reorder.mutate(items);
     },
@@ -434,6 +507,7 @@ export default function Playbook(): JSX.Element {
     if (editing) {
       return (
         <PageEditor
+          key={selectedId ?? 'none'}
           initialContent={page?.content ?? ''}
           onSave={handleSave}
           onCancel={() => setEditing(false)}
@@ -457,7 +531,7 @@ export default function Playbook(): JSX.Element {
             <h1 className="text-2xl font-semibold">{selectedNode?.title}</h1>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && <PublishButton />}
+            {isEditor && <PublishButton />}
             {isPage && page?.is_public && (
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500" />

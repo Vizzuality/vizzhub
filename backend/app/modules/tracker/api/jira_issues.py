@@ -1,15 +1,16 @@
 """Jira issues endpoint for MyReport enrichment."""
 
-import structlog
 from calendar import monthrange
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+import httpx
+import structlog
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.core.api.deps import CurrentUser, DBSession
-from app.core.services.oauth_service import OAuthService
 from app.core.services.jira_client import JiraClient
+from app.core.services.oauth_service import OAuthService
 
 logger = structlog.get_logger()
 
@@ -87,8 +88,15 @@ async def get_jira_issues_for_period(
 
         return {"issues": issues, "site_url": site_url}
 
-    except Exception as e:
-        logger.warning("jira_issues_fetch_failed", error=str(e))
-        return {"issues": [], "error": "Jira connection failed"}
+    except (httpx.HTTPError, ValueError) as e:
+        logger.warning(
+            "jira_issues_fetch_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Jira unavailable: {type(e).__name__}",
+        )
     finally:
         await client.close()

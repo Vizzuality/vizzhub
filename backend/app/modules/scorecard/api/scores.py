@@ -254,8 +254,15 @@ async def get_batch_scores(
             results[pid] = resp
             if cache:
                 await cache.set(pid, resp.model_dump(), snapshot_type.value)
-        except Exception as e:
-            logger.warning("batch_score_computation_failed", project_id=pid, error=str(e))
+        except MetricsNotFoundError as e:
+            errors[pid] = e.detail
+        except (ValueError, KeyError) as e:
+            logger.warning(
+                "batch_score_computation_failed",
+                project_id=pid,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             errors[pid] = str(e)
 
     return BatchScoresResponse(scores=results, errors=errors)

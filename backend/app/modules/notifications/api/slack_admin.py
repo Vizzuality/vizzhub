@@ -73,7 +73,7 @@ async def update_alert_definition(
     if update.config_json is not None:
         alert.config_json = update.config_json
 
-    await db.commit()
+    await db.flush()
     await db.refresh(alert)
     return alert
 
@@ -212,7 +212,7 @@ async def update_message_template(
     if update.is_active is not None:
         template.is_active = update.is_active
 
-    await db.commit()
+    await db.flush()
     await db.refresh(template)
     return template
 
@@ -243,7 +243,7 @@ async def send_custom_notification(
             payload.slack_user_id,
             payload.message,
             unfurl_links=payload.unfurl_links,
-            unfurl_media=payload.unfurl_links,
+            unfurl_media=payload.unfurl_media,
         )
 
         if result.get("ok"):

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
 import {
   Card,
@@ -61,6 +62,7 @@ interface ReviewPanelProps {
 }
 
 export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
+  const canManage = usePermission(Action.ISO_MANAGE);
   const updateReview = useUpdateReview(review.id);
   const signReview = useSignReview(review.id);
   const unsignReview = useUnsignReview(review.id);
@@ -72,6 +74,13 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
   );
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [unsignDialogOpen, setUnsignDialogOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const extractError = (err: unknown, fallback: string): string => {
+    const detail = (err as { response?: { data?: { detail?: string } } })
+      ?.response?.data?.detail;
+    return typeof detail === 'string' ? detail : fallback;
+  };
 
   useEffect(() => {
     if (review?.notes !== undefined) {
@@ -119,8 +128,14 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
       signReview.mutate(
         { notes: notes || undefined, actions },
         {
-          onSuccess: () => setSignDialogOpen(false),
-          onError: () => setSignDialogOpen(false),
+          onSuccess: () => {
+            setSignDialogOpen(false);
+            setErrorMsg(null);
+          },
+          onError: (err: unknown) => {
+            setSignDialogOpen(false);
+            setErrorMsg(extractError(err, 'Failed to sign review. Please try again.'));
+          },
         },
       );
     },
@@ -131,8 +146,14 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
     (e: React.MouseEvent): void => {
       e.preventDefault();
       unsignReview.mutate(undefined, {
-        onSuccess: () => setUnsignDialogOpen(false),
-        onError: () => setUnsignDialogOpen(false),
+        onSuccess: () => {
+          setUnsignDialogOpen(false);
+          setErrorMsg(null);
+        },
+        onError: (err: unknown) => {
+          setUnsignDialogOpen(false);
+          setErrorMsg(extractError(err, 'Failed to unsign review. Please try again.'));
+        },
       });
     },
     [unsignReview],
@@ -144,6 +165,14 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
 
   return (
     <div className="space-y-6" data-testid="review-panel">
+      {errorMsg && (
+        <div
+          role="alert"
+          className="text-sm text-destructive bg-destructive/10 border border-destructive/30 px-3 py-2 rounded"
+        >
+          {errorMsg}
+        </div>
+      )}
       {/* Review Details card */}
       <Card>
         <CardHeader>
@@ -241,7 +270,8 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
         </div>
       )}
 
-      {/* Sign / Unsign section */}
+      {/* Sign / Unsign section — only managers see write affordances */}
+      {canManage && (
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
@@ -318,6 +348,7 @@ export default function ReviewPanel({ review }: ReviewPanelProps): JSX.Element {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

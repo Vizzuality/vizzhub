@@ -58,6 +58,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
     # Hold the PK as a plain int so the outer except can use it even after a
     # rollback expires the ORM instance.
     job_run_id = job_run.id
+    logger.info("job_started", job_name="monthly_scorecard_capture", job_run_id=str(job_run_id))
 
     try:
         today = date.today()

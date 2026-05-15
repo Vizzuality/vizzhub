@@ -1,4 +1,13 @@
-"""Service for managing async jobs."""
+"""Service for managing async jobs.
+
+Transaction policy
+------------------
+``JobService`` commits explicitly on every write. This is *intentional* —
+ARQ workers need each progress update to be visible to polling HTTP
+clients immediately, before the worker task finishes. Other services
+(``IntegrationTokenService``) flush only and rely on the request-boundary
+autocommit in ``get_db``.
+"""
 import uuid
 from datetime import datetime, timezone
 
@@ -9,7 +18,7 @@ from app.core.models.job import Job, JobStatus, JobType
 
 
 class JobService:
-    """Service for job CRUD operations."""
+    """Service for job CRUD operations (commits explicitly — see module docstring)."""
 
     @staticmethod
     async def create_job(

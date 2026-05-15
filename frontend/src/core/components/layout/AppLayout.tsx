@@ -39,7 +39,11 @@ export function AppLayout(): JSX.Element {
       await auth.stopImpersonating();
       window.location.reload();
     } catch (err) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? (err instanceof Error ? err.message : 'Failed to stop impersonating');
       console.error('Failed to stop impersonating:', err);
+      alert(detail);
     }
   };
 

@@ -48,14 +48,6 @@ export function useDeleteRegistryRow(nodeId: string) {
   });
 }
 
-export function useReorderRegistryRows(nodeId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (rowIds: string[]) => registriesApi.reorderRows(nodeId, rowIds),
-    onSuccess: () => invalidateRows(queryClient, nodeId),
-  });
-}
-
 export function useImportCsv(nodeId: string) {
   const queryClient = useQueryClient();
   return useMutation({

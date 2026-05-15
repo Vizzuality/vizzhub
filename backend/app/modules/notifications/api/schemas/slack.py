@@ -187,6 +187,7 @@ class CustomNotificationRequest(BaseModel):
     slack_user_id: str = Field(..., description="Slack user ID to DM")
     message: str = Field(..., min_length=1, description="Message text (Slack mrkdwn)")
     unfurl_links: bool = Field(True, description="Enable link previews")
+    unfurl_media: bool = Field(False, description="Enable media (image/video) previews")
 
 
 class CustomNotificationResponse(BaseModel):

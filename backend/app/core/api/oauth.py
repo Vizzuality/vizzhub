@@ -1,19 +1,18 @@
 """OAuth endpoints for external service authentication."""
 
-import structlog
 from typing import Annotated
 
+import httpx
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.config import get_settings
 from app.core.api.deps import DBSession, limiter
 from app.core.auth import TokenData
-from app.core.permissions import Action, require_permission
-
-IntegrationAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_INTEGRATIONS))]
-from app.config import get_settings
 from app.core.oauth_state import OAuthStateManager
+from app.core.permissions import Action, require_permission
 from app.core.security_logger import (
     log_oauth_state_validation_failed,
     log_oauth_token_issued,
@@ -22,6 +21,8 @@ from app.core.security_logger import (
 )
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.core.services.oauth_service import OAuthService
+
+IntegrationAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_INTEGRATIONS))]
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -91,11 +92,9 @@ async def jira_callback(
                 detail="Invalid or expired state token",
             )
 
-        # Exchange authorization code for token
         await OAuthService.exchange_jira_code_for_token(code, db)
-        await db.commit()
+        await db.flush()
 
-        # Log successful OAuth token issuance
         log_oauth_token_issued("jira", "system", client_ip)
 
         # Return minimal response (no sensitive data)
@@ -104,19 +103,16 @@ async def jira_callback(
             "message": "Jira authorization successful",
         }
 
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         logger.exception("oauth_callback_db_error")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authorization failed",
         )
-    except Exception as e:
+    except (httpx.HTTPError, ValueError) as e:
         logger.exception("oauth_callback_failed")
         log_suspicious_activity(f"OAuth callback error: {type(e).__name__}", client_ip)
 
-        # In development, show actual error for debugging
         settings = get_settings()
         detail = (
             f"Authorization failed: {str(e)}"
@@ -164,7 +160,7 @@ async def refresh_jira_token(
 
     try:
         token = await OAuthService.refresh_jira_token(db)
-        await db.commit()
+        await db.flush()
 
         if not token:
             raise HTTPException(
@@ -180,15 +176,13 @@ async def refresh_jira_token(
             "message": "Token refreshed successfully",
         }
 
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         logger.exception("token_refresh_db_error")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=TOKEN_REFRESH_FAILED,
         )
-    except Exception:
+    except (httpx.HTTPError, ValueError):
         logger.exception("token_refresh_failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

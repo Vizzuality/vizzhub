@@ -50,6 +50,7 @@ interface TestMaturityCardProps {
   onSave: (data: Partial<Record<TestTypeKey, number>>) => Promise<unknown>;
   isPending: boolean;
   historicalData?: HistoricalDataPoint[];
+  editable?: boolean;
 }
 
 function getLevelLabel(value: number | undefined): string {
@@ -67,6 +68,7 @@ export default function TestMaturityCard({
   onSave,
   isPending,
   historicalData,
+  editable = true,
 }: TestMaturityCardProps): JSX.Element {
   return (
     <EditableMetricCard<Partial<Record<TestTypeKey, number>>>
@@ -80,6 +82,7 @@ export default function TestMaturityCard({
       data={data as Partial<Record<TestTypeKey, number>> | null | undefined}
       onSave={onSave}
       isPending={isPending}
+      disabled={!editable}
       defaultFormState={{}}
       editButtonLabel={data ? 'Edit Assessment' : 'Add Assessment'}
       renderEditForm={(form, setForm) => (

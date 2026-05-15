@@ -1,7 +1,45 @@
 """Slack API service."""
 
-import httpx
+import asyncio
+import random
 from typing import Any
+
+import httpx
+import structlog
+
+logger = structlog.get_logger()
+
+_SLACK_RATE_LIMIT_MAX_RETRIES = 2
+_SLACK_RATE_LIMIT_MAX_WAIT = 30
+
+
+class SlackAPIError(RuntimeError):
+    """Raised when Slack returns ``ok=false`` or an HTTP failure."""
+
+    def __init__(self, slack_error: str, status_code: int | None = None):
+        super().__init__(f"Slack API error: {slack_error}")
+        self.slack_error = slack_error
+        self.status_code = status_code
+
+
+async def _post_with_rate_limit_retry(
+    client: httpx.AsyncClient, url: str, **kwargs
+) -> httpx.Response:
+    """POST to Slack, sleeping per `retry-after` on 429 (max 2 retries)."""
+    for attempt in range(_SLACK_RATE_LIMIT_MAX_RETRIES + 1):
+        response = await client.post(url, **kwargs)
+        if response.status_code != 429:
+            return response
+        retry_after = int(response.headers.get("retry-after", "1"))
+        wait = min(retry_after, _SLACK_RATE_LIMIT_MAX_WAIT) + random.uniform(0, 0.5)
+        logger.warning(
+            "slack_rate_limited",
+            url=url,
+            retry_after=retry_after,
+            attempt=attempt + 1,
+        )
+        await asyncio.sleep(wait)
+    return response  # last response (still 429)
 
 
 class SlackService:
@@ -29,20 +67,67 @@ class SlackService:
 
         Returns:
             Slack API response containing ok status and message timestamp.
+
+        Raises:
+            SlackAPIError: when Slack returns ``ok=false`` or a non-2xx HTTP.
+            httpx.HTTPError: transport failure.
         """
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{SlackService.BASE_URL}/chat.postMessage",
-                headers={"Authorization": f"Bearer {bot_token}"},
-                json={
-                    "channel": channel_id,
-                    "text": message,
-                    "mrkdwn": True,
-                    "unfurl_links": unfurl_links,
-                    "unfurl_media": unfurl_media,
-                },
-            )
-            return response.json()
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            try:
+                response = await _post_with_rate_limit_retry(
+                    client,
+                    f"{SlackService.BASE_URL}/chat.postMessage",
+                    headers={"Authorization": f"Bearer {bot_token}"},
+                    json={
+                        "channel": channel_id,
+                        "text": message,
+                        "mrkdwn": True,
+                        "unfurl_links": unfurl_links,
+                        "unfurl_media": unfurl_media,
+                    },
+                )
+            except httpx.HTTPError as exc:
+                logger.warning(
+                    "slack_send_failed",
+                    channel_id=channel_id,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+                return {"ok": False, "error": f"transport_error: {type(exc).__name__}"}
+
+            if response.status_code >= 400:
+                logger.warning(
+                    "slack_send_failed",
+                    channel_id=channel_id,
+                    status_code=response.status_code,
+                )
+                return {
+                    "ok": False,
+                    "error": f"http_{response.status_code}",
+                }
+            try:
+                data = response.json()
+            except ValueError:
+                logger.warning(
+                    "slack_send_failed",
+                    channel_id=channel_id,
+                    error="non_json_response",
+                )
+                return {"ok": False, "error": "non_json_response"}
+
+            if not data.get("ok"):
+                logger.warning(
+                    "slack_send_failed",
+                    channel_id=channel_id,
+                    slack_error=data.get("error", "unknown"),
+                )
+            else:
+                logger.info(
+                    "slack_send_succeeded",
+                    channel_id=channel_id,
+                    ts=data.get("ts"),
+                )
+            return data
 
     @staticmethod
     async def list_channels(bot_token: str) -> list[dict[str, Any]]:

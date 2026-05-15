@@ -6,19 +6,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.api.deps import DBSession, get_project_or_404
 from app.core.auth import TokenData
+from app.core.models.job import Job, JobStatus, JobType
 from app.core.permissions import Action, require_permission
-
-JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
-from app.modules.scorecard.api.schemas.job import (
+from app.core.services.job_service import JobService
+from app.modules.scorecard.public import (
     CaptureHistoryRequest,
     JobDetailResponse,
     JobResponse,
     JobSummaryResponse,
 )
-from app.core.models.job import Job, JobStatus, JobType
-from app.core.services.job_service import JobService
 from app.utils.constants import MONTH_NAMES
 from app.utils.redis import get_redis_pool
+
+JobAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_JOBS))]
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 

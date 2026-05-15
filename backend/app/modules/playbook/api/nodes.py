@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.playbook.api.deps import PlaybookEditor
@@ -96,6 +99,13 @@ async def create_node(
     db.add(node)
     await db.flush()
     await db.refresh(node)
+    logger.info(
+        "playbook_node_created",
+        node_id=str(node.id),
+        slug=node.slug,
+        type=node.type,
+        user_id=user.user_id,
+    )
     return NodeResponse.model_validate(node)
 
 
@@ -134,6 +144,12 @@ async def update_node(
     node.updated_by_id = UUID(user.user_id)
     await db.flush()
     await db.refresh(node)
+    logger.info(
+        "playbook_node_updated",
+        node_id=str(node_id),
+        fields=sorted(update.keys()),
+        user_id=user.user_id,
+    )
     return NodeResponse.model_validate(node)
 
 
@@ -151,10 +167,22 @@ async def delete_node(
     descendant_count = await _count_descendants(db, node_id)
     await db.delete(node)
     await db.flush()
+    logger.info(
+        "playbook_node_deleted",
+        node_id=str(node_id),
+        descendant_count=descendant_count,
+        user_id=user.user_id,
+    )
     return {"deleted_count": descendant_count + 1}
 
 
-@router.put("/nodes/reorder", responses={404: {"description": "Node not found"}})
+@router.put(
+    "/nodes/reorder",
+    responses={
+        400: {"description": "Reorder would create a cycle or exceed max depth"},
+        404: {"description": "Node not found"},
+    },
+)
 async def reorder_nodes(
     data: ReorderRequest, db: DBSession, user: PlaybookEditor
 ) -> dict:
@@ -170,7 +198,23 @@ async def reorder_nodes(
             raise HTTPException(
                 status_code=404, detail=f"Node {item.id} not found"
             )
+        if item.parent_id != node.parent_id:
+            if not await validate_not_circular(db, item.id, item.parent_id):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot move node {item.id} under its own descendant",
+                )
+            if not await validate_depth(db, item.parent_id):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Maximum tree depth exceeded (10 levels)",
+                )
         node.parent_id = item.parent_id
         node.position = item.position
     await db.flush()
+    logger.info(
+        "playbook_nodes_reordered",
+        count=len(data.items),
+        user_id=user.user_id,
+    )
     return {"ok": True}

@@ -1,6 +1,7 @@
 """Playbook publish API — trigger and monitor static-site generation."""
 
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -46,7 +47,7 @@ async def trigger_publish(
 
     log = PlaybookPublishLogDB(
         status=STATUS_RUNNING,
-        published_by_id=user.user_id,
+        published_by_id=UUID(user.user_id),
     )
     db.add(log)
     await db.commit()

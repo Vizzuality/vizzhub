@@ -1,9 +1,9 @@
 """API dependencies."""
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig, get_scoring_config
 from app.core.auth import TokenData, get_current_user
-from app.core.permissions import Action, require_permission
 from app.core.exceptions import ProjectNotFoundError
-from app.database import get_db
 from app.core.models.project import ProjectDB
+from app.core.permissions import Action, require_permission
+from app.database import get_db
 from app.modules.scorecard.services.score_cache import ScoreCacheService
 
 # Shared rate limiter instance
@@ -35,21 +35,26 @@ OptionalScoreCache = Annotated[ScoreCacheService | None, Depends(get_score_cache
 
 
 async def get_project_or_404(db: AsyncSession, project_id: UUID) -> ProjectDB:
-    """
-    Fetch a project by ID or raise 404 if not found.
-
-    Args:
-        db: Database session
-        project_id: Project UUID
-
-    Returns:
-        ProjectDB: The project if found
-
-    Raises:
-        ProjectNotFoundError: If project doesn't exist
-    """
+    """Fetch a project by ID or raise ``ProjectNotFoundError`` (→ 404)."""
     result = await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))
     project = result.scalar_one_or_none()
     if project is None:
         raise ProjectNotFoundError(str(project_id))
     return project
+
+
+async def get_or_404(
+    db: AsyncSession,
+    model: Any,
+    entity_id: Any,
+    detail: str = "Not found",
+) -> Any:
+    """Generic primary-key lookup that raises HTTP 404 on miss.
+
+    Use for simple read-then-or-fail flows; for project lookups prefer
+    ``get_project_or_404`` which surfaces a typed exception.
+    """
+    entity = await db.get(model, entity_id)
+    if entity is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    return entity

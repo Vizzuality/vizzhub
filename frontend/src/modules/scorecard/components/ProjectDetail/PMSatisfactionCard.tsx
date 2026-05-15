@@ -33,6 +33,7 @@ interface PMSatisfactionCardProps {
   onSave: (data: PMSatisfactionFormData) => Promise<unknown>;
   isPending: boolean;
   historicalData?: HistoricalDataPoint[];
+  editable?: boolean;
 }
 
 const DEFAULT_FORM: PMSatisfactionFormData = {
@@ -48,6 +49,7 @@ export default function PMSatisfactionCard({
   onSave,
   isPending,
   historicalData,
+  editable = true,
 }: PMSatisfactionCardProps): JSX.Element {
   return (
     <EditableMetricCard<PMSatisfactionFormData>
@@ -61,6 +63,7 @@ export default function PMSatisfactionCard({
       data={data as PMSatisfactionFormData | null | undefined}
       onSave={onSave}
       isPending={isPending}
+      disabled={!editable}
       defaultFormState={DEFAULT_FORM}
       editButtonLabel={data ? 'Edit Estimation' : 'Add Estimation'}
       renderEditForm={(form, setForm) => (

@@ -41,7 +41,7 @@ export interface AccessSnapshotSummary {
   data_version: string;
   summary: SnapshotSummary;
   created_at: string;
-  review_status: 'draft' | 'completed' | 'signed' | null;
+  review_status: 'draft' | 'signed' | null;
 }
 
 export interface AccessReview {
@@ -49,7 +49,7 @@ export interface AccessReview {
   snapshot_id: string;
   previous_snapshot_id: string | null;
   reviewer_id: string | null;
-  status: 'draft' | 'completed' | 'signed';
+  status: 'draft' | 'signed';
   scope: string;
   diff_summary: DiffSummary | null;
   notes: string | null;

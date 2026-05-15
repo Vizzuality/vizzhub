@@ -54,9 +54,31 @@ import NotFound from './core/pages/NotFound';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
-const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
+const BYPASS_AUTH =
+  import.meta.env.VITE_BYPASS_AUTH === 'true' && !import.meta.env.PROD;
 
-function AdminRoutes(): JSX.Element {
+if (BYPASS_AUTH) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[auth] VITE_BYPASS_AUTH is enabled — all routes render without permission gates. ' +
+      'This must never be true in a production build.',
+  );
+}
+
+function AdminTrackerRoutes(): JSX.Element {
+  return (
+    <Route path="tracker" element={<TrackerLayout />}>
+      <Route path="periods" element={<ReportingPeriods />} />
+      <Route path="periods/:periodId" element={<PeriodDetail />} />
+      <Route path="invoices" element={<AdminInvoices />} />
+      <Route path="invoices/:invoiceId" element={<InvoiceDetail />} />
+      <Route path="moods" element={<Moods />} />
+      <Route path="rates" element={<RatesContent />} />
+    </Route>
+  );
+}
+
+function AdminCoreRoutes(): JSX.Element {
   return (
     <>
       <Route path="global-scores" element={<GlobalDashboard />} />
@@ -68,14 +90,6 @@ function AdminRoutes(): JSX.Element {
         <Route path="config" element={<AlertConfigTab />} />
         <Route path="stats" element={<StatisticsTab />} />
         <Route path="custom" element={<CustomNotificationTab />} />
-      </Route>
-      <Route path="tracker" element={<TrackerLayout />}>
-        <Route path="periods" element={<ReportingPeriods />} />
-        <Route path="periods/:periodId" element={<PeriodDetail />} />
-        <Route path="invoices" element={<AdminInvoices />} />
-        <Route path="invoices/:invoiceId" element={<InvoiceDetail />} />
-        <Route path="moods" element={<Moods />} />
-        <Route path="rates" element={<RatesContent />} />
       </Route>
       <Route path="iso/notes" element={<IsoNotesAdmin />} />
       <Route path="assets" element={<AssetsContent />} />
@@ -99,7 +113,8 @@ function AppRoutes(): JSX.Element {
           <Route path="/scorecard" element={<ScorecardProjects />} />
           <Route path="/scorecard/:id" element={<ProjectDetail />} />
           <Route path="/admin" element={<Admin />}>
-            {AdminRoutes()}
+            {AdminCoreRoutes()}
+            {AdminTrackerRoutes()}
           </Route>
           <Route path="/iso" element={<ISO />}>
             <Route path="snapshots" element={<ISOSnapshots />} />
@@ -156,9 +171,18 @@ function AppRoutes(): JSX.Element {
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/devstack" element={<DevstackCatalog />} />
           <Route path="/devstack/:id" element={<EntryDetail />} />
-          <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
+          <Route
+            element={
+              <PermissionRoute
+                requireAny={[Action.ADMIN_USERS, Action.TRACKER_MANAGE_ALL_REPORTS]}
+              />
+            }
+          >
             <Route path="/admin" element={<Admin />}>
-              {AdminRoutes()}
+              <Route element={<PermissionRoute require={Action.ADMIN_USERS} />}>
+                {AdminCoreRoutes()}
+              </Route>
+              {AdminTrackerRoutes()}
             </Route>
           </Route>
           <Route path="/iso/docs" element={<IsoDocs />} />

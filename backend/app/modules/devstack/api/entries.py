@@ -159,7 +159,7 @@ async def create_entry(
     entry = DevstackEntryDB(**body.model_dump(), created_by_id=user.user_id)
     db.add(entry)
     await _resolve_github_sha(db, entry)
-    await db.commit()
+    await db.flush()
     await db.refresh(entry)
     logger.info("devstack_entry_created", entry_id=str(entry.id), name=entry.name)
     return EntryResponse.model_validate(entry)
@@ -183,7 +183,7 @@ async def update_entry(
     entry.updated_by_id = user.user_id
     await _resolve_github_sha(db, entry)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(entry)
     logger.info("devstack_entry_updated", entry_id=str(entry.id))
     return EntryResponse.model_validate(entry)
@@ -201,5 +201,5 @@ async def delete_entry(
 ) -> None:
     entry = await get_entry_or_404(db, entry_id)
     await db.delete(entry)
-    await db.commit()
+    await db.flush()
     logger.info("devstack_entry_deleted", entry_id=str(entry_id))

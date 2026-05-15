@@ -393,7 +393,7 @@ export default function EditableMetricCard<T>({
                 renderDisplay(data, indicatorValue, target)
               )}
             </div>
-            {!isEditing && (
+            {!isEditing && !disabled && (
               <Button variant="outline" size="sm" className="w-full" onClick={handleStartEdit}>
                 <Pencil className="w-4 h-4 mr-2" />
                 {buttonLabel}

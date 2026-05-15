@@ -79,6 +79,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
     db.add(job_run)
     await db.commit()
     await db.refresh(job_run)
+    logger.info("job_started", job_name="check_business_alerts", job_run_id=str(job_run.id))
 
     try:
         bot_token = await get_slack_bot_token(db)
@@ -102,10 +103,16 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
         projects = await _get_active_projects(db)
         logger.info("projects_found", count=len(projects))
 
+        # Snapshot every project's id + name up front. Any rollback inside
+        # the loop expires the whole identity map; ORM attribute access from
+        # a later iteration (or the except branch) would then need async IO
+        # from a sync site and raise MissingGreenlet.
+        project_snapshots = [(p, p.id, p.name) for p in projects]
+
         projects_checked = 0
         alerts_sent = 0
 
-        for project in projects:
+        for project, project_id, project_name in project_snapshots:
             try:
                 sent = await _process_project(
                     db,
@@ -117,8 +124,9 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
                 projects_checked += 1
                 alerts_sent += sent
 
-            except Exception as e:
-                logger.error("project_processing_failed", project=project.name, error=str(e))
+            except Exception:
+                await db.rollback()
+                logger.exception("project_processing_failed", project=project_name)
                 projects_checked += 1
                 continue
 

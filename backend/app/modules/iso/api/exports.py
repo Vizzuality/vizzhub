@@ -144,6 +144,12 @@ async def export_snapshot_range(
     result = await db.execute(query)
     snapshots = list(result.scalars().all())
 
+    if not snapshots:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No snapshots in range {start} → {end}",
+        )
+
     export_data = await _build_export_data(db, snapshots)
 
     service = IsoExportService()

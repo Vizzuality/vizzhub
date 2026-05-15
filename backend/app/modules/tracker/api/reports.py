@@ -4,6 +4,7 @@ import math
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -33,6 +34,7 @@ from app.modules.tracker.schemas.report import (
 OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 async def _prepopulate_parts(report: ReportDB, db: AsyncSession) -> None:
@@ -128,8 +130,15 @@ async def create_report(
         )
 
     await _prepopulate_parts(report, db)
-    await db.commit()
+    await db.flush()
     await db.refresh(report)
+    logger.info(
+        "report_created",
+        report_id=str(report.id),
+        reporting_period_id=str(data.reporting_period_id),
+        user_id=user.user_id,
+        estimated=data.estimated,
+    )
     return await enrich_report(report, db)
 
 
@@ -186,8 +195,21 @@ async def update_report(
 
     for field, value in update_data.items():
         setattr(report, field, value)
-    await db.commit()
+    await db.flush()
     await db.refresh(report)
+
+    if is_confirming:
+        logger.info(
+            "report_confirmed",
+            report_id=str(report_id),
+            user_id=user.user_id,
+        )
+    elif update_data.get("estimated") is True:
+        logger.info(
+            "report_reopened",
+            report_id=str(report_id),
+            user_id=user.user_id,
+        )
     return await enrich_report(report, db)
 
 
@@ -199,4 +221,4 @@ async def delete_report(
 ) -> None:
     report = await get_or_404(ReportDB, report_id, db, "Report")
     await db.delete(report)
-    await db.commit()
+    logger.info("report_deleted", report_id=str(report_id), user_id=user.user_id)

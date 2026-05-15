@@ -62,8 +62,8 @@ function PartsTable({
   readonly parts: ProjectReportPart[];
   readonly summary: ProjectCostSummary;
 }): JSX.Element {
-  const staffTotal = parts.reduce((sum, p) => sum + (p.cost ?? 0), 0);
-  const nonStaffTotal = summary.non_staff_cost;
+  const staffTotal = parts.reduce((sum, p) => sum + Number(p.cost ?? 0), 0);
+  const nonStaffTotal = Number(summary.non_staff_cost ?? 0);
   const grandTotal = staffTotal + nonStaffTotal;
   const groups = useMemo(() => groupByPeriod(parts), [parts]);
 

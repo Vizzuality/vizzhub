@@ -32,14 +32,20 @@ export function ImpersonateDialog({
   const { data: users, isLoading } = useUsers();
   const auth = useAuth();
   const [search, setSearch] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSelect = async (userId: string): Promise<void> => {
+    setError(null);
     try {
       await auth.impersonate(userId);
       onOpenChange(false);
       setSearch('');
       window.location.reload();
     } catch (err) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? (err instanceof Error ? err.message : 'Impersonation failed');
+      setError(detail);
       console.error('Impersonation failed:', err);
     }
   };
@@ -60,6 +66,14 @@ export function ImpersonateDialog({
             Select a user to view the app as them.
           </DialogDescription>
         </DialogHeader>
+        {error && (
+          <div
+            role="alert"
+            className="mx-4 mb-2 text-sm text-destructive bg-destructive/10 border border-destructive/30 px-3 py-2 rounded"
+          >
+            {error}
+          </div>
+        )}
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search by name or email..."

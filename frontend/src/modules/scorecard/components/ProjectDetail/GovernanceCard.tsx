@@ -17,6 +17,7 @@ interface GovernanceCardProps {
   onSave: (value: number) => Promise<unknown>;
   isPending: boolean;
   historicalData?: HistoricalDataPoint[];
+  editable?: boolean;
 }
 
 export default function GovernanceCard({
@@ -25,6 +26,7 @@ export default function GovernanceCard({
   onSave,
   isPending,
   historicalData,
+  editable = true,
 }: GovernanceCardProps): JSX.Element {
   return (
     <EditableMetricCard<number>
@@ -36,6 +38,7 @@ export default function GovernanceCard({
       data={value}
       onSave={onSave}
       isPending={isPending}
+      disabled={!editable}
       defaultFormState={0}
       editButtonLabel={value !== undefined && value !== null ? 'Edit Exceptions' : 'Add Exceptions'}
       renderEditForm={(form, setForm) => (

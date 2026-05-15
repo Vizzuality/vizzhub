@@ -171,7 +171,7 @@ export default function NonStaffCostsCard({
   const [newAmount, setNewAmount] = useState('');
   const [newDetails, setNewDetails] = useState('');
 
-  const totalCost = (costs ?? []).reduce((s, c) => s + c.cost, 0);
+  const totalCost = (costs ?? []).reduce((s, c) => s + Number(c.cost ?? 0), 0);
 
   const handleAdd = (): void => {
     const amount = Number.parseFloat(newAmount);

@@ -5,13 +5,16 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import Depends
-from sqlalchemy import case, func, literal, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import DBSession
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
+
+logger = structlog.get_logger()
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 from app.modules.tracker.models.invoice import InvoiceDB
@@ -31,40 +34,10 @@ router = APIRouter()
 _INVOICE_NOT_FOUND = "Invoice not found"
 
 
-def _postponement_subquery():
-    """Latest postponed_to + count per invoice (shared with admin_invoices)."""
-    return (
-        select(
-            InvoicePostponementDB.invoice_id,
-            func.max(InvoicePostponementDB.postponed_to).label("postponed_to"),
-            func.count().label("postpone_count"),
-        )
-        .group_by(InvoicePostponementDB.invoice_id)
-        .subquery()
-    )
-
-
-def _effective_status_expr(today, pp_sub):
-    """SQL case expression for effective status with postponement support."""
-    return case(
-        (
-            InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
-            & pp_sub.c.postponed_to.isnot(None)
-            & (pp_sub.c.postponed_to > today),
-            literal("postponed"),
-        ),
-        (
-            InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
-            & pp_sub.c.postponed_to.isnot(None)
-            & (pp_sub.c.postponed_to <= today),
-            literal("pending_to_issue"),
-        ),
-        (
-            (InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today),
-            literal("pending_to_issue"),
-        ),
-        else_=InvoiceDB.status,
-    )
+from app.modules.tracker.services.invoice_status import (
+    effective_status_expr as _effective_status_expr,
+    postponement_subquery as _postponement_subquery,
+)
 
 
 async def _invoice_status_info(
@@ -165,8 +138,15 @@ async def create_invoice(
         status=body.status,
     )
     db.add(inv)
-    await db.commit()
+    await db.flush()
     await db.refresh(inv)
+    logger.info(
+        "invoice_created",
+        invoice_id=str(inv.id),
+        project_id=str(project_id),
+        user_id=user.user_id,
+        amount=float(inv.amount),
+    )
     return await _to_response(inv, db)
 
 
@@ -192,7 +172,7 @@ async def update_invoice(
         else:
             setattr(inv, field, value)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(inv)
     return await _to_response(inv, db)
 
@@ -233,9 +213,18 @@ async def transition_invoice(
             "Invoice code is required before marking as paid",
         )
 
+    previous_status = inv.status
     inv.status = body.status
-    await db.commit()
+    await db.flush()
     await db.refresh(inv)
+    logger.info(
+        "invoice_status_transitioned",
+        invoice_id=str(invoice_id),
+        project_id=str(project_id),
+        user_id=user.user_id,
+        previous_status=previous_status,
+        new_status=body.status,
+    )
     return await _to_response(inv, db)
 
 
@@ -254,4 +243,10 @@ async def delete_invoice(
     if not inv or inv.project_id != project_id:
         raise HTTPException(404, _INVOICE_NOT_FOUND)
     await db.delete(inv)
-    await db.commit()
+    await db.flush()
+    logger.info(
+        "invoice_deleted",
+        invoice_id=str(invoice_id),
+        project_id=str(project_id),
+        user_id=user.user_id,
+    )

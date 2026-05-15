@@ -27,7 +27,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { usePermission, Action } from '@/core/permissions';
+import { useAnyPermission, usePermission, Action } from '@/core/permissions';
 import { VizzualityLogo } from './VizzualityLogo';
 import {
   Sidebar,
@@ -204,7 +204,13 @@ export function AppSidebar(): JSX.Element {
 
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canAdmin = usePermission(Action.ADMIN_USERS);
+  const canTrackerAdmin = useAnyPermission(
+    Action.ADMIN_USERS,
+    Action.TRACKER_MANAGE_ALL_REPORTS,
+  );
   const isAdmin = bypassAuth || canAdmin;
+  const showTrackerAdmin = bypassAuth || canTrackerAdmin;
+  const showAdminSection = isAdmin || showTrackerAdmin;
 
   const isActive = (path: string): boolean => {
     if (path === '/scorecard') {
@@ -350,48 +356,55 @@ export function AppSidebar(): JSX.Element {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {showAdminSection && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
               <SidebarGroupLabel>Administration</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {ADMIN_ITEMS.map(({ to, label, icon: Icon }) => (
-                    <SidebarMenuItem key={to}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={location.pathname === to}
-                        tooltip={label}
-                      >
-                        <GuardedLink to={to}>
-                          <Icon />
-                          <span>{label}</span>
-                        </GuardedLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {isAdmin &&
+                    ADMIN_ITEMS.map(({ to, label, icon: Icon }) => (
+                      <SidebarMenuItem key={to}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={location.pathname === to}
+                          tooltip={label}
+                        >
+                          <GuardedLink to={to}>
+                            <Icon />
+                            <span>{label}</span>
+                          </GuardedLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
 
-                  <CollapsibleMenuItem
-                    icon={Bell}
-                    label="Notifications"
-                    isActive={location.pathname.startsWith('/admin/notifications')}
-                    items={NOTIFICATION_TABS}
-                  />
+                  {isAdmin && (
+                    <CollapsibleMenuItem
+                      icon={Bell}
+                      label="Notifications"
+                      isActive={location.pathname.startsWith('/admin/notifications')}
+                      items={NOTIFICATION_TABS}
+                    />
+                  )}
 
-                  <CollapsibleMenuItem
-                    icon={Clock}
-                    label="Tracker"
-                    isActive={location.pathname.startsWith('/admin/tracker')}
-                    items={TRACKER_TABS}
-                  />
+                  {showTrackerAdmin && (
+                    <CollapsibleMenuItem
+                      icon={Clock}
+                      label="Tracker"
+                      isActive={location.pathname.startsWith('/admin/tracker')}
+                      items={TRACKER_TABS}
+                    />
+                  )}
 
-                  <CollapsibleMenuItem
-                    icon={MessageSquare}
-                    label="ISO"
-                    isActive={location.pathname.startsWith('/admin/iso')}
-                    items={ISO_ADMIN_TABS}
-                  />
+                  {isAdmin && (
+                    <CollapsibleMenuItem
+                      icon={MessageSquare}
+                      label="ISO"
+                      isActive={location.pathname.startsWith('/admin/iso')}
+                      items={ISO_ADMIN_TABS}
+                    />
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

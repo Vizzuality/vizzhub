@@ -129,6 +129,9 @@ async def update_action(
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
 
+    previous_action_taken = action.action_taken
+    previous_approved_by = action.approved_by
+
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
         if isinstance(value, Enum):
@@ -138,6 +141,17 @@ async def update_action(
         action.approved_by = UUID(current_user.user_id)
     await db.flush()
     await db.refresh(action)
+
+    logger.info(
+        "iso_review_action_updated",
+        review_id=str(review_id),
+        action_id=str(action_id),
+        previous_action_taken=previous_action_taken,
+        new_action_taken=action.action_taken,
+        previous_approved_by=str(previous_approved_by) if previous_approved_by else None,
+        approved_by=current_user.user_id,
+        fields=sorted(updates.keys()),
+    )
 
     return action
 
@@ -211,6 +225,14 @@ async def sign_review(
     await db.flush()
     await db.refresh(review)
 
+    logger.info(
+        "iso_review_signed",
+        review_id=str(review.id),
+        signed_by=current_user.user_id,
+        signed_at=review.signed_at.isoformat(),
+        action_decisions=len(body.actions) if body and body.actions else 0,
+    )
+
     return review
 
 
@@ -228,10 +250,23 @@ async def unsign_review(
     if review.status != ReviewStatus.SIGNED:
         raise HTTPException(status_code=409, detail="Review is not signed")
 
+    previous_signed_by = review.signed_by
+    previous_signed_at = review.signed_at
+
     review.status = ReviewStatus.DRAFT
     review.signed_at = None
     review.signed_by = None
     await db.flush()
     await db.refresh(review)
+
+    logger.info(
+        "iso_review_unsigned",
+        review_id=str(review.id),
+        unsigner=current_user.user_id,
+        previous_signer=str(previous_signed_by) if previous_signed_by else None,
+        previous_signed_at=(
+            previous_signed_at.isoformat() if previous_signed_at else None
+        ),
+    )
 
     return review

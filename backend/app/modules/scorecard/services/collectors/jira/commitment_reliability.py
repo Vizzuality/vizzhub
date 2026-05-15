@@ -37,8 +37,15 @@ Edge Cases:
 from datetime import date
 from typing import TYPE_CHECKING
 
+import httpx
+import structlog
+
 if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.jira.client import JiraClient
+
+logger = structlog.get_logger()
+
+JIRA_SPRINT_PAGINATION_BATCH_SIZE = 50
 
 
 def _empty_result() -> dict:
@@ -118,13 +125,25 @@ async def collect_commitment_reliability(
         period_end: Optional end date to filter sprints ended by this date
 
     Returns:
-        dict with commitment_reliability ratio and detail counts
+        dict with commitment_reliability ratio and detail counts. The Jira
+        helpers above raise on transport failure so the partial-data bug
+        no longer hides; we catch here and surface a neutral result with
+        a structured warning, so a single Jira hiccup doesn't tank an
+        entire collector run.
     """
-    board = await _get_scrum_board(client, project_key)
+    try:
+        board = await _get_scrum_board(client, project_key)
+    except (httpx.HTTPError, ValueError):
+        return _empty_result()
     if not board:
         return _empty_result()
 
-    closed_sprints = await _get_closed_sprints(client, board["id"], period_start, period_end)
+    try:
+        closed_sprints = await _get_closed_sprints(
+            client, board["id"], period_start, period_end
+        )
+    except (httpx.HTTPError, ValueError):
+        return _empty_result()
     if not closed_sprints:
         return _empty_result()
 
@@ -151,13 +170,25 @@ async def _get_scrum_board(client: "JiraClient", project_key: str) -> dict | Non
             "/rest/agile/1.0/board",
             params={"projectKeyOrId": project_key, "type": "scrum", "maxResults": 1},
         )
-        if response.status_code == 200:
-            data = response.json()
-            boards = data.get("values", [])
-            return boards[0] if boards else None
-    except Exception:
-        pass
-    return None
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(
+            "jira_board_fetch_failed",
+            project_key=project_key,
+            error=str(exc),
+        )
+        raise
+
+    if response.status_code != 200:
+        logger.warning(
+            "jira_board_fetch_non_200",
+            project_key=project_key,
+            status_code=response.status_code,
+        )
+        return None
+
+    data = response.json()
+    boards = data.get("values", [])
+    return boards[0] if boards else None
 
 
 async def _get_closed_sprints(
@@ -169,9 +200,9 @@ async def _get_closed_sprints(
     """Get all closed sprints for a board, optionally filtered by date range."""
     http_client = await client.get_client()
 
-    sprints = []
+    sprints: list[dict] = []
     start_at = 0
-    batch_size = 50
+    batch_size = JIRA_SPRINT_PAGINATION_BATCH_SIZE
 
     while True:
         try:
@@ -179,23 +210,40 @@ async def _get_closed_sprints(
                 f"/rest/agile/1.0/board/{board_id}/sprint",
                 params={"state": "closed", "startAt": start_at, "maxResults": batch_size},
             )
-            if response.status_code != 200:
-                break
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning(
+                "jira_sprints_fetch_failed",
+                board_id=board_id,
+                start_at=start_at,
+                error=str(exc),
+            )
+            raise
 
-            data = response.json()
-            values = data.get("values", [])
+        if response.status_code != 200:
+            logger.warning(
+                "jira_sprints_fetch_non_200",
+                board_id=board_id,
+                start_at=start_at,
+                status_code=response.status_code,
+            )
+            raise httpx.HTTPStatusError(
+                f"Jira sprints endpoint returned {response.status_code}",
+                request=response.request,
+                response=response,
+            )
 
-            filtered = [
-                sprint for sprint in values
-                if _is_sprint_within_period(sprint, period_start, period_end)
-            ]
-            sprints.extend(filtered)
+        data = response.json()
+        values = data.get("values", [])
 
-            if data.get("isLast", True) or not values:
-                break
-            start_at += len(values)
-        except Exception:
+        filtered = [
+            sprint for sprint in values
+            if _is_sprint_within_period(sprint, period_start, period_end)
+        ]
+        sprints.extend(filtered)
+
+        if data.get("isLast", True) or not values:
             break
+        start_at += len(values)
 
     return sprints
 

@@ -40,17 +40,15 @@ class TestExportSnapshotRange:
         assert len(wb.sheetnames) == 2
 
     @pytest.mark.asyncio
-    async def test_export_empty_range_returns_empty_workbook(
+    async def test_export_empty_range_returns_404(
         self, client: AsyncClient
     ) -> None:
         response = await client.get(
             "/api/iso/exports/snapshots",
             params={"from": "2026-01-01", "to": "2026-12-31"},
         )
-        assert response.status_code == 200
-        wb = load_workbook(BytesIO(response.content))
-        assert len(wb.sheetnames) == 1
-        assert wb.sheetnames[0] == "Sheet"
+        assert response.status_code == 404
+        assert "No snapshots" in response.json().get("detail", "")
 
     @pytest.mark.asyncio
     async def test_export_invalid_date_format(self, client: AsyncClient) -> None:
@@ -96,15 +94,16 @@ class TestExportSnapshotRange:
     async def test_export_has_content_disposition_header(
         self, client: AsyncClient
     ) -> None:
+        # Empty range now returns 404 instead of an empty workbook; the
+        # content-disposition header is exercised by other tests that seed
+        # snapshots. Keep the negative assertion explicit so future changes
+        # to error shape still trip a regression.
         response = await client.get(
             "/api/iso/exports/snapshots",
             params={"from": "2026-01-01", "to": "2026-12-31"},
         )
-        assert response.status_code == 200
-        assert "content-disposition" in response.headers
-        assert "iso_access_review_2026-01-01_2026-12-31.xlsx" in response.headers[
-            "content-disposition"
-        ]
+        assert response.status_code == 404
+        assert "content-disposition" not in response.headers
 
 
 class TestExportSingleSnapshot:

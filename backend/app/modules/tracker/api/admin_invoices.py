@@ -22,40 +22,10 @@ TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_
 router = APIRouter()
 
 
-def _postponement_subquery():
-    """Latest postponed_to + count per invoice."""
-    return (
-        select(
-            InvoicePostponementDB.invoice_id,
-            func.max(InvoicePostponementDB.postponed_to).label("postponed_to"),
-            func.count().label("postpone_count"),
-        )
-        .group_by(InvoicePostponementDB.invoice_id)
-        .subquery()
-    )
-
-
-def _effective_status_expr(today, pp_sub):
-    """SQL case expression for effective status with postponement support."""
-    return case(
-        (
-            InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
-            & pp_sub.c.postponed_to.isnot(None)
-            & (pp_sub.c.postponed_to > today),
-            literal("postponed"),
-        ),
-        (
-            InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
-            & pp_sub.c.postponed_to.isnot(None)
-            & (pp_sub.c.postponed_to <= today),
-            literal("pending_to_issue"),
-        ),
-        (
-            (InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today),
-            literal("pending_to_issue"),
-        ),
-        else_=InvoiceDB.status,
-    )
+from app.modules.tracker.services.invoice_status import (
+    effective_status_expr as _effective_status_expr,
+    postponement_subquery as _postponement_subquery,
+)
 
 
 def _status_filter(status: str, today, pp_sub):

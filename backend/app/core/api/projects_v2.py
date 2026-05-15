@@ -3,9 +3,10 @@
 import calendar
 import math
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
@@ -20,16 +21,25 @@ from app.core.api.deps import (
     limiter,
 )
 from app.core.auth import TokenData
-from app.core.permissions import Action, require_permission
-
-ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 from app.core.models.link import Link, LinkCreate, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.core.models.user import UserDB
-from app.modules.scorecard.api.schemas.project import PaginatedProjectsResponse, ProjectSummary
-from app.modules.scorecard.models.metrics.db import MetricsDB
-from app.modules.scorecard.public import MetricsService, Milestone, SnapshotType, refresh_tracker_evm
+from app.core.permissions import Action, require_permission
+from app.core.sql_helpers import user_display_name_expr
+from app.modules.scorecard.public import (
+    MetricsService,
+    Milestone,
+    PaginatedProjectsResponse,
+    ProjectSummary,
+    SnapshotType,
+    delete_project_metrics,
+    refresh_tracker_evm,
+)
+
+ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
+
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -67,14 +77,6 @@ def _build_project_filters(
     if project_manager_id:
         filters.append(ProjectDB.project_manager_id == project_manager_id)
     return filters
-
-
-def _user_full_name_expr(user_alias):
-    """SQL expression for user full name, NULL when both names are absent."""
-    return func.nullif(
-        func.trim(func.concat_ws(" ", user_alias.first_name, user_alias.last_name)),
-        "",
-    )
 
 
 def _project_to_response(project: ProjectDB, **extras) -> ProjectResponse:
@@ -143,7 +145,7 @@ async def list_projects(
         select(
             ProjectDB,
             program.name.label("program_name"),
-            _user_full_name_expr(manager).label("pm_name"),
+            user_display_name_expr(manager).label("pm_name"),
         )
         .outerjoin(program, ProjectDB.program_id == program.id)
         .outerjoin(manager, ProjectDB.project_manager_id == manager.id)
@@ -198,11 +200,7 @@ async def list_project_managers(
 ) -> list[ProjectManagerOption]:
     """Distinct project managers assigned to at least one project."""
     manager = aliased(UserDB)
-    display_name = func.coalesce(
-        _user_full_name_expr(manager),
-        manager.name,
-        manager.email,
-    ).label("display_name")
+    display_name = user_display_name_expr(manager).label("display_name")
     result = await db.execute(
         select(manager.id, display_name)
         .join(ProjectDB, ProjectDB.project_manager_id == manager.id)
@@ -226,6 +224,12 @@ async def create_project(
     db.add(db_project)
     await db.flush()
     await db.refresh(db_project)
+    logger.info(
+        "project_created",
+        project_id=str(db_project.id),
+        code=db_project.code,
+        user_id=admin.user_id,
+    )
     return _project_to_response(db_project)
 
 
@@ -240,7 +244,7 @@ async def get_project(
         select(
             ProjectDB,
             program.name.label("program_name"),
-            _user_full_name_expr(manager).label("pm_name"),
+            user_display_name_expr(manager).label("pm_name"),
         )
         .outerjoin(program, ProjectDB.program_id == program.id)
         .outerjoin(manager, ProjectDB.project_manager_id == manager.id)
@@ -248,7 +252,7 @@ async def get_project(
     )
     row = result.first()
     if not row:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     proj, pname, pmname = row
     return _project_to_response(proj, program_name=pname, project_manager_name=pmname)
 
@@ -270,6 +274,11 @@ async def replace_project(
     await db.refresh(project)
     if project.budget != old_budget or project.start_date != old_start or project.end_date != old_end:
         await refresh_tracker_evm(db, project_id, score_cache=cache)
+    logger.info(
+        "project_replaced",
+        project_id=str(project_id),
+        user_id=admin.user_id,
+    )
     return _project_to_response(project)
 
 
@@ -307,6 +316,12 @@ async def update_project(
     if "budget" in update_data or "start_date" in update_data or "end_date" in update_data:
         await refresh_tracker_evm(db, project_id, score_cache=cache)
 
+    logger.info(
+        "project_updated",
+        project_id=str(project_id),
+        fields=sorted(update_data.keys()),
+        user_id=admin.user_id,
+    )
     return _project_to_response(project)
 
 
@@ -327,8 +342,14 @@ async def delete_project(
     if tracker_refs:
         raise HTTPException(status_code=409, detail=tracker_refs[0])
 
-    await db.execute(delete(MetricsDB).where(MetricsDB.project_id == project_id))
+    await delete_project_metrics(db, project_id)
     await db.delete(project)
+    logger.info(
+        "project_deleted",
+        project_id=str(project_id),
+        code=project.code,
+        user_id=admin.user_id,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -340,8 +361,8 @@ class ProjectBudgetUpdate(BaseModel):
     milestones: list[Milestone] | None = None
 
 
-def _metrics_to_budget_response(metrics: MetricsDB, year: int, month: int) -> dict:
-    """Build budget response from metrics DB record."""
+def _metrics_to_budget_response(metrics: Any, year: int, month: int) -> dict:
+    """Build budget response from a scorecard metrics record."""
     milestones = metrics.milestones if metrics.milestones else []
     return {
         "period_year": year,

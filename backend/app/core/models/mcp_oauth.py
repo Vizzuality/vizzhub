@@ -44,7 +44,7 @@ class MCPOAuthCodeDB(Base):
     )
     scopes: Mapped[list[str] | None] = mapped_column(JSONB)
     user_id: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id")
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
     )
     user_email: Mapped[str | None] = mapped_column(String(255))
     user_roles: Mapped[list[str] | None] = mapped_column(JSONB)
@@ -71,7 +71,7 @@ class MCPOAuthRefreshTokenDB(Base):
         nullable=False,
     )
     user_id: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id")
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
     )
     user_email: Mapped[str | None] = mapped_column(String(255))
     user_roles: Mapped[list[str] | None] = mapped_column(JSONB)

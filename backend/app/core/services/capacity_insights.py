@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.functional_area import FunctionalAreaDB
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
+from app.core.sql_helpers import format_user_display_name
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
@@ -380,18 +381,8 @@ def _format_full_name(
     full_name: str | None = None,
     email: str | None = None,
 ) -> str:
-    """Format as 'Firstname Lastname' with fallbacks."""
-    if first_name and last_name:
-        return f"{first_name} {last_name}"
-    if first_name:
-        return first_name
-    if last_name:
-        return last_name
-    if full_name:
-        return full_name
-    if email:
-        return email.split("@")[0]
-    return "Unknown"
+    """Format as 'Firstname Lastname' with the shared fallback chain."""
+    return format_user_display_name(first_name, last_name, full_name, email)
 
 
 def _aggregate_fa_period(

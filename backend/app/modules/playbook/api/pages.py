@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+
+logger = structlog.get_logger()
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.models.user import UserDB
@@ -100,6 +103,13 @@ async def save_page(
         node.updated_by_id = user_id
         await db.flush()
 
+    logger.info(
+        "playbook_page_saved",
+        node_id=str(node_id),
+        version=new_version,
+        conflict=conflict,
+        user_id=user.user_id,
+    )
     return PageSaveResponse(
         node_id=node_id,
         version=new_version,

@@ -6,6 +6,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
@@ -31,6 +32,7 @@ from app.modules.scorecard.services.score_computation import ScoreComputationSer
 from app.modules.tracker.public import inject_evm_into_preserved
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 class CapturePeriodRequest(BaseModel):
@@ -198,6 +200,15 @@ async def capture_period(
             detail="Project must have Jira or GitHub configured to capture periods",
         )
 
+    logger.info(
+        "scorecard_capture_started",
+        project_id=str(project_id),
+        year=data.year,
+        month=data.month,
+        force=data.force,
+        user_id=current_user.user_id,
+    )
+
     # Default to current month if not provided
     today = date.today()
     year = data.year if data.year is not None else today.year
@@ -293,6 +304,16 @@ async def capture_period(
             ).model_dump(),
             "punctual",
         )
+
+    logger.info(
+        "scorecard_capture_completed",
+        project_id=str(project_id),
+        year=year,
+        month=month,
+        punctual_id=str(punctual_db.id),
+        cumulative_id=str(cumulative_db.id),
+        user_id=current_user.user_id,
+    )
 
     return CapturePeriodResponse(
         punctual=punctual_response,

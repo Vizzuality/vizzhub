@@ -45,7 +45,7 @@ function InvoiceRow({
     () => { qc.invalidateQueries({ queryKey: queryKeys.tracker.invoices.byProject(projectId) }); },
     [qc, projectId],
   );
-  const save = useInvoiceFieldSave(projectId, invoice.id);
+  const save = useInvoiceFieldSave(projectId, invoice.id, invalidate);
 
   const displayDate = getDisplayDate(invoice);
 
@@ -88,7 +88,7 @@ function InvoiceRow({
         </td>
         <td className="py-2">
           <div className="flex items-center gap-2">
-            <StatusCell invoice={invoice} currency={currency} onError={onError} />
+            <StatusCell invoice={invoice} currency={currency} onError={onError} onSuccess={invalidate} />
             <PostponeButton invoice={invoice} currency={currency} onError={onError} onSuccess={invalidate} />
             <HistoryToggle
               count={invoice.postpone_count}
@@ -104,8 +104,8 @@ function InvoiceRow({
                 <ExternalLink className="h-3 w-3" />
               </Button>
             </Link>
-            <RevertButton invoice={invoice} />
-            <DeleteButton invoice={invoice} projectId={projectId} currency={currency} />
+            <RevertButton invoice={invoice} onSuccess={invalidate} />
+            <DeleteButton invoice={invoice} projectId={projectId} currency={currency} onSuccess={invalidate} />
           </div>
         </td>
       </tr>
@@ -130,8 +130,10 @@ export default function InvoicesCard({ projectId, currency }: InvoicesCardProps)
   const [newDueDate, setNewDueDate] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const totalAmount = (invoices ?? []).reduce((s, i) => s + i.amount, 0);
-  const paidAmount = (invoices ?? []).filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
+  const totalAmount = (invoices ?? []).reduce((s, i) => s + Number(i.amount ?? 0), 0);
+  const paidAmount = (invoices ?? [])
+    .filter((i) => i.status === 'paid')
+    .reduce((s, i) => s + Number(i.amount ?? 0), 0);
 
   const showError = (msg: string): void => {
     setErrorMsg(msg);

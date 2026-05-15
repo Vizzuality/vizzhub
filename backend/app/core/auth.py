@@ -104,9 +104,25 @@ async def get_current_user(
     if not token and credentials is not None:
         token = credentials.credentials
 
-    # Development mode: bypass authentication if no token found
+    # Development mode: bypass authentication if no token found.
+    # In production we refuse to honor this even if `debug` accidentally
+    # ends up true — the synthetic admin must never appear there.
     if settings.debug and token is None:
-        logger.warning("auth_bypass_dev_mode")
+        if settings.app_env == "production":
+            logger.critical(
+                "auth_bypass_blocked_in_production",
+                app_env=settings.app_env,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        logger.critical(
+            "auth_bypass_dev_mode",
+            synthetic_user_id="00000000-0000-0000-0000-000000000001",
+            app_env=settings.app_env,
+        )
         return TokenData(
             user_id="00000000-0000-0000-0000-000000000001",
             roles=["user", "admin"],

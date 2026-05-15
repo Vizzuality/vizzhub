@@ -130,7 +130,7 @@ async def create_silence(
         created_by=current_user.user_id if current_user else None,
     )
     db.add(db_silence)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_silence)
 
     return AlertSilenceResponse(
@@ -172,7 +172,7 @@ async def update_silence(
     if update.reason is not None:
         silence.reason = update.reason
 
-    await db.commit()
+    await db.flush()
     await db.refresh(silence)
 
     project_result = await db.execute(
@@ -224,4 +224,4 @@ async def delete_silence(
         )
 
     await db.delete(silence)
-    await db.commit()
+    await db.flush()

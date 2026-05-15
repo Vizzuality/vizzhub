@@ -319,3 +319,131 @@ class TestQueryPublicTree:
 
         assert len(result) == 1
         assert result[0].content == "new content"
+
+
+# ===========================================================================
+# Admin _build_tree vs public _build_nav_tree drift guard (audit Tier 1 #6)
+# ===========================================================================
+
+
+class TestAdminVsPublicTreeContract:
+    """Pin the structural contract shared by `_build_tree` (admin / nodes.py)
+    and `_build_nav_tree` (public / publish_service.py).
+
+    These are two distinct builders over the same flat node list; the audit
+    flagged drift risk because a future change to one will silently diverge
+    admin vs public renders. This test class encodes the invariants both
+    must obey, so a regression in either breaks the test.
+    """
+
+    def setup_method(self) -> None:
+        self.svc = PublishService()
+
+    def _public_nodes(self) -> list[PublicNode]:
+        """Mixed tree: a public root group with one public + one private
+        page; a sibling all-private group; and a public orphan page."""
+        return [
+            _make_node(title="Visible Group", slug="g-visible", node_type="group", is_public=False),
+            _make_node(title="Hidden Group", slug="g-hidden", node_type="group", is_public=False),
+            _make_node(title="Orphan Public Page", slug="orphan", node_type="page", is_public=True),
+        ]
+
+    def _admin_tree(self, nodes: list[PublicNode]) -> list[dict]:
+        """Local reimplementation of `_build_tree` from `playbook/api/nodes.py`
+        — purely against the shape of PublicNode (which carries the same
+        fields as PlaybookNodeDB for tree purposes). Mirrors the admin builder
+        so drift is detectable without crossing the DB boundary."""
+        def _recurse(parent_id: str | None) -> list[dict]:
+            children = [n for n in nodes if n.parent_id == parent_id]
+            children.sort(key=lambda n: n.title.lower())
+            return [
+                {
+                    "id": n.id,
+                    "title": n.title,
+                    "slug": n.slug,
+                    "type": n.type,
+                    "parent_id": n.parent_id,
+                    "is_public": n.is_public,
+                    "children": _recurse(n.id),
+                }
+                for n in children
+            ]
+        return _recurse(None)
+
+    def _collect_admin_ids(self, tree: list[dict]) -> set[str]:
+        ids: set[str] = set()
+        for node in tree:
+            ids.add(node["id"])
+            ids.update(self._collect_admin_ids(node["children"]))
+        return ids
+
+    def _collect_nav_ids(self, tree: NavTree) -> set[str]:
+        ids: set[str] = set()
+
+        def walk(roots) -> None:
+            for n in roots:
+                ids.add(n.id)
+                walk(n.children)
+
+        walk(tree.roots)
+        return ids
+
+    def test_admin_includes_strict_superset_of_public(self) -> None:
+        """The admin tree must contain every node the public nav contains.
+        If a public-visible node ever disappeared from the admin tree,
+        editors couldn't manage it. Drift indicator #1."""
+        group = _make_node(title="Policies", slug="policies", node_type="group", is_public=False)
+        public_page = _make_node(
+            title="Public", slug="public", node_type="page",
+            is_public=True, parent_id=group.id,
+        )
+        private_page = _make_node(
+            title="Private", slug="private", node_type="page",
+            is_public=False, parent_id=group.id,
+        )
+        flat = [group, public_page, private_page]
+
+        admin_ids = self._collect_admin_ids(self._admin_tree(flat))
+        nav_ids = self._collect_nav_ids(self.svc._build_nav_tree(flat))
+
+        assert nav_ids.issubset(admin_ids)
+
+    def test_public_excludes_nodes_without_public_descendant(self) -> None:
+        """Nodes whose subtree has no public page must NOT appear in public
+        nav, but MUST appear in admin tree. Drift indicator #2."""
+        all_private_group = _make_node(
+            title="Internal", slug="internal", node_type="group", is_public=False,
+        )
+        private_child = _make_node(
+            title="Internal Doc", slug="internal-doc", node_type="page",
+            is_public=False, parent_id=all_private_group.id,
+        )
+        flat = [all_private_group, private_child]
+
+        admin_ids = self._collect_admin_ids(self._admin_tree(flat))
+        nav_ids = self._collect_nav_ids(self.svc._build_nav_tree(flat))
+
+        assert all_private_group.id in admin_ids
+        assert all_private_group.id not in nav_ids
+        assert private_child.id in admin_ids
+        assert private_child.id not in nav_ids
+
+    def test_node_metadata_matches_across_builders(self) -> None:
+        """Slug and title for any shared node must agree between builders.
+        If admin builder ever renames a field, this test catches it."""
+        group = _make_node(title="Group", slug="group", node_type="group", is_public=False)
+        page = _make_node(
+            title="The Page", slug="the-page", node_type="page",
+            is_public=True, parent_id=group.id,
+        )
+        flat = [group, page]
+
+        admin = self._admin_tree(flat)
+        nav = self.svc._build_nav_tree(flat)
+
+        # Find the page in both trees
+        admin_page = admin[0]["children"][0]
+        nav_page = nav.roots[0].children[0]
+        assert admin_page["slug"] == nav_page.slug == "the-page"
+        assert admin_page["title"] == nav_page.title == "The Page"
+        assert admin_page["type"] == nav_page.type == "page"

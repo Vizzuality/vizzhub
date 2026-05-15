@@ -204,14 +204,14 @@ class DriveExportService:
             return result
 
         except Exception as exc:
-            logger.error("drive_export_failed", error=str(exc))
+            logger.exception("drive_export_failed", job_id=job_id)
             try:
                 await JobService.update_status(
                     db, job_uuid, JobStatus.FAILED,
                     error_message=str(exc)[:1000],
                 )
             except Exception:
-                logger.error("drive_export_status_save_failed", job_id=job_id)
+                logger.exception("drive_export_status_save_failed", job_id=job_id)
             raise
 
     async def _walk_children(

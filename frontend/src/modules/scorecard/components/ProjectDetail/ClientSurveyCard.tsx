@@ -53,6 +53,7 @@ interface ClientSurveyCardProps {
   isPending: boolean;
   getWeight: (name: string) => number | null;
   historicalData?: HistoricalDataPoint[];
+  editable?: boolean;
 }
 
 export default function ClientSurveyCard({
@@ -64,8 +65,10 @@ export default function ClientSurveyCard({
   isPending,
   getWeight,
   historicalData,
+  editable = true,
 }: ClientSurveyCardProps): JSX.Element {
-  const isDisabled = projectStatus === 'live';
+  const isLiveProject = projectStatus === 'live';
+  const isDisabled = isLiveProject || !editable;
 
   const getQuestionWeight = (configKey: string, defaultWeight: number): string => {
     const weight = getWeight(configKey);
@@ -98,12 +101,14 @@ export default function ClientSurveyCard({
       editButtonLabel={data ? 'Edit Survey Results' : 'Add Survey Results'}
       disabled={isDisabled}
       disabledContent={
-        <div className="p-4 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30 text-center">
-          <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">
-            This survey will be available once the project is marked as finished
-          </p>
-        </div>
+        isLiveProject ? (
+          <div className="p-4 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30 text-center">
+            <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              This survey will be available once the project is marked as finished
+            </p>
+          </div>
+        ) : undefined
       }
       renderEditForm={(form, setForm) => (
         <>

@@ -120,7 +120,7 @@ class PublishService:
             log.error_message = str(e)
             log.completed_at = datetime.now(timezone.utc)
             await db.commit()
-            logger.warning("publish_failed", publish_log_id=publish_log_id, error=str(e))
+            logger.exception("publish_failed", publish_log_id=publish_log_id)
 
     async def _query_public_tree(self, db: AsyncSession) -> list[PublicNode]:
         """Fetch ALL nodes (pages + groups) with latest version content for pages."""

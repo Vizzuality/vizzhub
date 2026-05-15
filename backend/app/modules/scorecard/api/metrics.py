@@ -6,11 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
+from app.core.api.deps import DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 MetricsEditor = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_EDIT_METRICS))]
+ScorecardViewer = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_VIEW))]
 from app.core.exceptions import MetricsNotFoundError
 from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
@@ -59,7 +60,7 @@ def _build_metrics_with_scores(
 async def list_project_metrics(
     request: Request,
     project_id: UUID,
-    current_user: CurrentUser,
+    current_user: ScorecardViewer,
     db: DBSession,
     snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
 ) -> list[Metrics]:
@@ -135,7 +136,7 @@ async def create_metrics(
 @router.get("/{metrics_id}")
 @limiter.limit("100/minute")
 async def get_metrics(
-    request: Request, metrics_id: UUID, current_user: CurrentUser, db: DBSession
+    request: Request, metrics_id: UUID, current_user: ScorecardViewer, db: DBSession
 ) -> Metrics:
     """Get specific metrics by ID. Requires authentication."""
     result = await db.execute(
@@ -176,7 +177,7 @@ async def delete_metrics(
 async def get_project_metrics_history(
     request: Request,
     project_id: UUID,
-    current_user: CurrentUser,
+    current_user: ScorecardViewer,
     db: DBSession,
     config: ScoringConfigDep,
     snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,
@@ -212,7 +213,7 @@ async def get_metrics_by_period(
     project_id: UUID,
     year: int,
     month: int,
-    current_user: CurrentUser,
+    current_user: ScorecardViewer,
     db: DBSession,
     config: ScoringConfigDep,
     snapshot_type: SnapshotType = SnapshotType.CUMULATIVE,

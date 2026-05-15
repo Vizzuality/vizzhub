@@ -4,19 +4,27 @@ from datetime import date, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
+from app.core.auth import TokenData
 from app.core.models.functional_area import FunctionalAreaDB
 from app.core.models.project import ProjectDB, ProjectStatus
 from app.core.models.user import UserDB
+from app.core.permissions import Action, require_permission
 from app.core.services.capacity_insights import TARGET_FA_MAPPING
+from app.core.sql_helpers import user_display_name_expr
 from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CapacityPlanDB
 
+CapacityManager = Annotated[TokenData, Depends(require_permission(Action.CAPACITY_MANAGE))]
+CapacityViewer = Annotated[TokenData, Depends(require_permission(Action.CAPACITY_VIEW))]
+
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 def _fa_short_name(fa_name: str | None) -> str:
@@ -27,15 +35,8 @@ def _fa_short_name(fa_name: str | None) -> str:
 
 
 def _user_name_expr():
-    """SQL expression for user display name: first+last > name > email prefix."""
-    return func.coalesce(
-        func.nullif(
-            func.concat_ws(" ", func.nullif(UserDB.first_name, ""), func.nullif(UserDB.last_name, "")),
-            "",
-        ),
-        UserDB.name,
-        func.split_part(UserDB.email, "@", 1),
-    )
+    """Display-name expression for planner queries; thin alias of the shared helper."""
+    return user_display_name_expr(UserDB)
 
 
 def _mondays_between(start: date, end: date) -> list[str]:
@@ -225,6 +226,7 @@ async def get_planner(
         .where(CapacityPlanDB.week_start <= end_date)
         .where(ProjectDB.status != ProjectStatus.FINISHED)
         .where(UserDB.active.is_(True))
+        .where(UserDB.requires_project_reporting.is_(True))
         .order_by(ProjectDB.name, UserDB.name, CapacityPlanDB.week_start)
     )
 
@@ -371,7 +373,7 @@ async def _upsert_batch(
 )
 async def update_cells(
     db: DBSession,
-    user: CurrentUser,
+    user: CapacityManager,
     body: BulkCellUpdate,
 ) -> dict:
     if not body.updates:
@@ -408,7 +410,13 @@ async def update_cells(
             await _upsert_batch(db, without_comment, user.user_id, include_comment=False)
         upserted_count = len(upserts)
 
-    await db.commit()
+    await db.flush()
+    logger.info(
+        "capacity_cells_updated",
+        actor_id=user.user_id,
+        upserted=upserted_count,
+        deleted=deleted_count,
+    )
     return {"updated": upserted_count + deleted_count}
 
 
@@ -418,7 +426,7 @@ async def update_cells(
 )
 async def delete_row(
     db: DBSession,
-    user: CurrentUser,
+    user: CapacityManager,
     project_id: UUID,
     user_id: UUID,
 ) -> dict:
@@ -427,7 +435,13 @@ async def delete_row(
         CapacityPlanDB.user_id == user_id,
     )
     result = await db.execute(stmt)
-    await db.commit()
+    logger.info(
+        "capacity_row_deleted",
+        actor_id=user.user_id,
+        project_id=str(project_id),
+        target_user_id=str(user_id),
+        rows=result.rowcount,
+    )
     return {"deleted": result.rowcount}
 
 
