@@ -169,6 +169,73 @@ class TestRotateReportingPeriod:
         assert already_active.status == ReportingPeriodStatus.ACTIVE.value
 
     @pytest.mark.asyncio
+    async def test_idempotent_second_run_same_day(
+        self, db_session: AsyncSession, active_period: ReportingPeriodDB
+    ) -> None:
+        """Running rotate twice on day 15 leaves the current month's period ACTIVE.
+
+        Regression: previously a second run would call finish_period on the
+        freshly-rotated period, leaving the month with no active period.
+        """
+        ctx = {"db": db_session}
+        with patch(
+            "app.worker.rotate_reporting_period.date"
+        ) as mock_date:
+            mock_date.today.return_value = date(2026, 3, 15)
+            mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+            first = await rotate_reporting_period(ctx)
+            second = await rotate_reporting_period(ctx)
+
+        assert first["status"] == "completed"
+        assert second["status"] == "completed"
+
+        await db_session.refresh(active_period)
+        assert active_period.status == ReportingPeriodStatus.FINISHED.value
+
+        rows = (
+            await db_session.execute(
+                select(ReportingPeriodDB).where(
+                    ReportingPeriodDB.date == date(2026, 3, 1)
+                )
+            )
+        ).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].status == ReportingPeriodStatus.ACTIVE.value
+
+    @pytest.mark.asyncio
+    async def test_active_period_for_current_month_not_finished(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Active period for the current month is NEVER flipped to FINISHED.
+
+        Regression: guard finish_period with active.date != new_date so we
+        don't terminate a period whose date already matches the target month.
+        """
+        already_active = ReportingPeriodDB(
+            date=date(2026, 3, 1),
+            status=ReportingPeriodStatus.ACTIVE.value,
+        )
+        db_session.add(already_active)
+        await db_session.commit()
+        await db_session.refresh(already_active)
+
+        with patch(
+            "app.worker.rotate_reporting_period.finish_period"
+        ) as mock_finish, patch(
+            "app.worker.rotate_reporting_period.date"
+        ) as mock_date:
+            mock_date.today.return_value = date(2026, 3, 15)
+            mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+            ctx = {"db": db_session}
+            result = await rotate_reporting_period(ctx)
+
+        assert result["status"] == "completed"
+        mock_finish.assert_not_called()
+
+        await db_session.refresh(already_active)
+        assert already_active.status == ReportingPeriodStatus.ACTIVE.value
+
+    @pytest.mark.asyncio
     async def test_creates_job_run_record(
         self, db_session: AsyncSession
     ) -> None:

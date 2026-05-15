@@ -53,13 +53,13 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
     await db.refresh(job_run)
 
     try:
+        new_date = today.replace(day=1)
+
         active = await get_active_period(db)
-        if active:
+        if active and active.date != new_date:
             await finish_period(active.id, db)
             await db.commit()
             logger.info("period_finished", period_date=str(active.date))
-
-        new_date = today.replace(day=1)
 
         existing = await db.execute(
             select(ReportingPeriodDB).where(
