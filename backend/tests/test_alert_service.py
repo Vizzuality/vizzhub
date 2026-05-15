@@ -86,6 +86,32 @@ class TestRenderTemplate:
 
         assert result == "Claude is great, Claude is awesome"
 
+    def test_render_template_escapes_mrkdwn_meta(self) -> None:
+        """Interpolated values must not be able to inject Slack formatting.
+
+        Untrusted strings containing *, _, `, >, | or < must be backslash-
+        escaped so they render as literal characters instead of opening
+        bold / italic / code / blockquote / link formatting blocks.
+        """
+        template = "Issue {summary} by {user}"
+        # Simulates a Jira-supplied summary trying to inject Slack mrkdwn.
+        context = {
+            "summary": "*urgent* `code` <fake|link>",
+            "user": "carol_smith",
+        }
+
+        result = AlertService.render_template(template, context)
+
+        assert "*urgent*" not in result
+        assert "`code`" not in result
+        assert "<fake|link>" not in result
+        assert r"\*urgent\*" in result
+        assert r"\`code\`" in result
+        assert r"\<fake\|link\>" in result
+        # The literal underscore in user names must also be escaped so it
+        # doesn't open italics.
+        assert r"carol\_smith" in result
+
 
 class TestIsSilenced:
     """Test alert silence checking functionality."""

@@ -15,6 +15,24 @@ from app.modules.notifications.models.slack import (
 )
 
 
+# Slack mrkdwn metacharacters: bold *, italic _, code `, blockquote >, link <…|…>.
+# Escape with backslash so user-controlled strings can't open formatting we
+# didn't write ourselves.
+# Ref: https://api.slack.com/reference/surfaces/formatting#escaping
+_SLACK_MRKDWN_META = re.compile(r"([*_`>|<])")
+
+
+def markdown_escape(value: Any) -> str:
+    """Escape Slack mrkdwn metacharacters in a value.
+
+    Stringifies the value then prefixes every mrkdwn metacharacter
+    (``*``, ``_``, `` ` ``, ``>``, ``|``, ``<``) with a backslash so
+    that interpolated text from untrusted sources cannot inject Slack
+    formatting (bold, italic, code, blockquote, links).
+    """
+    return _SLACK_MRKDWN_META.sub(r"\\\1", str(value))
+
+
 class AlertService:
     """Service for managing alerts."""
 
@@ -24,6 +42,9 @@ class AlertService:
 
         Replaces {placeholder} patterns in the template with corresponding
         values from the context dictionary. Missing placeholders are preserved.
+        Interpolated values are escaped for Slack mrkdwn so that
+        untrusted sources (e.g. Jira-supplied fields) cannot inject
+        bold/italic/code/link formatting.
 
         Args:
             template: Message template with {placeholder} patterns.
@@ -35,7 +56,9 @@ class AlertService:
 
         def replace_placeholder(match: re.Match) -> str:
             key = match.group(1)
-            return str(context.get(key, match.group(0)))
+            if key not in context:
+                return match.group(0)
+            return markdown_escape(context[key])
 
         result = re.sub(r"\{(\w+)\}", replace_placeholder, template)
         # Convert literal \n to actual newlines
