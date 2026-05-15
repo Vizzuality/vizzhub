@@ -108,7 +108,7 @@ class FinalScoreCalculator:
             return FinalScore(
                 score=None,
                 dimensions=dimensions,
-                weights_applied={name: 0.0 for name in dimension_names},
+                weights_applied=dict.fromkeys(dimension_names, 0.0),
                 dora=dora_score,
             )
 

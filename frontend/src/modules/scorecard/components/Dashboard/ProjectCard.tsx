@@ -45,13 +45,16 @@ function StaleMetricsIcon({ latestPeriod }: { latestPeriod: string | null | unde
   const label = latestPeriod
     ? `No fresh metrics since ${latestPeriod}. Re-capture from the project page.`
     : 'No metrics captured yet. Re-capture from the project page.';
+  // Decorative icon: the parent Link owns navigation/keyboard interaction.
+  // We render the tooltip on hover/focus of the icon via Radix' built-in
+  // handlers — no extra click handler needed (avoids a11y warnings).
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
           <span
             className="shrink-0 text-aux-yellow"
-            onClick={(e) => e.preventDefault()}
+            role="img"
             aria-label={label}
           >
             <AlertTriangle className="w-4 h-4" />
