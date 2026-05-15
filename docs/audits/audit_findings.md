@@ -1755,7 +1755,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
   - Fix: add `le=100` to `IndicatorsCreate.change_failure_rate` and `min(cfr, 100.0)` defensive clamp at `change_failure_rate.py:120`. Update the collector docstring to match the actual DORA thresholds in `dora.py`.
   - Added: 2026-05-15 (calc-audit row #5)
 
-- **DORA deployment frequency — Elite threshold inconsistent with its own docstring** — `backend/app/modules/scorecard/services/calculators/dora.py:141-156`.
+- **[fixed 2026-05-15] DORA deployment frequency — Elite threshold inconsistent with its own docstring** — `backend/app/modules/scorecard/services/calculators/dora.py:141-156`. Resolution: classifier tightened to `> 1.0` to match the docstring and DORA literature ("multiple deploys per day"). Teams deploying exactly once per day now classify as High (was Elite). Test in `test_dora_calculator.py::test_deployment_frequency_thresholds` updated to assert this boundary explicitly. **Production note:** any project sitting at exactly 1.0 deploys/day will drop one tier on the next calculation.
   - Module: `scorecard`
   - Repro: `IndicatorsCreate(deployment_frequency=1.0)` → classifier returns Elite (score 100). The classifier docstring at `dora.py:41` says "Elite: Multiple deploys per day" (i.e. >1), but the threshold uses `>= 1.0`. A team deploying exactly once per day gets Elite when both the in-file documentation and the DORA literature say High.
   - Either tighten classifier to `> 1.0` and update tests, or update the docstring/comments to acknowledge the threshold is "≥ 1.0". Small thing but it muddies the meaning of the tier.

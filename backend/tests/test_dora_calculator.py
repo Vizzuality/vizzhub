@@ -113,9 +113,13 @@ class TestDoraClassificationThresholds:
         """Test deployment frequency classification thresholds."""
         calc = DoraScoreCalculator(config)
 
-        # Elite: >= 1/day
-        result = calc.calculate(IndicatorsCreate(deployment_frequency=1.0))
+        # Elite: > 1/day (strictly multiple per day)
+        result = calc.calculate(IndicatorsCreate(deployment_frequency=2.0))
         assert result["metrics"]["deployment_frequency"]["level"] == "Elite"
+
+        # High: exactly 1/day is High (not Elite — see _classify_deployment_frequency)
+        result = calc.calculate(IndicatorsCreate(deployment_frequency=1.0))
+        assert result["metrics"]["deployment_frequency"]["level"] == "High"
 
         # High: >= 1/week (1/7 = 0.143)
         result = calc.calculate(IndicatorsCreate(deployment_frequency=0.143))

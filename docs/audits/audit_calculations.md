@@ -102,7 +102,8 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 - **#37 formatCurrency** — FE renders ISO-4217 codes correctly. Commit `082fe9d0`.
 - **#14 normalizers** — 6 paths now return None on missing data; weights redistributed. Commit `082fe9d0`.
 - **#10 risk docstring** — sync with seeded config target. Commit pending.
-- **#5 CFR upper bound** — `le=100` + collector clamp + collector docstring synced with classifier. Commit pending.
+- **#5 CFR upper bound** — `le=100` + collector clamp + collector docstring synced with classifier. Commit `fbfee1ea`.
+- **#6 DORA deploy freq Elite** — classifier tightened to `> 1.0` (was `>=`). Daily-once → High. Commit pending.
 
 ## Final summary (2026-05-15)
 

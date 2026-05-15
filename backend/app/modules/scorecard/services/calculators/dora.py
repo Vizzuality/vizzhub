@@ -142,18 +142,20 @@ class DoraScoreCalculator:
         """Classify deployment frequency.
 
         Elite: Multiple per day (>1)
-        High: Daily to weekly (1/7 to 1)
+        High: Daily to weekly (1/7 to 1, inclusive of daily)
         Medium: Weekly to monthly (1/30 to 1/7)
         Low: Less than monthly (<1/30)
+
+        Note: exactly-1.0/day (daily) is High, not Elite. DORA literature
+        defines Elite as "multiple deploys per day", strictly greater than 1.
         """
-        if deploys_per_day >= 1.0:
+        if deploys_per_day > 1.0:
             return ELITE
-        elif deploys_per_day >= 1 / 7:  # At least once per week
+        if deploys_per_day >= 1 / 7:  # At least once per week
             return HIGH
-        elif deploys_per_day >= 1 / 30:  # At least once per month
+        if deploys_per_day >= 1 / 30:  # At least once per month
             return MEDIUM
-        else:
-            return LOW
+        return LOW
 
     def _classify_lead_time(self, days: float) -> str:
         """Classify lead time for changes.
