@@ -2,9 +2,17 @@
 
 Tests cover:
 - slack_channel_id field existence and behavior
+- status whitelist enforcement at ORM-write time
 """
 
-from app.core.models.project import ProjectDB, ProjectBase, ProjectUpdate
+import pytest
+
+from app.core.models.project import (
+    ProjectBase,
+    ProjectDB,
+    ProjectStatus,
+    ProjectUpdate,
+)
 
 
 class TestSlackChannelIdField:
@@ -33,3 +41,28 @@ class TestSlackChannelIdField:
         """ProjectUpdate slack_channel_id should be optional."""
         update = ProjectUpdate()
         assert update.slack_channel_id is None
+
+
+class TestProjectStatusValidation:
+    """Audit Tier 1 #5: ORM-side whitelist on ProjectDB.status.
+
+    Column stays `Mapped[str]` (no migration), but `@validates("status")`
+    runs every write through `ProjectStatus(...)` so a typo throws before
+    it reaches the DB.
+    """
+
+    def test_accepts_enum_value(self) -> None:
+        p = ProjectDB(name="X", status=ProjectStatus.LIVE)
+        assert p.status == "live"
+
+    def test_accepts_valid_string(self) -> None:
+        p = ProjectDB(name="X", status="finished")
+        assert p.status == "finished"
+
+    def test_rejects_typo(self) -> None:
+        with pytest.raises(ValueError, match="finsihed"):
+            ProjectDB(name="X", status="finsihed")
+
+    def test_rejects_empty_string(self) -> None:
+        with pytest.raises(ValueError):
+            ProjectDB(name="X", status="")

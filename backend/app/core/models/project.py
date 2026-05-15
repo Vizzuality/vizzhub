@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -101,6 +101,15 @@ class ProjectDB(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), server_onupdate=func.now()
     )
+
+    @validates("status")
+    def _validate_status(self, _key: str, value: str | ProjectStatus) -> str:
+        """Reject typos at ORM-write time. Column stays `Mapped[str]` (no schema
+        migration), but every write goes through `ProjectStatus(...)` so an
+        unknown value raises before it reaches the DB. Audit Tier 1 #5."""
+        if isinstance(value, ProjectStatus):
+            return value.value
+        return ProjectStatus(value).value
 
 
 class ProjectBase(BaseModel):

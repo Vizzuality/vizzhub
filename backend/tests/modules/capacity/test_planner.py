@@ -30,8 +30,8 @@ async def planner_data(db_session: AsyncSession):
         id=uuid4(), email="bob@test.com", name="Bob Test",
         functional_area_id=fa_be.id,
     )
-    project1 = ProjectDB(id=uuid4(), name="Alpha", status="active")
-    project2 = ProjectDB(id=uuid4(), name="Beta", status="active")
+    project1 = ProjectDB(id=uuid4(), name="Alpha", status="live")
+    project2 = ProjectDB(id=uuid4(), name="Beta", status="live")
 
     db_session.add_all([user1, user2, project1, project2])
     await db_session.flush()
@@ -509,8 +509,8 @@ class TestSuggestions:
         from app.modules.capacity.api.planner import get_planner_suggestions
 
         user = UserDB(id=uuid4(), email="s@t.com", name="Sugg")
-        p1 = ProjectDB(id=uuid4(), name="Alpha", status="active", is_billable=True)
-        p2 = ProjectDB(id=uuid4(), name="Beta", status="active", is_billable=True)
+        p1 = ProjectDB(id=uuid4(), name="Alpha", status="live", is_billable=True)
+        p2 = ProjectDB(id=uuid4(), name="Beta", status="live", is_billable=True)
         db_session.add_all([user, p1, p2])
         await db_session.flush()
 
@@ -546,8 +546,8 @@ class TestSuggestions:
         from app.modules.capacity.api.planner import get_planner_suggestions
 
         user = UserDB(id=uuid4(), email="o@t.com", name="Oth")
-        billable = ProjectDB(id=uuid4(), name="Proj", status="active", is_billable=True)
-        operations = ProjectDB(id=uuid4(), name="Operations", status="active", is_billable=False)
+        billable = ProjectDB(id=uuid4(), name="Proj", status="live", is_billable=True)
+        operations = ProjectDB(id=uuid4(), name="Operations", status="live", is_billable=False)
         db_session.add_all([user, billable, operations])
         await db_session.flush()
 
@@ -580,8 +580,8 @@ class TestSuggestions:
         from app.modules.capacity.api.planner import get_planner_suggestions
 
         user = UserDB(id=uuid4(), email="a@t.com", name="Abs")
-        billable = ProjectDB(id=uuid4(), name="Work", status="active", is_billable=True)
-        absence = ProjectDB(id=uuid4(), name="Vacation", status="active", is_absence=True, is_billable=False)
+        billable = ProjectDB(id=uuid4(), name="Work", status="live", is_billable=True)
+        absence = ProjectDB(id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False)
         db_session.add_all([user, billable, absence])
         await db_session.flush()
 
