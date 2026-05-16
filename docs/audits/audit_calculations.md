@@ -91,7 +91,7 @@ Deep verification of domain math in scorecard + tracker + capacity. One formula 
 |---|-------------|------|--------|-------|
 | 37 | formatCurrency (decimal places, locale) | shared/utils/evmCalculations.ts:25 + modules/tracker/utils/constants.ts:4 | **fixed 2026-05-15** | ~~WRONG~~ → FIXED: ISO-4217 codes now handled. `LEGACY_CURRENCY_MAP` keeps `euro`/`dollar` backward-compat; everything else uppercased and passed to `Intl.NumberFormat` with `ISO_LOCALE_MAP` (EUR/USD/GBP/CHF/JPY/AUD/CAD) + en-US fallback. 9 unit tests added. |
 | 38 | Pydantic Decimal → string parsing (`Number()` before arithmetic) | events/rate types (lying) | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: Events / Rate Decimal fields now typed as `string` (wire-honest). 2 tsc errors fixed with `Number()` coercion; 1 test mock updated. No latent bugs found — consumer code was already defensive. Tracker/scorecard untouched (already honest server-side). Commit `5319e868`. |
-| 39 | Chart pagination (max 6 months) | ChartPagination.tsx + 3 chart consumers | done | SUSPICIOUS — math sound; UX bug: default page=0 shows oldest 6 months instead of latest. Zero tests. |
+| 39 | Chart pagination (max 6 months) | ChartPagination.tsx + 3 chart consumers | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: lazy initializer `useState(() => latestChartPage(chartData.length))` in all 3 chart consumers + new helpers in `ChartPagination.tsx`. UserDetailChart also resets on userId change. +12 regression tests. Commit `ae0c3da4`. |
 
 ## Stop condition
 
@@ -162,9 +162,12 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 
 ## Final summary (2026-05-16 evening — calculations audit fully closed)
 
-- **All 4 modules of the 39-row audit are now resolved.**
-- **OK: 14 (unchanged)** | **WRONG: 0 (was #37, closed)** | **SUSPICIOUS: 0 still open** (24 closed across two days).
-- Remaining tail-of-audit items: FE #39 (chart default-page lands on oldest, not latest) + new #40 (forecastFinal vs chart cap mismatch). Both small FE-only follow-ups, not part of the calculations audit proper.
+- **All 4 modules of the 39-row audit are now resolved.** Plus the new #40 (surfaced fixing #20/#21) also closed.
+- **OK: 14 (unchanged)** | **WRONG: 0 (was #37, closed)** | **SUSPICIOUS: 0 still open** (24 closed across two days, plus #40).
+- Tail FE items #39 + #40 closed in commit `ae0c3da4`:
+  - #39: capacity charts (Insights / FA Detail / User Detail) now open on the latest 6-month window via lazy initializer + new helpers in `ChartPagination.tsx`.
+  - #40: BurnDashboard forecast line uncapped (24-month cap removed in `buildForecastPoints`); chart and `forecastFinal` KPI now agree on long-tail projects. Both forecast lines (time-trend + EVM) share the same horizon by chaining off `forecast.points.length`.
+- FE 486 tests / Backend 1928 tests — all green.
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 
