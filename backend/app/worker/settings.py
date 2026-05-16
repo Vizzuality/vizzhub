@@ -125,6 +125,7 @@ WorkerSettings.functions = [
     send_monthly_report_reminder,
     send_report_confirmation_reminder,
     rotate_reporting_period,
+    write_heartbeat,
     publish_playbook_task,
     export_iso_docs_gdrive_task,
     cleanup_mcp_oauth,

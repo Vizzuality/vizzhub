@@ -100,6 +100,8 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
 
         for project, project_id, project_name in project_snapshots:
             try:
+                projects_checked += 1
+
                 is_silenced = await AlertService.is_silenced(
                     db, project.id, alert_definition.id
                 )
@@ -114,7 +116,6 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                     bot_token,
                     github_token,
                 )
-                projects_checked += 1
                 alerts_sent += sent
 
             except Exception:
