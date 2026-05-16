@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import structlog
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.data.base import get_mcp_user, get_write_session
@@ -11,6 +12,8 @@ from mcp_server.handlers import iso_docs as iso_handler
 from mcp_server.handlers import playbook as playbook_handler
 from mcp_server.services.command_service import CommandService
 from mcp_server.tools._shared import to_json
+
+logger = structlog.get_logger()
 
 _MODULE_PERMISSIONS = {
     "iso_docs": "iso_docs:edit",
@@ -87,6 +90,15 @@ async def approve_command(command_id: str) -> str:
 
         required_perm = _MODULE_PERMISSIONS.get(cmd.module)
         if required_perm and not user.has_permission(required_perm):
+            logger.warning(
+                "mcp_command_approve_denied",
+                command_id=str(cmd.id),
+                module=cmd.module,
+                action=cmd.action,
+                user_id=str(user_id),
+                user_email=user.email,
+                missing_permission=required_perm,
+            )
             return to_json({
                 "error": f"Permission denied: requires {required_perm}",
                 "user": user.email,
@@ -100,12 +112,21 @@ async def approve_command(command_id: str) -> str:
 
         cmd = await svc.approve(cmd_uuid, user_id, executor=executor)
 
+        log_payload = {
+            "command_id": str(cmd.id),
+            "module": cmd.module,
+            "action": cmd.action,
+            "user_id": str(user_id),
+            "user_email": user.email,
+        }
         if cmd.status == "executed":
+            logger.info("mcp_command_executed", **log_payload)
             return to_json({
                 "status": "executed",
                 "command_id": str(cmd.id),
                 "result": cmd.result,
             })
+        logger.warning("mcp_command_failed", error=cmd.error, **log_payload)
         return to_json({
             "status": "failed",
             "command_id": str(cmd.id),
@@ -185,6 +206,18 @@ async def approve_all(module: str | None = None) -> str:
                     "error": cmd.error,
                 })
                 counts[cmd.status] = counts.get(cmd.status, 0) + 1
+                log_kwargs = {
+                    "command_id": str(cmd.id),
+                    "module": cmd.module,
+                    "action": cmd.action,
+                    "user_id": str(user_id),
+                    "user_email": user.email,
+                    "via": "approve_all",
+                }
+                if cmd.status == "executed":
+                    logger.info("mcp_command_executed", **log_kwargs)
+                else:
+                    logger.warning("mcp_command_failed", error=cmd.error, **log_kwargs)
         except Exception as exc:
             results.append({
                 "command_id": str(cmd_id),
@@ -230,6 +263,14 @@ async def reject_command(command_id: str) -> str:
             })
 
         cmd = await svc.reject(cmd_uuid, user_id)
+        logger.info(
+            "mcp_command_rejected",
+            command_id=str(cmd.id),
+            module=cmd.module,
+            action=cmd.action,
+            user_id=str(user_id),
+            user_email=user.email,
+        )
         return to_json({
             "status": "rejected",
             "command_id": str(cmd.id),

@@ -6,9 +6,13 @@ import json
 from typing import Any
 from uuid import UUID
 
+import structlog
+
 from mcp_server.data.base import get_mcp_user, get_write_session
 from mcp_server.services.command_service import CommandService
 from mcp_server.services.summary import generate_summary
+
+logger = structlog.get_logger()
 
 
 def to_json(data: Any) -> str:
@@ -30,6 +34,15 @@ async def enqueue_command(module: str, action: str, target: str | None, payload:
             payload=payload,
             summary=summary,
             user_id=user_id,
+        )
+        logger.info(
+            "mcp_command_enqueued",
+            command_id=str(cmd.id),
+            module=module,
+            action=action,
+            target=target,
+            user_id=str(user_id),
+            user_email=user.email,
         )
         return to_json({
             "status": "queued",

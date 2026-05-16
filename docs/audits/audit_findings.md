@@ -36,11 +36,11 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 7. ~~**Capacity FE tests cero**~~ — partial false positive (10 capacity FE test files already exist totaling 47 tests). Closed the highest-leverage real gap: added 6 `PlannerCell` edit-lifecycle tests covering Enter commit, > 200 clamping, empty/zero → null, no-op when value unchanged, and Escape cancel. **[fixed `c0ad1bf7`]**
 8. ~~**No test for write-permission denial on planner endpoints**~~ — added `tests/modules/capacity/test_planner_rbac.py`. Two tests assert that a `user`-role token (CAPACITY_VIEW only, no CAPACITY_MANAGE) gets 403 on `PATCH /api/capacity/planner/cells` and `DELETE /api/capacity/planner/rows/{p}/{u}`. Exercises the FastAPI dependency chain that the direct-call tests in `test_planner.py` bypass. **[fixed `c0ad1bf7`]**
 
-### T5 — Observability gaps (worker)
+### T5 — Observability gaps (worker) — **CLOSED 2026-05-16**
 
-9. **`publish_playbook_task`, `export_iso_docs_gdrive_task`, `refresh_devstack_sources`** — passthroughs with no `job_started` / `job_completed` / `job_failed` structlog events. CLAUDE convention says every worker job logs these.
-10. **Long-running jobs emit no progress logs** — `check_dependabot_alerts`, `recalc_global_history`, `refresh_devstack_sources`. Adds "we're stuck at step X" visibility for ops.
-11. **MCP tool invocations not logged via structlog** — `mcp_server/tools/*`. Approvals also lack an audit log — useful when reviewing what someone authorized.
+9. ~~**`publish_playbook_task`, `export_iso_docs_gdrive_task`, `refresh_devstack_sources`**~~ — each now wraps its inner service in the canonical `job_started` / `job_completed` / `job_failed` triplet. Failures `logger.exception()` + re-raise so ARQ retry semantics stay untouched. **[fixed in commit below]**
+10. ~~**Long-running jobs emit no progress logs**~~ — largely subsumed by T5.9: `check_dependabot_alerts` already emits `projects_found` + per-iteration `project_silenced` / `project_processing_failed`; `refresh_devstack_sources` is a passthrough and now logs at the worker boundary; `recalc_global_history` is a one-shot script (`scripts/recalc_global_history.py`), not a worker — its `print()` calls live outside the structlog pipeline by design and don't fit the same convention. Closed-by-overlap.
+11. ~~**MCP tool invocations not logged via structlog**~~ — added audit events: `mcp_command_enqueued` in `_shared.enqueue_command`, `mcp_command_executed` / `mcp_command_failed` / `mcp_command_approve_denied` in `commands.approve_command` (and per-iteration in `approve_all` with `via="approve_all"`), `mcp_command_rejected` in `commands.reject_command`. Each event carries `command_id`, `module`, `action`, `user_id`, `user_email` so the Loki audit trail can answer "who authorized what". Pairs with the existing `mcp_permission_denied` warning. **[fixed in commit below]**
 
 ### T6 — Refactors (boy-scout when next touched)
 
