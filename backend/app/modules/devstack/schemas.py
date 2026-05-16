@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.modules.devstack.constants import EntryOrigin, EntryType, InstallMethod
+
+# How long an entry can go without a successful refresh before it's
+# flagged stale. The cron runs daily and a single failed round shouldn't
+# trip the flag, so we allow ~3x the refresh cadence before complaining.
+STALE_AFTER = timedelta(hours=72)
 
 _NPM_PACKAGE_RE = re.compile(r"^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$")
 
@@ -83,6 +88,7 @@ class EntryResponse(BaseModel):
     featured: bool
     install_count: int = 0
     last_installed_at: datetime | None = None
+    last_fetch_ok_at: datetime | None = None
     deprecated: bool = False
     deprecation_message: str | None = None
     vulnerabilities: dict | None = None
@@ -90,4 +96,21 @@ class EntryResponse(BaseModel):
     updated_by_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def stale(self) -> bool:
+        """True when the catalog entry hasn't refreshed inside STALE_AFTER.
+
+        claude_plugin entries are never auto-refreshed (no SHA / no npm
+        registry), so they're considered fresh forever — flagging them
+        would just be noise.
+        """
+        if self.install_method == "claude_plugin":
+            return False
+        if self.last_fetch_ok_at is None:
+            # Brand-new rows get a grace period equal to STALE_AFTER so a
+            # freshly-seeded catalog doesn't immediately scream.
+            return datetime.now(timezone.utc) - self.created_at > STALE_AFTER
+        return datetime.now(timezone.utc) - self.last_fetch_ok_at > STALE_AFTER
 

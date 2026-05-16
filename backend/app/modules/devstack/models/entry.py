@@ -65,6 +65,9 @@ class DevstackEntryDB(Base):
     last_installed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    last_fetch_ok_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     deprecated: Mapped[bool] = mapped_column(Boolean, server_default="false")
     deprecation_message: Mapped[str | None] = mapped_column(Text)
     vulnerabilities: Mapped[dict | None] = mapped_column(JSONB)

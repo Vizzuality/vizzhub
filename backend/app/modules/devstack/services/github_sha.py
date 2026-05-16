@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import re
 
@@ -9,6 +10,48 @@ import httpx
 import structlog
 
 logger = structlog.get_logger()
+
+# Emit a warning when the GitHub API leaves fewer than this many calls in
+# the rate-limit budget. 60/hour unauthenticated, 5000/hour authenticated.
+_RATE_LIMIT_WARN_BELOW = 10
+
+# Max time we'll sleep on a 429 before giving up and returning None. The
+# refresher iterates many entries; blocking a worker for too long on one
+# broken entry is worse than skipping it for this round.
+_MAX_RATE_LIMIT_SLEEP_SECONDS = 30.0
+
+
+def _log_rate_limit(resp: httpx.Response, url: str) -> None:
+    """Warn when the GitHub rate-limit budget is running low."""
+    remaining_header = resp.headers.get("X-RateLimit-Remaining")
+    if remaining_header is None:
+        return
+    try:
+        remaining = int(remaining_header)
+    except ValueError:
+        return
+    if remaining < _RATE_LIMIT_WARN_BELOW:
+        logger.warning(
+            "github_rate_limit_low",
+            url=url,
+            remaining=remaining,
+            reset=resp.headers.get("X-RateLimit-Reset"),
+            authenticated=bool(resp.headers.get("X-OAuth-Scopes")),
+        )
+
+
+def _parse_retry_after(resp: httpx.Response) -> float | None:
+    """Return seconds to wait per the Retry-After header, capped."""
+    retry_after = resp.headers.get("Retry-After")
+    if retry_after is None:
+        return None
+    try:
+        wait = float(retry_after)
+    except ValueError:
+        return None
+    if wait <= 0:
+        return None
+    return min(wait, _MAX_RATE_LIMIT_SLEEP_SECONDS)
 
 # Standard GitHub blob URL: github.com/{owner}/{repo}/blob/{ref}/{path}
 # Note: refs with '/' (e.g. feature/test) are not supported — first segment is taken as ref.
@@ -46,6 +89,35 @@ def parse_github_url(url: str) -> tuple[str, str, str, str] | None:
     return None
 
 
+async def _get_with_rate_limit_retry(
+    client: httpx.AsyncClient,
+    api_url: str,
+    headers: dict[str, str],
+    params: dict[str, str],
+    *,
+    url_for_log: str,
+) -> httpx.Response:
+    """GET the URL, warn on low rate-limit budget, retry once on 429.
+
+    Returns the eventual response (which still needs `raise_for_status()`
+    by the caller). We retry exactly once: a persistently rate-limited
+    refresher would block the worker for the whole hourly window.
+    """
+    resp = await client.get(api_url, headers=headers, params=params)
+    if resp.status_code == 429:
+        wait = _parse_retry_after(resp)
+        if wait is not None:
+            logger.warning(
+                "github_rate_limited_retrying",
+                url=url_for_log,
+                retry_after_s=wait,
+            )
+            await asyncio.sleep(wait)
+            resp = await client.get(api_url, headers=headers, params=params)
+    _log_rate_limit(resp, url_for_log)
+    return resp
+
+
 async def fetch_github_sha(url: str, token: str | None = None) -> str | None:
     """Fetch the blob SHA of a file from the GitHub Contents API.
 
@@ -67,7 +139,9 @@ async def fetch_github_sha(url: str, token: str | None = None) -> str | None:
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(api_url, headers=headers, params={"ref": ref})
+            resp = await _get_with_rate_limit_retry(
+                client, api_url, headers, {"ref": ref}, url_for_log=url,
+            )
             resp.raise_for_status()
             sha = resp.json().get("sha")
             if sha:
@@ -100,7 +174,9 @@ async def fetch_github_content(url: str, token: str | None = None) -> str | None
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(api_url, headers=headers, params={"ref": ref})
+            resp = await _get_with_rate_limit_retry(
+                client, api_url, headers, {"ref": ref}, url_for_log=url,
+            )
             resp.raise_for_status()
             data = resp.json()
             encoded = data.get("content")

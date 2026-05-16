@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.models.entry import DevstackEntryDB
+from app.modules.devstack.schemas import STALE_AFTER
 from app.modules.devstack.services.github_sha import (
     fetch_github_content,
     fetch_github_sha,
@@ -76,6 +77,7 @@ async def _refresh_github_entry(
     new_sha = await fetch_github_sha(entry.url, github_token)
     if new_sha is None:
         return "failed"
+    entry.last_fetch_ok_at = datetime.now(timezone.utc)
     if new_sha != entry.github_sha:
         entry.github_sha = new_sha
         await _sync_github_frontmatter(entry, github_token)
@@ -125,6 +127,7 @@ async def _refresh_npm_entry(
     info = await fetch_npm_package_info(entry.package)
     if info is None:
         return "failed"
+    entry.last_fetch_ok_at = datetime.now(timezone.utc)
     changed = _apply_npm_deprecation(entry, info)
     if await _refresh_npm_advisories(entry, info, github_token):
         changed = True
@@ -166,19 +169,40 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | b
         if status == "failed" and entry.required:
             required_failures.append(entry.name)
 
-    if counters["updated"] > 0:
-        await db.commit()
+    # `required_stale` is the persistence dimension: a required entry that
+    # hasn't refreshed inside STALE_AFTER, regardless of whether THIS run
+    # succeeded or failed. A flaky GitHub outage that succeeded today but
+    # was stale yesterday-and-before shows up here, even though
+    # `required_failures` for this run is empty.
+    now = datetime.now(timezone.utc)
+    required_stale = sorted(
+        entry.name
+        for entry in entries
+        if entry.required
+        and entry.install_method != "claude_plugin"
+        and (
+            entry.last_fetch_ok_at is None
+            or (now - entry.last_fetch_ok_at) > STALE_AFTER
+        )
+    )
+
+    # `last_fetch_ok_at` advances on every non-failed entry, so commit even
+    # when nothing else changed — otherwise the freshness signal would
+    # itself be stale.
+    await db.commit()
 
     summary: dict[str, int | list[str] | bool] = {
         "total": processed,
         "partial_failure": counters["failed"] > 0,
         "required_failures": required_failures,
+        "required_stale": required_stale,
         **counters,
     }
-    if required_failures:
+    if required_failures or required_stale:
         logger.error(
             "devstack_required_entry_sync_failed",
             required_failures=required_failures,
+            required_stale=required_stale,
             total=processed,
             failed=counters["failed"],
             updated=counters["updated"],

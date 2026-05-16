@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import structlog
 from sqlalchemy import or_, select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -200,5 +201,9 @@ async def track_install(name: str) -> None:
                     last_installed_at=datetime.now(timezone.utc),
                 )
             )
-    except Exception as exc:  # noqa: BLE001
+    except (SQLAlchemyError, OSError) as exc:
+        # Telemetry must not block install — DB / socket errors are
+        # logged-and-swallowed. Programming bugs (AttributeError, etc.)
+        # propagate so the MCP tool surfaces them in Sentry instead of
+        # masquerading as a "tracking failed" warning.
         logger.warning("devstack_install_counter_failed", name=name, error=str(exc))

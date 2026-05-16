@@ -16,7 +16,7 @@ Registry of the tech-debt and calculations audits. Consolidated output from `aud
 | ToDo Next High Priority (T1–T7) | 0 | 25 |
 | CALCULATIONS — WRONG | 0 | 1 |
 | CALCULATIONS — SUSPICIOUS | 0 | 26 |
-| Pending boy-scout backlog | **108** (3 Major / 100 Minor / 5 Nit) | — |
+| Pending boy-scout backlog | **105** (0 Major / 100 Minor / 5 Nit) | — |
 | Won't do (deliberate) | — | 18 |
 | Fixed (historical) | — | 112 |
 
@@ -37,7 +37,12 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
 > - **15 items moved to Fixed (or cross-referenced as closed)** — closed by the 2026-05-16 sweeps (T1–T7).
 > - **42 items downgraded to Minor** — file-size / DRY / UX nits / defensive coverage. They live in `### Minor` below under `#### Downgraded from Major`.
 
-### Major (3)
+### Major (0)
+
+All 12 items from the 2026-05-16 retriage closed by the Batch 1–5 sweep
+(commits in registry below). The Minor backlog stands at 100; the Nit
+backlog at 5. Both are boy-scout candidates — touch a file, fix its
+warning in the same PR.
 
 - ~~**Manual-field sync between snapshot types lacks atomicity**~~ **[verified no-op 2026-05-16]** — `backend/app/modules/scorecard/services/metrics_service.py:187-191`. Traced every caller: request paths (`projects_v2.py:425`, `metrics.py:120`, `capture.py:266/279`) all share the `DBSession` request transaction; worker paths (`monthly_scorecard_capture.py:100/110`, `tasks.py:120/130`) share a single ARQ-task transaction with only one `db.commit()` at the end. No caller commits between the main upsert and the sibling sync. The `_sync_manual_fields_to_other_snapshot` flush failure would raise inside the same uncommitted transaction → both upserts roll back together. The "Detail" claim ("one snapshot with the new value and the other with the old") is incorrect for the current call graph. A `db.begin_nested()` savepoint would add nothing because there is no in-between commit boundary to protect from. Closed without code change. If a future caller is added that commits between calls, re-open then.
 
@@ -51,23 +56,11 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
 
 - ~~**`delete_registry_type` blocks deletion when nodes exist but emits no log**~~ **[FIXED — Batch 2]** — emits `iso_registry_type_delete_blocked(type_id, type_slug, node_count, actor)` before raising 409. Switched the `LIMIT 1`-existence check to a `COUNT(*)` so the audit log carries the real referencing-node count. Regression test `tests/iso_docs/test_registry_types_api.py::test_delete_registry_type_blocked_emits_audit_log`.
 
-- **No GitHub rate-limit handling on catalog/sha fetches** — `backend/app/modules/devstack/services/github_sha.py:69, 102` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `devstack / services`
-  - Detail: `fetch_github_sha` and the related `fetch_github_content` make GitHub API calls without inspecting `X-RateLimit-Remaining` / `X-RateLimit-Reset` headers, and without backoff on `429 Too Many Requests`. A bulk refresh of the catalog can quietly hit the unauthenticated 60/hour limit and start failing for every dev across the org.
-  - Fix: Read `X-RateLimit-Remaining` on every response; when under a small budget, switch to authenticated requests (`GITHUB_TOKEN`) if not already; on 429, parse `Retry-After` and sleep+retry once.
-  - Added: 2026-05-14 by audit_tech_debt iteration #13
+- ~~**No GitHub rate-limit handling on catalog/sha fetches**~~ **[FIXED — Batch 5]** — `_get_with_rate_limit_retry` wraps every GitHub API call in `github_sha.py`. On `X-RateLimit-Remaining < 10` we log `github_rate_limit_low(url, remaining, reset, authenticated)`. On HTTP 429 we parse `Retry-After`, sleep (capped at 30s), retry once, then propagate. Authentication is already wired via the `token` parameter passed by callers; the rate-limit budget on authenticated calls is 5000/hr instead of 60/hr.
 
-- **No fallback when GitHub is unavailable** — `backend/app/modules/devstack/services/github_sha.py:68-78` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `devstack / services`
-  - Detail: When GitHub is down or returns a non-200, `fetch_github_sha` returns `None`. The refresher then keeps the row as-is. That's fine — but there's no signal anywhere except a `devstack_sha_fetch_failed` log. A team-wide GitHub outage produces silent staleness.
-  - Fix: Surface a `last_fetch_ok_at` field on the entry and expose a "stale" flag in the catalog response. When any required entry hasn't refreshed in N hours, emit a louder log (or Slack the team).
-  - Added: 2026-05-14 by audit_tech_debt iteration #13
+- ~~**No fallback when GitHub is unavailable**~~ **[FIXED — Batch 5]** — Migration `073_devstack_last_fetch_ok_at` adds a nullable timestamp on `devstack_entries`. `_refresh_github_entry` and `_refresh_npm_entry` stamp it on every non-failed run. `EntryResponse.stale` is a computed field — true when `now - last_fetch_ok_at > 72h` (or, for never-refreshed entries, when the row itself is older than 72h). `refresh_all_sources` now also tracks `required_stale` separately from this-run `required_failures` and emits the loud `devstack_required_entry_sync_failed` log on either signal. Frontend stale indicator stays in the Minor backlog.
 
-- **Broad `except Exception` swallowing context in install-tracking** — `backend/mcp_server/data/devstack.py:202` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `devstack / mcp_server`
-  - Detail: A blanket catch around install logging logs and swallows everything — DB connection loss, constraint violations, network errors. We can't tell from telemetry whether install events are being persisted or silently dropped.
-  - Fix: Narrow to `(SQLAlchemyError, OSError)` and re-raise unexpected errors; failing loud is fine here, install tracking shouldn't mask other failures.
-  - Added: 2026-05-14 by audit_tech_debt iteration #13
+- ~~**Broad `except Exception` swallowing context in install-tracking**~~ **[FIXED — Batch 5]** — `mcp_server/data/devstack.py` narrows to `(SQLAlchemyError, OSError)`. Programming bugs (e.g. an `AttributeError` on a future refactor) now surface in Sentry instead of being silently bucketed as "tracking failed".
 
 - ~~**No re-validation of nested JSONB fields after dequeue**~~ **[FIXED — Batch 3]** — `_validate_changelog_entries` (in `mcp_server/handlers/iso_docs.py`) now re-runs `ChangelogEntry.model_validate(entry)` for every entry after `_fill_changelog_authors`. A malformed entry from the queue raises `ValueError("Invalid changelog entry at index N: ...")`, which the dispatcher turns into command status=`failed`. Defense-in-depth for the JSONB queue gotcha.
 
