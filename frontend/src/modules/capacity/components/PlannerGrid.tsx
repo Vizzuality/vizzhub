@@ -4,25 +4,12 @@ import {
   useReactTable,
   getCoreRowModel,
   flexRender,
-  type CellContext,
   type ColumnDef,
-  type HeaderContext,
 } from '@tanstack/react-table';
-import { AlertTriangle, ArrowLeftFromLine, ArrowRightFromLine, Trash2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/core/hooks/useAuth';
 import { shortMonth } from '@/shared/constants/dates';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/shared/components/ui/alert-dialog';
 import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
 import { PlannerAddRow } from '@/modules/capacity/components/PlannerAddRow';
 import { currentMondayString } from '@/modules/capacity/utils/plannerDates';
@@ -31,28 +18,25 @@ import {
   type CellCoord,
 } from '@/modules/capacity/hooks/useCellSelection';
 import type { PlannerGroup } from '@/modules/capacity/types/planner';
-
-const CURRENT_WEEK_BORDER_LIGHT = '1px solid #2d8a4e';
-const CURRENT_WEEK_BORDER_DARK = '1px solid #5AFF15';
-const CURRENT_WEEK_TINT_LIGHT = 'rgba(45, 138, 78, 0.10)';
-const CURRENT_WEEK_TINT_DARK = 'rgba(90, 255, 21, 0.08)';
-
-interface FlatRow {
-  _type: 'header' | 'data' | 'add';
-  groupId: string;
-  groupName: string;
-  hasWarning?: boolean;
-  user_id?: string;
-  user_name?: string;
-  functional_area?: string;
-  project_id?: string;
-  project_name?: string;
-  is_absence?: boolean;
-  is_other?: boolean;
-  cells: Record<string, number>;
-  comments?: Record<string, string>;
-  weekSums?: Record<string, number>;
-}
+import {
+  CURRENT_WEEK_BORDER_DARK,
+  CURRENT_WEEK_BORDER_LIGHT,
+  CURRENT_WEEK_TINT_DARK,
+  CURRENT_WEEK_TINT_LIGHT,
+  mondayDayLabel,
+  stickyLeft,
+  weekCellStyle,
+  type WeekStyleConfig,
+} from '@/modules/capacity/components/plannerGridStyles';
+import {
+  CommentOverlay,
+  FACell,
+  NameCell,
+  WeekHeader,
+  type FlatRow,
+  type NameColumnMeta,
+  type WeekColumnMeta,
+} from '@/modules/capacity/components/PlannerGridColumns';
 
 interface PlannerGridProps {
   readonly groups: PlannerGroup[];
@@ -77,232 +61,6 @@ interface PlannerGridProps {
   readonly addRowOptions: { id: string; name: string; extra?: string }[];
   readonly canEdit?: boolean;
   readonly failedCells?: ReadonlySet<string>;
-}
-
-function ordinalSuffix(day: number): string {
-  if (day >= 11 && day <= 13) return 'th';
-  switch (day % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
-  }
-}
-
-function mondayDayLabel(weekStr: string): string {
-  const day = new Date(weekStr + 'T00:00:00').getDate();
-  return `${day}${ordinalSuffix(day)}`;
-}
-
-const STICKY_LEFT: Record<number, number> = { 0: 0, 1: 50 };
-function stickyLeft(colIdx: number): number | undefined {
-  return STICKY_LEFT[colIdx];
-}
-
-interface WeekStyleConfig {
-  currentWeekKey: string;
-  currentWeekTint: string;
-  currentWeekBorder: string;
-  oddMonthBg: string;
-  weekMonthInfo: Map<string, { isOddMonth: boolean }>;
-}
-
-function weekCellStyle(
-  weekKey: string,
-  config: WeekStyleConfig,
-): { backgroundColor?: string; borderLeft?: string } {
-  const isCurrentWeek = weekKey === config.currentWeekKey;
-  const info = config.weekMonthInfo.get(weekKey);
-  const monthTint = info?.isOddMonth ? config.oddMonthBg : undefined;
-  return {
-    backgroundColor: isCurrentWeek ? config.currentWeekTint : monthTint,
-    borderLeft: isCurrentWeek ? config.currentWeekBorder : undefined,
-  };
-}
-
-function CommentOverlay({
-  comment,
-  isDark,
-}: {
-  readonly comment: string;
-  readonly isDark: boolean;
-}): JSX.Element {
-  return (
-    <div
-      aria-hidden
-      className="absolute top-0 flex h-full items-center px-2 text-xs shadow-sm"
-      style={{
-        left: '100%',
-        width: 10 * 42,
-        backgroundColor: isDark ? '#451a03' : '#fffbeb',
-        color: isDark ? '#fef3c7' : '#78350f',
-        zIndex: 25,
-      }}
-      title={comment}
-    >
-      <span
-        className="absolute"
-        style={{
-          left: -6,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 0,
-          height: 0,
-          borderTop: '6px solid transparent',
-          borderBottom: '6px solid transparent',
-          borderRight: `6px solid ${isDark ? '#451a03' : '#fffbeb'}`,
-        }}
-      />
-      <span className="truncate">{comment}</span>
-    </div>
-  );
-}
-
-function weekHeaderClassName(hasComment: boolean, isExpanded: boolean): string {
-  if (!hasComment) return 'invisible';
-  if (isExpanded) return 'text-red-500 dark:text-white';
-  return 'text-red-500/80 hover:text-red-500 dark:text-white/80 dark:hover:text-white';
-}
-
-interface WeekColumnMeta {
-  readonly week: string;
-  readonly weekLabel: string;
-  readonly hasComment: boolean;
-  readonly isExpanded: boolean;
-  readonly onToggle: (week: string) => void;
-}
-
-function WeekHeader(ctx: HeaderContext<FlatRow, unknown>): JSX.Element {
-  const meta = ctx.column.columnDef.meta as WeekColumnMeta;
-  const { week, weekLabel, hasComment, isExpanded, onToggle } = meta;
-  const handleClick = (e: React.MouseEvent): void => {
-    if (!hasComment) return;
-    e.stopPropagation();
-    onToggle(week);
-  };
-  return (
-    <div className="flex flex-col leading-none gap-0.5">
-      <button
-        type="button"
-        aria-label={`Toggle comments for ${weekLabel}`}
-        tabIndex={hasComment ? 0 : -1}
-        onClick={handleClick}
-        className={`h-3.5 flex items-center justify-end ${weekHeaderClassName(hasComment, isExpanded)}`}
-      >
-        {isExpanded ? (
-          <ArrowRightFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-        ) : (
-          <ArrowLeftFromLine className="h-3.5 w-3.5" strokeWidth={2.5} />
-        )}
-      </button>
-      <span>{weekLabel}</span>
-    </div>
-  );
-}
-
-function FACellRenderer({ row }: { readonly row: FlatRow }): JSX.Element | null {
-  if (row._type === 'data') {
-    return (
-      <span className="text-xs text-muted-foreground">
-        {row.functional_area}
-      </span>
-    );
-  }
-  return null;
-}
-
-function FACell(ctx: CellContext<FlatRow, unknown>): JSX.Element | null {
-  return <FACellRenderer row={ctx.row.original} />;
-}
-
-interface NameColumnMeta {
-  readonly groupBy: string;
-  readonly warningSet: Set<string>;
-  readonly onDeleteRow: (projectId: string, userId: string) => void;
-}
-
-function NameCell(ctx: CellContext<FlatRow, unknown>): JSX.Element | null {
-  const meta = ctx.column.columnDef.meta as NameColumnMeta;
-  return (
-    <NameCellRenderer
-      row={ctx.row.original}
-      groupBy={meta.groupBy}
-      warningSet={meta.warningSet}
-      onDeleteRow={meta.onDeleteRow}
-    />
-  );
-}
-
-function NameCellRenderer({
-  row,
-  groupBy,
-  warningSet,
-  onDeleteRow,
-}: {
-  readonly row: FlatRow;
-  readonly groupBy: string;
-  readonly warningSet: Set<string>;
-  readonly onDeleteRow: (projectId: string, userId: string) => void;
-}): JSX.Element | null {
-  if (row._type !== 'data') return null;
-
-  const isPinned = row.is_absence || row.is_other;
-  const defaultLabel = groupBy === 'project' ? row.user_name : row.project_name;
-  const label = isPinned && row.is_other ? 'Others' : defaultLabel;
-  const userHasWarning = row.user_id ? warningSet.has(row.user_id) : false;
-
-  return (
-    <div className="flex items-center justify-between gap-1 min-w-0" title={label ?? undefined}>
-      <span className="flex min-w-0 items-center gap-1 truncate">
-        {groupBy === 'project' && userHasWarning && (
-          <span title="Allocations exceed 100%"><AlertTriangle className="h-3 w-3 shrink-0 text-yellow-500" /></span>
-        )}
-        {groupBy === 'user' && !isPinned ? (
-          <Link
-            to={`/tracker/projects/${row.project_id}`}
-            className="block min-w-0 truncate text-sm hover:underline"
-          >
-            {label}
-          </Link>
-        ) : (
-          <span className={`block min-w-0 truncate text-sm ${isPinned ? 'italic text-muted-foreground' : ''}`}>
-            {label}
-          </span>
-        )}
-      </span>
-      {!isPinned && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button
-              className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
-            >
-              <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remove row?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will delete all planned allocations for this combination.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (row.project_id && row.user_id) {
-                    onDeleteRow(row.project_id, row.user_id);
-                  }
-                }}
-              >
-                Remove
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
-  );
 }
 
 export function PlannerGrid({
@@ -362,7 +120,6 @@ export function PlannerGrid({
       .filter((g) => g.rows.length > 0);
   }, [groups, fa, groupBy]);
 
-  // Flatten groups into rows for the table
   const flatRows = useMemo((): FlatRow[] => {
     const result: FlatRow[] = [];
     for (const group of filteredGroups) {
@@ -429,7 +186,6 @@ export function PlannerGrid({
     }
   }, [expandedWeek, weeksWithComments]);
 
-  // Build allCoords for selection range calculation
   useEffect(() => {
     const coords: CellCoord[] = [];
     for (const row of flatRows) {
@@ -445,14 +201,12 @@ export function PlannerGrid({
     selection.allCoordsRef.current = coords;
   }, [flatRows, weeks, selection.allCoordsRef]);
 
-  // Global mouseup to end drag
   useEffect(() => {
     const handler = (): void => selection.handleMouseUp();
     globalThis.addEventListener('mouseup', handler);
     return () => globalThis.removeEventListener('mouseup', handler);
   }, [selection.handleMouseUp]);
 
-  // Apply batch value to selected cells
   const applyBatchValue = useCallback(
     (value: number | null): void => {
       for (const key of selection.selected) {
@@ -466,7 +220,6 @@ export function PlannerGrid({
     [selection, gatedCellChange],
   );
 
-  // Lookup cell value by key
   const cellValueMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const row of flatRows) {
@@ -478,7 +231,6 @@ export function PlannerGrid({
     return map;
   }, [flatRows]);
 
-  // Keyboard handler for grid
   const handleGridKeyDown = useCallback(
     (e: React.KeyboardEvent): void => {
       if (selection.selected.size === 0) return;
@@ -515,7 +267,6 @@ export function PlannerGrid({
         return;
       }
 
-      // Typing a digit opens batch input
       if (/^\d$/.test(e.key) && selection.selected.size > 1) {
         e.preventDefault();
         setBatchDraft(e.key);
@@ -525,7 +276,6 @@ export function PlannerGrid({
     [selection, showBatchInput, applyBatchValue, cellValueMap],
   );
 
-  // Focus batch input when it appears
   useEffect(() => {
     if (showBatchInput) batchInputRef.current?.focus();
   }, [showBatchInput]);
@@ -549,23 +299,22 @@ export function PlannerGrid({
     [batchDraft, applyBatchValue],
   );
 
-  // Group weeks by month + track month index for alternating backgrounds
   const { monthGroups, weekMonthInfo } = useMemo(() => {
-    const groups = new Map<string, string[]>();
+    const monthMap = new Map<string, string[]>();
     const info = new Map<string, { isOddMonth: boolean }>();
     let prevMonth = '';
     let monthIdx = 0;
     for (const w of weeks) {
       const month = shortMonth(w);
-      if (!groups.has(month)) groups.set(month, []);
-      groups.get(month)!.push(w);
+      if (!monthMap.has(month)) monthMap.set(month, []);
+      monthMap.get(month)!.push(w);
       if (month !== prevMonth) {
         if (prevMonth !== '') monthIdx++;
         prevMonth = month;
       }
       info.set(w, { isOddMonth: monthIdx % 2 === 1 });
     }
-    return { monthGroups: groups, weekMonthInfo: info };
+    return { monthGroups: monthMap, weekMonthInfo: info };
   }, [weeks]);
 
   const weekStyleConfig: WeekStyleConfig = {
@@ -575,7 +324,6 @@ export function PlannerGrid({
     ...weekStyleConfig, oddMonthBg: oddMonthBgMuted,
   };
 
-  // Existing IDs in each group (for add-row filtering)
   const existingIdsByGroup = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const group of filteredGroups) {
@@ -657,7 +405,6 @@ export function PlannerGrid({
         </div>
       )}
       <table className="w-full border-collapse">
-        {/* Month header row */}
         <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
           <tr className="bg-background">
             <th colSpan={2} className="sticky left-0 z-20 bg-background" />
