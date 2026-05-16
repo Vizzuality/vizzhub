@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from redis.exceptions import RedisError
 from sqlalchemy import select
 
 from app.core.api.deps import DBSession, limiter
@@ -193,8 +194,12 @@ async def trigger_scheduled_job(
             message=f"Job '{job_name}' could not be enqueued (may already be queued)",
         )
 
-    except Exception as e:
-        logger.exception("job_enqueue_failed", job_name=job_name)
+    except (RedisError, ConnectionError, OSError) as e:
+        # Keep the "Is Redis running?" hint for the operator on real
+        # infrastructure failures. Programming bugs propagate to the
+        # global 500 handler with a full traceback in Sentry instead of
+        # being lumped into a generic "could not enqueue" message.
+        logger.exception("job_enqueue_failed", job_name=job_name, error_type=type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enqueue job: {e}. Is Redis running?",

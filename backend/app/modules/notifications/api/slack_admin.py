@@ -3,8 +3,10 @@
 import structlog
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.api.deps import DBSession, limiter
 from app.core.auth import TokenData
@@ -22,7 +24,7 @@ from app.modules.notifications.api.schemas.slack import (
 )
 from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
 from app.core.services.integration_token_service import IntegrationTokenService
-from app.modules.notifications.services.slack_service import SlackService
+from app.modules.notifications.services.slack_service import SlackAPIError, SlackService
 
 logger = structlog.get_logger()
 
@@ -133,26 +135,29 @@ async def test_alert(
             channel_id,
             test_message,
         )
-
-        if slack_result.get("ok"):
-            return AlertTestResponse(
-                ok=True,
-                message="Test alert sent successfully to channel",
-                channel_id=channel_id,
-            )
-        else:
-            return AlertTestResponse(
-                ok=False,
-                message=FAILED_TO_SEND_TEST_ALERT,
-                error=slack_result.get("error", "Unknown Slack error"),
-            )
-    except Exception as e:
-        logger.exception("alert_test_send_failed")
+    except (httpx.HTTPError, SlackAPIError, SQLAlchemyError) as e:
+        # Known transport / API / DB failure modes return a structured
+        # ok:false so the admin UI can render the error. Anything else
+        # (programming bug, unexpected dependency failure) propagates to
+        # the global 500 handler so the traceback hits Sentry.
+        logger.exception("alert_test_send_failed", error_type=type(e).__name__)
         return AlertTestResponse(
             ok=False,
             message=FAILED_TO_SEND_TEST_ALERT,
             error=str(e),
         )
+
+    if slack_result.get("ok"):
+        return AlertTestResponse(
+            ok=True,
+            message="Test alert sent successfully to channel",
+            channel_id=channel_id,
+        )
+    return AlertTestResponse(
+        ok=False,
+        message=FAILED_TO_SEND_TEST_ALERT,
+        error=slack_result.get("error", "Unknown Slack error"),
+    )
 
 
 @alerts_router.get(
@@ -245,22 +250,21 @@ async def send_custom_notification(
             unfurl_links=payload.unfurl_links,
             unfurl_media=payload.unfurl_media,
         )
-
-        if result.get("ok"):
-            return CustomNotificationResponse(
-                ok=True,
-                message="Message sent successfully",
-            )
-        else:
-            return CustomNotificationResponse(
-                ok=False,
-                message="Failed to send message",
-                error=result.get("error", "Unknown Slack error"),
-            )
-    except Exception as e:
-        logger.exception("custom_notification_send_failed")
+    except (httpx.HTTPError, SlackAPIError, SQLAlchemyError) as e:
+        logger.exception("custom_notification_send_failed", error_type=type(e).__name__)
         return CustomNotificationResponse(
             ok=False,
             message="Failed to send message",
             error=str(e),
         )
+
+    if result.get("ok"):
+        return CustomNotificationResponse(
+            ok=True,
+            message="Message sent successfully",
+        )
+    return CustomNotificationResponse(
+        ok=False,
+        message="Failed to send message",
+        error=result.get("error", "Unknown Slack error"),
+    )

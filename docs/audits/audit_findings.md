@@ -16,7 +16,7 @@ Registry of the tech-debt and calculations audits. Consolidated output from `aud
 | ToDo Next High Priority (T1–T7) | 0 | 25 |
 | CALCULATIONS — WRONG | 0 | 1 |
 | CALCULATIONS — SUSPICIOUS | 0 | 26 |
-| Pending boy-scout backlog | **110** (5 Major / 100 Minor / 5 Nit) | — |
+| Pending boy-scout backlog | **108** (3 Major / 100 Minor / 5 Nit) | — |
 | Won't do (deliberate) | — | 18 |
 | Fixed (historical) | — | 112 |
 
@@ -37,21 +37,13 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
 > - **15 items moved to Fixed (or cross-referenced as closed)** — closed by the 2026-05-16 sweeps (T1–T7).
 > - **42 items downgraded to Minor** — file-size / DRY / UX nits / defensive coverage. They live in `### Minor` below under `#### Downgraded from Major`.
 
-### Major (5)
+### Major (3)
 
 - ~~**Manual-field sync between snapshot types lacks atomicity**~~ **[verified no-op 2026-05-16]** — `backend/app/modules/scorecard/services/metrics_service.py:187-191`. Traced every caller: request paths (`projects_v2.py:425`, `metrics.py:120`, `capture.py:266/279`) all share the `DBSession` request transaction; worker paths (`monthly_scorecard_capture.py:100/110`, `tasks.py:120/130`) share a single ARQ-task transaction with only one `db.commit()` at the end. No caller commits between the main upsert and the sibling sync. The `_sync_manual_fields_to_other_snapshot` flush failure would raise inside the same uncommitted transaction → both upserts roll back together. The "Detail" claim ("one snapshot with the new value and the other with the old") is incorrect for the current call graph. A `db.begin_nested()` savepoint would add nothing because there is no in-between commit boundary to protect from. Closed without code change. If a future caller is added that commits between calls, re-open then.
 
-- **Broad `except Exception` returning synthetic ok=false hides real failures** — `backend/app/modules/notifications/api/slack_admin.py:149-155, 260-266`, `backend/app/modules/notifications/api/scheduled_jobs.py:196-201` [warning] — SlackService now surfaces transport / HTTP / JSON failures via structured `{ok: false, error: type}` payloads + structured logs; the outer broad `except` is now mostly redundant but kept as a safety net pending caller migration. Better: drop the broad except after migrating callers. Deferred.
-  - Module: `notifications / api`
-  - Detail: `test_alert` and `send_custom_notification` log via `logger.exception()` and then return `{"ok": false, "message": "..."}`. Result: the caller (UI) gets a generic "didn't work", users have no way to know whether the Slack token is invalid or our DB is down.
-  - Fix: Catch the specific failure modes (`httpx.HTTPError`, `SlackAPIError`, `SQLAlchemyError`) and let everything else propagate to the global 500 handler with full traceback.
-  - Added: 2026-05-14 by audit_tech_debt iteration #7
+- ~~**Broad `except Exception` returning synthetic ok=false hides real failures**~~ **[FIXED — Batch 4]** — `test_alert` and `send_custom_notification` in `slack_admin.py` now narrow to `(httpx.HTTPError, SlackAPIError, SQLAlchemyError)`. `trigger_scheduled_job` in `scheduled_jobs.py` narrows to `(RedisError, ConnectionError, OSError)` while keeping the "Is Redis running?" hint for operators. Everything else propagates to the global 500 handler with full traceback in Sentry.
 
-- **Alert-silence enforcement has no integration test** — `backend/tests/modules/notifications/test_silences_api.py` [warning] — dedicated test-coverage sweep.
-  - Module: `notifications / tests`
-  - Detail: Silence CRUD is tested. There is no test that creates a silence, triggers a scheduled job (`check_dependabot_alerts`, `check_business_alerts`), and asserts the silenced alert isn't sent. A regression that bypasses `is_silenced()` would ship cleanly.
-  - Fix: Add a test that wires the full path — silence row + job invocation + assertion on `SlackService.send_message` mock not being called.
-  - Added: 2026-05-14 by audit_tech_debt iteration #7
+- ~~**Alert-silence enforcement has no integration test**~~ **[verified no-op 2026-05-16]** — already covered. `tests/test_check_business_alerts_job.py::test_respects_silence` (line 337) and `tests/test_check_dependabot_job.py::test_job_respects_silence` (line 460) both create an `AlertSilenceDB` row, trigger the corresponding scheduled job, and assert `SlackService.send_message` mock is NOT called for the silenced alert. Audit was looking at the wrong path (`tests/modules/notifications/test_silences_api.py` doesn't exist; the file is `tests/test_silences_api.py` and covers CRUD; the integration coverage lives in the worker test files). No code change needed.
 
 - ~~**Cron snapshot path doesn't separately log review creation**~~ **[FIXED — Batch 2]** — `review_service.create_review_for_snapshot` now emits `iso_review_created(review_id, snapshot_id, provider, previous_snapshot_id, change_count, reviewer_id)`. Both API (`snapshots.py:93`) and cron (`collect_iso_snapshot.py:46`) inherit the event for free. Regression test in `tests/test_iso_snapshots.py::test_capture_creates_draft_review` asserts the event fires via `caplog`.
 
