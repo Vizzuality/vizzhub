@@ -1,86 +1,28 @@
 # Audit Findings
 
-Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each iteration appends new findings; items are then classified as [warning] / [won't do] / [fixed] and bucketed below.
+Registry of the tech-debt and calculations audits. Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`.
+
+**Where to start:**
+- Actionable backlog: [`## Pending — by criticality`](#pending--by-criticality) below.
+- Historical record (closed passes, fixed items, verified-clean checkpoints, won't-do, calculations audit): [`# Registry — closed work`](#registry--closed-work) further down.
+- New findings shape: [`## Finding template`](#finding-template) at the end of the file.
 
 ---
 
-## Status (2026-05-16 PM, second pass)
+## Status (2026-05-16 PM)
 
-**ToDo Next High Priority block — 22/25 closed, 0 outstanding.** Tiers T1 through T7 all triaged across two sessions. The 8 items deferred in the first pass are now resolved: 3 structural refactors landed (T6.12 / T6.14 / T6.15) and 5 of the T7 DRY items either landed (T7.17) or were promoted to **verified no-ops** with rationale (T7.18, T7.19, T7.20, T7.23).
+| | Open | Closed / no-op |
+|---|---:|---:|
+| ToDo Next High Priority (T1–T7) | 0 | 25 |
+| CALCULATIONS — WRONG | 0 | 1 |
+| CALCULATIONS — SUSPICIOUS | 0 | 26 |
+| Pending boy-scout backlog | **132** (66 Major / 61 Minor / 5 Nit) | — |
+| Won't do (deliberate) | — | 18 |
+| Fixed (historical) | — | 112 |
 
-| Tier | Status | Notes |
-|------|--------|-------|
-| T1 (real bugs) | ✅ Closed | `bf2cc724` + `cb71bcc7` — heartbeat registered, dependabot counter fixed |
-| T2 (user-visible) | ✅ Closed | `7755e5f4` + `058bd0da` — planner save-failure banner + red ring on failed cells |
-| T3 (quick verifications) | ✅ No-op | `85fd568d` — both items already closed by `24971b18`, audit entries were stale |
-| T4 (coverage gaps) | ✅ Closed | `c0ad1bf7` + `011498e5` — PlannerCell edit-lifecycle tests + planner RBAC denial tests |
-| T5 (worker observability) | ✅ Closed | `8fe4d363` + `8d2c8b3c` — passthrough workers gain canonical lifecycle events; MCP audit log |
-| T6.12 PlannerGrid | ✅ Closed | `50b3269c` — columns + styles extracted to sibling modules; orchestrator 871 → 618 LOC |
-| T6.13 (worker splits) | ✅ Closed | `82f3dd1b` + `f55ef273` — check_business_alerts & check_dependabot split into per-type modules |
-| T6.14 capacity_insights | ✅ Closed | `f106a94e` — split into 6-module subpackage; max single module 188 LOC (was 810) |
-| T6.15 planner.py | ✅ Closed | `a31e60c4` — pure helpers extracted into `_helpers.py`; planner.py 466 → 273 LOC |
-| T7.16 / T7.24 / T7.25 | ✅ Closed | `81e14722` — month-range Depends, tech-radar config, MCP perm enum |
-| T7.17 + T7.18 | ✅ Closed (partial) | `711c39a4` — `start_job_run` + `complete_job_run` helpers replace 8x prologue/epilogue (-68 LOC). Slack-token early-return remains a verified no-op (couples control flow) |
-| T7.19 / T7.20 / T7.23 | ✅ Verified no-op | safe_iter has 5 distinct call shapes; `_upsert_batch` flag is 1-line branch in 31-LOC body; `capture_history_task` correctly describes the ARQ handler that backfills history month-by-month |
-| T7.21 / T7.22 | ✅ Verified no-op | First pass — FE FA helper, allCoords recompute |
+**Tests on a clean run:** backend full suite 1930/1930, FE 514/514, MCP command/devstack/iso/permissions 107/107.
 
-Earlier baseline (2026-05-15 PM): **112 fixed · 18 won't do · 133 warning.** Full backend (1930) + frontend (514) test suites pass on a clean run. The remaining warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
-
-Test counts after this pass: backend full suite 1930/1930, FE 514/514, MCP command/devstack/iso/permissions 107/107.
-
----
-
-## ToDo — Next High Priority (2026-05-16)
-
-Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by priority.** Strike each through with `[fixed <hash>]` as it lands; promote the rest to a dedicated session when ready.
-
-### T1 — Real bugs (production impact, fix first) — **CLOSED 2026-05-16**
-
-1. ~~**`write_heartbeat` registered as cron but missing from `WorkerSettings.functions`**~~ — `backend/app/worker/settings.py`. ARQ resolves cron functions through `functions`; without registration the heartbeat never fired. **[fixed `bf2cc724`]**
-2. ~~**`check_dependabot.py:110` increments `projects_checked` inside the try block**~~ — silenced/failed iterations were undercounted. Increment now sits at the top of the `try` (mirrors `check_business_alerts.py`'s pattern of incrementing in both branches). **[fixed `bf2cc724`]**
-
-### T2 — User-visible gaps — **CLOSED 2026-05-16**
-
-3. ~~**Planner mutation has no error UI or retry**~~ — `usePlannerMutations` now captures `errorMessage` + `failedCells` on mutation failure. Planner page renders a dismissable destructive banner; failed cells get a red ring through `PlannerCell.hasError`. Re-editing a failed cell clears it (de-facto retry). 4 hook tests + 2 cell tests. **[fixed `7755e5f4`]**
-
-### T3 — Quick verifications (small but worth closing) — **CLOSED 2026-05-16** (verified, no code change needed)
-
-4. ~~**`get_capacity_user_detail` user_id validation**~~ — verified. `capacity_insights.py:251` already gates with `select(UserDB.id).where(UserDB.id == uid, *_reportable_user_filter())` and returns `[]` for inactive/exempt users. UUID format is validated upstream (`user_detail.py:35` → 422). Closed by `24971b18`; the ToDo entry overstated the gap. _(The note said "404s"; actual implementation returns `[]`. Both behaviours equally gate the expensive JOIN — the empty-list shape stays consistent with the rest of the endpoint contract.)_
-5. ~~**`UserDetailChart` hardcoded gray instead of `OTHER_COLOR`**~~ — verified. `git show 24971b18 -- UserDetailChart.tsx` already swapped both `#6b7280` literals for `OTHER_COLOR`. Hex-literal scan today is empty. ToDo entry was a false positive against the post-`24971b18` state.
-
-### T4 — Coverage gaps with real risk — **CLOSED 2026-05-16**
-
-6. ~~**No tests for `check_dependabot_alerts` or `check_business_alerts`**~~ — false positive. Verified: `tests/test_check_dependabot_job.py` has 13 tests, `tests/test_check_business_alerts_job.py` has 15 tests. Together they cover happy paths, silencing, throttling, resolved alerts, missing config, leadership-channel routing, and continue-on-error. The ToDo entry was stale.
-7. ~~**Capacity FE tests cero**~~ — partial false positive (10 capacity FE test files already exist totaling 47 tests). Closed the highest-leverage real gap: added 6 `PlannerCell` edit-lifecycle tests covering Enter commit, > 200 clamping, empty/zero → null, no-op when value unchanged, and Escape cancel. **[fixed `c0ad1bf7`]**
-8. ~~**No test for write-permission denial on planner endpoints**~~ — added `tests/modules/capacity/test_planner_rbac.py`. Two tests assert that a `user`-role token (CAPACITY_VIEW only, no CAPACITY_MANAGE) gets 403 on `PATCH /api/capacity/planner/cells` and `DELETE /api/capacity/planner/rows/{p}/{u}`. Exercises the FastAPI dependency chain that the direct-call tests in `test_planner.py` bypass. **[fixed `c0ad1bf7`]**
-
-### T5 — Observability gaps (worker) — **CLOSED 2026-05-16**
-
-9. ~~**`publish_playbook_task`, `export_iso_docs_gdrive_task`, `refresh_devstack_sources`**~~ — each now wraps its inner service in the canonical `job_started` / `job_completed` / `job_failed` triplet. Failures `logger.exception()` + re-raise so ARQ retry semantics stay untouched. **[fixed `8fe4d363`]**
-10. ~~**Long-running jobs emit no progress logs**~~ — largely subsumed by T5.9: `check_dependabot_alerts` already emits `projects_found` + per-iteration `project_silenced` / `project_processing_failed`; `refresh_devstack_sources` is a passthrough and now logs at the worker boundary; `recalc_global_history` is a one-shot script (`scripts/recalc_global_history.py`), not a worker — its `print()` calls live outside the structlog pipeline by design and don't fit the same convention. Closed-by-overlap.
-11. ~~**MCP tool invocations not logged via structlog**~~ — added audit events: `mcp_command_enqueued` in `_shared.enqueue_command`, `mcp_command_executed` / `mcp_command_failed` / `mcp_command_approve_denied` in `commands.approve_command` (and per-iteration in `approve_all` with `via="approve_all"`), `mcp_command_rejected` in `commands.reject_command`. Each event carries `command_id`, `module`, `action`, `user_id`, `user_email` so the Loki audit trail can answer "who authorized what". Pairs with the existing `mcp_permission_denied` warning. **[fixed `8fe4d363`]**
-
-### T6 — Refactors (boy-scout when next touched)
-
-12. ~~**`PlannerGrid.tsx` 854 LOC**~~ — extracted constants/styles + cell renderers into sibling modules. New layout: `PlannerGrid.tsx` 618 LOC (state/effects/render orchestrator), `PlannerGridColumns.tsx` 216 LOC (`FACell`, `NameCell`, `WeekHeader`, `CommentOverlay`, `FlatRow`, meta types), `plannerGridStyles.ts` 46 LOC (week-style helpers + month constants). No behaviour change; 514 FE tests green. **[fixed `50b3269c`]**
-13. ~~**`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC**~~ — split into per-alert-type modules. `check_business_alerts.py` → 181 LOC orchestrator + `app/worker/business_alerts/{shared, budget_exceeded, timeline_at_risk, project_overdue}.py`. `check_dependabot.py` → 183 LOC orchestrator + `app/worker/dependabot/{shared, tracking, reminders}.py`. Test patch surfaces collapsed to `…/{module}/shared.SlackService.send_message` per family. Worker public API unchanged. **[fixed `82f3dd1b`]**
-14. ~~**`capacity_insights.py` 743 LOC**~~ — converted to a package whose `__init__.py` re-exports the 8 public symbols. Internal layout: `_shared.py` (filter, on-leave, FA mapping, name formatters, `_get_finished_periods`), `insights.py` (overview + `_aggregate_fa_period`), `fa_detail.py` (FA detail + reportable-users selector), `user_detail.py`, `allocation.py` (users), `allocation_projects.py`. Max single module is now 188 LOC. All 101 capacity tests green. **[fixed `f106a94e`]**
-15. ~~**`planner.py` 451 LOC**~~ — pure helpers (`_fa_short_name`, `_user_name_expr`, `_mondays_between`, `_mondays_in_month`, `_parse_date`, `_build_row_data`, `_process_rows`, `_inject_empty_groups`, `_inject_pinned_rows`, `_get_overallocation_warnings`, `_upsert_batch`) moved to a sibling `_helpers.py`. `planner.py` re-imports them so `test_mondays_in_month.py`'s private-name import (`from app.modules.capacity.api.planner import _mondays_in_month`) keeps working. `planner.py` 466 → 273 LOC. **[fixed `a31e60c4`]**
-
-### T7 — DRY / cleanup (low priority, batch when convenient) — **TRIAGED + 3 FIXED 2026-05-16**
-
-16. ~~**Month-range parsing duplicated across 3 capacity endpoints**~~ — `MonthRangeDep` FastAPI dependency added to `_validation.py`. `insights.py`, `fa_detail.py`, `user_detail.py` now consume `months: MonthRangeDep` instead of the 3-line `parse_month/parse_month/validate_date_range` triplet. `allocation.py` keeps its private optional-range helper (different contract — Nones are valid). **[fixed `81e14722`]**
-17. ~~**`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs**~~ — extracted `start_job_run(db, name)` and `complete_job_run(db, run)` into `app/worker/utils.py` next to the existing `complete_with_error`. 8 jobs (`fetch_exchange_rates`, `report_reminder`, `report_confirmation_reminder`, `rotate_reporting_period`, `monthly_scorecard_capture`, `check_business_alerts`, `check_dependabot`, `collect_iso_snapshot`) now share the prologue/epilogue; net -68 LOC. The full ctx-mgr idea stays deferred — `monthly_scorecard_capture`'s poisoned-session raw-`UPDATE` recovery + the 5 distinct Slack-token early-return shapes can't be safely unified. **[fixed `711c39a4`]**
-18. ~~**Slack bot-token fetch "return if missing" repeated in 4 jobs**~~ — verified no-op. Extracting a helper that returns a `complete_with_error(...)` dict from inside a caller's `try` block tangles control flow (`return await helper(...)` looks like normal completion). Explicit early-returns are clearer at 3 lines × 4 sites = 12 lines for free readability.
-19. ~~**"Iterate projects, catch, continue" pattern duplicated three times**~~ — verified no-op. Post-T6.13 split, the 5 in-loop except branches that remain (`check_dependabot`, `check_business_alerts`, `monthly_scorecard_capture` x2, `collect_iso_snapshot`) all diverge: some `continue`, some bump counters before/after, some collect `errors.append({...})`, some use `logger.exception` vs `logger.error(exc_info=True)`. A unifying helper would either duplicate that diversity (zero savings) or force-converge their observable telemetry (silent behaviour change).
-20. ~~**`_upsert_batch(include_comment)` flag-arg branching schema**~~ — verified no-op. The function is 31 LOC; the flag toggles a single line (whether `comment` enters `on_conflict_do_update.set_`). Splitting would duplicate the whole `pg_insert(...).values(...).on_conflict_do_update(...)` body. Flag-arg is the right expression here.
-21. ~~**No FA short↔full-name helper on the FE**~~ — verified no-op. FE uses short codes (`FA_ORDER`, `FA_COLORS`) throughout `modules/capacity/`; no inline `"Frontend Developer"`-style mapping survives. Backend's `TARGET_FA_MAPPING` does the short→full work where needed. ToDo claim was stale.
-22. ~~**`allCoords` array rebuilt every render in `useCellSelection`**~~ — verified no-op. The build sits in a `useEffect` with deps `[flatRows, weeks, selection.allCoordsRef]` in `PlannerGrid.tsx:433`; recomputes only when `flatRows`/`weeks` change, not on every render. ToDo claim was stale.
-23. ~~**`capture_history_task` name suggests cron but it's an API-triggered backfill**~~ — verified no-op. The function takes `from_year/month → to_year/month`, iterates over months and captures historical metrics — the name is accurate. ARQ uses `_task` for any queueable handler regardless of trigger source (the cron-only convention is `cron_jobs`, not `functions`). The audit reviewer conflated "task" with "cron". Renaming would invalidate any queued ARQ job in Redis and break the 3 string-literal call sites with no naming win.
-24. ~~**Hardcoded GitHub org/repo for tech-radar**~~ — moved to `settings.devstack_tech_radar_repo` (defaults to `Vizzuality/vizzuality-engineering-handbook`, env-overridable via `DEVSTACK_TECH_RADAR_REPO`). `mcp_server/data/devstack.py` now resolves the base URL through `get_settings()` at call time. **[fixed `81e14722`]**
-25. ~~**Permission strings as bare literals scattered across MCP decorators**~~ — all ~30 `@mcp_requires("…")` literals in `mcp_server/tools/{scorecard,tracker,iso_write,playbook_write,devstack,capacity}.py` now reference `Action.X` constants from `app.core.permissions`. `tools/commands.py:_MODULE_PERMISSIONS` and the lone `has_permission("iso_docs:edit")` in `data/iso.py` likewise. Typo-safe + single source of truth with backend. **[fixed `81e14722`]**
-
-The rest of the 132-item backlog stays on the boy-scout rule (fix when you touch the file). T1+T2+T3 are the most cost-effective next pass; T4+T5 close real risk; T6+T7 absorb naturally.
+Active sweeps are complete; the remaining 132 warnings are legitimately deferred and attacked via the boy-scout rule (touch a file, fix its warnings in the same PR). See the registry below for what the closed sweeps covered.
 
 ---
 
@@ -885,6 +827,64 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Detail: Comment says "show every 6th tick" but the function returns `5` (Recharts `interval=5` means every 6th tick is rendered — but the wording's still confusing).
   - Fix: Either say "interval=5, so every 6th tick renders" or update the value to match the comment intent.
   - Added: 2026-05-14 by audit_tech_debt iteration #26
+
+---
+
+# Registry — closed work
+
+Historical record of completed audit sweeps. The sections below are kept for context (commit hashes, rationale for verified no-ops, per-iteration checkpoints, calculation-audit notes). Nothing here is actionable — the boy-scout backlog is in [`## Pending — by criticality`](#pending--by-criticality) above.
+
+---
+
+## ToDo Next High Priority (2026-05-16) — CLOSED
+
+Distilled in the first 2026-05-16 session from the 132 `[warning]` backlog by impact, then triaged across two sessions: 22 fixed + 3 verified no-ops, 0 outstanding.
+
+### T1 — Real bugs (production impact) — **CLOSED 2026-05-16**
+
+1. ~~**`write_heartbeat` registered as cron but missing from `WorkerSettings.functions`**~~ — `backend/app/worker/settings.py`. ARQ resolves cron functions through `functions`; without registration the heartbeat never fired. **[fixed `bf2cc724`]**
+2. ~~**`check_dependabot.py:110` increments `projects_checked` inside the try block**~~ — silenced/failed iterations were undercounted. Increment now sits at the top of the `try` (mirrors `check_business_alerts.py`'s pattern of incrementing in both branches). **[fixed `bf2cc724`]**
+
+### T2 — User-visible gaps — **CLOSED 2026-05-16**
+
+3. ~~**Planner mutation has no error UI or retry**~~ — `usePlannerMutations` now captures `errorMessage` + `failedCells` on mutation failure. Planner page renders a dismissable destructive banner; failed cells get a red ring through `PlannerCell.hasError`. Re-editing a failed cell clears it (de-facto retry). 4 hook tests + 2 cell tests. **[fixed `7755e5f4`]**
+
+### T3 — Quick verifications — **CLOSED 2026-05-16** (verified, no code change needed)
+
+4. ~~**`get_capacity_user_detail` user_id validation**~~ — verified. `capacity_insights.py:251` already gates with `select(UserDB.id).where(UserDB.id == uid, *_reportable_user_filter())` and returns `[]` for inactive/exempt users. UUID format is validated upstream (`user_detail.py:35` → 422). Closed by `24971b18`; the ToDo entry overstated the gap. _(The note said "404s"; actual implementation returns `[]`. Both behaviours equally gate the expensive JOIN — the empty-list shape stays consistent with the rest of the endpoint contract.)_
+5. ~~**`UserDetailChart` hardcoded gray instead of `OTHER_COLOR`**~~ — verified. `git show 24971b18 -- UserDetailChart.tsx` already swapped both `#6b7280` literals for `OTHER_COLOR`. Hex-literal scan today is empty. ToDo entry was a false positive against the post-`24971b18` state.
+
+### T4 — Coverage gaps with real risk — **CLOSED 2026-05-16**
+
+6. ~~**No tests for `check_dependabot_alerts` or `check_business_alerts`**~~ — false positive. Verified: `tests/test_check_dependabot_job.py` has 13 tests, `tests/test_check_business_alerts_job.py` has 15 tests. Together they cover happy paths, silencing, throttling, resolved alerts, missing config, leadership-channel routing, and continue-on-error. The ToDo entry was stale.
+7. ~~**Capacity FE tests cero**~~ — partial false positive (10 capacity FE test files already exist totaling 47 tests). Closed the highest-leverage real gap: added 6 `PlannerCell` edit-lifecycle tests covering Enter commit, > 200 clamping, empty/zero → null, no-op when value unchanged, and Escape cancel. **[fixed `c0ad1bf7`]**
+8. ~~**No test for write-permission denial on planner endpoints**~~ — added `tests/modules/capacity/test_planner_rbac.py`. Two tests assert that a `user`-role token (CAPACITY_VIEW only, no CAPACITY_MANAGE) gets 403 on `PATCH /api/capacity/planner/cells` and `DELETE /api/capacity/planner/rows/{p}/{u}`. Exercises the FastAPI dependency chain that the direct-call tests in `test_planner.py` bypass. **[fixed `c0ad1bf7`]**
+
+### T5 — Observability gaps (worker) — **CLOSED 2026-05-16**
+
+9. ~~**`publish_playbook_task`, `export_iso_docs_gdrive_task`, `refresh_devstack_sources`**~~ — each now wraps its inner service in the canonical `job_started` / `job_completed` / `job_failed` triplet. Failures `logger.exception()` + re-raise so ARQ retry semantics stay untouched. **[fixed `8fe4d363`]**
+10. ~~**Long-running jobs emit no progress logs**~~ — largely subsumed by T5.9: `check_dependabot_alerts` already emits `projects_found` + per-iteration `project_silenced` / `project_processing_failed`; `refresh_devstack_sources` is a passthrough and now logs at the worker boundary; `recalc_global_history` is a one-shot script (`scripts/recalc_global_history.py`), not a worker — its `print()` calls live outside the structlog pipeline by design and don't fit the same convention. Closed-by-overlap.
+11. ~~**MCP tool invocations not logged via structlog**~~ — added audit events: `mcp_command_enqueued` in `_shared.enqueue_command`, `mcp_command_executed` / `mcp_command_failed` / `mcp_command_approve_denied` in `commands.approve_command` (and per-iteration in `approve_all` with `via="approve_all"`), `mcp_command_rejected` in `commands.reject_command`. Each event carries `command_id`, `module`, `action`, `user_id`, `user_email` so the Loki audit trail can answer "who authorized what". Pairs with the existing `mcp_permission_denied` warning. **[fixed `8fe4d363`]**
+
+### T6 — Refactors — **CLOSED 2026-05-16**
+
+12. ~~**`PlannerGrid.tsx` 854 LOC**~~ — extracted constants/styles + cell renderers into sibling modules. New layout: `PlannerGrid.tsx` 618 LOC (state/effects/render orchestrator), `PlannerGridColumns.tsx` 216 LOC (`FACell`, `NameCell`, `WeekHeader`, `CommentOverlay`, `FlatRow`, meta types), `plannerGridStyles.ts` 46 LOC (week-style helpers + month constants). No behaviour change; 514 FE tests green. **[fixed `50b3269c`]**
+13. ~~**`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC**~~ — split into per-alert-type modules. `check_business_alerts.py` → 181 LOC orchestrator + `app/worker/business_alerts/{shared, budget_exceeded, timeline_at_risk, project_overdue}.py`. `check_dependabot.py` → 183 LOC orchestrator + `app/worker/dependabot/{shared, tracking, reminders}.py`. Test patch surfaces collapsed to `…/{module}/shared.SlackService.send_message` per family. Worker public API unchanged. **[fixed `82f3dd1b`]**
+14. ~~**`capacity_insights.py` 743 LOC**~~ — converted to a package whose `__init__.py` re-exports the 8 public symbols. Internal layout: `_shared.py` (filter, on-leave, FA mapping, name formatters, `_get_finished_periods`), `insights.py` (overview + `_aggregate_fa_period`), `fa_detail.py` (FA detail + reportable-users selector), `user_detail.py`, `allocation.py` (users), `allocation_projects.py`. Max single module is now 188 LOC. All 101 capacity tests green. **[fixed `f106a94e`]**
+15. ~~**`planner.py` 451 LOC**~~ — pure helpers (`_fa_short_name`, `_user_name_expr`, `_mondays_between`, `_mondays_in_month`, `_parse_date`, `_build_row_data`, `_process_rows`, `_inject_empty_groups`, `_inject_pinned_rows`, `_get_overallocation_warnings`, `_upsert_batch`) moved to a sibling `_helpers.py`. `planner.py` re-imports them so `test_mondays_in_month.py`'s private-name import (`from app.modules.capacity.api.planner import _mondays_in_month`) keeps working. `planner.py` 466 → 273 LOC. **[fixed `a31e60c4`]**
+
+### T7 — DRY / cleanup — **CLOSED 2026-05-16** (3 fixed + 5 verified no-ops + 2 first-pass no-ops)
+
+16. ~~**Month-range parsing duplicated across 3 capacity endpoints**~~ — `MonthRangeDep` FastAPI dependency added to `_validation.py`. `insights.py`, `fa_detail.py`, `user_detail.py` now consume `months: MonthRangeDep` instead of the 3-line `parse_month/parse_month/validate_date_range` triplet. `allocation.py` keeps its private optional-range helper (different contract — Nones are valid). **[fixed `81e14722`]**
+17. ~~**`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs**~~ — extracted `start_job_run(db, name)` and `complete_job_run(db, run)` into `app/worker/utils.py` next to the existing `complete_with_error`. 8 jobs (`fetch_exchange_rates`, `report_reminder`, `report_confirmation_reminder`, `rotate_reporting_period`, `monthly_scorecard_capture`, `check_business_alerts`, `check_dependabot`, `collect_iso_snapshot`) now share the prologue/epilogue; net -68 LOC. The full ctx-mgr idea stays deferred — `monthly_scorecard_capture`'s poisoned-session raw-`UPDATE` recovery + the 5 distinct Slack-token early-return shapes can't be safely unified. **[fixed `711c39a4`]**
+18. ~~**Slack bot-token fetch "return if missing" repeated in 4 jobs**~~ — verified no-op. Extracting a helper that returns a `complete_with_error(...)` dict from inside a caller's `try` block tangles control flow (`return await helper(...)` looks like normal completion). Explicit early-returns are clearer at 3 lines × 4 sites = 12 lines for free readability.
+19. ~~**"Iterate projects, catch, continue" pattern duplicated three times**~~ — verified no-op. Post-T6.13 split, the 5 in-loop except branches that remain (`check_dependabot`, `check_business_alerts`, `monthly_scorecard_capture` x2, `collect_iso_snapshot`) all diverge: some `continue`, some bump counters before/after, some collect `errors.append({...})`, some use `logger.exception` vs `logger.error(exc_info=True)`. A unifying helper would either duplicate that diversity (zero savings) or force-converge their observable telemetry (silent behaviour change).
+20. ~~**`_upsert_batch(include_comment)` flag-arg branching schema**~~ — verified no-op. The function is 31 LOC; the flag toggles a single line (whether `comment` enters `on_conflict_do_update.set_`). Splitting would duplicate the whole `pg_insert(...).values(...).on_conflict_do_update(...)` body. Flag-arg is the right expression here.
+21. ~~**No FA short↔full-name helper on the FE**~~ — verified no-op. FE uses short codes (`FA_ORDER`, `FA_COLORS`) throughout `modules/capacity/`; no inline `"Frontend Developer"`-style mapping survives. Backend's `TARGET_FA_MAPPING` does the short→full work where needed. ToDo claim was stale.
+22. ~~**`allCoords` array rebuilt every render in `useCellSelection`**~~ — verified no-op. The build sits in a `useEffect` with deps `[flatRows, weeks, selection.allCoordsRef]` in `PlannerGrid.tsx:433`; recomputes only when `flatRows`/`weeks` change, not on every render. ToDo claim was stale.
+23. ~~**`capture_history_task` name suggests cron but it's an API-triggered backfill**~~ — verified no-op. The function takes `from_year/month → to_year/month`, iterates over months and captures historical metrics — the name is accurate. ARQ uses `_task` for any queueable handler regardless of trigger source (the cron-only convention is `cron_jobs`, not `functions`). The audit reviewer conflated "task" with "cron". Renaming would invalidate any queued ARQ job in Redis and break the 3 string-literal call sites with no naming win.
+24. ~~**Hardcoded GitHub org/repo for tech-radar**~~ — moved to `settings.devstack_tech_radar_repo` (defaults to `Vizzuality/vizzuality-engineering-handbook`, env-overridable via `DEVSTACK_TECH_RADAR_REPO`). `mcp_server/data/devstack.py` now resolves the base URL through `get_settings()` at call time. **[fixed `81e14722`]**
+25. ~~**Permission strings as bare literals scattered across MCP decorators**~~ — all ~30 `@mcp_requires("…")` literals in `mcp_server/tools/{scorecard,tracker,iso_write,playbook_write,devstack,capacity}.py` now reference `Action.X` constants from `app.core.permissions`. `tools/commands.py:_MODULE_PERMISSIONS` and the lone `has_permission("iso_docs:edit")` in `data/iso.py` likewise. Typo-safe + single source of truth with backend. **[fixed `81e14722`]**
 
 ---
 
@@ -1759,15 +1759,14 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
 
 ---
 
-## CALCULATIONS
+## CALCULATIONS — CLOSED
 
-**Audit complete (2026-05-15).** 39/39 rows reviewed. Scorecard block fully closed on 2026-05-15 PM. Tracker / Capacity / FE-types still open.
+**Audit fully closed.** 39/39 rows reviewed across 2026-05-15 → 2026-05-16. Scorecard / Tracker / Capacity / Frontend all green; the final SUSPICIOUS (final-score weights validation) closed by `4b96fc20` on 2026-05-16 PM.
 
-**Current state (2026-05-15 PM):**
+**Final tally:**
 - **OK: 14** — #1 SPI, #2 CPI, #3 budget_variance(None), #8 Flow, #9 Quality, #11 Satisfaction, #12 Value, #13 Engineering, #15 disabled-governance toggle, #19 SV (not implemented; SPI covers), #22 percent_completed, #23 percent_planned, #29 estimated-flag exclusion, #32 prepopulate_parts (VHUB-124).
-- **WRONG: 0** — ~~#37 `formatCurrency`~~ **[fixed]**.
-- **SUSPICIOUS, fixed:** ~~#4~~, ~~#5~~, ~~#6~~, ~~#7~~ (3/4 sub-issues; UTC business window deferred), ~~#10~~, ~~#14~~, ~~#16~~ (2/3 sub-issues; cache↔cron race deferred), ~~#17~~ (all 4 sub-issues addressed: status filter dropped → MetricsDB presence is the oracle, weighting exposed both equal+budget side-by-side, normalizers fixed via #14, stale projects flagged in `/scorecard` index).
-- **SUSPICIOUS, still open:** ~~#18 CV~~ **[`f92ff36b`]**, ~~#20 EAC~~ **[`371b031b`]**, ~~#21 ETC~~ **[`371b031b`]**, ~~#24 burn precision~~ **[`c9071f11`]**, ~~#25 base_rate=0~~ **[`c4aaeac9`]**, ~~#26 ECB historical~~ **[`417aaa4f`]**, ~~#27 invoice MAX(postponed_to)~~ **[`9e8661b9`]**, ~~#28 postponement backdate~~ **[`f084e0de`]**, ~~#30 mood aggregation~~ **[`f63345a8`]**, ~~#31 period rotation~~ **[`9921bcaf`]**, ~~#33 FA other_pct~~ **[`24971b18`]**, ~~#34 user-detail dedupe~~ **[`24971b18`]**, ~~#35 reportable filter~~ **[`24971b18`]**, ~~#36 on-leave~~ **[`24971b18`]**, ~~#38 TS Decimal-as-string~~ **[`5319e868`]**, ~~#39 chart default-page~~ **[`ae0c3da4`]**, ~~#40 forecastFinal cap mismatch~~ **[`ae0c3da4`]**.
+- **WRONG: 1 (closed)** — ~~#37 `formatCurrency`~~ **[fixed `082fe9d0`]**.
+- **SUSPICIOUS: 26 (all closed)** — ~~#4~~ (`fd553a13`), ~~#5~~ (`fbfee1ea`), ~~#6~~ (`7a1e236d`), ~~#7~~ (3/4 sub-issues; UTC business window deferred), ~~#10~~ (`fbfee1ea`), ~~#14~~ (`082fe9d0` + 2026-05-16 follow-up on `_build_evm_data`/`_build_jira_defects`), ~~#16~~ (2/3 sub-issues; cache↔cron race accepted), ~~#17~~ (all 4 sub-issues addressed: status filter dropped → MetricsDB presence is the oracle, weighting exposed both equal+budget side-by-side, normalizers fixed via #14, stale projects flagged in `/scorecard` index), ~~#18 CV~~ (`f92ff36b`), ~~#20 EAC~~ (`371b031b`), ~~#21 ETC~~ (`371b031b`), ~~#24 burn precision~~ (`c9071f11`), ~~#25 base_rate=0~~ (`c4aaeac9`), ~~#26 ECB historical~~ (`417aaa4f`), ~~#27 invoice MAX(postponed_to)~~ (`9e8661b9`), ~~#28 postponement backdate~~ (`f084e0de`), ~~#30 mood aggregation~~ (`f63345a8`), ~~#31 period rotation~~ (`9921bcaf`), ~~#33 FA other_pct~~ (`24971b18`), ~~#34 user-detail dedupe~~ (`24971b18`), ~~#35 reportable filter~~ (`24971b18`), ~~#36 on-leave~~ (`24971b18`), ~~#38 TS Decimal-as-string~~ (`5319e868`), ~~#39 chart default-page~~ (`ae0c3da4`), ~~#40 forecastFinal cap mismatch~~ (`ae0c3da4`), ~~final-score weights runtime validation~~ (`4b96fc20`).
 
 **Module status:**
 - **Scorecard (8 SUSPICIOUS):** all addressed (some with deliberate partial scope; see entries for ACCEPT/TO DISCUSS markers).
