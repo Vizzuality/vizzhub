@@ -118,6 +118,45 @@ describe('useChartData — EVM forecast', () => {
   });
 });
 
+describe('useChartData — forecast horizon (#40)', () => {
+  it('produces a forecast point per remaining month with no 24-month cap', () => {
+    // 3 actual months, project end 33 months past last actual → 33 forecast points.
+    const { result } = renderHook(() =>
+      useChartData(periods, '2028-12-01', { budget: null, percentCompleted: null }),
+    );
+    const forecastPoints = result.current.cumulative.filter((p) => p.forecast !== null);
+    // The first forecast point is attached to the last actual (it carries the
+    // seam value); the rest are pure-forecast points. Total = remainingMonths + 1.
+    expect(forecastPoints.length).toBe(33 + 1);
+  });
+
+  it('forecastFinal matches the last cumulative forecast point on long horizons', () => {
+    const { result } = renderHook(() =>
+      useChartData(periods, '2028-12-01', { budget: null, percentCompleted: null }),
+    );
+    const last = result.current.cumulative[result.current.cumulative.length - 1];
+    expect(last.forecast).toBe(result.current.forecastFinal);
+  });
+
+  it('emits no forecast points when project_end_date is in the past', () => {
+    const { result } = renderHook(() =>
+      useChartData(periods, '2025-06-01', { budget: null, percentCompleted: null }),
+    );
+    const forecastPoints = result.current.cumulative.filter((p) => p.forecast !== null);
+    expect(forecastPoints.length).toBe(0);
+    expect(result.current.forecastFinal).toBe(result.current.totalBurn);
+  });
+
+  it('emits no forecast points when project_end_date is null', () => {
+    const { result } = renderHook(() =>
+      useChartData(periods, null, { budget: null, percentCompleted: null }),
+    );
+    const forecastPoints = result.current.cumulative.filter((p) => p.forecast !== null);
+    expect(forecastPoints.length).toBe(0);
+    expect(result.current.forecastFinal).toBeNull();
+  });
+});
+
 describe('BurnDashboard — EVM forecast legend', () => {
   it('renders the EVM legend entry when percent_completed is provided', () => {
     render(

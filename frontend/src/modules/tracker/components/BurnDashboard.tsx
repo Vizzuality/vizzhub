@@ -94,9 +94,8 @@ function buildForecastPoints(
   const forecastFinal = Math.round((totalBurn + weightedAvg * remainingMonths) * 100) / 100;
   const points: CumulativePoint[] = [];
   let fcum = totalBurn;
-  const maxMonths = Math.min(remainingMonths, 24);
 
-  for (let i = 1; i <= maxMonths; i++) {
+  for (let i = 1; i <= remainingMonths; i++) {
     const fDate = new Date(lastDate);
     fDate.setMonth(fDate.getMonth() + i);
     fcum += weightedAvg;

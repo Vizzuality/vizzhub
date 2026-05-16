@@ -12,7 +12,7 @@ import {
 import type { ChartDataPoint, PeriodUserInsight } from '@/modules/capacity/types/capacity';
 import { FA_ORDER, ITEM_PALETTE, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
-import { ChartPagination, useChartPagination } from './ChartPagination';
+import { ChartPagination, latestChartPage, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
 
@@ -97,7 +97,8 @@ export function FADetailChart({
   const { chartData, userNames, userIdByName } = useMemo(() => transformDetailData(data), [data]);
   const [hoverInfo, setHoverInfo] = useState<{ label: string; value: number } | null>(null);
   const handleLeave = useCallback(() => setHoverInfo(null), []);
-  const [page, setPage] = useState(0);
+  // Snap to the latest 6-month window on first mount only; user clicks stick after that.
+  const [page, setPage] = useState(() => latestChartPage(chartData.length));
 
   const { visible } = useChartPagination(chartData, page);
 

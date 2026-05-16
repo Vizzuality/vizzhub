@@ -11,7 +11,7 @@ import {
 import type { ChartDataPoint, PeriodInsight } from '@/modules/capacity/types/capacity';
 import { FA_COLORS, FA_ORDER, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
-import { ChartPagination, useChartPagination } from './ChartPagination';
+import { ChartPagination, latestChartPage, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
 
 function transformData(data: PeriodInsight[]): ChartDataPoint[] {
@@ -39,7 +39,8 @@ interface InsightsChartProps {
 export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Element {
   const chartData = useMemo(() => transformData(data), [data]);
   const [hoverInfo, setHoverInfo] = useState<{ label: string; value: number } | null>(null);
-  const [page, setPage] = useState(0);
+  // Snap to the latest 6-month window on first mount only; user clicks stick after that.
+  const [page, setPage] = useState(() => latestChartPage(chartData.length));
 
   const { visible } = useChartPagination(chartData, page);
 

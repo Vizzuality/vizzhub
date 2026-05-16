@@ -27,7 +27,7 @@ import {
 import type { ChartDataPoint, PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
 import { ITEM_PALETTE, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
-import { ChartPagination, useChartPagination } from './ChartPagination';
+import { ChartPagination, latestChartPage, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
 
@@ -102,9 +102,15 @@ export function UserDetailChart({
   const { chartData, projectNames } = useMemo(() => transformUserDetailData(data), [data]);
   const [hoverInfo, setHoverInfo] = useState<{ label: string; value: number } | null>(null);
   const handleLeave = useCallback(() => setHoverInfo(null), []);
-  const [page, setPage] = useState(0);
+  // Snap to the latest 6-month window on first mount and whenever the user changes.
+  // chartData.length is intentionally read inside the effect (not a dep) so a
+  // refetch that adds months doesn't jump the user back to the latest window.
+  const [page, setPage] = useState(() => latestChartPage(chartData.length));
 
-  useEffect(() => setPage(0), [userId]);
+  useEffect(() => {
+    setPage(latestChartPage(chartData.length));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const { visible } = useChartPagination(chartData, page);
 
