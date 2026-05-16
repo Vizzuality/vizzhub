@@ -20,6 +20,7 @@ import {
   useProjectAggregations,
 } from '../hooks/useProjectCosts';
 import { useBudgetLines } from '../hooks/useBudgetLines';
+import { useProjectProgress } from '../hooks/useProgress';
 import { formatPeriodDate, formatCurrency, SELECT_CLASS } from '../utils/constants';
 import BurnDashboard, { useChartData, MonthlyCostsChart } from '../components/BurnDashboard';
 import TimeByAreaTable from '../components/TimeByAreaTable';
@@ -202,6 +203,14 @@ export default function ProjectTrackerDetail(): JSX.Element {
     'user',
   );
   const { data: budgetLines } = useBudgetLines(projectId || '');
+  const { data: progressList } = useProjectProgress(projectId || '');
+
+  const latestPercentCompleted = useMemo(() => {
+    if (!progressList || progressList.length === 0) return null;
+    const pct = progressList[progressList.length - 1].percentage;
+    if (pct == null) return null;
+    return pct / 100;
+  }, [progressList]);
 
   const [links, setLinks] = useState<{ id: string; title: string | null; url: string | null; link_type: string | null }[]>([]);
 
@@ -267,6 +276,7 @@ export default function ProjectTrackerDetail(): JSX.Element {
         periods={summary.periods}
         budget={summary.budget}
         projectEndDate={project?.end_date ?? null}
+        percentCompleted={latestPercentCompleted}
       />
 
       {hasMoreInfo && (

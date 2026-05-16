@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Info } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -13,6 +14,11 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { PALETTE_HEX } from '@/shared/constants/palette';
 import type { PeriodCostBreakdown } from '../types/tracker';
@@ -22,6 +28,11 @@ interface BurnDashboardProps {
   readonly periods: PeriodCostBreakdown[];
   readonly budget: number | null;
   readonly projectEndDate: string | null;
+  /**
+   * Manual progress as a fraction in [0, 1]. When null/0/1, the EVM forecast
+   * is skipped (see `useChartData` for the precise edge-case handling).
+   */
+  readonly percentCompleted?: number | null;
 }
 
 interface CumulativePoint {
@@ -29,6 +40,7 @@ interface CumulativePoint {
   label: string;
   cumulative: number;
   forecast: number | null;
+  eacForecast: number | null;
 }
 
 interface MonthlyPoint {
@@ -93,22 +105,49 @@ function buildForecastPoints(
       label: shortMonth(fDate.toISOString().slice(0, 10)),
       cumulative: 0,
       forecast: Math.round(fcum * 100) / 100,
+      eacForecast: null,
     });
   }
 
   return { forecastFinal, points };
 }
 
+/**
+ * EVM-standard Estimate at Completion using the CPI method:
+ *   EAC_CPI = BAC / CPI  where  CPI = EV / AC = (% complete × BAC) / AC
+ *           = AC / % complete
+ *
+ * Returns null when any input is missing or out of range — projects
+ * with no progress reported, zero spend, or no budget cannot produce
+ * a meaningful EVM projection.
+ */
+export function computeEacCpi(
+  totalBurn: number,
+  budget: number | null,
+  percentCompleted: number | null | undefined,
+): number | null {
+  if (budget == null || budget <= 0) return null;
+  if (totalBurn <= 0) return null;
+  if (percentCompleted == null) return null;
+  if (percentCompleted <= 0 || percentCompleted > 1) return null;
+  return Math.round((totalBurn / percentCompleted) * 100) / 100;
+}
+
 export function useChartData(
   periods: PeriodCostBreakdown[],
   projectEndDate: string | null,
+  options?: { budget?: number | null; percentCompleted?: number | null },
 ): {
   cumulative: CumulativePoint[];
   monthly: MonthlyPoint[];
   totalBurn: number;
   forecastFinal: number | null;
+  eacCpiFinal: number | null;
   avgMonthlyBurn: number;
 } {
+  const budget = options?.budget ?? null;
+  const percentCompleted = options?.percentCompleted ?? null;
+
   return useMemo(() => {
     const sorted = [...periods].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -122,6 +161,7 @@ export function useChartData(
         label: shortMonth(p.date),
         cumulative: Math.round(cum * 100) / 100,
         forecast: null,
+        eacForecast: null,
       };
     });
 
@@ -141,6 +181,7 @@ export function useChartData(
     const weightedAvg = weightedMonthlyAvg(monthlyCosts);
 
     let forecastFinal: number | null = null;
+    const eacCpiFinal = computeEacCpi(totalBurn, budget, percentCompleted);
     const cumWithForecast = [...cumulativeActual];
 
     if (projectEndDate && monthCount > 0) {
@@ -158,8 +199,26 @@ export function useChartData(
         cumWithForecast[cumWithForecast.length - 1] = {
           ...lastActual,
           forecast: lastActual.cumulative,
+          eacForecast: eacCpiFinal != null ? lastActual.cumulative : null,
         };
         cumWithForecast.push(...forecast.points);
+
+        if (eacCpiFinal != null) {
+          // Straight line from last-actuals (totalBurn) to eacCpiFinal at the
+          // last forecast point. Linearly interpolate across each forecast
+          // month so the segment renders cleanly without relying on
+          // connectNulls between distant points.
+          const forecastCount = forecast.points.length;
+          const slope = (eacCpiFinal - totalBurn) / forecastCount;
+          const startIdx = cumWithForecast.length - forecastCount;
+          for (let i = 0; i < forecastCount; i++) {
+            const interp = totalBurn + slope * (i + 1);
+            cumWithForecast[startIdx + i] = {
+              ...cumWithForecast[startIdx + i],
+              eacForecast: Math.round(interp * 100) / 100,
+            };
+          }
+        }
       } else {
         forecastFinal = totalBurn;
       }
@@ -170,9 +229,10 @@ export function useChartData(
       monthly,
       totalBurn,
       forecastFinal,
+      eacCpiFinal,
       avgMonthlyBurn,
     };
-  }, [periods, projectEndDate]);
+  }, [periods, projectEndDate, budget, percentCompleted]);
 }
 
 const ACCENT_CLASSES: Record<string, string> = {
@@ -231,6 +291,12 @@ interface ChartTooltipProps {
   readonly label?: string;
 }
 
+const TOOLTIP_LABELS: Record<string, string> = {
+  cumulative: 'Actual',
+  forecast: 'Forecast (current pace)',
+  eacForecast: 'Forecast (current efficiency)',
+};
+
 function CumulativeTooltip({ active, payload, label }: ChartTooltipProps): JSX.Element | null {
   if (!active || !payload?.length) return null;
   return (
@@ -238,15 +304,16 @@ function CumulativeTooltip({ active, payload, label }: ChartTooltipProps): JSX.E
       <div className="font-medium">{label}</div>
       {payload.map((entry) => {
         if (entry.value == null || entry.value === 0) return null;
-        const isForecast = entry.dataKey === 'forecast';
+        const key = entry.dataKey ?? '';
+        const seriesLabel = TOOLTIP_LABELS[key] ?? 'Actual';
         return (
-          <div key={entry.dataKey} className="flex items-center gap-2">
+          <div key={key} className="flex items-center gap-2">
             <span
               className="inline-block w-2 h-2 rounded-full"
               style={{ backgroundColor: entry.color }}
             />
             <span className="text-muted-foreground">
-              {isForecast ? 'Forecast' : 'Actual'}:
+              {seriesLabel}:
             </span>
             <span className="font-medium">{formatCurrency(entry.value)}</span>
           </div>
@@ -288,11 +355,14 @@ function CumulativeBurnChart({
   readonly budget: number | null;
 }): JSX.Element {
   const maxVal = Math.max(
-    ...data.map((d) => Math.max(d.cumulative, d.forecast ?? 0)),
+    ...data.map((d) =>
+      Math.max(d.cumulative, d.forecast ?? 0, d.eacForecast ?? 0),
+    ),
     budget ?? 0,
   );
   const yMax = Math.ceil(maxVal * 1.15);
   const hasForecast = data.some((d) => d.forecast !== null);
+  const hasEacForecast = data.some((d) => d.eacForecast !== null);
 
   return (
     <>
@@ -362,12 +432,26 @@ function CumulativeBurnChart({
               dot={false}
               activeDot={{ r: 3, fill: PALETTE_HEX.dustGrey, strokeWidth: 0 }}
               connectNulls={false}
-              name="Forecast"
+              name="Forecast (current pace)"
+            />
+          )}
+          {hasEacForecast && (
+            <Line
+              type="linear"
+              dataKey="eacForecast"
+              stroke={PALETTE_HEX.coolSteel}
+              strokeWidth={1.75}
+              strokeDasharray="2 4"
+              dot={false}
+              activeDot={{ r: 3, fill: PALETTE_HEX.coolSteel, strokeWidth: 0 }}
+              connectNulls
+              isAnimationActive={false}
+              name="Forecast (current efficiency)"
             />
           )}
         </AreaChart>
       </ResponsiveContainer>
-      <div className="flex items-center gap-5 mt-2 text-[11px] text-muted-foreground justify-center">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2 text-[11px] text-muted-foreground justify-center">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.neonGrass }} />
           {'Actual'}
@@ -375,7 +459,13 @@ function CumulativeBurnChart({
         {hasForecast && (
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.dustGrey }} />
-            {'Forecast'}
+            {'Forecast (current pace)'}
+          </span>
+        )}
+        {hasEacForecast && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
+            {'Forecast (current efficiency)'}
           </span>
         )}
         {budget != null && (
@@ -386,6 +476,48 @@ function CumulativeBurnChart({
         )}
       </div>
     </>
+  );
+}
+
+function ForecastInfoPopover(): JSX.Element {
+  return (
+    <Popover>
+      <PopoverTrigger
+        type="button"
+        aria-label="About the forecasts"
+        className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-ring rounded-sm"
+      >
+        <Info className="w-3.5 h-3.5" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 text-xs space-y-3">
+        <div>
+          <div className="font-medium text-sm mb-1">About the forecasts</div>
+          <p className="text-muted-foreground">
+            Two ways to project the final cost. They answer different questions.
+          </p>
+        </div>
+        <div>
+          <div className="font-medium">Forecast (current pace)</div>
+          <p className="text-muted-foreground">
+            Projects total cost assuming spending continues at the recent
+            monthly burn rate. Calendar-based. Useful when efficiency is
+            roughly stable.
+          </p>
+        </div>
+        <div>
+          <div className="font-medium">Forecast (current efficiency)</div>
+          <p className="text-muted-foreground">
+            Projects total cost assuming each euro keeps delivering the same
+            value as so far. Standard Earned Value Management formula:{' '}
+            <code className="text-[10px]">EAC = BAC / CPI</code> where{' '}
+            <code className="text-[10px]">CPI = (% complete × budget) / cost-to-date</code>.
+            Reacts when value delivery lags spend; flags overruns earlier in
+            projects with growing technical debt. Hidden when progress, budget,
+            or cost are unavailable.
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -513,9 +645,13 @@ export default function BurnDashboard({
   periods,
   budget,
   projectEndDate,
+  percentCompleted = null,
 }: BurnDashboardProps): JSX.Element | null {
-  const { cumulative, totalBurn, forecastFinal } =
-    useChartData(periods, projectEndDate);
+  const { cumulative, totalBurn, forecastFinal } = useChartData(
+    periods,
+    projectEndDate,
+    { budget, percentCompleted },
+  );
 
   if (periods.length === 0) return null;
 
@@ -554,8 +690,11 @@ export default function BurnDashboard({
       {/* Cumulative burn chart — always visible */}
       <Card>
         <CardContent className="pt-5 pb-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
-            Cumulative Burn vs Budget
+          <div className="flex items-center gap-2 mb-4">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Cumulative Burn vs Budget
+            </div>
+            <ForecastInfoPopover />
           </div>
           <CumulativeBurnChart data={cumulative} budget={budget} />
         </CardContent>
