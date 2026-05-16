@@ -48,8 +48,8 @@ export function RatesContent(): JSX.Element {
     setFormOpen(true);
   };
 
-  const handleOpenEdit = (rate: { id: string; code: string; value: number }): void => {
-    setForm({ id: rate.id, code: rate.code, value: String(rate.value) });
+  const handleOpenEdit = (rate: { id: string; code: string; value: string }): void => {
+    setForm({ id: rate.id, code: rate.code, value: rate.value });
     setFormOpen(true);
   };
 

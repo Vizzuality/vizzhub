@@ -149,7 +149,7 @@ export function StatsCharts({ stats }: StatsChartsProps): JSX.Element {
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Total Cost</p>
             <p className="text-2xl font-semibold">
-              {formatCurrency(stats.total_cost)}
+              {formatCurrency(Number(stats.total_cost))}
             </p>
           </CardContent>
         </Card>

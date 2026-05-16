@@ -31,7 +31,7 @@ export interface FunctionalArea {
 export interface Rate {
   id: string;
   code: string;
-  value: number;
+  value: string;
 }
 
 export interface RoleInfo {

@@ -37,8 +37,8 @@ export interface EventSummary {
   location_country: string | null;
   start_date: string;
   end_date: string | null;
-  other_costs: number;
-  total_cost: number;
+  other_costs: string;
+  total_cost: string;
   attending: Attending | null;
   rating: number | null;
   url: string | null;
@@ -55,7 +55,7 @@ export interface Attendee {
   event_id: string;
   user_id: string;
   role: string;
-  cost: number | null;
+  cost: string | null;
   user_name: string | null;
   user_email: string | null;
   functional_area: string | null;
@@ -120,7 +120,7 @@ export interface StatGroup {
 export interface EventStats {
   total_events: number;
   total_attendees: number;
-  total_cost: number;
+  total_cost: string;
   by_quarter: StatGroup[];
   by_theme: StatGroup[];
   by_type: StatGroup[];
