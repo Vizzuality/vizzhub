@@ -25,16 +25,20 @@ import {
   PopoverTrigger,
 } from '@/shared/components/ui/popover';
 import type { ChartDataPoint, PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
-import { ITEM_PALETTE, ABSENCE_COLOR } from '@/modules/capacity/utils/constants';
+import { ITEM_PALETTE, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
 
 const OTHERS_KEY = '_others';
-const OTHERS_LABEL = 'Others';
+const OTHERS_LABEL = 'Other';
 const ABSENCE_KEY = '_absence';
 const ABSENCE_LABEL = 'Absence';
+
+function isOtherRow(project: PeriodProjectInsight['projects'][number]): boolean {
+  return project.type === 'other' || project.project_id === '__other__';
+}
 
 function transformUserDetailData(data: PeriodProjectInsight[]): {
   chartData: ChartDataPoint[];
@@ -43,6 +47,7 @@ function transformUserDetailData(data: PeriodProjectInsight[]): {
   const projectNameSet = new Set<string>();
   for (const period of data) {
     for (const project of period.projects) {
+      if (isOtherRow(project)) continue;
       projectNameSet.add(project.name);
     }
   }
@@ -51,14 +56,25 @@ function transformUserDetailData(data: PeriodProjectInsight[]): {
   const chartData = data.map((period) => {
     const point: ChartDataPoint = { month: shortMonth(`${period.period}-01`) };
     let billableTotal = 0;
+    let otherFromRow = 0;
     for (const project of period.projects) {
+      if (isOtherRow(project)) {
+        otherFromRow = Math.round(project.percentage * 100);
+        continue;
+      }
       const pct = Math.round(project.percentage * 100);
       point[project.name] = pct;
       billableTotal += pct;
     }
     const absencePct = Math.round(period.absence_pct * 100);
     point[ABSENCE_KEY] = absencePct;
-    point[OTHERS_KEY] = Math.max(0, 100 - billableTotal - absencePct);
+    // Prefer the backend-provided "Other" pseudo-row / other_pct; fall back to
+    // the legacy "fill the bar to 100%" derivation for older payloads.
+    const backendOther = period.other_pct != null
+      ? Math.round(period.other_pct * 100)
+      : otherFromRow;
+    const derivedOther = Math.max(0, 100 - billableTotal - absencePct);
+    point[OTHERS_KEY] = backendOther > 0 ? backendOther : derivedOther;
     return point;
   });
   return { chartData, projectNames };
@@ -203,16 +219,16 @@ export function UserDetailChart({
         <div className="flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm"
-            style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
+            style={{ backgroundColor: OTHER_COLOR, opacity: 0.5 }}
           />
-          <span>{ABSENCE_LABEL}</span>
+          <span>{OTHERS_LABEL}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm"
-            style={{ backgroundColor: '#6b7280', opacity: 0.3 }}
+            style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
           />
-          <span>{OTHERS_LABEL}</span>
+          <span>{ABSENCE_LABEL}</span>
         </div>
       </div>
 
@@ -245,19 +261,19 @@ export function UserDetailChart({
               />
             ))}
             <Bar
+              dataKey={OTHERS_KEY}
+              stackId="user"
+              fill={OTHER_COLOR}
+              fillOpacity={0.5}
+              onMouseEnter={(d) => setHoverInfo({ label: OTHERS_LABEL, value: Number(d?.[OTHERS_KEY] ?? 0) })}
+              onMouseLeave={handleLeave}
+            />
+            <Bar
               dataKey={ABSENCE_KEY}
               stackId="user"
               fill={ABSENCE_COLOR}
               fillOpacity={0.6}
               onMouseEnter={(d) => setHoverInfo({ label: ABSENCE_LABEL, value: Number(d?.[ABSENCE_KEY] ?? 0) })}
-              onMouseLeave={handleLeave}
-            />
-            <Bar
-              dataKey={OTHERS_KEY}
-              stackId="user"
-              fill="#6b7280"
-              fillOpacity={0.3}
-              onMouseEnter={(d) => setHoverInfo({ label: OTHERS_LABEL, value: Number(d?.[OTHERS_KEY] ?? 0) })}
               onMouseLeave={handleLeave}
             />
           </BarChart>

@@ -347,3 +347,50 @@ class TestGetAllocationProjects:
         project_names = [p["name"] for p in result["projects"]]
         assert "Internal" not in project_names
         assert "Vacation" not in project_names
+
+    @pytest.mark.asyncio
+    async def test_allocation_projects_excludes_inactive_users(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        """Audit #35: an inactive user with billable reports must not appear in
+        any project's segment list."""
+        from app.core.services.capacity_insights import get_allocation_projects
+
+        # Move all of Alice's report parts to "Gone User" (inactive)
+        gone = allocation_data["gone"]
+        # Re-target alice's reports to the inactive user
+        from sqlalchemy import update as sa_update
+        await db_session.execute(
+            sa_update(ReportDB)
+            .where(ReportDB.user_id == allocation_data["alice"].id)
+            .values(user_id=gone.id)
+        )
+        await db_session.commit()
+
+        result = await get_allocation_projects(db=db_session)
+        alpha = next((p for p in result["projects"] if p["name"] == "Alpha"), None)
+        assert alpha is not None
+        seg_names = [s["user_name"] for s in alpha["segments"]]
+        assert "Gone User" not in seg_names
+
+    @pytest.mark.asyncio
+    async def test_allocation_projects_excludes_exempt_users(
+        self, db_session: AsyncSession, allocation_data: dict,
+    ):
+        """Audit #35: users with requires_project_reporting=False must not appear in segments."""
+        from app.core.services.capacity_insights import get_allocation_projects
+
+        exempt = allocation_data["exempt"]
+        from sqlalchemy import update as sa_update
+        await db_session.execute(
+            sa_update(ReportDB)
+            .where(ReportDB.user_id == allocation_data["bob"].id)
+            .values(user_id=exempt.id)
+        )
+        await db_session.commit()
+
+        result = await get_allocation_projects(db=db_session)
+        alpha = next((p for p in result["projects"] if p["name"] == "Alpha"), None)
+        if alpha is not None:
+            seg_names = [s["user_name"] for s in alpha["segments"]]
+            assert "No Report" not in seg_names

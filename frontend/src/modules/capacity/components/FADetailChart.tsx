@@ -10,7 +10,7 @@ import {
   LabelList,
 } from 'recharts';
 import type { ChartDataPoint, PeriodUserInsight } from '@/modules/capacity/types/capacity';
-import { FA_ORDER, ITEM_PALETTE, ABSENCE_COLOR } from '@/modules/capacity/utils/constants';
+import { FA_ORDER, ITEM_PALETTE, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
@@ -37,7 +37,8 @@ function transformDetailData(data: PeriodUserInsight[]): {
     for (const user of period.users) {
       point[`${user.name}_projects`] = Math.round(user.billable_pct * 100);
       point[`${user.name}_absence`] = Math.round(user.absence_pct * 100);
-      point[`${user.name}_others`] = Math.max(0, Math.round((1 - user.billable_pct - user.absence_pct) * 100));
+      const otherPct = user.other_pct ?? Math.max(0, 1 - user.billable_pct - user.absence_pct);
+      point[`${user.name}_others`] = Math.max(0, Math.round(otherPct * 100));
       point[`${user.name}_count`] = user.billable_project_count;
     }
     for (const name of userNames) {
@@ -159,6 +160,13 @@ export function FADetailChart({
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <span
             className="inline-block h-3 w-3 rounded-sm"
+            style={{ backgroundColor: OTHER_COLOR, opacity: 0.5 }}
+          />
+          <span>Other</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
             style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
           />
           <span>Absence</span>
@@ -187,7 +195,7 @@ export function FADetailChart({
                 key={`${name}_empty`}
                 dataKey={`${name}_empty`}
                 stackId={name}
-                fill="#6b7280"
+                fill={OTHER_COLOR}
                 fillOpacity={0.15}
               />,
               <Bar
@@ -205,12 +213,12 @@ export function FADetailChart({
                 }}
               />,
               <Bar
-                key={`${name}_absence`}
-                dataKey={`${name}_absence`}
+                key={`${name}_others`}
+                dataKey={`${name}_others`}
                 stackId={name}
-                fill={ABSENCE_COLOR}
-                fillOpacity={0.6}
-                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Absence`, value: Number(d?.[`${name}_absence`] ?? 0) })}
+                fill={OTHER_COLOR}
+                fillOpacity={0.5}
+                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Other`, value: Number(d?.[`${name}_others`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {
@@ -219,12 +227,12 @@ export function FADetailChart({
                 }}
               />,
               <Bar
-                key={`${name}_others`}
-                dataKey={`${name}_others`}
+                key={`${name}_absence`}
+                dataKey={`${name}_absence`}
                 stackId={name}
-                fill={userColors[name]}
-                fillOpacity={0.3}
-                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Others`, value: Number(d?.[`${name}_others`] ?? 0) })}
+                fill={ABSENCE_COLOR}
+                fillOpacity={0.6}
+                onMouseEnter={(d) => setHoverInfo({ label: `${name} — Absence`, value: Number(d?.[`${name}_absence`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={() => {
                   if (onUserClick && userIdByName[name]) {

@@ -5,13 +5,14 @@ Cross-module JOIN: core tables (users, functional_areas, projects)
 Placed in core/services/ per architecture Rule 4.
 """
 
+import math
 import structlog
 from datetime import date
 from uuid import UUID
 
 from collections import defaultdict
 
-from sqlalchemy import case, desc, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.functional_area import FunctionalAreaDB
@@ -23,6 +24,33 @@ from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 
 logger = structlog.get_logger()
+
+
+def _reportable_user_filter() -> list:
+    """SQL filter clauses for the canonical reportable-user definition.
+
+    A user is reportable when they are active and required to file
+    project reports. The on-leave semantic (zero or full-absence reporting)
+    is applied separately at the row level via ``_is_on_leave``.
+    """
+    return [
+        UserDB.active.is_(True),
+        UserDB.requires_project_reporting.is_(True),
+    ]
+
+
+def _is_on_leave(total_pct: float, absence_pct: float) -> bool:
+    """A user is effectively on-leave for a period when they didn't report
+    (total <= 0) or filed an essentially all-absence report (absence ~= 1.0).
+
+    Under "absence ~= 1.0" we use ``math.isclose`` with ``abs_tol=1e-4`` so
+    over/under-reporters whose absence equals their total also qualify (the
+    practical case is ``total == absence == 1.0``)."""
+    if total_pct <= 0:
+        return True
+    if math.isclose(absence_pct, 1.0, abs_tol=1e-4):
+        return True
+    return math.isclose(absence_pct, total_pct, abs_tol=1e-4)
 
 TARGET_FA_MAPPING: dict[str, str] = {
     "Frontend Developer": "FE",
@@ -96,8 +124,7 @@ async def get_capacity_fa_detail(
         select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
         .join(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
         .where(
-            UserDB.active.is_(True),
-            UserDB.requires_project_reporting.is_(True),
+            *_reportable_user_filter(),
             FunctionalAreaDB.name == fa_name,
         )
     ))
@@ -156,15 +183,20 @@ async def get_capacity_fa_detail(
         users_list = []
         for uid in user_ids:
             entry = report_lookup.get((uid, period_id))
-            if not entry or entry[0] <= 0:
+            if not entry:
                 continue
+            total, billable, absence, proj_count = entry
+            if _is_on_leave(total, absence):
+                continue
+            other = max(0.0, total - billable - absence)
             fn, ln, full, em = user_info[uid]
             users_list.append({
                 "user_id": uid,
                 "name": _format_user_name(fn, ln, full, em),
-                "billable_pct": round(entry[1], 4),
-                "absence_pct": round(entry[2], 4),
-                "billable_project_count": entry[3],
+                "billable_pct": round(billable, 4),
+                "absence_pct": round(absence, 4),
+                "other_pct": round(other, 4),
+                "billable_project_count": proj_count,
             })
         users_list.sort(key=lambda u: u["name"])
         result.append({
@@ -179,10 +211,7 @@ async def get_reportable_users(db: AsyncSession) -> list[dict]:
     """Return all active users that require project reporting, for selectors."""
     rows = await db.execute(
         select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
-        .where(
-            UserDB.active.is_(True),
-            UserDB.requires_project_reporting.is_(True),
-        )
+        .where(*_reportable_user_filter())
     )
     result = []
     for uid, fn, ln, full_name, email in rows:
@@ -204,9 +233,25 @@ async def get_capacity_user_detail(
 
     Returns list of dicts sorted by period ascending, each containing
     'period' (YYYY-MM) and 'projects' list with per-project breakdown.
-    Only billable projects are listed individually; the remainder is 'others'.
-    """
+
+    Billable projects are listed individually with ``type=billable``.
+    Non-billable non-absence work is rolled up into a single
+    ``__other__`` pseudo-row with ``type=other`` (mirrors the
+    "Other" segment from ``get_allocation_users``). Absence is
+    summarised in the period-level ``absence_pct`` field and is also
+    reflected as ``other_pct`` (sum of non-billable non-absence parts).
+
+    Rows are deduplicated across functional areas: a user reporting the
+    same project under multiple FAs collapses to a single entry with the
+    summed percentage. Returns an empty list for users that do not pass
+    the reportable filter (inactive or non-reporting users)."""
     uid = UUID(user_id)
+
+    reportable = await db.execute(
+        select(UserDB.id).where(UserDB.id == uid, *_reportable_user_filter())
+    )
+    if reportable.scalar_one_or_none() is None:
+        return []
 
     periods_result = await db.execute(
         select(ReportingPeriodDB.id, ReportingPeriodDB.date)
@@ -222,6 +267,8 @@ async def get_capacity_user_detail(
 
     period_ids = [p_id for p_id, _ in periods]
 
+    # GROUP BY (period, project) collapses same-project-multi-FA splits
+    # into a single row with the summed percentage.
     report_rows = await db.execute(
         select(
             ReportDB.reporting_period_id,
@@ -229,7 +276,7 @@ async def get_capacity_user_detail(
             ProjectDB.name,
             ProjectDB.is_billable,
             ProjectDB.is_absence,
-            ReportPartDB.percentage,
+            func.coalesce(func.sum(ReportPartDB.percentage), 0).label("percentage"),
         )
         .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
         .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
@@ -238,9 +285,15 @@ async def get_capacity_user_detail(
             ReportDB.user_id == uid,
             ReportDB.reporting_period_id.in_(period_ids),
         )
+        .group_by(
+            ReportDB.reporting_period_id,
+            ProjectDB.id,
+            ProjectDB.name,
+            ProjectDB.is_billable,
+            ProjectDB.is_absence,
+        )
     )
 
-    # {period_id: [(project_id, name, is_billable, is_absence, pct), ...]}
     period_projects: dict[object, list[tuple]] = {}
     for pid, proj_id, proj_name, is_billable, is_absence, pct in report_rows:
         period_projects.setdefault(pid, []).append(
@@ -252,20 +305,34 @@ async def get_capacity_user_detail(
         entries = period_projects.get(period_id, [])
         projects = []
         absence_pct = 0.0
+        other_pct = 0.0
         for proj_id, proj_name, is_billable, is_absence, pct in entries:
+            if pct <= 0:
+                continue
             if is_absence:
                 absence_pct += pct
-            elif is_billable and pct > 0:
+            elif is_billable:
                 projects.append({
                     "project_id": proj_id,
                     "name": proj_name,
                     "percentage": round(pct, 4),
+                    "type": "billable",
                 })
+            else:
+                other_pct += pct
         projects.sort(key=lambda p: p["name"])
+        if other_pct > 0:
+            projects.append({
+                "project_id": "__other__",
+                "name": "Other",
+                "percentage": round(other_pct, 4),
+                "type": "other",
+            })
         result.append({
             "period": period_date.strftime("%Y-%m"),
             "projects": projects,
             "absence_pct": round(absence_pct, 4),
+            "other_pct": round(other_pct, 4),
         })
 
     return result
@@ -313,8 +380,7 @@ async def get_capacity_insights(
     eligible_users = await db.execute(
         select(UserDB.id, UserDB.functional_area_id)
         .where(
-            UserDB.active.is_(True),
-            UserDB.requires_project_reporting.is_(True),
+            *_reportable_user_filter(),
             UserDB.functional_area_id.in_(fa_id_to_short.keys()),
         )
     )
@@ -390,28 +456,40 @@ def _aggregate_fa_period(
     report_lookup: dict[tuple, tuple[float, float, float]],
     period_id: object,
 ) -> list[dict]:
-    """Aggregate billable and absence % per FA for a single period."""
+    """Aggregate billable, absence and other % per FA for a single period.
+
+    Users on effective leave (zero report or all-absence report) are
+    excluded from the denominator — they had no billable capacity to
+    contribute. Other (= total - billable - absence, clamped at 0)
+    captures internal/admin/training work so consumers can read
+    context, not just a depressed billable number."""
     fas = []
     for short, user_ids in sorted(users_by_fa.items()):
         if not user_ids:
             continue
         total_billable = 0.0
         total_absence = 0.0
+        total_other = 0.0
         count = 0
         for uid in user_ids:
             entry = report_lookup.get((uid, period_id))
-            if entry and entry[0] > 0:
-                total_billable += entry[1]
-                total_absence += entry[2]
-                count += 1
+            if not entry:
+                continue
+            total, billable, absence = entry
+            if _is_on_leave(total, absence):
+                continue
+            other = max(0.0, total - billable - absence)
+            total_billable += billable
+            total_absence += absence
+            total_other += other
+            count += 1
         if not count:
             continue
-        avg_billable = total_billable / count
-        avg_absence = total_absence / count
         fas.append({
             "short": short,
-            "billable_pct": round(avg_billable, 4),
-            "absence_pct": round(avg_absence, 4),
+            "billable_pct": round(total_billable / count, 4),
+            "absence_pct": round(total_absence / count, 4),
+            "other_pct": round(total_other / count, 4),
             "user_count": count,
         })
     return fas
@@ -547,10 +625,7 @@ async def get_allocation_users(
             UserDB.name, UserDB.email, FunctionalAreaDB.name.label("fa_name"),
         )
         .outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
-        .where(
-            UserDB.active.is_(True),
-            UserDB.requires_project_reporting.is_(True),
-        )
+        .where(*_reportable_user_filter())
     )
     eligible_users = list(eligible_rows)
 
@@ -665,6 +740,7 @@ async def get_allocation_projects(
             ReportDB.reporting_period_id.in_(period_ids),
             ProjectDB.status == "live",
             ProjectDB.is_billable.is_(True),
+            *_reportable_user_filter(),
         )
     )
 

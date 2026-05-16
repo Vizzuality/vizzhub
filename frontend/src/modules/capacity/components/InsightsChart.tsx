@@ -9,7 +9,7 @@ import {
   Customized,
 } from 'recharts';
 import type { ChartDataPoint, PeriodInsight } from '@/modules/capacity/types/capacity';
-import { FA_COLORS, FA_ORDER, ABSENCE_COLOR } from '@/modules/capacity/utils/constants';
+import { FA_COLORS, FA_ORDER, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
 import { ChartPagination, useChartPagination } from './ChartPagination';
 import { GroupSeparators } from './GroupSeparators';
@@ -23,7 +23,9 @@ function transformData(data: PeriodInsight[]): ChartDataPoint[] {
     for (const fa of period.functional_areas) {
       point[`${fa.short}_projects`] = Math.round(fa.billable_pct * 100);
       point[`${fa.short}_absence`] = Math.round(fa.absence_pct * 100);
-      point[`${fa.short}_others`] = Math.max(0, Math.round((1 - fa.billable_pct - fa.absence_pct) * 100));
+      // Fall back to derived gap when backend hasn't deployed other_pct yet.
+      const otherPct = fa.other_pct ?? Math.max(0, 1 - fa.billable_pct - fa.absence_pct);
+      point[`${fa.short}_others`] = Math.max(0, Math.round(otherPct * 100));
     }
     return point;
   });
@@ -78,6 +80,13 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
         <div className="flex items-center gap-1.5 ml-4 text-muted-foreground">
           <span
             className="inline-block h-3 w-3 rounded-sm"
+            style={{ backgroundColor: OTHER_COLOR, opacity: 0.5 }}
+          />
+          <span>Other</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
             style={{ backgroundColor: ABSENCE_COLOR, opacity: 0.6 }}
           />
           <span>Absence</span>
@@ -117,12 +126,12 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
                 }}
               />,
               <Bar
-                key={`${fa}_absence`}
-                dataKey={`${fa}_absence`}
+                key={`${fa}_others`}
+                dataKey={`${fa}_others`}
                 stackId={fa}
-                fill={ABSENCE_COLOR}
-                fillOpacity={0.6}
-                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Absence`, value: Number(d?.[`${fa}_absence`] ?? 0) })}
+                fill={OTHER_COLOR}
+                fillOpacity={0.5}
+                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Other`, value: Number(d?.[`${fa}_others`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={(barData) => {
                   if (onBarClick && barData?.payload?.period) {
@@ -131,12 +140,12 @@ export function InsightsChart({ data, onBarClick }: InsightsChartProps): JSX.Ele
                 }}
               />,
               <Bar
-                key={`${fa}_others`}
-                dataKey={`${fa}_others`}
+                key={`${fa}_absence`}
+                dataKey={`${fa}_absence`}
                 stackId={fa}
-                fill={FA_COLORS[fa]}
-                fillOpacity={0.3}
-                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Others`, value: Number(d?.[`${fa}_others`] ?? 0) })}
+                fill={ABSENCE_COLOR}
+                fillOpacity={0.6}
+                onMouseEnter={(d) => setHoverInfo({ label: `${fa} — Absence`, value: Number(d?.[`${fa}_absence`] ?? 0) })}
                 onMouseLeave={handleLeave}
                 onClick={(barData) => {
                   if (onBarClick && barData?.payload?.period) {

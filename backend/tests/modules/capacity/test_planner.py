@@ -313,6 +313,58 @@ class TestGetPlannerFiltering:
         assert "Bob Test" not in user_names
 
     @pytest.mark.asyncio
+    async def test_planner_main_query_excludes_exempt_users(self, db_session, planner_data):
+        """Audit #35: users with requires_project_reporting=False must not appear
+        in the main allocation query (asymmetric with empty-groups fallback)."""
+        from app.modules.capacity.api.planner import get_planner
+
+        planner_data["user2"].requires_project_reporting = False
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+
+        alpha = next(g for g in result["groups"] if g["name"] == "Alpha")
+        user_names = [r["user_name"] for r in alpha["rows"]]
+        assert "Bob Test" not in user_names
+
+    @pytest.mark.asyncio
+    async def test_overallocation_warnings_skip_exempt_users(self, db_session):
+        """Audit #35: warnings only fire for reportable users (active + reporting)."""
+        from app.modules.capacity.api.planner import get_planner
+        from uuid import uuid4
+
+        exempt = UserDB(
+            id=uuid4(), email="exempt@t.com", name="Exempt",
+            active=True, requires_project_reporting=False,
+        )
+        p1 = ProjectDB(id=uuid4(), name="P1 Warn", status="live", is_billable=True)
+        p2 = ProjectDB(id=uuid4(), name="P2 Warn", status="live", is_billable=True)
+        db_session.add_all([exempt, p1, p2])
+        await db_session.flush()
+        db_session.add_all([
+            CapacityPlanDB(
+                project_id=p1.id, user_id=exempt.id,
+                week_start=date(2026, 1, 5), percentage=70,
+                created_by=exempt.id, updated_by=exempt.id,
+            ),
+            CapacityPlanDB(
+                project_id=p2.id, user_id=exempt.id,
+                week_start=date(2026, 1, 5), percentage=60,
+                created_by=exempt.id, updated_by=exempt.id,
+            ),
+        ])
+        await db_session.flush()
+
+        result = await get_planner(
+            db=db_session, user=FakeUser(exempt.id),
+            start="2026-01-05", end="2026-01-19", group_by="project",
+        )
+        assert str(exempt.id) not in result["warnings"]
+
+    @pytest.mark.asyncio
     async def test_includes_empty_billable_project_groups(self, db_session):
         """Live billable projects with no planner data appear as empty groups."""
         from app.modules.capacity.api.planner import get_planner

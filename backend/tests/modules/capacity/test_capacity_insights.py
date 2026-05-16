@@ -268,6 +268,63 @@ class TestGetCapacityInsights:
         assert result[0]["period"] == "2026-01"
         assert result[1]["period"] == "2026-02"
 
+    @pytest.mark.asyncio
+    async def test_capacity_insights_exposes_other_pct(
+        self, db_session: AsyncSession, capacity_data: dict,
+    ):
+        """Audit #33: avg_billable + avg_absence + avg_other should sum to avg_total."""
+        from app.core.services.capacity_insights import get_capacity_insights
+
+        result = await get_capacity_insights(
+            db=db_session,
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
+        )
+        fa_map = {fa["short"]: fa for fa in result[0]["functional_areas"]}
+        # FE: fe1 = 0.6 billable + 0.2 internal + 0.2 absence;
+        #     fe2 = 0.8 billable + 0.2 internal
+        # avg_other = (0.2 + 0.2) / 2 = 0.2
+        assert fa_map["FE"]["other_pct"] == pytest.approx(0.2, abs=0.01)
+        # BE: only billable, no internal
+        assert fa_map["BE"]["other_pct"] == pytest.approx(0.0, abs=0.01)
+
+    @pytest.mark.asyncio
+    async def test_user_with_full_absence_excluded_from_fa_avg(
+        self, db_session: AsyncSession, capacity_data: dict,
+    ):
+        """Audit #36: a user with absence_pct=1.0 is on effective leave and
+        must not drag the FA billable average down."""
+        from app.core.services.capacity_insights import get_capacity_insights
+
+        fa_fe = capacity_data["fa_fe"]
+        absence_project = capacity_data["absence_project"]
+        period_jan = capacity_data["period_jan"]
+
+        full_pto = UserDB(
+            email="pto@test.com", first_name="Full", last_name="PTO",
+            functional_area_id=fa_fe.id, active=True, requires_project_reporting=True,
+        )
+        db_session.add(full_pto)
+        await db_session.flush()
+        report = ReportDB(user_id=full_pto.id, reporting_period_id=period_jan.id)
+        db_session.add(report)
+        await db_session.flush()
+        db_session.add(ReportPartDB(
+            report_id=report.id, project_id=absence_project.id,
+            percentage=Decimal("1.0000"),
+        ))
+        await db_session.commit()
+
+        result = await get_capacity_insights(
+            db=db_session,
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
+        )
+        fa_map = {fa["short"]: fa for fa in result[0]["functional_areas"]}
+        # Full-PTO user excluded → still (0.6 + 0.8) / 2 = 0.7, denominator stays at 2
+        assert fa_map["FE"]["billable_pct"] == pytest.approx(0.7, abs=0.01)
+        assert fa_map["FE"]["user_count"] == 2
+
 
 class TestCapacityInsightsEndpoint:
     @pytest.mark.asyncio

@@ -2,6 +2,7 @@ export interface FunctionalAreaInsight {
   short: string;
   billable_pct: number;
   absence_pct: number;
+  other_pct?: number;
   user_count: number;
 }
 
@@ -15,6 +16,7 @@ export interface UserInsight {
   name: string;
   billable_pct: number;
   absence_pct: number;
+  other_pct?: number;
   billable_project_count: number;
 }
 
@@ -27,12 +29,14 @@ export interface ProjectInsight {
   project_id: string;
   name: string;
   percentage: number;
+  type?: 'billable' | 'other';
 }
 
 export interface PeriodProjectInsight {
   period: string;
   projects: ProjectInsight[];
   absence_pct: number;
+  other_pct?: number;
 }
 
 export interface ReportableUser {

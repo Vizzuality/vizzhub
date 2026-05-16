@@ -180,6 +180,7 @@ async def _get_overallocation_warnings(
         .where(CapacityPlanDB.week_start >= start_date)
         .where(CapacityPlanDB.week_start <= end_date)
         .where(UserDB.active.is_(True))
+        .where(UserDB.requires_project_reporting.is_(True))
         .group_by(CapacityPlanDB.user_id, CapacityPlanDB.week_start)
         .having(func.sum(CapacityPlanDB.percentage) > 100)
     )

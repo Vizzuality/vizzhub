@@ -247,6 +247,57 @@ class TestGetCapacityFADetail:
         assert users["A. Smith"]["absence_pct"] == pytest.approx(0.2, abs=0.01)
         assert users["B. Jones"]["absence_pct"] == pytest.approx(0.0, abs=0.01)
 
+    @pytest.mark.asyncio
+    async def test_capacity_fa_detail_exposes_other_pct(
+        self, db_session: AsyncSession, fa_detail_data: dict,
+    ):
+        """Audit #33: each per-user row exposes other_pct alongside billable/absence."""
+        from app.core.services.capacity_insights import get_capacity_fa_detail
+
+        result = await get_capacity_fa_detail(
+            db=db_session, fa_short="FE",
+            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+        )
+        users = {u["name"]: u for u in result[0]["users"]}
+        # Alice: 40% A + 30% B + 10% Internal + 20% absence → other = 0.1
+        assert users["A. Smith"]["other_pct"] == pytest.approx(0.1, abs=0.01)
+        # Bob: 100% internal → other = 1.0
+        assert users["B. Jones"]["other_pct"] == pytest.approx(1.0, abs=0.01)
+
+    @pytest.mark.asyncio
+    async def test_full_absence_user_excluded_from_fa_detail(
+        self, db_session: AsyncSession, fa_detail_data: dict,
+    ):
+        """Audit #36: a user who reports 100% absence is on effective leave and
+        does not appear in the FA detail list."""
+        from app.core.services.capacity_insights import get_capacity_fa_detail
+
+        full_pto = UserDB(
+            email="pto@test.com", first_name="Full", last_name="PTO",
+            functional_area_id=fa_detail_data["fa_fe"].id,
+            active=True, requires_project_reporting=True,
+        )
+        db_session.add(full_pto)
+        await db_session.flush()
+        report = ReportDB(
+            user_id=full_pto.id,
+            reporting_period_id=fa_detail_data["period"].id,
+        )
+        db_session.add(report)
+        await db_session.flush()
+        db_session.add(ReportPartDB(
+            report_id=report.id, project_id=fa_detail_data["absence"].id,
+            percentage=Decimal("1.0000"),
+        ))
+        await db_session.commit()
+
+        result = await get_capacity_fa_detail(
+            db=db_session, fa_short="FE",
+            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+        )
+        names = [u["name"] for u in result[0]["users"]]
+        assert "F. PTO" not in names
+
 
 class TestCapacityFADetailEndpoint:
     @pytest.mark.asyncio
