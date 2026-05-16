@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { PlannerCell } from '@/modules/capacity/components/PlannerCell';
 
 describe('PlannerCell (comments)', () => {
@@ -58,5 +59,109 @@ describe('PlannerCell (comments)', () => {
     );
     const cellButton = container.querySelector('button');
     expect(cellButton?.className ?? '').not.toContain('ring-destructive');
+  });
+});
+
+describe('PlannerCell (edit lifecycle)', () => {
+  it('commits a new value with Enter and calls onChange', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={onChange} />,
+    );
+
+    await act(async () => {
+      fireEvent.doubleClick(container.querySelector('button')!);
+    });
+    const input = container.querySelector('input');
+    if (!input) throw new Error('input not rendered after double-click');
+    await userEvent.clear(input);
+    await userEvent.type(input, '80');
+    await userEvent.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith(80);
+  });
+
+  it('clamps values above 200 down to 200', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={onChange} />,
+    );
+
+    await act(async () => {
+      fireEvent.doubleClick(container.querySelector('button')!);
+    });
+    const input = container.querySelector('input')!;
+    await userEvent.clear(input);
+    await userEvent.type(input, '500');
+    await userEvent.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith(200);
+  });
+
+  it('clears the cell (onChange null) when committed empty', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={onChange} />,
+    );
+
+    await act(async () => {
+      fireEvent.doubleClick(container.querySelector('button')!);
+    });
+    const input = container.querySelector('input')!;
+    await userEvent.clear(input);
+    await userEvent.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('clears the cell (onChange null) when committed zero', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={onChange} />,
+    );
+
+    await act(async () => {
+      fireEvent.doubleClick(container.querySelector('button')!);
+    });
+    const input = container.querySelector('input')!;
+    await userEvent.clear(input);
+    await userEvent.type(input, '0');
+    await userEvent.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('does not call onChange when the committed value equals the current value', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={onChange} />,
+    );
+
+    await act(async () => {
+      fireEvent.doubleClick(container.querySelector('button')!);
+    });
+    const input = container.querySelector('input')!;
+    await userEvent.clear(input);
+    await userEvent.type(input, '50');
+    await userEvent.keyboard('{Enter}');
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('Escape cancels the edit without calling onChange', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={onChange} />,
+    );
+
+    await act(async () => {
+      fireEvent.doubleClick(container.querySelector('button')!);
+    });
+    const input = container.querySelector('input')!;
+    await userEvent.clear(input);
+    await userEvent.type(input, '99');
+    await userEvent.keyboard('{Escape}');
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

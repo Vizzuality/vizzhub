@@ -30,11 +30,11 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 4. ~~**`get_capacity_user_detail` user_id validation**~~ — verified. `capacity_insights.py:251` already gates with `select(UserDB.id).where(UserDB.id == uid, *_reportable_user_filter())` and returns `[]` for inactive/exempt users. UUID format is validated upstream (`user_detail.py:35` → 422). Closed by `24971b18`; the ToDo entry overstated the gap. _(The note said "404s"; actual implementation returns `[]`. Both behaviours equally gate the expensive JOIN — the empty-list shape stays consistent with the rest of the endpoint contract.)_
 5. ~~**`UserDetailChart` hardcoded gray instead of `OTHER_COLOR`**~~ — verified. `git show 24971b18 -- UserDetailChart.tsx` already swapped both `#6b7280` literals for `OTHER_COLOR`. Hex-literal scan today is empty. ToDo entry was a false positive against the post-`24971b18` state.
 
-### T4 — Coverage gaps with real risk
+### T4 — Coverage gaps with real risk — **CLOSED 2026-05-16**
 
-6. **No tests for `check_dependabot_alerts` or `check_business_alerts`** — backend worker. Both are 470+ LOC jobs with no test coverage; a regression in alert filtering would ship cleanly. Highest-leverage backend test addition open.
-7. **Capacity FE tests cero** — planner cell edits, batch edits, filtered rendering, chart pagination all uncovered in `frontend/src/modules/capacity/`. The planner is where users spend the most time; the lack of coverage is the biggest gap of the FE.
-8. **No test for write-permission denial on planner endpoints** — backend `capacity/api`. RBAC is wired but never asserted by a test.
+6. ~~**No tests for `check_dependabot_alerts` or `check_business_alerts`**~~ — false positive. Verified: `tests/test_check_dependabot_job.py` has 13 tests, `tests/test_check_business_alerts_job.py` has 15 tests. Together they cover happy paths, silencing, throttling, resolved alerts, missing config, leadership-channel routing, and continue-on-error. The ToDo entry was stale.
+7. ~~**Capacity FE tests cero**~~ — partial false positive (10 capacity FE test files already exist totaling 47 tests). Closed the highest-leverage real gap: added 6 `PlannerCell` edit-lifecycle tests covering Enter commit, > 200 clamping, empty/zero → null, no-op when value unchanged, and Escape cancel. **[fixed in commit below]**
+8. ~~**No test for write-permission denial on planner endpoints**~~ — added `tests/modules/capacity/test_planner_rbac.py`. Two tests assert that a `user`-role token (CAPACITY_VIEW only, no CAPACITY_MANAGE) gets 403 on `PATCH /api/capacity/planner/cells` and `DELETE /api/capacity/planner/rows/{p}/{u}`. Exercises the FastAPI dependency chain that the direct-call tests in `test_planner.py` bypass. **[fixed in commit below]**
 
 ### T5 — Observability gaps (worker)
 
