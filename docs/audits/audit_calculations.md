@@ -169,6 +169,19 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
   - #40: BurnDashboard forecast line uncapped (24-month cap removed in `buildForecastPoints`); chart and `forecastFinal` KPI now agree on long-tail projects. Both forecast lines (time-trend + EVM) share the same horizon by chaining off `forecast.points.length`.
 - FE 486 tests / Backend 1928 tests — all green.
 
+## Post-deploy QA patches (2026-05-16 late)
+
+After deploying the audit closure the user did visual QA and surfaced two production-only issues that the test suite couldn't catch:
+
+- **`a4593681` — EVM forecast visibility + Cost Variance KPI tile.** Two issues:
+  1. The EVM line was off-chart on projects with low `percent_completed` because EAC_CPI = AC / pct explodes (e.g. AC=€162k, pct=5% → €3.24M, way above the auto Y-domain). Fix: `computeChartYMax` clamps to `3 × budget` and an `EacEndpointLabel` shows the real €X at the line endpoint when clamped. Amber line color (`--aux-amber` new token with light/dark variants) for visual distinction from the gray time-trend.
+  2. Cost Variance had no visible surface on the project scorecard page — backend renamed the indicator but only the ISO Docs KPI widget consumed the new label. Fix: added a 5th KPI tile in the "Budget & Schedule" strip on the project detail page. Layout now `grid-cols-2 md:grid-cols-3 lg:grid-cols-5`. Signed € primary, signed % secondary, red/green/neutral.
+- **`f9950e12` — Recharts `<Line>` paints nothing inside `<AreaChart>`.** Recharts silently drops `<Line>` children of `<AreaChart>` — legend registers but no SVG path. The 25 BurnDashboard tests asserted legend text only, so the regression slipped past. Fix: switched the EVM forecast component from `<Line>` to `<Area fill="none">`. Test gap (assert SVG path count, not just legend) logged for the next testing pass.
+
+**Lessons archived in memory:**
+- `gotcha_recharts-area-vs-line.md` — Use `<Area fill="none">` or `<ComposedChart>` for mixed shapes. Tests must assert paths, not legends.
+- `gotcha_skip-ci-head-of-push.md` — `[skip ci]` on the HEAD commit of a push suppresses CI/CD for the entire push range (surfaced earlier today).
+
 ## Final summary (2026-05-15, updated 2026-05-16)
 
 - **Total audited:** 39/39 rows.
