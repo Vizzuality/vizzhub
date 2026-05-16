@@ -17,6 +17,7 @@ from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
 from app.modules.iso_docs.models.registry_row import RegistryRowDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
+from app.modules.iso_docs.schemas.metadata import ChangelogEntry
 from app.modules.iso_docs.services.registry_service import (
     get_next_row_index,
     strip_computed_keys,
@@ -98,6 +99,25 @@ async def _fill_changelog_authors(
         author = entry.get("author", "")
         if not author or author == "system":
             entry["author"] = display_name
+
+
+def _validate_changelog_entries(changelog: list) -> None:
+    """Re-validate JSONB-dequeued changelog entries against ChangelogEntry.
+
+    Tool params validate at enqueue time, but the payload travels through a
+    JSONB queue (see gotcha_mcp-jsonb-queue-types.md) and the dict could be
+    mutated, manually edited, or arrive from a future schema change. A
+    malformed entry must not silently persist to a compliance-relevant
+    metadata row — raise here and let the dispatcher mark the command
+    `failed` with the entry index in the error message.
+    """
+    for index, entry in enumerate(changelog):
+        try:
+            ChangelogEntry.model_validate(entry)
+        except Exception as exc:
+            raise ValueError(
+                f"Invalid changelog entry at index {index}: {exc}"
+            ) from exc
 
 
 async def _resolve_registry(
@@ -320,6 +340,7 @@ async def _update_metadata(
 
     if "changelog" in update and update["changelog"]:
         await _fill_changelog_authors(session, update["changelog"], user_id)
+        _validate_changelog_entries(update["changelog"])
 
     if meta:
         for field, value in update.items():

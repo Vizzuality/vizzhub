@@ -16,7 +16,7 @@ Registry of the tech-debt and calculations audits. Consolidated output from `aud
 | ToDo Next High Priority (T1–T7) | 0 | 25 |
 | CALCULATIONS — WRONG | 0 | 1 |
 | CALCULATIONS — SUSPICIOUS | 0 | 26 |
-| Pending boy-scout backlog | **113** (8 Major / 100 Minor / 5 Nit) | — |
+| Pending boy-scout backlog | **110** (5 Major / 100 Minor / 5 Nit) | — |
 | Won't do (deliberate) | — | 18 |
 | Fixed (historical) | — | 112 |
 
@@ -37,7 +37,7 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
 > - **15 items moved to Fixed (or cross-referenced as closed)** — closed by the 2026-05-16 sweeps (T1–T7).
 > - **42 items downgraded to Minor** — file-size / DRY / UX nits / defensive coverage. They live in `### Minor` below under `#### Downgraded from Major`.
 
-### Major (8)
+### Major (5)
 
 - ~~**Manual-field sync between snapshot types lacks atomicity**~~ **[verified no-op 2026-05-16]** — `backend/app/modules/scorecard/services/metrics_service.py:187-191`. Traced every caller: request paths (`projects_v2.py:425`, `metrics.py:120`, `capture.py:266/279`) all share the `DBSession` request transaction; worker paths (`monthly_scorecard_capture.py:100/110`, `tasks.py:120/130`) share a single ARQ-task transaction with only one `db.commit()` at the end. No caller commits between the main upsert and the sibling sync. The `_sync_manual_fields_to_other_snapshot` flush failure would raise inside the same uncommitted transaction → both upserts roll back together. The "Detail" claim ("one snapshot with the new value and the other with the old") is incorrect for the current call graph. A `db.begin_nested()` savepoint would add nothing because there is no in-between commit boundary to protect from. Closed without code change. If a future caller is added that commits between calls, re-open then.
 
@@ -77,23 +77,11 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Narrow to `(SQLAlchemyError, OSError)` and re-raise unexpected errors; failing loud is fine here, install tracking shouldn't mask other failures.
   - Added: 2026-05-14 by audit_tech_debt iteration #13
 
-- **No re-validation of nested JSONB fields after dequeue** — `mcp_server/handlers/iso_docs.py:295-322` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / handlers`
-  - Detail: Memory documents `gotcha_mcp-jsonb-queue-types.md` — Pydantic date/Literal types stringify in the JSONB queue and the handler must re-validate. Scalar metadata fields go through `_coerce_metadata_field` correctly. But nested arrays like `changelog: list[ChangelogEntry]` flow through `_fill_changelog_authors` without re-validating each entry's four required fields against `ChangelogEntry`. A malformed entry from the queue silently persists.
-  - Fix: In `_update_metadata` (~L295), call `ChangelogEntry.model_validate(entry)` for every entry before storing; on failure, raise ToolError with the entry index.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
+- ~~**No re-validation of nested JSONB fields after dequeue**~~ **[FIXED — Batch 3]** — `_validate_changelog_entries` (in `mcp_server/handlers/iso_docs.py`) now re-runs `ChangelogEntry.model_validate(entry)` for every entry after `_fill_changelog_authors`. A malformed entry from the queue raises `ValueError("Invalid changelog entry at index N: ...")`, which the dispatcher turns into command status=`failed`. Defense-in-depth for the JSONB queue gotcha.
 
-- **`approve_all` swallows specific failures into a generic except** — `mcp_server/tools/commands.py:188-194` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / tools / commands`
-  - Detail: `except Exception as exc` rolls up validation errors, permission denials, and handler crashes into one bucket. The bulk-approve caller cannot tell why a specific command failed and which ones still need attention.
-  - Fix: Catch `(ValueError, PermissionError)` distinctly, return them in a structured per-command result, and let unexpected exceptions surface to ARQ.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
+- ~~**`approve_all` swallows specific failures into a generic except**~~ **[FIXED — Batch 3]** — narrowed to `(ValueError, PermissionError)` per spec. Unexpected exceptions (SQLAlchemyError, OSError, programming bugs) now propagate to ARQ/Sentry instead of getting silently rolled into `error`. Handler executor failures continue to be caught inside `CommandService.approve` and surface as status=`failed`, so user-facing behavior for the common case is unchanged.
 
-- **No test for "approve same command twice"** — `mcp_server/tests/test_command_tools.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / tests`
-  - Detail: Existing tests cover enqueue → list → approve → execute success and one denial case. Missing: idempotency of approval (calling `approve_command` twice on the same `pending` row should fail the second time cleanly, not double-execute the handler), concurrent approvals racing, and handler exception → command marked `failed` with `error_message` populated.
-  - Fix: Add three targeted tests for these paths.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
+- ~~**No test for "approve same command twice"**~~ **[FIXED — Batch 3]** — three new tests in `mcp_server/tests/test_command_tools.py`: `test_approve_command_twice_second_call_fails_cleanly`, `test_approve_command_concurrent_race_only_one_wins`, `test_handler_exception_marks_command_failed_with_error`. Cover idempotency (only one IsoDocNode row even after a double-approve), `asyncio.gather` race (exactly one executed + one ToolError), and CommandDB.error persistence on handler failure.
 
 ### Minor (100)
 

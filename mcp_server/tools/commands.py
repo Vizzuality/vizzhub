@@ -219,7 +219,12 @@ async def approve_all(module: str | None = None) -> str:
                     logger.info("mcp_command_executed", **log_kwargs)
                 else:
                     logger.warning("mcp_command_failed", error=cmd.error, **log_kwargs)
-        except Exception as exc:
+        except (ValueError, PermissionError) as exc:
+            # ValueError: command not found, or no longer pending (race winner
+            #   already approved/rejected it). PermissionError: future-defensive
+            #   for executors that raise it directly. Unexpected exceptions
+            #   (SQLAlchemyError, OSError, ...) propagate so they surface in
+            #   ARQ/Sentry instead of being silently bucketed as "error".
             results.append({
                 "command_id": str(cmd_id),
                 "status": "error",

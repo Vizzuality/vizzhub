@@ -761,3 +761,127 @@ async def test_permission_denied_for_write_tool(
                     "iso_create_page",
                     {"parent_slug": "policies", "title": "Should Fail"},
                 )
+
+
+# ---------------------------------------------------------------------------
+# Queue integrity — Major audit Batch 3 regression tests.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_approve_command_twice_second_call_fails_cleanly(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Approving the same command twice: first executes, second raises
+    ToolError because the command is no longer in `pending` status. The
+    handler MUST NOT run a second time."""
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            enqueue_result = await mcp.call_tool(
+                "iso_create_page",
+                {"parent_slug": "policies", "title": "Idempotent Page"},
+            )
+            command_id = json.loads(enqueue_result[0][0].text)["command_id"]
+
+            first = await mcp.call_tool(
+                "approve_command", {"command_id": command_id},
+            )
+            first_data = json.loads(first[0][0].text)
+            assert first_data["status"] == "executed"
+
+            with pytest.raises(ToolError, match="not pending"):
+                await mcp.call_tool(
+                    "approve_command", {"command_id": command_id},
+                )
+
+            pages = await db_session.execute(
+                select(IsoDocNodeDB).where(
+                    IsoDocNodeDB.slug == "idempotent-page"
+                )
+            )
+            assert len(list(pages.scalars().all())) == 1
+
+
+@pytest.mark.asyncio
+async def test_approve_command_concurrent_race_only_one_wins(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """Two near-simultaneous approve_command calls on the same pending row:
+    exactly one wins (status=executed); the other gets a ToolError raised
+    from the "not pending" guard. The handler must not double-execute."""
+    import asyncio
+
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            enqueue_result = await mcp.call_tool(
+                "iso_create_page",
+                {"parent_slug": "policies", "title": "Race Page"},
+            )
+            command_id = json.loads(enqueue_result[0][0].text)["command_id"]
+
+            results = await asyncio.gather(
+                mcp.call_tool("approve_command", {"command_id": command_id}),
+                mcp.call_tool("approve_command", {"command_id": command_id}),
+                return_exceptions=True,
+            )
+
+            successes = [
+                r for r in results
+                if not isinstance(r, BaseException)
+                and json.loads(r[0][0].text).get("status") == "executed"
+            ]
+            errors = [r for r in results if isinstance(r, BaseException)]
+            assert len(successes) == 1, (
+                f"expected exactly one executed approval, got {len(successes)}"
+            )
+            assert len(errors) == 1, (
+                f"expected exactly one ToolError from the racing approval, got {len(errors)}"
+            )
+
+            pages = await db_session.execute(
+                select(IsoDocNodeDB).where(IsoDocNodeDB.slug == "race-page")
+            )
+            assert len(list(pages.scalars().all())) == 1
+
+
+@pytest.mark.asyncio
+async def test_handler_exception_marks_command_failed_with_error(
+    db_session: AsyncSession,
+    editor_ctx: McpUserContext,
+    seeded_iso: dict,
+) -> None:
+    """When the executor raises, the command must land in `failed` with the
+    error message preserved on the row (not just bubbled up to the caller)."""
+    from mcp_server.models.command import CommandDB
+
+    async with override_session(db_session):
+        async with override_mcp_user(editor_ctx):
+            enqueue_result = await mcp.call_tool(
+                "iso_patch_page_content",
+                {
+                    "slug": "security-policy",
+                    "operations": [
+                        {"search": "definitely-not-in-the-doc", "replace": "x"},
+                    ],
+                },
+            )
+            command_id = json.loads(enqueue_result[0][0].text)["command_id"]
+
+            approve_result = await mcp.call_tool(
+                "approve_command", {"command_id": command_id},
+            )
+            approve_data = json.loads(approve_result[0][0].text)
+            assert approve_data["status"] == "failed"
+            assert "not found" in approve_data["error"]
+
+    row = await db_session.execute(
+        select(CommandDB).where(CommandDB.id == command_id)
+    )
+    cmd = row.scalar_one()
+    assert cmd.status == "failed"
+    assert cmd.error is not None
+    assert "not found" in cmd.error
