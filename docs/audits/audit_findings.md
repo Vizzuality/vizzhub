@@ -49,18 +49,18 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 14. **`capacity_insights.py` 743 LOC** — overview + FA detail + user detail + allocation + planner suggestions in one file. Now even bigger after `24971b18`'s additions. Split into a subpackage when adding the next drill-down. _Still deferred per the original audit recommendation (subtle JOIN-bug regression risk too high without a triggering feature)._
 15. **`planner.py` 451 LOC** — backend twin of `PlannerGrid.tsx`. Same approach. _Still deferred._
 
-### T7 — DRY / cleanup (low priority, batch when convenient)
+### T7 — DRY / cleanup (low priority, batch when convenient) — **TRIAGED + 3 FIXED 2026-05-16**
 
-16. **Month-range parsing duplicated across 3 capacity endpoints** — extract a small helper.
-17. **`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs** — extract a `with_job_run(name)` context manager.
-18. **Slack bot-token fetch "return if missing" repeated in 4 jobs** — extract a `get_slack_bot_token_or_skip()` helper.
-19. **"Iterate projects, catch, continue" pattern duplicated three times** — extract `safe_iter(items)` or similar.
-20. **`_upsert_batch(include_comment)` flag-arg branching schema** — split into two endpoints or two functions; flag-arg is a code smell.
-21. **No FA short↔full-name helper on the FE** — currently inline mapping. Extract to `src/modules/capacity/utils/fa.ts`.
-22. **`allCoords` array rebuilt every render in `useCellSelection`** — wrap in `useMemo` if profiling confirms cost.
-23. **`capture_history_task` name suggests cron but it's an API-triggered backfill** — rename to `recompute_history_backfill` or similar.
-24. **Hardcoded GitHub org/repo for tech-radar** in `devstack / mcp_server` — move to config.
-25. **Permission strings as bare literals scattered across MCP decorators** — replace with enum imports already used elsewhere.
+16. ~~**Month-range parsing duplicated across 3 capacity endpoints**~~ — `MonthRangeDep` FastAPI dependency added to `_validation.py`. `insights.py`, `fa_detail.py`, `user_detail.py` now consume `months: MonthRangeDep` instead of the 3-line `parse_month/parse_month/validate_date_range` triplet. `allocation.py` keeps its private optional-range helper (different contract — Nones are valid). **[fixed in commit below]**
+17. **`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs** — _deferred_. The pattern has subtle per-job variations (some swallow exceptions, others re-raise; some `complete_with_error`, others mark explicit failed status). Wrapping all 9 in a single context manager risks silent behavioural drift; cost of regression > savings. Revisit when adding the 10th worker job.
+18. **Slack bot-token fetch "return if missing" repeated in 4 jobs** — _deferred along with T7.17_. The "skip if missing" branch is 3 lines per site; extracting a helper that has to also return a `complete_with_error(...)` result couples caller's control flow. Bundle with T7.17 when that ctx manager exists.
+19. **"Iterate projects, catch, continue" pattern duplicated three times** — _deferred_. Post-T6.13 split, only 2 distinct sites remain (`check_dependabot._process_project` and `check_business_alerts._process_project`); a `safe_iter` abstraction for 2 callsites is premature.
+20. **`_upsert_batch(include_comment)` flag-arg branching schema** — _deferred_. Splitting into two functions would duplicate ~95% of the body (`pg_insert(...).on_conflict_do_update(set_=...)`). The flag-arg is the cleaner expression here; the original audit note overstated.
+21. ~~**No FA short↔full-name helper on the FE**~~ — verified no-op. FE uses short codes (`FA_ORDER`, `FA_COLORS`) throughout `modules/capacity/`; no inline `"Frontend Developer"`-style mapping survives. Backend's `TARGET_FA_MAPPING` does the short→full work where needed. ToDo claim was stale.
+22. ~~**`allCoords` array rebuilt every render in `useCellSelection`**~~ — verified no-op. The build sits in a `useEffect` with deps `[flatRows, weeks, selection.allCoordsRef]` in `PlannerGrid.tsx:433`; recomputes only when `flatRows`/`weeks` change, not on every render. ToDo claim was stale.
+23. **`capture_history_task` name suggests cron but it's an API-triggered backfill** — _deferred_. Renaming touches the function definition, settings.py functions list, and 2 `enqueue_job("capture_history_task", ...)` string literals in `core/api/jobs.py`; any external integration that queues by string name (MCP, scripts) silently breaks. Net risk > naming win.
+24. ~~**Hardcoded GitHub org/repo for tech-radar**~~ — moved to `settings.devstack_tech_radar_repo` (defaults to `Vizzuality/vizzuality-engineering-handbook`, env-overridable via `DEVSTACK_TECH_RADAR_REPO`). `mcp_server/data/devstack.py` now resolves the base URL through `get_settings()` at call time. **[fixed in commit below]**
+25. ~~**Permission strings as bare literals scattered across MCP decorators**~~ — all ~30 `@mcp_requires("…")` literals in `mcp_server/tools/{scorecard,tracker,iso_write,playbook_write,devstack,capacity}.py` now reference `Action.X` constants from `app.core.permissions`. `tools/commands.py:_MODULE_PERMISSIONS` and the lone `has_permission("iso_docs:edit")` in `data/iso.py` likewise. Typo-safe + single source of truth with backend. **[fixed in commit below]**
 
 The rest of the 132-item backlog stays on the boy-scout rule (fix when you touch the file). T1+T2+T3 are the most cost-effective next pass; T4+T5 close real risk; T6+T7 absorb naturally.
 

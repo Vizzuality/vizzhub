@@ -11,6 +11,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
 
 from app.core.models.user import UserDB
+from app.core.permissions import Action
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.iso_docs.models import (
     IsoDocMetadataDB,
@@ -49,7 +50,7 @@ async def _get_visible_node_ids(session: AsyncSession) -> set[UUID] | None:
         user = get_mcp_user()
     except RuntimeError:
         return None
-    if user.has_permission("iso_docs:edit"):
+    if user.has_permission(Action.ISO_DOCS_EDIT):
         return None
 
     result = await session.execute(

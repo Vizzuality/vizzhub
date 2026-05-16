@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     github_oauth_client_id: str = ""
     github_oauth_client_secret: str = ""
 
+    # DevStack — repo backing the Vizzuality engineering Tech Radar.
+    # Override via env (DEVSTACK_TECH_RADAR_REPO) if it ever moves.
+    devstack_tech_radar_repo: str = "Vizzuality/vizzuality-engineering-handbook"
+
     # Google Workspace Admin SDK (ISO module)
     google_workspace_client_id: str = ""
     google_workspace_client_secret: str = ""

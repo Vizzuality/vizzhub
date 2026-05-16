@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp_server.data.base import get_read_session
 from mcp_server.data import tracker as tracker_data
 from mcp_server.auth.permissions import mcp_requires
+from app.core.permissions import Action
 
 
 def _to_json(data: Any) -> str:
@@ -18,7 +19,7 @@ def _to_json(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_projects(
     status: str | None = None,
     is_billable: bool | None = None,
@@ -40,7 +41,7 @@ async def tracker_get_projects(
     return _to_json(projects)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_project_detail(project_id: str) -> str:
     """Get full detail for a single project.
 
@@ -64,7 +65,7 @@ async def tracker_get_project_detail(project_id: str) -> str:
     return _to_json(detail)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_project_time(
     project_id: str,
     group_by: str = "user",
@@ -92,7 +93,7 @@ async def tracker_get_project_time(
     return _to_json(rows)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_project_invoices(project_id: str) -> str:
     """Get invoices for a project with effective status.
 
@@ -115,7 +116,7 @@ async def tracker_get_project_invoices(project_id: str) -> str:
     return _to_json(invoices)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_project_progress(project_id: str) -> str:
     """Get progress history for a project.
 
@@ -136,7 +137,7 @@ async def tracker_get_project_progress(project_id: str) -> str:
     return _to_json(progress)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_periods(status: str | None = None) -> str:
     """List reporting periods with report counts.
 
@@ -152,7 +153,7 @@ async def tracker_get_periods(status: str | None = None) -> str:
     return _to_json(periods)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def tracker_get_user_jira_issues(
     user_id: str,
     start_date: str,

@@ -9,6 +9,7 @@ import structlog
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.devstack.models.entry import DevstackEntryDB
 from app.modules.devstack.schemas import EntryResponse
@@ -26,10 +27,10 @@ _CATALOG_FIELDS = frozenset((
 
 _DISCOVER_FIELDS = frozenset(("name", "type", "description"))
 
-_TECH_RADAR_REPO = "Vizzuality/vizzuality-engineering-handbook"
-_TECH_RADAR_BASE = (
-    f"https://github.com/{_TECH_RADAR_REPO}/blob/main/decisions/tech-radar"
-)
+def _tech_radar_base() -> str:
+    """Build the Tech Radar URL prefix from settings (cached at startup)."""
+    repo = get_settings().devstack_tech_radar_repo
+    return f"https://github.com/{repo}/blob/main/decisions/tech-radar"
 
 
 async def get_catalog(session: AsyncSession) -> list[dict]:
@@ -85,7 +86,7 @@ async def get_tech_radar(session: AsyncSession, file: str) -> str | None:
     Returns the markdown content or None on failure.
     """
     token = await IntegrationTokenService.get_token(session, "github")
-    url = f"{_TECH_RADAR_BASE}/{file}.md"
+    url = f"{_tech_radar_base()}/{file}.md"
     return await fetch_github_content(url, token)
 
 

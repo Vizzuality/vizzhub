@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 
 from app.modules.iso_docs.schemas.metadata import ChangelogEntry
 from mcp_server.auth.permissions import mcp_requires
+from app.core.permissions import Action
 from mcp_server.tools._shared import enqueue_command
 
 
@@ -29,7 +30,7 @@ class PatchOperation(BaseModel):
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_create_page(parent_slug: str, title: str) -> str:
     """Create a new ISO document page under the given parent group.
 
@@ -51,7 +52,7 @@ async def iso_create_page(parent_slug: str, title: str) -> str:
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_update_page_content(slug: str, content: str) -> str:
     """Update the markdown content of an ISO document page.
 
@@ -74,7 +75,7 @@ async def iso_update_page_content(slug: str, content: str) -> str:
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_patch_page_content(
     slug: str,
     operations: list[PatchOperation],
@@ -121,7 +122,7 @@ async def iso_patch_page_content(
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_update_page_metadata(
     slug: str,
     code: str | None = None,
@@ -186,7 +187,7 @@ async def iso_update_page_metadata(
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_update_node(
     slug: str,
     title: str | None = None,
@@ -218,7 +219,7 @@ async def iso_update_node(
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_delete_node(slug: str) -> str:
     """Delete an ISO document tree node (page or group).
 
@@ -238,7 +239,7 @@ async def iso_delete_node(slug: str) -> str:
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_create_registry_row(
     slug: str,
     data: dict,
@@ -271,7 +272,7 @@ async def iso_create_registry_row(
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_update_registry_row(
     slug: str,
     row_id: str,
@@ -297,7 +298,7 @@ async def iso_update_registry_row(
     )
 
 
-@mcp_requires("iso_docs:edit")
+@mcp_requires(Action.ISO_DOCS_EDIT)
 async def iso_delete_registry_row(slug: str, row_id: str) -> str:
     """Delete a row from an ISO registry.
 

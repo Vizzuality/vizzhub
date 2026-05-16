@@ -7,6 +7,7 @@ from uuid import UUID
 import structlog
 from mcp.server.fastmcp import FastMCP
 
+from app.core.permissions import Action
 from mcp_server.data.base import get_mcp_user, get_write_session
 from mcp_server.handlers import iso_docs as iso_handler
 from mcp_server.handlers import playbook as playbook_handler
@@ -16,8 +17,8 @@ from mcp_server.tools._shared import to_json
 logger = structlog.get_logger()
 
 _MODULE_PERMISSIONS = {
-    "iso_docs": "iso_docs:edit",
-    "playbook": "playbook:edit",
+    "iso_docs": Action.ISO_DOCS_EDIT,
+    "playbook": Action.PLAYBOOK_EDIT,
 }
 
 _MODULE_EXECUTORS = {

@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp_server.data.base import get_read_session
 from mcp_server.data import capacity as capacity_data
 from mcp_server.auth.permissions import mcp_requires
+from app.core.permissions import Action
 
 
 def _to_json(data: Any) -> str:
@@ -29,7 +30,7 @@ def _parse_month(value: str | None) -> date | None:
         return None
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def capacity_get_insights(
     start_month: str | None = None,
     end_month: str | None = None,
@@ -52,7 +53,7 @@ async def capacity_get_insights(
     return _to_json(result)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def capacity_get_fa_detail(
     fa: str,
     start_month: str | None = None,
@@ -80,7 +81,7 @@ async def capacity_get_fa_detail(
     return _to_json(result)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def capacity_get_user_detail(
     user_id: str,
     start_month: str | None = None,
@@ -104,7 +105,7 @@ async def capacity_get_user_detail(
     return _to_json(result)
 
 
-@mcp_requires("tracker:view")
+@mcp_requires(Action.TRACKER_VIEW)
 async def capacity_get_allocation(
     view: str = "users",
     start_month: str | None = None,

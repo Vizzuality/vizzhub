@@ -10,7 +10,7 @@ from app.core.services.capacity_insights import (
     get_capacity_user_detail,
     get_reportable_users,
 )
-from app.modules.capacity.api._validation import parse_month, validate_date_range
+from app.modules.capacity.api._validation import MonthRangeDep
 
 router = APIRouter()
 
@@ -28,15 +28,13 @@ async def capacity_user_detail(
     db: DBSession,
     user: CurrentUser,
     user_id: Annotated[str, Query(description="User UUID")],
-    start_date: Annotated[str, Query(description="Start month (YYYY-MM)")],
-    end_date: Annotated[str, Query(description="End month (YYYY-MM)")],
+    months: MonthRangeDep,
 ) -> list[dict]:
     try:
         UUID(user_id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"Invalid user_id: {user_id}") from exc
 
-    start = parse_month(start_date)
-    end = parse_month(end_date)
-    validate_date_range(start, end)
-    return await get_capacity_user_detail(db=db, user_id=user_id, start_date=start, end_date=end)
+    return await get_capacity_user_detail(
+        db=db, user_id=user_id, start_date=months.start, end_date=months.end
+    )

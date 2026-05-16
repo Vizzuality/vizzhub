@@ -8,11 +8,12 @@ from typing import Literal
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.auth.permissions import mcp_requires
+from app.core.permissions import Action
 from mcp_server.data.base import get_read_session
 from mcp_server.data import devstack as devstack_data
 
 
-@mcp_requires("devstack:view")
+@mcp_requires(Action.DEVSTACK_VIEW)
 async def devstack_get_catalog() -> str:
     """Get the full DevStack catalog.
 
@@ -26,7 +27,7 @@ async def devstack_get_catalog() -> str:
     return json.dumps(data, indent=2, default=str)
 
 
-@mcp_requires("devstack:view")
+@mcp_requires(Action.DEVSTACK_VIEW)
 async def devstack_discover(
     type: Literal["skill", "command", "plugin", "config", "agent"] | None = None,
     tech: list[str] | None = None,
@@ -54,7 +55,7 @@ async def devstack_discover(
     return json.dumps(data, default=str)
 
 
-@mcp_requires("devstack:view")
+@mcp_requires(Action.DEVSTACK_VIEW)
 async def devstack_get_tech_radar(
     file: Literal["development", "devops", "tools-and-libraries", "data-science-gis"],
 ) -> str:
@@ -75,7 +76,7 @@ async def devstack_get_tech_radar(
     return content
 
 
-@mcp_requires("devstack:view")
+@mcp_requires(Action.DEVSTACK_VIEW)
 async def devstack_get_installable(name: str) -> str:
     """Get a ready-to-write installable for a DevStack catalog entry.
 

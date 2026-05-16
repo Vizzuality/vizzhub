@@ -5,10 +5,11 @@ from __future__ import annotations
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.auth.permissions import mcp_requires
+from app.core.permissions import Action
 from mcp_server.tools._shared import enqueue_command
 
 
-@mcp_requires("playbook:edit")
+@mcp_requires(Action.PLAYBOOK_EDIT)
 async def playbook_create_article(parent_slug: str, title: str) -> str:
     """Create a new playbook article under the given parent group.
 
@@ -30,7 +31,7 @@ async def playbook_create_article(parent_slug: str, title: str) -> str:
     )
 
 
-@mcp_requires("playbook:edit")
+@mcp_requires(Action.PLAYBOOK_EDIT)
 async def playbook_update_article_content(slug: str, content: str) -> str:
     """Update the markdown content of a playbook article.
 
@@ -53,7 +54,7 @@ async def playbook_update_article_content(slug: str, content: str) -> str:
     )
 
 
-@mcp_requires("playbook:edit")
+@mcp_requires(Action.PLAYBOOK_EDIT)
 async def playbook_update_node(
     slug: str,
     title: str | None = None,
@@ -85,7 +86,7 @@ async def playbook_update_node(
     )
 
 
-@mcp_requires("playbook:edit")
+@mcp_requires(Action.PLAYBOOK_EDIT)
 async def playbook_delete_node(slug: str) -> str:
     """Delete a playbook tree node (article or group).
 
