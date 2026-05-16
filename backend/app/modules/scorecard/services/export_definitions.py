@@ -17,10 +17,18 @@ INDICATOR_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Ratio of earned value to actual cost. Measures cost efficiency.",
         "formula": "EV / AC (where EV = budget_total * percent_completed, AC = cost_to_date)",
     },
-    "budget_variance": {
-        "name": "Budget Variance",
-        "description": "Percentage of budget overrun.",
-        "formula": "(cost_to_date - planned_cost) / budget_total * 100",
+    "cost_variance_pct": {
+        "name": "Cost Variance",
+        "description": (
+            "EVM Cost Variance over budget: ratio of value delivered minus "
+            "cost incurred to total budget. Signed — negative means overrun "
+            "relative to the value delivered, positive means under-spent."
+        ),
+        "formula": (
+            "(EV - AC) / BAC = percent_completed - cost_to_date / budget_total. "
+            "Scored on a piecewise-linear normalizer: >= 0 → 100, "
+            "<= -target → 0, linear in between."
+        ),
     },
     "defect_density": {
         "name": "Defect Density",
@@ -136,9 +144,9 @@ DIMENSION_DEFINITIONS: list[dict] = [
     {
         "key": "p_cost",
         "name": "P_cost — Budget",
-        "description": "Budget adherence measured through cost performance index and variance.",
-        "formula": "w_cpi * normalize(CPI, ideal) + w_variance * normalize(budget_variance, target)",
-        "indicators": ["cpi", "budget_variance"],
+        "description": "Budget adherence measured through cost performance index and signed cost variance.",
+        "formula": "w_cpi * normalize(CPI, ideal) + w_variance * normalize_cost_variance(CV_pct, target)",
+        "indicators": ["cpi", "cost_variance_pct"],
     },
     {
         "key": "p_quality",

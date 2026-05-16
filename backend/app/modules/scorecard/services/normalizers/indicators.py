@@ -23,7 +23,6 @@ from app.modules.scorecard.models.metrics import (
     TestMaturity,
 )
 from app.modules.scorecard.services.normalizers.base import (
-    normalize_budget_variance,
     normalize_governance_compliance,
 )
 
@@ -40,7 +39,7 @@ class IndicatorNormalizer:
             spi=self._normalize_spi(metrics.evm_data),
             on_time_milestones=self._normalize_milestones(metrics.milestones),
             cpi=self._normalize_cpi(metrics.evm_data),
-            budget_variance=self._calculate_budget_variance(metrics.evm_data),
+            cost_variance_pct=self._calculate_cost_variance_pct(metrics.evm_data),
             defect_density=self._calculate_defect_density(metrics.jira_defects),
             escaped_rate=self._calculate_escaped_rate(metrics.jira_defects),
             mttr_hours=self._get_mttr(metrics.jira_defects),
@@ -94,13 +93,28 @@ class IndicatorNormalizer:
         ev = evm.budget_total * evm.percent_completed
         return ev / evm.cost_to_date
 
-    def _calculate_budget_variance(self, evm: EVMData | None) -> float | None:
-        """Calculate budget overrun percentage."""
-        if evm is None or evm.cost_to_date is None or evm.budget_total is None:
+    def _calculate_cost_variance_pct(self, evm: EVMData | None) -> float | None:
+        """Calculate signed EVM Cost Variance percentage.
+
+        CV_pct = (EV - AC) / BAC
+               = (BAC * percent_completed - cost_to_date) / BAC
+               = percent_completed - cost_to_date / budget_total
+
+        Returns None whenever any of percent_completed, cost_to_date or
+        budget_total is missing or when BAC <= 0 — the calculator drops
+        the component and redistributes weights onto CPI.
+        """
+        if evm is None:
             return None
-        if evm.cost_to_date <= 0:
+        if (
+            evm.percent_completed is None
+            or evm.cost_to_date is None
+            or evm.budget_total is None
+        ):
             return None
-        return normalize_budget_variance(evm.cost_to_date, evm.budget_total, False)
+        if evm.budget_total <= 0:
+            return None
+        return evm.percent_completed - (evm.cost_to_date / evm.budget_total)
 
     def _normalize_milestones(self, milestones: list[Milestone] | None) -> float | None:
         """Calculate on-time milestone ratio.

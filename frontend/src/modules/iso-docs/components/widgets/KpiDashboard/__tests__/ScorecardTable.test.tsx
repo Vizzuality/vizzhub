@@ -99,7 +99,7 @@ const mockTargets: ScoringConfig['targets'] = {
   deployment_frequency: 0.1,
   change_failure_rate: 0.15,
   post_contract_tasks: 0,
-  budget_variance: 0.1,
+  cost_variance: 0.1,
   governance_compliance: 0.9,
   okr_impact: 0.55,
 };

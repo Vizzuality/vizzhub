@@ -2,6 +2,7 @@
 
 from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.services.calculators.base import BaseCalculator, WeightedComponent
+from app.modules.scorecard.services.normalizers.base import normalize_cost_variance
 
 
 class CostCalculator(BaseCalculator):
@@ -10,11 +11,15 @@ class CostCalculator(BaseCalculator):
 
     Components:
     - CPI normalized to ideal (1.0 = on budget, capped at 1) - weight 0.7
-    - Budget variance inverted (1 - overrun%, floored at 0) - weight 0.3
+    - Signed Cost Variance % scored on a piecewise-linear normalizer
+      (>= 0 = 100, <= -target = 0) - weight 0.3 (audit #18: replaces the
+      clamped overrun-only budget_variance with the EVM-standard signed
+      CV / BAC; under-budget and on-plan are now distinguishable, and
+      progress is accounted for).
 
     Missing data handling:
-    - If CPI missing: score based on variance only
-    - If variance missing: score based on CPI only
+    - If CPI missing: score based on cost variance only
+    - If cost variance missing: score based on CPI only
     - If both missing: returns None
     """
 
@@ -25,11 +30,8 @@ class CostCalculator(BaseCalculator):
         cpi_ideal = self._get_ideal("cpi")
 
         cpi_normalized = self._normalize_to_ideal(indicators.cpi, cpi_ideal)
-        variance_normalized = (
-            None
-            if indicators.budget_variance is None
-            else max(0.0, 1.0 - indicators.budget_variance)
-        )
+        cv_target = self._get_target("cost_variance")
+        cv_normalized = normalize_cost_variance(indicators.cost_variance_pct, cv_target)
 
         components = [
             WeightedComponent(
@@ -40,7 +42,7 @@ class CostCalculator(BaseCalculator):
             WeightedComponent(
                 name="variance",
                 weight=self._get_weight("variance"),
-                value=variance_normalized,
+                value=cv_normalized,
             ),
         ]
 

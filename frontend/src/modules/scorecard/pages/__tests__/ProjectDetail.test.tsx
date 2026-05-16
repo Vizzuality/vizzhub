@@ -23,7 +23,7 @@ const mockScores: ScoreResponse = {
     spi: 0.95,
     on_time_milestones: 0.8,
     cpi: 0.92,
-    budget_variance: 0.05,
+    cost_variance_pct: 0.05,
     defect_density: 0.02,
     escaped_rate: 0.01,
     mttr_hours: 4,

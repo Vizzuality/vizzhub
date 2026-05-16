@@ -104,7 +104,7 @@ _TEST_CONFIG_DEFAULTS: dict[str, Decimal] = {
     "target_client_satisfaction": Decimal("85"),
     "target_story_review_ratio": Decimal("85"),
     "target_commitment_reliability": Decimal("80"),
-    "target_budget_variance": Decimal("85"),
+    "target_cost_variance": Decimal("0.10"),
     "target_governance_compliance": Decimal("80"),
     "target_okr_impact": Decimal("70"),
     "ideal_spi": Decimal("1.0"),

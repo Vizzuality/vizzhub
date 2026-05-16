@@ -9,8 +9,13 @@ class IndicatorsCreate(BaseModel):
         default=None, ge=0, le=1, description="Weighted on-time milestone ratio"
     )
     cpi: float | None = Field(default=None, description="Cost Performance Index")
-    budget_variance: float | None = Field(
-        default=None, ge=0, description="Budget overrun percentage"
+    cost_variance_pct: float | None = Field(
+        default=None,
+        description=(
+            "Signed Cost Variance / BAC (EVM): percent_completed - cost_to_date / "
+            "budget_total. Negative = overrun relative to value delivered. "
+            "No clamp — under-delivery and over-delivery are both meaningful."
+        ),
     )
     defect_density: float | None = Field(
         default=None, ge=0, description="Defects per 100 tasks"

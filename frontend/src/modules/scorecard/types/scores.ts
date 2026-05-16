@@ -50,7 +50,7 @@ export interface Indicators {
   spi: number | null;
   on_time_milestones: number | null;
   cpi: number | null;
-  budget_variance: number | null;
+  cost_variance_pct: number | null;
   defect_density: number | null;
   escaped_rate: number | null;
   mttr_hours: number | null;
@@ -102,7 +102,7 @@ export interface ScoringConfig {
     deployment_frequency: number;
     change_failure_rate: number;
     post_contract_tasks: number;
-    budget_variance: number;
+    cost_variance: number;
     governance_compliance: number;
     okr_impact: number;
   };

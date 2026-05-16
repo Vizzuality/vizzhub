@@ -128,7 +128,14 @@ def normalize_budget_variance(
     neutral_on_missing: bool = True,
 ) -> float:
     """
-    Calculate budget variance overrun percentage.
+    DEPRECATED: clamped overrun-only budget variance.
+
+    Kept temporarily for legacy fixtures / external callers. New code MUST
+    use `normalize_cost_variance` with the signed CV / BAC indicator from
+    `IndicatorsCreate.cost_variance_pct`. This function clamps to >= 0 so
+    under-budget projects look identical to on-budget ones, and ignores
+    progress entirely (a project 30% spent with 10% delivered scored as on
+    plan). Replaced via audit finding #18 / migration 072.
 
     Formula: max(0, actual_cost/budget - 1)
     Result 0 means on/under budget, positive means overrun.
@@ -146,6 +153,55 @@ def normalize_budget_variance(
     if budget <= 0:
         return 0.0
     return max(0.0, actual_cost / budget - 1.0)
+
+
+def normalize_cost_variance(
+    cv_pct: float | None,
+    target: float,
+    neutral_on_missing: bool = False,
+) -> float | None:
+    """
+    Normalize signed EVM Cost Variance percentage to a 0-1 score.
+
+    CV_pct = (EV - AC) / BAC = percent_completed - cost_to_date / budget_total
+
+    Sign convention (input):
+    - cv_pct > 0  → ahead: more value delivered than money spent (GOOD).
+    - cv_pct = 0  → on plan.
+    - cv_pct < 0  → behind: overrun relative to value delivered (BAD).
+
+    Scoring (output, piecewise-linear):
+    - cv_pct >= 0           → 1.0
+    - cv_pct <= -|target|   → 0.0
+    - linear in between
+
+    Missing handling matches the scorecard "missing excluded" rule by
+    default (returns None so the calculator drops the component and
+    redistributes weights). `neutral_on_missing=True` is an opt-in for the
+    rare legacy caller that still wants a neutral fallback.
+
+    Args:
+        cv_pct: Signed Cost Variance over budget (e.g. -0.10 = 10% overrun).
+        target: Absolute tolerance for under-delivery (e.g. 0.10).
+        neutral_on_missing: Legacy opt-in for neutral fallback on None.
+
+    Returns:
+        Score 0..1 where 1 = good (on/under cost), 0 = at-or-worse-than
+        target overrun. None when input is None and neutral is not opted
+        into.
+    """
+    if cv_pct is None:
+        if neutral_on_missing:
+            return NEUTRAL_VALUE
+        return None
+    if cv_pct >= 0:
+        return 1.0
+    tolerance = abs(target)
+    if tolerance <= 0:
+        return 0.0
+    if cv_pct <= -tolerance:
+        return 0.0
+    return 1.0 + cv_pct / tolerance
 
 
 def normalize_governance_compliance(

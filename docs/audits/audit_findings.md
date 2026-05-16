@@ -1879,6 +1879,7 @@ _(No blockers. Layer is well-disciplined: zero `@/modules` or `@/core` imports f
     - `test_cost_variance_missing_inputs_returns_none`: cost_to_date=None or percent_completed=None → CV=None.
   - Fix: add `cv = ev − cost_to_date` in `evmCalculations.ts:14-17` and surface as a third row in `EVMSection.tsx` with sign-preserving `formatCurrency`. Backend: expose `cost_variance` in `EVMData` returning None when any input is None and preserving sign. Decide whether the clamped `budget_variance` should remain for scoring or be replaced by signed CV.
   - Added: 2026-05-15 (calc-audit row #18)
+  - **Resolved 2026-05-16 (Option B — replace).** Indicator field renamed `budget_variance → cost_variance_pct` (signed CV/BAC). New `normalize_cost_variance` in `services/normalizers/base.py` returns None when input is None (excluded per CLAUDE rule), 1.0 when CV% ≥ 0, 0.0 when ≤ −target, linear in between. CostCalculator consumes it directly. Config row `target_budget_variance → target_cost_variance` via migration `072_cv_pct_replaces_bv` (idempotent). Old `normalize_budget_variance` kept and marked deprecated (legacy tests / external callers); not consulted in the new scoring path. Scorecard history must be recalculated post-deploy.
 
 - **EAC (Estimate at Completion) uses a non-standard time-based forecast, ignoring CPI/BAC/EV** — `frontend/src/modules/tracker/components/BurnDashboard.tsx:82` (`forecastFinal`), with helpers `weightedMonthlyAvg` and `buildForecastPoints` in the same file.
   - Module: `tracker`

@@ -46,7 +46,7 @@ class TargetsConfig(BaseModel):
     pr_size_lines: float
     review_turnaround_hours: float
     post_contract_tasks: int
-    budget_variance: float
+    cost_variance: float
     governance_compliance: float
     okr_impact: float
 

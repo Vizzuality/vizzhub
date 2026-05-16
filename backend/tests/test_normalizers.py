@@ -5,6 +5,7 @@ import pytest
 from app.modules.scorecard.services.normalizers.base import (
     NEUTRAL_VALUE,
     normalize_budget_variance,
+    normalize_cost_variance,
     normalize_count_to_ratio,
     normalize_governance_compliance,
     normalize_higher_is_better,
@@ -188,6 +189,48 @@ class TestBudgetVariance:
     def test_zero_actual_cost(self) -> None:
         """Zero actual cost should return 0 variance (under budget)."""
         assert normalize_budget_variance(0, 100) == pytest.approx(0.0)
+
+
+class TestCostVariance:
+    """Tests for normalize_cost_variance — signed EVM CV / BAC normalizer."""
+
+    def test_positive_returns_one(self) -> None:
+        """Ahead of plan (CV% > 0) → perfect score."""
+        assert normalize_cost_variance(0.10, 0.10) == pytest.approx(1.0)
+
+    def test_zero_returns_one(self) -> None:
+        """On plan (CV% == 0) → perfect score."""
+        assert normalize_cost_variance(0.0, 0.10) == pytest.approx(1.0)
+
+    def test_at_negative_target_returns_zero(self) -> None:
+        """Exactly at the overrun tolerance → 0."""
+        assert normalize_cost_variance(-0.10, 0.10) == pytest.approx(0.0)
+
+    def test_beyond_negative_target_returns_zero(self) -> None:
+        """Worse than tolerance still floors at 0."""
+        assert normalize_cost_variance(-0.50, 0.10) == pytest.approx(0.0)
+
+    def test_linear_in_between(self) -> None:
+        """Halfway to the overrun tolerance → 0.5."""
+        assert normalize_cost_variance(-0.05, 0.10) == pytest.approx(0.5)
+
+    def test_handles_negative_target(self) -> None:
+        """Target magnitude is taken absolute — negative target works too."""
+        assert normalize_cost_variance(-0.05, -0.10) == pytest.approx(0.5)
+
+    def test_zero_target_clamps_negative_to_zero(self) -> None:
+        """Zero tolerance: any overrun scores 0."""
+        assert normalize_cost_variance(-0.01, 0.0) == pytest.approx(0.0)
+
+    def test_none_returns_none_by_default(self) -> None:
+        """Missing input excludes the indicator (per CLAUDE.md rule)."""
+        assert normalize_cost_variance(None, 0.10) is None
+
+    def test_none_neutral_opt_in(self) -> None:
+        """Legacy callers can opt into neutral fallback."""
+        assert normalize_cost_variance(None, 0.10, neutral_on_missing=True) == pytest.approx(
+            NEUTRAL_VALUE
+        )
 
 
 class TestGovernanceCompliance:

@@ -29,7 +29,7 @@ def perfect_indicators() -> IndicatorsCreate:
         spi=1.0,
         on_time_milestones=1.0,
         cpi=1.0,
-        budget_variance=0.0,
+        cost_variance_pct=0.0,
         defect_density=0.0,
         escaped_rate=0.0,
         mttr_hours=0.0,
@@ -176,8 +176,10 @@ class TestCostCalculator:
         assert score == 100
 
     def test_over_budget_penalty(self, config: ScoringConfig) -> None:
+        """Half-way to the overrun target: CV%=-0.05 with target=0.10 → CV
+        normalized to 0.5. Score = 0.7*1.0 + 0.3*0.5 = 0.85 → 85."""
         calc = CostCalculator(config)
-        indicators = IndicatorsCreate(cpi=1.0, budget_variance=0.5)
+        indicators = IndicatorsCreate(cpi=1.0, cost_variance_pct=-0.05)
         score = calc.calculate(indicators)
         assert score == 85
 
@@ -189,24 +191,71 @@ class TestCostCalculator:
 
     def test_only_cpi_available(self, config: ScoringConfig) -> None:
         calc = CostCalculator(config)
-        indicators = IndicatorsCreate(cpi=1.0, budget_variance=None)
+        indicators = IndicatorsCreate(cpi=1.0, cost_variance_pct=None)
         score = calc.calculate(indicators)
         assert score == 100
 
     def test_only_variance_available(self, config: ScoringConfig) -> None:
         calc = CostCalculator(config)
-        indicators = IndicatorsCreate(cpi=None, budget_variance=0.0)
+        indicators = IndicatorsCreate(cpi=None, cost_variance_pct=0.0)
         score = calc.calculate(indicators)
         assert score == 100
 
     def test_low_cpi_with_good_variance(self, config: ScoringConfig) -> None:
         calc = CostCalculator(config)
         # CPI=0.8 vs ideal=1.0 → normalized=0.8 (reflects actual performance)
-        # variance=0.0 → normalized=1.0
+        # CV%=0.0 → normalized=1.0
         # Score = 0.7*0.8 + 0.3*1.0 = 0.86 → 86
-        indicators = IndicatorsCreate(cpi=0.8, budget_variance=0.0)
+        indicators = IndicatorsCreate(cpi=0.8, cost_variance_pct=0.0)
         score = calc.calculate(indicators)
         assert score == 86
+
+    def test_cost_variance_pct_positive_when_efficient(
+        self, config: ScoringConfig
+    ) -> None:
+        """Ahead of schedule on cost: 40% complete, 30% spent → CV%=+0.10,
+        normalizer → 1.0. Cost score = 100 with perfect CPI."""
+        calc = CostCalculator(config)
+        indicators = IndicatorsCreate(cpi=1.0, cost_variance_pct=0.10)
+        score = calc.calculate(indicators)
+        assert score == 100
+
+    def test_cost_variance_pct_negative_when_overrun(
+        self, config: ScoringConfig
+    ) -> None:
+        """Overrun: 40% complete, 60% spent → CV%=-0.20, target=0.10 →
+        normalizer → 0.0. Score = 0.7*1.0 + 0.3*0.0 = 0.70 → 70."""
+        calc = CostCalculator(config)
+        indicators = IndicatorsCreate(cpi=1.0, cost_variance_pct=-0.20)
+        score = calc.calculate(indicators)
+        assert score == 70
+
+    def test_cost_variance_pct_zero_on_plan(self, config: ScoringConfig) -> None:
+        """50% complete, 50% spent → CV%=0 → normalizer → 1.0 → perfect."""
+        calc = CostCalculator(config)
+        indicators = IndicatorsCreate(cpi=1.0, cost_variance_pct=0.0)
+        score = calc.calculate(indicators)
+        assert score == 100
+
+    def test_cost_variance_pct_none_when_evm_incomplete(
+        self, config: ScoringConfig
+    ) -> None:
+        """Missing CV% with perfect CPI → cost score driven by CPI only
+        (weight redistributed)."""
+        calc = CostCalculator(config)
+        indicators = IndicatorsCreate(cpi=1.0, cost_variance_pct=None)
+        score = calc.calculate(indicators)
+        assert score == 100
+
+    def test_cost_dim_falls_back_to_cpi_only_when_cv_none(
+        self, config: ScoringConfig
+    ) -> None:
+        """Pins the 'missing excluded, redistribute weights' rule: CV missing
+        means CPI carries the whole dimension. CPI=0.6 → 60."""
+        calc = CostCalculator(config)
+        indicators = IndicatorsCreate(cpi=0.6, cost_variance_pct=None)
+        score = calc.calculate(indicators)
+        assert score == 60
 
 
 class TestQualityCalculator:

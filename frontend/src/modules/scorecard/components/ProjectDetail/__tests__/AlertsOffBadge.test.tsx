@@ -15,7 +15,7 @@ const indicators: Indicators = {
   spi: null,
   on_time_milestones: null,
   cpi: null,
-  budget_variance: null,
+  cost_variance_pct: null,
   defect_density: null,
   escaped_rate: null,
   mttr_hours: null,

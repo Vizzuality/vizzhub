@@ -9,7 +9,7 @@ class EVMData(BaseModel):
     Only `budget_total` is required (it gates whether the project has any
     EVM at all). The other three are nullable so the deserializer can
     preserve "not yet measured" instead of silently defaulting to 0.
-    Normalizers downstream (SPI/CPI/budget_variance) handle None.
+    Normalizers downstream (SPI/CPI/cost_variance_pct) handle None.
     """
 
     budget_total: float = Field(..., ge=0, description="Planned Value total (PV)")

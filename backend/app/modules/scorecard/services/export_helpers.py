@@ -138,7 +138,7 @@ def _safe_get_weight(config: ScoringConfig, _dim_key: str, ind_key: str) -> str:
         "spi": ("time", "spi"),
         "on_time_milestones": ("time", "milestones"),
         "cpi": ("cost", "cpi"),
-        "budget_variance": ("cost", "variance"),
+        "cost_variance_pct": ("cost", "variance"),
         "defect_density": ("quality", "defect_density"),
         "escaped_rate": ("quality", "escaped_rate"),
         "mttr_hours": ("quality", "mttr"),
