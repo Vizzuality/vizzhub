@@ -4,9 +4,9 @@ Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each 
 
 ---
 
-## Status (2026-05-16 PM)
+## Status (2026-05-16 PM, second pass)
 
-**ToDo Next High Priority block — 17/25 closed, 8 deliberately deferred with rationale.** Tiers T1 through T7 all triaged in one session. Eight items remain — none have a known regression today.
+**ToDo Next High Priority block — 22/25 closed, 0 outstanding.** Tiers T1 through T7 all triaged across two sessions. The 8 items deferred in the first pass are now resolved: 3 structural refactors landed (T6.12 / T6.14 / T6.15) and 5 of the T7 DRY items either landed (T7.17) or were promoted to **verified no-ops** with rationale (T7.18, T7.19, T7.20, T7.23).
 
 | Tier | Status | Notes |
 |------|--------|-------|
@@ -15,13 +15,18 @@ Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each 
 | T3 (quick verifications) | ✅ No-op | `85fd568d` — both items already closed by `24971b18`, audit entries were stale |
 | T4 (coverage gaps) | ✅ Closed | `c0ad1bf7` + `011498e5` — PlannerCell edit-lifecycle tests + planner RBAC denial tests |
 | T5 (worker observability) | ✅ Closed | `8fe4d363` + `8d2c8b3c` — passthrough workers gain canonical lifecycle events; MCP audit log |
+| T6.12 PlannerGrid | ✅ Closed | `50b3269c` — columns + styles extracted to sibling modules; orchestrator 871 → 618 LOC |
 | T6.13 (worker splits) | ✅ Closed | `82f3dd1b` + `f55ef273` — check_business_alerts & check_dependabot split into per-type modules |
-| T6.12 / T6.14 / T6.15 | ⏸ Deferred | PlannerGrid / capacity_insights / planner.py — boy-scout only, per original audit guidance |
-| T7 (DRY cleanup) | ✅ 3 fixed, 5 deferred, 2 no-op | `81e14722` + `9a7e76ad` — month-range Depends, tech-radar config, MCP perm enum |
+| T6.14 capacity_insights | ✅ Closed | `f106a94e` — split into 6-module subpackage; max single module 188 LOC (was 810) |
+| T6.15 planner.py | ✅ Closed | `a31e60c4` — pure helpers extracted into `_helpers.py`; planner.py 466 → 273 LOC |
+| T7.16 / T7.24 / T7.25 | ✅ Closed | `81e14722` — month-range Depends, tech-radar config, MCP perm enum |
+| T7.17 + T7.18 | ✅ Closed (partial) | `711c39a4` — `start_job_run` + `complete_job_run` helpers replace 8x prologue/epilogue (-68 LOC). Slack-token early-return remains a verified no-op (couples control flow) |
+| T7.19 / T7.20 / T7.23 | ✅ Verified no-op | safe_iter has 5 distinct call shapes; `_upsert_batch` flag is 1-line branch in 31-LOC body; `capture_history_task` correctly describes the ARQ handler that backfills history month-by-month |
+| T7.21 / T7.22 | ✅ Verified no-op | First pass — FE FA helper, allCoords recompute |
 
-Earlier baseline (2026-05-15 PM): **112 fixed · 18 won't do · 133 warning.** Full backend (1844) + frontend (433) + MCP (310) test suites pass on a clean run. The remaining 133 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
+Earlier baseline (2026-05-15 PM): **112 fixed · 18 won't do · 133 warning.** Full backend (1930) + frontend (514) test suites pass on a clean run. The remaining warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
 
-Test counts after this pass: backend `pytest tests/modules/capacity/` 101/101, FE 514/514, MCP command/devstack/iso/permissions 107/107.
+Test counts after this pass: backend full suite 1930/1930, FE 514/514, MCP command/devstack/iso/permissions 107/107.
 
 ---
 
@@ -57,21 +62,21 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 
 ### T6 — Refactors (boy-scout when next touched)
 
-12. **`PlannerGrid.tsx` 854 LOC** — biggest FE component. Cell selection, batch-edit toolbar, keyboard shortcuts, render all in one file. Touching anything risks a regression. Split when next adding a feature. _Still deferred — no triggering feature on the horizon._
+12. ~~**`PlannerGrid.tsx` 854 LOC**~~ — extracted constants/styles + cell renderers into sibling modules. New layout: `PlannerGrid.tsx` 618 LOC (state/effects/render orchestrator), `PlannerGridColumns.tsx` 216 LOC (`FACell`, `NameCell`, `WeekHeader`, `CommentOverlay`, `FlatRow`, meta types), `plannerGridStyles.ts` 46 LOC (week-style helpers + month constants). No behaviour change; 514 FE tests green. **[fixed `50b3269c`]**
 13. ~~**`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC**~~ — split into per-alert-type modules. `check_business_alerts.py` → 181 LOC orchestrator + `app/worker/business_alerts/{shared, budget_exceeded, timeline_at_risk, project_overdue}.py`. `check_dependabot.py` → 183 LOC orchestrator + `app/worker/dependabot/{shared, tracking, reminders}.py`. Test patch surfaces collapsed to `…/{module}/shared.SlackService.send_message` per family. Worker public API unchanged. **[fixed `82f3dd1b`]**
-14. **`capacity_insights.py` 743 LOC** — overview + FA detail + user detail + allocation + planner suggestions in one file. Now even bigger after `24971b18`'s additions. Split into a subpackage when adding the next drill-down. _Still deferred per the original audit recommendation (subtle JOIN-bug regression risk too high without a triggering feature)._
-15. **`planner.py` 451 LOC** — backend twin of `PlannerGrid.tsx`. Same approach. _Still deferred._
+14. ~~**`capacity_insights.py` 743 LOC**~~ — converted to a package whose `__init__.py` re-exports the 8 public symbols. Internal layout: `_shared.py` (filter, on-leave, FA mapping, name formatters, `_get_finished_periods`), `insights.py` (overview + `_aggregate_fa_period`), `fa_detail.py` (FA detail + reportable-users selector), `user_detail.py`, `allocation.py` (users), `allocation_projects.py`. Max single module is now 188 LOC. All 101 capacity tests green. **[fixed `f106a94e`]**
+15. ~~**`planner.py` 451 LOC**~~ — pure helpers (`_fa_short_name`, `_user_name_expr`, `_mondays_between`, `_mondays_in_month`, `_parse_date`, `_build_row_data`, `_process_rows`, `_inject_empty_groups`, `_inject_pinned_rows`, `_get_overallocation_warnings`, `_upsert_batch`) moved to a sibling `_helpers.py`. `planner.py` re-imports them so `test_mondays_in_month.py`'s private-name import (`from app.modules.capacity.api.planner import _mondays_in_month`) keeps working. `planner.py` 466 → 273 LOC. **[fixed `a31e60c4`]**
 
 ### T7 — DRY / cleanup (low priority, batch when convenient) — **TRIAGED + 3 FIXED 2026-05-16**
 
 16. ~~**Month-range parsing duplicated across 3 capacity endpoints**~~ — `MonthRangeDep` FastAPI dependency added to `_validation.py`. `insights.py`, `fa_detail.py`, `user_detail.py` now consume `months: MonthRangeDep` instead of the 3-line `parse_month/parse_month/validate_date_range` triplet. `allocation.py` keeps its private optional-range helper (different contract — Nones are valid). **[fixed `81e14722`]**
-17. **`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs** — _deferred_. The pattern has subtle per-job variations (some swallow exceptions, others re-raise; some `complete_with_error`, others mark explicit failed status). Wrapping all 9 in a single context manager risks silent behavioural drift; cost of regression > savings. Revisit when adding the 10th worker job.
-18. **Slack bot-token fetch "return if missing" repeated in 4 jobs** — _deferred along with T7.17_. The "skip if missing" branch is 3 lines per site; extracting a helper that has to also return a `complete_with_error(...)` result couples caller's control flow. Bundle with T7.17 when that ctx manager exists.
-19. **"Iterate projects, catch, continue" pattern duplicated three times** — _deferred_. Post-T6.13 split, only 2 distinct sites remain (`check_dependabot._process_project` and `check_business_alerts._process_project`); a `safe_iter` abstraction for 2 callsites is premature.
-20. **`_upsert_batch(include_comment)` flag-arg branching schema** — _deferred_. Splitting into two functions would duplicate ~95% of the body (`pg_insert(...).on_conflict_do_update(set_=...)`). The flag-arg is the cleaner expression here; the original audit note overstated.
+17. ~~**`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs**~~ — extracted `start_job_run(db, name)` and `complete_job_run(db, run)` into `app/worker/utils.py` next to the existing `complete_with_error`. 8 jobs (`fetch_exchange_rates`, `report_reminder`, `report_confirmation_reminder`, `rotate_reporting_period`, `monthly_scorecard_capture`, `check_business_alerts`, `check_dependabot`, `collect_iso_snapshot`) now share the prologue/epilogue; net -68 LOC. The full ctx-mgr idea stays deferred — `monthly_scorecard_capture`'s poisoned-session raw-`UPDATE` recovery + the 5 distinct Slack-token early-return shapes can't be safely unified. **[fixed `711c39a4`]**
+18. ~~**Slack bot-token fetch "return if missing" repeated in 4 jobs**~~ — verified no-op. Extracting a helper that returns a `complete_with_error(...)` dict from inside a caller's `try` block tangles control flow (`return await helper(...)` looks like normal completion). Explicit early-returns are clearer at 3 lines × 4 sites = 12 lines for free readability.
+19. ~~**"Iterate projects, catch, continue" pattern duplicated three times**~~ — verified no-op. Post-T6.13 split, the 5 in-loop except branches that remain (`check_dependabot`, `check_business_alerts`, `monthly_scorecard_capture` x2, `collect_iso_snapshot`) all diverge: some `continue`, some bump counters before/after, some collect `errors.append({...})`, some use `logger.exception` vs `logger.error(exc_info=True)`. A unifying helper would either duplicate that diversity (zero savings) or force-converge their observable telemetry (silent behaviour change).
+20. ~~**`_upsert_batch(include_comment)` flag-arg branching schema**~~ — verified no-op. The function is 31 LOC; the flag toggles a single line (whether `comment` enters `on_conflict_do_update.set_`). Splitting would duplicate the whole `pg_insert(...).values(...).on_conflict_do_update(...)` body. Flag-arg is the right expression here.
 21. ~~**No FA short↔full-name helper on the FE**~~ — verified no-op. FE uses short codes (`FA_ORDER`, `FA_COLORS`) throughout `modules/capacity/`; no inline `"Frontend Developer"`-style mapping survives. Backend's `TARGET_FA_MAPPING` does the short→full work where needed. ToDo claim was stale.
 22. ~~**`allCoords` array rebuilt every render in `useCellSelection`**~~ — verified no-op. The build sits in a `useEffect` with deps `[flatRows, weeks, selection.allCoordsRef]` in `PlannerGrid.tsx:433`; recomputes only when `flatRows`/`weeks` change, not on every render. ToDo claim was stale.
-23. **`capture_history_task` name suggests cron but it's an API-triggered backfill** — _deferred_. Renaming touches the function definition, settings.py functions list, and 2 `enqueue_job("capture_history_task", ...)` string literals in `core/api/jobs.py`; any external integration that queues by string name (MCP, scripts) silently breaks. Net risk > naming win.
+23. ~~**`capture_history_task` name suggests cron but it's an API-triggered backfill**~~ — verified no-op. The function takes `from_year/month → to_year/month`, iterates over months and captures historical metrics — the name is accurate. ARQ uses `_task` for any queueable handler regardless of trigger source (the cron-only convention is `cron_jobs`, not `functions`). The audit reviewer conflated "task" with "cron". Renaming would invalidate any queued ARQ job in Redis and break the 3 string-literal call sites with no naming win.
 24. ~~**Hardcoded GitHub org/repo for tech-radar**~~ — moved to `settings.devstack_tech_radar_repo` (defaults to `Vizzuality/vizzuality-engineering-handbook`, env-overridable via `DEVSTACK_TECH_RADAR_REPO`). `mcp_server/data/devstack.py` now resolves the base URL through `get_settings()` at call time. **[fixed `81e14722`]**
 25. ~~**Permission strings as bare literals scattered across MCP decorators**~~ — all ~30 `@mcp_requires("…")` literals in `mcp_server/tools/{scorecard,tracker,iso_write,playbook_write,devstack,capacity}.py` now reference `Action.X` constants from `app.core.permissions`. `tools/commands.py:_MODULE_PERMISSIONS` and the lone `has_permission("iso_docs:edit")` in `data/iso.py` likewise. Typo-safe + single source of truth with backend. **[fixed `81e14722`]**
 
