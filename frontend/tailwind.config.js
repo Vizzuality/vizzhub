@@ -55,6 +55,7 @@ export default {
   				'soft-linen': 'var(--aux-soft-linen)',
   				'neon-grass': 'var(--aux-neon-grass)',
   				yellow: 'var(--aux-yellow)',
+  				amber: 'var(--aux-amber)',
   				red: 'var(--aux-red)',
   			},
   			'switch-track': 'var(--switch-track)',

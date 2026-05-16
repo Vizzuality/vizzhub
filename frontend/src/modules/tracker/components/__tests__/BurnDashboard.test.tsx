@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, renderHook } from '@testing-library/react';
-import BurnDashboard, { computeEacCpi, useChartData } from '../BurnDashboard';
+import BurnDashboard, { computeChartYMax, computeEacCpi, useChartData } from '../BurnDashboard';
 import type { PeriodCostBreakdown } from '../../types/tracker';
 
 const periods: PeriodCostBreakdown[] = [
@@ -154,6 +154,54 @@ describe('useChartData — forecast horizon (#40)', () => {
     const forecastPoints = result.current.cumulative.filter((p) => p.forecast !== null);
     expect(forecastPoints.length).toBe(0);
     expect(result.current.forecastFinal).toBeNull();
+  });
+});
+
+describe('computeChartYMax', () => {
+  const sampleData = [
+    { cumulative: 50_000, forecast: null, eacForecast: null },
+    { cumulative: 100_000, forecast: 100_000, eacForecast: 100_000 },
+    { cumulative: 0, forecast: 120_000, eacForecast: 150_000 },
+  ];
+
+  it('includes the EAC endpoint when it fits naturally below 3 × budget', () => {
+    const budget = 200_000;
+    const eac = 150_000;
+    const ymax = computeChartYMax(sampleData, budget, eac);
+    // Natural max = max(actuals 100k, forecast 120k, budget 200k, eac 150k) = 200k.
+    expect(ymax).toBe(Math.ceil(200_000 * 1.15));
+  });
+
+  it('clamps Y max to 3 × budget when EAC blows past it (extreme overrun)', () => {
+    // Real case: AC=162k, pct=5% → EAC=3.24M. Budget=1M → 3×budget=3M.
+    const data = [
+      { cumulative: 162_000, forecast: null, eacForecast: null },
+      { cumulative: 0, forecast: 200_000, eacForecast: 3_240_000 },
+    ];
+    const budget = 1_000_000;
+    const eac = 3_240_000;
+    const ymax = computeChartYMax(data, budget, eac);
+    expect(ymax).toBe(Math.ceil(3 * budget * 1.15));
+    // And it must not equal the natural-EAC value.
+    expect(ymax).toBeLessThan(Math.ceil(eac * 1.15));
+  });
+
+  it('falls back to natural max when there is no budget', () => {
+    const ymax = computeChartYMax(sampleData, null, 150_000);
+    // No budget → no clamp; natural max = max(100k, 120k, 150k) = 150k.
+    expect(ymax).toBe(Math.ceil(150_000 * 1.15));
+  });
+
+  it('ignores EAC when it is null', () => {
+    const ymax = computeChartYMax(sampleData, 200_000, null);
+    expect(ymax).toBe(Math.ceil(200_000 * 1.15));
+  });
+
+  it('does not clamp when EAC sits exactly at 3 × budget', () => {
+    const data = [{ cumulative: 100_000, forecast: null, eacForecast: 300_000 }];
+    const ymax = computeChartYMax(data, 100_000, 300_000);
+    // 3 × budget = 300k, EAC = 300k → not greater than 3 × budget, no clamp.
+    expect(ymax).toBe(Math.ceil(300_000 * 1.15));
   });
 });
 

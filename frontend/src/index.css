@@ -52,6 +52,7 @@
     --aux-neon-grass: #5AFF15;
     --accent-green: #2d8a4e;
     --aux-yellow: #FFD23F;
+    --aux-amber: #F97316;
     --aux-red: #DE1A1A;
     --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -119,6 +120,7 @@
     --sidebar-border: oklch(0.2750 0 0);
     --sidebar-ring: oklch(0.4390 0 0);
     --accent-green: var(--aux-neon-grass);
+    --aux-amber: #FB923C;
     --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: Geist Mono, ui-monospace, monospace;

@@ -85,6 +85,40 @@ function weightedMonthlyAvg(monthlyCosts: number[]): number {
   return weightedSum / totalWeight;
 }
 
+/**
+ * Compute the chart's Y-axis maximum so that all rendered series participate
+ * in the auto-fit, with an upper clamp on extreme overruns.
+ *
+ * On projects with low percent_completed, EAC_CPI = AC / percent_completed can
+ * dwarf the budget and actuals (e.g. AC=€162k, pct=5% → EAC=€3.24M). Without a
+ * clamp, the actual-cost area gets crushed against the X-axis; without
+ * including EAC at all, the forecast line is drawn outside the visible box.
+ *
+ * Strategy: use the natural max of (actuals + budget + time-trend forecast +
+ * EAC), then if EAC drives the max above 3 × budget, clamp at 3 × budget. The
+ * end-of-line label still surfaces the real EAC value to the user.
+ */
+export function computeChartYMax(
+  data: ReadonlyArray<{ cumulative: number; forecast: number | null; eacForecast: number | null }>,
+  budget: number | null,
+  eacCpiFinal: number | null,
+): number {
+  const baseMax = Math.max(
+    ...data.map((d) => Math.max(d.cumulative, d.forecast ?? 0)),
+    budget ?? 0,
+  );
+  const naturalMax = Math.max(baseMax, eacCpiFinal ?? 0);
+  if (
+    budget != null &&
+    budget > 0 &&
+    eacCpiFinal != null &&
+    eacCpiFinal > 3 * budget
+  ) {
+    return Math.ceil(Math.max(baseMax, 3 * budget) * 1.15);
+  }
+  return Math.ceil(naturalMax * 1.15);
+}
+
 function buildForecastPoints(
   lastDate: Date,
   totalBurn: number,
@@ -346,27 +380,65 @@ function MonthlyTooltip({ active, payload, label }: ChartTooltipProps): JSX.Elem
   );
 }
 
+interface EacEndpointLabelProps {
+  readonly x?: number;
+  readonly y?: number;
+  readonly value?: number;
+  readonly chartYMax: number;
+  readonly eacCpiFinal: number | null;
+}
+
+function EacEndpointLabel({
+  x,
+  y,
+  value,
+  chartYMax,
+  eacCpiFinal,
+}: EacEndpointLabelProps): JSX.Element | null {
+  if (x == null || y == null || value == null) return null;
+  // Only render on the final point of the series.
+  if (eacCpiFinal == null) return null;
+  if (Math.abs(value - Math.min(eacCpiFinal, chartYMax)) > 0.5) return null;
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      <text
+        x={-6}
+        y={-8}
+        textAnchor="end"
+        fontSize={11}
+        fontWeight={600}
+        fill={PALETTE_HEX.amber}
+      >
+        {formatCompact(eacCpiFinal)}
+      </text>
+    </g>
+  );
+}
+
 function CumulativeBurnChart({
   data,
   budget,
+  eacCpiFinal,
 }: {
   readonly data: CumulativePoint[];
   readonly budget: number | null;
+  readonly eacCpiFinal: number | null;
 }): JSX.Element {
-  const maxVal = Math.max(
-    ...data.map((d) =>
-      Math.max(d.cumulative, d.forecast ?? 0, d.eacForecast ?? 0),
-    ),
-    budget ?? 0,
-  );
-  const yMax = Math.ceil(maxVal * 1.15);
+  const yMax = computeChartYMax(data, budget, eacCpiFinal);
   const hasForecast = data.some((d) => d.forecast !== null);
   const hasEacForecast = data.some((d) => d.eacForecast !== null);
+  // Clamp the rendered EAC series so the line stays inside the plot box when
+  // EAC > 3 × budget. The endpoint label still shows the real value.
+  const renderData = data.map((d) =>
+    d.eacForecast != null && d.eacForecast > yMax
+      ? { ...d, eacForecast: yMax }
+      : d,
+  );
 
   return (
     <>
       <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data} margin={{ top: 10, right: 15, bottom: 5, left: 10 }}>
+        <AreaChart data={renderData} margin={{ top: 10, right: 15, bottom: 5, left: 10 }}>
           <defs>
             <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={PALETTE_HEX.neonGrass} stopOpacity={0.15} />
@@ -438,14 +510,21 @@ function CumulativeBurnChart({
             <Line
               type="linear"
               dataKey="eacForecast"
-              stroke={PALETTE_HEX.coolSteel}
-              strokeWidth={1.75}
+              stroke={PALETTE_HEX.amber}
+              strokeWidth={2}
               strokeDasharray="2 4"
               dot={false}
-              activeDot={{ r: 3, fill: PALETTE_HEX.coolSteel, strokeWidth: 0 }}
+              activeDot={{ r: 3, fill: PALETTE_HEX.amber, strokeWidth: 0 }}
               connectNulls
               isAnimationActive={false}
               name="Forecast (current efficiency)"
+              label={(props: EacEndpointLabelProps) => (
+                <EacEndpointLabel
+                  {...props}
+                  chartYMax={yMax}
+                  eacCpiFinal={eacCpiFinal}
+                />
+              )}
             />
           )}
         </AreaChart>
@@ -463,7 +542,7 @@ function CumulativeBurnChart({
         )}
         {hasEacForecast && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.coolSteel }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: PALETTE_HEX.amber }} />
             {'Forecast (current efficiency)'}
           </span>
         )}
@@ -646,7 +725,7 @@ export default function BurnDashboard({
   projectEndDate,
   percentCompleted = null,
 }: BurnDashboardProps): JSX.Element | null {
-  const { cumulative, totalBurn, forecastFinal } = useChartData(
+  const { cumulative, totalBurn, forecastFinal, eacCpiFinal } = useChartData(
     periods,
     projectEndDate,
     { budget, percentCompleted },
@@ -695,7 +774,7 @@ export default function BurnDashboard({
             </div>
             <ForecastInfoPopover />
           </div>
-          <CumulativeBurnChart data={cumulative} budget={budget} />
+          <CumulativeBurnChart data={cumulative} budget={budget} eacCpiFinal={eacCpiFinal} />
         </CardContent>
       </Card>
     </div>
