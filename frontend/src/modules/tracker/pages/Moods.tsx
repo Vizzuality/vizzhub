@@ -5,6 +5,12 @@ import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/shared/components/ui/tooltip';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,23 +31,49 @@ interface MoodBarProps {
   readonly moodKey: number;
   readonly count: number;
   readonly maxCount: number;
+  readonly names: readonly string[];
 }
 
-function MoodBar({ moodKey, count, maxCount }: MoodBarProps): JSX.Element {
+function MoodBar({ moodKey, count, maxCount, names }: MoodBarProps): JSX.Element {
   const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+  const anonymousCount = Math.max(0, count - names.length);
 
   return (
-    <div className="flex flex-col items-center gap-1 flex-1">
-      <span className="text-sm font-medium text-foreground">{count}</span>
-      <div className="w-full flex items-end" style={{ height: '80px' }}>
-        <div
-          className={`w-full rounded-t ${MOOD_BAR_COLORS[moodKey]}`}
-          style={{ height: `${heightPct}%`, minHeight: count > 0 ? '4px' : '0' }}
-        />
-      </div>
-      <span className="text-xl">{MOOD_EMOJIS[moodKey]}</span>
-      <span className="text-xs text-muted-foreground">{moodKey}</span>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex flex-col items-center gap-1 flex-1 cursor-default">
+          <span className="text-sm font-medium text-foreground">{count}</span>
+          <div className="w-full flex items-end" style={{ height: '80px' }}>
+            <div
+              className={`w-full rounded-t ${MOOD_BAR_COLORS[moodKey]}`}
+              style={{ height: `${heightPct}%`, minHeight: count > 0 ? '4px' : '0' }}
+            />
+          </div>
+          <span className="text-xl">{MOOD_EMOJIS[moodKey]}</span>
+          <span className="text-xs text-muted-foreground">{moodKey}</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        {count === 0 ? (
+          <span>No responses</span>
+        ) : (
+          <div className="text-left">
+            {names.length > 0 && (
+              <ul className="space-y-0.5">
+                {names.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+            )}
+            {anonymousCount > 0 && (
+              <p className={names.length > 0 ? 'mt-1 opacity-75' : ''}>
+                +{anonymousCount} anonymous
+              </p>
+            )}
+          </div>
+        )}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -122,6 +154,30 @@ export default function Moods(): JSX.Element {
   const distribution = data?.mood_distribution ?? {};
   const maxCount = Math.max(0, ...Object.values(distribution).map(Number));
 
+  const namesByMood = useMemo(() => {
+    const grouped: Record<number, string[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    for (const item of data?.named_feedback ?? []) {
+      if (item.mood !== null && grouped[item.mood] !== undefined) {
+        grouped[item.mood].push(item.user_name);
+      }
+    }
+    for (const key of Object.keys(grouped)) {
+      grouped[Number(key)].sort((a, b) => a.localeCompare(b));
+    }
+    return grouped;
+  }, [data?.named_feedback]);
+
+  const sortedNamedFeedback = useMemo(() => {
+    // Highest mood first (5 → 1); nulls land at the end so reviewers see
+    // the rated entries grouped together.
+    return [...(data?.named_feedback ?? [])].sort((a, b) => {
+      if (a.mood === null && b.mood === null) return 0;
+      if (a.mood === null) return 1;
+      if (b.mood === null) return -1;
+      return b.mood - a.mood;
+    });
+  }, [data?.named_feedback]);
+
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-xl font-semibold text-foreground">Team Moods</h1>
@@ -172,21 +228,24 @@ export default function Moods(): JSX.Element {
                       {data.average_mood !== null && (
                         <span>
                           Average: <span className="font-medium text-foreground">{data.average_mood.toFixed(1)}</span>
-                          {' '}{MOOD_EMOJIS[Math.round(data.average_mood)] ?? ''}
+                          {' '}{MOOD_EMOJIS[Math.max(1, Math.min(5, Math.round(data.average_mood)))] ?? ''}
                         </span>
                       )}
                     </div>
                   )}
-                  <div className="flex gap-3 items-end">
-                    {[1, 2, 3, 4, 5].map((key) => (
-                      <MoodBar
-                        key={key}
-                        moodKey={key}
-                        count={Number(distribution[String(key)] ?? 0)}
-                        maxCount={maxCount}
-                      />
-                    ))}
-                  </div>
+                  <TooltipProvider delayDuration={150}>
+                    <div className="flex gap-3 items-end">
+                      {[1, 2, 3, 4, 5].map((key) => (
+                        <MoodBar
+                          key={key}
+                          moodKey={key}
+                          count={Number(distribution[String(key)] ?? 0)}
+                          maxCount={maxCount}
+                          names={namesByMood[key] ?? []}
+                        />
+                      ))}
+                    </div>
+                  </TooltipProvider>
                   {data?.total_responses === 0 && (
                     <p className="text-sm text-muted-foreground mt-4 text-center">No mood data for this month.</p>
                   )}
@@ -225,9 +284,9 @@ export default function Moods(): JSX.Element {
                   <CardTitle>Named Feedback</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data && data.named_feedback.length > 0 ? (
+                  {sortedNamedFeedback.length > 0 ? (
                     <div className="space-y-2">
-                      {data.named_feedback.map((item) => (
+                      {sortedNamedFeedback.map((item) => (
                         <NamedFeedbackCard
                           key={item.report_id}
                           item={item}

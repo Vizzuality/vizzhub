@@ -546,7 +546,7 @@ These items were tagged Major in the original audit but landed in the T1–T7 fi
   - Fix: Add tests for: save flow, `disabled` prop hides save button, chart toggle, and (post-fix) `editable` prop drives edit-button visibility.
   - Added: 2026-05-14 by audit_tech_debt iteration #17
 
-- **`Mood emoji lookup` not clamped** — `frontend/src/modules/tracker/pages/Moods.tsx:175` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+- ~~**`Mood emoji lookup` not clamped**~~ **[fixed boy-scout in same PR as named-feedback sort]** — `Math.round(average_mood)` now wrapped in `Math.max(1, Math.min(5, ...))` so hypothetical out-of-range averages clamp to the closest emoji instead of falling back to `''`.
   - Module: `frontend / tracker / pages`
   - Detail: `MOOD_EMOJIS[Math.round(data.average_mood)]` is indexed by an unclamped round. If the average is ≥ 5.5, the index 6 doesn't exist in `MOOD_EMOJIS` (keys 1-5) → undefined rendered.
   - Fix: `MOOD_EMOJIS[Math.max(1, Math.min(5, Math.round(value)))]` (or expose a `moodEmoji(value)` helper in `tracker/utils/constants.ts`).
