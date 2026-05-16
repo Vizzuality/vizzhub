@@ -18,8 +18,8 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 
 ### T1 — Real bugs (production impact, fix first) — **CLOSED 2026-05-16**
 
-1. ~~**`write_heartbeat` registered as cron but missing from `WorkerSettings.functions`**~~ — `backend/app/worker/settings.py`. ARQ resolves cron functions through `functions`; without registration the heartbeat never fired. **[fixed — see commit below]**
-2. ~~**`check_dependabot.py:110` increments `projects_checked` inside the try block**~~ — silenced/failed iterations were undercounted. Increment now sits at the top of the `try` (mirrors `check_business_alerts.py`'s pattern of incrementing in both branches). **[fixed — see commit below]**
+1. ~~**`write_heartbeat` registered as cron but missing from `WorkerSettings.functions`**~~ — `backend/app/worker/settings.py`. ARQ resolves cron functions through `functions`; without registration the heartbeat never fired. **[fixed `bf2cc724`]**
+2. ~~**`check_dependabot.py:110` increments `projects_checked` inside the try block**~~ — silenced/failed iterations were undercounted. Increment now sits at the top of the `try` (mirrors `check_business_alerts.py`'s pattern of incrementing in both branches). **[fixed `bf2cc724`]**
 
 ### T2 — User-visible gaps
 
