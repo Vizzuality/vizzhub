@@ -192,6 +192,39 @@ The Hub is a multi-module platform (scorecard, iso, tracker, capacity). See `doc
 
 - For scheduled jobs/background tasks, always register them in the appropriate registry (e.g., `SCHEDULED_JOBS` dict) — not just implement the logic.
 
+## Audit Boy-Scout
+
+Open audit backlog lives in `docs/audits/audit_findings.md` under
+`## Pending — by criticality`. Before editing a file beyond a one-line tweak,
+check whether it has open warnings:
+
+```bash
+grep -n '<file path>' docs/audits/audit_findings.md
+```
+
+If the file has open warnings under that section:
+- **Small fix** (rename, hardcoded constant, missing log field, DRY nit,
+  type-annotation gap): bundle into the same commit as the original change.
+- **Refactor-shaped** (>400 LOC split, cross-module helper extraction, schema
+  change): surface to the user — "this file has N warnings, want me to bundle?"
+  — never expand scope unilaterally.
+- **Skip if irrelevant**: warnings are "boy-scout when next touched", not
+  "block this PR". A 1-line bugfix doesn't need to drag 5 unrelated warnings.
+
+**Severity priority**: Major (open Major items must be addressed before merging
+a touching PR — flag and ask). Minor / Nit are opportunistic.
+
+**Bookkeeping**: when a warning is fixed, edit `audit_findings.md` in the same
+commit — strike through the title and append `**[fixed <hash>]**`:
+
+```markdown
+- ~~**Hardcoded EUR label in invoice card**~~ **[fixed abc1234]** — replaced
+  with `formatCurrency(invoice.currency)`.
+```
+
+Don't move closed entries to `## Fixed` and don't delete them — inline strike-
+through keeps the context discoverable on future greps.
+
 ## Reference Docs
 
 - `docs/tracker_integration.md` — Multi-module architecture spec
