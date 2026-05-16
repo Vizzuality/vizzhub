@@ -23,7 +23,7 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 
 ### T2 — User-visible gaps — **CLOSED 2026-05-16**
 
-3. ~~**Planner mutation has no error UI or retry**~~ — `usePlannerMutations` now captures `errorMessage` + `failedCells` on mutation failure. Planner page renders a dismissable destructive banner; failed cells get a red ring through `PlannerCell.hasError`. Re-editing a failed cell clears it (de-facto retry). 4 hook tests + 2 cell tests. **[fixed `<commit>`]**
+3. ~~**Planner mutation has no error UI or retry**~~ — `usePlannerMutations` now captures `errorMessage` + `failedCells` on mutation failure. Planner page renders a dismissable destructive banner; failed cells get a red ring through `PlannerCell.hasError`. Re-editing a failed cell clears it (de-facto retry). 4 hook tests + 2 cell tests. **[fixed `7755e5f4`]**
 
 ### T3 — Quick verifications (small but worth closing)
 
