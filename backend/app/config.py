@@ -1,8 +1,11 @@
 from decimal import Decimal
 from functools import lru_cache
 
+import structlog
 from pydantic import field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = structlog.get_logger()
 
 
 class Settings(BaseSettings):
@@ -275,22 +278,18 @@ class ScoringConfig:
             result[db_name] = float(self._config.get(db_name, 0))
         return result
 
-    def validate_weights(self) -> dict[str, bool]:
-        """Validate that all weight groups sum to 1."""
-        groups = {
-            "Global Weights": [
-                "time",
-                "cost",
-                "quality",
-                "value",
-                "satisfaction",
-                "flow",
-                "engineering",
-                "risk",
-            ],
-            "Time Weights": ["spi", "milestones"],
-            "Cost Weights": ["cpi", "variance"],
-            "Quality Weights": [
+    # Display name → (internal group key, list of weight leaf names).
+    # Used by both validate_weights and validate_weights_with_totals.
+    _WEIGHT_GROUPS: dict[str, tuple[str, list[str]]] = {
+        "Global Weights": (
+            "global",
+            ["time", "cost", "quality", "value", "satisfaction", "flow", "engineering", "risk"],
+        ),
+        "Time Weights": ("time", ["spi", "milestones"]),
+        "Cost Weights": ("cost", ["cpi", "variance"]),
+        "Quality Weights": (
+            "quality",
+            [
                 "defect_density",
                 "escaped_rate",
                 "mttr",
@@ -300,9 +299,12 @@ class ScoringConfig:
                 "change_failure_rate",
                 "post_contract_tasks",
             ],
-            "Value Weights": ["okr_impact"],
-            "Satisfaction Weights": ["client_survey", "pm_estimation"],
-            "Client Survey Weights": [
+        ),
+        "Value Weights": ("value", ["okr_impact"]),
+        "Satisfaction Weights": ("satisfaction", ["client_survey", "pm_estimation"]),
+        "Client Survey Weights": (
+            "client_survey",
+            [
                 "understanding",
                 "proactivity",
                 "communication",
@@ -312,45 +314,49 @@ class ScoringConfig:
                 "expectations",
                 "recommend",
             ],
-            "Flow Weights": [
+        ),
+        "Flow Weights": (
+            "flow",
+            [
                 "lead_time",
                 "commitment_reliability",
                 "pr_size",
                 "review_turnaround",
                 "deployment_frequency",
             ],
-            "Engineering Weights": ["test_maturity", "pr_review", "architecture"],
-            "Risk Weights": ["pr_no_review", "high_vulns"],
-            "Test Maturity Weights": [
-                "e2e",
-                "unit",
-                "accessibility",
-                "security",
-                "frontend",
-            ],
+        ),
+        "Engineering Weights": ("engineering", ["test_maturity", "pr_review", "architecture"]),
+        "Risk Weights": ("risk", ["pr_no_review", "high_vulns"]),
+        "Test Maturity Weights": (
+            "test_maturity",
+            ["e2e", "unit", "accessibility", "security", "frontend"],
+        ),
+    }
+
+    def validate_weights(self) -> dict[str, bool]:
+        """Validate that all weight groups sum to 1.
+
+        Returns a dict ``{group_display_name: passed}`` where ``passed`` is True
+        when the group's leaf weights sum to 1.0 within a 0.001 tolerance.
+        Use ``validate_weights_with_totals`` when you also need the actual sum
+        (for logging / surfacing the misconfiguration).
+        """
+        return {
+            display_name: passed
+            for display_name, (passed, _total) in self.validate_weights_with_totals().items()
         }
 
-        # Map display names to internal group names
-        group_key_map = {
-            "Global Weights": "global",
-            "Time Weights": "time",
-            "Cost Weights": "cost",
-            "Quality Weights": "quality",
-            "Value Weights": "value",
-            "Satisfaction Weights": "satisfaction",
-            "Client Survey Weights": "client_survey",
-            "Flow Weights": "flow",
-            "Engineering Weights": "engineering",
-            "Risk Weights": "risk",
-            "Test Maturity Weights": "test_maturity",
-        }
+    def validate_weights_with_totals(self) -> dict[str, tuple[bool, float]]:
+        """Validate weight groups and report the actual sum.
 
-        results = {}
-        for display_name, weight_names in groups.items():
-            group_key = group_key_map[display_name]
+        Returns ``{group_display_name: (passed, actual_sum)}``. Designed for
+        the startup-time warning path so operators see *why* a group is
+        broken (e.g. "Global Weights summed to 0.85, expected 1.0").
+        """
+        results: dict[str, tuple[bool, float]] = {}
+        for display_name, (group_key, weight_names) in self._WEIGHT_GROUPS.items():
             total = sum(self.get_weight(group_key, name) for name in weight_names)
-            results[display_name] = abs(total - 1.0) < 0.001
-
+            results[display_name] = (abs(total - 1.0) < 0.001, total)
         return results
 
 
@@ -363,6 +369,9 @@ async def load_scoring_config_from_db() -> ScoringConfig:
     Load scoring config from database.
 
     This should be called at app startup to initialize the global config.
+    Emits a ``scoring_config_invalid_weights`` warning per group whose
+    leaf weights don't sum to 1.0, so misconfiguration is visible in
+    structured logs / Loki instead of silently distorting scores.
     """
     from sqlalchemy import select
     from app.database import async_session_maker
@@ -376,6 +385,16 @@ async def load_scoring_config_from_db() -> ScoringConfig:
 
     global _scoring_config
     _scoring_config = ScoringConfig(config_dict)
+
+    for group_name, (passed, total) in _scoring_config.validate_weights_with_totals().items():
+        if not passed:
+            logger.warning(
+                "scoring_config_invalid_weights",
+                group=group_name,
+                actual_sum=round(total, 6),
+                expected=1.0,
+            )
+
     return _scoring_config
 
 
