@@ -8,7 +8,61 @@ Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each 
 
 **112 fixed · 18 won't do · 133 warning.** Full backend (1844) + frontend (433) + MCP (310) test suites pass on a clean run. Tier 1 + Tier 2 priority pass closed; previously-deferred "disabled governance tool" UX item now landed; and the 3 High-priority items (HP-1, HP-2, HP-3) closed in the same session. The remaining 133 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
 
-No High priority items currently open. Next audit pass should focus on what's new since 2026-05-15.
+No High priority items currently open from the original audit, but **25 next-priority items distilled into the "ToDo — Next High Priority" block below** (2026-05-16). Next audit pass should focus on those + what's new since 2026-05-15.
+
+---
+
+## ToDo — Next High Priority (2026-05-16)
+
+Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by priority.** Strike each through with `[fixed <hash>]` as it lands; promote the rest to a dedicated session when ready.
+
+### T1 — Real bugs (production impact, fix first)
+
+1. **`write_heartbeat` registered as cron but missing from `WorkerSettings.functions`** — `backend/app/worker/settings.py`. The job is scheduled but never invoked because ARQ only runs functions listed in `functions`. Heartbeat hasn't been firing in prod; nobody noticed because nothing looks for it actively. One-line fix.
+2. **`check_dependabot.py:110` increments `projects_checked` inside the try block** — counter is off when the iteration throws. Move the increment to the `try`'s top so the count reflects "attempted", not "succeeded".
+
+### T2 — User-visible gaps
+
+3. **Planner mutation has no error UI or retry** — `frontend/src/modules/capacity/hooks/usePlanner*.ts` (or wherever the mutation lives). User edits 20 cells, one save fails silently, edit appears persisted on screen but is lost on refetch. Add toast on error + visual highlight on the failing cell. Optionally a retry button.
+
+### T3 — Quick verifications (small but worth closing)
+
+4. **`get_capacity_user_detail` user_id validation** — audit row says "no validation, runs expensive JOINs". Commit `24971b18` already added `_reportable_user_filter()` + 404 on inactive/exempt users. **Likely already closed** — verify against the audit entry and mark fixed (or surface the actual remaining gap).
+5. **`UserDetailChart` hardcoded gray instead of `OTHER_COLOR` constant** — `frontend/src/modules/capacity/components/UserDetailChart.tsx`. Leftover from `24971b18`. Two-line fix.
+
+### T4 — Coverage gaps with real risk
+
+6. **No tests for `check_dependabot_alerts` or `check_business_alerts`** — backend worker. Both are 470+ LOC jobs with no test coverage; a regression in alert filtering would ship cleanly. Highest-leverage backend test addition open.
+7. **Capacity FE tests cero** — planner cell edits, batch edits, filtered rendering, chart pagination all uncovered in `frontend/src/modules/capacity/`. The planner is where users spend the most time; the lack of coverage is the biggest gap of the FE.
+8. **No test for write-permission denial on planner endpoints** — backend `capacity/api`. RBAC is wired but never asserted by a test.
+
+### T5 — Observability gaps (worker)
+
+9. **`publish_playbook_task`, `export_iso_docs_gdrive_task`, `refresh_devstack_sources`** — passthroughs with no `job_started` / `job_completed` / `job_failed` structlog events. CLAUDE convention says every worker job logs these.
+10. **Long-running jobs emit no progress logs** — `check_dependabot_alerts`, `recalc_global_history`, `refresh_devstack_sources`. Adds "we're stuck at step X" visibility for ops.
+11. **MCP tool invocations not logged via structlog** — `mcp_server/tools/*`. Approvals also lack an audit log — useful when reviewing what someone authorized.
+
+### T6 — Refactors (boy-scout when next touched)
+
+12. **`PlannerGrid.tsx` 854 LOC** — biggest FE component. Cell selection, batch-edit toolbar, keyboard shortcuts, render all in one file. Touching anything risks a regression. Split when next adding a feature.
+13. **`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC** — both pure imperative scripts with several nested helpers. Split alert types into modules.
+14. **`capacity_insights.py` 743 LOC** — overview + FA detail + user detail + allocation + planner suggestions in one file. Now even bigger after `24971b18`'s additions. Split into a subpackage when adding the next drill-down.
+15. **`planner.py` 451 LOC** — backend twin of `PlannerGrid.tsx`. Same approach.
+
+### T7 — DRY / cleanup (low priority, batch when convenient)
+
+16. **Month-range parsing duplicated across 3 capacity endpoints** — extract a small helper.
+17. **`ScheduledJobRunDB` boilerplate copy-pasted across ~9 jobs** — extract a `with_job_run(name)` context manager.
+18. **Slack bot-token fetch "return if missing" repeated in 4 jobs** — extract a `get_slack_bot_token_or_skip()` helper.
+19. **"Iterate projects, catch, continue" pattern duplicated three times** — extract `safe_iter(items)` or similar.
+20. **`_upsert_batch(include_comment)` flag-arg branching schema** — split into two endpoints or two functions; flag-arg is a code smell.
+21. **No FA short↔full-name helper on the FE** — currently inline mapping. Extract to `src/modules/capacity/utils/fa.ts`.
+22. **`allCoords` array rebuilt every render in `useCellSelection`** — wrap in `useMemo` if profiling confirms cost.
+23. **`capture_history_task` name suggests cron but it's an API-triggered backfill** — rename to `recompute_history_backfill` or similar.
+24. **Hardcoded GitHub org/repo for tech-radar** in `devstack / mcp_server` — move to config.
+25. **Permission strings as bare literals scattered across MCP decorators** — replace with enum imports already used elsewhere.
+
+The rest of the 132-item backlog stays on the boy-scout rule (fix when you touch the file). T1+T2+T3 are the most cost-effective next pass; T4+T5 close real risk; T6+T7 absorb naturally.
 
 ---
 
