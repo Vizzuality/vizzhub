@@ -142,12 +142,14 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 
 **Deploy gates:**
 1. ~~Prod check before `git push origin dev:main`: `SELECT id, date, base_rate FROM reporting_periods WHERE base_rate <= 0`~~ → **verified `COUNT: 0` 2026-05-16** via SSM + asyncpg on `hub-backend`. Migration `071` safe.
-2. **Post-deploy (pending):** invalidate score cache + recalc scorecard history (#18 changes Cost dim semantics). Same scripts as 2026-05-15: `scripts/invalidate_score_cache.py` + `scripts/recalc_global_history.py`.
+2. ~~Post-deploy: invalidate score cache + recalc scorecard history~~ → **done 2026-05-16 11:46**. `invalidate_score_cache.py` flushed Redis at `redis:6379`. `recalc_global_history.py` ran 2022-06 → 2026-05: 48 months processed, 48 with budget (same coverage as 2026-05-15 run).
 
 **Push + deploy state (2026-05-16):**
 - 19 commits pushed to `dev` + `main` (10 fix, 8 docs `[skip ci]`, 1 retrigger).
 - First push had `[skip ci]` on HEAD → entire push's CI/CD got suppressed (GitHub behaviour: HEAD-commit `[skip ci]` skips the whole push, not just that commit).
-- Deploy triggered manually via `gh workflow run deploy.yml --ref main -f environment=prod`. Run: <https://github.com/Vizzuality/vizzhub/actions/runs/25958451491>.
+- Deploy triggered manually via `gh workflow run deploy.yml --ref main -f environment=prod`. Run: <https://github.com/Vizzuality/vizzhub/actions/runs/25958451491>. **Deploy succeeded, post-deploy ops complete.**
+
+**Tracker audit fully closed.** Next session: capacity (#33–#36 — product decision pending) + FE #39 (chart default-page) + new #40 (forecastFinal vs chart cap).
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 
