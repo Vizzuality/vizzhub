@@ -141,8 +141,13 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 - **New: #40** (forecastFinal vs chart cap mismatch) — surfaced 2026-05-16 fixing #20/#21.
 
 **Deploy gates:**
-1. Prod check before `git push origin dev:main`: `SELECT id, date, base_rate FROM reporting_periods WHERE base_rate <= 0` — if rows exist, migration `071_period_base_rate_gt0` fails. Clean rows or switch migration to `ADD CONSTRAINT … NOT VALID` + cleanup pass.
-2. **Post-deploy:** invalidate score cache + recalc scorecard history (#18 changes Cost dim semantics). Same scripts as 2026-05-15: `scripts/invalidate_score_cache.py` + `scripts/recalc_global_history.py`.
+1. ~~Prod check before `git push origin dev:main`: `SELECT id, date, base_rate FROM reporting_periods WHERE base_rate <= 0`~~ → **verified `COUNT: 0` 2026-05-16** via SSM + asyncpg on `hub-backend`. Migration `071` safe.
+2. **Post-deploy (pending):** invalidate score cache + recalc scorecard history (#18 changes Cost dim semantics). Same scripts as 2026-05-15: `scripts/invalidate_score_cache.py` + `scripts/recalc_global_history.py`.
+
+**Push + deploy state (2026-05-16):**
+- 19 commits pushed to `dev` + `main` (10 fix, 8 docs `[skip ci]`, 1 retrigger).
+- First push had `[skip ci]` on HEAD → entire push's CI/CD got suppressed (GitHub behaviour: HEAD-commit `[skip ci]` skips the whole push, not just that commit).
+- Deploy triggered manually via `gh workflow run deploy.yml --ref main -f environment=prod`. Run: <https://github.com/Vizzuality/vizzhub/actions/runs/25958451491>.
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 
