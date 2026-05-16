@@ -9,20 +9,22 @@ Registry of the tech-debt and calculations audits. Consolidated output from `aud
 
 ---
 
-## Status (2026-05-16 PM)
+## Status (2026-05-16 PM, post-retriage)
 
 | | Open | Closed / no-op |
 |---|---:|---:|
 | ToDo Next High Priority (T1–T7) | 0 | 25 |
 | CALCULATIONS — WRONG | 0 | 1 |
 | CALCULATIONS — SUSPICIOUS | 0 | 26 |
-| Pending boy-scout backlog | **132** (66 Major / 61 Minor / 5 Nit) | — |
+| Pending boy-scout backlog | **117** (12 Major / 100 Minor / 5 Nit) | — |
 | Won't do (deliberate) | — | 18 |
 | Fixed (historical) | — | 112 |
 
+**Severity retriage 2026-05-16:** the original "Major (66)" bucket conflated genuine high-impact items with code-organization warnings ("file >400 LOC") and defensive test gaps. After retriage, 12 remain Major (data integrity, ISO compliance audit trail, GitHub fleet-outage modes, MCP queue integrity); 42 were downgraded to Minor with the `_(downgraded from Major)_` marker; 15 were closed by the T1–T7 sweeps and cross-referenced inline.
+
 **Tests on a clean run:** backend full suite 1930/1930, FE 514/514, MCP command/devstack/iso/permissions 107/107.
 
-Active sweeps are complete; the remaining 132 warnings are legitimately deferred and attacked via the boy-scout rule (touch a file, fix its warnings in the same PR). See the registry below for what the closed sweeps covered.
+Active sweeps are complete; the remaining 117 warnings are legitimately deferred and attacked via the boy-scout rule (touch a file, fix its warnings in the same PR). See the registry below for what the closed sweeps covered.
 
 ---
 
@@ -30,37 +32,18 @@ Active sweeps are complete; the remaining 132 warnings are legitimately deferred
 
 Open `[warning]` items grouped by audit severity. Touch the file? Fix the warning in the same PR.
 
-### Major (66)
+> **2026-05-16 retriage note:** the original `Major (66)` bucket conflated genuine high-impact items (data integrity, compliance, observability holes) with code-organization warnings ("file >400 LOC") and defensive test gaps. After re-triage:
+> - **12 items kept as Major** below — real impact (data corruption, compliance audit trail, fleet-wide outage modes, MCP queue integrity).
+> - **15 items moved to Fixed (or cross-referenced as closed)** — closed by the 2026-05-16 sweeps (T1–T7).
+> - **42 items downgraded to Minor** — file-size / DRY / UX nits / defensive coverage. They live in `### Minor` below under `#### Downgraded from Major`.
 
-- **Files exceed 400 LOC** — `backend/app/core/api/projects_v2.py` (464 LOC), `backend/app/core/api/admin_users.py` (416 LOC) [warning] — split deferred; high refactor cost vs. current value, files are cohesive CRUD modules. Revisit when adding a new concern.
-  - Module: `core/api`
-  - Detail: Both files mix multiple concerns: `projects_v2.py` handles CRUD + budget + milestones + links; `admin_users.py` handles user CRUD + role management + Slack sync + impersonation.
-  - Fix: Split `projects_v2.py` into `projects.py` (CRUD) + `projects_budget.py` + `projects_links.py`. Split `admin_users.py` into `admin_users.py` (CRUD) + `admin_user_roles.py` + `admin_user_slack.py` + `admin_impersonation.py`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #1
-
-- **`capacity_insights.py` is 743 LOC — needs splitting** — `backend/app/core/services/capacity_insights.py` [warning] — split deferred; file has clear internal section markers and refactoring risks subtle JOIN bug regressions. Address when adding a 5th drill-down.
-  - Module: `core/services`
-  - Detail: Single file holds overview aggregation + FA detail + user detail + allocation + planner suggestion queries. Becomes hard to navigate and harder to write targeted tests against. Each drill-down level is independently testable.
-  - Fix: Split into `capacity_insights/overview.py`, `capacity_insights/fa_detail.py`, `capacity_insights/user_detail.py`, with a thin `__init__.py` re-exporting public callables.
-  - Added: 2026-05-14 by audit_tech_debt iteration #2
-
-- **`export_service.py` is 410 LOC** — `backend/app/modules/scorecard/services/export_service.py` [warning] — code-organization-only; deferred per the same rationale as other >400 LOC findings in this audit.
-  - Module: `scorecard / services`
-  - Detail: Workbook construction, sheet layout, and styling all in one file. Splitting them lets us test layout without spinning up the full pipeline.
-  - Fix: Extract `XLSXLayout`/`SheetBuilder` classes into a sub-package `services/export/`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #5
+### Major (12)
 
 - **Manual-field sync between snapshot types lacks atomicity** — `backend/app/modules/scorecard/services/metrics_service.py:187-191` [warning] — sync runs inside `MetricsService.upsert_metrics`, which is already called within a request transaction (autocommit boundary commits both upserts together). A real fix would wrap with an explicit `db.begin_nested()` savepoint, but the current behavior already rolls back both on outer-transaction failure. Deferred to a savepoint refactor.
   - Module: `scorecard / services`
   - Detail: `_sync_manual_fields_to_other_snapshot()` upserts to the sibling snapshot type after the primary upsert. If the second upsert fails, we have one snapshot with the new manual value and the other with the old — exactly the bug the dual-snapshot design is supposed to prevent.
   - Fix: Move both upserts into the same transactional block; on failure, roll the whole sync back.
   - Added: 2026-05-14 by audit_tech_debt iteration #5
-
-- **`aggregation_service.py` is 434 LOC** — `backend/app/modules/tracker/services/aggregation_service.py` [warning] — code organization only; deferred.
-  - Module: `tracker / services`
-  - Detail: A single file holds `_valid_parts_filter`, per-FA aggregation, per-user aggregation, per-project aggregation, and the group-by validation. `_aggregate_fa_user` (L274-361) is a 90-line function with nested loops and manual grouping. The aggregation rules are the place where the most reporting bugs live; splitting and testing each axis independently buys us correctness.
-  - Fix: Split into `aggregation_service/{filters.py, by_fa.py, by_user.py, by_project.py}` with a thin facade re-exporting the public API.
-  - Added: 2026-05-14 by audit_tech_debt iteration #6
 
 - **Broad `except Exception` returning synthetic ok=false hides real failures** — `backend/app/modules/notifications/api/slack_admin.py:149-155, 260-266`, `backend/app/modules/notifications/api/scheduled_jobs.py:196-201` [warning] — SlackService now surfaces transport / HTTP / JSON failures via structured `{ok: false, error: type}` payloads + structured logs; the outer broad `except` is now mostly redundant but kept as a safety net pending caller migration. Better: drop the broad except after migrating callers. Deferred.
   - Module: `notifications / api`
@@ -74,53 +57,11 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Add a test that wires the full path — silence row + job invocation + assertion on `SlackService.send_message` mock not being called.
   - Added: 2026-05-14 by audit_tech_debt iteration #7
 
-- **`planner.py` is 451 LOC** — `backend/app/modules/capacity/api/planner.py` [warning] — code organization only; deferred.
-  - Module: `capacity / api`
-  - Detail: A single file holds query building, group injection, week math (`_mondays_in_month`), upsert batch logic, and four endpoints. Splitting query and write paths makes it testable in isolation.
-  - Fix: Split into `planner/{queries.py, weeks.py, writes.py, router.py}` — keep the router lean.
-  - Added: 2026-05-14 by audit_tech_debt iteration #8
-
-- **Month-range parsing duplicated across capacity endpoints** — `backend/app/modules/capacity/api/insights.py:21-23`, `fa_detail.py:30-32`, `user_detail.py:39-41`, `allocation.py:24-26` [warning] — small DRY; deferred. Refactoring into a FastAPI Depends() chain has minor risk and existing helpers in `_validation.py` are already shared at function-call level.
-  - Module: `capacity / api`
-  - Detail: Each endpoint manually runs `parse_month` + `validate_date_range`. The shared `_validation.py` exists but isn't wired as a FastAPI dependency.
-  - Fix: Expose `DateRange = Annotated[tuple[date, date], Depends(parse_and_validate_range)]` in `_validation.py` and use it on every endpoint.
-  - Added: 2026-05-14 by audit_tech_debt iteration #8
-
-- **`user_detail` runs expensive JOINs without validating user_id is reportable** — `backend/app/modules/capacity/api/user_detail.py:30-37` [warning] — short-circuit validation would add another query (anti-DRY); the empty-set return is already cheap on PG with the existing indexes. Deferred.
-  - Module: `capacity / api`
-  - Detail: UUID format is validated, but membership in the reportable-users set is not. Non-existent or non-reportable user_ids run the full analytical query before silently returning empty.
-  - Fix: Validate against the reportable-users set first; return 404 (or 422) if absent. Cache the set per-request.
-  - Added: 2026-05-14 by audit_tech_debt iteration #8
-
-- **No test for write-permission denial on planner endpoints** — `backend/tests/modules/capacity/test_planner.py` [warning] — dedicated test-coverage sweep.
-  - Module: `capacity / tests`
-  - Detail: All tests use a `FakeUser` bypass; no test hits the real dependency chain and asserts 403 for a `user`-role principal. With write endpoints currently ungated, this regression won't be caught.
-  - Fix: Add E2E permission tests via the FastAPI test client.
-  - Added: 2026-05-14 by audit_tech_debt iteration #8
-
-- **Stats endpoint fires 8+ sequential DB roundtrips** — `backend/app/modules/events/services/stats_service.py:80-139` [warning] — perf-only on a low-traffic endpoint. Worth parallelizing if the dashboard becomes hot; deferred.
-  - Module: `events / services`
-  - Detail: `get_stats()` awaits `db.execute()` 8+ times in series (totals, attendees, costs, then group-bys for type/theme/region/year/quarter). Each round trip blocks the request worker. On warm cache the latency is "fine" but the lock-contention surface is bigger than necessary.
-  - Fix: Bundle the independent reads into `asyncio.gather(*queries)`. Where possible, combine grouped aggregations into a single SELECT with `GROUPING SETS`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #9
-
 - **Cron snapshot path doesn't separately log review creation** — `backend/app/worker/collect_iso_snapshot.py:54-66` [warning] — symmetric review-creation log would best live in the `review_service.create_review_for_snapshot` helper; deferred to a follow-up that touches both call sites at once.
   - Module: `iso / worker`
   - Detail: Cron now creates a draft review (per recent commit `c1c652f2`), but emits only `snapshot_captured` with the review_id inlined. Memory's "cron must mirror API side effects" rule is meant for *behavior* (the side effect happens), and that's now fixed — but the *audit trail* is still asymmetric: API gets `snapshot_captured`; cron also gets `snapshot_captured` but the review-creation step has no distinct event in either path.
   - Fix: Move the review-creation log into `review_service.create_review_for_snapshot` and emit `iso_review_created` there. Both API and cron then get the event without further drift.
   - Added: 2026-05-14 by audit_tech_debt iteration #10
-
-- **`registry_rows.py` is 894 LOC** — `backend/app/modules/iso_docs/api/registry_rows.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `iso_docs / api`
-  - Detail: One file mixes list/create/update/delete + reorder + Excel export + import + copy-year + two Drive-export variants. Both the largest backend file we've audited and the one with the most distinct concerns.
-  - Fix: Split into `registry_rows/crud.py`, `registry_rows/excel.py`, `registry_rows/copy_year.py`, `registry_rows/drive.py`. Keep `router.py` thin.
-  - Added: 2026-05-14 by audit_tech_debt iteration #11
-
-- **`drive_export_service.py` is 753 LOC** — `backend/app/modules/iso_docs/services/drive_export_service.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `iso_docs / services`
-  - Detail: Holds OAuth refresh, Drive API retry, HTML rendering, tree walking, and the `_WalkContext` state machine. State machines without isolated tests are fragile.
-  - Fix: Extract `DriveClient` (API + retry), `HtmlRenderer`, and the `_WalkContext` into separate modules with their own unit tests.
-  - Added: 2026-05-14 by audit_tech_debt iteration #11
 
 - **`_migrate_renamed_keys` logs a thin audit trail for cross-row data migration** — `backend/app/modules/iso_docs/api/registry_types.py:176-183` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `iso_docs / api`
@@ -133,18 +74,6 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Detail: 409 returned with a list-count error detail; no structlog event. An auditor asking "why is this type still here" sees no trail of the attempts.
   - Fix: `logger.info("iso_registry_type_delete_blocked", type_id=..., node_count=..., actor=...)` before raising.
   - Added: 2026-05-14 by audit_tech_debt iteration #11
-
-- **`publish_service.py` is 498 LOC** — `backend/app/modules/playbook/services/publish_service.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `playbook / services`
-  - Detail: Holds the query for publishable nodes, tree building, breadcrumb computation, Jinja rendering, S3 upload, manifest writing, and orphan cleanup. State and IO mixed; hard to test the rendering path without an S3 stub.
-  - Fix: Split into `publish_service/{query.py, tree.py, render.py, upload.py}` with a thin orchestrator.
-  - Added: 2026-05-14 by audit_tech_debt iteration #12
-
-- **Tree-building reimplemented locally (`_build_tree`) and not delegated to `TreeService`** — `backend/app/modules/playbook/api/nodes.py:31-48` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `playbook / api`
-  - Detail: `core/services/tree_service.py` is parameterized by model class for exactly this use case. ISO docs has the same problem (iteration #11). Two modules reimplementing the same tree traversal is the wrong direction.
-  - Fix: Replace `_build_tree` with a `TreeService(PlaybookNodeDB).build_admin_tree(rows)` call. Same for `iso_docs`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #12
 
 - **No GitHub rate-limit handling on catalog/sha fetches** — `backend/app/modules/devstack/services/github_sha.py:69, 102` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `devstack / services`
@@ -164,54 +93,6 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Narrow to `(SQLAlchemyError, OSError)` and re-raise unexpected errors; failing loud is fine here, install tracking shouldn't mask other failures.
   - Added: 2026-05-14 by audit_tech_debt iteration #13
 
-- **`publish_playbook_task` and `export_iso_docs_gdrive_task` are bare passthroughs with no observability** — `backend/app/worker/publish_playbook.py:10-14`, `backend/app/worker/export_iso_docs_gdrive.py:10-13` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `worker`
-  - Detail: Both tasks call the service directly with no try/except, no `job_started`/`job_completed`/`job_failed` log, and no `ScheduledJobRunDB` row. If the service raises, ARQ records "job failed" but our own audit trail is silent. For two of the longest-running, most-visible jobs in the system, that's a big gap.
-  - Fix: Wrap each in the canonical pattern: create `ScheduledJobRunDB`, emit `job_started`, `try/except`, emit `job_completed` with counts or `job_failed` (use `logger.exception`).
-  - Added: 2026-05-14 by audit_tech_debt iteration #14
-
-- **`refresh_devstack_sources` task has no job-run tracking or error handling** — `backend/app/worker/refresh_devstack_sources.py:8-11` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `worker`
-  - Detail: Returns the service's raw dict, no `ScheduledJobRunDB` row, no try/except. The devstack required-entry escalation flagged in iteration #13 also depends on this telemetry being there.
-  - Fix: Follow the `fetch_exchange_rates.py` pattern (create row, wrap with try/except, persist final status).
-  - Added: 2026-05-14 by audit_tech_debt iteration #14
-
-- **`check_dependabot.py` is 474 LOC; `check_business_alerts.py` is 561 LOC** — `backend/app/worker/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `worker`
-  - Detail: Two of the most complex jobs in the system, each holding `_process_project`, `_notify_*`, `_send_reminders`, and helpers in a single file. Hard to test in isolation, hard to read.
-  - Fix: Split `check_business_alerts.py` into `business_alerts/{budget.py, timeline.py, overdue.py}` (or by check type). Same for `check_dependabot.py` (reminder vs new-alert paths).
-  - Added: 2026-05-14 by audit_tech_debt iteration #14
-
-- **No tests for `check_dependabot_alerts` or `check_business_alerts`** — `backend/tests/worker/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `worker / tests`
-  - Detail: The two biggest, most failure-prone jobs in the system have zero coverage. `monthly_scorecard_capture` is the only one with a test file. Combined with the session-poisoning blocker above, that means we shipped the fix once and would never have caught the regression here.
-  - Fix: Add `test_check_dependabot.py` and `test_check_business_alerts.py` with at least: happy path, `_process_project` exception → session continues, Slack 5xx handling, silence enforcement.
-  - Added: 2026-05-14 by audit_tech_debt iteration #14
-
-- **`check_dependabot.py:110` increments `projects_checked` inside the try block** — `backend/app/worker/check_dependabot.py:110` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `worker`
-  - Detail: Counter increment happens after the `_process_project` call inside `try:`. If the call raises, the project is not counted. Final log under-reports both successes and failures. `check_business_alerts.py:123` increments in both branches — the convention differs between sibling files.
-  - Fix: Pick one rule for both files. Recommend: increment in the except branch too (matches what `check_business_alerts.py` already does) so the count means "processed in any way".
-  - Added: 2026-05-14 by audit_tech_debt iteration #14
-
-- **Long-running jobs emit no progress logs** — `backend/app/worker/monthly_scorecard_capture.py:86`, `backend/app/worker/check_dependabot.py`, the capture-history task [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `worker`
-  - Detail: For a 100-project org, monthly capture runs for ~8 minutes (5 s sleep between projects + collector latency) with no log between start and end. If it hangs at project 73, we have no signal.
-  - Fix: Inside the project loop, emit `logger.info("job_progress", job=..., done=captured, total=N)` every 10 projects or every 30 s. Keep it cheap.
-  - Added: 2026-05-14 by audit_tech_debt iteration #14
-
-- **Approval flow has no audit log** — `mcp_server/services/command_service.py`, `mcp_server/tools/commands.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / commands`
-  - Detail: Neither file imports `logger` / `structlog`. `approve_command` and `approve_all` mutate state (command transitions from `pending` → `executed`/`failed`), but no event is emitted with `command_id`, `module`, `action`, `approved_by`, `result_status`. The human-in-the-loop guarantee that VizzHub MCP advertises is hollow without an audit trail of who approved what.
-  - Fix: Add `logger.info("mcp_command_approved", command_id=..., module=..., action=..., approved_by=user.email, status=...)` immediately after the status update in `command_service.approve()` (and equivalent for `reject`). Same for `approve_all` at the loop boundary.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
-
-- **No structlog on MCP tool invocations** — `mcp_server/tools/*.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `mcp_server / tools`
-  - Detail: Tool handlers return JSON responses but never log "tool X was called by user Y with args Z". For the system that orchestrates writes-via-queue across modules, telemetry on read-side too is what lets us detect odd usage patterns or scope creep.
-  - Fix: Decorator-based wrapper that emits `mcp_tool_invoked(tool=..., user=..., args_hash=...)` on entry and `mcp_tool_completed/failed` on exit. Apply via `@mcp.tool` registration so every tool gets it for free.
-  - Added: 2026-05-14 by audit_tech_debt iteration #15
-
 - **No re-validation of nested JSONB fields after dequeue** — `mcp_server/handlers/iso_docs.py:295-322` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `mcp_server / handlers`
   - Detail: Memory documents `gotcha_mcp-jsonb-queue-types.md` — Pydantic date/Literal types stringify in the JSONB queue and the handler must re-validate. Scalar metadata fields go through `_coerce_metadata_field` correctly. But nested arrays like `changelog: list[ChangelogEntry]` flow through `_fill_changelog_authors` without re-validating each entry's four required fields against `ChangelogEntry`. A malformed entry from the queue silently persists.
@@ -230,223 +111,297 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Add three targeted tests for these paths.
   - Added: 2026-05-14 by audit_tech_debt iteration #15
 
+### Minor (100)
+
+The first sub-section ("Downgraded from Major in the 2026-05-16 retriage") contains file-size warnings, DRY nits, UX paper cuts, and defensive coverage gaps that were originally tagged Major but lack real-impact justification. The second sub-section ("From earlier audits") is the original Minor backlog. Both are boy-scout candidates.
+
+#### Downgraded from Major (42, 2026-05-16 retriage)
+
+##### Code organization (files >400 LOC)
+
+- **Files exceed 400 LOC** — `backend/app/core/api/projects_v2.py` (464 LOC), `backend/app/core/api/admin_users.py` (416 LOC) [warning] — split deferred; high refactor cost vs. current value, files are cohesive CRUD modules. Revisit when adding a new concern.
+  - Module: `core/api`
+  - Detail: Both files mix multiple concerns: `projects_v2.py` handles CRUD + budget + milestones + links; `admin_users.py` handles user CRUD + role management + Slack sync + impersonation.
+  - Fix: Split `projects_v2.py` into `projects.py` (CRUD) + `projects_budget.py` + `projects_links.py`. Split `admin_users.py` into `admin_users.py` (CRUD) + `admin_user_roles.py` + `admin_user_slack.py` + `admin_impersonation.py`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #1 _(downgraded from Major)_
+
+- **`export_service.py` is 410 LOC** — `backend/app/modules/scorecard/services/export_service.py` [warning] — code-organization-only; deferred per the same rationale as other >400 LOC findings in this audit.
+  - Module: `scorecard / services`
+  - Detail: Workbook construction, sheet layout, and styling all in one file. Splitting them lets us test layout without spinning up the full pipeline.
+  - Fix: Extract `XLSXLayout`/`SheetBuilder` classes into a sub-package `services/export/`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #5 _(downgraded from Major)_
+
+- **`aggregation_service.py` is 434 LOC** — `backend/app/modules/tracker/services/aggregation_service.py` [warning] — code organization only; deferred.
+  - Module: `tracker / services`
+  - Detail: A single file holds `_valid_parts_filter`, per-FA aggregation, per-user aggregation, per-project aggregation, and the group-by validation. `_aggregate_fa_user` (L274-361) is a 90-line function with nested loops and manual grouping. The aggregation rules are the place where the most reporting bugs live; splitting and testing each axis independently buys us correctness.
+  - Fix: Split into `aggregation_service/{filters.py, by_fa.py, by_user.py, by_project.py}` with a thin facade re-exporting the public API.
+  - Added: 2026-05-14 by audit_tech_debt iteration #6 _(downgraded from Major)_
+
+- **`registry_rows.py` is 894 LOC** — `backend/app/modules/iso_docs/api/registry_rows.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `iso_docs / api`
+  - Detail: One file mixes list/create/update/delete + reorder + Excel export + import + copy-year + two Drive-export variants. Both the largest backend file we've audited and the one with the most distinct concerns.
+  - Fix: Split into `registry_rows/crud.py`, `registry_rows/excel.py`, `registry_rows/copy_year.py`, `registry_rows/drive.py`. Keep `router.py` thin.
+  - Added: 2026-05-14 by audit_tech_debt iteration #11 _(downgraded from Major)_
+
+- **`drive_export_service.py` is 753 LOC** — `backend/app/modules/iso_docs/services/drive_export_service.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `iso_docs / services`
+  - Detail: Holds OAuth refresh, Drive API retry, HTML rendering, tree walking, and the `_WalkContext` state machine. State machines without isolated tests are fragile.
+  - Fix: Extract `DriveClient` (API + retry), `HtmlRenderer`, and the `_WalkContext` into separate modules with their own unit tests.
+  - Added: 2026-05-14 by audit_tech_debt iteration #11 _(downgraded from Major)_
+
+- **`publish_service.py` is 498 LOC** — `backend/app/modules/playbook/services/publish_service.py` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `playbook / services`
+  - Detail: Holds the query for publishable nodes, tree building, breadcrumb computation, Jinja rendering, S3 upload, manifest writing, and orphan cleanup. State and IO mixed; hard to test the rendering path without an S3 stub.
+  - Fix: Split into `publish_service/{query.py, tree.py, render.py, upload.py}` with a thin orchestrator.
+  - Added: 2026-05-14 by audit_tech_debt iteration #12 _(downgraded from Major)_
+
 - **`ProjectForm.tsx` is 1269 LOC** — `frontend/src/core/pages/...` (ProjectForm component) [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / core`
   - Detail: The largest single component in the audit so far. Holds form state, validation, budget lines, links, manager selection, currency selection, milestones, and submission. Tests on a 1200-line component are fragile and slow.
   - Fix: Split by tab/section into smaller controlled components (`ProjectFormGeneral`, `ProjectFormBudget`, `ProjectFormLinks`, etc.), with a thin shell coordinating cross-section state via a hook (`useProjectForm`).
-  - Added: 2026-05-14 by audit_tech_debt iteration #16
+  - Added: 2026-05-14 by audit_tech_debt iteration #16 _(downgraded from Major)_
 
 - **`JobsContent.tsx` is 643 LOC; `AlertConfigTab.tsx` is 572 LOC** — `frontend/src/core/components/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / core`
   - Detail: `JobsContent` holds four section components inline (`BackgroundJobsSection`, `ScheduledJobsSection`, `PlaybookPublishSection`, `IsoDocsExportSection`). `AlertConfigTab` mixes three dialog state machines. Both are above the 400 LOC threshold and read as kitchen-sink admin pages.
   - Fix: Extract each section into its own file under `core/components/Admin/jobs/` and `core/components/NotificationsAdmin/alert-config/`. Keep the parents as thin layouts.
-  - Added: 2026-05-14 by audit_tech_debt iteration #16
-
-- **`useAlertDefinitions` uses raw string comparison in `predicate` invalidation** — `frontend/src/core/hooks/useAlertDefinitions.ts:79-82` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / core / hooks`
-  - Detail: `predicate: (query) => query.queryKey[0] === 'alertDefinitions' && query.queryKey[2] === 'templates'` bypasses the `queryKeys` constant convention (memory `gotcha_react-query-undefined-key.md`). If the key shape changes, this predicate silently stops matching.
-  - Fix: Either compare against `queryKeys.alertDefinitions.all[0]` (or whatever the canonical first segment is), or expose a `queryKeys.alertDefinitions.templates.partial()` matcher utility.
-  - Added: 2026-05-14 by audit_tech_debt iteration #16
-
-- **Inline name-formatting in `AlertConfigTab` sort callbacks** — `frontend/src/core/components/NotificationsAdmin/AlertConfigTab.tsx:202, 238` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / core / components`
-  - Detail: Two `localeCompare` calls inline `getFullName(a.first_name, a.last_name, a.email)` for sort. `getFullName` exists in `src/utils/formatters.ts` and is the canonical helper, but the inline duplication here is fine — the lint nit is the same expression being repeated across the file.
-  - Fix: Hoist a local `displayNameOf(user)` helper at module level so the sort key is one short call.
-  - Added: 2026-05-14 by audit_tech_debt iteration #16
+  - Added: 2026-05-14 by audit_tech_debt iteration #16 _(downgraded from Major)_
 
 - **`QualityMetricsGrid.tsx` is 474 LOC; `EditableMetricCard.tsx` is 418 LOC; `InteractiveTimelineChart.tsx` is 392 LOC** — `frontend/src/modules/scorecard/components/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / scorecard`
   - Detail: Three components above (or near) the 400 LOC threshold. `EditableMetricCard` mixes a card shell, an inline chart renderer (~L279-317), 4 callback factories, and two reference-area helpers. `QualityMetricsGrid` repeats the same `isDimensionVisible(...) → getHistoricalData(...) → render card` pattern 20+ times.
   - Fix: Extract a `MetricChartRenderer` for the chart path; lift `DIMENSION_META` to `types/index.ts`; collapse the per-metric render in `QualityMetricsGrid` into a config array + map.
-  - Added: 2026-05-14 by audit_tech_debt iteration #17
-
-- **Weight-sum validation only fires at save, not while editing** — `frontend/src/modules/scorecard/components/Settings/ConfigurationTab.tsx:43, 95-99`, `ParameterSection` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / scorecard`
-  - Detail: `showSumValidation: true` flag exists per group but there's no live-sum badge; the user only learns the weights are off when save fails. Backend enforces `sum == 1.0` per group.
-  - Fix: Render a live total next to each weight group, red when ≠ 1.0, with the delta inline. Block "Save" while invalid.
-  - Added: 2026-05-14 by audit_tech_debt iteration #17
-
-- **Colored badges for report status violate the dot+text rule** — `frontend/src/modules/tracker/components/ReportEditor.tsx:118-124` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / tracker / components`
-  - Detail: `<Badge>` with `bg-yellow-100 text-yellow-700` (Estimated) and `bg-green-100 text-green-700` (Confirmed). CLAUDE.md and Memory explicitly say status indicators use a colored dot + plain text, never tinted pills.
-  - Fix: Replace badges with the dot+text pattern used in `invoice-shared.tsx:166-177` (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + label).
-  - Added: 2026-05-14 by audit_tech_debt iteration #18
+  - Added: 2026-05-14 by audit_tech_debt iteration #17 _(downgraded from Major)_
 
 - **`BurnDashboard.tsx` is 565 LOC; `invoice-shared.tsx` is 534 LOC; `AdminInvoices.tsx` is 411 LOC** — `frontend/src/modules/tracker/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / tracker`
   - Detail: Three components above the 400 LOC threshold, all in the financial UI. `BurnDashboard` holds the weighted-moving-average forecast logic — exactly the kind of code that wants a clean unit-test boundary.
   - Fix: Extract `BurnDashboard`'s `weightedMonthlyAvg` / `buildForecastPoints` to `tracker/utils/forecast.ts` with tests. Split `invoice-shared.tsx` into per-action components (`PostponeButton.tsx`, `TransitionDialog.tsx`, etc.). `AdminInvoices`: lift the table column definitions into a sibling file.
-  - Added: 2026-05-14 by audit_tech_debt iteration #18
-
-- **No permission-gating tests for tracker admin pages** — `frontend/src/modules/tracker/pages/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / tracker / tests`
-  - Detail: Tests currently mock the user with `permissions: ['*']`, masking permission gates. When the Major fix above migrates the gate from `ADMIN_USERS` → `TRACKER_MANAGE_ALL_REPORTS`, we want a regression test.
-  - Fix: Add a "user without permission" test per admin page asserting redirect/empty/null render.
-  - Added: 2026-05-14 by audit_tech_debt iteration #18
-
-- **`PlannerGrid.tsx` is 854 LOC** — `frontend/src/modules/capacity/components/PlannerGrid.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / capacity`
-  - Detail: Single component holds table flattening (L354-401), week styling (L541-564), batch cell editing (L444-514), keyboard shortcuts (L470-514), selection range building (in `useCellSelection`), and rendering. The largest frontend component in the audit so far.
-  - Fix: Extract a `usePlannerTable` hook for flattening + filtering; a `usePlannerBatchEdit` hook for the batch-input flow; split rendering into `PlannerHeaderRow`, `PlannerDataRow`, `PlannerAddRow`. Aim for 200-300 LOC per file.
-  - Added: 2026-05-14 by audit_tech_debt iteration #20
-
-- **No tests for chart pagination, planner cell edits, batch edits, or filtered rendering** — `frontend/src/modules/capacity/components/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / capacity / tests`
-  - Detail: Tests cover `PlannerCell`, `PlannerAddRow`, allocation lists, and date utils. Missing: chart pagination boundary cases (no `<` at start / no `>` at end), planner-row filtering correctness, batch edit + selection range, optimistic update + debounced flush.
-  - Fix: Add `PlannerGrid.test.tsx` with focused tests for the filter logic (the one the agent thought was wrong is actually correct — pin it down with a test before refactoring), batch-edit shortcuts, and pagination.
-  - Added: 2026-05-14 by audit_tech_debt iteration #20
-
-- **Planner mutation has no error UI or retry** — `frontend/src/modules/capacity/hooks/usePlannerMutations.ts:55-114` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / capacity / hooks`
-  - Detail: `cellMutation` / `deleteMutation` use `onSettled` to invalidate the planner query — good. But on failure, the queued updates in `queueCellUpdate` are dropped silently. User sees no toast, no error indicator on the cell, and refreshing the page loses the local edit.
-  - Fix: Add an `onError` to flash a toast and mark the cell as "failed" (red background) until retry. Optionally implement exponential-backoff retry in `queueCellUpdate`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #20
+  - Added: 2026-05-14 by audit_tech_debt iteration #18 _(downgraded from Major)_
 
 - **`EventForm.tsx` is 573 LOC** — `frontend/src/modules/events/components/EventForm.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / events / components`
   - Detail: One file owns form state, attendee batch state, original-attendee diff, validation, delete confirmation, and submission. The delete-confirmation flow alone could live in its own component.
   - Fix: Split into `EventForm` (shell + submit), `EventFormFields`, `AttendeeSection`, `DeleteConfirmDialog`. Move form state to a `useEventFormState` hook.
-  - Added: 2026-05-14 by audit_tech_debt iteration #21
-
-- **`useUpdateEvent` invalidates list but not the specific detail key** — `frontend/src/modules/events/hooks/useEvents.ts:28-29` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / events / hooks`
-  - Detail: Mutation invalidates `queryKeys.events.all` but not `queryKeys.events.detail(id)`. If the user edits an event and stays on the detail page, the cached detail is served until it ages out. They see stale data.
-  - Fix: Add `queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(id) })` to the mutation's `onSuccess`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #21
-
-- **`StarRating` renders interactive-looking buttons when read-only** — `frontend/src/modules/events/components/StarRating.tsx:9-36`, `EventsTable.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / events / components`
-  - Detail: Component sets `disabled={!onChange}` but keeps the same hover/cursor styles, so the read-only state looks identical to the editable one. `EventsTable` works around it by passing `onChange={() => {}}` — a no-op callback that defeats the `disabled` heuristic entirely.
-  - Fix: Make read-only explicit: a `readOnly` prop that triggers `opacity-50 cursor-default` and absence of hover styles. Have `EventsTable` pass `readOnly` instead of the no-op.
-  - Added: 2026-05-14 by audit_tech_debt iteration #21
-
-- **No tests for `Events.tsx` or `EventDetail.tsx`** — `frontend/src/modules/events/pages/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / events / tests`
-  - Detail: Only `EventForm` and `EventsTable` have tests. List filtering, URL state, gating-driven affordances, and the detail page rendering are uncovered.
-  - Fix: Add `Events.test.tsx` (canManage off → no Create button; year filter narrows list) and `EventDetail.test.tsx` (canManage off → no Edit button; attendee list renders empty state).
-  - Added: 2026-05-14 by audit_tech_debt iteration #21
-
-- **Hard-coded `event_type: 'Conference'` initial value** — `frontend/src/modules/events/components/EventForm.tsx:64` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / events / components`
-  - Detail: Default value is a literal string. If `Conference` is removed from the backend options, form submission silently fails. Better to seed from the options endpoint or require an explicit selection.
-  - Fix: `event_type: options?.event_types?.[0] ?? ''` once options load; mark the select required.
-  - Added: 2026-05-14 by audit_tech_debt iteration #21
-
-- **Reviewer dropdown is disabled (not read-only) when signed** — `frontend/src/modules/iso/components/ReviewPanel.tsx:163` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso / components`
-  - Detail: `disabled={isSigned}` greys out the select after sign-off, which is the wrong affordance — it reads as "you could fix this if you wanted." For compliance, signed state should render as plain text ("Reviewed by Alice") because the field is locked, not gated.
-  - Fix: Conditionally render `<span>{reviewer.name}</span>` when `isSigned`; reserve the select for the editable case (mirrors the pattern at `ActionRow.tsx:59-80`).
-  - Added: 2026-05-14 by audit_tech_debt iteration #22
-
-- **Provider data-tab state held locally instead of URL-driven** — `frontend/src/modules/iso/components/SnapshotDataTabs.tsx:238`, `GitHubDataTabs.tsx:242`, `JiraDataTabs.tsx:141` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso / components`
-  - Detail: Three sibling tab containers each maintain `activeTab` in `useState`. Same shape as the scorecard/tracker tab patterns — losing tab state on refresh is annoying for an admin reviewing a snapshot.
-  - Fix: Lift `activeTab` to the parent (`ISOSnapshotDetail.tsx`) and bind via `useUrlState` with a single `tab` URL param.
-  - Added: 2026-05-14 by audit_tech_debt iteration #22
-
-- **No tests for the sign→unsign round-trip or empty-export warning** — `frontend/src/modules/iso/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso / tests`
-  - Detail: `ISOSnapshotDetail.test.tsx` covers render and button visibility for signed state but does not call the sign mutation, doesn't verify the actions payload serialization, and doesn't cover unsign. No test for `useIsoExport` empty-blob detection.
-  - Fix: Add (a) E2E sign→unsign test asserting payload shape on sign and state transition on unsign; (b) `useIsoExport.test.ts` mocking a tiny blob and asserting the error toast fires.
-  - Added: 2026-05-14 by audit_tech_debt iteration #22
+  - Added: 2026-05-14 by audit_tech_debt iteration #21 _(downgraded from Major)_
 
 - **`IsoDocs.tsx` is 898 LOC; `RegistryView.tsx` is 761 LOC** — `frontend/src/modules/iso-docs/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / iso-docs`
   - Detail: Two of the three largest frontend files in the audit so far. `IsoDocs.tsx` holds tree state, node selection, content panel switching, metadata filter UI, dialogs, and three tree-utility helpers (`flattenTree`/`buildSlugMaps`/`buildReorderItems` at L61-108). `RegistryView.tsx` mixes the table, lightbox, dialogs, sorting, attachments, and column-visibility logic.
   - Fix: Split `IsoDocs` into `IsoDocsShell` (layout + tree) + `IsoDocsContent` (panel content); move tree helpers to `core/services/tree_service` (also addresses iteration #11 DRY finding). Split `RegistryView` into `RegistryTable` + `RegistryToolbar` + `RowLightbox` + `RegistryDialogs`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #23
+  - Added: 2026-05-14 by audit_tech_debt iteration #23 _(downgraded from Major)_
 
 - **`InlineCell.tsx` is 424 LOC** — `frontend/src/modules/iso-docs/components/InlineCell.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / iso-docs / components`
   - Detail: One file holds display, editing, validation, attachments, conditional formatting, markdown-link parsing, and color badges. The 50-line `useInlineEditing` hook is also inlined.
   - Fix: Extract `useInlineEditing` to `hooks/useInlineEditing.ts`; extract `MarkdownLinks`/`TextOrLink`/`DisplayValue` to `components/CellDisplay.tsx`; extract `AttachmentCell` to its own file.
-  - Added: 2026-05-14 by audit_tech_debt iteration #23
-
-- **Tree manipulation helpers reimplemented locally** — `frontend/src/modules/iso-docs/pages/IsoDocs.tsx:61-108` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso-docs`
-  - Detail: `flattenTree`, `buildSlugMaps`, `buildReorderItems` are generic tree utilities. The playbook module (audited iteration #12) has its own copy; the shared `core/services/tree_service` exists on the backend. The frontend has no shared tree-service today.
-  - Fix: Create `frontend/src/shared/services/treeService.ts` with these helpers (and the equivalents from playbook) and import from both modules. Pair with the iteration #12 minor about TreeService.
-  - Added: 2026-05-14 by audit_tech_debt iteration #23
-
-- **Bare string query key in registry rows hook** — `frontend/src/modules/iso-docs/hooks/useRegistryRows.ts:7` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso-docs / hooks`
-  - Detail: Uses `['iso-docs', 'registry-rows', nodeId]` instead of `queryKeys.isoDocs.registryRows(nodeId, year)`. CLAUDE.md rule explicitly forbids bare-string query keys; this also breaks the centralized invalidation contract from iteration #16's nag.
-  - Fix: Route through `queryKeys.isoDocs.registryRows(...)`. Add the factory if it doesn't exist.
-  - Added: 2026-05-14 by audit_tech_debt iteration #23
-
-- **No tests for registry CRUD, inline edits, or schema-rename UI** — `frontend/src/modules/iso-docs/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso-docs / tests`
-  - Detail: Only `NotesPanel.test.tsx` exists. RegistryView (761 LOC), InlineCell (424 LOC), and MetadataEditDialog (338 LOC) — the bulk of the module's surface — have zero coverage. Future model_fields_set fix would have no regression net.
-  - Fix: Add `RegistryView.test.tsx` (5 cases minimum: create row, inline edit + save, delete with confirm, column visibility toggle, year selection), `InlineCell.test.tsx` (display modes, validation), and a test for the schema-rename migration UI.
-  - Added: 2026-05-14 by audit_tech_debt iteration #23
-
-- **Column-visibility toggle may not invalidate registry-type cache** — `frontend/src/modules/iso-docs/components/RegistryView.tsx:305-316` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / iso-docs / hooks`
-  - Detail: `toggleColumn` persists via `useUpdateColumnVisibility`; if that hook doesn't invalidate `queryKeys.isoDocs.registryType(...)`, the next refetch will overwrite the user's optimistic state with the stale schema.
-  - Fix: Verify `useUpdateColumnVisibility` invalidates the type query. If not, add `queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryType(registryTypeId) })` to its `onSuccess`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #23
+  - Added: 2026-05-14 by audit_tech_debt iteration #23 _(downgraded from Major)_
 
 - **`Playbook.tsx` is 519 LOC** — `frontend/src/modules/playbook/pages/Playbook.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / playbook / pages`
   - Detail: Single component holds tree state, three dialog handlers, save/restore/publish flows, and the main content router. Reasoning about state transitions across 519 lines is painful.
   - Fix: Extract `usePlaybookHandlers` hook (save/move/delete/reorder/publish) and a `<PlaybookContent>` view component that takes the resolved page + handlers as props.
-  - Added: 2026-05-14 by audit_tech_debt iteration #24
-
-- **Tree utilities redeclared locally (third module to do this)** — `frontend/src/modules/playbook/pages/Playbook.tsx:47-94` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / playbook / pages`
-  - Detail: `flattenTree` / `buildSlugMaps` / `buildReorderItems` are defined locally. Iso-docs has them (iteration #23 Major). Playbook has them. The pattern is now triple-implemented across the FE.
-  - Fix: Extract to `frontend/src/shared/services/treeUtils.ts` (or `core/services/`) and consume from all three modules.
-  - Added: 2026-05-14 by audit_tech_debt iteration #24
-
-- **`usePublishPlaybook` invalidates publish status but not tree** — `frontend/src/modules/playbook/hooks/usePublishPlaybook.ts:10` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / playbook / hooks`
-  - Detail: Successful publish flips public/private state and may change tree visibility for non-editor viewers. The hook invalidates `publishStatus` only; `playbook.tree` stays stale until next refetch.
-  - Fix: `queryClient.invalidateQueries({ queryKey: queryKeys.playbook.tree })` in the same `onSuccess`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #24
-
-- **No tests for playbook module** — `frontend/src/modules/playbook/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / playbook / tests`
-  - Detail: Zero test files. The publish flow, version restore, tree reorder, max-depth validation, and conflict handling are all uncovered. Combined with the backend test gap (iteration #12), there's no regression net at either end.
-  - Fix: Add `Playbook.test.tsx` (article CRUD + publish flow), `usePlaybookTree.test.ts` (tree utilities + reorder validation), and `services.test.ts` (API client mocking).
-  - Added: 2026-05-14 by audit_tech_debt iteration #24
-
-- **`Required` badge color differs between EntryCard and EntryDetail** — `frontend/src/modules/devstack/components/EntryCard.tsx:39`, `frontend/src/modules/devstack/pages/EntryDetail.tsx:151` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / devstack`
-  - Detail: Card uses `bg-blue-600 text-white`; detail page uses `bg-blue-100 text-blue-800 dark:bg-blue-900`. Same semantic ("required entry"), two visual conventions in adjacent views.
-  - Fix: Extract a `<RequiredBadge>` component or `BADGE_STYLES.required` constant and use in both.
-  - Added: 2026-05-14 by audit_tech_debt iteration #25
-
-- **No test files for `Catalog`, `EntryDetail`, or `EntryForm`** — `frontend/src/modules/devstack/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / devstack / tests`
-  - Detail: Only `EntryCard.test.tsx` exists (79 lines). The CRUD page (`Catalog`), the detail page (`EntryDetail`), and the form (`EntryForm` 365 LOC with conditional install_method state) have no coverage.
-  - Fix: Add `Catalog.test.tsx` (filter + sort + refresh button), `EntryDetail.test.tsx` (canManage rendering), `EntryForm.test.tsx` (install_method conditional rendering, validation).
-  - Added: 2026-05-14 by audit_tech_debt iteration #25
-
-- **No stale-catalog indicator on the FE** — `frontend/src/modules/devstack/pages/Catalog.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / devstack / pages`
-  - Detail: Backend audit iteration #13 surfaced GitHub rate-limit, no-fallback-on-outage, and required-entry escalation gaps. The FE currently shows the catalog as if it were always fresh — no "last refresh" timestamp, no "GitHub unreachable" banner. When the BE silently returns stale rows, the user has no signal.
-  - Fix: When the BE adds `last_refreshed_at` + `stale` flags (paired BE work from iteration #13), render "Updated 2m ago" / "Catalog is N minutes stale — GitHub fetch failing" near the toolbar.
-  - Added: 2026-05-14 by audit_tech_debt iteration #25
-
-- **Vulnerability badge logic duplicated for critical and high severities** — `frontend/src/modules/devstack/components/EntryCard.tsx:55-64` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / devstack / components`
-  - Detail: Two near-identical Tailwind className blocks for critical vs high counts; the only diff is severity name and counter prop.
-  - Fix: Extract `<VulnerabilityBadge severity={...} count={...} />` and render twice (or map an array of severity definitions).
-  - Added: 2026-05-14 by audit_tech_debt iteration #25
-
-- **No tests for shared doc components consumed by Playbook + ISO Docs** — `frontend/src/shared/components/doc/*.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `frontend / shared / components`
-  - Detail: `DocEditor`, `DocViewer`, `DocTree`, `NodeForm`, `VersionHistoryDialog` have zero unit tests despite being the runtime shared by both wiki modules. `useUrlState` has 8 tests — the layer's discipline on hooks isn't matched on components. The DocEditor's MDEditor remount/cursor logic (~L65-76) is exactly the surface where iteration #24's "missing key prop" bug class lives.
-  - Fix: Add `DocEditor.test.tsx` (image upload + cursor position + remount semantics), `DocViewer.test.tsx` (click-interception, sanitization), `DocTree.test.tsx` (resize-observer wrapper), `NodeForm.test.tsx` (type selection).
-  - Added: 2026-05-14 by audit_tech_debt iteration #26
+  - Added: 2026-05-14 by audit_tech_debt iteration #24 _(downgraded from Major)_
 
 - **`Sidebar.tsx` is 780 LOC of stock shadcn** — `frontend/src/shared/components/ui/sidebar.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `frontend / shared / ui`
   - Detail: Largest single file in the audit so far. Stock shadcn export, used by `core/components/layout/AppSidebar.tsx`. Updating shadcn upstream is hard when we've copied 780 LOC into our tree.
   - Fix: Document the file as "pristine shadcn — DO NOT EDIT" at the top, and add a script/check in CI that diffs against the upstream shadcn version on dependabot bumps. Customizations should live in a wrapper, not in this file.
-  - Added: 2026-05-14 by audit_tech_debt iteration #26
+  - Added: 2026-05-14 by audit_tech_debt iteration #26 _(downgraded from Major)_
 
-### Minor (61)
+##### DRY / cross-module duplication
+
+- **Tree-building reimplemented locally (`_build_tree`) and not delegated to `TreeService`** — `backend/app/modules/playbook/api/nodes.py:31-48` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `playbook / api`
+  - Detail: `core/services/tree_service.py` is parameterized by model class for exactly this use case. ISO docs has the same problem (iteration #11). Two modules reimplementing the same tree traversal is the wrong direction.
+  - Fix: Replace `_build_tree` with a `TreeService(PlaybookNodeDB).build_admin_tree(rows)` call. Same for `iso_docs`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #12 _(downgraded from Major)_
+
+- **Tree manipulation helpers reimplemented locally (iso-docs)** — `frontend/src/modules/iso-docs/pages/IsoDocs.tsx:61-108` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso-docs`
+  - Detail: `flattenTree`, `buildSlugMaps`, `buildReorderItems` are generic tree utilities. The playbook module (audited iteration #12) has its own copy; the shared `core/services/tree_service` exists on the backend. The frontend has no shared tree-service today.
+  - Fix: Create `frontend/src/shared/services/treeService.ts` with these helpers (and the equivalents from playbook) and import from both modules. Pair with the iteration #12 minor about TreeService.
+  - Added: 2026-05-14 by audit_tech_debt iteration #23 _(downgraded from Major)_
+
+- **Tree utilities redeclared locally (third module to do this)** — `frontend/src/modules/playbook/pages/Playbook.tsx:47-94` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / playbook / pages`
+  - Detail: `flattenTree` / `buildSlugMaps` / `buildReorderItems` are defined locally. Iso-docs has them (iteration #23 Major). Playbook has them. The pattern is now triple-implemented across the FE.
+  - Fix: Extract to `frontend/src/shared/services/treeUtils.ts` (or `core/services/`) and consume from all three modules.
+  - Added: 2026-05-14 by audit_tech_debt iteration #24 _(downgraded from Major)_
+
+- **Inline name-formatting in `AlertConfigTab` sort callbacks** — `frontend/src/core/components/NotificationsAdmin/AlertConfigTab.tsx:202, 238` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / core / components`
+  - Detail: Two `localeCompare` calls inline `getFullName(a.first_name, a.last_name, a.email)` for sort. `getFullName` exists in `src/utils/formatters.ts` and is the canonical helper, but the inline duplication here is fine — the lint nit is the same expression being repeated across the file.
+  - Fix: Hoist a local `displayNameOf(user)` helper at module level so the sort key is one short call.
+  - Added: 2026-05-14 by audit_tech_debt iteration #16 _(downgraded from Major)_
+
+- **Vulnerability badge logic duplicated for critical and high severities** — `frontend/src/modules/devstack/components/EntryCard.tsx:55-64` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / devstack / components`
+  - Detail: Two near-identical Tailwind className blocks for critical vs high counts; the only diff is severity name and counter prop.
+  - Fix: Extract `<VulnerabilityBadge severity={...} count={...} />` and render twice (or map an array of severity definitions).
+  - Added: 2026-05-14 by audit_tech_debt iteration #25 _(downgraded from Major)_
+
+##### React Query / state invalidation
+
+- **`useAlertDefinitions` uses raw string comparison in `predicate` invalidation** — `frontend/src/core/hooks/useAlertDefinitions.ts:79-82` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / core / hooks`
+  - Detail: `predicate: (query) => query.queryKey[0] === 'alertDefinitions' && query.queryKey[2] === 'templates'` bypasses the `queryKeys` constant convention (memory `gotcha_react-query-undefined-key.md`). If the key shape changes, this predicate silently stops matching.
+  - Fix: Either compare against `queryKeys.alertDefinitions.all[0]` (or whatever the canonical first segment is), or expose a `queryKeys.alertDefinitions.templates.partial()` matcher utility.
+  - Added: 2026-05-14 by audit_tech_debt iteration #16 _(downgraded from Major)_
+
+- **`useUpdateEvent` invalidates list but not the specific detail key** — `frontend/src/modules/events/hooks/useEvents.ts:28-29` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / events / hooks`
+  - Detail: Mutation invalidates `queryKeys.events.all` but not `queryKeys.events.detail(id)`. If the user edits an event and stays on the detail page, the cached detail is served until it ages out. They see stale data.
+  - Fix: Add `queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(id) })` to the mutation's `onSuccess`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #21 _(downgraded from Major)_
+
+- **Bare string query key in registry rows hook** — `frontend/src/modules/iso-docs/hooks/useRegistryRows.ts:7` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso-docs / hooks`
+  - Detail: Uses `['iso-docs', 'registry-rows', nodeId]` instead of `queryKeys.isoDocs.registryRows(nodeId, year)`. CLAUDE.md rule explicitly forbids bare-string query keys; this also breaks the centralized invalidation contract from iteration #16's nag.
+  - Fix: Route through `queryKeys.isoDocs.registryRows(...)`. Add the factory if it doesn't exist.
+  - Added: 2026-05-14 by audit_tech_debt iteration #23 _(downgraded from Major)_
+
+- **Column-visibility toggle may not invalidate registry-type cache** — `frontend/src/modules/iso-docs/components/RegistryView.tsx:305-316` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso-docs / hooks`
+  - Detail: `toggleColumn` persists via `useUpdateColumnVisibility`; if that hook doesn't invalidate `queryKeys.isoDocs.registryType(...)`, the next refetch will overwrite the user's optimistic state with the stale schema.
+  - Fix: Verify `useUpdateColumnVisibility` invalidates the type query. If not, add `queryClient.invalidateQueries({ queryKey: queryKeys.isoDocs.registryType(registryTypeId) })` to its `onSuccess`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #23 _(downgraded from Major)_
+
+- **`usePublishPlaybook` invalidates publish status but not tree** — `frontend/src/modules/playbook/hooks/usePublishPlaybook.ts:10` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / playbook / hooks`
+  - Detail: Successful publish flips public/private state and may change tree visibility for non-editor viewers. The hook invalidates `publishStatus` only; `playbook.tree` stays stale until next refetch.
+  - Fix: `queryClient.invalidateQueries({ queryKey: queryKeys.playbook.tree })` in the same `onSuccess`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #24 _(downgraded from Major)_
+
+##### UX / affordance polish
+
+- **Weight-sum validation only fires at save, not while editing** — `frontend/src/modules/scorecard/components/Settings/ConfigurationTab.tsx:43, 95-99`, `ParameterSection` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / scorecard`
+  - Detail: `showSumValidation: true` flag exists per group but there's no live-sum badge; the user only learns the weights are off when save fails. Backend enforces `sum == 1.0` per group.
+  - Fix: Render a live total next to each weight group, red when ≠ 1.0, with the delta inline. Block "Save" while invalid.
+  - Added: 2026-05-14 by audit_tech_debt iteration #17 _(downgraded from Major)_
+
+- **Colored badges for report status violate the dot+text rule** — `frontend/src/modules/tracker/components/ReportEditor.tsx:118-124` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / tracker / components`
+  - Detail: `<Badge>` with `bg-yellow-100 text-yellow-700` (Estimated) and `bg-green-100 text-green-700` (Confirmed). CLAUDE.md and Memory explicitly say status indicators use a colored dot + plain text, never tinted pills.
+  - Fix: Replace badges with the dot+text pattern used in `invoice-shared.tsx:166-177` (`<span className="inline-block w-2 h-2 rounded-full shrink-0 bg-{color}" />` + label).
+  - Added: 2026-05-14 by audit_tech_debt iteration #18 _(downgraded from Major)_
+
+- **`StarRating` renders interactive-looking buttons when read-only** — `frontend/src/modules/events/components/StarRating.tsx:9-36`, `EventsTable.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / events / components`
+  - Detail: Component sets `disabled={!onChange}` but keeps the same hover/cursor styles, so the read-only state looks identical to the editable one. `EventsTable` works around it by passing `onChange={() => {}}` — a no-op callback that defeats the `disabled` heuristic entirely.
+  - Fix: Make read-only explicit: a `readOnly` prop that triggers `opacity-50 cursor-default` and absence of hover styles. Have `EventsTable` pass `readOnly` instead of the no-op.
+  - Added: 2026-05-14 by audit_tech_debt iteration #21 _(downgraded from Major)_
+
+- **Hard-coded `event_type: 'Conference'` initial value** — `frontend/src/modules/events/components/EventForm.tsx:64` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / events / components`
+  - Detail: Default value is a literal string. If `Conference` is removed from the backend options, form submission silently fails. Better to seed from the options endpoint or require an explicit selection.
+  - Fix: `event_type: options?.event_types?.[0] ?? ''` once options load; mark the select required.
+  - Added: 2026-05-14 by audit_tech_debt iteration #21 _(downgraded from Major)_
+
+- **Reviewer dropdown is disabled (not read-only) when signed** — `frontend/src/modules/iso/components/ReviewPanel.tsx:163` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso / components`
+  - Detail: `disabled={isSigned}` greys out the select after sign-off, which is the wrong affordance — it reads as "you could fix this if you wanted." For compliance, signed state should render as plain text ("Reviewed by Alice") because the field is locked, not gated.
+  - Fix: Conditionally render `<span>{reviewer.name}</span>` when `isSigned`; reserve the select for the editable case (mirrors the pattern at `ActionRow.tsx:59-80`).
+  - Added: 2026-05-14 by audit_tech_debt iteration #22 _(downgraded from Major)_
+
+- **Provider data-tab state held locally instead of URL-driven** — `frontend/src/modules/iso/components/SnapshotDataTabs.tsx:238`, `GitHubDataTabs.tsx:242`, `JiraDataTabs.tsx:141` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso / components`
+  - Detail: Three sibling tab containers each maintain `activeTab` in `useState`. Same shape as the scorecard/tracker tab patterns — losing tab state on refresh is annoying for an admin reviewing a snapshot.
+  - Fix: Lift `activeTab` to the parent (`ISOSnapshotDetail.tsx`) and bind via `useUrlState` with a single `tab` URL param.
+  - Added: 2026-05-14 by audit_tech_debt iteration #22 _(downgraded from Major)_
+
+- **`Required` badge color differs between EntryCard and EntryDetail** — `frontend/src/modules/devstack/components/EntryCard.tsx:39`, `frontend/src/modules/devstack/pages/EntryDetail.tsx:151` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / devstack`
+  - Detail: Card uses `bg-blue-600 text-white`; detail page uses `bg-blue-100 text-blue-800 dark:bg-blue-900`. Same semantic ("required entry"), two visual conventions in adjacent views.
+  - Fix: Extract a `<RequiredBadge>` component or `BADGE_STYLES.required` constant and use in both.
+  - Added: 2026-05-14 by audit_tech_debt iteration #25 _(downgraded from Major)_
+
+- **No stale-catalog indicator on the FE** — `frontend/src/modules/devstack/pages/Catalog.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / devstack / pages`
+  - Detail: Backend audit iteration #13 surfaced GitHub rate-limit, no-fallback-on-outage, and required-entry escalation gaps. The FE currently shows the catalog as if it were always fresh — no "last refresh" timestamp, no "GitHub unreachable" banner. When the BE silently returns stale rows, the user has no signal.
+  - Fix: When the BE adds `last_refreshed_at` + `stale` flags (paired BE work from iteration #13), render "Updated 2m ago" / "Catalog is N minutes stale — GitHub fetch failing" near the toolbar.
+  - Added: 2026-05-14 by audit_tech_debt iteration #25 _(downgraded from Major — paired with the genuine BE Major items #20/#21)_
+
+##### Defensive coverage gaps
+
+- **No permission-gating tests for tracker admin pages** — `frontend/src/modules/tracker/pages/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / tracker / tests`
+  - Detail: Tests currently mock the user with `permissions: ['*']`, masking permission gates. When the Major fix above migrates the gate from `ADMIN_USERS` → `TRACKER_MANAGE_ALL_REPORTS`, we want a regression test.
+  - Fix: Add a "user without permission" test per admin page asserting redirect/empty/null render.
+  - Added: 2026-05-14 by audit_tech_debt iteration #18 _(downgraded from Major)_
+
+- **No tests for chart pagination or PlannerGrid filter logic** — `frontend/src/modules/capacity/components/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / capacity / tests`
+  - Detail: Edit-lifecycle for PlannerCell + RBAC denial tests landed in T4 (`c0ad1bf7`). Still missing: chart pagination boundary cases (no `<` at start / no `>` at end) and PlannerGrid filter-logic pin-down (the original audit flagged the filter as "wrong"; verified correct in T6.12 — wants a regression test).
+  - Fix: Add `PlannerGrid.test.tsx` for the filter logic and `ChartPagination` boundary cases.
+  - Added: 2026-05-14 by audit_tech_debt iteration #20 _(downgraded from Major; majority closed by T4.7 `c0ad1bf7`)_
+
+- **No tests for `Events.tsx` or `EventDetail.tsx`** — `frontend/src/modules/events/pages/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / events / tests`
+  - Detail: Only `EventForm` and `EventsTable` have tests. List filtering, URL state, gating-driven affordances, and the detail page rendering are uncovered.
+  - Fix: Add `Events.test.tsx` (canManage off → no Create button; year filter narrows list) and `EventDetail.test.tsx` (canManage off → no Edit button; attendee list renders empty state).
+  - Added: 2026-05-14 by audit_tech_debt iteration #21 _(downgraded from Major)_
+
+- **No tests for the sign→unsign round-trip or empty-export warning** — `frontend/src/modules/iso/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso / tests`
+  - Detail: `ISOSnapshotDetail.test.tsx` covers render and button visibility for signed state but does not call the sign mutation, doesn't verify the actions payload serialization, and doesn't cover unsign. No test for `useIsoExport` empty-blob detection.
+  - Fix: Add (a) E2E sign→unsign test asserting payload shape on sign and state transition on unsign; (b) `useIsoExport.test.ts` mocking a tiny blob and asserting the error toast fires.
+  - Added: 2026-05-14 by audit_tech_debt iteration #22 _(downgraded from Major)_
+
+- **No tests for registry CRUD, inline edits, or schema-rename UI** — `frontend/src/modules/iso-docs/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / iso-docs / tests`
+  - Detail: Only `NotesPanel.test.tsx` exists. RegistryView (761 LOC), InlineCell (424 LOC), and MetadataEditDialog (338 LOC) — the bulk of the module's surface — have zero coverage. Future model_fields_set fix would have no regression net.
+  - Fix: Add `RegistryView.test.tsx` (5 cases minimum: create row, inline edit + save, delete with confirm, column visibility toggle, year selection), `InlineCell.test.tsx` (display modes, validation), and a test for the schema-rename migration UI.
+  - Added: 2026-05-14 by audit_tech_debt iteration #23 _(downgraded from Major)_
+
+- **No tests for playbook module** — `frontend/src/modules/playbook/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / playbook / tests`
+  - Detail: Zero test files. The publish flow, version restore, tree reorder, max-depth validation, and conflict handling are all uncovered. Combined with the backend test gap (iteration #12), there's no regression net at either end.
+  - Fix: Add `Playbook.test.tsx` (article CRUD + publish flow), `usePlaybookTree.test.ts` (tree utilities + reorder validation), and `services.test.ts` (API client mocking).
+  - Added: 2026-05-14 by audit_tech_debt iteration #24 _(downgraded from Major)_
+
+- **No test files for `Catalog`, `EntryDetail`, or `EntryForm`** — `frontend/src/modules/devstack/__tests__/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / devstack / tests`
+  - Detail: Only `EntryCard.test.tsx` exists (79 lines). The CRUD page (`Catalog`), the detail page (`EntryDetail`), and the form (`EntryForm` 365 LOC with conditional install_method state) have no coverage.
+  - Fix: Add `Catalog.test.tsx` (filter + sort + refresh button), `EntryDetail.test.tsx` (canManage rendering), `EntryForm.test.tsx` (install_method conditional rendering, validation).
+  - Added: 2026-05-14 by audit_tech_debt iteration #25 _(downgraded from Major)_
+
+- **No tests for shared doc components consumed by Playbook + ISO Docs** — `frontend/src/shared/components/doc/*.tsx` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+  - Module: `frontend / shared / components`
+  - Detail: `DocEditor`, `DocViewer`, `DocTree`, `NodeForm`, `VersionHistoryDialog` have zero unit tests despite being the runtime shared by both wiki modules. `useUrlState` has 8 tests — the layer's discipline on hooks isn't matched on components. The DocEditor's MDEditor remount/cursor logic (~L65-76) is exactly the surface where iteration #24's "missing key prop" bug class lives.
+  - Fix: Add `DocEditor.test.tsx` (image upload + cursor position + remount semantics), `DocViewer.test.tsx` (click-interception, sanitization), `DocTree.test.tsx` (resize-observer wrapper), `NodeForm.test.tsx` (type selection).
+  - Added: 2026-05-14 by audit_tech_debt iteration #26 _(downgraded from Major)_
+
+##### Perf (low-traffic)
+
+- **Stats endpoint fires 8+ sequential DB roundtrips** — `backend/app/modules/events/services/stats_service.py:80-139` [warning] — perf-only on a low-traffic endpoint. Worth parallelizing if the dashboard becomes hot; deferred.
+  - Module: `events / services`
+  - Detail: `get_stats()` awaits `db.execute()` 8+ times in series (totals, attendees, costs, then group-bys for type/theme/region/year/quarter). Each round trip blocks the request worker. On warm cache the latency is "fine" but the lock-contention surface is bigger than necessary.
+  - Fix: Bundle the independent reads into `asyncio.gather(*queries)`. Where possible, combine grouped aggregations into a single SELECT with `GROUPING SETS`.
+  - Added: 2026-05-14 by audit_tech_debt iteration #9 _(downgraded from Major)_
+
+##### Closed during 2026-05-16 sweeps (see Fixed section)
+
+These items were tagged Major in the original audit but landed in the T1–T7 fix passes. Cross-referenced in [`## Fixed`](#fixed) further down.
+
+- ~~`capacity_insights.py` 743 LOC~~ — **[fixed `f106a94e`, T6.14]**
+- ~~`planner.py` 451 LOC~~ — **[fixed `a31e60c4`, T6.15]**
+- ~~Month-range parsing duplicated across capacity endpoints~~ — **[fixed `81e14722`, T7.16]**
+- ~~`user_detail` runs expensive JOINs without validating user_id~~ — verified already gated, **[T3.4 no-op]**
+- ~~No test for write-permission denial on planner endpoints~~ — **[fixed `c0ad1bf7`, T4.8]**
+- ~~`publish_playbook_task` + `export_iso_docs_gdrive_task` bare passthroughs~~ — **[fixed `8fe4d363`, T5.9]**
+- ~~`refresh_devstack_sources` no job-run tracking~~ — **[fixed `8fe4d363`, T5.9]**
+- ~~`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC~~ — **[fixed `82f3dd1b`, T6.13]**
+- ~~No tests for `check_dependabot_alerts` / `check_business_alerts`~~ — verified 13 + 15 existing tests, **[T4.6 no-op]**
+- ~~`check_dependabot.py:110` counter increment inside try~~ — **[fixed `bf2cc724`, T1.2]**
+- ~~Long-running jobs emit no progress logs~~ — closed by overlap with T5.9/T5.10, **[8fe4d363]**
+- ~~Approval flow has no audit log~~ — **[fixed `8fe4d363`, T5.11]**
+- ~~No structlog on MCP tool invocations~~ — **[fixed `8fe4d363`, T5.11]**
+- ~~`PlannerGrid.tsx` 854 LOC~~ — **[fixed `50b3269c`, T6.12]**
+- ~~Planner mutation has no error UI or retry~~ — **[fixed `7755e5f4`, T2.3]**
+
+#### From earlier audits (61)
 
 - **Granular roles lack dedicated tests** — `backend/tests/core/permissions/test_roles.py` [warning] — dedicated test-coverage sweep; out of scope here.
   - Module: `core/permissions`
