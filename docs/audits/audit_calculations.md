@@ -80,10 +80,10 @@ Deep verification of domain math in scorecard + tracker + capacity. One formula 
 
 | # | Calculation | Path | Status | Notes |
 |---|-------------|------|--------|-------|
-| 33 | FA breakdown averages | capacity_insights.py:388-417 | done | SUSPICIOUS — partial reporters drag avg, over-reporters not clamped, internal/admin invisible (billable+absence<total silently). |
-| 34 | Per-user / per-project percentages | capacity_insights.py:225-271 (user detail) / :116-168 (FA detail) | done | SUSPICIOUS — user detail duplicates same project split across FAs; no gap segment; sum=1.0 only enforced at Confirm. |
-| 35 | Reportable users filter | capacity_insights.py + planner.py | done | SUSPICIOUS — 3 leak paths: get_allocation_projects no user filter; planner main query missing reporting filter; user_detail accepts any user_id. |
-| 36 | On-leave detection (total report=0) | capacity_insights.py:159/:403/:602 | done | SUSPICIOUS — too narrow: full-PTO reporter (sum=1.0 absence) counted as reporting → drags FA billable avg. |
+| 33 | FA breakdown averages | capacity_insights.py:388-417 | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED (B-lite): `other_pct` field propagated to FA overview, FA detail, user detail (mirrors `__other__` pattern from allocation). Partial-reporter / over-reporter deferred (don't occur in production). Commit `24971b18`. |
+| 34 | Per-user / per-project percentages | capacity_insights.py:225-271 (user detail) / :116-168 (FA detail) | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: `GROUP BY (period_id, project_id) + SUM(percentage)` dedupes multi-FA splits. Other rolled in via `__other__` row alongside billable. Commit `24971b18`. |
+| 35 | Reportable users filter | capacity_insights.py + planner.py | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: centralized `_reportable_user_filter()` helper, applied at 5 call sites. Real planner leak corrected (was `_get_overallocation_warnings`, not main query). User detail 404s for inactive/exempt. Commit `24971b18`. |
+| 36 | On-leave detection (total report=0) | capacity_insights.py:159/:403/:602 | **fixed 2026-05-16** | ~~SUSPICIOUS~~ → FIXED: `_is_on_leave(total, absence)` helper expands to include `absence ≈ 1.0` and `absence ≈ total`. Full-PTO users no longer drag FA billable avg. Commit `24971b18`. |
 
 ### Frontend formatters
 
@@ -150,6 +150,21 @@ All rows status=done. Final summary: counts of OK / SUSPICIOUS / WRONG.
 - Deploy triggered manually via `gh workflow run deploy.yml --ref main -f environment=prod`. Run: <https://github.com/Vizzuality/vizzhub/actions/runs/25958451491>. **Deploy succeeded, post-deploy ops complete.**
 
 **Tracker audit fully closed.** Next session: capacity (#33–#36 — product decision pending) + FE #39 (chart default-page) + new #40 (forecastFinal vs chart cap).
+
+## Fixes log (2026-05-16 PM — Capacity block closed)
+
+- **#33 / #34 / #35 / #36 capacity insights cohesive pass** (commit `24971b18`):
+  - **#33** `other_pct` field exposed on FA overview, FA detail, user detail responses (mirrors `__other__` pattern already used in `get_allocation_users`). Stacked bars now show billable + other + absence in all three views. Partial-reporter / over-reporter sub-issues deferred (binary reporting in production).
+  - **#34** user-detail dedupes same-project-multi-FA via `GROUP BY (period_id, project_id) + SUM(percentage)`. Internal projects roll into `__other__` row alongside billable.
+  - **#35** centralized `_reportable_user_filter()` helper applied at 5 call sites. Real planner leak corrected: `_get_overallocation_warnings` (`:179`), not the main query. `get_capacity_user_detail` now 404s for inactive/exempt users.
+  - **#36** `_is_on_leave(total, absence)` helper expands semantics: `total ≤ 0 OR isclose(absence, 1.0) OR isclose(absence, total)`. Applied in `_aggregate_fa_period` and `get_capacity_fa_detail`.
+  - +12 backend tests + 4 FE tests. Backend 1928 / FE 470 green. Pure read-path, no migration.
+
+## Final summary (2026-05-16 evening — calculations audit fully closed)
+
+- **All 4 modules of the 39-row audit are now resolved.**
+- **OK: 14 (unchanged)** | **WRONG: 0 (was #37, closed)** | **SUSPICIOUS: 0 still open** (24 closed across two days).
+- Remaining tail-of-audit items: FE #39 (chart default-page lands on oldest, not latest) + new #40 (forecastFinal vs chart cap mismatch). Both small FE-only follow-ups, not part of the calculations audit proper.
 
 ## Final summary (2026-05-15, updated 2026-05-16)
 
