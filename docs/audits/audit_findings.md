@@ -4,11 +4,24 @@ Consolidated output from `audit_tech_debt.md` and `audit_calculations.md`. Each 
 
 ---
 
-## Status (2026-05-15 PM)
+## Status (2026-05-16 PM)
 
-**112 fixed · 18 won't do · 133 warning.** Full backend (1844) + frontend (433) + MCP (310) test suites pass on a clean run. Tier 1 + Tier 2 priority pass closed; previously-deferred "disabled governance tool" UX item now landed; and the 3 High-priority items (HP-1, HP-2, HP-3) closed in the same session. The remaining 133 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
+**ToDo Next High Priority block — 17/25 closed, 8 deliberately deferred with rationale.** Tiers T1 through T7 all triaged in one session. Eight items remain — none have a known regression today.
 
-No High priority items currently open from the original audit, but **25 next-priority items distilled into the "ToDo — Next High Priority" block below** (2026-05-16). Next audit pass should focus on those + what's new since 2026-05-15.
+| Tier | Status | Notes |
+|------|--------|-------|
+| T1 (real bugs) | ✅ Closed | `bf2cc724` + `cb71bcc7` — heartbeat registered, dependabot counter fixed |
+| T2 (user-visible) | ✅ Closed | `7755e5f4` + `058bd0da` — planner save-failure banner + red ring on failed cells |
+| T3 (quick verifications) | ✅ No-op | `85fd568d` — both items already closed by `24971b18`, audit entries were stale |
+| T4 (coverage gaps) | ✅ Closed | `c0ad1bf7` + `011498e5` — PlannerCell edit-lifecycle tests + planner RBAC denial tests |
+| T5 (worker observability) | ✅ Closed | `8fe4d363` + `8d2c8b3c` — passthrough workers gain canonical lifecycle events; MCP audit log |
+| T6.13 (worker splits) | ✅ Closed | `82f3dd1b` + `f55ef273` — check_business_alerts & check_dependabot split into per-type modules |
+| T6.12 / T6.14 / T6.15 | ⏸ Deferred | PlannerGrid / capacity_insights / planner.py — boy-scout only, per original audit guidance |
+| T7 (DRY cleanup) | ✅ 3 fixed, 5 deferred, 2 no-op | `81e14722` + `9a7e76ad` — month-range Depends, tech-radar config, MCP perm enum |
+
+Earlier baseline (2026-05-15 PM): **112 fixed · 18 won't do · 133 warning.** Full backend (1844) + frontend (433) + MCP (310) test suites pass on a clean run. The remaining 133 warnings are real but legitimately deferred technical debt — attack them via the boy-scout rule (touch a file, fix its warnings in the same PR), not via dedicated sweeps.
+
+Test counts after this pass: backend `pytest tests/modules/capacity/` 101/101, FE 514/514, MCP command/devstack/iso/permissions 107/107.
 
 ---
 
