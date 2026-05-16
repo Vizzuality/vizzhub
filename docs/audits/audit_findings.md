@@ -25,10 +25,10 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 
 3. ~~**Planner mutation has no error UI or retry**~~ — `usePlannerMutations` now captures `errorMessage` + `failedCells` on mutation failure. Planner page renders a dismissable destructive banner; failed cells get a red ring through `PlannerCell.hasError`. Re-editing a failed cell clears it (de-facto retry). 4 hook tests + 2 cell tests. **[fixed `7755e5f4`]**
 
-### T3 — Quick verifications (small but worth closing)
+### T3 — Quick verifications (small but worth closing) — **CLOSED 2026-05-16** (verified, no code change needed)
 
-4. **`get_capacity_user_detail` user_id validation** — audit row says "no validation, runs expensive JOINs". Commit `24971b18` already added `_reportable_user_filter()` + 404 on inactive/exempt users. **Likely already closed** — verify against the audit entry and mark fixed (or surface the actual remaining gap).
-5. **`UserDetailChart` hardcoded gray instead of `OTHER_COLOR` constant** — `frontend/src/modules/capacity/components/UserDetailChart.tsx`. Leftover from `24971b18`. Two-line fix.
+4. ~~**`get_capacity_user_detail` user_id validation**~~ — verified. `capacity_insights.py:251` already gates with `select(UserDB.id).where(UserDB.id == uid, *_reportable_user_filter())` and returns `[]` for inactive/exempt users. UUID format is validated upstream (`user_detail.py:35` → 422). Closed by `24971b18`; the ToDo entry overstated the gap. _(The note said "404s"; actual implementation returns `[]`. Both behaviours equally gate the expensive JOIN — the empty-list shape stays consistent with the rest of the endpoint contract.)_
+5. ~~**`UserDetailChart` hardcoded gray instead of `OTHER_COLOR`**~~ — verified. `git show 24971b18 -- UserDetailChart.tsx` already swapped both `#6b7280` literals for `OTHER_COLOR`. Hex-literal scan today is empty. ToDo entry was a false positive against the post-`24971b18` state.
 
 ### T4 — Coverage gaps with real risk
 
