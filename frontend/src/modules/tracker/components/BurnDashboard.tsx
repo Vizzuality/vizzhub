@@ -38,7 +38,7 @@ interface BurnDashboardProps {
 interface CumulativePoint {
   date: string;
   label: string;
-  cumulative: number;
+  cumulative: number | null;
   forecast: number | null;
   eacForecast: number | null;
 }
@@ -99,12 +99,12 @@ function weightedMonthlyAvg(monthlyCosts: number[]): number {
  * end-of-line label still surfaces the real EAC value to the user.
  */
 export function computeChartYMax(
-  data: ReadonlyArray<{ cumulative: number; forecast: number | null; eacForecast: number | null }>,
+  data: ReadonlyArray<{ cumulative: number | null; forecast: number | null; eacForecast: number | null }>,
   budget: number | null,
   eacCpiFinal: number | null,
 ): number {
   const baseMax = Math.max(
-    ...data.map((d) => Math.max(d.cumulative, d.forecast ?? 0)),
+    ...data.map((d) => Math.max(d.cumulative ?? 0, d.forecast ?? 0)),
     budget ?? 0,
   );
   const naturalMax = Math.max(baseMax, eacCpiFinal ?? 0);
@@ -136,7 +136,9 @@ function buildForecastPoints(
     points.push({
       date: fDate.toISOString().slice(0, 10),
       label: shortMonth(fDate.toISOString().slice(0, 10)),
-      cumulative: 0,
+      // null (not 0) so the Actual area stops at the last reported month —
+      // Recharts breaks the line on null with connectNulls={false}.
+      cumulative: null,
       forecast: Math.round(fcum * 100) / 100,
       eacForecast: null,
     });
