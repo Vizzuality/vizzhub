@@ -8,15 +8,14 @@ Runs daily via ARQ cron; exits early on non-target days.
 
 import calendar
 import structlog
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.notifications.services.slack_service import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_tracker_reminder_channel
-from app.worker.utils import complete_with_error
+from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
 logger = structlog.get_logger()
 
@@ -46,16 +45,7 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
         return {"status": "skipped", "alerts_sent": 0}
 
     db: AsyncSession = ctx["db"]
-
-    job_run = ScheduledJobRunDB(
-        job_name="send_monthly_report_reminder",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "send_monthly_report_reminder")
 
     try:
         bot_token = await get_slack_bot_token(db)
@@ -79,10 +69,8 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
         if not ok:
             logger.error("reminder_send_failed", error=response.get("error"))
 
-        job_run.status = "completed"
         job_run.alerts_sent = alerts_sent
-        job_run.completed_at = datetime.now(timezone.utc)
-        await db.commit()
+        await complete_job_run(db, job_run)
 
         return {
             "status": "completed",

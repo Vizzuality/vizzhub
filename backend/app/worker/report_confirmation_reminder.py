@@ -5,7 +5,7 @@ report during business days from the 2nd to the 12th of each month.
 """
 
 import structlog
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -13,12 +13,11 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
-from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.notifications.services.slack_service import SlackService
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.services.period_service import get_active_period
 from app.utils.slack import get_slack_bot_token
-from app.worker.utils import complete_with_error
+from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
 logger = structlog.get_logger()
 
@@ -64,16 +63,7 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
         return {"status": "skipped", "alerts_sent": 0}
 
     db: AsyncSession = ctx["db"]
-
-    job_run = ScheduledJobRunDB(
-        job_name="send_report_confirmation_reminder",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "send_report_confirmation_reminder")
 
     try:
         bot_token = await get_slack_bot_token(db)
@@ -90,9 +80,7 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
 
         users = await _get_users_pending_confirmation(db, period.id)
         if not users:
-            job_run.status = "completed"
-            job_run.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await complete_job_run(db, job_run)
             return {
                 "status": "completed",
                 "job_run_id": job_run.id,
@@ -119,10 +107,8 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
             except Exception as e:
                 logger.error("dm_send_error", slack_user_id=user.slack_user_id, error=str(e))
 
-        job_run.status = "completed"
         job_run.alerts_sent = alerts_sent
-        job_run.completed_at = datetime.now(timezone.utc)
-        await db.commit()
+        await complete_job_run(db, job_run)
 
         logger.info(
             "reminders_sent",

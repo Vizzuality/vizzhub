@@ -23,6 +23,7 @@ from app.modules.scorecard.models.metrics import SnapshotType
 from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.tracker.public import inject_evm_into_preserved
+from app.worker.utils import complete_job_run, start_job_run
 
 logger = structlog.get_logger()
 
@@ -46,15 +47,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
     score_cache = ctx.get("score_cache")
     config = get_scoring_config()
 
-    job_run = ScheduledJobRunDB(
-        job_name="monthly_scorecard_capture",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "monthly_scorecard_capture")
     # Hold the PK as a plain int so the outer except can use it even after a
     # rollback expires the ORM instance.
     job_run_id = job_run.id
@@ -140,11 +133,9 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
             errors=len(errors),
         )
 
-        job_run.status = "completed"
-        job_run.completed_at = datetime.now(timezone.utc)
         job_run.projects_checked = len(projects)
         job_run.alerts_sent = captured
-        await db.commit()
+        await complete_job_run(db, job_run)
 
         return {
             "status": "completed",

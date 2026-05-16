@@ -14,9 +14,9 @@ from app.modules.iso.public import (
     JiraCollector,
 )
 from app.modules.iso.services.review_service import create_review_for_snapshot
-from app.modules.notifications.public import ScheduledJobRunDB, SlackService
+from app.modules.notifications.public import SlackService
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
-from app.worker.utils import complete_with_error
+from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
 logger = structlog.get_logger()
 
@@ -28,16 +28,7 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
     Each provider runs independently -- one failure doesn't block the other.
     """
     db: AsyncSession = ctx["db"]
-
-    job_run = ScheduledJobRunDB(
-        job_name="collect_iso_snapshot",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "collect_iso_snapshot")
 
     results: dict[str, dict] = {}
     errors: list[str] = []
@@ -76,9 +67,7 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
     if errors and not results:
         return await complete_with_error(db, job_run, "; ".join(errors))
 
-    job_run.status = "completed"
-    job_run.completed_at = datetime.now(timezone.utc)
-    await db.commit()
+    await complete_job_run(db, job_run)
 
     return {
         "status": "completed",

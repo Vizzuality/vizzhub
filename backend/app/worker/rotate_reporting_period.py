@@ -6,13 +6,12 @@ a new one for the current month.
 """
 
 import structlog
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.tracker.models.reporting_period import (
     ReportingPeriodDB,
     ReportingPeriodStatus,
@@ -24,7 +23,7 @@ from app.modules.tracker.services.period_service import (
     finish_period,
     get_active_period,
 )
-from app.worker.utils import complete_with_error
+from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
 logger = structlog.get_logger()
 
@@ -41,16 +40,7 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
         return {"status": "skipped", "alerts_sent": 0}
 
     db: AsyncSession = ctx["db"]
-
-    job_run = ScheduledJobRunDB(
-        job_name="rotate_reporting_period",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "rotate_reporting_period")
 
     try:
         new_date = today.replace(day=1)
@@ -80,9 +70,7 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
             await db.commit()
             logger.info("period_created_and_activated", period_date=str(new_date))
 
-        job_run.status = "completed"
-        job_run.completed_at = datetime.now(timezone.utc)
-        await db.commit()
+        await complete_job_run(db, job_run)
 
         return {
             "status": "completed",

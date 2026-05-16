@@ -11,6 +11,36 @@ from app.modules.notifications.models.slack import ScheduledJobRunDB
 logger = structlog.get_logger()
 
 
+async def start_job_run(db: AsyncSession, job_name: str) -> ScheduledJobRunDB:
+    """Persist a fresh ``running`` ScheduledJobRunDB row and return it.
+
+    Counts default to zero so callers can incrementally bump them as work
+    happens; the row is committed + refreshed so the auto-generated id is
+    available before the body runs.
+    """
+    job_run = ScheduledJobRunDB(
+        job_name=job_name,
+        status="running",
+        projects_checked=0,
+        alerts_sent=0,
+    )
+    db.add(job_run)
+    await db.commit()
+    await db.refresh(job_run)
+    return job_run
+
+
+async def complete_job_run(db: AsyncSession, job_run: ScheduledJobRunDB) -> None:
+    """Mark ``job_run`` as completed (success) and commit.
+
+    The caller is expected to have set any job-specific counters
+    (alerts_sent, projects_checked) on ``job_run`` before calling.
+    """
+    job_run.status = "completed"
+    job_run.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+
 async def complete_with_error(
     db: AsyncSession, job_run: ScheduledJobRunDB, error_message: str
 ) -> dict[str, Any]:

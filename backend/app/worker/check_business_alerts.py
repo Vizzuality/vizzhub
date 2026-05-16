@@ -12,7 +12,6 @@ Monthly throttling is enforced inside each evaluator via
 `AlertService.was_notified_this_month`.
 """
 
-from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -20,13 +19,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
-from app.modules.notifications.models.slack import AlertDefinitionDB, ScheduledJobRunDB
+from app.modules.notifications.models.slack import AlertDefinitionDB
 from app.utils.slack import get_slack_bot_token, get_slack_leadership_channel
 from app.worker.business_alerts.budget_exceeded import check_budget_exceeded
 from app.worker.business_alerts.project_overdue import check_project_overdue
 from app.worker.business_alerts.shared import ALERT_NAMES, get_latest_metrics
 from app.worker.business_alerts.timeline_at_risk import check_timeline_at_risk
-from app.worker.utils import complete_with_error
+from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
 logger = structlog.get_logger()
 
@@ -39,16 +38,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
         optionally error).
     """
     db: AsyncSession = ctx["db"]
-
-    job_run = ScheduledJobRunDB(
-        job_name="check_business_alerts",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "check_business_alerts")
     logger.info("job_started", job_name="check_business_alerts", job_run_id=str(job_run.id))
 
     try:
@@ -100,11 +90,9 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
                 projects_checked += 1
                 continue
 
-        job_run.status = "completed"
         job_run.projects_checked = projects_checked
         job_run.alerts_sent = alerts_sent
-        job_run.completed_at = datetime.now(timezone.utc)
-        await db.commit()
+        await complete_job_run(db, job_run)
 
         logger.info(
             "job_completed",

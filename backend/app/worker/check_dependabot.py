@@ -5,7 +5,6 @@ re-notifies unresolved high/critical ones on cadence, and marks closed
 alerts as resolved. Per-alert-type logic lives in `app/worker/dependabot/`.
 """
 
-from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -14,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
 from app.core.services.integration_token_service import IntegrationTokenService
-from app.modules.notifications.models.slack import AlertDefinitionDB, ScheduledJobRunDB
+from app.modules.notifications.models.slack import AlertDefinitionDB
 from app.modules.notifications.services.alert_service import AlertService
 from app.modules.scorecard.services.collectors.dependabot import DependabotCollector
 from app.utils.slack import get_slack_bot_token
@@ -26,7 +25,7 @@ from app.worker.dependabot.tracking import (
     mark_alerts_resolved,
     notify_new_alert,
 )
-from app.worker.utils import complete_with_error
+from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
 logger = structlog.get_logger()
 
@@ -34,16 +33,7 @@ logger = structlog.get_logger()
 async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
     """Check all projects for new Dependabot alerts and send notifications."""
     db: AsyncSession = ctx["db"]
-
-    job_run = ScheduledJobRunDB(
-        job_name="check_dependabot_alerts",
-        status="running",
-        projects_checked=0,
-        alerts_sent=0,
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
+    job_run = await start_job_run(db, "check_dependabot_alerts")
     logger.info("job_started", job_name="check_dependabot_alerts", job_run_id=str(job_run.id))
 
     try:
@@ -94,11 +84,9 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
                 logger.exception("project_processing_failed", project=project_name)
                 continue
 
-        job_run.status = "completed"
         job_run.projects_checked = projects_checked
         job_run.alerts_sent = alerts_sent
-        job_run.completed_at = datetime.now(timezone.utc)
-        await db.commit()
+        await complete_job_run(db, job_run)
 
         logger.info(
             "job_completed",
