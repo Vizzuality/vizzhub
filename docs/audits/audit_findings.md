@@ -33,8 +33,8 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 ### T4 — Coverage gaps with real risk — **CLOSED 2026-05-16**
 
 6. ~~**No tests for `check_dependabot_alerts` or `check_business_alerts`**~~ — false positive. Verified: `tests/test_check_dependabot_job.py` has 13 tests, `tests/test_check_business_alerts_job.py` has 15 tests. Together they cover happy paths, silencing, throttling, resolved alerts, missing config, leadership-channel routing, and continue-on-error. The ToDo entry was stale.
-7. ~~**Capacity FE tests cero**~~ — partial false positive (10 capacity FE test files already exist totaling 47 tests). Closed the highest-leverage real gap: added 6 `PlannerCell` edit-lifecycle tests covering Enter commit, > 200 clamping, empty/zero → null, no-op when value unchanged, and Escape cancel. **[fixed in commit below]**
-8. ~~**No test for write-permission denial on planner endpoints**~~ — added `tests/modules/capacity/test_planner_rbac.py`. Two tests assert that a `user`-role token (CAPACITY_VIEW only, no CAPACITY_MANAGE) gets 403 on `PATCH /api/capacity/planner/cells` and `DELETE /api/capacity/planner/rows/{p}/{u}`. Exercises the FastAPI dependency chain that the direct-call tests in `test_planner.py` bypass. **[fixed in commit below]**
+7. ~~**Capacity FE tests cero**~~ — partial false positive (10 capacity FE test files already exist totaling 47 tests). Closed the highest-leverage real gap: added 6 `PlannerCell` edit-lifecycle tests covering Enter commit, > 200 clamping, empty/zero → null, no-op when value unchanged, and Escape cancel. **[fixed `c0ad1bf7`]**
+8. ~~**No test for write-permission denial on planner endpoints**~~ — added `tests/modules/capacity/test_planner_rbac.py`. Two tests assert that a `user`-role token (CAPACITY_VIEW only, no CAPACITY_MANAGE) gets 403 on `PATCH /api/capacity/planner/cells` and `DELETE /api/capacity/planner/rows/{p}/{u}`. Exercises the FastAPI dependency chain that the direct-call tests in `test_planner.py` bypass. **[fixed `c0ad1bf7`]**
 
 ### T5 — Observability gaps (worker)
 
