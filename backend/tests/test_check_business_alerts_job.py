@@ -95,7 +95,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ):
@@ -183,7 +183,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -220,7 +220,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -247,7 +247,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -273,7 +273,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -322,7 +322,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -371,7 +371,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -410,7 +410,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ):
@@ -458,7 +458,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ):
@@ -495,7 +495,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -558,7 +558,7 @@ class TestCheckBusinessAlertsJob:
         ctx = {"db": db_session}
 
         with patch(
-            "app.worker.check_business_alerts.SlackService.send_message",
+            "app.worker.business_alerts.shared.SlackService.send_message",
             new_callable=AsyncMock,
             side_effect=mock_send_with_error,
         ):

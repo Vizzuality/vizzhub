@@ -256,7 +256,7 @@ class TestCheckDependabotJob:
             new_callable=AsyncMock,
             return_value=mock_alerts,
         ), patch(
-            "app.worker.check_dependabot.SlackService.send_message",
+            "app.worker.dependabot.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -320,7 +320,7 @@ class TestCheckDependabotJob:
             new_callable=AsyncMock,
             return_value=mock_alerts,
         ), patch(
-            "app.worker.check_dependabot.SlackService.send_message",
+            "app.worker.dependabot.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ):
@@ -397,7 +397,7 @@ class TestCheckDependabotJob:
             new_callable=AsyncMock,
             return_value=mock_alerts,
         ), patch(
-            "app.worker.check_dependabot.SlackService.send_message",
+            "app.worker.dependabot.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:
@@ -515,7 +515,7 @@ class TestCheckDependabotJob:
             new_callable=AsyncMock,
             return_value=mock_alerts,
         ), patch(
-            "app.worker.check_dependabot.SlackService.send_message",
+            "app.worker.dependabot.shared.SlackService.send_message",
             new_callable=AsyncMock,
             return_value={"ok": True},
         ) as mock_send:

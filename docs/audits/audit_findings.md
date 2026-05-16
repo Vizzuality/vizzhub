@@ -44,10 +44,10 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 
 ### T6 — Refactors (boy-scout when next touched)
 
-12. **`PlannerGrid.tsx` 854 LOC** — biggest FE component. Cell selection, batch-edit toolbar, keyboard shortcuts, render all in one file. Touching anything risks a regression. Split when next adding a feature.
-13. **`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC** — both pure imperative scripts with several nested helpers. Split alert types into modules.
-14. **`capacity_insights.py` 743 LOC** — overview + FA detail + user detail + allocation + planner suggestions in one file. Now even bigger after `24971b18`'s additions. Split into a subpackage when adding the next drill-down.
-15. **`planner.py` 451 LOC** — backend twin of `PlannerGrid.tsx`. Same approach.
+12. **`PlannerGrid.tsx` 854 LOC** — biggest FE component. Cell selection, batch-edit toolbar, keyboard shortcuts, render all in one file. Touching anything risks a regression. Split when next adding a feature. _Still deferred — no triggering feature on the horizon._
+13. ~~**`check_dependabot.py` 474 LOC + `check_business_alerts.py` 561 LOC**~~ — split into per-alert-type modules. `check_business_alerts.py` → 181 LOC orchestrator + `app/worker/business_alerts/{shared, budget_exceeded, timeline_at_risk, project_overdue}.py`. `check_dependabot.py` → 183 LOC orchestrator + `app/worker/dependabot/{shared, tracking, reminders}.py`. Test patch surfaces collapsed to `…/{module}/shared.SlackService.send_message` per family. Worker public API unchanged. **[fixed in commit below]**
+14. **`capacity_insights.py` 743 LOC** — overview + FA detail + user detail + allocation + planner suggestions in one file. Now even bigger after `24971b18`'s additions. Split into a subpackage when adding the next drill-down. _Still deferred per the original audit recommendation (subtle JOIN-bug regression risk too high without a triggering feature)._
+15. **`planner.py` 451 LOC** — backend twin of `PlannerGrid.tsx`. Same approach. _Still deferred._
 
 ### T7 — DRY / cleanup (low priority, batch when convenient)
 
