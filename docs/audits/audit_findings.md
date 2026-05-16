@@ -16,7 +16,7 @@ Registry of the tech-debt and calculations audits. Consolidated output from `aud
 | ToDo Next High Priority (T1–T7) | 0 | 25 |
 | CALCULATIONS — WRONG | 0 | 1 |
 | CALCULATIONS — SUSPICIOUS | 0 | 26 |
-| Pending boy-scout backlog | **117** (12 Major / 100 Minor / 5 Nit) | — |
+| Pending boy-scout backlog | **113** (8 Major / 100 Minor / 5 Nit) | — |
 | Won't do (deliberate) | — | 18 |
 | Fixed (historical) | — | 112 |
 
@@ -37,13 +37,9 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
 > - **15 items moved to Fixed (or cross-referenced as closed)** — closed by the 2026-05-16 sweeps (T1–T7).
 > - **42 items downgraded to Minor** — file-size / DRY / UX nits / defensive coverage. They live in `### Minor` below under `#### Downgraded from Major`.
 
-### Major (12)
+### Major (8)
 
-- **Manual-field sync between snapshot types lacks atomicity** — `backend/app/modules/scorecard/services/metrics_service.py:187-191` [warning] — sync runs inside `MetricsService.upsert_metrics`, which is already called within a request transaction (autocommit boundary commits both upserts together). A real fix would wrap with an explicit `db.begin_nested()` savepoint, but the current behavior already rolls back both on outer-transaction failure. Deferred to a savepoint refactor.
-  - Module: `scorecard / services`
-  - Detail: `_sync_manual_fields_to_other_snapshot()` upserts to the sibling snapshot type after the primary upsert. If the second upsert fails, we have one snapshot with the new manual value and the other with the old — exactly the bug the dual-snapshot design is supposed to prevent.
-  - Fix: Move both upserts into the same transactional block; on failure, roll the whole sync back.
-  - Added: 2026-05-14 by audit_tech_debt iteration #5
+- ~~**Manual-field sync between snapshot types lacks atomicity**~~ **[verified no-op 2026-05-16]** — `backend/app/modules/scorecard/services/metrics_service.py:187-191`. Traced every caller: request paths (`projects_v2.py:425`, `metrics.py:120`, `capture.py:266/279`) all share the `DBSession` request transaction; worker paths (`monthly_scorecard_capture.py:100/110`, `tasks.py:120/130`) share a single ARQ-task transaction with only one `db.commit()` at the end. No caller commits between the main upsert and the sibling sync. The `_sync_manual_fields_to_other_snapshot` flush failure would raise inside the same uncommitted transaction → both upserts roll back together. The "Detail" claim ("one snapshot with the new value and the other with the old") is incorrect for the current call graph. A `db.begin_nested()` savepoint would add nothing because there is no in-between commit boundary to protect from. Closed without code change. If a future caller is added that commits between calls, re-open then.
 
 - **Broad `except Exception` returning synthetic ok=false hides real failures** — `backend/app/modules/notifications/api/slack_admin.py:149-155, 260-266`, `backend/app/modules/notifications/api/scheduled_jobs.py:196-201` [warning] — SlackService now surfaces transport / HTTP / JSON failures via structured `{ok: false, error: type}` payloads + structured logs; the outer broad `except` is now mostly redundant but kept as a safety net pending caller migration. Better: drop the broad except after migrating callers. Deferred.
   - Module: `notifications / api`
@@ -57,23 +53,11 @@ Open `[warning]` items grouped by audit severity. Touch the file? Fix the warnin
   - Fix: Add a test that wires the full path — silence row + job invocation + assertion on `SlackService.send_message` mock not being called.
   - Added: 2026-05-14 by audit_tech_debt iteration #7
 
-- **Cron snapshot path doesn't separately log review creation** — `backend/app/worker/collect_iso_snapshot.py:54-66` [warning] — symmetric review-creation log would best live in the `review_service.create_review_for_snapshot` helper; deferred to a follow-up that touches both call sites at once.
-  - Module: `iso / worker`
-  - Detail: Cron now creates a draft review (per recent commit `c1c652f2`), but emits only `snapshot_captured` with the review_id inlined. Memory's "cron must mirror API side effects" rule is meant for *behavior* (the side effect happens), and that's now fixed — but the *audit trail* is still asymmetric: API gets `snapshot_captured`; cron also gets `snapshot_captured` but the review-creation step has no distinct event in either path.
-  - Fix: Move the review-creation log into `review_service.create_review_for_snapshot` and emit `iso_review_created` there. Both API and cron then get the event without further drift.
-  - Added: 2026-05-14 by audit_tech_debt iteration #10
+- ~~**Cron snapshot path doesn't separately log review creation**~~ **[FIXED — Batch 2]** — `review_service.create_review_for_snapshot` now emits `iso_review_created(review_id, snapshot_id, provider, previous_snapshot_id, change_count, reviewer_id)`. Both API (`snapshots.py:93`) and cron (`collect_iso_snapshot.py:46`) inherit the event for free. Regression test in `tests/test_iso_snapshots.py::test_capture_creates_draft_review` asserts the event fires via `caplog`.
 
-- **`_migrate_renamed_keys` logs a thin audit trail for cross-row data migration** — `backend/app/modules/iso_docs/api/registry_types.py:176-183` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `iso_docs / api`
-  - Detail: When a registry type's schema renames a column key, `_migrate_renamed_keys` walks every row and rewrites the data column. Today's log captures the rename map and a row count; it does not capture which registries were affected, who initiated the rename, or how many rows changed per registry. For a compliance-sensitive operation that mutates audit-relevant data in-place, that's thin.
-  - Fix: Extend the log to `iso_registry_keys_renamed(type_id, type_slug, rename_map, registries_affected=[...], rows_rewritten=N, actor=user.user_id)`.
-  - Added: 2026-05-14 by audit_tech_debt iteration #11
+- ~~**`_migrate_renamed_keys` logs a thin audit trail for cross-row data migration**~~ **[FIXED — Batch 2]** — `_migrate_renamed_keys` now returns `(rows_rewritten, [node_id, ...])` via `RETURNING node_id`, and `update_registry_type` emits `iso_registry_keys_renamed(type_id, type_slug, rename_map, registries_affected, rows_rewritten, actor)`. Regression test `tests/iso_docs/test_registry_types_api.py::test_rename_emits_keys_renamed_audit_log`.
 
-- **`delete_registry_type` blocks deletion when nodes exist but emits no log** — `backend/app/modules/iso_docs/api/registry_types.py:226-243` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
-  - Module: `iso_docs / api`
-  - Detail: 409 returned with a list-count error detail; no structlog event. An auditor asking "why is this type still here" sees no trail of the attempts.
-  - Fix: `logger.info("iso_registry_type_delete_blocked", type_id=..., node_count=..., actor=...)` before raising.
-  - Added: 2026-05-14 by audit_tech_debt iteration #11
+- ~~**`delete_registry_type` blocks deletion when nodes exist but emits no log**~~ **[FIXED — Batch 2]** — emits `iso_registry_type_delete_blocked(type_id, type_slug, node_count, actor)` before raising 409. Switched the `LIMIT 1`-existence check to a `COUNT(*)` so the audit log carries the real referencing-node count. Regression test `tests/iso_docs/test_registry_types_api.py::test_delete_registry_type_blocked_emits_audit_log`.
 
 - **No GitHub rate-limit handling on catalog/sha fetches** — `backend/app/modules/devstack/services/github_sha.py:69, 102` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
   - Module: `devstack / services`

@@ -6,7 +6,7 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
@@ -68,14 +68,15 @@ def _detect_column_renames(
 
 async def _migrate_renamed_keys(
     db: AsyncSession, type_id: UUID, renames: dict[str, str],
-) -> int:
+) -> tuple[int, list[UUID]]:
     """Rewrite renamed keys in registry_rows.data for all rows of nodes
     using this registry type. Each rename is a single jsonb statement.
-    Returns total rows touched.
+    Returns (total_rows_touched, distinct_node_ids_affected).
     """
     if not renames:
-        return 0
-    affected = 0
+        return 0, []
+    affected_rows = 0
+    nodes_touched: set[UUID] = set()
     for old_key, new_key in renames.items():
         result = await db.execute(
             text("""
@@ -89,11 +90,14 @@ async def _migrate_renamed_keys(
                     SELECT id FROM iso_doc_nodes WHERE registry_type_id = :type_id
                 )
                 AND data ? CAST(:old_key AS text)
+                RETURNING node_id
             """),
             {"old_key": old_key, "new_key": new_key, "type_id": type_id},
         )
-        affected += result.rowcount or 0
-    return affected
+        rows = result.fetchall()
+        affected_rows += len(rows)
+        nodes_touched.update(row[0] for row in rows)
+    return affected_rows, sorted(nodes_touched, key=str)
 
 
 async def _visible_registry_type_ids(
@@ -214,12 +218,15 @@ async def update_registry_type(
     await db.flush()
 
     if renames:
-        rows_migrated = await _migrate_renamed_keys(db, type_id, renames)
+        rows_migrated, nodes_affected = await _migrate_renamed_keys(db, type_id, renames)
         logger.info(
-            "registry_type_columns_renamed",
+            "iso_registry_keys_renamed",
             type_id=str(type_id),
-            renames=renames,
-            rows_migrated=rows_migrated,
+            type_slug=rt.slug,
+            rename_map=renames,
+            registries_affected=[str(n) for n in nodes_affected],
+            rows_rewritten=rows_migrated,
+            actor=user.user_id,
         )
 
     await db.refresh(rt)
@@ -268,10 +275,20 @@ async def delete_registry_type(
 ) -> dict:
     rt = await _get_registry_type_or_404(db, type_id)
 
-    nodes_result = await db.execute(
-        select(IsoDocNodeDB.id).where(IsoDocNodeDB.registry_type_id == type_id).limit(1)
+    nodes_count_result = await db.execute(
+        select(func.count(IsoDocNodeDB.id)).where(
+            IsoDocNodeDB.registry_type_id == type_id
+        )
     )
-    if nodes_result.scalar_one_or_none():
+    node_count = nodes_count_result.scalar_one() or 0
+    if node_count:
+        logger.info(
+            "iso_registry_type_delete_blocked",
+            type_id=str(type_id),
+            type_slug=rt.slug,
+            node_count=node_count,
+            actor=user.user_id,
+        )
         raise HTTPException(
             status_code=409,
             detail="Cannot delete registry type while nodes reference it",

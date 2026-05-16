@@ -59,7 +59,7 @@ class TestCaptureEndpoint:
 
     @pytest.mark.asyncio
     async def test_capture_creates_draft_review(
-        self, client: AsyncClient, db_session
+        self, client: AsyncClient, db_session, caplog,
     ) -> None:
         from sqlalchemy import select
 
@@ -93,7 +93,7 @@ class TestCaptureEndpoint:
             "httpx.AsyncClient.get",
             new_callable=AsyncMock,
             return_value=mock_api_response,
-        ):
+        ), caplog.at_level("INFO"):
             response = await client.post("/api/iso/snapshots/capture")
 
         assert response.status_code == 201
@@ -108,6 +108,11 @@ class TestCaptureEndpoint:
         assert review.scope == "All users and groups"
         assert review.previous_snapshot_id is None
         assert review.reviewer_id is not None
+
+        # Compliance: review creation must leave its own audit-trail event
+        # (Major #4 — symmetry between API and cron review-creation paths).
+        review_events = [r for r in caplog.records if "iso_review_created" in r.message]
+        assert review_events, "expected iso_review_created log on capture"
 
     @pytest.mark.asyncio
     async def test_capture_links_previous_snapshot(

@@ -278,6 +278,63 @@ async def test_delete_registry_type_in_use(client: AsyncClient, registry_type: d
 
 
 @pytest.mark.asyncio
+async def test_delete_registry_type_blocked_emits_audit_log(
+    client: AsyncClient, registry_type: dict, caplog,
+):
+    """Compliance: blocked deletion must leave an audit trail (Major #6)."""
+    await client.post(
+        "/api/iso-docs/nodes",
+        json={
+            "title": "Audited Registry",
+            "type": "registry",
+            "registry_type_id": registry_type["id"],
+        },
+    )
+    with caplog.at_level("INFO"):
+        resp = await client.delete(
+            f"/api/iso-docs/registry-types/{registry_type['id']}"
+        )
+    assert resp.status_code == 409
+    blocked = [r for r in caplog.records if "iso_registry_type_delete_blocked" in r.message]
+    assert blocked, "expected iso_registry_type_delete_blocked log on 409"
+
+
+@pytest.mark.asyncio
+async def test_rename_emits_keys_renamed_audit_log(
+    client: AsyncClient, registry_type: dict, caplog,
+):
+    """Compliance: cross-row JSONB rename must log type_slug, registries
+    affected, rows rewritten, and actor (Major #5)."""
+    node_resp = await client.post(
+        "/api/iso-docs/nodes",
+        json={
+            "title": "Auditable Node",
+            "type": "registry",
+            "registry_type_id": registry_type["id"],
+        },
+    )
+    node_id = node_resp.json()["id"]
+    await client.post(
+        f"/api/iso-docs/registries/{node_id}/rows",
+        json={"data": {"name": "Audit Item", "count": 3}},
+    )
+
+    new_schema = [
+        {"key": "full_name", "label": "Full Name", "type": "string", "required": True},
+        {"key": "count", "label": "Count", "type": "number", "required": False},
+    ]
+    with caplog.at_level("INFO"):
+        resp = await client.patch(
+            f"/api/iso-docs/registry-types/{registry_type['id']}",
+            json={"schema": new_schema},
+        )
+    assert resp.status_code == 200
+
+    renamed = [r for r in caplog.records if "iso_registry_keys_renamed" in r.message]
+    assert renamed, "expected iso_registry_keys_renamed log on rename"
+
+
+@pytest.mark.asyncio
 async def test_duplicate_slug_rejected(client: AsyncClient, registry_type: dict):
     resp = await client.post(
         "/api/iso-docs/registry-types",

@@ -7,6 +7,7 @@ the same provider, plus one AccessReviewAction per change).
 
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,8 @@ from app.modules.iso.services.diff_engine import (
     compute_diff,
     create_review_actions,
 )
+
+logger = structlog.get_logger()
 
 DEFAULT_REVIEW_SCOPE = "All users and groups"
 
@@ -63,6 +66,7 @@ async def create_review_for_snapshot(
     db.add(review)
     await db.flush()
 
+    change_count = 0
     if previous:
         changes = compute_diff(
             snapshot.data, previous.data, _diff_context(snapshot), snapshot.provider
@@ -70,5 +74,15 @@ async def create_review_for_snapshot(
         review.diff_summary = build_diff_summary(changes)
         await create_review_actions(db, review.id, changes)
         await db.flush()
+        change_count = len(changes)
 
+    logger.info(
+        "iso_review_created",
+        review_id=str(review.id),
+        snapshot_id=str(snapshot.id),
+        provider=snapshot.provider,
+        previous_snapshot_id=str(previous.id) if previous else None,
+        change_count=change_count,
+        reviewer_id=str(reviewer_id) if reviewer_id else None,
+    )
     return review
