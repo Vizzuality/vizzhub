@@ -8,6 +8,7 @@ interface PlannerCellProps {
   readonly onChange: (value: number | null) => void;
   readonly isOwnRow: boolean;
   readonly selected?: boolean;
+  readonly hasError?: boolean;
   readonly canComment?: boolean;
   readonly comment?: string;
   readonly onCommentChange?: (value: string | null) => void;
@@ -106,6 +107,7 @@ export function PlannerCell({
   onChange,
   isOwnRow,
   selected,
+  hasError,
   canComment,
   comment,
   onCommentChange,
@@ -140,6 +142,7 @@ export function PlannerCell({
   const ringClass = [
     !isOwnRow && value !== undefined ? 'ring-1 ring-inset ring-yellow-400/30' : '',
     selected ? 'ring-2 ring-inset ring-primary' : '',
+    hasError ? 'ring-2 ring-inset ring-destructive' : '',
   ].filter(Boolean).join(' ');
 
   return (

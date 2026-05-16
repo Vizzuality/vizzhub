@@ -76,6 +76,7 @@ interface PlannerGridProps {
   ) => void;
   readonly addRowOptions: { id: string; name: string; extra?: string }[];
   readonly canEdit?: boolean;
+  readonly failedCells?: ReadonlySet<string>;
 }
 
 function ordinalSuffix(day: number): string {
@@ -316,6 +317,7 @@ export function PlannerGrid({
   onAddRow,
   addRowOptions,
   canEdit = false,
+  failedCells,
 }: PlannerGridProps): JSX.Element {
   const { user: authUser } = useAuth();
   const { theme } = useTheme();
@@ -825,6 +827,11 @@ export function PlannerGrid({
                           value={orig.cells[coord.week]}
                           isOwnRow={orig.user_id === authUser?.id}
                           selected={isSelected}
+                          hasError={
+                            failedCells?.has(
+                              `${coord.projectId}:${coord.userId}:${coord.week}`,
+                            ) ?? false
+                          }
                           canComment
                           comment={orig.comments?.[coord.week]}
                           onCommentChange={(text) =>

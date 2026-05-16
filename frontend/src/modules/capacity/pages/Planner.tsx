@@ -38,8 +38,16 @@ export default function Planner(): JSX.Element {
     }
   }, [state.start, state.end, setState]);
 
-  const { queueCellUpdate, flushUpdates, deleteRow, isSaving, pendingCount } =
-    usePlannerMutations(state.start, state.end, state.group);
+  const {
+    queueCellUpdate,
+    flushUpdates,
+    deleteRow,
+    isSaving,
+    pendingCount,
+    errorMessage,
+    failedCells,
+    clearError,
+  } = usePlannerMutations(state.start, state.end, state.group);
   const { data, isLoading, error } = usePlannerData(
     state.start, state.end, state.group, flushUpdates,
   );
@@ -205,6 +213,26 @@ export default function Planner(): JSX.Element {
         pendingCount={pendingCount}
       />
 
+      {errorMessage && (
+        <div
+          className="flex items-start justify-between gap-2 rounded bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <span>
+            <strong className="font-semibold">Save failed.</strong> {errorMessage} Cells in red were
+            not saved — edit them again to retry.
+          </span>
+          <button
+            type="button"
+            onClick={clearError}
+            className="shrink-0 rounded px-1 text-xs underline hover:opacity-80"
+            aria-label="Dismiss error"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {isLoading && (
         <div className="flex h-64 items-center justify-center text-muted-foreground">
           Loading...
@@ -230,6 +258,7 @@ export default function Planner(): JSX.Element {
           onAddRow={handleAddRow}
           addRowOptions={addRowOptions}
           canEdit={canEditPlanner}
+          failedCells={failedCells}
         />
       )}
     </div>

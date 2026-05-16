@@ -43,4 +43,20 @@ describe('PlannerCell (comments)', () => {
     );
     expect(screen.queryByRole('button', { name: /comment/i })).toBeNull();
   });
+
+  it('paints the destructive ring when hasError is true', () => {
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow hasError onChange={() => {}} />,
+    );
+    const cellButton = container.querySelector('button');
+    expect(cellButton?.className).toContain('ring-destructive');
+  });
+
+  it('does not paint the destructive ring when hasError is false', () => {
+    const { container } = render(
+      <PlannerCell value={50} isOwnRow onChange={() => {}} />,
+    );
+    const cellButton = container.querySelector('button');
+    expect(cellButton?.className ?? '').not.toContain('ring-destructive');
+  });
 });

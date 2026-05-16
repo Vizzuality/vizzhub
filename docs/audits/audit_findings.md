@@ -21,9 +21,9 @@ Distilled from the 132 `[warning]` backlog by impact. **Ordered top-down by prio
 1. ~~**`write_heartbeat` registered as cron but missing from `WorkerSettings.functions`**~~ — `backend/app/worker/settings.py`. ARQ resolves cron functions through `functions`; without registration the heartbeat never fired. **[fixed `bf2cc724`]**
 2. ~~**`check_dependabot.py:110` increments `projects_checked` inside the try block**~~ — silenced/failed iterations were undercounted. Increment now sits at the top of the `try` (mirrors `check_business_alerts.py`'s pattern of incrementing in both branches). **[fixed `bf2cc724`]**
 
-### T2 — User-visible gaps
+### T2 — User-visible gaps — **CLOSED 2026-05-16**
 
-3. **Planner mutation has no error UI or retry** — `frontend/src/modules/capacity/hooks/usePlanner*.ts` (or wherever the mutation lives). User edits 20 cells, one save fails silently, edit appears persisted on screen but is lost on refetch. Add toast on error + visual highlight on the failing cell. Optionally a retry button.
+3. ~~**Planner mutation has no error UI or retry**~~ — `usePlannerMutations` now captures `errorMessage` + `failedCells` on mutation failure. Planner page renders a dismissable destructive banner; failed cells get a red ring through `PlannerCell.hasError`. Re-editing a failed cell clears it (de-facto retry). 4 hook tests + 2 cell tests. **[fixed `<commit>`]**
 
 ### T3 — Quick verifications (small but worth closing)
 

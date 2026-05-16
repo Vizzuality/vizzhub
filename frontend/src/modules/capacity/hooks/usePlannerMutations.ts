@@ -34,12 +34,25 @@ function applyUpdateToResponse(prev: PlannerResponse, update: CellUpdate): Plann
   };
 }
 
+function cellKey(update: Pick<CellUpdate, 'project_id' | 'user_id' | 'week_start'>): string {
+  return `${update.project_id}:${update.user_id}:${update.week_start}`;
+}
+
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string') return err;
+  return 'Failed to save changes';
+}
+
 interface UsePlannerMutationsReturn {
   queueCellUpdate: (update: CellUpdate) => void;
   flushUpdates: () => Promise<void>;
   deleteRow: (projectId: string, userId: string) => Promise<void>;
   isSaving: boolean;
   pendingCount: number;
+  errorMessage: string | null;
+  failedCells: ReadonlySet<string>;
+  clearError: () => void;
 }
 
 export function usePlannerMutations(
@@ -51,9 +64,38 @@ export function usePlannerMutations(
   const pendingRef = useRef<Map<string, CellUpdate>>(new Map());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failedCells, setFailedCells] = useState<Set<string>>(() => new Set());
+
+  const clearError = useCallback((): void => {
+    setErrorMessage(null);
+    setFailedCells(new Set());
+  }, []);
 
   const cellMutation = useMutation({
     mutationFn: (updates: CellUpdate[]) => plannerApi.updateCells(updates),
+    onSuccess: (_data, updates) => {
+      if (updates.length === 0) return;
+      setFailedCells((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Set(prev);
+        let changed = false;
+        for (const u of updates) {
+          if (next.delete(cellKey(u))) changed = true;
+        }
+        if (!changed) return prev;
+        if (next.size === 0) setErrorMessage(null);
+        return next;
+      });
+    },
+    onError: (err, updates) => {
+      setErrorMessage(extractErrorMessage(err));
+      setFailedCells((prev) => {
+        const next = new Set(prev);
+        for (const u of updates) next.add(cellKey(u));
+        return next;
+      });
+    },
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.capacity.planner(start, end, groupBy),
@@ -64,6 +106,9 @@ export function usePlannerMutations(
   const deleteMutation = useMutation({
     mutationFn: ({ projectId, userId }: { projectId: string; userId: string }) =>
       plannerApi.deleteRow(projectId, userId),
+    onError: (err) => {
+      setErrorMessage(extractErrorMessage(err));
+    },
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.capacity.planner(start, end, groupBy),
@@ -80,7 +125,12 @@ export function usePlannerMutations(
     if (updates.length === 0) return;
     pendingRef.current.clear();
     setPendingCount(0);
-    await cellMutation.mutateAsync(updates);
+    try {
+      await cellMutation.mutateAsync(updates);
+    } catch {
+      // Error state is captured in onError; swallow so flush callers
+      // (navigate, group-by change) don't crash.
+    }
   }, [cellMutation]);
 
   const applyOptimisticUpdate = useCallback(
@@ -96,7 +146,7 @@ export function usePlannerMutations(
 
   const queueCellUpdate = useCallback(
     (update: CellUpdate): void => {
-      const key = `${update.project_id}:${update.user_id}:${update.week_start}`;
+      const key = cellKey(update);
       const existing = pendingRef.current.get(key);
       const merged = existing && update.comment === undefined
         ? { ...update, comment: existing.comment }
@@ -104,6 +154,14 @@ export function usePlannerMutations(
       pendingRef.current.set(key, merged);
       setPendingCount(pendingRef.current.size);
       applyOptimisticUpdate(update);
+
+      setFailedCells((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        if (next.size === 0) setErrorMessage(null);
+        return next;
+      });
 
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
@@ -116,7 +174,12 @@ export function usePlannerMutations(
   const deleteRow = useCallback(
     async (projectId: string, userId: string): Promise<void> => {
       await flushUpdates();
-      await deleteMutation.mutateAsync({ projectId, userId });
+      try {
+        await deleteMutation.mutateAsync({ projectId, userId });
+      } catch {
+        // Error captured via onError; rethrowing would break callers
+        // that fire-and-forget delete on confirm-dialog action.
+      }
     },
     [flushUpdates, deleteMutation],
   );
@@ -127,5 +190,8 @@ export function usePlannerMutations(
     deleteRow,
     isSaving: cellMutation.isPending || deleteMutation.isPending,
     pendingCount,
+    errorMessage,
+    failedCells,
+    clearError,
   };
 }
