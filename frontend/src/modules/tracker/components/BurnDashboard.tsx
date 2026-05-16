@@ -507,12 +507,13 @@ function CumulativeBurnChart({
             />
           )}
           {hasEacForecast && (
-            <Line
+            <Area
               type="linear"
               dataKey="eacForecast"
               stroke={PALETTE_HEX.amber}
               strokeWidth={2}
               strokeDasharray="2 4"
+              fill="none"
               dot={false}
               activeDot={{ r: 3, fill: PALETTE_HEX.amber, strokeWidth: 0 }}
               connectNulls
