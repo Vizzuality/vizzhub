@@ -1,4 +1,5 @@
 """Simple server runner that ensures proper environment."""
+
 import os
 import sys
 
