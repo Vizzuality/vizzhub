@@ -45,7 +45,7 @@ These belong to the org-wide rollout, not the pilot:
 
 ---
 
-## Phase 0 — Policy + local interface
+## Phase 0 — Policy + local interface ✅ Done (2026-05-17)
 
 **Goal:** lock the pieces that have zero CI impact and that define the
 policy everything else hangs on.
@@ -61,14 +61,50 @@ policy everything else hangs on.
   ~3s in CI via `extractions/setup-just@v2` pinned by SHA).
 
 **Exit criteria:**
-- `just lint` and `just format` run clean on a fresh checkout.
-- `just` (no args) lists the four recipes with their doc comments.
-- `SECURITY.md` SLA numbers and exception language treated as
+- ✅ `just lint` and `just format` run clean on a fresh checkout.
+- ✅ `just` (no args) lists the four recipes with their doc comments.
+- ✅ `SECURITY.md` SLA numbers and exception language treated as
   final-enough to ship verbatim to other repos.
 
 **Why first:** zero CI churn, zero developer disruption, but it commits
 the policy that every later phase relies on (the baseline-debt discipline
 in particular).
+
+**Implementation notes (2026-05-17):**
+
+- **Line-length set to 100, not 88.** Codebase p99 line length is 89
+  chars; bumping the limit to 100 covered existing code without forcing
+  a reformatting wave. Recorded in Decision log below.
+- **One-time mechanical commit was ~400 backend files.** `ruff --fix`
+  applied I001/UP017/UP043/UP035/UP037/SIM* auto-fixes; `ruff format`
+  ran Black-equivalent formatting. All 1936 backend tests pass post-
+  change. Risk profile: pure mechanical, no semantic change.
+- **Three pre-existing ESLint errors surfaced.** Frontend CI was only
+  running `npm test`, not `npm run lint`. Phase 0 added the missing
+  step in the same series of commits (`e1ee69b0`, ci.yml update in
+  `71ee6265`). The fix is generic and should be carried into every
+  repo's baseline going forward.
+- **Ruff's auto-fix removed `# noqa: F401`-protected re-exports** when
+  the noqa marker was on the opening line of a multi-line
+  `from X import (...)` block. Six files affected (alembic env,
+  `schemas/page.py` in two modules, `services/asset_service.py` in
+  two modules, `worker/dependabot/shared.py`). Workaround: reverted
+  to HEAD and added `F401` + `I001` to per-file-ignores. DevStack
+  baseline should ship guidance to put noqa per-imported-name or use
+  `__all__` instead of relying on the opening-line marker.
+- **~140 violations tracked as baseline-debt** in
+  `docs/audits/audit_findings.md` under "Minor → Phase 0 baseline-debt".
+  PR gate enforces these rules going forward; existing violations are
+  not back-fixed. Each `ignore = [...]` entry in `pyproject.toml` is
+  removable once its category reaches zero violations.
+- **Frontend CI now runs `npm run lint`.** Added in the same Phase 0
+  series so the policy is operational from day one, not deferred to
+  Phase 2 when the callable workflow lands.
+
+**Shipped in commits:** `18a4ba65` (plan) · `4937788b` + `0948b359`
+(backend mechanical) · `e1ee69b0` (frontend lint fixes) · `fa8b43c2`
+(ruff config + SECURITY.md + justfile) · `71ee6265` (CI lint + audit
+tracking).
 
 ---
 
@@ -336,7 +372,13 @@ phases conclude; this file is the durable record once memory ages out.
 
 | Date | Phase | Decision | Reason |
 |------|-------|----------|--------|
-| _(empty)_ | | | |
+| 2026-05-17 | 0 | Use `just`, not Make, as task runner | Tech Radar Trial entry; cleaner syntax, no tab footguns, native recipe discovery via `just --list`. One-time `brew install just` cost accepted. |
+| 2026-05-17 | 0 | Use `prek`, not `pre-commit` framework, for hooks | Tech Radar Trial entry positions `prek` as the Husky replacement; YAML format is `pre-commit`-compatible so no rewrite needed when prek matures. |
+| 2026-05-17 | 0 | `[tool.ruff] line-length = 100` (not 88) | p99 of current backend code is 89 chars; setting to 100 covers existing code without forcing a reformatting wave. The user's personal CLAUDE.md prefers 88 but the project's reality wins at the project level. |
+| 2026-05-17 | 0 | Target version `py313` | `pyproject.toml` already pins `requires-python = ">=3.13,<3.14"`; matching the runtime is uncontroversial. |
+| 2026-05-17 | 0 | Drop CodeQL from the plan entirely | GHAS licensing on private repos (~$49/committer/month) exceeds current SonarCloud spend at Vizzuality scale. Semgrep covers SAST baseline; Sonar goes deeper where adopted. Reconsider only if GitHub unbundles CodeQL or org adopts GHAS for other reasons. |
+| 2026-05-17 | 0 | Sonar stays Adopt (no sunset implied) | Sonar works where it's adopted; the new baseline (Semgrep, Gitleaks, Trivy) puts a floor under repos that don't have Sonar. They coexist; one does not replace the other. |
+| 2026-05-17 | 0 | Add `npm run lint` to frontend CI as part of Phase 0 | Discovery surfaced during implementation: frontend job only ran `npm test`, so 3 pre-existing ESLint errors had never failed CI. Fix is generic, belongs in the baseline. |
 
 ## Open questions
 
