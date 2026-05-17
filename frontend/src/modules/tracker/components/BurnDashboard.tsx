@@ -41,6 +41,12 @@ interface CumulativePoint {
   cumulative: number | null;
   forecast: number | null;
   eacForecast: number | null;
+  /**
+   * Set only on the EAC line's terminal point so a stable, module-level
+   * label component can render the real (unclamped) projection without
+   * closure access to component state. See `EacAreaLabel` below.
+   */
+  eacEndValue?: number;
 }
 
 interface MonthlyPoint {
@@ -148,6 +154,71 @@ function buildForecastPoints(
 }
 
 /**
+ * Append forecast points to the cumulative series in place, optionally
+ * overlaying a linearly-interpolated EAC line on top of them. Returns
+ * `forecastFinal` (the time-trend projection) or null when forecasting
+ * cannot be applied for the given inputs.
+ */
+function applyForecast(
+  cumWithForecast: CumulativePoint[],
+  cumulativeActual: CumulativePoint[],
+  projectEndDate: string,
+  lastSortedDate: string,
+  totalBurn: number,
+  weightedAvg: number,
+  eacCpiFinal: number | null,
+): number | null {
+  const lastDate = new Date(lastSortedDate + 'T00:00:00');
+  const remainingMonths = monthsBetween(lastDate, new Date(projectEndDate + 'T00:00:00'));
+
+  if (remainingMonths <= 0) {
+    return totalBurn;
+  }
+
+  const forecast = buildForecastPoints(lastDate, totalBurn, weightedAvg, remainingMonths);
+
+  const lastActual = cumulativeActual[cumulativeActual.length - 1];
+  cumWithForecast[cumWithForecast.length - 1] = {
+    ...lastActual,
+    forecast: lastActual.cumulative,
+    eacForecast: eacCpiFinal != null ? lastActual.cumulative : null,
+  };
+  cumWithForecast.push(...forecast.points);
+
+  if (eacCpiFinal != null) {
+    applyEacInterpolation(cumWithForecast, forecast.points.length, totalBurn, eacCpiFinal);
+  }
+  return forecast.forecastFinal;
+}
+
+/**
+ * Linearly interpolate the EAC straight-line over the forecast tail so the
+ * segment renders cleanly without relying on connectNulls between distant
+ * points.
+ */
+function applyEacInterpolation(
+  cumWithForecast: CumulativePoint[],
+  forecastCount: number,
+  totalBurn: number,
+  eacCpiFinal: number,
+): void {
+  const slope = (eacCpiFinal - totalBurn) / forecastCount;
+  const startIdx = cumWithForecast.length - forecastCount;
+  for (let i = 0; i < forecastCount; i++) {
+    const interp = totalBurn + slope * (i + 1);
+    cumWithForecast[startIdx + i] = {
+      ...cumWithForecast[startIdx + i],
+      eacForecast: Math.round(interp * 100) / 100,
+    };
+  }
+  // Tag the terminal forecast point with the unclamped EAC so the label
+  // component (which lives outside the parent component) can render the
+  // real value without reading closure state.
+  const endIdx = cumWithForecast.length - 1;
+  cumWithForecast[endIdx] = { ...cumWithForecast[endIdx], eacEndValue: eacCpiFinal };
+}
+
+/**
  * EVM-standard Estimate at Completion using the CPI method:
  *   EAC_CPI = BAC / CPI  where  CPI = EV / AC = (% complete × BAC) / AC
  *           = AC / % complete
@@ -215,49 +286,21 @@ export function useChartData(
     const monthlyCosts = sorted.map((p) => p.total);
     const weightedAvg = weightedMonthlyAvg(monthlyCosts);
 
-    let forecastFinal: number | null = null;
     const eacCpiFinal = computeEacCpi(totalBurn, budget, percentCompleted);
     const cumWithForecast = [...cumulativeActual];
 
-    if (projectEndDate && monthCount > 0) {
-      const lastDate = new Date(sorted[sorted.length - 1].date + 'T00:00:00');
-      const remainingMonths = monthsBetween(
-        lastDate,
-        new Date(projectEndDate + 'T00:00:00'),
-      );
-
-      if (remainingMonths > 0) {
-        const forecast = buildForecastPoints(lastDate, totalBurn, weightedAvg, remainingMonths);
-        forecastFinal = forecast.forecastFinal;
-
-        const lastActual = cumulativeActual[cumulativeActual.length - 1];
-        cumWithForecast[cumWithForecast.length - 1] = {
-          ...lastActual,
-          forecast: lastActual.cumulative,
-          eacForecast: eacCpiFinal != null ? lastActual.cumulative : null,
-        };
-        cumWithForecast.push(...forecast.points);
-
-        if (eacCpiFinal != null) {
-          // Straight line from last-actuals (totalBurn) to eacCpiFinal at the
-          // last forecast point. Linearly interpolate across each forecast
-          // month so the segment renders cleanly without relying on
-          // connectNulls between distant points.
-          const forecastCount = forecast.points.length;
-          const slope = (eacCpiFinal - totalBurn) / forecastCount;
-          const startIdx = cumWithForecast.length - forecastCount;
-          for (let i = 0; i < forecastCount; i++) {
-            const interp = totalBurn + slope * (i + 1);
-            cumWithForecast[startIdx + i] = {
-              ...cumWithForecast[startIdx + i],
-              eacForecast: Math.round(interp * 100) / 100,
-            };
-          }
-        }
-      } else {
-        forecastFinal = totalBurn;
-      }
-    }
+    const forecastFinal =
+      projectEndDate && monthCount > 0
+        ? applyForecast(
+            cumWithForecast,
+            cumulativeActual,
+            projectEndDate,
+            sorted[sorted.length - 1].date,
+            totalBurn,
+            weightedAvg,
+            eacCpiFinal,
+          )
+        : null;
 
     return {
       cumulative: cumWithForecast,
@@ -382,25 +425,18 @@ function MonthlyTooltip({ active, payload, label }: ChartTooltipProps): JSX.Elem
   );
 }
 
-interface EacEndpointLabelProps {
+interface EacAreaLabelProps {
   readonly x?: number;
   readonly y?: number;
-  readonly value?: number;
-  readonly chartYMax: number;
-  readonly eacCpiFinal: number | null;
+  readonly payload?: { eacEndValue?: number };
 }
 
-function EacEndpointLabel({
-  x,
-  y,
-  value,
-  chartYMax,
-  eacCpiFinal,
-}: EacEndpointLabelProps): JSX.Element | null {
-  if (x == null || y == null || value == null) return null;
-  // Only render on the final point of the series.
-  if (eacCpiFinal == null) return null;
-  if (Math.abs(value - Math.min(eacCpiFinal, chartYMax)) > 0.5) return null;
+function EacAreaLabel({ x, y, payload }: EacAreaLabelProps): JSX.Element | null {
+  if (x == null || y == null) return null;
+  const eacEndValue = payload?.eacEndValue;
+  // Only the terminal forecast point carries `eacEndValue` — earlier
+  // EAC-line points don't, so the label silently no-ops there.
+  if (eacEndValue == null) return null;
   return (
     <g transform={`translate(${x}, ${y})`}>
       <text
@@ -411,7 +447,7 @@ function EacEndpointLabel({
         fontWeight={600}
         fill={PALETTE_HEX.amber}
       >
-        {formatCompact(eacCpiFinal)}
+        {formatCompact(eacEndValue)}
       </text>
     </g>
   );
@@ -430,7 +466,8 @@ function CumulativeBurnChart({
   const hasForecast = data.some((d) => d.forecast !== null);
   const hasEacForecast = data.some((d) => d.eacForecast !== null);
   // Clamp the rendered EAC series so the line stays inside the plot box when
-  // EAC > 3 × budget. The endpoint label still shows the real value.
+  // EAC > 3 × budget. The terminal point retains its `eacEndValue` field so
+  // the label still surfaces the real (unclamped) projection to the user.
   const renderData = data.map((d) =>
     d.eacForecast != null && d.eacForecast > yMax
       ? { ...d, eacForecast: yMax }
@@ -521,13 +558,7 @@ function CumulativeBurnChart({
               connectNulls
               isAnimationActive={false}
               name="Forecast (current efficiency)"
-              label={(props: EacEndpointLabelProps) => (
-                <EacEndpointLabel
-                  {...props}
-                  chartYMax={yMax}
-                  eacCpiFinal={eacCpiFinal}
-                />
-              )}
+              label={EacAreaLabel}
             />
           )}
         </AreaChart>

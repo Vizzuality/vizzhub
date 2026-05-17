@@ -92,39 +92,45 @@ async def get_capacity_user_detail(
             (str(proj_id), proj_name, bool(is_billable), bool(is_absence), float(pct))
         )
 
-    result = []
-    for period_id, period_date in periods:
-        entries = period_projects.get(period_id, [])
-        projects = []
-        absence_pct = 0.0
-        other_pct = 0.0
-        for proj_id, proj_name, is_billable, is_absence, pct in entries:
-            if pct <= 0:
-                continue
-            if is_absence:
-                absence_pct += pct
-            elif is_billable:
-                projects.append({
-                    "project_id": proj_id,
-                    "name": proj_name,
-                    "percentage": round(pct, 4),
-                    "type": "billable",
-                })
-            else:
-                other_pct += pct
-        projects.sort(key=lambda p: p["name"])
-        if other_pct > 0:
-            projects.append({
-                "project_id": "__other__",
-                "name": "Other",
-                "percentage": round(other_pct, 4),
-                "type": "other",
-            })
-        result.append({
-            "period": period_date.strftime("%Y-%m"),
-            "projects": projects,
-            "absence_pct": round(absence_pct, 4),
-            "other_pct": round(other_pct, 4),
-        })
+    return [
+        _build_period_summary(period_date, period_projects.get(period_id, []))
+        for period_id, period_date in periods
+    ]
 
-    return result
+
+def _build_period_summary(
+    period_date: date,
+    entries: list[tuple],
+) -> dict:
+    """Roll up one period's report rows into billable list + absence + other."""
+    projects: list[dict] = []
+    absence_pct = 0.0
+    other_pct = 0.0
+    for proj_id, proj_name, is_billable, is_absence, pct in entries:
+        if pct <= 0:
+            continue
+        if is_absence:
+            absence_pct += pct
+        elif is_billable:
+            projects.append({
+                "project_id": proj_id,
+                "name": proj_name,
+                "percentage": round(pct, 4),
+                "type": "billable",
+            })
+        else:
+            other_pct += pct
+    projects.sort(key=lambda p: p["name"])
+    if other_pct > 0:
+        projects.append({
+            "project_id": "__other__",
+            "name": "Other",
+            "percentage": round(other_pct, 4),
+            "type": "other",
+        })
+    return {
+        "period": period_date.strftime("%Y-%m"),
+        "projects": projects,
+        "absence_pct": round(absence_pct, 4),
+        "other_pct": round(other_pct, 4),
+    }

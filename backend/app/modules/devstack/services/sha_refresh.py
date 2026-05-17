@@ -134,6 +134,27 @@ async def _refresh_npm_entry(
     return "updated" if changed else "unchanged"
 
 
+async def _refresh_one_entry(
+    entry: DevstackEntryDB, github_token: str | None
+) -> str | None:
+    """Refresh a single entry. Returns its status, or None when skipped."""
+    if entry.install_method == "github" and entry.url:
+        return await _refresh_github_entry(entry, github_token)
+    if entry.install_method == "npm" and entry.package:
+        return await _refresh_npm_entry(entry, github_token)
+    # claude_plugin: skipped (no auto-tracking).
+    return None
+
+
+def _is_entry_stale(entry: DevstackEntryDB, now: datetime) -> bool:
+    """Required entry has gone too long without a successful fetch."""
+    if not entry.required or entry.install_method == "claude_plugin":
+        return False
+    if entry.last_fetch_ok_at is None:
+        return True
+    return (now - entry.last_fetch_ok_at) > STALE_AFTER
+
+
 async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | bool]:
     """Refresh github_sha and latest_package_version for all active entries.
 
@@ -156,15 +177,10 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | b
     processed = 0
 
     for entry in entries:
-        if entry.install_method == "github" and entry.url:
-            processed += 1
-            status = await _refresh_github_entry(entry, github_token)
-        elif entry.install_method == "npm" and entry.package:
-            processed += 1
-            status = await _refresh_npm_entry(entry, github_token)
-        else:
-            # claude_plugin: skipped
+        status = await _refresh_one_entry(entry, github_token)
+        if status is None:
             continue
+        processed += 1
         counters[status] += 1
         if status == "failed" and entry.required:
             required_failures.append(entry.name)
@@ -175,16 +191,7 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | b
     # was stale yesterday-and-before shows up here, even though
     # `required_failures` for this run is empty.
     now = datetime.now(timezone.utc)
-    required_stale = sorted(
-        entry.name
-        for entry in entries
-        if entry.required
-        and entry.install_method != "claude_plugin"
-        and (
-            entry.last_fetch_ok_at is None
-            or (now - entry.last_fetch_ok_at) > STALE_AFTER
-        )
-    )
+    required_stale = sorted(e.name for e in entries if _is_entry_stale(e, now))
 
     # `last_fetch_ok_at` advances on every non-failed entry, so commit even
     # when nothing else changed — otherwise the freshness signal would
