@@ -43,12 +43,12 @@ interface GlobalScoreCardProps {
   readonly weighting?: ScoreWeighting;
 }
 
-const DIMENSION_FIELDS = [
+const _DIMENSION_FIELDS = [
   'p_time', 'p_cost', 'p_quality', 'p_value',
   'p_satisfaction', 'p_flow', 'p_engineering', 'p_risk',
 ] as const;
 
-type DimensionField = (typeof DIMENSION_FIELDS)[number];
+type DimensionField = (typeof _DIMENSION_FIELDS)[number];
 
 export default function GlobalScoreCard({
   metrics,

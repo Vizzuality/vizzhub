@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { server } from '@/test/setup';
-import { fixtures } from '@/test/msw-handlers';
 import ReportingPeriods from '../ReportingPeriods';
 
 function createQueryClient(): QueryClient {
