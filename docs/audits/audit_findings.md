@@ -130,7 +130,7 @@ The first sub-section ("Downgraded from Major in the 2026-05-16 retriage") conta
   - Fix: Extract a `MetricChartRenderer` for the chart path; lift `DIMENSION_META` to `types/index.ts`; collapse the per-metric render in `QualityMetricsGrid` into a config array + map.
   - Added: 2026-05-14 by audit_tech_debt iteration #17 _(downgraded from Major)_
 
-- **`BurnDashboard.tsx` is 565 LOC; `invoice-shared.tsx` is 534 LOC; `AdminInvoices.tsx` is 411 LOC** — `frontend/src/modules/tracker/` [warning] — deferred: scope or refactor cost exceeds this fix-pass; tracked for follow-up.
+- ~~**`BurnDashboard.tsx` is 565 LOC**~~ **[fixed boy-scout after Sonar sweep]** — split into `tracker/utils/forecast.ts` (281 LOC: pure math + types + `useChartData` hook), `tracker/components/BurnDashboard/CumulativeBurnChart.tsx` (294 LOC: chart + label + popover), `tracker/components/BurnDashboard/MonthlyCostsChart.tsx` (133 LOC). `BurnDashboard.tsx` is now 156 LOC and just orchestrates the KPI row + Cumulative card. Public surface re-exported so `useChartData`, `MonthlyCostsChart`, `computeChartYMax`, `computeEacCpi` still import from `'../BurnDashboard'`. `invoice-shared.tsx` (534) and `AdminInvoices.tsx` (411) still deferred.
   - Module: `frontend / tracker`
   - Detail: Three components above the 400 LOC threshold, all in the financial UI. `BurnDashboard` holds the weighted-moving-average forecast logic — exactly the kind of code that wants a clean unit-test boundary.
   - Fix: Extract `BurnDashboard`'s `weightedMonthlyAvg` / `buildForecastPoints` to `tracker/utils/forecast.ts` with tests. Split `invoice-shared.tsx` into per-action components (`PostponeButton.tsx`, `TransitionDialog.tsx`, etc.). `AdminInvoices`: lift the table column definitions into a sibling file.
