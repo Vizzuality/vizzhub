@@ -59,9 +59,7 @@ async def main() -> int:
         )
 
         try:
-            records = await service.calculate_batch(
-                db, from_year, from_month, to_year, to_month
-            )
+            records = await service.calculate_batch(db, from_year, from_month, to_year, to_month)
         except Exception as exc:
             print(f"FAILED during calculate_batch: {exc!r}", file=sys.stderr)
             return 1
@@ -70,7 +68,8 @@ async def main() -> int:
         with_budget = sum(
             1
             for r in records
-            if getattr(r, "budget_weighted_project_count", 0) and r.budget_weighted_project_count > 0
+            if getattr(r, "budget_weighted_project_count", 0)
+            and r.budget_weighted_project_count > 0
         )
 
         print(f"Done. {len(records)} months processed.")

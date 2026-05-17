@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from collections import Counter
+from typing import Annotated
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
-from typing import Annotated
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.models.user import UserDB
@@ -43,9 +43,7 @@ _versions = ContentVersionService(
 
 
 async def _get_page_node(db: DBSession, node_id: UUID) -> IsoDocNodeDB:
-    result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id)
-    )
+    result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id))
     node = result.scalar_one_or_none()
     if not node:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -109,8 +107,7 @@ async def search_pages(
         .outerjoin(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
         .where(
             IsoDocNodeDB.type.in_(["page", "registry"]),
-            (IsoDocNodeDB.title.ilike(f"%{safe}%"))
-            | (latest.c.content.ilike(f"%{safe}%")),
+            (IsoDocNodeDB.title.ilike(f"%{safe}%")) | (latest.c.content.ilike(f"%{safe}%")),
         )
         .order_by(IsoDocNodeDB.title)
     )
@@ -143,9 +140,7 @@ async def search_pages(
         404: {"description": "Page not found"},
     },
 )
-async def get_page(
-    node_id: UUID, db: DBSession, user: CurrentUser
-) -> PageContentResponse:
+async def get_page(node_id: UUID, db: DBSession, user: CurrentUser) -> PageContentResponse:
     await check_user_access(db, node_id, user)
     node = await _get_page_node(db, node_id)
     latest = await _versions.get_latest(db, entity_id=node_id)
@@ -185,7 +180,9 @@ async def save_page(
     if h1_title and h1_title != node.title:
         node.title = h1_title
         node.slug = await ensure_unique_slug(
-            db, generate_slug(h1_title), exclude_id=node_id,
+            db,
+            generate_slug(h1_title),
+            exclude_id=node_id,
         )
         node.updated_by_id = user_id
         await db.flush()
@@ -218,14 +215,13 @@ def _compute_line_diff(old: str, new: str) -> tuple[int, int]:
 
 
 async def _resolve_user_names(
-    db: DBSession, user_ids: set[UUID],
+    db: DBSession,
+    user_ids: set[UUID],
 ) -> dict[UUID, str]:
     """Batch-resolve user IDs to display names."""
     if not user_ids:
         return {}
-    result = await db.execute(
-        select(UserDB).where(UserDB.id.in_(user_ids))
-    )
+    result = await db.execute(select(UserDB).where(UserDB.id.in_(user_ids)))
     users = result.scalars().all()
     names: dict[UUID, str] = {}
     for u in users:
@@ -246,9 +242,7 @@ async def _resolve_user_names(
         404: {"description": "Page not found"},
     },
 )
-async def list_versions(
-    node_id: UUID, db: DBSession, user: CurrentUser
-) -> list[VersionListItem]:
+async def list_versions(node_id: UUID, db: DBSession, user: CurrentUser) -> list[VersionListItem]:
     await check_user_access(db, node_id, user)
     await _get_page_node(db, node_id)
     versions = await _versions.list_versions(db, entity_id=node_id)
@@ -260,14 +254,16 @@ async def list_versions(
     for i, v in enumerate(versions):
         prev_content = versions[i + 1].content if i + 1 < len(versions) else ""
         added, removed = _compute_line_diff(prev_content, v.content)
-        items.append(VersionListItem(
-            version=v.version,
-            created_by_id=v.created_by_id,
-            created_by_name=user_names.get(v.created_by_id) if v.created_by_id else None,
-            created_at=v.created_at,
-            lines_added=added,
-            lines_removed=removed,
-        ))
+        items.append(
+            VersionListItem(
+                version=v.version,
+                created_by_id=v.created_by_id,
+                created_by_name=user_names.get(v.created_by_id) if v.created_by_id else None,
+                created_at=v.created_at,
+                lines_added=added,
+                lines_removed=removed,
+            )
+        )
     return items
 
 

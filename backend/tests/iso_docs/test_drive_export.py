@@ -5,8 +5,8 @@ and API endpoints (status, trigger export, concurrent rejection).
 """
 
 from collections.abc import AsyncGenerator
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
@@ -15,11 +15,10 @@ from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import TokenData, get_current_user
 from app.core.api.deps import get_db
+from app.core.auth import TokenData, get_current_user
 from app.core.models.job import Job, JobStatus, JobType
 from app.main import app
-from app.modules.iso_docs.models.drive_mapping import IsoDocDriveMappingDB
 from app.modules.iso_docs.models.metadata import IsoDocMetadataDB
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
@@ -45,13 +44,15 @@ REGULAR_TOKEN = TokenData(
 def _override_user(token: TokenData):
     async def _get_user() -> TokenData:
         return token
+
     return _get_user
 
 
 @pytest_asyncio.fixture
 async def _setup_db(db_session: AsyncSession):
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
+
     app.dependency_overrides[get_db] = override_get_db
     yield
     app.dependency_overrides.clear()
@@ -86,12 +87,8 @@ async def sample_tree(db_session: AsyncSession) -> dict:
     db_session.add_all([page1, page2])
     await db_session.flush()
 
-    v1 = IsoDocVersionDB(
-        node_id=page1.id, content="# Security\n\nBe secure.", version=1
-    )
-    v2 = IsoDocVersionDB(
-        node_id=page2.id, content="# Privacy\n\nBe private.", version=1
-    )
+    v1 = IsoDocVersionDB(node_id=page1.id, content="# Security\n\nBe secure.", version=1)
+    v2 = IsoDocVersionDB(node_id=page2.id, content="# Privacy\n\nBe private.", version=1)
     db_session.add_all([v1, v2])
 
     meta1 = IsoDocMetadataDB(
@@ -125,7 +122,9 @@ class TestDriveExportService:
         meta.status = "approved"
         meta.doc_version = "2.0"
 
-        meta.changelog = [{"version": "1.0", "date": "2024-01-01", "author": "Admin", "description": "Init"}]
+        meta.changelog = [
+            {"version": "1.0", "date": "2024-01-01", "author": "Admin", "description": "Init"}
+        ]
 
         html = svc._to_html("Test Doc", "# Hello\n\nWorld", meta, "Policies")
 
@@ -189,12 +188,8 @@ class TestDriveExportService:
         """Saving a mapping for the same node updates in place."""
         svc = DriveExportService()
         cache: dict = {}
-        await svc._save_mapping(
-            db_session, sample_tree["page1"].id, "old_id", "document", cache
-        )
-        await svc._save_mapping(
-            db_session, sample_tree["page1"].id, "new_id", "document", cache
-        )
+        await svc._save_mapping(db_session, sample_tree["page1"].id, "old_id", "document", cache)
+        await svc._save_mapping(db_session, sample_tree["page1"].id, "new_id", "document", cache)
 
         mappings = await svc._load_mappings(db_session)
         assert mappings[sample_tree["page1"].id] == "new_id"
@@ -220,9 +215,7 @@ class TestDriveExportAPI:
     async def test_status_not_connected(self, _setup_db):
         """Status returns connected=false when no Drive token exists."""
         app.dependency_overrides[get_current_user] = _override_user(EDITOR_TOKEN)
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/iso-docs/drive/status")
         assert resp.status_code == 200
         data = resp.json()
@@ -232,9 +225,7 @@ class TestDriveExportAPI:
     async def test_status_requires_editor(self, _setup_db):
         """Status endpoint rejects non-editors."""
         app.dependency_overrides[get_current_user] = _override_user(REGULAR_TOKEN)
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/iso-docs/drive/status")
         assert resp.status_code == 403
 
@@ -242,9 +233,7 @@ class TestDriveExportAPI:
     async def test_export_not_connected(self, _setup_db):
         """Export rejects when Drive is not connected."""
         app.dependency_overrides[get_current_user] = _override_user(EDITOR_TOKEN)
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post("/api/iso-docs/drive/export")
         assert resp.status_code == 400
         assert "not connected" in resp.json()["detail"]
@@ -268,9 +257,7 @@ class TestDriveExportAPI:
             new_callable=AsyncMock,
             return_value="fake-token",
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as c:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post("/api/iso-docs/drive/export")
 
         assert resp.status_code == 409
@@ -288,7 +275,7 @@ class TestDriveExportAPI:
         db_session.add(stale_job)
         await db_session.flush()
 
-        stale_job.created_at = datetime.now(timezone.utc) - timedelta(minutes=15)
+        stale_job.created_at = datetime.now(UTC) - timedelta(minutes=15)
         await db_session.flush()
 
         app.dependency_overrides[get_current_user] = _override_user(EDITOR_TOKEN)
@@ -298,9 +285,7 @@ class TestDriveExportAPI:
             new_callable=AsyncMock,
             return_value="fake-token",
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as c:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post("/api/iso-docs/drive/export")
 
         # The export may fail for other reasons (no root folder), but the

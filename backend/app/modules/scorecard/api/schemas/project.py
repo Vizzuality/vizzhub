@@ -4,8 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.core.schemas.common import PaginatedResponse
 from app.core.models.project import Project
+from app.core.schemas.common import PaginatedResponse
 
 PaginatedProjectsResponse = PaginatedResponse[Project]
 

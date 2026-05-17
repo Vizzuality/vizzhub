@@ -10,10 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import TokenData, get_current_user
 from app.core.models.project import ProjectDB
 from app.core.models.role import RoleDB
-from app.core.models.user import UserDB
 from app.core.permissions.roles import ROLE_PERMISSIONS
 from app.main import app
-from tests.conftest import seed_roles, assign_roles
+from tests.conftest import seed_roles
 
 
 def _user_permissions() -> list[str]:
@@ -57,6 +56,7 @@ class TestRegularUserDenied:
                 roles=["user"],
                 permissions=_user_permissions(),
             )
+
         app.dependency_overrides[get_current_user] = mock_user
         yield
         app.dependency_overrides.pop(get_current_user, None)
@@ -97,6 +97,7 @@ class TestManagerAccess:
                 roles=["user", "manager"],
                 permissions=_manager_permissions(),
             )
+
         app.dependency_overrides[get_current_user] = mock_manager
         yield
         app.dependency_overrides.pop(get_current_user, None)

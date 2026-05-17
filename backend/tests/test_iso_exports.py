@@ -1,6 +1,6 @@
 """Tests for ISO export API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 
 import pytest
@@ -15,17 +15,15 @@ XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml
 
 class TestExportSnapshotRange:
     @pytest.mark.asyncio
-    async def test_export_date_range(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_export_date_range(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 3, 1, tzinfo=UTC),
         )
         await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 6, 1, tzinfo=UTC),
         )
 
         response = await client.get(
@@ -40,9 +38,7 @@ class TestExportSnapshotRange:
         assert len(wb.sheetnames) == 2
 
     @pytest.mark.asyncio
-    async def test_export_empty_range_returns_404(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_export_empty_range_returns_404(self, client: AsyncClient) -> None:
         response = await client.get(
             "/api/iso/exports/snapshots",
             params={"from": "2026-01-01", "to": "2026-12-31"},
@@ -59,9 +55,7 @@ class TestExportSnapshotRange:
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_export_to_before_from_returns_400(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_export_to_before_from_returns_400(self, client: AsyncClient) -> None:
         response = await client.get(
             "/api/iso/exports/snapshots",
             params={"from": "2026-12-31", "to": "2026-01-01"},
@@ -69,17 +63,15 @@ class TestExportSnapshotRange:
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_export_filters_by_date_range(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_export_filters_by_date_range(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 3, 1, tzinfo=UTC),
         )
         await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 9, 1, tzinfo=UTC),
         )
 
         response = await client.get(
@@ -91,9 +83,7 @@ class TestExportSnapshotRange:
         assert len(wb.sheetnames) == 1
 
     @pytest.mark.asyncio
-    async def test_export_has_content_disposition_header(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_export_has_content_disposition_header(self, client: AsyncClient) -> None:
         # Empty range now returns 404 instead of an empty workbook; the
         # content-disposition header is exercised by other tests that seed
         # snapshots. Keep the negative assertion explicit so future changes
@@ -108,13 +98,11 @@ class TestExportSnapshotRange:
 
 class TestExportSingleSnapshot:
     @pytest.mark.asyncio
-    async def test_export_single_snapshot(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_export_single_snapshot(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=UTC),
             data={
                 "users": [
                     {
@@ -161,16 +149,14 @@ class TestExportSingleSnapshot:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=UTC),
         )
 
         response = await client.get(
             f"/api/iso/exports/snapshots/{snapshot.id}",
         )
         assert response.status_code == 200
-        assert "iso_access_review_2026-06-15.xlsx" in response.headers[
-            "content-disposition"
-        ]
+        assert "iso_access_review_2026-06-15.xlsx" in response.headers["content-disposition"]
 
     @pytest.mark.asyncio
     async def test_export_snapshot_with_review_and_actions(
@@ -179,7 +165,7 @@ class TestExportSingleSnapshot:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(
             db_session,
-            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 6, 15, 10, 0, tzinfo=UTC),
             data={
                 "users": [
                     {

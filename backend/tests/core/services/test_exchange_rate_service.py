@@ -168,9 +168,7 @@ async def test_convert_to_eur_at_date_picks_on_or_before_row(db_session: AsyncSe
     )
     await db_session.flush()
 
-    historical = await convert_to_eur(
-        db_session, Decimal("110"), "USD", as_of=date(2024, 6, 1)
-    )
+    historical = await convert_to_eur(db_session, Decimal("110"), "USD", as_of=date(2024, 6, 1))
     assert historical is not None
     assert historical == Decimal("100")
 

@@ -34,19 +34,15 @@ class ReportingPeriodDB(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     date: Mapped[date] = mapped_column(Date(), nullable=False, unique=True)
     base_rate: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, server_default="175.00"  # mirrors DEFAULT_RATE in constants.py
+        Numeric(12, 2),
+        nullable=False,
+        server_default="175.00",  # mirrors DEFAULT_RATE in constants.py
     )
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="unstarted"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="unstarted")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

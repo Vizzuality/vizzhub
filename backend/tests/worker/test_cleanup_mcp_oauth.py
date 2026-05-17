@@ -1,6 +1,6 @@
 """Tests for the MCP OAuth cleanup worker job."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -41,7 +41,7 @@ def _make_refresh_token(token: str, client_id: str, expires_at: datetime) -> MCP
 @pytest.mark.asyncio
 async def test_cleanup_deletes_expired_codes(db_session: AsyncSession) -> None:
     """Expired authorization codes are removed by the cleanup job."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     client = _make_client("client-codes-1")
     db_session.add(client)
     await db_session.flush()
@@ -61,12 +61,14 @@ async def test_cleanup_deletes_expired_codes(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_cleanup_deletes_expired_refresh_tokens(db_session: AsyncSession) -> None:
     """Expired refresh tokens are removed by the cleanup job."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     client = _make_client("client-tokens-1")
     db_session.add(client)
     await db_session.flush()
 
-    expired_token = _make_refresh_token("expired-token-1", client.client_id, now - timedelta(days=31))
+    expired_token = _make_refresh_token(
+        "expired-token-1", client.client_id, now - timedelta(days=31)
+    )
     db_session.add(expired_token)
     await db_session.flush()
 
@@ -81,7 +83,7 @@ async def test_cleanup_deletes_expired_refresh_tokens(db_session: AsyncSession) 
 @pytest.mark.asyncio
 async def test_cleanup_preserves_valid_entries(db_session: AsyncSession) -> None:
     """Non-expired codes and tokens are not affected by the cleanup job."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     client = _make_client("client-valid-1")
     db_session.add(client)
     await db_session.flush()

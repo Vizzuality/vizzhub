@@ -48,20 +48,19 @@ async def get_capacity_fa_detail(
     if not periods:
         return []
 
-    eligible_users = list(await db.execute(
-        select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
-        .join(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
-        .where(
-            *_reportable_user_filter(),
-            FunctionalAreaDB.name == fa_name,
+    eligible_users = list(
+        await db.execute(
+            select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
+            .join(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
+            .where(
+                *_reportable_user_filter(),
+                FunctionalAreaDB.name == fa_name,
+            )
         )
-    ))
+    )
 
     if not eligible_users:
-        return [
-            {"period": p_date.strftime("%Y-%m"), "users": []}
-            for _, p_date in periods
-        ]
+        return [{"period": p_date.strftime("%Y-%m"), "users": []} for _, p_date in periods]
 
     user_ids = [uid for uid, _, _, _, _ in eligible_users]
     user_info = {uid: (fn, ln, name, em) for uid, fn, ln, name, em in eligible_users}
@@ -73,24 +72,32 @@ async def get_capacity_fa_detail(
             ReportDB.user_id,
             ReportDB.reporting_period_id,
             func.coalesce(func.sum(ReportPartDB.percentage), 0).label("total_pct"),
-            func.coalesce(func.sum(
-                case(
-                    (ProjectDB.is_billable.is_(True), ReportPartDB.percentage),
-                    else_=0,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (ProjectDB.is_billable.is_(True), ReportPartDB.percentage),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("billable_pct"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (ProjectDB.is_absence.is_(True), ReportPartDB.percentage),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("absence_pct"),
+            func.count(
+                func.distinct(
+                    case(
+                        (ProjectDB.is_billable.is_(True), ReportPartDB.project_id),
+                        else_=None,
+                    )
                 )
-            ), 0).label("billable_pct"),
-            func.coalesce(func.sum(
-                case(
-                    (ProjectDB.is_absence.is_(True), ReportPartDB.percentage),
-                    else_=0,
-                )
-            ), 0).label("absence_pct"),
-            func.count(func.distinct(
-                case(
-                    (ProjectDB.is_billable.is_(True), ReportPartDB.project_id),
-                    else_=None,
-                )
-            )).label("billable_project_count"),
+            ).label("billable_project_count"),
         )
         .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
         .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
@@ -118,19 +125,23 @@ async def get_capacity_fa_detail(
                 continue
             other = max(0.0, total - billable - absence)
             fn, ln, full, em = user_info[uid]
-            users_list.append({
-                "user_id": uid,
-                "name": _format_user_name(fn, ln, full, em),
-                "billable_pct": round(billable, 4),
-                "absence_pct": round(absence, 4),
-                "other_pct": round(other, 4),
-                "billable_project_count": proj_count,
-            })
+            users_list.append(
+                {
+                    "user_id": uid,
+                    "name": _format_user_name(fn, ln, full, em),
+                    "billable_pct": round(billable, 4),
+                    "absence_pct": round(absence, 4),
+                    "other_pct": round(other, 4),
+                    "billable_project_count": proj_count,
+                }
+            )
         users_list.sort(key=lambda u: u["name"])
-        result.append({
-            "period": period_date.strftime("%Y-%m"),
-            "users": users_list,
-        })
+        result.append(
+            {
+                "period": period_date.strftime("%Y-%m"),
+                "users": users_list,
+            }
+        )
 
     return result
 
@@ -138,14 +149,17 @@ async def get_capacity_fa_detail(
 async def get_reportable_users(db: AsyncSession) -> list[dict]:
     """Return all active users that require project reporting, for selectors."""
     rows = await db.execute(
-        select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email)
-        .where(*_reportable_user_filter())
+        select(UserDB.id, UserDB.first_name, UserDB.last_name, UserDB.name, UserDB.email).where(
+            *_reportable_user_filter()
+        )
     )
     result = []
     for uid, fn, ln, full_name, email in rows:
-        result.append({
-            "id": str(uid),
-            "name": _format_user_name(fn, ln, full_name, email),
-        })
+        result.append(
+            {
+                "id": str(uid),
+                "name": _format_user_name(fn, ln, full_name, email),
+            }
+        )
     result.sort(key=lambda u: u["name"])
     return result

@@ -1,17 +1,17 @@
 """Google Workspace OAuth service for ISO module."""
 
-import structlog
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
 import httpx
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import decrypt_token, encrypt_token
 
 logger = structlog.get_logger()
 
@@ -33,22 +33,16 @@ class GoogleWorkspaceOAuth:
     def _get_client_credentials() -> tuple[str, str]:
         settings = get_settings()
         client_id = settings.google_workspace_client_id or settings.google_client_id
-        client_secret = (
-            settings.google_workspace_client_secret or settings.google_client_secret
-        )
+        client_secret = settings.google_workspace_client_secret or settings.google_client_secret
         return client_id, client_secret
 
     @staticmethod
     async def _get_token(db: AsyncSession) -> OAuthTokenDB | None:
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER))
         return result.scalar_one_or_none()
 
     @staticmethod
-    def get_authorization_url(
-        state: str, redirect_uri: str, domain: str | None = None
-    ) -> str:
+    def get_authorization_url(state: str, redirect_uri: str, domain: str | None = None) -> str:
         client_id, _ = GoogleWorkspaceOAuth._get_client_credentials()
         params = {
             "client_id": client_id,
@@ -87,7 +81,7 @@ class GoogleWorkspaceOAuth:
         expires_in = token_data.get("expires_in")
         expires_at = None
         if expires_in:
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
 
         existing = await GoogleWorkspaceOAuth._get_token(db)
         if existing:
@@ -136,9 +130,7 @@ class GoogleWorkspaceOAuth:
 
         expires_in = token_data.get("expires_in")
         if expires_in:
-            token.expires_at = datetime.now(timezone.utc) + timedelta(
-                seconds=expires_in
-            )
+            token.expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
         token.access_token = encrypt_token(token_data["access_token"])
         if "refresh_token" in token_data:
             token.refresh_token = encrypt_token(token_data["refresh_token"])
@@ -157,7 +149,7 @@ class GoogleWorkspaceOAuth:
 
         if token.expires_at:
             buffer = timedelta(minutes=5)
-            if token.expires_at - buffer <= datetime.now(timezone.utc):
+            if token.expires_at - buffer <= datetime.now(UTC):
                 refreshed = await GoogleWorkspaceOAuth.refresh_token(db)
                 if refreshed:
                     return decrypt_token(refreshed.access_token)

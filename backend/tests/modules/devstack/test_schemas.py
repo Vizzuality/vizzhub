@@ -1,13 +1,13 @@
 """Tests for devstack Pydantic schemas."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.modules.devstack.schemas import EntryResponse
 
 
 def test_entry_response_includes_new_fields():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     response = EntryResponse(
         id=uuid4(),
         name="test",

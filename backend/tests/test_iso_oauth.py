@@ -1,14 +1,14 @@
 """Tests for ISO Google Workspace OAuth."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
 
 from app.config import get_settings
-from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import decrypt_token, encrypt_token
 
 
 class TestGoogleWorkspaceConfig:
@@ -173,7 +173,7 @@ class TestGoogleWorkspaceOAuthService:
         existing = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("valid-token"),
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             site_url="test.com",
         )
         db_session.add(existing)
@@ -218,7 +218,7 @@ class TestGoogleWorkspaceOAuthService:
         existing = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("token"),
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             site_url="empresa.com",
         )
         db_session.add(existing)
@@ -282,9 +282,7 @@ class TestIsoConfigEndpoints:
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_status_after_manual_token_insert(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_status_after_manual_token_insert(self, client: AsyncClient, db_session) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="test-token",
@@ -300,9 +298,7 @@ class TestIsoConfigEndpoints:
         assert data["domain"] == "empresa.com"
 
     @pytest.mark.asyncio
-    async def test_disconnect_removes_connection(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_disconnect_removes_connection(self, client: AsyncClient, db_session) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token="test-token",

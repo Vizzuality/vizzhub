@@ -4,8 +4,9 @@ Fetches security alerts from GitHub's Dependabot API, filtering for
 high and critical severity vulnerabilities only.
 """
 
-import httpx
 from typing import Any
+
+import httpx
 
 
 class DependabotCollector:
@@ -77,11 +78,7 @@ class DependabotCollector:
             "package_name": vuln.get("package", {}).get("name"),
             "severity": vuln.get("severity"),
             "cve_id": next(
-                (
-                    i["value"]
-                    for i in advisory.get("identifiers", [])
-                    if i["type"] == "CVE"
-                ),
+                (i["value"] for i in advisory.get("identifiers", []) if i["type"] == "CVE"),
                 None,
             ),
             "manifest_path": dependency.get("manifest_path"),

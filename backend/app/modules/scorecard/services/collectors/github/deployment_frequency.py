@@ -34,7 +34,7 @@ DORA Benchmarks:
 == END SPEC ==
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from app.modules.scorecard.services.collectors.github.utils import get_releases, parse_release_date
@@ -69,8 +69,12 @@ async def collect_deployment_frequency(
 
     # For punctual filtering, pass both dates; deployment frequency uses period range
     releases = await get_releases(
-        client, owner, repo, include_prereleases=include_prereleases,
-        period_start=period_start, period_end=period_end
+        client,
+        owner,
+        repo,
+        include_prereleases=include_prereleases,
+        period_start=period_start,
+        period_end=period_end,
     )
 
     # For deployment frequency, count releases within the period range
@@ -85,15 +89,12 @@ async def collect_deployment_frequency(
 
     # Cumulative: use 90-day lookback from period_end
     if period_end:
-        reference_date = datetime(period_end.year, period_end.month, period_end.day, tzinfo=timezone.utc)
+        reference_date = datetime(period_end.year, period_end.month, period_end.day, tzinfo=UTC)
     else:
-        reference_date = datetime.now(timezone.utc)
+        reference_date = datetime.now(UTC)
     cutoff_date = reference_date - timedelta(days=LOOKBACK_DAYS)
 
-    releases_in_period = [
-        r for r in releases
-        if parse_release_date(r) >= cutoff_date
-    ]
+    releases_in_period = [r for r in releases if parse_release_date(r) >= cutoff_date]
 
     release_count = len(releases_in_period)
 

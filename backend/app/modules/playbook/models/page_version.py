@@ -18,14 +18,10 @@ class PlaybookPageVersionDB(Base):
 
     __tablename__ = "playbook_page_versions"
     __table_args__ = (
-        UniqueConstraint(
-            "node_id", "version", name="uq_playbook_versions_node_version"
-        ),
+        UniqueConstraint("node_id", "version", name="uq_playbook_versions_node_version"),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     node_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("playbook_nodes.id", ondelete="CASCADE"),
@@ -38,6 +34,4 @@ class PlaybookPageVersionDB(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -62,7 +62,9 @@ async def collect_escaped_rate(
     escaped_date_filter = build_jql_date_filter(period_start, period_end, "created")
     tasks_date_filter = build_jql_date_filter(period_start, period_end, "resolutiondate")
 
-    escaped_filter = f"type = Bug AND 'Environment' IN ('Staging', 'Production'){escaped_date_filter}"
+    escaped_filter = (
+        f"type = Bug AND 'Environment' IN ('Staging', 'Production'){escaped_date_filter}"
+    )
     tasks_filter = f"type in (Story, Task, Bug) AND statusCategory = Done{tasks_date_filter}"
 
     escaped_defects = await client.count_issues(

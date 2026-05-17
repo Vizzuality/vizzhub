@@ -1,6 +1,5 @@
 """Capacity planner CRUD endpoints."""
 
-from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -15,8 +14,6 @@ from app.core.models.project import ProjectDB, ProjectStatus
 from app.core.models.user import UserDB
 from app.core.permissions import Action, require_permission
 from app.modules.capacity.api._helpers import (
-    _build_row_data,
-    _fa_short_name,
     _get_overallocation_warnings,
     _inject_empty_groups,
     _inject_pinned_rows,
@@ -144,7 +141,9 @@ async def get_planner_suggestions(
         .where(CapacityPlanDB.user_id == user.user_id)
         .where(CapacityPlanDB.week_start.in_(mondays))
         .where(ProjectDB.status != ProjectStatus.FINISHED)
-        .group_by(CapacityPlanDB.project_id, ProjectDB.name, ProjectDB.is_absence, ProjectDB.is_billable)
+        .group_by(
+            CapacityPlanDB.project_id, ProjectDB.name, ProjectDB.is_absence, ProjectDB.is_billable
+        )
     )
 
     rows = (await db.execute(stmt)).all()
@@ -163,12 +162,14 @@ async def get_planner_suggestions(
         if is_others:
             others_pct = normalized
         else:
-            suggestions.append({
-                "project_id": str(row.project_id),
-                "project_name": row.project_name,
-                "percentage": normalized,
-                "is_absence": row.is_absence,
-            })
+            suggestions.append(
+                {
+                    "project_id": str(row.project_id),
+                    "project_name": row.project_name,
+                    "percentage": normalized,
+                    "is_absence": row.is_absence,
+                }
+            )
 
     suggestions.sort(key=lambda s: s["project_name"].lower())
 

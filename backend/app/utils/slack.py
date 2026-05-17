@@ -12,13 +12,9 @@ async def get_slack_bot_token(db: AsyncSession) -> str | None:
 
 async def get_slack_leadership_channel(db: AsyncSession) -> str | None:
     """Get the leadership channel ID."""
-    return await IntegrationTokenService.get_setting(
-        db, "slack", "leadership_channel_id"
-    )
+    return await IntegrationTokenService.get_setting(db, "slack", "leadership_channel_id")
 
 
 async def get_slack_tracker_reminder_channel(db: AsyncSession) -> str | None:
     """Get the tracker reminder channel ID."""
-    return await IntegrationTokenService.get_setting(
-        db, "slack", "tracker_reminder_channel_id"
-    )
+    return await IntegrationTokenService.get_setting(db, "slack", "tracker_reminder_channel_id")

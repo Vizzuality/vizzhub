@@ -24,8 +24,24 @@ from app.core.services.export_helpers import (
 from app.modules.scorecard.models.global_metrics import GlobalMetricsRecord
 from app.modules.scorecard.services.export_definitions import get_metric_rows
 
-MANUAL_KPI_FIELDS = ["name", "scope", "responsible", "methodology", "formula", "target", "periodicity"]
-MANUAL_KPI_HEADERS = ["Name", "Scope", "Responsible", "Methodology", "Formula", "Target", "Periodicity"]
+MANUAL_KPI_FIELDS = [
+    "name",
+    "scope",
+    "responsible",
+    "methodology",
+    "formula",
+    "target",
+    "periodicity",
+]
+MANUAL_KPI_HEADERS = [
+    "Name",
+    "Scope",
+    "Responsible",
+    "Methodology",
+    "Formula",
+    "Target",
+    "Periodicity",
+]
 
 
 ISO_CYCLE_MONTHS = 12
@@ -128,8 +144,10 @@ class KpiExportService:
                     apply_score_traffic_light(cell, cell.value, self._green, self._yellow)
                 else:
                     apply_indicator_traffic_light(
-                        cell, cell.value,
-                        self._green / 100, self._yellow / 100,
+                        cell,
+                        cell.value,
+                        self._green / 100,
+                        self._yellow / 100,
                     )
 
         freeze_panes(ws, header_row + 1, 5)

@@ -91,7 +91,9 @@ class TestCollectCommitmentReliability:
         # Issue A in sprint 101 only (single sprint)
         # Issue B in both sprints (multi sprint)
         # Issue C in sprint 102 only (single sprint)
-        async def mock_search(project, jql, fields=None, max_results=None, skip_project_prefix=False):
+        async def mock_search(
+            project, jql, fields=None, max_results=None, skip_project_prefix=False
+        ):
             if "sprint = 101" in jql:
                 return [{"key": "PROJ-1"}, {"key": "PROJ-2"}]
             if "sprint = 102" in jql:

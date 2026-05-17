@@ -32,9 +32,10 @@ Edge Cases:
 """
 
 import asyncio
-import structlog
 from datetime import date
 from typing import TYPE_CHECKING
+
+import structlog
 
 from app.modules.scorecard.services.collectors.github.utils import (
     MAX_CONCURRENT_REQUESTS,
@@ -110,9 +111,7 @@ async def collect_pr_review(
     }
 
 
-async def _pr_has_review(
-    client: "GitHubClient", owner: str, repo: str, pr_number: int
-) -> bool:
+async def _pr_has_review(client: "GitHubClient", owner: str, repo: str, pr_number: int) -> bool:
     """Check if a PR has at least one review."""
     http_client = await client.get_client()
 
@@ -127,6 +126,8 @@ async def _pr_has_review(
             return len(reviews) > 0
 
     except Exception as e:
-        logger.warning("pr_review_check_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e))
+        logger.warning(
+            "pr_review_check_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e)
+        )
 
     return False

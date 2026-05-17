@@ -54,10 +54,12 @@ async def test_list_notes_for_node(client: AsyncClient, page_node: dict):
 
 @pytest.mark.asyncio
 async def test_patch_note_content(client: AsyncClient, page_node: dict):
-    created = (await client.post(
-        f"/api/iso-docs/nodes/{page_node['id']}/notes",
-        json={"content": "draft"},
-    )).json()
+    created = (
+        await client.post(
+            f"/api/iso-docs/nodes/{page_node['id']}/notes",
+            json={"content": "draft"},
+        )
+    ).json()
     response = await client.patch(
         f"/api/iso-docs/notes/{created['id']}",
         json={"content": "edited"},
@@ -68,23 +70,29 @@ async def test_patch_note_content(client: AsyncClient, page_node: dict):
 
 @pytest.mark.asyncio
 async def test_patch_note_done_sets_metadata(client: AsyncClient, page_node: dict):
-    created = (await client.post(
-        f"/api/iso-docs/nodes/{page_node['id']}/notes",
-        json={"content": "x"},
-    )).json()
+    created = (
+        await client.post(
+            f"/api/iso-docs/nodes/{page_node['id']}/notes",
+            json={"content": "x"},
+        )
+    ).json()
 
-    done = (await client.patch(
-        f"/api/iso-docs/notes/{created['id']}",
-        json={"done": True},
-    )).json()
+    done = (
+        await client.patch(
+            f"/api/iso-docs/notes/{created['id']}",
+            json={"done": True},
+        )
+    ).json()
     assert done["done"] is True
     assert done["done_at"] is not None
     assert done["done_by_id"] is not None
 
-    reopened = (await client.patch(
-        f"/api/iso-docs/notes/{created['id']}",
-        json={"done": False},
-    )).json()
+    reopened = (
+        await client.patch(
+            f"/api/iso-docs/notes/{created['id']}",
+            json={"done": False},
+        )
+    ).json()
     assert reopened["done"] is False
     assert reopened["done_at"] is None
     assert reopened["done_by_id"] is None
@@ -92,15 +100,15 @@ async def test_patch_note_done_sets_metadata(client: AsyncClient, page_node: dic
 
 @pytest.mark.asyncio
 async def test_delete_note(client: AsyncClient, page_node: dict):
-    created = (await client.post(
-        f"/api/iso-docs/nodes/{page_node['id']}/notes",
-        json={"content": "x"},
-    )).json()
+    created = (
+        await client.post(
+            f"/api/iso-docs/nodes/{page_node['id']}/notes",
+            json={"content": "x"},
+        )
+    ).json()
     response = await client.delete(f"/api/iso-docs/notes/{created['id']}")
     assert response.status_code == 204
-    listing = (await client.get(
-        f"/api/iso-docs/nodes/{page_node['id']}/notes"
-    )).json()
+    listing = (await client.get(f"/api/iso-docs/nodes/{page_node['id']}/notes")).json()
     assert listing == []
 
 
@@ -119,17 +127,19 @@ async def test_node_cascade_deletes_notes(client: AsyncClient, page_node: dict):
 async def test_admin_list_default_excludes_done(
     client: AsyncClient, page_node: dict, group_node: dict
 ):
-    pending = (await client.post(
-        f"/api/iso-docs/nodes/{page_node['id']}/notes",
-        json={"content": "pending"},
-    )).json()
-    done_note = (await client.post(
-        f"/api/iso-docs/nodes/{group_node['id']}/notes",
-        json={"content": "done"},
-    )).json()
-    await client.patch(
-        f"/api/iso-docs/notes/{done_note['id']}", json={"done": True}
-    )
+    pending = (
+        await client.post(
+            f"/api/iso-docs/nodes/{page_node['id']}/notes",
+            json={"content": "pending"},
+        )
+    ).json()
+    done_note = (
+        await client.post(
+            f"/api/iso-docs/nodes/{group_node['id']}/notes",
+            json={"content": "done"},
+        )
+    ).json()
+    await client.patch(f"/api/iso-docs/notes/{done_note['id']}", json={"done": True})
 
     response = await client.get("/api/iso-docs/notes")
     assert response.status_code == 200
@@ -141,13 +151,13 @@ async def test_admin_list_default_excludes_done(
 
 
 @pytest.mark.asyncio
-async def test_admin_list_include_done(
-    client: AsyncClient, page_node: dict
-):
-    note = (await client.post(
-        f"/api/iso-docs/nodes/{page_node['id']}/notes",
-        json={"content": "x"},
-    )).json()
+async def test_admin_list_include_done(client: AsyncClient, page_node: dict):
+    note = (
+        await client.post(
+            f"/api/iso-docs/nodes/{page_node['id']}/notes",
+            json={"content": "x"},
+        )
+    ).json()
     await client.patch(f"/api/iso-docs/notes/{note['id']}", json={"done": True})
     response = await client.get("/api/iso-docs/notes?include_done=true")
     assert response.status_code == 200

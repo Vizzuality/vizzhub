@@ -1,11 +1,11 @@
 """Authentication and authorization for the API."""
 
-import structlog
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
+import structlog
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
@@ -70,9 +70,9 @@ def create_access_token(
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours)
+        expire = datetime.now(UTC) + timedelta(hours=settings.jwt_expire_hours)
 
     to_encode.update({"exp": expire})
 
@@ -156,8 +156,6 @@ async def get_current_user(
         if user_id is None:
             raise credentials_exception
 
-        return TokenData(
-            user_id=user_id, email=email, roles=roles, permissions=permissions
-        )
+        return TokenData(user_id=user_id, email=email, roles=roles, permissions=permissions)
     except JWTError:
         raise credentials_exception

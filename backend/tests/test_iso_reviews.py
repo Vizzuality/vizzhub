@@ -25,9 +25,7 @@ class TestListReviews:
         assert data["page"] == 1
 
     @pytest.mark.asyncio
-    async def test_list_reviews_returns_items(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_reviews_returns_items(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         await make_review(db_session, snapshot.id)
 
@@ -39,9 +37,7 @@ class TestListReviews:
         assert data["items"][0]["status"] == "draft"
 
     @pytest.mark.asyncio
-    async def test_list_reviews_filter_by_status(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_reviews_filter_by_status(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         await make_review(db_session, snapshot.id, status="draft")
         snapshot2 = await make_snapshot(db_session)
@@ -53,9 +49,7 @@ class TestListReviews:
         assert data["items"][0]["status"] == "draft"
 
     @pytest.mark.asyncio
-    async def test_list_reviews_pagination(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_reviews_pagination(self, client: AsyncClient, db_session) -> None:
         for _ in range(3):
             snapshot = await make_snapshot(db_session)
             await make_review(db_session, snapshot.id)
@@ -70,14 +64,10 @@ class TestListReviews:
 
 class TestReviewDetail:
     @pytest.mark.asyncio
-    async def test_get_review_with_actions(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_get_review_with_actions(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
-        action = await make_action(
-            db_session, review.id, action_taken="accepted"
-        )
+        action = await make_action(db_session, review.id, action_taken="accepted")
 
         response = await client.get(f"/api/iso/reviews/{review.id}")
         assert response.status_code == 200
@@ -97,9 +87,7 @@ class TestReviewDetail:
 
 class TestUpdateReview:
     @pytest.mark.asyncio
-    async def test_update_review_notes(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_review_notes(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
 
@@ -112,9 +100,7 @@ class TestUpdateReview:
         assert data["notes"] == "Updated notes"
 
     @pytest.mark.asyncio
-    async def test_update_review_rejects_signed(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_review_rejects_signed(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id, status="signed")
 
@@ -168,9 +154,7 @@ class TestUpdateAction:
         assert response.status_code == 409
 
     @pytest.mark.asyncio
-    async def test_update_action_not_found(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_action_not_found(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
         fake_action_id = uuid4()
@@ -200,15 +184,11 @@ class TestUpdateAction:
 
 class TestSignReview:
     @pytest.mark.asyncio
-    async def test_sign_review_success(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_sign_review_success(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
-        await make_action(
-            db_session, review.id, action_taken="accepted"
-        )
+        await make_action(db_session, review.id, action_taken="accepted")
 
         response = await client.post(f"/api/iso/reviews/{review.id}/sign")
         assert response.status_code == 200
@@ -230,9 +210,7 @@ class TestSignReview:
         assert "1 unresolved action(s)" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_sign_review_already_signed(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_sign_review_already_signed(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id, status="signed")
 
@@ -246,9 +224,7 @@ class TestSignReview:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_sign_review_no_actions_succeeds(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_sign_review_no_actions_succeeds(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
@@ -259,9 +235,7 @@ class TestSignReview:
         assert data["status"] == "signed"
 
     @pytest.mark.asyncio
-    async def test_sign_with_bulk_actions_and_notes(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_sign_with_bulk_actions_and_notes(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
@@ -330,9 +304,7 @@ class TestSignReview:
         assert response.json()["status"] == "signed"
 
     @pytest.mark.asyncio
-    async def test_sign_with_invalid_action_id(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_sign_with_invalid_action_id(self, client: AsyncClient, db_session) -> None:
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
 
@@ -351,9 +323,7 @@ class TestSignReview:
         assert "not found" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_sign_with_exception_and_date(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_sign_with_exception_and_date(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         snapshot = await make_snapshot(db_session)
         review = await make_review(db_session, snapshot.id)
@@ -382,8 +352,6 @@ class TestSignReview:
 
 class TestReviewRouterWiring:
     @pytest.mark.asyncio
-    async def test_reviews_accessible_via_iso_prefix(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_reviews_accessible_via_iso_prefix(self, client: AsyncClient) -> None:
         response = await client.get("/api/iso/reviews")
         assert response.status_code == 200

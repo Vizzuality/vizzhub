@@ -112,22 +112,26 @@ def _build_period_summary(
         if is_absence:
             absence_pct += pct
         elif is_billable:
-            projects.append({
-                "project_id": proj_id,
-                "name": proj_name,
-                "percentage": round(pct, 4),
-                "type": "billable",
-            })
+            projects.append(
+                {
+                    "project_id": proj_id,
+                    "name": proj_name,
+                    "percentage": round(pct, 4),
+                    "type": "billable",
+                }
+            )
         else:
             other_pct += pct
     projects.sort(key=lambda p: p["name"])
     if other_pct > 0:
-        projects.append({
-            "project_id": "__other__",
-            "name": "Other",
-            "percentage": round(other_pct, 4),
-            "type": "other",
-        })
+        projects.append(
+            {
+                "project_id": "__other__",
+                "name": "Other",
+                "percentage": round(other_pct, 4),
+                "type": "other",
+            }
+        )
     return {
         "period": period_date.strftime("%Y-%m"),
         "projects": projects,

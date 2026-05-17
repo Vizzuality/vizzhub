@@ -38,10 +38,11 @@ Industry Benchmarks:
 """
 
 import asyncio
-import structlog
 import statistics
 from datetime import date
 from typing import TYPE_CHECKING
+
+import structlog
 
 from app.modules.scorecard.services.collectors.github.utils import (
     MAX_CONCURRENT_REQUESTS,
@@ -75,7 +76,9 @@ async def collect_pr_size(
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    merged_prs = await get_merged_prs(client, owner, repo, period_start=period_start, period_end=period_end)
+    merged_prs = await get_merged_prs(
+        client, owner, repo, period_start=period_start, period_end=period_end
+    )
 
     if not merged_prs:
         return {"pr_size_median": None}
@@ -91,9 +94,7 @@ async def collect_pr_size(
         async with semaphore:
             return await _get_pr_size(client, owner, repo, pr["number"])
 
-    size_results = await asyncio.gather(
-        *[get_pr_size_with_semaphore(pr) for pr in target_prs]
-    )
+    size_results = await asyncio.gather(*[get_pr_size_with_semaphore(pr) for pr in target_prs])
 
     sizes = [s for s in size_results if s is not None]
 
@@ -104,9 +105,7 @@ async def collect_pr_size(
     return {"pr_size_median": round(median_size, 1)}
 
 
-async def _get_pr_size(
-    client: "GitHubClient", owner: str, repo: str, pr_number: int
-) -> int | None:
+async def _get_pr_size(client: "GitHubClient", owner: str, repo: str, pr_number: int) -> int | None:
     """
     Get the total size (additions + deletions) for a PR.
 
@@ -127,6 +126,8 @@ async def _get_pr_size(
                 return additions + deletions
 
     except Exception as e:
-        logger.warning("pr_size_fetch_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e))
+        logger.warning(
+            "pr_size_fetch_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e)
+        )
 
     return None

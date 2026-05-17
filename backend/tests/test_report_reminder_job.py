@@ -11,7 +11,11 @@ from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
 from app.core.token_encryption import encrypt_token
 from app.modules.notifications.models.slack import ScheduledJobRunDB
-from app.worker.report_reminder import _is_last_business_day, send_monthly_report_reminder, REPORT_REMINDER_MESSAGE
+from app.worker.report_reminder import (
+    REPORT_REMINDER_MESSAGE,
+    _is_last_business_day,
+    send_monthly_report_reminder,
+)
 
 
 class TestIsLastBusinessDay:
@@ -68,9 +72,7 @@ class TestSendReportReminder:
         self, db_session: AsyncSession, setup_slack: None
     ) -> None:
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.report_reminder._is_last_business_day", return_value=False
-        ):
+        with patch("app.worker.report_reminder._is_last_business_day", return_value=False):
             result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "skipped"
@@ -84,9 +86,7 @@ class TestSendReportReminder:
         mock_response = {"ok": True, "ts": "1234567890.123456"}
 
         with (
-            patch(
-                "app.worker.report_reminder._is_last_business_day", return_value=True
-            ),
+            patch("app.worker.report_reminder._is_last_business_day", return_value=True),
             patch(
                 "app.worker.report_reminder.SlackService.send_message",
                 new_callable=AsyncMock,
@@ -102,22 +102,16 @@ class TestSendReportReminder:
         )
 
     @pytest.mark.asyncio
-    async def test_error_when_no_bot_token(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_error_when_no_bot_token(self, db_session: AsyncSession) -> None:
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.report_reminder._is_last_business_day", return_value=True
-        ):
+        with patch("app.worker.report_reminder._is_last_business_day", return_value=True):
             result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "error"
         assert "bot token" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_error_when_no_channel(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_error_when_no_channel(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="slack",
             access_token=encrypt_token("xoxb-test-token"),
@@ -127,25 +121,19 @@ class TestSendReportReminder:
         await db_session.commit()
 
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.report_reminder._is_last_business_day", return_value=True
-        ):
+        with patch("app.worker.report_reminder._is_last_business_day", return_value=True):
             result = await send_monthly_report_reminder(ctx)
 
         assert result["status"] == "error"
         assert "channel" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_handles_slack_failure(
-        self, db_session: AsyncSession, setup_slack: None
-    ) -> None:
+    async def test_handles_slack_failure(self, db_session: AsyncSession, setup_slack: None) -> None:
         ctx = {"db": db_session}
         mock_response = {"ok": False, "error": "channel_not_found"}
 
         with (
-            patch(
-                "app.worker.report_reminder._is_last_business_day", return_value=True
-            ),
+            patch("app.worker.report_reminder._is_last_business_day", return_value=True),
             patch(
                 "app.worker.report_reminder.SlackService.send_message",
                 new_callable=AsyncMock,
@@ -165,9 +153,7 @@ class TestSendReportReminder:
         mock_response = {"ok": True, "ts": "1234567890.123456"}
 
         with (
-            patch(
-                "app.worker.report_reminder._is_last_business_day", return_value=True
-            ),
+            patch("app.worker.report_reminder._is_last_business_day", return_value=True),
             patch(
                 "app.worker.report_reminder.SlackService.send_message",
                 new_callable=AsyncMock,
@@ -179,12 +165,16 @@ class TestSendReportReminder:
         from sqlalchemy import select
 
         rows = (
-            await db_session.execute(
-                select(ScheduledJobRunDB).where(
-                    ScheduledJobRunDB.job_name == "send_monthly_report_reminder"
+            (
+                await db_session.execute(
+                    select(ScheduledJobRunDB).where(
+                        ScheduledJobRunDB.job_name == "send_monthly_report_reminder"
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].status == "completed"
         assert rows[0].id == result["job_run_id"]

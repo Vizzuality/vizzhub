@@ -1,7 +1,7 @@
 """Centralized error handling utilities."""
 
-from pydantic import ValidationError
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 
 class ValidationErrorHandler:
@@ -39,9 +39,7 @@ class ValidationErrorHandler:
             elif error_type == "missing":
                 messages.append(f"Parameter '{field_path}': This field is required.")
             elif error_type == "string_type":
-                messages.append(
-                    f"Parameter '{field_path}': Invalid value '{value}'. {msg}"
-                )
+                messages.append(f"Parameter '{field_path}': Invalid value '{value}'. {msg}")
             else:
                 # Generic fallback - use message from validator if available
                 if msg:
@@ -52,9 +50,7 @@ class ValidationErrorHandler:
         return "\n".join(messages)
 
     @staticmethod
-    def to_http_exception(
-        error: Exception, status_code: int = 400
-    ) -> HTTPException:
+    def to_http_exception(error: Exception, status_code: int = 400) -> HTTPException:
         """Convert various errors to HTTPException with structured response."""
 
         if isinstance(error, ValidationError):

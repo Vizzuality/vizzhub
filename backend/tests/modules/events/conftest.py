@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
 
-
 DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 

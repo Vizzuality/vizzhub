@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from app.config import get_settings
 from app.core.services.s3 import get_s3_client

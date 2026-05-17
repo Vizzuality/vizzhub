@@ -12,10 +12,10 @@ from app.core.models.user import UserDB
 from app.modules.tracker.constants import DEFAULT_RATE
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
+from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
-from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
 from app.modules.tracker.schemas.aggregation import (
     AggregationPeriod,
     AggregationResponse,
@@ -32,8 +32,7 @@ from app.modules.tracker.schemas.project_cost import (
 def _valid_parts_filter(query):
     """Apply standard filters: exclude estimated reports, null/zero percentage."""
     return (
-        query
-        .where(ReportDB.estimated.is_(False))
+        query.where(ReportDB.estimated.is_(False))
         .where(ReportPartDB.percentage.isnot(None))
         .where(ReportPartDB.percentage > 0)
     )
@@ -69,9 +68,7 @@ async def get_project_cost_summary(
     currency = _normalize_currency(project.currency) if project else None
 
     settings_result = await db.execute(
-        select(TrackerProjectSettingsDB).where(
-            TrackerProjectSettingsDB.project_id == project_id
-        )
+        select(TrackerProjectSettingsDB).where(TrackerProjectSettingsDB.project_id == project_id)
     )
     settings = settings_result.scalar_one_or_none()
     contract_rate = float(settings.contract_rate) if settings else float(DEFAULT_RATE)
@@ -168,8 +165,9 @@ async def get_batch_cost_summaries(
 ) -> dict[UUID, ProjectCostSummaryLite]:
     """Batch cost summaries for multiple projects using 2 aggregate queries."""
     projects_result = await db.execute(
-        select(ProjectDB.id, ProjectDB.budget, ProjectDB.currency)
-        .where(ProjectDB.id.in_(project_ids))
+        select(ProjectDB.id, ProjectDB.budget, ProjectDB.currency).where(
+            ProjectDB.id.in_(project_ids)
+        )
     )
     budget_map: dict[UUID, float] = {}
     currency_map: dict[UUID, str | None] = {}
@@ -198,9 +196,7 @@ async def get_batch_cost_summaries(
         .group_by(NonStaffCostDB.project_id)
     )
     non_staff_result = await db.execute(non_staff_query)
-    non_staff_map = {
-        row.project_id: float(row.non_staff_cost) for row in non_staff_result.all()
-    }
+    non_staff_map = {row.project_id: float(row.non_staff_cost) for row in non_staff_result.all()}
 
     income_query = (
         select(
@@ -303,24 +299,31 @@ async def _aggregate_fa_user(
     project_id: UUID,
 ) -> AggregationResponse:
     """Aggregate report_parts by functional_area with per-user children."""
-    query = _valid_parts_filter(
-        select(
-            FunctionalAreaDB.name.label("fa_name"),
-            UserDB.name.label("user_name"),
-            UserDB.email.label("user_email"),
-            ReportingPeriodDB.date.label("period_date"),
-            func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
-            func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+    query = (
+        _valid_parts_filter(
+            select(
+                FunctionalAreaDB.name.label("fa_name"),
+                UserDB.name.label("user_name"),
+                UserDB.email.label("user_email"),
+                ReportingPeriodDB.date.label("period_date"),
+                func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
+                func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+            )
+            .select_from(ReportPartDB)
+            .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
+            .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
+            .join(FunctionalAreaDB, ReportPartDB.functional_area_id == FunctionalAreaDB.id)
+            .join(UserDB, ReportDB.user_id == UserDB.id)
+            .where(ReportPartDB.project_id == project_id)
         )
-        .select_from(ReportPartDB)
-        .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
-        .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
-        .join(FunctionalAreaDB, ReportPartDB.functional_area_id == FunctionalAreaDB.id)
-        .join(UserDB, ReportDB.user_id == UserDB.id)
-        .where(ReportPartDB.project_id == project_id)
-    ).group_by(
-        "fa_name", "user_name", "user_email", ReportingPeriodDB.date,
-    ).order_by("fa_name", "user_name", ReportingPeriodDB.date)
+        .group_by(
+            "fa_name",
+            "user_name",
+            "user_email",
+            ReportingPeriodDB.date,
+        )
+        .order_by("fa_name", "user_name", ReportingPeriodDB.date)
+    )
 
     result = await db.execute(query)
     raw_rows = result.all()
@@ -408,20 +411,24 @@ async def get_project_aggregations(
         join_clause = ReportDB.user_id == UserDB.id
         join_target = UserDB
 
-    query = _valid_parts_filter(
-        select(
-            name_col,
-            email_col,
-            ReportingPeriodDB.date.label("period_date"),
-            func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
-            func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+    query = (
+        _valid_parts_filter(
+            select(
+                name_col,
+                email_col,
+                ReportingPeriodDB.date.label("period_date"),
+                func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
+                func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+            )
+            .select_from(ReportPartDB)
+            .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
+            .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
+            .join(join_target, join_clause)
+            .where(ReportPartDB.project_id == project_id)
         )
-        .select_from(ReportPartDB)
-        .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
-        .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
-        .join(join_target, join_clause)
-        .where(ReportPartDB.project_id == project_id)
-    ).group_by("name", "email", ReportingPeriodDB.date).order_by("name", ReportingPeriodDB.date)
+        .group_by("name", "email", ReportingPeriodDB.date)
+        .order_by("name", ReportingPeriodDB.date)
+    )
 
     result = await db.execute(query)
     raw_rows = result.all()
@@ -442,9 +449,7 @@ async def get_project_aggregations(
         cost = float(row.cost)
         entry["total_days"] += days
         entry["total_cost"] += cost
-        entry["periods"].append(
-            AggregationPeriod(date=row.period_date, days=days, cost=cost)
-        )
+        entry["periods"].append(AggregationPeriod(date=row.period_date, days=days, cost=cost))
 
     rows = [
         AggregationRow(

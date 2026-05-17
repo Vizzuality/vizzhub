@@ -1,9 +1,9 @@
 """Slack alert and template admin API endpoints."""
 
-import structlog
 from typing import Annotated
 
 import httpx
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,6 +13,7 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
+from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.notifications.api.schemas.slack import (
     AlertDefinitionResponse,
     AlertDefinitionUpdate,
@@ -23,7 +24,6 @@ from app.modules.notifications.api.schemas.slack import (
     MessageTemplateUpdate,
 )
 from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
-from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.notifications.services.slack_service import SlackAPIError, SlackService
 
 logger = structlog.get_logger()
@@ -58,9 +58,7 @@ async def update_alert_definition(
     update: AlertDefinitionUpdate,
 ) -> AlertDefinitionDB:
     """Update an alert definition. Requires authentication."""
-    result = await db.execute(
-        select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id)
-    )
+    result = await db.execute(select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id))
     alert = result.scalar_one_or_none()
 
     if alert is None:
@@ -89,9 +87,7 @@ async def test_alert(
     alert_id: int,
 ) -> AlertTestResponse:
     """Send a test notification for an alert. Requires authentication."""
-    result = await db.execute(
-        select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id)
-    )
+    result = await db.execute(select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id))
     alert = result.scalar_one_or_none()
 
     if alert is None:
@@ -112,9 +108,7 @@ async def test_alert(
     if recipient:
         channel_id = recipient
     else:
-        channel_id = await IntegrationTokenService.get_setting(
-            db, "slack", "leadership_channel_id"
-        )
+        channel_id = await IntegrationTokenService.get_setting(db, "slack", "leadership_channel_id")
         if not channel_id:
             return AlertTestResponse(
                 ok=False,
@@ -160,9 +154,7 @@ async def test_alert(
     )
 
 
-@alerts_router.get(
-    "/{alert_id}/templates", response_model=list[MessageTemplateResponse]
-)
+@alerts_router.get("/{alert_id}/templates", response_model=list[MessageTemplateResponse])
 @limiter.limit("100/minute")
 async def get_alert_templates(
     request: Request,
@@ -171,9 +163,7 @@ async def get_alert_templates(
     alert_id: int,
 ) -> list[MessageTemplateDB]:
     """Get templates for an alert definition. Requires authentication."""
-    result = await db.execute(
-        select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id)
-    )
+    result = await db.execute(select(AlertDefinitionDB).where(AlertDefinitionDB.id == alert_id))
     alert = result.scalar_one_or_none()
 
     if alert is None:
@@ -200,9 +190,7 @@ async def update_message_template(
     update: MessageTemplateUpdate,
 ) -> MessageTemplateDB:
     """Update a message template. Requires authentication."""
-    result = await db.execute(
-        select(MessageTemplateDB).where(MessageTemplateDB.id == template_id)
-    )
+    result = await db.execute(select(MessageTemplateDB).where(MessageTemplateDB.id == template_id))
     template = result.scalar_one_or_none()
 
     if template is None:

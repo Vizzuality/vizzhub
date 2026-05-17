@@ -6,14 +6,12 @@ including PR review coverage for merged pull requests.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 
 from app.core.exceptions import ConfigurationError
 from app.modules.scorecard.services.collectors.github import GitHubCollector
 from app.modules.scorecard.services.collectors.github.client import GitHubClient
 from app.modules.scorecard.services.collectors.github.pr_review import (
-    _pr_has_review,
     collect_pr_review,
 )
 from app.modules.scorecard.services.collectors.github.utils import TARGET_BRANCHES

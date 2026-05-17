@@ -1,7 +1,6 @@
 """Cost and days calculation for report parts."""
 
 from decimal import Decimal
-from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -9,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.rate import RateDB
 from app.core.models.user import UserDB
+from app.modules.tracker.constants import DEFAULT_RATE
+from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
-from app.modules.tracker.constants import DEFAULT_RATE
-from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
+
 WORKING_DAYS_PER_MONTH = Decimal("20")
 
 
@@ -50,9 +50,7 @@ async def apply_cost_and_days(
         report_part.days = None
         return report_part
 
-    report_result = await db.execute(
-        select(ReportDB).where(ReportDB.id == report_part.report_id)
-    )
+    report_result = await db.execute(select(ReportDB).where(ReportDB.id == report_part.report_id))
     report = report_result.scalar_one_or_none()
     if not report:
         raise HTTPException(
@@ -60,9 +58,7 @@ async def apply_cost_and_days(
             detail=f"Report {report_part.report_id} not found",
         )
 
-    user_result = await db.execute(
-        select(UserDB).where(UserDB.id == report.user_id)
-    )
+    user_result = await db.execute(select(UserDB).where(UserDB.id == report.user_id))
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(
@@ -77,9 +73,7 @@ async def apply_cost_and_days(
         )
         return report_part
 
-    rate_result = await db.execute(
-        select(RateDB).where(RateDB.id == user.rate_id)
-    )
+    rate_result = await db.execute(select(RateDB).where(RateDB.id == user.rate_id))
     rate = rate_result.scalar_one_or_none()
     if not rate:
         report_part.cost = None
@@ -87,9 +81,7 @@ async def apply_cost_and_days(
         return report_part
 
     period_result = await db.execute(
-        select(ReportingPeriodDB).where(
-            ReportingPeriodDB.id == report.reporting_period_id
-        )
+        select(ReportingPeriodDB).where(ReportingPeriodDB.id == report.reporting_period_id)
     )
     period = period_result.scalar_one()
 

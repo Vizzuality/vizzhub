@@ -17,9 +17,7 @@ class IndicatorsCreate(BaseModel):
             "No clamp — under-delivery and over-delivery are both meaningful."
         ),
     )
-    defect_density: float | None = Field(
-        default=None, ge=0, description="Defects per 100 tasks"
-    )
+    defect_density: float | None = Field(default=None, ge=0, description="Defects per 100 tasks")
     escaped_rate: float | None = Field(
         default=None, ge=0, description="Escaped defects per 100 tasks"
     )
@@ -41,9 +39,7 @@ class IndicatorsCreate(BaseModel):
     prs_without_review: int | None = Field(
         default=None, ge=0, description="Count of PRs merged without review"
     )
-    high_vulns: int | None = Field(
-        default=None, ge=0, description="High severity vulns >30 days"
-    )
+    high_vulns: int | None = Field(default=None, ge=0, description="High severity vulns >30 days")
     test_maturity: float | None = Field(
         default=None, ge=0, le=1, description="Weighted test maturity score"
     )
@@ -53,18 +49,14 @@ class IndicatorsCreate(BaseModel):
     story_review_ratio: float | None = Field(
         default=None, ge=0, le=1, description="Stories with reviewer ratio"
     )
-    okr_impact: float | None = Field(
-        default=None, ge=0, le=1, description="Strategic impact score"
-    )
+    okr_impact: float | None = Field(default=None, ge=0, le=1, description="Strategic impact score")
     pm_satisfaction: float | None = Field(
         default=None, ge=0, le=1, description="PM satisfaction estimation"
     )
     client_satisfaction: float | None = Field(
         default=None, ge=0, le=1, description="Client survey score"
     )
-    pr_size_median: float | None = Field(
-        default=None, ge=0, description="Median PR size in lines"
-    )
+    pr_size_median: float | None = Field(default=None, ge=0, description="Median PR size in lines")
     review_turnaround_hours: float | None = Field(
         default=None, ge=0, description="Median hours to first review"
     )

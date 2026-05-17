@@ -1,18 +1,18 @@
 """Google Workspace collector for ISO access snapshots."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import httpx
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.services.google_workspace_oauth import (
-    GoogleWorkspaceOAuth,
     PROVIDER,
     SCOPES,
+    GoogleWorkspaceOAuth,
 )
 
 logger = structlog.get_logger()
@@ -180,7 +180,7 @@ class GoogleWorkspaceCollector:
 
         snapshot = AccessSnapshotDB(
             provider=PROVIDER,
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             captured_by=captured_by,
             data_version="1",
             source_metadata=self._build_source_metadata(run_mode),

@@ -1,8 +1,8 @@
 """Integration tests for end-of-project metrics (strategic_impact, client_survey)."""
 
-import pytest
 from datetime import date, timedelta
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -135,14 +135,14 @@ class TestEndOfProjectMetricsIntegration:
                 "period_start": period_start,
                 "period_end": period_end,
                 "client_survey": {
-                    "understanding": 3,    # 12%
-                    "proactivity": 3,      # 12%
-                    "communication": 3,    # 10%
-                    "delivery_time": 3,    # 14%
-                    "response_time": 3,    # 10%
-                    "quality": 5,          # 24% - highest weight
-                    "expectations": 3,     # 12%
-                    "recommend": 3,        # 6%
+                    "understanding": 3,  # 12%
+                    "proactivity": 3,  # 12%
+                    "communication": 3,  # 10%
+                    "delivery_time": 3,  # 14%
+                    "response_time": 3,  # 10%
+                    "quality": 5,  # 24% - highest weight
+                    "expectations": 3,  # 12%
+                    "recommend": 3,  # 6%
                 },
             },
         )

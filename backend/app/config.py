@@ -2,7 +2,7 @@ from decimal import Decimal
 from functools import lru_cache
 
 import structlog
-from pydantic import field_validator, ValidationInfo
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = structlog.get_logger()
@@ -88,9 +88,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins")
     @classmethod
-    def validate_cors_origins_production(
-        cls, v: list[str], info: ValidationInfo
-    ) -> list[str]:
+    def validate_cors_origins_production(cls, v: list[str], info: ValidationInfo) -> list[str]:
         """Validate CORS origins - reject localhost in production."""
         debug = info.data.get("debug", False)
         if not debug:
@@ -263,8 +261,7 @@ class ScoringConfig:
     def get_all_weights(self) -> dict[str, float]:
         """Get all weights as a flat dictionary for snapshotting."""
         return {
-            db_name: float(self._config.get(db_name, 0))
-            for db_name in self._WEIGHT_NAMES.values()
+            db_name: float(self._config.get(db_name, 0)) for db_name in self._WEIGHT_NAMES.values()
         }
 
     def get_all_targets(self) -> dict[str, float]:
@@ -374,6 +371,7 @@ async def load_scoring_config_from_db() -> ScoringConfig:
     structured logs / Loki instead of silently distorting scores.
     """
     from sqlalchemy import select
+
     from app.database import async_session_maker
     from app.modules.scorecard.models.config import ConfigParameter
 

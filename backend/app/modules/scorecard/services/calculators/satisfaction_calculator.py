@@ -39,9 +39,7 @@ class SatisfactionCalculator(BaseCalculator):
             WeightedComponent(
                 name="pm_estimation",
                 weight=self._get_weight("pm_estimation"),
-                value=self._normalize_to_target(
-                    indicators.pm_satisfaction, pm_satisfaction_target
-                ),
+                value=self._normalize_to_target(indicators.pm_satisfaction, pm_satisfaction_target),
             ),
         ]
 

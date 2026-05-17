@@ -38,12 +38,14 @@ class TestOAuthEvents:
         assert "auth_oauth_token_refreshed" in msg
 
     def test_log_oauth_state_validation_failed(
-        self, caplog: pytest.LogCaptureFixture,
+        self,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """log_oauth_state_validation_failed should log CSRF attempt details."""
         with caplog.at_level(logging.WARNING, logger="security"):
             log_oauth_state_validation_failed(
-                "203.0.113.1", "State mismatch - possible CSRF attack",
+                "203.0.113.1",
+                "State mismatch - possible CSRF attack",
             )
 
         assert len(caplog.records) == 1

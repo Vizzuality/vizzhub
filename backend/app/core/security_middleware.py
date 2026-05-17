@@ -22,9 +22,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Only add strict security headers in production
         if not settings.debug:
             # HSTS - Force HTTPS for 1 year
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"

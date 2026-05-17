@@ -99,9 +99,7 @@ class TestSendMessage:
     async def test_send_message_returns_error_response(self) -> None:
         """send_message should return error response when API fails."""
         route = respx.post(CHAT_POST_MESSAGE_URL).mock(
-            return_value=Response(
-                200, json={"ok": False, "error": "channel_not_found"}
-            )
+            return_value=Response(200, json={"ok": False, "error": "channel_not_found"})
         )
 
         result = await SlackService.send_message(
@@ -250,9 +248,7 @@ class TestListChannels:
     async def test_list_channels_returns_empty_on_error(self) -> None:
         """list_channels should return empty list when API returns error."""
         route = respx.get(CONVERSATIONS_LIST_URL).mock(
-            return_value=Response(
-                200, json={"ok": False, "error": "invalid_auth"}
-            )
+            return_value=Response(200, json={"ok": False, "error": "invalid_auth"})
         )
 
         channels = await SlackService.list_channels("xoxb-invalid")
@@ -291,9 +287,7 @@ class TestTestConnection:
     @respx.mock
     async def test_test_connection_calls_correct_endpoint(self) -> None:
         """test_connection should POST to auth.test endpoint."""
-        route = respx.post(AUTH_TEST_URL).mock(
-            return_value=Response(200, json={"ok": True})
-        )
+        route = respx.post(AUTH_TEST_URL).mock(return_value=Response(200, json={"ok": True}))
 
         await SlackService.test_connection("xoxb-test")
 
@@ -303,9 +297,7 @@ class TestTestConnection:
     @respx.mock
     async def test_test_connection_includes_authorization(self) -> None:
         """test_connection should include Bearer token in headers."""
-        route = respx.post(AUTH_TEST_URL).mock(
-            return_value=Response(200, json={"ok": True})
-        )
+        route = respx.post(AUTH_TEST_URL).mock(return_value=Response(200, json={"ok": True}))
 
         await SlackService.test_connection("xoxb-my-secret-token")
 
@@ -317,9 +309,7 @@ class TestTestConnection:
     async def test_test_connection_returns_error_for_invalid_token(self) -> None:
         """test_connection should return error response for invalid token."""
         route = respx.post(AUTH_TEST_URL).mock(
-            return_value=Response(
-                200, json={"ok": False, "error": "invalid_auth"}
-            )
+            return_value=Response(200, json={"ok": False, "error": "invalid_auth"})
         )
 
         result = await SlackService.test_connection("xoxb-invalid")

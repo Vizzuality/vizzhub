@@ -147,14 +147,16 @@ class MetricsService:
         """
         project_uuid = UUID(str(project_id)) if isinstance(project_id, str) else project_id
 
-        existing = await MetricsService.get_metrics(
-            db, project_uuid, year, month, snapshot_type
-        )
+        existing = await MetricsService.get_metrics(db, project_uuid, year, month, snapshot_type)
 
         # Remove fields that are set explicitly to avoid duplicate kwargs
         excluded_fields = {
-            "project_id", "period_year", "period_month",
-            "snapshot_type", "weights_applied", "targets_applied",
+            "project_id",
+            "period_year",
+            "period_month",
+            "snapshot_type",
+            "weights_applied",
+            "targets_applied",
         }
         clean_data = {k: v for k, v in data.items() if k not in excluded_fields}
 
@@ -218,8 +220,7 @@ class MetricsService:
         """
         # Extract only manual fields from the data
         manual_fields_to_sync = {
-            k: v for k, v in data.items()
-            if k in MetricsDB.MANUAL_FIELDS and v is not None
+            k: v for k, v in data.items() if k in MetricsDB.MANUAL_FIELDS and v is not None
         }
 
         if not manual_fields_to_sync:
@@ -233,9 +234,7 @@ class MetricsService:
         )
 
         # Get the other snapshot if it exists
-        other_snapshot = await MetricsService.get_metrics(
-            db, project_id, year, month, other_type
-        )
+        other_snapshot = await MetricsService.get_metrics(db, project_id, year, month, other_type)
 
         if other_snapshot:
             # Update only the manual fields
@@ -287,13 +286,10 @@ class MetricsService:
             Tuple of (past_snapshots, future_snapshots_ascending)
         """
         target_period = (target_year, target_month)
-        past_snapshots = [
-            s for s in snapshots
-            if (s.period_year, s.period_month) < target_period
-        ]
+        past_snapshots = [s for s in snapshots if (s.period_year, s.period_month) < target_period]
         future_snapshots = sorted(
             [s for s in snapshots if (s.period_year, s.period_month) > target_period],
-            key=lambda s: (s.period_year, s.period_month)
+            key=lambda s: (s.period_year, s.period_month),
         )
         return past_snapshots, future_snapshots
 
@@ -337,8 +333,7 @@ class MetricsService:
         preserved = dashboard.get_preserved_fields(include_github=False)
 
         missing_fields = [
-            field for field in MetricsDB.MANUAL_FIELDS
-            if preserved.get(field) is None
+            field for field in MetricsDB.MANUAL_FIELDS if preserved.get(field) is None
         ]
 
         if not missing_fields:

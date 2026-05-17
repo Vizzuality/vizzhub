@@ -15,8 +15,8 @@ from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import TokenData, get_current_user
 from app.core.api.deps import get_db
+from app.core.auth import TokenData, get_current_user
 from app.main import app
 
 EDITOR_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
@@ -40,13 +40,15 @@ REGULAR_TOKEN = TokenData(
 def _override_user(token: TokenData):
     async def _get_user() -> TokenData:
         return token
+
     return _get_user
 
 
 @pytest_asyncio.fixture
 async def _setup_db(db_session: AsyncSession):
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
+
     app.dependency_overrides[get_db] = override_get_db
     yield
     app.dependency_overrides.clear()
@@ -62,9 +64,14 @@ async def test_data(_setup_db) -> dict:
         policies_group = r_group.json()
 
         # Create a page under Policies
-        r1 = await c.post("/api/iso-docs/nodes", json={
-            "title": "Public Policy", "type": "page", "parent_id": policies_group["id"],
-        })
+        r1 = await c.post(
+            "/api/iso-docs/nodes",
+            json={
+                "title": "Public Policy",
+                "type": "page",
+                "parent_id": policies_group["id"],
+            },
+        )
         visible_page = r1.json()
         await c.put(
             f"/api/iso-docs/pages/{visible_page['id']}",
@@ -94,7 +101,7 @@ async def test_data(_setup_db) -> dict:
     }
 
 
-async def _client_as(token: TokenData) -> AsyncGenerator[AsyncClient, None]:
+async def _client_as(token: TokenData) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_current_user] = _override_user(token)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

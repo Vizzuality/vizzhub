@@ -1,9 +1,9 @@
 """ISO module configuration endpoints -- Google Workspace OAuth + GitHub + Jira."""
 
-import structlog
 import re
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
@@ -42,9 +42,7 @@ async def authorize_google_workspace(
     request: Request,
     current_user: IsoManager,
     db: DBSession,
-    domain: Annotated[
-        str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)
-    ],
+    domain: Annotated[str, Query(description="Google Workspace domain", pattern=DOMAIN_PATTERN)],
 ) -> RedirectResponse:
     state = await OAuthStateManager.generate_state(db)
     request.session["oauth_state"] = state
@@ -117,13 +115,9 @@ class GitHubOrgRequest(BaseModel):
 
 @router.get("/github")
 @limiter.limit("30/minute")
-async def get_github_status(
-    request: Request, current_user: IsoManager, db: DBSession
-) -> dict:
+async def get_github_status(request: Request, current_user: IsoManager, db: DBSession) -> dict:
     token = await IntegrationTokenService.get_token(db, GITHUB_PROVIDER)
-    org_name = await IntegrationTokenService.get_setting(
-        db, GITHUB_PROVIDER, GITHUB_ORG_KEY
-    )
+    org_name = await IntegrationTokenService.get_setting(db, GITHUB_PROVIDER, GITHUB_ORG_KEY)
     return {
         "connected": token is not None,
         "org_name": org_name,
@@ -143,18 +137,15 @@ async def save_github_org(
             status_code=422,
             detail="Invalid GitHub organization name. Use alphanumeric characters and hyphens.",
         )
-    await IntegrationTokenService.set_setting(
-        db, GITHUB_PROVIDER, GITHUB_ORG_KEY, body.org_name
-    )
+    await IntegrationTokenService.set_setting(db, GITHUB_PROVIDER, GITHUB_ORG_KEY, body.org_name)
     return {"status": "success", "org_name": body.org_name}
 
 
 @router.delete("/github")
 @limiter.limit("10/minute")
-async def clear_github_org(
-    request: Request, current_user: IsoManager, db: DBSession
-) -> dict:
+async def clear_github_org(request: Request, current_user: IsoManager, db: DBSession) -> dict:
     from sqlalchemy import delete
+
     from app.core.models.integration_setting import IntegrationSettingDB
 
     await db.execute(
@@ -189,9 +180,7 @@ async def authorize_google_drive(
     request.session["oauth_state"] = state
 
     callback_url = str(request.url_for("google_drive_callback"))
-    url = GoogleDriveOAuth.get_authorization_url(
-        state=state, redirect_uri=callback_url
-    )
+    url = GoogleDriveOAuth.get_authorization_url(state=state, redirect_uri=callback_url)
     return RedirectResponse(url=url, status_code=307)
 
 
@@ -217,9 +206,7 @@ async def google_drive_callback(
         raise HTTPException(status_code=400, detail="State expired or already used")
 
     callback_url = str(request.url_for("google_drive_callback"))
-    await GoogleDriveOAuth.exchange_code_for_token(
-        code=code, redirect_uri=callback_url, db=db
-    )
+    await GoogleDriveOAuth.exchange_code_for_token(code=code, redirect_uri=callback_url, db=db)
 
     request.session.pop("oauth_state", None)
     return {"status": "success", "message": "Google Drive connected"}
@@ -236,11 +223,10 @@ async def disconnect_google_drive(
 
 # --- Jira Config ---
 
+
 @router.get("/jira")
 @limiter.limit("30/minute")
-async def get_jira_status(
-    request: Request, current_user: IsoManager, db: DBSession
-) -> dict:
+async def get_jira_status(request: Request, current_user: IsoManager, db: DBSession) -> dict:
     site_info = await OAuthService.get_jira_site_info(db)
     token = await OAuthService.get_valid_jira_token(db)
     return {

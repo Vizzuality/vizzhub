@@ -1,7 +1,7 @@
 """Tests for GitHub-specific ISO diff engine."""
 
-from app.modules.iso.services.diff_github import compute_github_diff
 from app.modules.iso.services.diff_engine import build_diff_summary, compute_diff
+from app.modules.iso.services.diff_github import compute_github_diff
 
 
 def _empty_github_data() -> dict:
@@ -71,9 +71,7 @@ class TestMemberDiff:
 
         changes = compute_github_diff(data, data)
 
-        user_changes = [
-            c for c in changes if c["change_type"] in ("new_user", "removed_user")
-        ]
+        user_changes = [c for c in changes if c["change_type"] in ("new_user", "removed_user")]
         assert len(user_changes) == 0
 
 
@@ -109,9 +107,7 @@ class TestMemberRoleDiff:
 class TestOutsideCollaboratorDiff:
     def test_diff_outside_collaborators_new(self) -> None:
         current = _empty_github_data()
-        current["outside_collaborators"] = [
-            {"login": "ext-user", "name": "External"}
-        ]
+        current["outside_collaborators"] = [{"login": "ext-user", "name": "External"}]
         previous = _empty_github_data()
 
         changes = compute_github_diff(current, previous)
@@ -143,8 +139,7 @@ class TestOutsideCollaboratorDiff:
         changes = compute_github_diff(data, data)
 
         ext_changes = [
-            c for c in changes
-            if c["change_type"] in ("new_external", "removed_external")
+            c for c in changes if c["change_type"] in ("new_external", "removed_external")
         ]
         assert len(ext_changes) == 0
 
@@ -164,9 +159,7 @@ class TestTeamMemberDiff:
 
         changes = compute_github_diff(current, previous)
 
-        membership = [
-            c for c in changes if c["change_type"] == "group_membership_change"
-        ]
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
         assert len(membership) == 1
         assert membership[0]["subject_type"] == "group"
         assert membership[0]["subject_id"] == "backend"
@@ -188,9 +181,7 @@ class TestTeamMemberDiff:
 
         changes = compute_github_diff(current, previous)
 
-        membership = [
-            c for c in changes if c["change_type"] == "group_membership_change"
-        ]
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
         assert len(membership) == 1
         assert "bob" in membership[0]["current_value"]["removed"]
         assert membership[0]["current_value"]["added"] == []
@@ -204,9 +195,7 @@ class TestTeamMemberDiff:
 
         changes = compute_github_diff(data, data)
 
-        membership = [
-            c for c in changes if c["change_type"] == "group_membership_change"
-        ]
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
         assert len(membership) == 0
 
 

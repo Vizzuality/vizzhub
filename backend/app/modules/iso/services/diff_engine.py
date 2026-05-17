@@ -33,9 +33,7 @@ def compute_diff(
     return changes
 
 
-def _diff_users(
-    current: dict[str, Any], previous: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _diff_users(current: dict[str, Any], previous: dict[str, Any]) -> list[dict[str, Any]]:
     current_emails = {u["email"]: u for u in current["users"]}
     previous_emails = {u["email"]: u for u in previous["users"]}
     changes: list[dict[str, Any]] = []
@@ -69,9 +67,7 @@ def _diff_users(
     return changes
 
 
-def _diff_admins(
-    current: dict[str, Any], previous: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _diff_admins(current: dict[str, Any], previous: dict[str, Any]) -> list[dict[str, Any]]:
     current_admin_emails = {ra["user_email"] for ra in current["role_assignments"]}
     previous_admin_emails = {ra["user_email"] for ra in previous["role_assignments"]}
 
@@ -109,9 +105,7 @@ def _diff_admins(
     return changes
 
 
-def _diff_group_members(
-    current: dict[str, Any], previous: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _diff_group_members(current: dict[str, Any], previous: dict[str, Any]) -> list[dict[str, Any]]:
     current_members = current.get("group_members", {})
     previous_members = previous.get("group_members", {})
     current_groups = {g["email"]: g for g in current.get("groups", [])}
@@ -155,9 +149,7 @@ def _diff_externals(
 
     for group_email, members in current_members.items():
         curr_external = {
-            m["email"]
-            for m in members
-            if m.get("email") and not m["email"].endswith(f"@{domain}")
+            m["email"] for m in members if m.get("email") and not m["email"].endswith(f"@{domain}")
         }
         prev_external = {
             m["email"]

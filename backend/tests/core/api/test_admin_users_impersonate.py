@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import create_access_token
 from app.core.models.role import RoleDB
 from app.core.models.user import UserDB
-from tests.conftest import seed_roles, assign_roles
+from tests.conftest import assign_roles, seed_roles
 
 
 @pytest_asyncio.fixture
@@ -60,9 +60,7 @@ class TestImpersonate:
     async def test_impersonate_returns_target_user(
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
-        response = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        response = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         assert response.status_code == 200
         data = response.json()
         assert data["email"] == "user@test.com"
@@ -73,21 +71,15 @@ class TestImpersonate:
     async def test_impersonate_sets_cookies(
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
-        response = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        response = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         assert response.status_code == 200
         cookies = {c.name: c for c in response.cookies.jar}
         assert "access_token" in cookies
         assert "admin_token" in cookies
 
     @pytest.mark.asyncio
-    async def test_impersonate_self_returns_400(
-        self, client: AsyncClient, admin_user: UserDB
-    ):
-        response = await client.post(
-            f"/api/admin/users/{admin_user.id}/impersonate"
-        )
+    async def test_impersonate_self_returns_400(self, client: AsyncClient, admin_user: UserDB):
+        response = await client.post(f"/api/admin/users/{admin_user.id}/impersonate")
         assert response.status_code == 400
         assert "Cannot impersonate yourself" in response.json()["detail"]
 
@@ -121,9 +113,7 @@ class TestImpersonate:
     async def test_impersonate_inactive_user_returns_400(
         self, client: AsyncClient, admin_user: UserDB, inactive_user: UserDB
     ):
-        response = await client.post(
-            f"/api/admin/users/{inactive_user.id}/impersonate"
-        )
+        response = await client.post(f"/api/admin/users/{inactive_user.id}/impersonate")
         assert response.status_code == 400
         assert "Cannot impersonate an inactive user" in response.json()["detail"]
 
@@ -131,9 +121,7 @@ class TestImpersonate:
     async def test_impersonate_response_includes_roles(
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
-        response = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        response = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         assert response.status_code == 200
         data = response.json()
         assert "roles" in data
@@ -160,9 +148,7 @@ class TestStopImpersonate:
         client.cookies.set("access_token", admin_jwt)
 
         # Impersonate
-        resp = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        resp = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         assert resp.status_code == 200
 
         # Extract cookies from impersonate response and set them on client
@@ -201,9 +187,7 @@ class TestStopImpersonate:
         client.cookies.set("access_token", admin_jwt)
 
         # First impersonate
-        resp = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        resp = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         for cookie in resp.cookies.jar:
             client.cookies.set(cookie.name, cookie.value)
 
@@ -228,9 +212,7 @@ class TestStopImpersonate:
         )
         client.cookies.set("access_token", admin_jwt)
 
-        resp = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        resp = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         for cookie in resp.cookies.jar:
             client.cookies.set(cookie.name, cookie.value)
 
@@ -246,9 +228,7 @@ class TestAuthMeImpersonation:
     """Tests for /auth/me is_impersonating field."""
 
     @pytest.mark.asyncio
-    async def test_auth_me_not_impersonating(
-        self, client: AsyncClient, admin_user: UserDB
-    ):
+    async def test_auth_me_not_impersonating(self, client: AsyncClient, admin_user: UserDB):
         response = await client.get("/api/auth/me")
         assert response.status_code == 200
         data = response.json()
@@ -259,9 +239,7 @@ class TestAuthMeImpersonation:
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
         # Impersonate
-        resp = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        resp = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         for cookie in resp.cookies.jar:
             client.cookies.set(cookie.name, cookie.value)
 
@@ -280,9 +258,7 @@ class TestLogoutClearsAdminToken:
         self, client: AsyncClient, admin_user: UserDB, regular_user: UserDB
     ):
         # Impersonate
-        resp = await client.post(
-            f"/api/admin/users/{regular_user.id}/impersonate"
-        )
+        resp = await client.post(f"/api/admin/users/{regular_user.id}/impersonate")
         for cookie in resp.cookies.jar:
             client.cookies.set(cookie.name, cookie.value)
 

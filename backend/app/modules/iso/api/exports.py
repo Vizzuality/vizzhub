@@ -1,6 +1,6 @@
 """ISO export API endpoints."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -14,8 +14,8 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
-from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.core.models.user import UserDB
+from app.core.services.export_helpers import XLSX_MEDIA_TYPE
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
@@ -35,7 +35,8 @@ def _parse_date_param(value: str, param_name: str) -> date:
 
 
 async def _build_export_data(
-    db: AsyncSession, snapshots: list[AccessSnapshotDB],
+    db: AsyncSession,
+    snapshots: list[AccessSnapshotDB],
 ) -> list[tuple[dict, dict | None, list[dict]]]:
     """Build the data tuples that IsoExportService expects."""
     user_cache: dict[UUID, str] = {}
@@ -53,9 +54,7 @@ async def _build_export_data(
     result = []
     for snapshot in snapshots:
         review_result = await db.execute(
-            select(AccessReviewDB).where(
-                AccessReviewDB.snapshot_id == snapshot.id
-            )
+            select(AccessReviewDB).where(AccessReviewDB.snapshot_id == snapshot.id)
         )
         review_db = review_result.scalar_one_or_none()
 
@@ -83,17 +82,19 @@ async def _build_export_data(
                 .order_by(AccessReviewActionDB.created_at)
             )
             for action in actions_result.scalars().all():
-                actions_list.append({
-                    "subject_label": action.subject_label,
-                    "subject_type": action.subject_type,
-                    "subject_id": action.subject_id,
-                    "change_type": action.change_type,
-                    "previous_value": action.previous_value,
-                    "current_value": action.current_value,
-                    "action_taken": action.action_taken,
-                    "justification": action.justification,
-                    "exception_until": action.exception_until,
-                })
+                actions_list.append(
+                    {
+                        "subject_label": action.subject_label,
+                        "subject_type": action.subject_type,
+                        "subject_id": action.subject_id,
+                        "change_type": action.change_type,
+                        "previous_value": action.previous_value,
+                        "current_value": action.current_value,
+                        "action_taken": action.action_taken,
+                        "justification": action.justification,
+                        "exception_until": action.exception_until,
+                    }
+                )
 
         snapshot_dict = {
             "id": str(snapshot.id),
@@ -132,8 +133,8 @@ async def export_snapshot_range(
     if end < start:
         raise HTTPException(status_code=400, detail="'to' must not be before 'from'.")
 
-    start_dt = datetime(start.year, start.month, start.day, tzinfo=timezone.utc)
-    end_dt = datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=timezone.utc)
+    start_dt = datetime(start.year, start.month, start.day, tzinfo=UTC)
+    end_dt = datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=UTC)
 
     query = (
         select(AccessSnapshotDB)
@@ -177,9 +178,7 @@ async def export_single_snapshot(
     current_user: IsoManager,
     db: DBSession,
 ) -> Response:
-    result = await db.execute(
-        select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
-    )
+    result = await db.execute(select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id))
     snapshot = result.scalar_one_or_none()
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")

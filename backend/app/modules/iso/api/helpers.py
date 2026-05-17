@@ -33,18 +33,14 @@ async def paginate(
 
 
 async def get_review_or_404(db: AsyncSession, review_id: UUID) -> AccessReviewDB:
-    result = await db.execute(
-        select(AccessReviewDB).where(AccessReviewDB.id == review_id)
-    )
+    result = await db.execute(select(AccessReviewDB).where(AccessReviewDB.id == review_id))
     review = result.scalar_one_or_none()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     return review
 
 
-async def load_review_with_actions(
-    db: AsyncSession, review: AccessReviewDB
-) -> dict:
+async def load_review_with_actions(db: AsyncSession, review: AccessReviewDB) -> dict:
     """Fetch a review's actions and build a dict suitable for response serialization."""
     actions_result = await db.execute(
         select(AccessReviewActionDB)

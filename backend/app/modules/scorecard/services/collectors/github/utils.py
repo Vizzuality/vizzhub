@@ -5,9 +5,10 @@ This module contains common functions and constants used across multiple
 GitHub collector modules to avoid duplication.
 """
 
-import structlog
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
+
+import structlog
 
 from app.modules.scorecard.services.collectors.utils import parse_iso_datetime
 
@@ -23,7 +24,7 @@ TARGET_BRANCHES = frozenset({"dev", "develop", "main", "master", "development"})
 MAX_CONCURRENT_REQUESTS = 20
 
 # Default datetime for releases without a date (used for sorting)
-_MIN_RELEASE_DATE = datetime.min.replace(tzinfo=timezone.utc)
+_MIN_RELEASE_DATE = datetime.min.replace(tzinfo=UTC)
 
 
 def _is_within_period(
@@ -168,11 +169,7 @@ def filter_target_branch_prs(prs: list[dict]) -> list[dict]:
     Returns:
         Filtered list of PRs targeting main/dev branches
     """
-    return [
-        pr
-        for pr in prs
-        if (pr.get("base", {}).get("ref") or "").lower() in TARGET_BRANCHES
-    ]
+    return [pr for pr in prs if (pr.get("base", {}).get("ref") or "").lower() in TARGET_BRANCHES]
 
 
 def _filter_release(
@@ -255,9 +252,7 @@ async def get_releases(
     per_page = 100
 
     while len(releases) < max_results:
-        page_releases = await _fetch_releases_page(
-            http_client, owner, repo, page, per_page
-        )
+        page_releases = await _fetch_releases_page(http_client, owner, repo, page, per_page)
         if not page_releases:
             break
 

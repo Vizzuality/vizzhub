@@ -25,9 +25,7 @@ def _ensure_worker_database(worker_db_url: str) -> None:
     async def _create() -> None:
         conn = await asyncpg.connect(admin_url)
         try:
-            exists = await conn.fetchval(
-                "SELECT 1 FROM pg_database WHERE datname = $1", db_name
-            )
+            exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", db_name)
             if not exists:
                 await conn.execute(f'CREATE DATABASE "{db_name}"')
         finally:
@@ -177,7 +175,7 @@ def scoring_config() -> ScoringConfig:
 
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+async def db_session() -> AsyncGenerator[AsyncSession]:
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     async_session_maker = async_sessionmaker(
         engine,
@@ -201,18 +199,19 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
     # Reset rate limiter state before each test
     # Each API router has its own limiter instance that needs to be reset
-    from app.main import limiter as main_limiter
-    from app.core.api import projects_v2 as projects, oauth
-    from app.modules.scorecard.api import metrics, collectors, scores, config, capture
+    from app.core.api import oauth
+    from app.core.api import projects_v2 as projects
     from app.core.api.deps import limiter as deps_limiter
+    from app.main import limiter as main_limiter
+    from app.modules.scorecard.api import capture, collectors, config, metrics, scores
 
     main_limiter.reset()
     projects.limiter.reset()
@@ -239,6 +238,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # asyncpg "another operation in progress". Drain the pool so the next test
     # starts with fresh connections.
     from app.database import engine as app_engine
+
     await app_engine.dispose()
 
 

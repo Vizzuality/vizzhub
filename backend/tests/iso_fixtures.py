@@ -1,6 +1,6 @@
 """Shared test fixtures for the ISO module."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.models.user import UserDB
@@ -15,20 +15,16 @@ async def ensure_dev_user(db_session) -> None:
     """Create the dev user in the DB so FK constraints pass."""
     from sqlalchemy import select
 
-    result = await db_session.execute(
-        select(UserDB).where(UserDB.id == DEV_USER_ID)
-    )
+    result = await db_session.execute(select(UserDB).where(UserDB.id == DEV_USER_ID))
     if not result.scalar_one_or_none():
         db_session.add(UserDB(id=DEV_USER_ID, email="dev@test.com"))
         await db_session.flush()
 
 
-async def make_snapshot(
-    db_session, captured_at=None, **kwargs
-) -> AccessSnapshotDB:
+async def make_snapshot(db_session, captured_at=None, **kwargs) -> AccessSnapshotDB:
     defaults = {
         "provider": "google_workspace",
-        "captured_at": captured_at or datetime(2026, 2, 1, tzinfo=timezone.utc),
+        "captured_at": captured_at or datetime(2026, 2, 1, tzinfo=UTC),
         "data_version": "1",
         "source_metadata": {"domain": "test.com"},
         "data": {"users": []},
@@ -41,9 +37,7 @@ async def make_snapshot(
     return snapshot
 
 
-async def make_review(
-    db_session, snapshot_id, status: str = "draft", **kwargs
-) -> AccessReviewDB:
+async def make_review(db_session, snapshot_id, status: str = "draft", **kwargs) -> AccessReviewDB:
     defaults = {
         "snapshot_id": snapshot_id,
         "status": status,
@@ -56,13 +50,11 @@ async def make_review(
     return review
 
 
-async def make_github_snapshot(
-    db_session, captured_at=None, **kwargs
-) -> AccessSnapshotDB:
+async def make_github_snapshot(db_session, captured_at=None, **kwargs) -> AccessSnapshotDB:
     """Create a GitHub provider snapshot with realistic sample data."""
     defaults = {
         "provider": "github",
-        "captured_at": captured_at or datetime(2026, 2, 1, tzinfo=timezone.utc),
+        "captured_at": captured_at or datetime(2026, 2, 1, tzinfo=UTC),
         "data_version": "2",
         "source_metadata": {"org": "acme-corp", "collector": "github"},
         "data": {
@@ -111,9 +103,7 @@ async def make_github_snapshot(
     return snapshot
 
 
-async def make_action(
-    db_session, review_id, **kwargs
-) -> AccessReviewActionDB:
+async def make_action(db_session, review_id, **kwargs) -> AccessReviewActionDB:
     defaults = {
         "review_id": review_id,
         "subject_type": "user",

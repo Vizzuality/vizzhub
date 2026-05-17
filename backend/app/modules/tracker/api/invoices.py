@@ -17,6 +17,8 @@ from app.core.permissions import Action, require_permission
 logger = structlog.get_logger()
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
+from fastapi import APIRouter, HTTPException
+
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 from app.modules.tracker.schemas.invoice import (
@@ -27,8 +29,6 @@ from app.modules.tracker.schemas.invoice import (
     InvoiceUpdate,
 )
 
-from fastapi import APIRouter, HTTPException
-
 router = APIRouter()
 
 _INVOICE_NOT_FOUND = "Invoice not found"
@@ -36,13 +36,13 @@ _INVOICE_NOT_FOUND = "Invoice not found"
 
 from app.modules.tracker.services.invoice_status import (
     effective_status_expr as _effective_status_expr,
+)
+from app.modules.tracker.services.invoice_status import (
     postponement_subquery as _postponement_subquery,
 )
 
 
-async def _invoice_status_info(
-    inv: InvoiceDB, db: AsyncSession
-) -> tuple[str, int, date | None]:
+async def _invoice_status_info(inv: InvoiceDB, db: AsyncSession) -> tuple[str, int, date | None]:
     """Single query: return (effective_status, postpone_count, latest_postponed_to).
 
     ``latest_postponed_to`` is the ``postponed_to`` of the most recently

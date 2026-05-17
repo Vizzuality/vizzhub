@@ -1,11 +1,11 @@
 """ISO snapshot API endpoints."""
 
-import structlog
 import math
 from typing import Annotated
 from uuid import UUID
 
 import httpx
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.sql import func
@@ -17,6 +17,7 @@ from app.core.permissions import Action, require_permission
 IsoViewer = Annotated[TokenData, Depends(require_permission(Action.ISO_VIEW))]
 IsoManager = Annotated[TokenData, Depends(require_permission(Action.ISO_MANAGE))]
 from app.core.schemas.common import PaginatedResponse
+from app.modules.iso.api.helpers import load_review_with_actions
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
@@ -26,12 +27,11 @@ from app.modules.iso.schemas import (
     AccessSnapshotSummary,
 )
 from app.modules.iso.services.collectors import (
-    GoogleWorkspaceCollector,
     GitHubCollector,
+    GoogleWorkspaceCollector,
     JiraCollector,
 )
 from app.modules.iso.services.review_service import create_review_for_snapshot
-from app.modules.iso.api.helpers import load_review_with_actions
 
 logger = structlog.get_logger()
 
@@ -81,18 +81,12 @@ async def capture_snapshot(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except httpx.HTTPStatusError as e:
         logger.warning("provider_api_error", provider=provider, status_code=e.response.status_code)
-        raise HTTPException(
-            status_code=502, detail=f"{provider} API error"
-        ) from e
+        raise HTTPException(status_code=502, detail=f"{provider} API error") from e
     except httpx.RequestError:
         logger.exception("provider_connection_error", provider=provider)
-        raise HTTPException(
-            status_code=502, detail=f"Failed to connect to {provider}"
-        )
+        raise HTTPException(status_code=502, detail=f"Failed to connect to {provider}")
 
-    review = await create_review_for_snapshot(
-        db, snapshot, reviewer_id=snapshot.captured_by
-    )
+    review = await create_review_for_snapshot(db, snapshot, reviewer_id=snapshot.captured_by)
     logger.info("snapshot_captured", review_id=str(review.id))
     return snapshot
 
@@ -160,9 +154,7 @@ async def list_snapshots(
 async def get_snapshot(
     request: Request, snapshot_id: UUID, current_user: IsoViewer, db: DBSession
 ) -> AccessSnapshotDB:
-    result = await db.execute(
-        select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
-    )
+    result = await db.execute(select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id))
     snapshot = result.scalar_one_or_none()
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
@@ -178,9 +170,7 @@ async def get_snapshot(
 async def delete_snapshot(
     request: Request, snapshot_id: UUID, current_user: IsoManager, db: DBSession
 ) -> Response:
-    result = await db.execute(
-        select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id)
-    )
+    result = await db.execute(select(AccessSnapshotDB).where(AccessSnapshotDB.id == snapshot_id))
     snapshot = result.scalar_one_or_none()
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")

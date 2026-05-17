@@ -13,7 +13,7 @@ class ReportingPeriodCreate(BaseModel):
     date: dt.date
     base_rate: Decimal = Field(default=DEFAULT_RATE, gt=0)
 
-    @field_validator('date')
+    @field_validator("date")
     @classmethod
     def normalize_to_first_of_month(cls, v: dt.date) -> dt.date:
         return v.replace(day=1)
@@ -23,7 +23,7 @@ class ReportingPeriodUpdate(BaseModel):
     date: dt.date | None = None
     base_rate: Decimal | None = Field(default=None, gt=0)
 
-    @field_validator('date')
+    @field_validator("date")
     @classmethod
     def normalize_to_first_of_month(cls, v: dt.date | None) -> dt.date | None:
         if v is None:

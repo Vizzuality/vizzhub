@@ -41,9 +41,7 @@ class TestParseGithubUrl:
         assert result == ("Vizzuality", "devstack", "main", "deep/nested/file.md")
 
     def test_commit_sha_as_ref(self) -> None:
-        result = parse_github_url(
-            "https://github.com/Vizzuality/devstack/blob/abc123def/file.md"
-        )
+        result = parse_github_url("https://github.com/Vizzuality/devstack/blob/abc123def/file.md")
         assert result == ("Vizzuality", "devstack", "abc123def", "file.md")
 
     def test_non_github_url_returns_none(self) -> None:
@@ -71,6 +69,7 @@ class TestFetchGithubSha:
     async def test_returns_none_on_rate_limit(self, respx_mock) -> None:
         """GitHub 429 must surface as None without raising — never block sync."""
         import httpx
+
         respx_mock.get(
             "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
         ).mock(
@@ -89,6 +88,7 @@ class TestFetchGithubSha:
     async def test_returns_none_on_malformed_json(self, respx_mock) -> None:
         """Body that isn't JSON must not crash the worker."""
         import httpx
+
         respx_mock.get(
             "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
         ).mock(return_value=httpx.Response(200, text="<html>not json</html>"))
@@ -101,6 +101,7 @@ class TestFetchGithubSha:
     async def test_returns_none_when_sha_missing(self, respx_mock) -> None:
         """Valid JSON but no 'sha' key → None."""
         import httpx
+
         respx_mock.get(
             "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
         ).mock(return_value=httpx.Response(200, json={"name": "test.md"}))
@@ -125,6 +126,7 @@ class TestFetchGithubContent:
     async def test_returns_none_on_malformed_json(self, respx_mock) -> None:
         """Malformed JSON body must not raise."""
         import httpx
+
         respx_mock.get(
             "https://api.github.com/repos/Vizzuality/devstack/contents/skills/test.md"
         ).mock(return_value=httpx.Response(200, text="not-json"))

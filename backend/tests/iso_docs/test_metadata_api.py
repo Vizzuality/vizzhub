@@ -16,9 +16,7 @@ async def page_node(client: AsyncClient) -> dict:
 
 @pytest.mark.asyncio
 async def test_get_metadata_default(client: AsyncClient, page_node: dict):
-    response = await client.get(
-        f"/api/iso-docs/pages/{page_node['id']}/metadata"
-    )
+    response = await client.get(f"/api/iso-docs/pages/{page_node['id']}/metadata")
     assert response.status_code == 200
     data = response.json()
     assert data["classification"] == "internal_use"
@@ -27,9 +25,7 @@ async def test_get_metadata_default(client: AsyncClient, page_node: dict):
 
 @pytest.mark.asyncio
 async def test_create_metadata(client: AsyncClient):
-    group = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Policies", "type": "group"}
-    )
+    group = await client.post("/api/iso-docs/nodes", json={"title": "Policies", "type": "group"})
     page = await client.post(
         "/api/iso-docs/nodes",
         json={"title": "POL04 Access Control", "type": "page", "parent_id": group.json()["id"]},
@@ -44,8 +40,18 @@ async def test_create_metadata(client: AsyncClient):
             "clauses": ["A.5.15", "A.5.18"],
             "status": "approved",
             "changelog": [
-                {"version": "1.0", "date": "2025-01-01", "author": "Admin", "description": "Initial"},
-                {"version": "1.1", "date": "2025-06-01", "author": "Admin", "description": "Updated"},
+                {
+                    "version": "1.0",
+                    "date": "2025-01-01",
+                    "author": "Admin",
+                    "description": "Initial",
+                },
+                {
+                    "version": "1.1",
+                    "date": "2025-06-01",
+                    "author": "Admin",
+                    "description": "Updated",
+                },
             ],
         },
     )
@@ -128,12 +134,8 @@ async def test_document_date(client: AsyncClient, page_node: dict):
 
 @pytest.mark.asyncio
 async def test_search_by_category(client: AsyncClient):
-    g1 = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Policies", "type": "group"}
-    )
-    g2 = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Procedures", "type": "group"}
-    )
+    g1 = await client.post("/api/iso-docs/nodes", json={"title": "Policies", "type": "group"})
+    g2 = await client.post("/api/iso-docs/nodes", json={"title": "Procedures", "type": "group"})
     p1 = await client.post(
         "/api/iso-docs/nodes",
         json={"title": "Policy A", "type": "page", "parent_id": g1.json()["id"]},
@@ -162,17 +164,13 @@ async def test_search_by_category(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_search_by_standard(client: AsyncClient):
-    p1 = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Doc 27001", "type": "page"}
-    )
+    p1 = await client.post("/api/iso-docs/nodes", json={"title": "Doc 27001", "type": "page"})
     await client.put(
         f"/api/iso-docs/pages/{p1.json()['id']}/metadata",
         json={"standard": ["ISO 27001:2022"]},
     )
 
-    response = await client.get(
-        "/api/iso-docs/metadata/search?standard=ISO 27001:2022"
-    )
+    response = await client.get("/api/iso-docs/metadata/search?standard=ISO 27001:2022")
     results = response.json()
     assert len(results) == 1
     assert results[0]["title"] == "Doc 27001"
@@ -180,9 +178,7 @@ async def test_search_by_standard(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_search_by_clause(client: AsyncClient):
-    p1 = await client.post(
-        "/api/iso-docs/nodes", json={"title": "Doc A515", "type": "page"}
-    )
+    p1 = await client.post("/api/iso-docs/nodes", json={"title": "Doc A515", "type": "page"})
     await client.put(
         f"/api/iso-docs/pages/{p1.json()['id']}/metadata",
         json={"clauses": ["A.5.15", "A.5.18"]},

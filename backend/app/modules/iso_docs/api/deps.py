@@ -35,9 +35,7 @@ async def get_visible_node_ids(db: AsyncSession) -> set[UUID]:
     if not root_ids:
         return set()
 
-    all_nodes = (await db.execute(
-        select(IsoDocNodeDB.id, IsoDocNodeDB.parent_id)
-    )).all()
+    all_nodes = (await db.execute(select(IsoDocNodeDB.id, IsoDocNodeDB.parent_id))).all()
 
     children_map: dict[UUID | None, list[UUID]] = {}
     for nid, pid in all_nodes:
@@ -53,7 +51,9 @@ async def get_visible_node_ids(db: AsyncSession) -> set[UUID]:
 
 
 async def check_user_access(
-    db: AsyncSession, node_id: UUID, user: TokenData,
+    db: AsyncSession,
+    node_id: UUID,
+    user: TokenData,
 ) -> None:
     """Raise 403 if a non-editor user tries to access a node outside visible roots."""
     if is_iso_docs_editor(user):

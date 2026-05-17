@@ -6,7 +6,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.core.api.deps import DBSession, OptionalScoreCache, ScoringConfigDep, get_project_or_404, limiter
+from app.core.api.deps import (
+    DBSession,
+    OptionalScoreCache,
+    ScoringConfigDep,
+    get_project_or_404,
+    limiter,
+)
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
@@ -14,7 +20,13 @@ MetricsEditor = Annotated[TokenData, Depends(require_permission(Action.SCORECARD
 ScorecardViewer = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_VIEW))]
 from app.core.exceptions import MetricsNotFoundError
 from app.modules.scorecard.models.indicators import IndicatorsCreate
-from app.modules.scorecard.models.metrics import Metrics, MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
+from app.modules.scorecard.models.metrics import (
+    Metrics,
+    MetricsCreate,
+    MetricsDB,
+    MetricsWithScores,
+    SnapshotType,
+)
 from app.modules.scorecard.models.scores import FinalScore
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.scorecard.services.score_computation import ScoreComputationService
@@ -103,8 +115,14 @@ async def create_metrics(
     if project.status == "finished":
         metrics_dict = metrics.model_dump(exclude_unset=True)
         allowed_fields = {
-            "period_start", "period_end", "period_year", "period_month",
-            "snapshot_type", "strategic_impact", "client_survey", "sev1_incident",
+            "period_start",
+            "period_end",
+            "period_year",
+            "period_month",
+            "snapshot_type",
+            "strategic_impact",
+            "client_survey",
+            "sev1_incident",
         }
         provided_fields = set(metrics_dict.keys())
         disallowed = provided_fields - allowed_fields
@@ -139,9 +157,7 @@ async def get_metrics(
     request: Request, metrics_id: UUID, current_user: ScorecardViewer, db: DBSession
 ) -> Metrics:
     """Get specific metrics by ID. Requires authentication."""
-    result = await db.execute(
-        select(MetricsDB).where(MetricsDB.id == str(metrics_id))
-    )
+    result = await db.execute(select(MetricsDB).where(MetricsDB.id == str(metrics_id)))
     metrics = result.scalar_one_or_none()
     if metrics is None:
         raise MetricsNotFoundError(str(metrics_id))
@@ -158,9 +174,7 @@ async def delete_metrics(
     cache: OptionalScoreCache,
 ) -> None:
     """Delete metrics by ID."""
-    result = await db.execute(
-        select(MetricsDB).where(MetricsDB.id == str(metrics_id))
-    )
+    result = await db.execute(select(MetricsDB).where(MetricsDB.id == str(metrics_id)))
     metrics = result.scalar_one_or_none()
     if metrics is None:
         raise MetricsNotFoundError(str(metrics_id))

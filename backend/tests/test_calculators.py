@@ -210,9 +210,7 @@ class TestCostCalculator:
         score = calc.calculate(indicators)
         assert score == 86
 
-    def test_cost_variance_pct_positive_when_efficient(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_cost_variance_pct_positive_when_efficient(self, config: ScoringConfig) -> None:
         """Ahead of schedule on cost: 40% complete, 30% spent → CV%=+0.10,
         normalizer → 1.0. Cost score = 100 with perfect CPI."""
         calc = CostCalculator(config)
@@ -220,9 +218,7 @@ class TestCostCalculator:
         score = calc.calculate(indicators)
         assert score == 100
 
-    def test_cost_variance_pct_negative_when_overrun(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_cost_variance_pct_negative_when_overrun(self, config: ScoringConfig) -> None:
         """Overrun: 40% complete, 60% spent → CV%=-0.20, target=0.10 →
         normalizer → 0.0. Score = 0.7*1.0 + 0.3*0.0 = 0.70 → 70."""
         calc = CostCalculator(config)
@@ -237,9 +233,7 @@ class TestCostCalculator:
         score = calc.calculate(indicators)
         assert score == 100
 
-    def test_cost_variance_pct_none_when_evm_incomplete(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_cost_variance_pct_none_when_evm_incomplete(self, config: ScoringConfig) -> None:
         """Missing CV% with perfect CPI → cost score driven by CPI only
         (weight redistributed)."""
         calc = CostCalculator(config)
@@ -247,9 +241,7 @@ class TestCostCalculator:
         score = calc.calculate(indicators)
         assert score == 100
 
-    def test_cost_dim_falls_back_to_cpi_only_when_cv_none(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_cost_dim_falls_back_to_cpi_only_when_cv_none(self, config: ScoringConfig) -> None:
         """Pins the 'missing excluded, redistribute weights' rule: CV missing
         means CPI carries the whole dimension. CPI=0.6 → 60."""
         calc = CostCalculator(config)
@@ -266,9 +258,7 @@ class TestQualityCalculator:
         score = calc.calculate(perfect_indicators)
         assert score == 100
 
-    def test_sev1_cap(
-        self, config: ScoringConfig, perfect_indicators: IndicatorsCreate
-    ) -> None:
+    def test_sev1_cap(self, config: ScoringConfig, perfect_indicators: IndicatorsCreate) -> None:
         calc = QualityCalculator(config)
         score = calc.calculate(perfect_indicators, sev1_incident=True)
         assert score == 60
@@ -477,9 +467,7 @@ class TestEngineeringCalculator:
 
 
 class TestRiskCalculator:
-    def test_no_risk(
-        self, config: ScoringConfig, perfect_indicators: IndicatorsCreate
-    ) -> None:
+    def test_no_risk(self, config: ScoringConfig, perfect_indicators: IndicatorsCreate) -> None:
         calc = RiskCalculator(config)
         score = calc.calculate(perfect_indicators, total_prs=100)
         assert score == 100
@@ -510,9 +498,7 @@ class TestRiskCalculator:
         score = calc.calculate(indicators, total_prs=100)
         assert score == 100  # Weight redistributed to PRs only
 
-    def test_zero_total_prs_returns_none_for_pr_component(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_zero_total_prs_returns_none_for_pr_component(self, config: ScoringConfig) -> None:
         """When total_prs=0, PR review component is None (no data, not perfect)."""
         calc = RiskCalculator(config)
         indicators = IndicatorsCreate(prs_without_review=0, high_vulns=0)
@@ -520,9 +506,7 @@ class TestRiskCalculator:
         score = calc.calculate(indicators, total_prs=0)
         assert score == 100  # Weight redistributed to vulns only (which is 0 = perfect)
 
-    def test_zero_total_prs_no_vulns_data_returns_none(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_zero_total_prs_no_vulns_data_returns_none(self, config: ScoringConfig) -> None:
         """When total_prs=0 and no vuln data, score is None (muted in UI)."""
         calc = RiskCalculator(config)
         indicators = IndicatorsCreate(prs_without_review=0)  # No high_vulns
@@ -567,9 +551,7 @@ class TestFinalScoreCalculator:
         assert result.score is None
         assert all(w == 0.0 for w in result.weights_applied.values())
 
-    def test_weights_redistributed_for_available_dimensions(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_weights_redistributed_for_available_dimensions(self, config: ScoringConfig) -> None:
         """When some dimensions have data, weights must sum to 1.0."""
         calc = FinalScoreCalculator(config)
         # SPI present → at least Time dimension is computable

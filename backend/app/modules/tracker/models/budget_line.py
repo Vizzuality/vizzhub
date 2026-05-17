@@ -29,9 +29,7 @@ class BudgetLineDB(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -43,13 +41,9 @@ class BudgetLineDB(Base):
         nullable=True,
     )
     days: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
-    percentage: Mapped[Decimal | None] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
+    percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     details: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

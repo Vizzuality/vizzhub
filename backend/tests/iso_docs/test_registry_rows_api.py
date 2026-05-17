@@ -6,7 +6,13 @@ from httpx import AsyncClient
 
 SCHEMA = [
     {"key": "name", "label": "Name", "type": "string", "required": True},
-    {"key": "category", "label": "Category", "type": "select", "required": True, "options": ["A", "B", "C"]},
+    {
+        "key": "category",
+        "label": "Category",
+        "type": "select",
+        "required": True,
+        "options": ["A", "B", "C"],
+    },
     {"key": "count", "label": "Count", "type": "number", "required": False},
     {"key": "active", "label": "Active", "type": "boolean", "required": False},
     {"key": "start_date", "label": "Start Date", "type": "date", "required": False},
@@ -141,9 +147,7 @@ async def test_update_row(client: AsyncClient, registry_setup: dict):
 
 
 @pytest.mark.asyncio
-async def test_update_row_null_clears_optional_field(
-    client: AsyncClient, registry_setup: dict
-):
+async def test_update_row_null_clears_optional_field(client: AsyncClient, registry_setup: dict):
     """PATCH with `key: null` for an optional column must clear that field."""
     node_id = registry_setup["node"]["id"]
     create_resp = await client.post(
@@ -165,9 +169,7 @@ async def test_update_row_null_clears_optional_field(
 
 
 @pytest.mark.asyncio
-async def test_update_row_null_required_field_rejected(
-    client: AsyncClient, registry_setup: dict
-):
+async def test_update_row_null_required_field_rejected(client: AsyncClient, registry_setup: dict):
     """PATCH that nulls a required field must fail validation (422)."""
     node_id = registry_setup["node"]["id"]
     create_resp = await client.post(
@@ -184,9 +186,7 @@ async def test_update_row_null_required_field_rejected(
 
 
 @pytest.mark.asyncio
-async def test_update_row_unsent_keys_preserved(
-    client: AsyncClient, registry_setup: dict
-):
+async def test_update_row_unsent_keys_preserved(client: AsyncClient, registry_setup: dict):
     """PATCH with a partial data dict must preserve keys NOT in the payload.
     Distinguishes 'not sent' from 'explicitly null' (audit Tier 2 #10)."""
     node_id = registry_setup["node"]["id"]
@@ -194,7 +194,10 @@ async def test_update_row_unsent_keys_preserved(
         f"/api/iso-docs/registries/{node_id}/rows",
         json={
             "data": {
-                "name": "Original", "category": "A", "count": 5, "active": True,
+                "name": "Original",
+                "category": "A",
+                "count": 5,
+                "active": True,
             },
         },
     )
@@ -214,9 +217,7 @@ async def test_update_row_unsent_keys_preserved(
 
 
 @pytest.mark.asyncio
-async def test_update_row_empty_data_no_op(
-    client: AsyncClient, registry_setup: dict
-):
+async def test_update_row_empty_data_no_op(client: AsyncClient, registry_setup: dict):
     """PATCH with `{data: {}}` must not change anything.
     Guards against 'empty dict = clear all' misinterpretation."""
     node_id = registry_setup["node"]["id"]
@@ -338,7 +339,15 @@ async def test_import_csv_roundtrip(client: AsyncClient, registry_setup: dict):
     node_id = registry_setup["node"]["id"]
     await client.post(
         f"/api/iso-docs/registries/{node_id}/rows",
-        json={"data": {"name": "Row 1", "category": "A", "count": 10, "active": True, "start_date": "2025-01-15"}},
+        json={
+            "data": {
+                "name": "Row 1",
+                "category": "A",
+                "count": 10,
+                "active": True,
+                "start_date": "2025-01-15",
+            }
+        },
     )
     await client.post(
         f"/api/iso-docs/registries/{node_id}/rows",
@@ -416,9 +425,7 @@ async def test_copy_year(client: AsyncClient, yearly_setup: dict):
     assert resp.status_code == 200
     assert resp.json()["copied"] == 2
 
-    rows = await client.get(
-        f"/api/iso-docs/registries/{node_id}/rows", params={"year": 2025}
-    )
+    rows = await client.get(f"/api/iso-docs/registries/{node_id}/rows", params={"year": 2025})
     assert len(rows.json()) == 2
     assert rows.json()[0]["data"]["item"] == "risk A"
 
@@ -475,9 +482,7 @@ async def computed_setup(client: AsyncClient) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_computed_field_in_create_response(
-    client: AsyncClient, computed_setup: dict
-):
+async def test_computed_field_in_create_response(client: AsyncClient, computed_setup: dict):
     node_id = computed_setup["node"]["id"]
     resp = await client.post(
         f"/api/iso-docs/registries/{node_id}/rows",
@@ -489,9 +494,7 @@ async def test_computed_field_in_create_response(
 
 
 @pytest.mark.asyncio
-async def test_computed_field_in_list_response(
-    client: AsyncClient, computed_setup: dict
-):
+async def test_computed_field_in_list_response(client: AsyncClient, computed_setup: dict):
     node_id = computed_setup["node"]["id"]
     await client.post(
         f"/api/iso-docs/registries/{node_id}/rows",
@@ -504,9 +507,7 @@ async def test_computed_field_in_list_response(
 
 
 @pytest.mark.asyncio
-async def test_computed_field_in_update_response(
-    client: AsyncClient, computed_setup: dict
-):
+async def test_computed_field_in_update_response(client: AsyncClient, computed_setup: dict):
     node_id = computed_setup["node"]["id"]
     create_resp = await client.post(
         f"/api/iso-docs/registries/{node_id}/rows",
@@ -522,9 +523,7 @@ async def test_computed_field_in_update_response(
 
 
 @pytest.mark.asyncio
-async def test_computed_field_stripped_from_storage(
-    client: AsyncClient, computed_setup: dict
-):
+async def test_computed_field_stripped_from_storage(client: AsyncClient, computed_setup: dict):
     """Sending a computed key in data should not cause validation error."""
     node_id = computed_setup["node"]["id"]
     resp = await client.post(
@@ -536,17 +535,13 @@ async def test_computed_field_stripped_from_storage(
 
 
 @pytest.mark.asyncio
-async def test_computed_field_in_csv_export(
-    client: AsyncClient, computed_setup: dict
-):
+async def test_computed_field_in_csv_export(client: AsyncClient, computed_setup: dict):
     node_id = computed_setup["node"]["id"]
     await client.post(
         f"/api/iso-docs/registries/{node_id}/rows",
         json={"data": {"probability": 3, "impact": 3}},
     )
-    resp = await client.get(
-        f"/api/iso-docs/registries/{node_id}/export", params={"format": "csv"}
-    )
+    resp = await client.get(f"/api/iso-docs/registries/{node_id}/export", params={"format": "csv"})
     assert resp.status_code == 200
     lines = resp.text.strip().split("\n")
     assert "Evaluation" in lines[0]
@@ -554,12 +549,11 @@ async def test_computed_field_in_csv_export(
 
 
 @pytest.mark.asyncio
-async def test_computed_column_ignored_in_csv_import(
-    client: AsyncClient, computed_setup: dict
-):
+async def test_computed_column_ignored_in_csv_import(client: AsyncClient, computed_setup: dict):
     node_id = computed_setup["node"]["id"]
     csv_content = "Probability,Impact,Evaluation,Notes\n2,3,6,test\n"
     import io
+
     resp = await client.post(
         f"/api/iso-docs/registries/{node_id}/import",
         files={"file": ("data.csv", io.BytesIO(csv_content.encode()), "text/csv")},

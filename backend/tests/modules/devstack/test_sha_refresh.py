@@ -116,7 +116,10 @@ class TestRefreshGithub:
         return_value="old_sha_" + "x" * 32,
     )
     async def test_skips_unchanged_sha(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
+        self,
+        mock_fetch: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         assert result["unchanged"] == 1
@@ -129,7 +132,10 @@ class TestRefreshGithub:
         return_value=None,
     )
     async def test_counts_github_failures(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
+        self,
+        mock_fetch: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         assert result["failed"] == 1
@@ -143,7 +149,10 @@ class TestRefreshGithub:
         return_value="old_sha_" + "x" * 32,
     )
     async def test_partial_failure_false_when_no_failures(
-        self, mock_fetch: AsyncMock, db_session: AsyncSession, github_entry: DevstackEntryDB,
+        self,
+        mock_fetch: AsyncMock,
+        db_session: AsyncSession,
+        github_entry: DevstackEntryDB,
     ) -> None:
         """`partial_failure` should be False on a clean run so callers can branch on it."""
         result = await refresh_all_sources(db_session)
@@ -259,7 +268,10 @@ class TestRefreshNpm:
         return_value=None,
     )
     async def test_counts_npm_failures(
-        self, mock_info: AsyncMock, db_session: AsyncSession, npm_entry: DevstackEntryDB,
+        self,
+        mock_info: AsyncMock,
+        db_session: AsyncSession,
+        npm_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         assert result["failed"] == 1
@@ -269,10 +281,11 @@ class TestRefreshNpm:
         "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
         new_callable=AsyncMock,
         return_value={
-            "critical": 1, "high": 0, "moderate": 0, "low": 0,
-            "advisories": [
-                {"id": "GHSA-a", "severity": "critical", "title": "t", "url": "u"}
-            ],
+            "critical": 1,
+            "high": 0,
+            "moderate": 0,
+            "low": 0,
+            "advisories": [{"id": "GHSA-a", "severity": "critical", "title": "t", "url": "u"}],
         },
     )
     @patch(
@@ -302,9 +315,7 @@ class TestRefreshNpm:
     @patch(
         "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
         new_callable=AsyncMock,
-        return_value={
-            "critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []
-        },
+        return_value={"critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []},
     )
     @patch(
         "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
@@ -330,14 +341,11 @@ class TestRefreshNpm:
         assert npm_entry.deprecated is False
         assert npm_entry.deprecation_message is None
 
-
     @pytest.mark.asyncio
     @patch(
         "app.modules.devstack.services.sha_refresh.fetch_npm_advisories",
         new_callable=AsyncMock,
-        return_value={
-            "critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []
-        },
+        return_value={"critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []},
     )
     @patch(
         "app.modules.devstack.services.sha_refresh.fetch_npm_package_info",
@@ -355,7 +363,11 @@ class TestRefreshNpm:
         # Pre-load the npm entry with matching state so only checked_at changes
         npm_entry.latest_package_version = "18.3.1"
         npm_entry.vulnerabilities = {
-            "critical": 0, "high": 0, "moderate": 0, "low": 0, "advisories": []
+            "critical": 0,
+            "high": 0,
+            "moderate": 0,
+            "low": 0,
+            "advisories": [],
         }
         db_session.add(npm_entry)
         await db_session.commit()
@@ -369,7 +381,9 @@ class TestRefreshNpm:
 class TestClaudePluginSkipped:
     @pytest.mark.asyncio
     async def test_claude_plugin_not_counted(
-        self, db_session: AsyncSession, claude_plugin_entry: DevstackEntryDB,
+        self,
+        db_session: AsyncSession,
+        claude_plugin_entry: DevstackEntryDB,
     ) -> None:
         result = await refresh_all_sources(db_session)
         assert result["total"] == 0

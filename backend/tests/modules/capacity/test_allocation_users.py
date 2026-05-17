@@ -5,7 +5,6 @@ from decimal import Decimal
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.functional_area import FunctionalAreaDB
@@ -38,45 +37,68 @@ async def allocation_data(db_session: AsyncSession) -> dict:
     beta = ProjectDB(name="Beta", status="live", is_billable=True)
     internal = ProjectDB(name="Internal", status="live", is_billable=False)
     vacation = ProjectDB(
-        name="Vacation", status="live", is_billable=False, is_absence=True,
+        name="Vacation",
+        status="live",
+        is_billable=False,
+        is_absence=True,
     )
     db_session.add_all([alpha, beta, internal, vacation])
     await db_session.flush()
 
     alice = UserDB(
-        email="alice@test.com", first_name="Alice", last_name="Smith",
-        functional_area_id=fa_fe.id, active=True,
+        email="alice@test.com",
+        first_name="Alice",
+        last_name="Smith",
+        functional_area_id=fa_fe.id,
+        active=True,
         requires_project_reporting=True,
     )
     bob = UserDB(
-        email="bob@test.com", first_name="Bob", last_name="Jones",
-        functional_area_id=fa_fe.id, active=True,
+        email="bob@test.com",
+        first_name="Bob",
+        last_name="Jones",
+        functional_area_id=fa_fe.id,
+        active=True,
         requires_project_reporting=True,
     )
     gone = UserDB(
-        email="gone@test.com", first_name="Gone", last_name="User",
-        functional_area_id=fa_fe.id, active=False,
+        email="gone@test.com",
+        first_name="Gone",
+        last_name="User",
+        functional_area_id=fa_fe.id,
+        active=False,
         requires_project_reporting=True,
     )
     exempt = UserDB(
-        email="exempt@test.com", first_name="No", last_name="Report",
-        functional_area_id=fa_fe.id, active=True,
+        email="exempt@test.com",
+        first_name="No",
+        last_name="Report",
+        functional_area_id=fa_fe.id,
+        active=True,
         requires_project_reporting=False,
     )
     db_session.add_all([alice, bob, gone, exempt])
     await db_session.flush()
 
     p1 = ReportingPeriodDB(
-        date=dt.date(2026, 1, 1), base_rate=Decimal("175"), status="finished",
+        date=dt.date(2026, 1, 1),
+        base_rate=Decimal("175"),
+        status="finished",
     )
     p2 = ReportingPeriodDB(
-        date=dt.date(2026, 2, 1), base_rate=Decimal("175"), status="finished",
+        date=dt.date(2026, 2, 1),
+        base_rate=Decimal("175"),
+        status="finished",
     )
     p3 = ReportingPeriodDB(
-        date=dt.date(2026, 3, 1), base_rate=Decimal("175"), status="finished",
+        date=dt.date(2026, 3, 1),
+        base_rate=Decimal("175"),
+        status="finished",
     )
     p4 = ReportingPeriodDB(
-        date=dt.date(2026, 4, 1), base_rate=Decimal("175"), status="active",
+        date=dt.date(2026, 4, 1),
+        base_rate=Decimal("175"),
+        status="active",
     )
     db_session.add_all([p1, p2, p3, p4])
     await db_session.flush()
@@ -85,96 +107,128 @@ async def allocation_data(db_session: AsyncSession) -> dict:
     r_alice_p1 = ReportDB(user_id=alice.id, reporting_period_id=p1.id)
     db_session.add(r_alice_p1)
     await db_session.flush()
-    db_session.add_all([
-        ReportPartDB(
-            report_id=r_alice_p1.id, project_id=alpha.id,
-            percentage=Decimal("0.5000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p1.id, project_id=internal.id,
-            percentage=Decimal("0.3000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p1.id, project_id=vacation.id,
-            percentage=Decimal("0.2000"),
-        ),
-    ])
+    db_session.add_all(
+        [
+            ReportPartDB(
+                report_id=r_alice_p1.id,
+                project_id=alpha.id,
+                percentage=Decimal("0.5000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p1.id,
+                project_id=internal.id,
+                percentage=Decimal("0.3000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p1.id,
+                project_id=vacation.id,
+                percentage=Decimal("0.2000"),
+            ),
+        ]
+    )
 
     # Alice p2: Alpha 30% + Beta 20% + Internal 30% + Vacation 20%
     r_alice_p2 = ReportDB(user_id=alice.id, reporting_period_id=p2.id)
     db_session.add(r_alice_p2)
     await db_session.flush()
-    db_session.add_all([
-        ReportPartDB(
-            report_id=r_alice_p2.id, project_id=alpha.id,
-            percentage=Decimal("0.3000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p2.id, project_id=beta.id,
-            percentage=Decimal("0.2000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p2.id, project_id=internal.id,
-            percentage=Decimal("0.3000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p2.id, project_id=vacation.id,
-            percentage=Decimal("0.2000"),
-        ),
-    ])
+    db_session.add_all(
+        [
+            ReportPartDB(
+                report_id=r_alice_p2.id,
+                project_id=alpha.id,
+                percentage=Decimal("0.3000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p2.id,
+                project_id=beta.id,
+                percentage=Decimal("0.2000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p2.id,
+                project_id=internal.id,
+                percentage=Decimal("0.3000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p2.id,
+                project_id=vacation.id,
+                percentage=Decimal("0.2000"),
+            ),
+        ]
+    )
 
     # Alice p3: same as p2
     r_alice_p3 = ReportDB(user_id=alice.id, reporting_period_id=p3.id)
     db_session.add(r_alice_p3)
     await db_session.flush()
-    db_session.add_all([
-        ReportPartDB(
-            report_id=r_alice_p3.id, project_id=alpha.id,
-            percentage=Decimal("0.3000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p3.id, project_id=beta.id,
-            percentage=Decimal("0.2000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p3.id, project_id=internal.id,
-            percentage=Decimal("0.3000"),
-        ),
-        ReportPartDB(
-            report_id=r_alice_p3.id, project_id=vacation.id,
-            percentage=Decimal("0.2000"),
-        ),
-    ])
+    db_session.add_all(
+        [
+            ReportPartDB(
+                report_id=r_alice_p3.id,
+                project_id=alpha.id,
+                percentage=Decimal("0.3000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p3.id,
+                project_id=beta.id,
+                percentage=Decimal("0.2000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p3.id,
+                project_id=internal.id,
+                percentage=Decimal("0.3000"),
+            ),
+            ReportPartDB(
+                report_id=r_alice_p3.id,
+                project_id=vacation.id,
+                percentage=Decimal("0.2000"),
+            ),
+        ]
+    )
 
     # Bob p1: Alpha 80% + Internal 20%
     r_bob_p1 = ReportDB(user_id=bob.id, reporting_period_id=p1.id)
     db_session.add(r_bob_p1)
     await db_session.flush()
-    db_session.add_all([
-        ReportPartDB(
-            report_id=r_bob_p1.id, project_id=alpha.id,
-            percentage=Decimal("0.8000"),
-        ),
-        ReportPartDB(
-            report_id=r_bob_p1.id, project_id=internal.id,
-            percentage=Decimal("0.2000"),
-        ),
-    ])
+    db_session.add_all(
+        [
+            ReportPartDB(
+                report_id=r_bob_p1.id,
+                project_id=alpha.id,
+                percentage=Decimal("0.8000"),
+            ),
+            ReportPartDB(
+                report_id=r_bob_p1.id,
+                project_id=internal.id,
+                percentage=Decimal("0.2000"),
+            ),
+        ]
+    )
 
     await db_session.commit()
 
     return {
         "fa_fe": fa_fe,
-        "alpha": alpha, "beta": beta, "internal": internal, "vacation": vacation,
-        "alice": alice, "bob": bob, "gone": gone, "exempt": exempt,
-        "p1": p1, "p2": p2, "p3": p3, "p4": p4,
+        "alpha": alpha,
+        "beta": beta,
+        "internal": internal,
+        "vacation": vacation,
+        "alice": alice,
+        "bob": bob,
+        "gone": gone,
+        "exempt": exempt,
+        "p1": p1,
+        "p2": p2,
+        "p3": p3,
+        "p4": p4,
     }
 
 
 class TestGetAllocationUsers:
     @pytest.mark.asyncio
     async def test_allocation_users_returns_ranked_list(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
@@ -202,7 +256,9 @@ class TestGetAllocationUsers:
 
     @pytest.mark.asyncio
     async def test_allocation_users_segments(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
@@ -234,7 +290,9 @@ class TestGetAllocationUsers:
 
     @pytest.mark.asyncio
     async def test_allocation_users_excludes_inactive_and_exempt(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
@@ -245,7 +303,9 @@ class TestGetAllocationUsers:
 
     @pytest.mark.asyncio
     async def test_allocation_users_default_excludes_active_periods(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
@@ -254,7 +314,9 @@ class TestGetAllocationUsers:
 
     @pytest.mark.asyncio
     async def test_allocation_users_date_range_includes_active_periods(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         """When user explicitly selects a date range, active periods are included."""
         from app.core.services.capacity_insights import get_allocation_users
@@ -268,7 +330,8 @@ class TestGetAllocationUsers:
 
     @pytest.mark.asyncio
     async def test_allocation_users_empty_when_no_finished_periods(
-        self, db_session: AsyncSession,
+        self,
+        db_session: AsyncSession,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
@@ -279,7 +342,9 @@ class TestGetAllocationUsers:
 
     @pytest.mark.asyncio
     async def test_allocation_users_includes_functional_area(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_users
 
@@ -292,7 +357,9 @@ class TestGetAllocationUsers:
 class TestGetAllocationProjects:
     @pytest.mark.asyncio
     async def test_allocation_projects_returns_ranked_list(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_projects
 
@@ -318,7 +385,9 @@ class TestGetAllocationProjects:
 
     @pytest.mark.asyncio
     async def test_allocation_projects_segments(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_projects
 
@@ -339,7 +408,9 @@ class TestGetAllocationProjects:
 
     @pytest.mark.asyncio
     async def test_allocation_projects_excludes_non_billable(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         from app.core.services.capacity_insights import get_allocation_projects
 
@@ -350,7 +421,9 @@ class TestGetAllocationProjects:
 
     @pytest.mark.asyncio
     async def test_allocation_projects_excludes_inactive_users(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         """Audit #35: an inactive user with billable reports must not appear in
         any project's segment list."""
@@ -360,6 +433,7 @@ class TestGetAllocationProjects:
         gone = allocation_data["gone"]
         # Re-target alice's reports to the inactive user
         from sqlalchemy import update as sa_update
+
         await db_session.execute(
             sa_update(ReportDB)
             .where(ReportDB.user_id == allocation_data["alice"].id)
@@ -375,13 +449,16 @@ class TestGetAllocationProjects:
 
     @pytest.mark.asyncio
     async def test_allocation_projects_excludes_exempt_users(
-        self, db_session: AsyncSession, allocation_data: dict,
+        self,
+        db_session: AsyncSession,
+        allocation_data: dict,
     ):
         """Audit #35: users with requires_project_reporting=False must not appear in segments."""
         from app.core.services.capacity_insights import get_allocation_projects
 
         exempt = allocation_data["exempt"]
         from sqlalchemy import update as sa_update
+
         await db_session.execute(
             sa_update(ReportDB)
             .where(ReportDB.user_id == allocation_data["bob"].id)

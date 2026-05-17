@@ -1,7 +1,9 @@
-import pytest
 from decimal import Decimal
+
+import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.scorecard.models.config import ConfigParameter
 
 
@@ -29,12 +31,8 @@ async def test_config_parameter_creation(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_config_parameter_unique_name(db_session: AsyncSession):
     """Test that parameter name is unique."""
-    param1 = ConfigParameter(
-        category="Targets", name="test_param", value=Decimal("1.0")
-    )
-    param2 = ConfigParameter(
-        category="Targets", name="test_param", value=Decimal("2.0")
-    )
+    param1 = ConfigParameter(category="Targets", name="test_param", value=Decimal("1.0"))
+    param2 = ConfigParameter(category="Targets", name="test_param", value=Decimal("2.0"))
 
     db_session.add(param1)
     await db_session.commit()

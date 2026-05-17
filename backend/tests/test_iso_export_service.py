@@ -1,6 +1,6 @@
 """Tests for ISO export service — XLSX generation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from uuid import uuid4
 
@@ -21,7 +21,7 @@ def _make_snapshot(
     return {
         "id": str(uuid4()),
         "provider": "google_workspace",
-        "captured_at": captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+        "captured_at": captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=UTC),
         "data_version": "1",
         "source_metadata": {"domain": domain},
         "data": {
@@ -79,7 +79,7 @@ def _make_review(
         "notes": notes,
         "reviewer_email": reviewer_email or "admin@test.com",
         "signed_by_email": signed_by_email or "admin@test.com",
-        "signed_at": signed_at or datetime(2026, 6, 16, 12, 0, tzinfo=timezone.utc),
+        "signed_at": signed_at or datetime(2026, 6, 16, 12, 0, tzinfo=UTC),
         "diff_summary": diff_summary
         or {
             "total_changes": 1,
@@ -112,9 +112,7 @@ class TestIsoExportService:
         review = _make_review()
         actions = [_make_action()]
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, actions)]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, review, actions)])
 
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
@@ -126,9 +124,7 @@ class TestIsoExportService:
         snapshot = _make_snapshot(domain="acme.com")
         review = _make_review()
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, [])]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, review, [])])
         wb = load_workbook(output)
         ws = wb[wb.sheetnames[0]]
 
@@ -147,9 +143,7 @@ class TestIsoExportService:
         snapshot = _make_snapshot()
         review = _make_review()
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, [])]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, review, [])])
         wb = load_workbook(output)
         ws = wb[wb.sheetnames[0]]
 
@@ -166,9 +160,7 @@ class TestIsoExportService:
         review = _make_review()
         actions = [_make_action()]
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, actions)]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, review, actions)])
         wb = load_workbook(output)
         ws = wb[wb.sheetnames[0]]
 
@@ -182,10 +174,10 @@ class TestIsoExportService:
     def test_multiple_snapshots_generate_multiple_tabs(self):
         service = IsoExportService()
         snap1 = _make_snapshot(
-            captured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 3, 1, tzinfo=UTC),
         )
         snap2 = _make_snapshot(
-            captured_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 6, 1, tzinfo=UTC),
         )
         review1 = _make_review()
         review2 = _make_review()

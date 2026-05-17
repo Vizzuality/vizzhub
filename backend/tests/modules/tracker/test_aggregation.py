@@ -128,7 +128,9 @@ async def cost_data(db_session: AsyncSession) -> dict:
 class TestCostSummary:
     @pytest.mark.asyncio
     async def test_cost_summary_totals(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -147,7 +149,9 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_period_breakdown(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -171,7 +175,10 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_no_budget(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         project = cost_data["project"]
         project.budget = None
@@ -187,7 +194,10 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_excludes_estimated(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         user2 = UserDB(
             email="estimated@example.com",
@@ -225,7 +235,10 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_empty_project(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         empty_project = ProjectDB(name="Empty Project", status="live")
         db_session.add(empty_project)
@@ -243,7 +256,10 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_budget_zero_returns_null_burn(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         """budget == 0 returns null burn% (NOT ZeroDivisionError).
 
@@ -267,7 +283,9 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_overrun(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ):
         """Uncapped overrun: cost > budget yields >100% (pin design choice)."""
         rate = RateDB(code="OV", value=Decimal("15365"))
@@ -324,12 +342,12 @@ class TestCostSummary:
 
     @pytest.mark.asyncio
     async def test_cost_summary_zero_cost_positive_budget(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ):
         """Budget>0 with no report parts → burn% = 0.0, NOT null."""
-        project = ProjectDB(
-            name="No-Activity Project", status="live", budget=Decimal("50000")
-        )
+        project = ProjectDB(name="No-Activity Project", status="live", budget=Decimal("50000"))
         db_session.add(project)
         await db_session.commit()
 
@@ -345,7 +363,9 @@ class TestCostSummary:
 class TestBatchCosts:
     @pytest.mark.asyncio
     async def test_batch_returns_costs_for_multiple_projects(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = str(cost_data["project"].id)
         resp = await client.post(
@@ -364,7 +384,10 @@ class TestBatchCosts:
 
     @pytest.mark.asyncio
     async def test_batch_empty_project(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         empty = ProjectDB(name="Empty", status="live")
         db_session.add(empty)
@@ -384,7 +407,9 @@ class TestBatchCosts:
 
     @pytest.mark.asyncio
     async def test_batch_empty_request_rejected(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         resp = await client.post(
             "/api/tracker/projects/batch-costs",
@@ -394,7 +419,9 @@ class TestBatchCosts:
 
     @pytest.mark.asyncio
     async def test_batch_and_single_agree_on_burn_percentage(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         """Same project, both endpoints → identical burn_percentage to the cent.
 
@@ -422,7 +449,9 @@ class TestBatchCosts:
 class TestProjectReportParts:
     @pytest.mark.asyncio
     async def test_list_all_parts(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -443,7 +472,9 @@ class TestProjectReportParts:
 
     @pytest.mark.asyncio
     async def test_filter_by_period(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         period_id = cost_data["period1"].id
@@ -461,7 +492,9 @@ class TestProjectReportParts:
 class TestProjectAggregations:
     @pytest.mark.asyncio
     async def test_aggregate_by_functional_area(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -483,7 +516,9 @@ class TestProjectAggregations:
 
     @pytest.mark.asyncio
     async def test_aggregate_by_user(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -501,7 +536,9 @@ class TestProjectAggregations:
 
     @pytest.mark.asyncio
     async def test_aggregate_invalid_group_by(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -512,7 +549,9 @@ class TestProjectAggregations:
 
     @pytest.mark.asyncio
     async def test_aggregate_by_functional_area_user(
-        self, client: AsyncClient, cost_data: dict,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
     ):
         project_id = cost_data["project"].id
         resp = await client.get(
@@ -538,7 +577,10 @@ class TestProjectAggregations:
 
     @pytest.mark.asyncio
     async def test_fa_user_multiple_users_same_area(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         user2 = UserDB(
             email="dev2@example.com",
@@ -591,7 +633,10 @@ class TestProjectAggregations:
 
     @pytest.mark.asyncio
     async def test_fa_user_multiple_areas(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         fa2 = FunctionalAreaDB(name="Frontend Developer")
         db_session.add(fa2)
@@ -628,7 +673,10 @@ class TestProjectAggregations:
 
     @pytest.mark.asyncio
     async def test_aggregate_empty_project(
-        self, client: AsyncClient, cost_data: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        cost_data: dict,
+        db_session: AsyncSession,
     ):
         empty = ProjectDB(name="Empty", status="live")
         db_session.add(empty)

@@ -53,9 +53,7 @@ class TestCreateProject:
         assert data["end_date"] == "2026-12-31"
 
     @pytest.mark.asyncio
-    async def test_create_project_with_minimal_fields(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_project_with_minimal_fields(self, client: AsyncClient) -> None:
         """Create project with only required name field."""
         response = await client.post(
             "/api/projects",
@@ -68,9 +66,7 @@ class TestCreateProject:
         assert data["github_repo"] is None
 
     @pytest.mark.asyncio
-    async def test_create_project_empty_name_validation_error(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_project_empty_name_validation_error(self, client: AsyncClient) -> None:
         """Creating project with empty name should return 422."""
         response = await client.post(
             "/api/projects",
@@ -81,9 +77,7 @@ class TestCreateProject:
         assert "detail" in data
 
     @pytest.mark.asyncio
-    async def test_create_project_missing_name_validation_error(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_project_missing_name_validation_error(self, client: AsyncClient) -> None:
         """Creating project without name should return 422."""
         response = await client.post(
             "/api/projects",
@@ -92,9 +86,7 @@ class TestCreateProject:
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_create_project_invalid_github_repo_format(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_project_invalid_github_repo_format(self, client: AsyncClient) -> None:
         """Invalid github_repo format should return 422."""
         response = await client.post(
             "/api/projects",
@@ -248,9 +240,7 @@ class TestUpdateProject:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_patch_project_invalid_github_repo(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_patch_project_invalid_github_repo(self, client: AsyncClient) -> None:
         """PATCH with invalid github_repo returns 422."""
         create_response = await client.post(
             "/api/projects",
@@ -332,9 +322,7 @@ class TestReplaceProject:
         assert data["end_date"] == "2026-12-31"
 
     @pytest.mark.asyncio
-    async def test_put_clears_unspecified_optional_fields(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_put_clears_unspecified_optional_fields(self, client: AsyncClient) -> None:
         """PUT with minimal fields clears optional fields."""
         create_response = await client.post(
             "/api/projects",
@@ -411,9 +399,7 @@ class TestDeleteProject:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_delete_project_removes_from_list(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_delete_project_removes_from_list(self, client: AsyncClient) -> None:
         """Deleted project no longer appears in list."""
         await client.post("/api/projects", json={"name": "Project 1", "code": "Project 1"})
         create_response = await client.post(

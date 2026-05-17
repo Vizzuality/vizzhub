@@ -43,13 +43,9 @@ class IndicatorNormalizer:
             defect_density=self._calculate_defect_density(metrics.jira_defects),
             escaped_rate=self._calculate_escaped_rate(metrics.jira_defects),
             mttr_hours=self._get_mttr(metrics.jira_defects),
-            governance_compliance=self._normalize_governance(
-                metrics.governance_exceptions
-            ),
+            governance_compliance=self._normalize_governance(metrics.governance_exceptions),
             lead_time_days=self._get_lead_time(metrics.flow_metrics),
-            commitment_reliability=self._get_commitment_reliability(
-                metrics.flow_metrics
-            ),
+            commitment_reliability=self._get_commitment_reliability(metrics.flow_metrics),
             pr_review_ratio=self._get_pr_review_ratio(metrics.github_metrics),
             prs_without_review=self._get_prs_without_review(metrics.github_metrics),
             high_vulns=self._get_high_vulns(metrics.github_metrics),
@@ -106,11 +102,7 @@ class IndicatorNormalizer:
         """
         if evm is None:
             return None
-        if (
-            evm.percent_completed is None
-            or evm.cost_to_date is None
-            or evm.budget_total is None
-        ):
+        if evm.percent_completed is None or evm.cost_to_date is None or evm.budget_total is None:
             return None
         if evm.budget_total <= 0:
             return None
@@ -154,9 +146,7 @@ class IndicatorNormalizer:
 
         return on_time_count / total_due
 
-    def _calculate_defect_density(
-        self, jira: JiraDefectMetrics | None
-    ) -> float | None:
+    def _calculate_defect_density(self, jira: JiraDefectMetrics | None) -> float | None:
         """Calculate defect density per 100 tasks.
 
         Returns None when bugs_total or tasks_completed is missing, or
@@ -266,12 +256,14 @@ class IndicatorNormalizer:
         if arch is None:
             return None
 
-        count = sum([
-            arch.docs_up_to_date,
-            arch.iac_implemented,
-            arch.adrs_maintained,
-            arch.diagrams_updated,
-        ])
+        count = sum(
+            [
+                arch.docs_up_to_date,
+                arch.iac_implemented,
+                arch.adrs_maintained,
+                arch.diagrams_updated,
+            ]
+        )
         return count / 4.0
 
     def _calculate_story_review_ratio(self, flow: FlowMetrics | None) -> float | None:

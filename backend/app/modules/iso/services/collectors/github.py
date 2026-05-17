@@ -1,11 +1,11 @@
 """GitHub collector for ISO access snapshots."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import httpx
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.integration_token_service import IntegrationTokenService
@@ -91,13 +91,15 @@ class GitHubCollector:
         members = []
         for m in all_members:
             profile = await self._fetch_user_profile(m["login"])
-            members.append({
-                "login": m["login"],
-                "id": m["id"],
-                "name": profile["name"],
-                "email": profile["email"],
-                "role": "admin" if m["login"] in admin_logins else "member",
-            })
+            members.append(
+                {
+                    "login": m["login"],
+                    "id": m["id"],
+                    "name": profile["name"],
+                    "email": profile["email"],
+                    "role": "admin" if m["login"] in admin_logins else "member",
+                }
+            )
         return members
 
     async def collect_teams(self) -> list[dict[str, Any]]:
@@ -121,7 +123,8 @@ class GitHubCollector:
         for team in teams:
             slug = team["slug"]
             maintainers = await self._paginate(
-                f"/orgs/{self._org}/teams/{slug}/members", {"role": "maintainer"},
+                f"/orgs/{self._org}/teams/{slug}/members",
+                {"role": "maintainer"},
                 optional=True,
             )
             maintainer_logins = {m["login"] for m in maintainers}
@@ -139,18 +142,18 @@ class GitHubCollector:
         return members
 
     async def collect_outside_collaborators(self) -> list[dict[str, Any]]:
-        raw = await self._paginate(
-            f"/orgs/{self._org}/outside_collaborators", optional=True
-        )
+        raw = await self._paginate(f"/orgs/{self._org}/outside_collaborators", optional=True)
         collaborators = []
         for c in raw:
             profile = await self._fetch_user_profile(c["login"])
-            collaborators.append({
-                "login": c["login"],
-                "id": c["id"],
-                "name": profile["name"],
-                "email": profile["email"],
-            })
+            collaborators.append(
+                {
+                    "login": c["login"],
+                    "id": c["id"],
+                    "name": profile["name"],
+                    "email": profile["email"],
+                }
+            )
         return collaborators
 
     def _build_summary(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -180,9 +183,7 @@ class GitHubCollector:
         if not token:
             raise ValueError("GitHub token not configured")
 
-        org_name = await IntegrationTokenService.get_setting(
-            self.db, PROVIDER, ORG_SETTING_KEY
-        )
+        org_name = await IntegrationTokenService.get_setting(self.db, PROVIDER, ORG_SETTING_KEY)
         if not org_name:
             raise ValueError("GitHub organization name not configured")
 
@@ -213,7 +214,7 @@ class GitHubCollector:
 
         snapshot = AccessSnapshotDB(
             provider=PROVIDER,
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             captured_by=captured_by,
             data_version="2",
             source_metadata=self._build_source_metadata(run_mode),

@@ -10,7 +10,8 @@ import re
 import unicodedata
 from uuid import UUID
 
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 MAX_DEPTH = 10
@@ -53,25 +54,17 @@ class TreeService:
             counter += 1
             slug = f"{base_slug}-{counter}"
 
-    async def get_next_position(
-        self, db: AsyncSession, parent_id: UUID | None
-    ) -> int:
+    async def get_next_position(self, db: AsyncSession, parent_id: UUID | None) -> int:
         """Return next position for a new sibling under parent_id."""
         condition = (
-            self._model.parent_id == parent_id
-            if parent_id
-            else self._model.parent_id.is_(None)
+            self._model.parent_id == parent_id if parent_id else self._model.parent_id.is_(None)
         )
         result = await db.execute(
-            select(
-                sa_func.coalesce(sa_func.max(self._model.position), -1)
-            ).where(condition)
+            select(sa_func.coalesce(sa_func.max(self._model.position), -1)).where(condition)
         )
         return result.scalar_one() + 1
 
-    async def validate_depth(
-        self, db: AsyncSession, parent_id: UUID | None
-    ) -> bool:
+    async def validate_depth(self, db: AsyncSession, parent_id: UUID | None) -> bool:
         """Check that adding a child under parent_id won't exceed MAX_DEPTH."""
         if parent_id is None:
             return True
@@ -79,9 +72,7 @@ class TreeService:
         current_id = parent_id
         while current_id is not None:
             result = await db.execute(
-                select(self._model.parent_id).where(
-                    self._model.id == current_id
-                )
+                select(self._model.parent_id).where(self._model.id == current_id)
             )
             row = result.one_or_none()
             if row is None:
@@ -103,9 +94,7 @@ class TreeService:
             if current_id == node_id:
                 return False
             result = await db.execute(
-                select(self._model.parent_id).where(
-                    self._model.id == current_id
-                )
+                select(self._model.parent_id).where(self._model.id == current_id)
             )
             row = result.one_or_none()
             if row is None:

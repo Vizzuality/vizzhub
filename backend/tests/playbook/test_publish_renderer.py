@@ -1,5 +1,3 @@
-import pytest
-
 from app.modules.playbook.services.publish_renderer import render_markdown
 
 
@@ -31,7 +29,7 @@ class TestRenderMarkdown:
 
     def test_link(self) -> None:
         result = render_markdown("[click](https://example.com)")
-        assert 'href=' in result
+        assert "href=" in result
 
     def test_image(self) -> None:
         result = render_markdown("![alt](https://example.com/img.png)")

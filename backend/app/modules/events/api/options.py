@@ -17,10 +17,7 @@ async def get_options(
     db: DBSession,
 ) -> dict:
     year_col = func.extract("year", EventDB.start_date)
-    years_stmt = (
-        select(distinct(year_col))
-        .order_by(desc(year_col))
-    )
+    years_stmt = select(distinct(year_col)).order_by(desc(year_col))
     years_rows = (await db.execute(years_stmt)).scalars().all()
     return {
         "event_types": [e.value for e in EventType],

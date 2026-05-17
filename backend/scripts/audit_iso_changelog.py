@@ -60,8 +60,7 @@ async def main() -> None:
         bad_indices = [
             i
             for i, entry in enumerate(changelog or [])
-            if not isinstance(entry, dict)
-            or any(field not in entry for field in REQUIRED_FIELDS)
+            if not isinstance(entry, dict) or any(field not in entry for field in REQUIRED_FIELDS)
         ]
         print(
             json.dumps(

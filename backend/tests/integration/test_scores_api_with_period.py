@@ -1,14 +1,14 @@
 """Integration tests for scores API with period parameters."""
 
-import pytest
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 class TestScoresAPIWithPeriod:

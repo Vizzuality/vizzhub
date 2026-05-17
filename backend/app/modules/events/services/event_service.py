@@ -13,12 +13,25 @@ from app.core.sql_helpers import user_display_name_expr
 from app.modules.events.models.event import EventDB
 from app.modules.events.models.event_attendee import EventAttendeeDB
 
-
 EVENT_FIELDS = [
-    "id", "name", "event_type", "theme_primary", "theme_secondary",
-    "region_focus", "location_city", "location_country", "start_date",
-    "end_date", "other_costs", "rating", "url", "observations", "attending",
-    "created_by", "created_at", "updated_at",
+    "id",
+    "name",
+    "event_type",
+    "theme_primary",
+    "theme_secondary",
+    "region_focus",
+    "location_city",
+    "location_country",
+    "start_date",
+    "end_date",
+    "other_costs",
+    "rating",
+    "url",
+    "observations",
+    "attending",
+    "created_by",
+    "created_at",
+    "updated_at",
 ]
 
 
@@ -81,13 +94,9 @@ def apply_filters(
     if search:
         stmt = stmt.where(EventDB.name.ilike(f"%{search}%"))
     if year:
-        stmt = stmt.where(
-            func.extract("year", EventDB.start_date) == year
-        )
+        stmt = stmt.where(func.extract("year", EventDB.start_date) == year)
     if quarter:
-        stmt = stmt.where(
-            func.ceil(func.extract("month", EventDB.start_date) / 3) == quarter
-        )
+        stmt = stmt.where(func.ceil(func.extract("month", EventDB.start_date) / 3) == quarter)
     if event_type:
         stmt = stmt.where(EventDB.event_type == event_type)
     if theme_primary:
@@ -97,9 +106,7 @@ def apply_filters(
     if location_country:
         stmt = stmt.where(EventDB.location_country == location_country)
     if attending == "maybe":
-        stmt = stmt.where(
-            or_(EventDB.attending == "maybe", EventDB.attending.is_(None))
-        )
+        stmt = stmt.where(or_(EventDB.attending == "maybe", EventDB.attending.is_(None)))
     elif attending in ("yes", "no"):
         stmt = stmt.where(EventDB.attending == attending)
     return stmt
@@ -238,9 +245,7 @@ async def get_event_with_attendees(
     event_id: UUID,
     db: AsyncSession,
 ) -> dict | None:
-    row = (
-        await db.execute(_base_list_query().where(EventDB.id == event_id))
-    ).one_or_none()
+    row = (await db.execute(_base_list_query().where(EventDB.id == event_id))).one_or_none()
     if not row:
         return None
 

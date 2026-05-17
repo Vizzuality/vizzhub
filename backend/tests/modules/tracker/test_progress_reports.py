@@ -45,7 +45,9 @@ async def setup_progress(db_session: AsyncSession) -> dict:
 @pytest.mark.asyncio
 class TestProgressReports:
     async def test_list_empty(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         resp = await client.get(f"/api/tracker/projects/{pid}/progress")
@@ -53,7 +55,9 @@ class TestProgressReports:
         assert resp.json() == []
 
     async def test_create_first_progress(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         resp = await client.post(
@@ -70,7 +74,9 @@ class TestProgressReports:
         assert data["period_date"] == "2026-01-01"
 
     async def test_create_second_progress_calculates_delta(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         # First: Jan at 30%
@@ -95,7 +101,9 @@ class TestProgressReports:
         assert data["delta"] == pytest.approx(25.0)
 
     async def test_duplicate_returns_409(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         await client.post(
@@ -115,7 +123,9 @@ class TestProgressReports:
         assert resp.status_code == 409
 
     async def test_update_progress(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         resp = await client.post(
@@ -136,7 +146,9 @@ class TestProgressReports:
         assert resp.json()["delta"] == pytest.approx(45.0)
 
     async def test_delete_progress(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         resp = await client.post(
@@ -157,7 +169,9 @@ class TestProgressReports:
         assert resp.json() == []
 
     async def test_list_ordered_by_date(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         # Create Feb first, then Jan
@@ -182,7 +196,9 @@ class TestProgressReports:
         assert data[1]["period_date"] == "2026-02-01"
 
     async def test_batch_progress(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         await client.post(
@@ -210,7 +226,9 @@ class TestProgressReports:
         assert data[pid]["delta"] == pytest.approx(25.0)
 
     async def test_percentage_validation(
-        self, client: AsyncClient, setup_progress: dict,
+        self,
+        client: AsyncClient,
+        setup_progress: dict,
     ) -> None:
         pid = setup_progress["project_id"]
         resp = await client.post(

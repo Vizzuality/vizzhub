@@ -54,24 +54,24 @@ class TestCollectLeadTime:
     async def test_collect_lead_time_uses_in_progress_from_changelog(self) -> None:
         """Should use first In Progress transition from changelog."""
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            {
-                "fields": {
-                    "created": "2026-01-15T09:00:00+00:00",  # Created Wednesday
-                    "resolutiondate": "2026-01-20T18:00:00+00:00",  # Resolved Monday
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                {
+                    "fields": {
+                        "created": "2026-01-15T09:00:00+00:00",  # Created Wednesday
+                        "resolutiondate": "2026-01-20T18:00:00+00:00",  # Resolved Monday
+                    },
+                    "changelog": {
+                        "histories": [
+                            {
+                                "created": "2026-01-17T09:00:00+00:00",  # In Progress Friday
+                                "items": [{"field": "status", "toString": "In Progress"}],
+                            }
+                        ]
+                    },
                 },
-                "changelog": {
-                    "histories": [
-                        {
-                            "created": "2026-01-17T09:00:00+00:00",  # In Progress Friday
-                            "items": [
-                                {"field": "status", "toString": "In Progress"}
-                            ]
-                        }
-                    ]
-                }
-            },
-        ])
+            ]
+        )
 
         result = await collect_lead_time(mock_client, "TEST")
 
@@ -83,17 +83,19 @@ class TestCollectLeadTime:
     async def test_collect_lead_time_skips_without_in_progress(self) -> None:
         """Should skip issues without In Progress transition (no fallback)."""
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            {
-                "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",
-                    "resolutiondate": "2026-01-20T18:00:00+00:00",
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                {
+                    "fields": {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "resolutiondate": "2026-01-20T18:00:00+00:00",
+                    },
+                    "changelog": {
+                        "histories": []  # No status transitions
+                    },
                 },
-                "changelog": {
-                    "histories": []  # No status transitions
-                }
-            },
-        ])
+            ]
+        )
 
         result = await collect_lead_time(mock_client, "TEST")
 
@@ -105,26 +107,38 @@ class TestCollectLeadTime:
         """Should calculate MEDIAN (audit #7) lead time in business days.
         Two-sample median equals mean, so 1 + 2 days → 1.5 either way."""
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            {
-                "fields": {
-                    "created": "2026-01-19T09:00:00+00:00",
-                    "resolutiondate": "2026-01-20T18:00:00+00:00",
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                {
+                    "fields": {
+                        "created": "2026-01-19T09:00:00+00:00",
+                        "resolutiondate": "2026-01-20T18:00:00+00:00",
+                    },
+                    "changelog": {
+                        "histories": [
+                            {
+                                "created": "2026-01-20T09:00:00+00:00",
+                                "items": [{"field": "status", "toString": "In Progress"}],
+                            }
+                        ]
+                    },
                 },
-                "changelog": {"histories": [
-                    {"created": "2026-01-20T09:00:00+00:00", "items": [{"field": "status", "toString": "In Progress"}]}
-                ]}
-            },
-            {
-                "fields": {
-                    "created": "2026-01-19T09:00:00+00:00",
-                    "resolutiondate": "2026-01-21T18:00:00+00:00",
+                {
+                    "fields": {
+                        "created": "2026-01-19T09:00:00+00:00",
+                        "resolutiondate": "2026-01-21T18:00:00+00:00",
+                    },
+                    "changelog": {
+                        "histories": [
+                            {
+                                "created": "2026-01-20T09:00:00+00:00",
+                                "items": [{"field": "status", "toString": "In Progress"}],
+                            }
+                        ]
+                    },
                 },
-                "changelog": {"histories": [
-                    {"created": "2026-01-20T09:00:00+00:00", "items": [{"field": "status", "toString": "In Progress"}]}
-                ]}
-            },
-        ])
+            ]
+        )
 
         result = await collect_lead_time(mock_client, "TEST")
 
@@ -135,6 +149,7 @@ class TestCollectLeadTime:
     async def test_collect_lead_time_median_resists_outlier(self) -> None:
         """Audit #7: one 30-day outlier must not pull the metric like
         the old mean implementation would have."""
+
         # 4 issues at 1 business day + 1 issue at 30 business days.
         # Mean would be (4 + 30) / 5 = 6.8 (Low). Median is 1 (High).
         def one_day_issue() -> dict:
@@ -143,10 +158,14 @@ class TestCollectLeadTime:
                     "created": "2026-01-19T09:00:00+00:00",
                     "resolutiondate": "2026-01-20T18:00:00+00:00",
                 },
-                "changelog": {"histories": [
-                    {"created": "2026-01-20T09:00:00+00:00",
-                     "items": [{"field": "status", "toString": "In Progress"}]}
-                ]},
+                "changelog": {
+                    "histories": [
+                        {
+                            "created": "2026-01-20T09:00:00+00:00",
+                            "items": [{"field": "status", "toString": "In Progress"}],
+                        }
+                    ]
+                },
             }
 
         outlier_issue = {
@@ -155,17 +174,26 @@ class TestCollectLeadTime:
                 # 6 calendar weeks later (~30 business days)
                 "resolutiondate": "2026-02-13T18:00:00+00:00",
             },
-            "changelog": {"histories": [
-                {"created": "2026-01-02T09:00:00+00:00",
-                 "items": [{"field": "status", "toString": "In Progress"}]}
-            ]},
+            "changelog": {
+                "histories": [
+                    {
+                        "created": "2026-01-02T09:00:00+00:00",
+                        "items": [{"field": "status", "toString": "In Progress"}],
+                    }
+                ]
+            },
         }
 
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            one_day_issue(), one_day_issue(), one_day_issue(),
-            one_day_issue(), outlier_issue,
-        ])
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                one_day_issue(),
+                one_day_issue(),
+                one_day_issue(),
+                one_day_issue(),
+                outlier_issue,
+            ]
+        )
 
         result = await collect_lead_time(mock_client, "TEST")
 
@@ -177,18 +205,25 @@ class TestCollectLeadTime:
     async def test_collect_lead_time_skips_invalid_dates(self) -> None:
         """Should skip issues with missing dates or no In Progress."""
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            {"fields": {"created": "2026-01-20T09:00:00+00:00", "resolutiondate": None}},
-            {
-                "fields": {
-                    "created": "2026-01-19T09:00:00+00:00",
-                    "resolutiondate": "2026-01-20T18:00:00+00:00",
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                {"fields": {"created": "2026-01-20T09:00:00+00:00", "resolutiondate": None}},
+                {
+                    "fields": {
+                        "created": "2026-01-19T09:00:00+00:00",
+                        "resolutiondate": "2026-01-20T18:00:00+00:00",
+                    },
+                    "changelog": {
+                        "histories": [
+                            {
+                                "created": "2026-01-20T09:00:00+00:00",
+                                "items": [{"field": "status", "toString": "In Progress"}],
+                            }
+                        ]
+                    },
                 },
-                "changelog": {"histories": [
-                    {"created": "2026-01-20T09:00:00+00:00", "items": [{"field": "status", "toString": "In Progress"}]}
-                ]}
-            },
-        ])
+            ]
+        )
 
         result = await collect_lead_time(mock_client, "TEST")
 
@@ -205,7 +240,7 @@ class TestFindFirstInProgress:
                 "histories": [
                     {
                         "created": "2026-01-20T09:00:00+00:00",
-                        "items": [{"field": "status", "toString": "In Progress"}]
+                        "items": [{"field": "status", "toString": "In Progress"}],
                     }
                 ]
             }
@@ -223,12 +258,12 @@ class TestFindFirstInProgress:
                 "histories": [
                     {
                         "created": "2026-01-22T09:00:00+00:00",
-                        "items": [{"field": "status", "toString": "In Progress"}]
+                        "items": [{"field": "status", "toString": "In Progress"}],
                     },
                     {
                         "created": "2026-01-20T09:00:00+00:00",
-                        "items": [{"field": "status", "toString": "In Development"}]
-                    }
+                        "items": [{"field": "status", "toString": "In Development"}],
+                    },
                 ]
             }
         }
@@ -240,13 +275,21 @@ class TestFindFirstInProgress:
 
     def test_recognizes_various_in_progress_statuses(self) -> None:
         """Should recognize various In Progress status names."""
-        for status_name in ["In Progress", "in development", "Development", "WIP", "Work In Progress", "Code Review", "qa"]:
+        for status_name in [
+            "In Progress",
+            "in development",
+            "Development",
+            "WIP",
+            "Work In Progress",
+            "Code Review",
+            "qa",
+        ]:
             issue = {
                 "changelog": {
                     "histories": [
                         {
                             "created": "2026-01-20T09:00:00+00:00",
-                            "items": [{"field": "status", "toString": status_name}]
+                            "items": [{"field": "status", "toString": status_name}],
                         }
                     ]
                 }
@@ -261,7 +304,7 @@ class TestFindFirstInProgress:
                 "histories": [
                     {
                         "created": "2026-01-20T09:00:00+00:00",
-                        "items": [{"field": "status", "toString": "Done"}]
+                        "items": [{"field": "status", "toString": "Done"}],
                     }
                 ]
             }
@@ -288,27 +331,27 @@ class TestBusinessDaysDiff:
 
     def test_same_day(self) -> None:
         """Should calculate fraction of a day."""
-        start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
-        end = datetime(2026, 1, 20, 18, 0, 0)    # Monday 6pm
+        start = datetime(2026, 1, 20, 9, 0, 0)  # Monday 9am
+        end = datetime(2026, 1, 20, 18, 0, 0)  # Monday 6pm
         assert business_days_diff(start, end) == pytest.approx(1.0)
 
     def test_two_business_days(self) -> None:
         """Should calculate two full business days."""
-        start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
-        end = datetime(2026, 1, 21, 18, 0, 0)    # Tuesday 6pm
+        start = datetime(2026, 1, 20, 9, 0, 0)  # Monday 9am
+        end = datetime(2026, 1, 21, 18, 0, 0)  # Tuesday 6pm
         assert business_days_diff(start, end) == pytest.approx(2.0)
 
     def test_skip_weekend(self) -> None:
         """Should skip weekend days."""
-        start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
-        end = datetime(2026, 1, 19, 18, 0, 0)    # Sunday 6pm
+        start = datetime(2026, 1, 17, 9, 0, 0)  # Friday 9am
+        end = datetime(2026, 1, 19, 18, 0, 0)  # Sunday 6pm
         # Only Friday counts = 1 day
         assert business_days_diff(start, end) == pytest.approx(1.0)
 
     def test_week_with_weekend(self) -> None:
         """Should calculate business days across weekend."""
-        start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
-        end = datetime(2026, 1, 20, 18, 0, 0)    # Monday 6pm
+        start = datetime(2026, 1, 17, 9, 0, 0)  # Friday 9am
+        end = datetime(2026, 1, 20, 18, 0, 0)  # Monday 6pm
         # Friday + Monday = 2 days
         assert business_days_diff(start, end) == pytest.approx(2.0)
 

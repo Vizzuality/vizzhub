@@ -5,10 +5,10 @@ Finishes the currently active reporting period and creates + activates
 a new one for the current month.
 """
 
-import structlog
 from datetime import date
 from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,9 +52,7 @@ async def rotate_reporting_period(ctx: dict) -> dict[str, Any]:
             logger.info("period_finished", period_date=str(active.date))
 
         existing = await db.execute(
-            select(ReportingPeriodDB).where(
-                ReportingPeriodDB.date == new_date
-            )
+            select(ReportingPeriodDB).where(ReportingPeriodDB.date == new_date)
         )
         existing_period = existing.scalar_one_or_none()
 

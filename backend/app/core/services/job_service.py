@@ -8,8 +8,9 @@ clients immediately, before the worker task finishes. Other services
 (``IntegrationTokenService``) flush only and rely on the request-boundary
 autocommit in ``get_db``.
 """
+
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,9 +89,9 @@ class JobService:
         job.status = status
 
         if status == JobStatus.RUNNING and not job.started_at:
-            job.started_at = datetime.now(timezone.utc)
+            job.started_at = datetime.now(UTC)
         elif status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
 
         if error_message:
             job.error_message = error_message
@@ -134,7 +135,7 @@ class JobService:
         if not job:
             raise ValueError(f"Job {job_id} not found")
 
-        timestamp = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        timestamp = datetime.now(UTC).strftime("%H:%M:%S")
         new_line = f"[{timestamp}] {log_line}"
 
         if job.logs:

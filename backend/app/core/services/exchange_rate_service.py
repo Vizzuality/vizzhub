@@ -1,11 +1,11 @@
 """ECB exchange rate fetching and lookup."""
 
-import structlog
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from xml.etree import ElementTree
 
 import httpx
+import structlog
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,18 +51,20 @@ async def fetch_and_store_rates(db: AsyncSession) -> dict:
         raise ValueError("Could not parse ECB XML — missing Cube element")
 
     rate_date = date.fromisoformat(cube_parent.attrib["time"])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     rows = []
     for cube in cube_parent.findall("ecb:Cube", ECB_NS):
         code = cube.attrib["currency"]
         rate = Decimal(cube.attrib["rate"])
-        rows.append({
-            "rate_date": rate_date,
-            "currency_code": code,
-            "rate": rate,
-            "fetched_at": now,
-        })
+        rows.append(
+            {
+                "rate_date": rate_date,
+                "currency_code": code,
+                "rate": rate,
+                "fetched_at": now,
+            }
+        )
 
     if not rows:
         raise ValueError("ECB XML contained no currency rows")
@@ -158,9 +160,7 @@ async def convert_to_eur(
 async def get_available_currencies(db: AsyncSession) -> list[str]:
     """Return all currency codes that have at least one rate stored."""
     result = await db.execute(
-        select(ExchangeRateDB.currency_code)
-        .distinct()
-        .order_by(ExchangeRateDB.currency_code)
+        select(ExchangeRateDB.currency_code).distinct().order_by(ExchangeRateDB.currency_code)
     )
     codes = [row[0] for row in result.all()]
     if "EUR" not in codes:

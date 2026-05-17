@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -38,9 +39,7 @@ class ContentVersionService:
         )
         current_version = result.scalar_one()
         next_version = current_version + 1
-        conflict = (
-            expected_version is not None and expected_version < current_version
-        )
+        conflict = expected_version is not None and expected_version < current_version
 
         record = self._model(
             **{

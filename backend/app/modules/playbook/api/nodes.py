@@ -6,7 +6,8 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
@@ -57,9 +58,7 @@ async def _count_descendants(db: AsyncSession, node_id: UUID) -> int:
     """Count all descendants of a node (recursive CTE)."""
     base = select(PlaybookNodeDB.id).where(PlaybookNodeDB.parent_id == node_id)
     cte = base.cte(name="descendants", recursive=True)
-    recursive = select(PlaybookNodeDB.id).where(
-        PlaybookNodeDB.parent_id == cte.c.id
-    )
+    recursive = select(PlaybookNodeDB.id).where(PlaybookNodeDB.parent_id == cte.c.id)
     cte = cte.union_all(recursive)
     result = await db.execute(select(sa_func.count()).select_from(cte))
     return result.scalar_one()
@@ -67,17 +66,13 @@ async def _count_descendants(db: AsyncSession, node_id: UUID) -> int:
 
 @router.get("/tree")
 async def get_tree(db: DBSession, user: CurrentUser) -> list[dict]:
-    result = await db.execute(
-        select(PlaybookNodeDB).order_by(PlaybookNodeDB.position)
-    )
+    result = await db.execute(select(PlaybookNodeDB).order_by(PlaybookNodeDB.position))
     nodes = list(result.scalars().all())
     return _build_tree(nodes)
 
 
 @router.post("/nodes", status_code=201)
-async def create_node(
-    data: NodeCreate, db: DBSession, user: PlaybookEditor
-) -> NodeResponse:
+async def create_node(data: NodeCreate, db: DBSession, user: PlaybookEditor) -> NodeResponse:
     if not await validate_depth(db, data.parent_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -115,9 +110,7 @@ async def create_node(
 async def update_node(
     node_id: UUID, data: NodeUpdate, db: DBSession, user: PlaybookEditor
 ) -> NodeResponse:
-    result = await db.execute(
-        select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id)
-    )
+    result = await db.execute(select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id))
     node = result.scalar_one_or_none()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -156,12 +149,8 @@ async def update_node(
 
 
 @router.delete("/nodes/{node_id}", responses={404: {"description": "Node not found"}})
-async def delete_node(
-    node_id: UUID, db: DBSession, user: PlaybookEditor
-) -> dict:
-    result = await db.execute(
-        select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id)
-    )
+async def delete_node(node_id: UUID, db: DBSession, user: PlaybookEditor) -> dict:
+    result = await db.execute(select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id))
     node = result.scalar_one_or_none()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -185,21 +174,15 @@ async def delete_node(
         404: {"description": "Node not found"},
     },
 )
-async def reorder_nodes(
-    data: ReorderRequest, db: DBSession, user: PlaybookEditor
-) -> dict:
+async def reorder_nodes(data: ReorderRequest, db: DBSession, user: PlaybookEditor) -> dict:
     node_ids = [item.id for item in data.items]
-    result = await db.execute(
-        select(PlaybookNodeDB).where(PlaybookNodeDB.id.in_(node_ids))
-    )
+    result = await db.execute(select(PlaybookNodeDB).where(PlaybookNodeDB.id.in_(node_ids)))
     nodes_by_id = {n.id: n for n in result.scalars()}
 
     for item in data.items:
         node = nodes_by_id.get(item.id)
         if not node:
-            raise HTTPException(
-                status_code=404, detail=f"Node {item.id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Node {item.id} not found")
         if item.parent_id != node.parent_id:
             if not await validate_not_circular(db, item.id, item.parent_id):
                 raise HTTPException(

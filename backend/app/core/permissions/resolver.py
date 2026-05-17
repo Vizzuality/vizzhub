@@ -17,9 +17,7 @@ async def get_user_roles(db: AsyncSession, user_id: str) -> list[str]:
     return [row[0] for row in result.all()]
 
 
-async def resolve_permissions(
-    db: AsyncSession, user_id: str
-) -> tuple[list[str], list[str]]:
+async def resolve_permissions(db: AsyncSession, user_id: str) -> tuple[list[str], list[str]]:
     """Resolve a user's roles and effective permissions.
 
     Returns (roles, permissions) where permissions is the sorted union

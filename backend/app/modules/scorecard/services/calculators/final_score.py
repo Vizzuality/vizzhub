@@ -4,7 +4,7 @@ Final score calculator.
 Weighted aggregate of all dimension scores.
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 from app.config import ScoringConfig, get_scoring_config
 from app.modules.scorecard.models.indicators import IndicatorsCreate
@@ -79,12 +79,24 @@ class FinalScoreCalculator:
         )
 
         dimension_names = [
-            "time", "cost", "quality", "value",
-            "satisfaction", "flow", "engineering", "risk",
+            "time",
+            "cost",
+            "quality",
+            "value",
+            "satisfaction",
+            "flow",
+            "engineering",
+            "risk",
         ]
         dimension_scores = [
-            dimensions.p_time, dimensions.p_cost, dimensions.p_quality, dimensions.p_value,
-            dimensions.p_satisfaction, dimensions.p_flow, dimensions.p_engineering, dimensions.p_risk,
+            dimensions.p_time,
+            dimensions.p_cost,
+            dimensions.p_quality,
+            dimensions.p_value,
+            dimensions.p_satisfaction,
+            dimensions.p_flow,
+            dimensions.p_engineering,
+            dimensions.p_risk,
         ]
 
         config_weights = {name: self.config.get_global_weight(name) for name in dimension_names}

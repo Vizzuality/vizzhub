@@ -5,19 +5,18 @@ external services, specifically Jira authentication, token management,
 and automatic token refresh.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 import respx
 from httpx import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.oauth import OAuthTokenDB
 from app.core.services.oauth_service import OAuthService
+from app.core.token_encryption import decrypt_token, encrypt_token
 
 TOKEN_URL = "https://auth.atlassian.com/oauth/token"
 RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
@@ -48,18 +47,21 @@ class TestCodeExchange:
     ) -> None:
         """exchange_code should persist token to oauth_tokens table."""
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "stored-token",
-                "refresh_token": "stored-refresh",
-                "expires_in": 3600,
-                "token_type": "Bearer",
-                "scope": "read:jira-work",
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "stored-token",
+                    "refresh_token": "stored-refresh",
+                    "expires_in": 3600,
+                    "token_type": "Bearer",
+                    "scope": "read:jira-work",
+                },
+            )
         )
         respx.get(RESOURCES_URL).mock(
-            return_value=Response(200, json=[
-                {"id": "cloud-123", "url": "https://test.atlassian.net"}
-            ])
+            return_value=Response(
+                200, json=[{"id": "cloud-123", "url": "https://test.atlassian.net"}]
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -95,16 +97,19 @@ class TestCodeExchange:
         await db_session.commit()
 
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "new-token",
-                "refresh_token": "new-refresh",
-                "expires_in": 3600,
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "new-token",
+                    "refresh_token": "new-refresh",
+                    "expires_in": 3600,
+                },
+            )
         )
         respx.get(RESOURCES_URL).mock(
-            return_value=Response(200, json=[
-                {"id": "new-cloud-id", "url": "https://new.atlassian.net"}
-            ])
+            return_value=Response(
+                200, json=[{"id": "new-cloud-id", "url": "https://new.atlassian.net"}]
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -130,15 +135,18 @@ class TestCodeExchange:
     ) -> None:
         """exchange_code should set expires_at correctly from expires_in."""
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "test-token",
-                "expires_in": 3600,
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "test-token",
+                    "expires_in": 3600,
+                },
+            )
         )
         respx.get(RESOURCES_URL).mock(
-            return_value=Response(200, json=[
-                {"id": "cloud-id", "url": "https://test.atlassian.net"}
-            ])
+            return_value=Response(
+                200, json=[{"id": "cloud-id", "url": "https://test.atlassian.net"}]
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -146,11 +154,9 @@ class TestCodeExchange:
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            before = datetime.now(timezone.utc)
-            token = await OAuthService.exchange_jira_code_for_token(
-                "code", db_session
-            )
-            after = datetime.now(timezone.utc)
+            before = datetime.now(UTC)
+            token = await OAuthService.exchange_jira_code_for_token("code", db_session)
+            after = datetime.now(UTC)
 
         assert token.expires_at is not None
         expected_min = before + timedelta(seconds=3600)
@@ -171,9 +177,7 @@ class TestCodeExchange:
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
             with pytest.raises(Exception):
-                await OAuthService.exchange_jira_code_for_token(
-                    "invalid-code", db_session
-                )
+                await OAuthService.exchange_jira_code_for_token("invalid-code", db_session)
 
     @pytest.mark.asyncio
     @respx.mock
@@ -182,15 +186,18 @@ class TestCodeExchange:
     ) -> None:
         """exchange_code should handle missing refresh_token in response."""
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "access-only-token",
-                "expires_in": 3600,
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "access-only-token",
+                    "expires_in": 3600,
+                },
+            )
         )
         respx.get(RESOURCES_URL).mock(
-            return_value=Response(200, json=[
-                {"id": "cloud-id", "url": "https://test.atlassian.net"}
-            ])
+            return_value=Response(
+                200, json=[{"id": "cloud-id", "url": "https://test.atlassian.net"}]
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -198,9 +205,7 @@ class TestCodeExchange:
             mock_settings.jira_oauth_client_secret = "test-secret"
             mock_settings.jira_oauth_redirect_uri = "http://localhost/callback"
 
-            token = await OAuthService.exchange_jira_code_for_token(
-                "code", db_session
-            )
+            token = await OAuthService.exchange_jira_code_for_token("code", db_session)
 
         assert decrypt_token(token.access_token) == "access-only-token"
         assert token.refresh_token is None
@@ -219,18 +224,21 @@ class TestTokenRefresh:
             provider="jira",
             access_token=encrypt_token("old-access-token"),
             refresh_token=encrypt_token("valid-refresh-token"),
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+            expires_at=datetime.now(UTC) - timedelta(minutes=5),
         )
         db_session.add(existing_token)
         await db_session.commit()
 
         token_route = respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "new-access-token",
-                "refresh_token": "new-refresh-token",
-                "expires_in": 3600,
-                "token_type": "Bearer",
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "new-access-token",
+                    "refresh_token": "new-refresh-token",
+                    "expires_in": 3600,
+                    "token_type": "Bearer",
+                },
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -262,11 +270,14 @@ class TestTokenRefresh:
         token_id = existing_token.id
 
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "refreshed-token",
-                "refresh_token": "new-refresh-token",
-                "expires_in": 3600,
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "refreshed-token",
+                    "refresh_token": "new-refresh-token",
+                    "expires_in": 3600,
+                },
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -323,7 +334,7 @@ class TestGetValidToken:
             provider="jira",
             access_token=encrypt_token("fresh-token"),
             refresh_token=encrypt_token("refresh-token"),
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+            expires_at=datetime.now(UTC) + timedelta(minutes=30),
         )
         db_session.add(fresh_token)
         await db_session.commit()
@@ -342,16 +353,19 @@ class TestGetValidToken:
             provider="jira",
             access_token=encrypt_token("expired-token"),
             refresh_token=encrypt_token("valid-refresh"),
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+            expires_at=datetime.now(UTC) - timedelta(minutes=5),
         )
         db_session.add(expired_token)
         await db_session.commit()
 
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "refreshed-token",
-                "expires_in": 3600,
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "refreshed-token",
+                    "expires_in": 3600,
+                },
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:
@@ -372,16 +386,19 @@ class TestGetValidToken:
             provider="jira",
             access_token=encrypt_token("about-to-expire"),
             refresh_token=encrypt_token("refresh-token"),
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=3),
+            expires_at=datetime.now(UTC) + timedelta(minutes=3),
         )
         db_session.add(soon_to_expire)
         await db_session.commit()
 
         respx.post(TOKEN_URL).mock(
-            return_value=Response(200, json={
-                "access_token": "pre-emptively-refreshed",
-                "expires_in": 3600,
-            })
+            return_value=Response(
+                200,
+                json={
+                    "access_token": "pre-emptively-refreshed",
+                    "expires_in": 3600,
+                },
+            )
         )
 
         with patch("app.core.services.oauth_service.settings") as mock_settings:

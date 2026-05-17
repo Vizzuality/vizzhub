@@ -28,7 +28,9 @@ async def setup_costs(db_session: AsyncSession) -> dict:
     await db_session.flush()
 
     period = ReportingPeriodDB(
-        date=dt.date(2026, 3, 1), base_rate=Decimal("175"), status="active",
+        date=dt.date(2026, 3, 1),
+        base_rate=Decimal("175"),
+        status="active",
     )
     db_session.add(period)
     await db_session.flush()
@@ -51,7 +53,9 @@ async def setup_costs(db_session: AsyncSession) -> dict:
 class TestNonStaffCostsCRUD:
     @pytest.mark.asyncio
     async def test_create_non_staff_cost(
-        self, client: AsyncClient, setup_costs: dict,
+        self,
+        client: AsyncClient,
+        setup_costs: dict,
     ):
         resp = await client.post(
             "/api/tracker/non-staff-costs",
@@ -73,7 +77,9 @@ class TestNonStaffCostsCRUD:
 
     @pytest.mark.asyncio
     async def test_list_by_project(
-        self, client: AsyncClient, setup_costs: dict,
+        self,
+        client: AsyncClient,
+        setup_costs: dict,
     ):
         await client.post(
             "/api/tracker/non-staff-costs",
@@ -93,10 +99,15 @@ class TestNonStaffCostsCRUD:
 
     @pytest.mark.asyncio
     async def test_list_by_project_and_period(
-        self, client: AsyncClient, setup_costs: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        setup_costs: dict,
+        db_session: AsyncSession,
     ):
         period2 = ReportingPeriodDB(
-            date=dt.date(2026, 4, 1), base_rate=Decimal("175"), status="active",
+            date=dt.date(2026, 4, 1),
+            base_rate=Decimal("175"),
+            status="active",
         )
         db_session.add(period2)
         await db_session.commit()
@@ -139,14 +150,18 @@ class TestNonStaffCostsCRUD:
 
     @pytest.mark.asyncio
     async def test_list_requires_project_id(
-        self, client: AsyncClient, setup_costs: dict,
+        self,
+        client: AsyncClient,
+        setup_costs: dict,
     ):
         resp = await client.get("/api/tracker/non-staff-costs")
         assert resp.status_code in (400, 422)
 
     @pytest.mark.asyncio
     async def test_update_non_staff_cost(
-        self, client: AsyncClient, setup_costs: dict,
+        self,
+        client: AsyncClient,
+        setup_costs: dict,
     ):
         create_resp = await client.post(
             "/api/tracker/non-staff-costs",
@@ -170,7 +185,9 @@ class TestNonStaffCostsCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_non_staff_cost(
-        self, client: AsyncClient, setup_costs: dict,
+        self,
+        client: AsyncClient,
+        setup_costs: dict,
     ):
         create_resp = await client.post(
             "/api/tracker/non-staff-costs",

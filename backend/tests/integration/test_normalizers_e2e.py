@@ -3,15 +3,15 @@
 Tests the complete flow: raw metrics -> indicators -> scores.
 """
 
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 class TestNormalizersE2EIntegration:
@@ -96,7 +96,9 @@ class TestNormalizersE2EIntegration:
         assert dimensions["p_cost"] >= 80, f"P_cost {dimensions['p_cost']} should be >= 80"
         assert dimensions["p_quality"] >= 80, f"P_quality {dimensions['p_quality']} should be >= 80"
         assert dimensions["p_flow"] >= 80, f"P_flow {dimensions['p_flow']} should be >= 80"
-        assert dimensions["p_engineering"] >= 80, f"P_engineering {dimensions['p_engineering']} should be >= 80"
+        assert dimensions["p_engineering"] >= 80, (
+            f"P_engineering {dimensions['p_engineering']} should be >= 80"
+        )
         assert dimensions["p_risk"] == 100, f"P_risk {dimensions['p_risk']} should be 100"
 
         # Final score should be high

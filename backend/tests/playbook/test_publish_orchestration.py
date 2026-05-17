@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
 
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
@@ -16,7 +17,11 @@ class TestPublishOrchestration:
     async def test_publish_updates_log_on_success(self, db_session):
         svc = PublishService()
         page = PlaybookNodeDB(
-            title="Hello", slug="hello", type="page", position=0, is_public=True,
+            title="Hello",
+            slug="hello",
+            type="page",
+            position=0,
+            is_public=True,
         )
         db_session.add(page)
         await db_session.flush()

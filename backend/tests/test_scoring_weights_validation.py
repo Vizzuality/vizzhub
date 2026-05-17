@@ -70,9 +70,16 @@ def test_validate_weights_groups_covered() -> None:
 
     assert legacy_keys == full_keys
     expected = {
-        "Global Weights", "Time Weights", "Cost Weights", "Quality Weights",
-        "Value Weights", "Satisfaction Weights", "Client Survey Weights",
-        "Flow Weights", "Engineering Weights", "Risk Weights",
+        "Global Weights",
+        "Time Weights",
+        "Cost Weights",
+        "Quality Weights",
+        "Value Weights",
+        "Satisfaction Weights",
+        "Client Survey Weights",
+        "Flow Weights",
+        "Engineering Weights",
+        "Risk Weights",
         "Test Maturity Weights",
     }
     assert legacy_keys == expected

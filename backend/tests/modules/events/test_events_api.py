@@ -134,21 +134,34 @@ class TestEventsCRUD:
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_filter_attending_yes_excludes_others(
-        self, client: AsyncClient
-    ):
-        await client.post("/api/events", json=_event_payload(
-            name="Yes Event", attending="yes",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="No Event", attending="no",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="Maybe Event", attending="maybe",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="Null Event",
-        ))
+    async def test_filter_attending_yes_excludes_others(self, client: AsyncClient):
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Yes Event",
+                attending="yes",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="No Event",
+                attending="no",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Maybe Event",
+                attending="maybe",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Null Event",
+            ),
+        )
 
         resp = await client.get("/api/events?attending=yes")
         assert resp.status_code == 200
@@ -156,18 +169,27 @@ class TestEventsCRUD:
         assert names == ["Yes Event"]
 
     @pytest.mark.asyncio
-    async def test_filter_attending_maybe_includes_null(
-        self, client: AsyncClient
-    ):
-        await client.post("/api/events", json=_event_payload(
-            name="Yes Event", attending="yes",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="Maybe Event", attending="maybe",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="Null Event",
-        ))
+    async def test_filter_attending_maybe_includes_null(self, client: AsyncClient):
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Yes Event",
+                attending="yes",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Maybe Event",
+                attending="maybe",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Null Event",
+            ),
+        )
 
         resp = await client.get("/api/events?attending=maybe")
         assert resp.status_code == 200
@@ -198,15 +220,27 @@ class TestEventOptions:
 
     @pytest.mark.asyncio
     async def test_years_with_data_sorted_desc(self, client: AsyncClient):
-        await client.post("/api/events", json=_event_payload(
-            name="Old Event", start_date="2024-01-15",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="New Event", start_date="2026-06-15",
-        ))
-        await client.post("/api/events", json=_event_payload(
-            name="Mid Event", start_date="2025-03-10",
-        ))
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Old Event",
+                start_date="2024-01-15",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="New Event",
+                start_date="2026-06-15",
+            ),
+        )
+        await client.post(
+            "/api/events",
+            json=_event_payload(
+                name="Mid Event",
+                start_date="2025-03-10",
+            ),
+        )
 
         resp = await client.get("/api/events/options")
         assert resp.status_code == 200
@@ -225,7 +259,9 @@ class TestEventStats:
 
     @pytest.mark.asyncio
     async def test_get_stats_with_data(
-        self, client: AsyncClient, test_user: UserDB,
+        self,
+        client: AsyncClient,
+        test_user: UserDB,
     ):
         create_resp = await client.post(
             "/api/events",
@@ -250,7 +286,9 @@ class TestEventStats:
 class TestEventAttendees:
     @pytest.mark.asyncio
     async def test_add_attendee(
-        self, client: AsyncClient, test_user: UserDB,
+        self,
+        client: AsyncClient,
+        test_user: UserDB,
     ):
         create_resp = await client.post("/api/events", json=_event_payload())
         event_id = create_resp.json()["id"]
@@ -272,7 +310,9 @@ class TestEventAttendees:
 
     @pytest.mark.asyncio
     async def test_remove_attendee(
-        self, client: AsyncClient, test_user: UserDB,
+        self,
+        client: AsyncClient,
+        test_user: UserDB,
     ):
         create_resp = await client.post("/api/events", json=_event_payload())
         event_id = create_resp.json()["id"]
@@ -292,7 +332,9 @@ class TestEventAttendees:
 
     @pytest.mark.asyncio
     async def test_duplicate_attendee_returns_409(
-        self, client: AsyncClient, test_user: UserDB,
+        self,
+        client: AsyncClient,
+        test_user: UserDB,
     ):
         create_resp = await client.post("/api/events", json=_event_payload())
         event_id = create_resp.json()["id"]
@@ -317,8 +359,11 @@ class TestEventAttendees:
         from app.modules.events.models.event import EventDB
 
         event = EventDB(
-            name="Cost Test", event_type="Conference", theme_primary="Climate",
-            region_focus="Global", start_date=date(2026, 7, 1),
+            name="Cost Test",
+            event_type="Conference",
+            theme_primary="Climate",
+            region_focus="Global",
+            start_date=date(2026, 7, 1),
             other_costs=Decimal("0"),
         )
         db_session.add(event)
@@ -326,11 +371,13 @@ class TestEventAttendees:
 
         r = await client.post(
             f"/api/events/{event.id}/attendees",
-            json=[{
-                "user_id": str(test_user.id),
-                "role": "Speaker",
-                "cost": "150.50",
-            }],
+            json=[
+                {
+                    "user_id": str(test_user.id),
+                    "role": "Speaker",
+                    "cost": "150.50",
+                }
+            ],
         )
         assert r.status_code == 201
         assert r.json()[0]["cost"] == "150.50"
@@ -345,16 +392,21 @@ class TestEventAttendees:
         from app.modules.events.models.event_attendee import EventAttendeeDB
 
         event = EventDB(
-            name="Patch Test", event_type="Conference", theme_primary="Climate",
-            region_focus="Global", start_date=date(2026, 7, 2),
+            name="Patch Test",
+            event_type="Conference",
+            theme_primary="Climate",
+            region_focus="Global",
+            start_date=date(2026, 7, 2),
             other_costs=Decimal("0"),
         )
         db_session.add(event)
         await db_session.flush()
         db_session.add(
             EventAttendeeDB(
-                event_id=event.id, user_id=test_user.id,
-                role="Attendee", cost=None,
+                event_id=event.id,
+                user_id=test_user.id,
+                role="Attendee",
+                cost=None,
             )
         )
         await db_session.commit()
@@ -377,15 +429,20 @@ class TestEventAttendees:
         from app.modules.events.models.event_attendee import EventAttendeeDB
 
         event = EventDB(
-            name="Neg Test", event_type="Conference", theme_primary="Climate",
-            region_focus="Global", start_date=date(2026, 7, 3),
+            name="Neg Test",
+            event_type="Conference",
+            theme_primary="Climate",
+            region_focus="Global",
+            start_date=date(2026, 7, 3),
             other_costs=Decimal("0"),
         )
         db_session.add(event)
         await db_session.flush()
         db_session.add(
             EventAttendeeDB(
-                event_id=event.id, user_id=test_user.id, role="Attendee",
+                event_id=event.id,
+                user_id=test_user.id,
+                role="Attendee",
             )
         )
         await db_session.commit()
@@ -448,16 +505,21 @@ class TestEventFiltering:
         from tests.modules.events.conftest import DEBUG_USER_ID
 
         event = EventDB(
-            name="TC", event_type="Conference", theme_primary="Climate",
-            region_focus="Global", start_date=date(2026, 5, 1),
+            name="TC",
+            event_type="Conference",
+            theme_primary="Climate",
+            region_focus="Global",
+            start_date=date(2026, 5, 1),
             other_costs=Decimal("50.00"),
         )
         db_session.add(event)
         await db_session.flush()
         db_session.add(
             EventAttendeeDB(
-                event_id=event.id, user_id=DEBUG_USER_ID,
-                role="Attendee", cost=Decimal("75.00"),
+                event_id=event.id,
+                user_id=DEBUG_USER_ID,
+                role="Attendee",
+                cost=Decimal("75.00"),
             )
         )
         await db_session.commit()
@@ -473,20 +535,29 @@ class TestEventFiltering:
         self, client: AsyncClient, db_session: AsyncSession
     ):
         from datetime import date
+
         from app.modules.events.models.event import EventDB
 
-        db_session.add_all([
-            EventDB(
-                name="A_pricey", event_type="Conference", theme_primary="Climate",
-                region_focus="Global", start_date=date(2026, 6, 1),
-                other_costs=Decimal("1000.00"),
-            ),
-            EventDB(
-                name="B_cheap", event_type="Conference", theme_primary="Climate",
-                region_focus="Global", start_date=date(2026, 6, 2),
-                other_costs=Decimal("10.00"),
-            ),
-        ])
+        db_session.add_all(
+            [
+                EventDB(
+                    name="A_pricey",
+                    event_type="Conference",
+                    theme_primary="Climate",
+                    region_focus="Global",
+                    start_date=date(2026, 6, 1),
+                    other_costs=Decimal("1000.00"),
+                ),
+                EventDB(
+                    name="B_cheap",
+                    event_type="Conference",
+                    theme_primary="Climate",
+                    region_focus="Global",
+                    start_date=date(2026, 6, 2),
+                    other_costs=Decimal("10.00"),
+                ),
+            ]
+        )
         await db_session.commit()
 
         r = await client.get("/api/events?sort_by=total_cost&sort_dir=desc")

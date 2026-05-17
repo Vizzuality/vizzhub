@@ -13,11 +13,11 @@ from app.core.models.rate import RateDB
 from app.core.models.user import UserDB
 
 DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+from app.core.models.project import ProjectDB
 from app.modules.tracker.models.project_settings import TrackerProjectSettingsDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
-from app.core.models.project import ProjectDB
 
 
 @pytest_asyncio.fixture
@@ -38,7 +38,9 @@ async def setup_reporting(db_session: AsyncSession) -> dict:
     await db_session.flush()
 
     period = ReportingPeriodDB(
-        date=dt.date(2026, 3, 1), base_rate=Decimal("175"), status="active",
+        date=dt.date(2026, 3, 1),
+        base_rate=Decimal("175"),
+        status="active",
     )
     db_session.add(period)
     await db_session.flush()
@@ -48,7 +50,8 @@ async def setup_reporting(db_session: AsyncSession) -> dict:
     await db_session.flush()
 
     settings = TrackerProjectSettingsDB(
-        project_id=project.id, contract_rate=Decimal("175"),
+        project_id=project.id,
+        contract_rate=Decimal("175"),
     )
     db_session.add(settings)
     await db_session.commit()
@@ -71,7 +74,9 @@ async def setup_reporting(db_session: AsyncSession) -> dict:
 class TestReportsCRUD:
     @pytest.mark.asyncio
     async def test_create_report(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         resp = await client.post(
             "/api/tracker/reports",
@@ -87,7 +92,9 @@ class TestReportsCRUD:
 
     @pytest.mark.asyncio
     async def test_duplicate_report_returns_409(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         payload = {
             "reporting_period_id": str(setup_reporting["period"].id),
@@ -98,7 +105,9 @@ class TestReportsCRUD:
 
     @pytest.mark.asyncio
     async def test_list_reports_by_period(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         await client.post(
             "/api/tracker/reports",
@@ -115,7 +124,9 @@ class TestReportsCRUD:
 
     @pytest.mark.asyncio
     async def test_get_report_with_parts(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         create_resp = await client.post(
             "/api/tracker/reports",
@@ -132,7 +143,9 @@ class TestReportsCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_report(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         create_resp = await client.post(
             "/api/tracker/reports",
@@ -148,7 +161,9 @@ class TestReportsCRUD:
 class TestReportPartsCRUD:
     @pytest.mark.asyncio
     async def test_create_part_with_cost_calculation(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         report_resp = await client.post(
             "/api/tracker/reports",
@@ -170,8 +185,7 @@ class TestReportPartsCRUD:
         data = resp.json()
 
         expected_cost = float(
-            Decimal("0.20") * Decimal("15365") * Decimal("0.74")
-            * (Decimal("175") / Decimal("175"))
+            Decimal("0.20") * Decimal("15365") * Decimal("0.74") * (Decimal("175") / Decimal("175"))
         )
         expected_days = float(Decimal("0.20") * Decimal("20") * Decimal("0.74"))
 
@@ -180,7 +194,9 @@ class TestReportPartsCRUD:
 
     @pytest.mark.asyncio
     async def test_update_part_recalculates_cost(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         report_resp = await client.post(
             "/api/tracker/reports",
@@ -210,7 +226,9 @@ class TestReportPartsCRUD:
 
     @pytest.mark.asyncio
     async def test_list_parts_by_report(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         report_resp = await client.post(
             "/api/tracker/reports",
@@ -238,7 +256,9 @@ class TestReportPartsCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_part(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ):
         report_resp = await client.post(
             "/api/tracker/reports",
@@ -263,7 +283,10 @@ class TestReportPartsCRUD:
 
     @pytest.mark.asyncio
     async def test_cost_with_different_contract_rate(
-        self, client: AsyncClient, setup_reporting: dict, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
+        db_session: AsyncSession,
     ):
         """Contract rate 210 with base 175 → multiplier 1.2."""
         settings = setup_reporting["settings"]
@@ -299,7 +322,9 @@ class TestConfirmValidation:
     """Confirm (estimated=false) requires parts totaling 100%."""
 
     async def _create_report_with_full_allocation(
-        self, client: AsyncClient, setup_reporting: dict,
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
     ) -> str:
         resp = await client.post(
             "/api/tracker/reports",
@@ -342,9 +367,7 @@ class TestConfirmValidation:
         assert "100%" in resp.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_confirm_rejected_when_no_parts(
-        self, client: AsyncClient, setup_reporting: dict
-    ):
+    async def test_confirm_rejected_when_no_parts(self, client: AsyncClient, setup_reporting: dict):
         resp = await client.post(
             "/api/tracker/reports",
             json={"reporting_period_id": str(setup_reporting["period"].id), "estimated": True},
@@ -388,9 +411,7 @@ class TestConfirmValidation:
 class TestMoodOnReport:
     """Test mood and feedback_text fields on report update."""
 
-    async def _create_confirmed_report(
-        self, client: AsyncClient, setup_reporting: dict
-    ) -> str:
+    async def _create_confirmed_report(self, client: AsyncClient, setup_reporting: dict) -> str:
         resp = await client.post(
             "/api/tracker/reports",
             json={"reporting_period_id": str(setup_reporting["period"].id), "estimated": True},
@@ -412,9 +433,7 @@ class TestMoodOnReport:
         return report_id
 
     @pytest.mark.asyncio
-    async def test_update_report_with_mood(
-        self, client: AsyncClient, setup_reporting: dict
-    ):
+    async def test_update_report_with_mood(self, client: AsyncClient, setup_reporting: dict):
         report_id = await self._create_confirmed_report(client, setup_reporting)
         resp = await client.put(
             f"/api/tracker/reports/{report_id}",
@@ -458,9 +477,7 @@ class TestMoodOnReport:
         assert resp.json()["feedback_text"] == "Great month!"
 
     @pytest.mark.asyncio
-    async def test_update_report_mood_null_clears(
-        self, client: AsyncClient, setup_reporting: dict
-    ):
+    async def test_update_report_mood_null_clears(self, client: AsyncClient, setup_reporting: dict):
         report_id = await self._create_confirmed_report(client, setup_reporting)
         await client.put(
             f"/api/tracker/reports/{report_id}",
@@ -486,7 +503,9 @@ class TestPrepopulateParts:
         """Create a previous period + report owned by setup_reporting['user']
         with the given (project, percentage) parts. Returns the new active period."""
         prev_period = ReportingPeriodDB(
-            date=dt.date(2026, 2, 1), base_rate=Decimal("175"), status="closed",
+            date=dt.date(2026, 2, 1),
+            base_rate=Decimal("175"),
+            status="closed",
         )
         db_session.add(prev_period)
         await db_session.flush()
@@ -500,11 +519,13 @@ class TestPrepopulateParts:
         await db_session.flush()
 
         for project, pct in prev_parts:
-            db_session.add(ReportPartDB(
-                report_id=prev_report.id,
-                project_id=project.id,
-                percentage=pct,
-            ))
+            db_session.add(
+                ReportPartDB(
+                    report_id=prev_report.id,
+                    project_id=project.id,
+                    percentage=pct,
+                )
+            )
         await db_session.commit()
 
         # Move the active period to one strictly after prev_period.
@@ -526,7 +547,8 @@ class TestPrepopulateParts:
         await db_session.flush()
 
         active = await self._seed_prev_report_with_parts(
-            db_session, setup_reporting,
+            db_session,
+            setup_reporting,
             [(live, Decimal("0.6")), (finished, Decimal("0.4"))],
         )
 
@@ -556,7 +578,8 @@ class TestPrepopulateParts:
         await db_session.flush()
 
         active = await self._seed_prev_report_with_parts(
-            db_session, setup_reporting,
+            db_session,
+            setup_reporting,
             [
                 (live, Decimal("1.0")),
                 (zero_project, Decimal("0")),

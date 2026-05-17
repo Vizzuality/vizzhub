@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 
 from app.core.api.deps import AdminUser, DBSession
 from app.modules.playbook.models.publish_log import PlaybookPublishLogDB
@@ -69,9 +69,11 @@ async def publish_status(
 ) -> PublishStatusResponse | None:
     """Get the latest publish log entry."""
     result = await db.execute(
-        select(PlaybookPublishLogDB).order_by(
+        select(PlaybookPublishLogDB)
+        .order_by(
             desc(PlaybookPublishLogDB.started_at),
-        ).limit(1)
+        )
+        .limit(1)
     )
     log = result.scalar_one_or_none()
     if log is None:
@@ -87,8 +89,10 @@ async def publish_history(
 ) -> list[PublishStatusResponse]:
     """Get recent publish log entries."""
     result = await db.execute(
-        select(PlaybookPublishLogDB).order_by(
+        select(PlaybookPublishLogDB)
+        .order_by(
             desc(PlaybookPublishLogDB.started_at),
-        ).limit(limit)
+        )
+        .limit(limit)
     )
     return [PublishStatusResponse.model_validate(log) for log in result.scalars().all()]

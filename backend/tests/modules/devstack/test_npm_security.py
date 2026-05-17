@@ -1,7 +1,7 @@
 """Tests for npm_security service."""
 
-import pytest
 import httpx
+import pytest
 
 from app.modules.devstack.services.npm_security import fetch_npm_advisories
 

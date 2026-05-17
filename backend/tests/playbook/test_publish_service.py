@@ -5,7 +5,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.playbook.models.node import PlaybookNodeDB
@@ -16,10 +15,10 @@ from app.modules.playbook.services.publish_service import (
     PublishService,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_node(
     *,
@@ -143,19 +142,36 @@ class TestBuildNavTree:
     def test_prev_next_across_groups_in_tree_order(self) -> None:
         """Pages in different groups are linked sequentially in tree order."""
         g1 = _make_node(
-            title="G1", slug="g1", node_type="group", is_public=False, position=0,
+            title="G1",
+            slug="g1",
+            node_type="group",
+            is_public=False,
+            position=0,
         )
         p1 = _make_node(
-            title="P1", slug="p1", parent_id=g1.id, position=0,
+            title="P1",
+            slug="p1",
+            parent_id=g1.id,
+            position=0,
         )
         p2 = _make_node(
-            title="P2", slug="p2", parent_id=g1.id, position=1,
+            title="P2",
+            slug="p2",
+            parent_id=g1.id,
+            position=1,
         )
         g2 = _make_node(
-            title="G2", slug="g2", node_type="group", is_public=False, position=1,
+            title="G2",
+            slug="g2",
+            node_type="group",
+            is_public=False,
+            position=1,
         )
         p3 = _make_node(
-            title="P3", slug="p3", parent_id=g2.id, position=0,
+            title="P3",
+            slug="p3",
+            parent_id=g2.id,
+            position=0,
         )
         tree = self.svc._build_nav_tree([g1, p1, p2, g2, p3])
 
@@ -173,7 +189,10 @@ class TestBuildNavTree:
 
     def test_breadcrumbs_built_from_ancestor_chain(self) -> None:
         root_group = _make_node(
-            title="Company", slug="company", node_type="group", is_public=False,
+            title="Company",
+            slug="company",
+            node_type="group",
+            is_public=False,
         )
         sub_group = _make_node(
             title="Engineering",
@@ -205,7 +224,9 @@ class TestBuildNavTree:
 
     def test_children_sorted_by_position(self) -> None:
         group = _make_node(
-            slug="g", node_type="group", is_public=False,
+            slug="g",
+            node_type="group",
+            is_public=False,
         )
         p_b = _make_node(title="B", slug="b", parent_id=group.id, position=2)
         p_a = _make_node(title="A", slug="a", parent_id=group.id, position=1)
@@ -243,7 +264,8 @@ class TestQueryPublicTree:
         assert result == []
 
     async def test_returns_all_nodes_with_content(
-        self, db_session: AsyncSession,
+        self,
+        db_session: AsyncSession,
     ) -> None:
         svc = PublishService()
 
@@ -291,7 +313,8 @@ class TestQueryPublicTree:
         assert by_slug["values"].parent_id == str(group_id)
 
     async def test_returns_latest_version_content(
-        self, db_session: AsyncSession,
+        self,
+        db_session: AsyncSession,
     ) -> None:
         svc = PublishService()
         page_id = uuid4()
@@ -306,10 +329,16 @@ class TestQueryPublicTree:
             is_public=True,
         )
         v1 = PlaybookPageVersionDB(
-            id=uuid4(), node_id=page_id, content="old content", version=1,
+            id=uuid4(),
+            node_id=page_id,
+            content="old content",
+            version=1,
         )
         v2 = PlaybookPageVersionDB(
-            id=uuid4(), node_id=page_id, content="new content", version=2,
+            id=uuid4(),
+            node_id=page_id,
+            content="new content",
+            version=2,
         )
 
         db_session.add_all([page, v1, v2])
@@ -353,6 +382,7 @@ class TestAdminVsPublicTreeContract:
         — purely against the shape of PublicNode (which carries the same
         fields as PlaybookNodeDB for tree purposes). Mirrors the admin builder
         so drift is detectable without crossing the DB boundary."""
+
         def _recurse(parent_id: str | None) -> list[dict]:
             children = [n for n in nodes if n.parent_id == parent_id]
             children.sort(key=lambda n: n.title.lower())
@@ -368,6 +398,7 @@ class TestAdminVsPublicTreeContract:
                 }
                 for n in children
             ]
+
         return _recurse(None)
 
     def _collect_admin_ids(self, tree: list[dict]) -> set[str]:
@@ -394,12 +425,18 @@ class TestAdminVsPublicTreeContract:
         editors couldn't manage it. Drift indicator #1."""
         group = _make_node(title="Policies", slug="policies", node_type="group", is_public=False)
         public_page = _make_node(
-            title="Public", slug="public", node_type="page",
-            is_public=True, parent_id=group.id,
+            title="Public",
+            slug="public",
+            node_type="page",
+            is_public=True,
+            parent_id=group.id,
         )
         private_page = _make_node(
-            title="Private", slug="private", node_type="page",
-            is_public=False, parent_id=group.id,
+            title="Private",
+            slug="private",
+            node_type="page",
+            is_public=False,
+            parent_id=group.id,
         )
         flat = [group, public_page, private_page]
 
@@ -412,11 +449,17 @@ class TestAdminVsPublicTreeContract:
         """Nodes whose subtree has no public page must NOT appear in public
         nav, but MUST appear in admin tree. Drift indicator #2."""
         all_private_group = _make_node(
-            title="Internal", slug="internal", node_type="group", is_public=False,
+            title="Internal",
+            slug="internal",
+            node_type="group",
+            is_public=False,
         )
         private_child = _make_node(
-            title="Internal Doc", slug="internal-doc", node_type="page",
-            is_public=False, parent_id=all_private_group.id,
+            title="Internal Doc",
+            slug="internal-doc",
+            node_type="page",
+            is_public=False,
+            parent_id=all_private_group.id,
         )
         flat = [all_private_group, private_child]
 
@@ -433,8 +476,11 @@ class TestAdminVsPublicTreeContract:
         If admin builder ever renames a field, this test catches it."""
         group = _make_node(title="Group", slug="group", node_type="group", is_public=False)
         page = _make_node(
-            title="The Page", slug="the-page", node_type="page",
-            is_public=True, parent_id=group.id,
+            title="The Page",
+            slug="the-page",
+            node_type="page",
+            is_public=True,
+            parent_id=group.id,
         )
         flat = [group, page]
 

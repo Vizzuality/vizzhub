@@ -1,6 +1,6 @@
 """Global Metrics Service - Calculates averaged metrics across all projects."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,6 @@ from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, SnapshotType
 from app.modules.scorecard.models.scores import FinalScore
 from app.modules.scorecard.services.score_computation import ScoreComputationService
-
 
 # Audit #17 / 2026-05-15: portfolio membership for month M = "has a
 # MetricsDB row for that month". The monthly capture cron filters by
@@ -221,9 +220,7 @@ class GlobalMetricsService:
         Assumes all budgets are already in the portfolio's base currency
         (EUR): conversion is the system's responsibility upstream.
         """
-        eligible_pairs = [
-            (s, b) for s, b in zip(scores_list, budgets) if b is not None and b > 0
-        ]
+        eligible_pairs = [(s, b) for s, b in zip(scores_list, budgets) if b is not None and b > 0]
         eligible_count = len(eligible_pairs)
 
         if not eligible_pairs:
@@ -238,9 +235,7 @@ class GlobalMetricsService:
         data: dict[str, float | None] = {"project_count": eligible_count}
         for field in SCORE_FIELDS:
             if field == "score":
-                pairs = [
-                    (float(s.score), b) for s, b in eligible_pairs if s.score is not None
-                ]
+                pairs = [(float(s.score), b) for s, b in eligible_pairs if s.score is not None]
             else:
                 pairs = [
                     (float(getattr(s.dimensions, field)), b)
@@ -291,7 +286,7 @@ class GlobalMetricsService:
         if existing:
             for key, value in db_data.items():
                 setattr(existing, key, value)
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             record = existing
         else:
             record = GlobalMetricsDB(
@@ -401,8 +396,7 @@ class GlobalMetricsService:
     ) -> list[tuple[int, int]]:
         """Get list of months that have stored global metrics."""
         result = await db.execute(
-            select(GlobalMetricsDB.period_year, GlobalMetricsDB.period_month)
-            .order_by(
+            select(GlobalMetricsDB.period_year, GlobalMetricsDB.period_month).order_by(
                 GlobalMetricsDB.period_year.desc(),
                 GlobalMetricsDB.period_month.desc(),
             )

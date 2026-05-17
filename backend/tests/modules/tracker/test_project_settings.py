@@ -25,10 +25,12 @@ async def project(db_session: AsyncSession) -> ProjectDB:
 
 @pytest_asyncio.fixture
 async def project_with_settings(
-    db_session: AsyncSession, project: ProjectDB,
+    db_session: AsyncSession,
+    project: ProjectDB,
 ) -> ProjectDB:
     settings = TrackerProjectSettingsDB(
-        project_id=project.id, contract_rate=Decimal("210.00"),
+        project_id=project.id,
+        contract_rate=Decimal("210.00"),
     )
     db_session.add(settings)
     await db_session.commit()
@@ -38,7 +40,9 @@ async def project_with_settings(
 class TestGetProjectSettings:
     @pytest.mark.asyncio
     async def test_returns_default_when_no_settings(
-        self, client: AsyncClient, project: ProjectDB,
+        self,
+        client: AsyncClient,
+        project: ProjectDB,
     ) -> None:
         resp = await client.get(f"/api/tracker/projects/{project.id}/settings")
         assert resp.status_code == 200
@@ -48,11 +52,11 @@ class TestGetProjectSettings:
 
     @pytest.mark.asyncio
     async def test_returns_existing_settings(
-        self, client: AsyncClient, project_with_settings: ProjectDB,
+        self,
+        client: AsyncClient,
+        project_with_settings: ProjectDB,
     ) -> None:
-        resp = await client.get(
-            f"/api/tracker/projects/{project_with_settings.id}/settings"
-        )
+        resp = await client.get(f"/api/tracker/projects/{project_with_settings.id}/settings")
         assert resp.status_code == 200
         assert resp.json()["contract_rate"] == 210.0
 
@@ -60,7 +64,9 @@ class TestGetProjectSettings:
 class TestUpdateProjectSettings:
     @pytest.mark.asyncio
     async def test_creates_settings_when_none_exist(
-        self, client: AsyncClient, project: ProjectDB,
+        self,
+        client: AsyncClient,
+        project: ProjectDB,
     ) -> None:
         resp = await client.put(
             f"/api/tracker/projects/{project.id}/settings",
@@ -74,7 +80,9 @@ class TestUpdateProjectSettings:
 
     @pytest.mark.asyncio
     async def test_updates_existing_settings(
-        self, client: AsyncClient, project_with_settings: ProjectDB,
+        self,
+        client: AsyncClient,
+        project_with_settings: ProjectDB,
     ) -> None:
         resp = await client.put(
             f"/api/tracker/projects/{project_with_settings.id}/settings",
@@ -85,7 +93,9 @@ class TestUpdateProjectSettings:
 
     @pytest.mark.asyncio
     async def test_rejects_zero_rate(
-        self, client: AsyncClient, project: ProjectDB,
+        self,
+        client: AsyncClient,
+        project: ProjectDB,
     ) -> None:
         resp = await client.put(
             f"/api/tracker/projects/{project.id}/settings",
@@ -95,7 +105,9 @@ class TestUpdateProjectSettings:
 
     @pytest.mark.asyncio
     async def test_rejects_negative_rate(
-        self, client: AsyncClient, project: ProjectDB,
+        self,
+        client: AsyncClient,
+        project: ProjectDB,
     ) -> None:
         resp = await client.put(
             f"/api/tracker/projects/{project.id}/settings",

@@ -23,9 +23,7 @@ class TestDateGuard:
     async def test_skips_on_non_15th(self, db_session: AsyncSession) -> None:
         """Job skips when not the 15th."""
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 14)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
@@ -36,9 +34,7 @@ class TestDateGuard:
     async def test_runs_on_15th(self, db_session: AsyncSession) -> None:
         """Job runs when it's the 15th."""
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
@@ -67,9 +63,7 @@ class TestRotateReportingPeriod:
     ) -> None:
         """Job finishes current active period and creates + activates new one."""
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
@@ -81,23 +75,17 @@ class TestRotateReportingPeriod:
 
         new_period = (
             await db_session.execute(
-                select(ReportingPeriodDB).where(
-                    ReportingPeriodDB.date == date(2026, 3, 1)
-                )
+                select(ReportingPeriodDB).where(ReportingPeriodDB.date == date(2026, 3, 1))
             )
         ).scalar_one_or_none()
         assert new_period is not None
         assert new_period.status == ReportingPeriodStatus.ACTIVE.value
 
     @pytest.mark.asyncio
-    async def test_creates_new_without_active(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_creates_new_without_active(self, db_session: AsyncSession) -> None:
         """Job creates and activates new period even when no active period exists."""
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
@@ -106,9 +94,7 @@ class TestRotateReportingPeriod:
 
         new_period = (
             await db_session.execute(
-                select(ReportingPeriodDB).where(
-                    ReportingPeriodDB.date == date(2026, 3, 1)
-                )
+                select(ReportingPeriodDB).where(ReportingPeriodDB.date == date(2026, 3, 1))
             )
         ).scalar_one_or_none()
         assert new_period is not None
@@ -128,9 +114,7 @@ class TestRotateReportingPeriod:
         await db_session.refresh(existing)
 
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
@@ -144,9 +128,7 @@ class TestRotateReportingPeriod:
         assert active_period.status == ReportingPeriodStatus.FINISHED.value
 
     @pytest.mark.asyncio
-    async def test_noop_when_current_month_already_active(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_noop_when_current_month_already_active(self, db_session: AsyncSession) -> None:
         """Job does nothing if the current month's period is already active."""
         already_active = ReportingPeriodDB(
             date=date(2026, 3, 1),
@@ -156,9 +138,7 @@ class TestRotateReportingPeriod:
         await db_session.commit()
 
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
@@ -178,9 +158,7 @@ class TestRotateReportingPeriod:
         freshly-rotated period, leaving the month with no active period.
         """
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             first = await rotate_reporting_period(ctx)
@@ -193,12 +171,14 @@ class TestRotateReportingPeriod:
         assert active_period.status == ReportingPeriodStatus.FINISHED.value
 
         rows = (
-            await db_session.execute(
-                select(ReportingPeriodDB).where(
-                    ReportingPeriodDB.date == date(2026, 3, 1)
+            (
+                await db_session.execute(
+                    select(ReportingPeriodDB).where(ReportingPeriodDB.date == date(2026, 3, 1))
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].status == ReportingPeriodStatus.ACTIVE.value
 
@@ -219,11 +199,10 @@ class TestRotateReportingPeriod:
         await db_session.commit()
         await db_session.refresh(already_active)
 
-        with patch(
-            "app.worker.rotate_reporting_period.finish_period"
-        ) as mock_finish, patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with (
+            patch("app.worker.rotate_reporting_period.finish_period") as mock_finish,
+            patch("app.worker.rotate_reporting_period.date") as mock_date,
+        ):
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             ctx = {"db": db_session}
@@ -236,25 +215,25 @@ class TestRotateReportingPeriod:
         assert already_active.status == ReportingPeriodStatus.ACTIVE.value
 
     @pytest.mark.asyncio
-    async def test_creates_job_run_record(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_creates_job_run_record(self, db_session: AsyncSession) -> None:
         """Job persists a ScheduledJobRunDB record."""
         ctx = {"db": db_session}
-        with patch(
-            "app.worker.rotate_reporting_period.date"
-        ) as mock_date:
+        with patch("app.worker.rotate_reporting_period.date") as mock_date:
             mock_date.today.return_value = date(2026, 3, 15)
             mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
             result = await rotate_reporting_period(ctx)
 
         rows = (
-            await db_session.execute(
-                select(ScheduledJobRunDB).where(
-                    ScheduledJobRunDB.job_name == "rotate_reporting_period"
+            (
+                await db_session.execute(
+                    select(ScheduledJobRunDB).where(
+                        ScheduledJobRunDB.job_name == "rotate_reporting_period"
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].status == "completed"
         assert rows[0].id == result["job_run_id"]

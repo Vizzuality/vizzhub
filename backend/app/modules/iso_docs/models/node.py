@@ -19,19 +19,19 @@ class IsoDocNodeDB(Base):
     """Tree node: either a page (has content) or a group (container only)."""
 
     __tablename__ = "iso_doc_nodes"
-    __table_args__ = (
-        UniqueConstraint("parent_id", "slug", name="uq_iso_doc_nodes_parent_slug"),
-    )
+    __table_args__ = (UniqueConstraint("parent_id", "slug", name="uq_iso_doc_nodes_parent_slug"),)
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(
         Enum(
-            "page", "group", "registry", "widget",
-            name="iso_doc_node_type", create_type=False,
+            "page",
+            "group",
+            "registry",
+            "widget",
+            name="iso_doc_node_type",
+            create_type=False,
         ),
         nullable=False,
     )
@@ -41,9 +41,7 @@ class IsoDocNodeDB(Base):
         nullable=True,
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    widget_key: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    widget_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     registry_type_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("registry_types.id", ondelete=_ON_DELETE_SET_NULL),
@@ -59,9 +57,7 @@ class IsoDocNodeDB(Base):
         ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

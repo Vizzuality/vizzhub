@@ -30,7 +30,9 @@ async def setup_invoices(db_session: AsyncSession) -> dict:
 @pytest.mark.asyncio
 class TestInvoices:
     async def test_list_empty(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
@@ -38,7 +40,9 @@ class TestInvoices:
         assert resp.json() == []
 
     async def test_create_invoice(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         resp = await client.post(
@@ -57,7 +61,9 @@ class TestInvoices:
         assert data["milestone"] == "Milestone 1"
 
     async def test_update_invoice(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         resp = await client.post(
@@ -80,7 +86,9 @@ class TestInvoices:
         assert resp.json()["milestone"] == "M1 updated"
 
     async def test_auto_pending_by_date(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         """Scheduled invoices with past due_date show as pending_to_issue."""
         pid = setup_invoices["project_id"]
@@ -97,7 +105,9 @@ class TestInvoices:
         assert resp.json()["status"] == "pending_to_issue"
 
     async def test_scheduled_stays_for_future_date(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         resp = await client.post(
@@ -113,7 +123,9 @@ class TestInvoices:
         assert resp.json()["status"] == "scheduled"
 
     async def test_full_lifecycle(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         """Past due_date auto-promotes to pending, then manual transitions."""
         pid = setup_invoices["project_id"]
@@ -138,7 +150,9 @@ class TestInvoices:
             assert resp.json()["status"] == status
 
     async def test_invalid_transition_from_scheduled(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         """Scheduled with future date cannot be manually transitioned."""
         pid = setup_invoices["project_id"]
@@ -160,7 +174,9 @@ class TestInvoices:
         assert resp.status_code == 400
 
     async def test_reverse_transition_paid_to_waiting(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         resp = await client.post(
@@ -189,7 +205,9 @@ class TestInvoices:
         assert resp.json()["status"] == "waiting_for_payment"
 
     async def test_delete_invoice(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         resp = await client.post(
@@ -212,7 +230,9 @@ class TestInvoices:
         assert resp.json() == []
 
     async def test_list_ordered_by_due_date(
-        self, client: AsyncClient, setup_invoices: dict,
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
     ) -> None:
         pid = setup_invoices["project_id"]
         # Create in reverse order

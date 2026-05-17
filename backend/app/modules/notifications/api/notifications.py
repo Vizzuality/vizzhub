@@ -1,10 +1,10 @@
 """Notifications log API endpoints."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 
@@ -13,13 +13,17 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
+from app.core.models.project import ProjectDB
 from app.modules.notifications.api.schemas.slack import (
     AlertNotificationResponse,
     NotificationStatsResponse,
     PaginatedNotificationsResponse,
 )
-from app.core.models.project import ProjectDB
-from app.modules.notifications.models.slack import AlertDefinitionDB, AlertNotificationDB, DependabotAlertTrackedDB
+from app.modules.notifications.models.slack import (
+    AlertDefinitionDB,
+    AlertNotificationDB,
+    DependabotAlertTrackedDB,
+)
 
 logger = structlog.get_logger()
 
@@ -75,9 +79,7 @@ async def list_notifications(
 
     projects: dict[UUID, str] = {}
     if project_ids:
-        projects_result = await db.execute(
-            select(ProjectDB).where(ProjectDB.id.in_(project_ids))
-        )
+        projects_result = await db.execute(select(ProjectDB).where(ProjectDB.id.in_(project_ids)))
         projects = {p.id: p.name for p in projects_result.scalars().all()}
 
     alerts: dict[int, str] = {}
@@ -123,7 +125,7 @@ async def get_notification_stats(
     db: DBSession,
 ) -> NotificationStatsResponse:
     """Get notification statistics."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     total_result = await db.execute(

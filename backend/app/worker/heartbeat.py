@@ -1,6 +1,6 @@
 """Worker heartbeat for health checks."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -17,7 +17,7 @@ async def write_heartbeat(ctx: dict) -> None:
         return
 
     try:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         await redis_client.set(HEARTBEAT_KEY, now, ex=HEARTBEAT_TTL_S)
     except Exception:
         logger.warning("heartbeat_write_failed", exc_info=True)

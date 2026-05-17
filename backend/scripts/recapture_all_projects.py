@@ -14,12 +14,11 @@ Jobs are visible in the Admin > Jobs page while running.
 """
 
 import asyncio
-import sys
 from datetime import date
 
 from sqlalchemy import select
 
-from app.config import ScoringConfig, get_scoring_config
+from app.config import get_scoring_config
 from app.core.models.job import Job, JobStatus, JobType
 from app.core.models.project import ProjectDB
 from app.core.services.job_service import JobService
@@ -97,9 +96,7 @@ async def recalculate_global(db, from_year: int, from_month: int, to_year: int, 
     """Recalculate global metrics for the full range."""
     config = get_scoring_config()
     service = GlobalMetricsService(config)
-    results = await service.calculate_batch(
-        db, from_year, from_month, to_year, to_month
-    )
+    results = await service.calculate_batch(db, from_year, from_month, to_year, to_month)
     await db.commit()
     return results
 
@@ -126,7 +123,9 @@ async def main():
         # Enqueue all jobs at once — worker processes them sequentially
         for i, project in enumerate(projects, 1):
             start = project.start_date or date(DEFAULT_START_YEAR, DEFAULT_START_MONTH, 1)
-            print(f"[{i}/{len(projects)}] Enqueuing {project.name} ({start} -> {to_year}-{to_month:02d})")
+            print(
+                f"[{i}/{len(projects)}] Enqueuing {project.name} ({start} -> {to_year}-{to_month:02d})"
+            )
             try:
                 job = await enqueue_capture(db, pool, project, to_year, to_month)
                 print(f"  Job {job.id} enqueued")
@@ -139,7 +138,9 @@ async def main():
     print(f"\nAll {len(jobs)} jobs enqueued. Monitor progress in /admin/jobs.")
     print("When all jobs complete, recalculate global metrics via:")
     print("  POST /api/metrics/global/calculate")
-    print(f'  Body: {{"from_year": 2022, "from_month": 1, "to_year": {to_year}, "to_month": {to_month}}}')
+    print(
+        f'  Body: {{"from_year": 2022, "from_month": 1, "to_year": {to_year}, "to_month": {to_month}}}'
+    )
     print()
 
 

@@ -32,48 +32,57 @@ def normalizer(scoring_config) -> IndicatorNormalizer:
 
 
 class TestDefectDensityNone:
-    def test_tasks_completed_zero_returns_none(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_tasks_completed_zero_returns_none(self, normalizer: IndicatorNormalizer) -> None:
         jira = JiraDefectMetrics(
-            bugs_total=3, tasks_completed=0, escaped_defects=0,
-            mttr_hours=None, incidents_count=0,
+            bugs_total=3,
+            tasks_completed=0,
+            escaped_defects=0,
+            mttr_hours=None,
+            incidents_count=0,
         )
         assert normalizer._calculate_defect_density(jira) is None
 
     def test_real_data_returns_value(self, normalizer: IndicatorNormalizer) -> None:
         jira = JiraDefectMetrics(
-            bugs_total=3, tasks_completed=300, escaped_defects=0,
-            mttr_hours=None, incidents_count=0,
+            bugs_total=3,
+            tasks_completed=300,
+            escaped_defects=0,
+            mttr_hours=None,
+            incidents_count=0,
         )
         assert normalizer._calculate_defect_density(jira) == pytest.approx(1.0)
 
 
 class TestEscapedRateNone:
-    def test_tasks_completed_zero_returns_none(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_tasks_completed_zero_returns_none(self, normalizer: IndicatorNormalizer) -> None:
         jira = JiraDefectMetrics(
-            bugs_total=0, tasks_completed=0, escaped_defects=2,
-            mttr_hours=None, incidents_count=0,
+            bugs_total=0,
+            tasks_completed=0,
+            escaped_defects=2,
+            mttr_hours=None,
+            incidents_count=0,
         )
         assert normalizer._calculate_escaped_rate(jira) is None
 
     def test_real_data_returns_rate(self, normalizer: IndicatorNormalizer) -> None:
         jira = JiraDefectMetrics(
-            bugs_total=0, tasks_completed=200, escaped_defects=4,
-            mttr_hours=None, incidents_count=0,
+            bugs_total=0,
+            tasks_completed=200,
+            escaped_defects=4,
+            mttr_hours=None,
+            incidents_count=0,
         )
         assert normalizer._calculate_escaped_rate(jira) == pytest.approx(2.0)
 
 
 class TestMttrNone:
-    def test_zero_incidents_returns_none(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_zero_incidents_returns_none(self, normalizer: IndicatorNormalizer) -> None:
         jira = JiraDefectMetrics(
-            bugs_total=0, tasks_completed=10, escaped_defects=0,
-            mttr_hours=None, incidents_count=0,
+            bugs_total=0,
+            tasks_completed=10,
+            escaped_defects=0,
+            mttr_hours=None,
+            incidents_count=0,
         )
         assert normalizer._get_mttr(jira) is None
 
@@ -84,15 +93,12 @@ class TestTestMaturityWeightRedistribution:
         result = normalizer._normalize_test_maturity(test)
         assert result is None
 
-    def test_partial_data_redistributes_weights(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_partial_data_redistributes_weights(self, normalizer: IndicatorNormalizer) -> None:
         """If only e2e is rated at 5/5, the indicator should be 1.0,
         not whatever weight e2e carries (which would imply the missing
         fields scored 0). With NEUTRAL_VALUE substitution the old impl
         returned ~0.55."""
-        test = TestMaturityModel(e2e=5, unit=None, accessibility=None,
-                            security=None, frontend=None)
+        test = TestMaturityModel(e2e=5, unit=None, accessibility=None, security=None, frontend=None)
         result = normalizer._normalize_test_maturity(test)
         assert result == pytest.approx(1.0)
 
@@ -101,9 +107,7 @@ class TestTestMaturityWeightRedistribution:
         result = normalizer._normalize_test_maturity(test)
         assert result == pytest.approx(1.0)
 
-    def test_all_zeros_yields_zero(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_all_zeros_yields_zero(self, normalizer: IndicatorNormalizer) -> None:
         """All five fields rated 0/5 → 0.0 (weights still sum to 1.0,
         so no redistribution path)."""
         test = TestMaturityModel(e2e=0, unit=0, accessibility=0, security=0, frontend=0)
@@ -131,9 +135,7 @@ class TestPmSatisfactionWeightRedistribution:
         result = normalizer._normalize_pm_satisfaction(pm)
         assert result == pytest.approx(1.0)
 
-    def test_only_delivery_rated_no_complaints(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_only_delivery_rated_no_complaints(self, normalizer: IndicatorNormalizer) -> None:
         pm = PMSatisfaction(
             delivery_complaints=ComplaintStatus.NO,
             design_complaints=ComplaintStatus.NA,
@@ -160,34 +162,39 @@ class TestEvmNoneSemantics:
     def test_spi_returns_none_when_percent_completed_missing(
         self, normalizer: IndicatorNormalizer
     ) -> None:
-        evm = EVMData(budget_total=1000, cost_to_date=None,
-                      percent_completed=None, percent_planned=0.5)
+        evm = EVMData(
+            budget_total=1000, cost_to_date=None, percent_completed=None, percent_planned=0.5
+        )
         assert normalizer._normalize_spi(evm) is None
 
     def test_spi_returns_none_when_percent_planned_missing(
         self, normalizer: IndicatorNormalizer
     ) -> None:
-        evm = EVMData(budget_total=1000, cost_to_date=None,
-                      percent_completed=0.5, percent_planned=None)
+        evm = EVMData(
+            budget_total=1000, cost_to_date=None, percent_completed=0.5, percent_planned=None
+        )
         assert normalizer._normalize_spi(evm) is None
 
     def test_spi_real_values(self, normalizer: IndicatorNormalizer) -> None:
-        evm = EVMData(budget_total=1000, cost_to_date=500,
-                      percent_completed=0.5, percent_planned=0.4)
+        evm = EVMData(
+            budget_total=1000, cost_to_date=500, percent_completed=0.5, percent_planned=0.4
+        )
         assert normalizer._normalize_spi(evm) == pytest.approx(1.25)
 
     def test_cpi_returns_none_when_cost_to_date_missing(
         self, normalizer: IndicatorNormalizer
     ) -> None:
-        evm = EVMData(budget_total=1000, cost_to_date=None,
-                      percent_completed=0.5, percent_planned=0.5)
+        evm = EVMData(
+            budget_total=1000, cost_to_date=None, percent_completed=0.5, percent_planned=0.5
+        )
         assert normalizer._normalize_cpi(evm) is None
 
     def test_cpi_returns_none_when_percent_completed_missing(
         self, normalizer: IndicatorNormalizer
     ) -> None:
-        evm = EVMData(budget_total=1000, cost_to_date=500,
-                      percent_completed=None, percent_planned=0.5)
+        evm = EVMData(
+            budget_total=1000, cost_to_date=500, percent_completed=None, percent_planned=0.5
+        )
         assert normalizer._normalize_cpi(evm) is None
 
 
@@ -210,26 +217,18 @@ class TestDefectAndEscapedAllowNullInputs:
     def test_escaped_rate_returns_none_when_escaped_defects_missing(
         self, normalizer: IndicatorNormalizer
     ) -> None:
-        jira = JiraDefectMetrics(
-            bugs_total=0, tasks_completed=100, escaped_defects=None
-        )
+        jira = JiraDefectMetrics(bugs_total=0, tasks_completed=100, escaped_defects=None)
         assert normalizer._calculate_escaped_rate(jira) is None
 
 
 class TestOkrImpactNone:
     def test_known_value(self, normalizer: IndicatorNormalizer) -> None:
-        assert normalizer._normalize_okr_impact(
-            StrategicImpact.HIGH
-        ) == pytest.approx(0.80)
+        assert normalizer._normalize_okr_impact(StrategicImpact.HIGH) == pytest.approx(0.80)
 
-    def test_none_input_returns_none(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_none_input_returns_none(self, normalizer: IndicatorNormalizer) -> None:
         assert normalizer._normalize_okr_impact(None) is None
 
-    def test_unknown_enum_value_returns_none(
-        self, normalizer: IndicatorNormalizer
-    ) -> None:
+    def test_unknown_enum_value_returns_none(self, normalizer: IndicatorNormalizer) -> None:
         """Defensive: if a stray non-mapped value ever reaches the
         normalizer, it should be excluded, not neutralized to 0.5."""
         bogus = cast(StrategicImpact, "not-in-enum")

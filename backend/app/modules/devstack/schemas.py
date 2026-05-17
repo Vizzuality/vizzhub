@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
@@ -111,6 +111,5 @@ class EntryResponse(BaseModel):
         if self.last_fetch_ok_at is None:
             # Brand-new rows get a grace period equal to STALE_AFTER so a
             # freshly-seeded catalog doesn't immediately scream.
-            return datetime.now(timezone.utc) - self.created_at > STALE_AFTER
-        return datetime.now(timezone.utc) - self.last_fetch_ok_at > STALE_AFTER
-
+            return datetime.now(UTC) - self.created_at > STALE_AFTER
+        return datetime.now(UTC) - self.last_fetch_ok_at > STALE_AFTER

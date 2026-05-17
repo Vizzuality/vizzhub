@@ -16,9 +16,7 @@ from app.database import Base
 class RegistryAttachmentDB(Base):
     __tablename__ = "registry_attachments"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     row_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("registry_rows.id", ondelete="CASCADE"),
@@ -39,11 +37,9 @@ class RegistryAttachmentDB(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    row: Mapped["RegistryRowDB"] = relationship(
+    row: Mapped[RegistryRowDB] = relationship(
         "RegistryRowDB",
         back_populates="attachments",
     )

@@ -10,7 +10,9 @@ from app.modules.scorecard.services.calculators.engineering_calculator import En
 from app.modules.scorecard.services.calculators.flow_calculator import FlowCalculator
 from app.modules.scorecard.services.calculators.quality_calculator import QualityCalculator
 from app.modules.scorecard.services.calculators.risk_calculator import RiskCalculator
-from app.modules.scorecard.services.calculators.satisfaction_calculator import SatisfactionCalculator
+from app.modules.scorecard.services.calculators.satisfaction_calculator import (
+    SatisfactionCalculator,
+)
 from app.modules.scorecard.services.calculators.time_calculator import TimeCalculator
 from app.modules.scorecard.services.calculators.value_calculator import ValueCalculator
 

@@ -5,19 +5,19 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
 import structlog
 from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.services.s3 import get_s3_client
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
-from app.core.services.s3 import get_s3_client
 from app.modules.playbook.services.asset_service import S3_PREFIX as IMAGES_S3_PREFIX
 from app.modules.playbook.services.publish_renderer import render_markdown
 
@@ -104,13 +104,16 @@ class PublishService:
             await self._invalidate_cache()
 
             log.status = STATUS_COMPLETED
-            log.page_count = len([
-                k for k in files
-                if k.endswith(HTML_EXT)
-                and k not in (INDEX_HTML, NOT_FOUND_HTML)
-                and INDEX_SUFFIX not in k
-            ])
-            log.completed_at = datetime.now(timezone.utc)
+            log.page_count = len(
+                [
+                    k
+                    for k in files
+                    if k.endswith(HTML_EXT)
+                    and k not in (INDEX_HTML, NOT_FOUND_HTML)
+                    and INDEX_SUFFIX not in k
+                ]
+            )
+            log.completed_at = datetime.now(UTC)
             await db.commit()
             logger.info(
                 "publish_completed",
@@ -121,7 +124,7 @@ class PublishService:
         except Exception as e:
             log.status = STATUS_FAILED
             log.error_message = str(e)
-            log.completed_at = datetime.now(timezone.utc)
+            log.completed_at = datetime.now(UTC)
             await db.commit()
             logger.exception("publish_failed", publish_log_id=publish_log_id)
 
@@ -203,15 +206,19 @@ class PublishService:
         return path
 
     def _build_breadcrumb(
-        self, node: PublicNode, node_map: dict[str, PublicNode],
+        self,
+        node: PublicNode,
+        node_map: dict[str, PublicNode],
     ) -> list[dict]:
         parts: list[dict] = []
         current = node_map.get(node.parent_id) if node.parent_id else None
         while current:
-            parts.append({
-                "title": current.title,
-                "url": self._build_path(current, node_map) + INDEX_SUFFIX,
-            })
+            parts.append(
+                {
+                    "title": current.title,
+                    "url": self._build_path(current, node_map) + INDEX_SUFFIX,
+                }
+            )
             current = node_map.get(current.parent_id) if current.parent_id else None
         parts.reverse()
         return parts
@@ -240,7 +247,10 @@ class PublishService:
             )
             if n.type == "group":
                 nav.children = self._build_subtree(
-                    n.id, included_ids, node_map, children_by_parent,
+                    n.id,
+                    included_ids,
+                    node_map,
+                    children_by_parent,
                 )
             result.append(nav)
         return result
@@ -261,8 +271,7 @@ class PublishService:
             children_by_parent.setdefault(n.parent_id, []).append(n)
 
         included_ids = {
-            n.id for n in nodes
-            if self._has_public_descendant(n.id, node_map, children_by_parent)
+            n.id for n in nodes if self._has_public_descendant(n.id, node_map, children_by_parent)
         }
 
         roots = self._build_subtree(None, included_ids, node_map, children_by_parent)
@@ -355,7 +364,12 @@ class PublishService:
             files[index_path] = html.encode()
 
             self._collect_group_indexes(
-                node.children, group_path, group_tpl, nav, year, files,
+                node.children,
+                group_path,
+                group_tpl,
+                nav,
+                year,
+                files,
             )
 
     @staticmethod
@@ -365,10 +379,12 @@ class PublishService:
             if child.type == "page" and child.is_public:
                 links.append({"title": child.title, "url": child.path})
             elif child.type == "group":
-                links.append({
-                    "title": child.title,
-                    "url": child.path + INDEX_SUFFIX,
-                })
+                links.append(
+                    {
+                        "title": child.title,
+                        "url": child.path + INDEX_SUFFIX,
+                    }
+                )
         return links
 
     @staticmethod
@@ -386,7 +402,7 @@ class PublishService:
 
     def _build_manifest(self, files: dict[str, bytes], page_count: int) -> bytes:
         manifest = {
-            "published_at": datetime.now(timezone.utc).isoformat(),
+            "published_at": datetime.now(UTC).isoformat(),
             "page_count": page_count,
             "files": sorted(files.keys()),
         }
@@ -401,7 +417,7 @@ class PublishService:
             raise ValueError("No public pages to publish")
 
         env = _get_jinja_env()
-        year = datetime.now(timezone.utc).year
+        year = datetime.now(UTC).year
 
         files: dict[str, bytes] = {}
         files.update(self._render_pages(nav, nav.node_map, env, year))
@@ -487,8 +503,9 @@ class PublishService:
             return
 
         import boto3
+
         cf = boto3.client("cloudfront")
-        caller_ref = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        caller_ref = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
 
         await asyncio.to_thread(
             cf.create_invalidation,

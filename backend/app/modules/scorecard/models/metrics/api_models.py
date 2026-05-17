@@ -91,7 +91,9 @@ class GitHubMetrics(BaseModel):
     deployment_frequency: float | None = Field(
         default=None, ge=0, description="Releases per day (90d)"
     )
-    release_count_90d: int = Field(default=0, ge=0, description="Number of releases in last 90 days")
+    release_count_90d: int = Field(
+        default=0, ge=0, description="Number of releases in last 90 days"
+    )
     change_failure_rate: float | None = Field(
         default=None, ge=0, description="Change failure rate % (DORA)"
     )

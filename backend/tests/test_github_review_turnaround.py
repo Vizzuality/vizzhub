@@ -1,18 +1,19 @@
 """Tests for GitHub Review Turnaround collector."""
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
+
+import pytest
 
 from app.modules.scorecard.services.collectors.github.review_turnaround import (
-    collect_review_turnaround,
     _get_pr_turnaround_hours,
+    collect_review_turnaround,
 )
 
 
 def make_pr(number: int, hours_ago_created: int) -> dict:
     """Helper to create a PR dict."""
-    created = datetime.now(timezone.utc) - timedelta(hours=hours_ago_created)
+    created = datetime.now(UTC) - timedelta(hours=hours_ago_created)
     return {
         "number": number,
         "created_at": created.isoformat(),
@@ -23,7 +24,7 @@ def make_pr(number: int, hours_ago_created: int) -> dict:
 
 def make_review(hours_ago: int) -> dict:
     """Helper to create a review dict."""
-    submitted = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    submitted = datetime.now(UTC) - timedelta(hours=hours_ago)
     return {
         "id": hours_ago,
         "submitted_at": submitted.isoformat(),

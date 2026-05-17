@@ -1,14 +1,14 @@
 """Capture endpoint integration tests."""
 
-import pytest
 from datetime import date, timedelta
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 class TestCaptureEndpointIntegration:

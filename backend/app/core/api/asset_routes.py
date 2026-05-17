@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, UploadFile, status
 
 from app.core.services.doc_asset_service import (
     ALLOWED_CONTENT_TYPES,
@@ -48,8 +48,7 @@ def create_asset_router(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    "File type not allowed. Accepted: "
-                    f"{', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
+                    f"File type not allowed. Accepted: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
                 ),
             )
 
@@ -57,15 +56,10 @@ def create_asset_router(
         if len(file_bytes) > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=(
-                    "File too large. Maximum size: "
-                    f"{MAX_FILE_SIZE // (1024 * 1024)} MB"
-                ),
+                detail=(f"File too large. Maximum size: {MAX_FILE_SIZE // (1024 * 1024)} MB"),
             )
 
-        url = upload_image(
-            file_bytes, file.filename or "image", file.content_type
-        )
+        url = upload_image(file_bytes, file.filename or "image", file.content_type)
         logger.info(log_event, filename=file.filename)
         return {"url": url}
 

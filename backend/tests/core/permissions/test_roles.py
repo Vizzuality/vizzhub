@@ -43,11 +43,7 @@ def test_devstack_manager_grants_view_and_manage():
 
 
 def test_all_permission_values_are_valid_actions():
-    valid_actions = {
-        getattr(Action, attr)
-        for attr in dir(Action)
-        if not attr.startswith("_")
-    }
+    valid_actions = {getattr(Action, attr) for attr in dir(Action) if not attr.startswith("_")}
     for role, perms in ROLE_PERMISSIONS.items():
         for perm in perms:
             assert perm in valid_actions, f"Role '{role}' has unknown permission '{perm}'"

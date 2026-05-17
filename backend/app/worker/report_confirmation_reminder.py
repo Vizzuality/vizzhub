@@ -4,11 +4,11 @@ Sends individual Slack DMs to users who haven't confirmed their monthly
 report during business days from the 2nd to the 12th of each month.
 """
 
-import structlog
 from datetime import date
 from typing import Any
 from uuid import UUID
 
+import structlog
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,9 +33,7 @@ def _is_reminder_window(today: date) -> bool:
     return 2 <= today.day <= 12 and today.weekday() < 5
 
 
-async def _get_users_pending_confirmation(
-    db: AsyncSession, period_id: UUID
-) -> list[UserDB]:
+async def _get_users_pending_confirmation(db: AsyncSession, period_id: UUID) -> list[UserDB]:
     """Get active users with project reporting who haven't confirmed their report."""
     confirmed_exists = exists().where(
         ReportDB.user_id == UserDB.id,
@@ -74,9 +72,7 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
 
         period = await get_active_period(db)
         if not period:
-            return await complete_with_error(
-                db, job_run, "No active reporting period"
-            )
+            return await complete_with_error(db, job_run, "No active reporting period")
 
         users = await _get_users_pending_confirmation(db, period.id)
         if not users:
@@ -93,9 +89,7 @@ async def send_report_confirmation_reminder(ctx: dict) -> dict[str, Any]:
         alerts_sent = 0
         for user in users:
             try:
-                response = await SlackService.send_message(
-                    bot_token, user.slack_user_id, message
-                )
+                response = await SlackService.send_message(bot_token, user.slack_user_id, message)
                 if response.get("ok"):
                     alerts_sent += 1
                 else:

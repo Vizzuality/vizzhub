@@ -53,7 +53,9 @@ async def setup_budget(db_session: AsyncSession) -> dict:
 class TestBudgetLines:
     @pytest.mark.asyncio
     async def test_get_empty_budget_lines(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         resp = await client.get(
@@ -64,7 +66,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_put_creates_budget_lines(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         fa_backend_id = str(setup_budget["fa_backend"].id)
@@ -83,12 +87,8 @@ class TestBudgetLines:
         data = resp.json()
         assert len(data) == 2
 
-        backend_line = next(
-            l for l in data if l["functional_area_id"] == fa_backend_id
-        )
-        design_line = next(
-            l for l in data if l["functional_area_id"] == fa_design_id
-        )
+        backend_line = next(l for l in data if l["functional_area_id"] == fa_backend_id)
+        design_line = next(l for l in data if l["functional_area_id"] == fa_design_id)
 
         assert backend_line["days"] == 60
         assert backend_line["functional_area_name"] == "Backend Developer"
@@ -100,7 +100,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_put_replaces_existing_lines(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         fa_backend_id = str(setup_budget["fa_backend"].id)
@@ -132,7 +134,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_put_validates_days_non_negative(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         resp = await client.put(
@@ -147,7 +151,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_line_without_functional_area_uses_details(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         resp = await client.put(
@@ -168,7 +174,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_percentage_calculation_correct(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         """3 lines: 10 + 20 + 70 = 100 total days."""
         project_id = str(setup_budget["project"].id)
@@ -197,7 +205,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_get_after_put_returns_joined_data(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         fa_backend_id = str(setup_budget["fa_backend"].id)
@@ -230,7 +240,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_put_empty_lines_clears_budget(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         project_id = str(setup_budget["project"].id)
         fa_backend_id = str(setup_budget["fa_backend"].id)
@@ -253,7 +265,9 @@ class TestBudgetLines:
 
     @pytest.mark.asyncio
     async def test_zero_days_get_null_percentage(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         """When all lines have 0 days, percentage should be null."""
         project_id = str(setup_budget["project"].id)
@@ -274,7 +288,9 @@ class TestBudgetLines:
 class TestFunctionalAreas:
     @pytest.mark.asyncio
     async def test_list_functional_areas(
-        self, client: AsyncClient, setup_budget: dict,
+        self,
+        client: AsyncClient,
+        setup_budget: dict,
     ):
         resp = await client.get("/api/functional-areas")
         assert resp.status_code == 200

@@ -53,20 +53,17 @@ def _parse_retry_after(resp: httpx.Response) -> float | None:
         return None
     return min(wait, _MAX_RATE_LIMIT_SLEEP_SECONDS)
 
+
 # Standard GitHub blob URL: github.com/{owner}/{repo}/blob/{ref}/{path}
 # Note: refs with '/' (e.g. feature/test) are not supported — first segment is taken as ref.
-_BLOB_RE = re.compile(
-    r"https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)"
-)
+_BLOB_RE = re.compile(r"https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)")
 # Raw URL with refs/heads or refs/tags prefix (GitHub's "Copy raw file" button):
 # raw.githubusercontent.com/{owner}/{repo}/refs/heads/{ref}/{path}
 _RAW_REFS_RE = re.compile(
     r"https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/refs/(?:heads|tags)/([^/]+)/(.+)"
 )
 # Raw content URL (plain): raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}
-_RAW_RE = re.compile(
-    r"https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)"
-)
+_RAW_RE = re.compile(r"https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)")
 
 GITHUB_API_BASE = "https://api.github.com"
 
@@ -140,7 +137,11 @@ async def fetch_github_sha(url: str, token: str | None = None) -> str | None:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await _get_with_rate_limit_retry(
-                client, api_url, headers, {"ref": ref}, url_for_log=url,
+                client,
+                api_url,
+                headers,
+                {"ref": ref},
+                url_for_log=url,
             )
             resp.raise_for_status()
             sha = resp.json().get("sha")
@@ -175,7 +176,11 @@ async def fetch_github_content(url: str, token: str | None = None) -> str | None
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await _get_with_rate_limit_retry(
-                client, api_url, headers, {"ref": ref}, url_for_log=url,
+                client,
+                api_url,
+                headers,
+                {"ref": ref},
+                url_for_log=url,
             )
             resp.raise_for_status()
             data = resp.json()

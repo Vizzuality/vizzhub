@@ -139,9 +139,7 @@ async def collect_commitment_reliability(
         return _empty_result()
 
     try:
-        closed_sprints = await _get_closed_sprints(
-            client, board["id"], period_start, period_end
-        )
+        closed_sprints = await _get_closed_sprints(client, board["id"], period_start, period_end)
     except (httpx.HTTPError, ValueError):
         return _empty_result()
     if not closed_sprints:
@@ -236,7 +234,8 @@ async def _get_closed_sprints(
         values = data.get("values", [])
 
         filtered = [
-            sprint for sprint in values
+            sprint
+            for sprint in values
             if _is_sprint_within_period(sprint, period_start, period_end)
         ]
         sprints.extend(filtered)

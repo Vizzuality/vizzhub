@@ -6,12 +6,13 @@ import asyncio
 import dataclasses
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
 from markdown_it import MarkdownIt
-from sqlalchemy import delete, select, func as sa_func
+from sqlalchemy import delete, select
+from sqlalchemy import func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.job import JobStatus
@@ -23,7 +24,7 @@ from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
 from app.modules.iso_docs.models.registry_row import RegistryRowDB
 from app.modules.iso_docs.models.registry_type import RegistryTypeDB
-from app.modules.iso_docs.services.google_drive_oauth import GoogleDriveOAuth, PROVIDER
+from app.modules.iso_docs.services.google_drive_oauth import PROVIDER, GoogleDriveOAuth
 
 logger = structlog.get_logger()
 
@@ -136,7 +137,7 @@ class DriveExportService:
             access_token = await GoogleDriveOAuth.get_valid_token(db)
             if not access_token:
                 raise RuntimeError("Google Drive not connected")
-            self._token_refreshed_at = datetime.now(timezone.utc)
+            self._token_refreshed_at = datetime.now(UTC)
 
             data = await self._load_data(db)
             nodes = data["nodes"]
@@ -177,13 +178,21 @@ class DriveExportService:
 
             async with httpx.AsyncClient(timeout=DRIVE_TIMEOUT) as http:
                 await self._walk_children(
-                    db, http, ctx, tree, root_folder_id, job_uuid,
+                    db,
+                    http,
+                    ctx,
+                    tree,
+                    root_folder_id,
+                    job_uuid,
                 )
                 access_token = ctx.access_token
 
                 orphan_count = await self._cleanup_orphans(
-                    db, http, ctx.access_token,
-                    {n.id for n in nodes}, mappings,
+                    db,
+                    http,
+                    ctx.access_token,
+                    {n.id for n in nodes},
+                    mappings,
                 )
 
             await JobService.update_progress(db, job_uuid, 100, "Export complete")
@@ -193,9 +202,7 @@ class DriveExportService:
                 "orphans_removed": orphan_count,
                 "root_folder_id": root_folder_id,
             }
-            await JobService.update_status(
-                db, job_uuid, JobStatus.COMPLETED, result=result
-            )
+            await JobService.update_status(db, job_uuid, JobStatus.COMPLETED, result=result)
             logger.info(
                 "drive_export_completed",
                 exported=ctx.exported,
@@ -207,7 +214,9 @@ class DriveExportService:
             logger.exception("drive_export_failed", job_id=job_id)
             try:
                 await JobService.update_status(
-                    db, job_uuid, JobStatus.FAILED,
+                    db,
+                    job_uuid,
+                    JobStatus.FAILED,
                     error_message=str(exc)[:1000],
                 )
             except Exception:
@@ -229,30 +238,45 @@ class DriveExportService:
                 ctx.exported += 1
                 continue
 
-            ctx.access_token = await self._refresh_if_needed(
-                db, ctx.access_token
-            )
+            ctx.access_token = await self._refresh_if_needed(db, ctx.access_token)
             existing_drive_id = ctx.mappings.get(node.id)
 
             if node.type == "registry":
                 await self._export_registry_node(
-                    db, http, ctx, node, parent_drive_id, existing_drive_id,
+                    db,
+                    http,
+                    ctx,
+                    node,
+                    parent_drive_id,
+                    existing_drive_id,
                 )
             elif node.type == "group":
                 await self._export_group_node(
-                    db, http, ctx, node, parent_drive_id,
-                    existing_drive_id, job_uuid,
+                    db,
+                    http,
+                    ctx,
+                    node,
+                    parent_drive_id,
+                    existing_drive_id,
+                    job_uuid,
                 )
             else:
                 await self._export_page_node(
-                    db, http, ctx, node, parent_drive_id,
-                    existing_drive_id, parent_title,
+                    db,
+                    http,
+                    ctx,
+                    node,
+                    parent_drive_id,
+                    existing_drive_id,
+                    parent_title,
                 )
 
             ctx.exported += 1
             pct = int((ctx.exported / ctx.total) * 90) + 5
             await JobService.update_progress(
-                db, job_uuid, pct,
+                db,
+                job_uuid,
+                pct,
                 f"Exported {ctx.exported}/{ctx.total}",
             )
 
@@ -271,12 +295,22 @@ class DriveExportService:
         rows = ctx.registry_rows.get(node.id, [])
         meta = ctx.metadata_map.get(node.id)
         drive_id = await self._upsert_spreadsheet(
-            http, ctx.access_token, node.title,
-            rt.schema, rt.is_yearly, rows,
-            parent_drive_id, existing_drive_id, meta,
+            http,
+            ctx.access_token,
+            node.title,
+            rt.schema,
+            rt.is_yearly,
+            rows,
+            parent_drive_id,
+            existing_drive_id,
+            meta,
         )
         await self._save_mapping(
-            db, node.id, drive_id, "spreadsheet", ctx.mappings,
+            db,
+            node.id,
+            drive_id,
+            "spreadsheet",
+            ctx.mappings,
         )
 
     async def _export_group_node(
@@ -290,18 +324,31 @@ class DriveExportService:
         job_uuid: uuid.UUID,
     ) -> None:
         drive_id = await self._upsert_folder(
-            http, ctx.access_token, node.title,
-            parent_drive_id, existing_drive_id,
+            http,
+            ctx.access_token,
+            node.title,
+            parent_drive_id,
+            existing_drive_id,
         )
         await self._save_mapping(
-            db, node.id, drive_id, "folder", ctx.mappings,
+            db,
+            node.id,
+            drive_id,
+            "folder",
+            ctx.mappings,
         )
         sub_children = sorted(
             [n for n in ctx.nodes if n.parent_id == node.id],
             key=lambda n: n.title.lower(),
         )
         await self._walk_children(
-            db, http, ctx, sub_children, drive_id, job_uuid, node.title,
+            db,
+            http,
+            ctx,
+            sub_children,
+            drive_id,
+            job_uuid,
+            node.title,
         )
 
     async def _export_page_node(
@@ -318,17 +365,23 @@ class DriveExportService:
         meta = ctx.metadata_map.get(node.id)
         html = self._to_html(node.title, content, meta, parent_title)
         drive_id = await self._upsert_doc(
-            http, ctx.access_token, node.title, html,
-            parent_drive_id, existing_drive_id,
+            http,
+            ctx.access_token,
+            node.title,
+            html,
+            parent_drive_id,
+            existing_drive_id,
         )
         await self._save_mapping(
-            db, node.id, drive_id, "document", ctx.mappings,
+            db,
+            node.id,
+            drive_id,
+            "document",
+            ctx.mappings,
         )
 
     async def _load_data(self, db: AsyncSession) -> dict:
-        nodes_result = await db.execute(
-            select(IsoDocNodeDB).order_by(IsoDocNodeDB.position)
-        )
+        nodes_result = await db.execute(select(IsoDocNodeDB).order_by(IsoDocNodeDB.position))
         nodes = list(nodes_result.scalars().unique().all())
 
         latest_versions = (
@@ -340,8 +393,7 @@ class DriveExportService:
             .subquery()
         )
         versions_result = await db.execute(
-            select(IsoDocVersionDB)
-            .join(
+            select(IsoDocVersionDB).join(
                 latest_versions,
                 (IsoDocVersionDB.node_id == latest_versions.c.node_id)
                 & (IsoDocVersionDB.version == latest_versions.c.max_ver),
@@ -355,9 +407,7 @@ class DriveExportService:
         rt_result = await db.execute(select(RegistryTypeDB))
         registry_types = {rt.id: rt for rt in rt_result.scalars().all()}
 
-        rows_result = await db.execute(
-            select(RegistryRowDB).order_by(RegistryRowDB.row_index)
-        )
+        rows_result = await db.execute(select(RegistryRowDB).order_by(RegistryRowDB.row_index))
         registry_rows: dict[uuid.UUID, list[RegistryRowDB]] = {}
         for row in rows_result.scalars().all():
             registry_rows.setdefault(row.node_id, []).append(row)
@@ -374,10 +424,8 @@ class DriveExportService:
         result = await db.execute(select(IsoDocDriveMappingDB))
         return {m.node_id: m.drive_file_id for m in result.scalars().all()}
 
-    async def _refresh_if_needed(
-        self, db: AsyncSession, current_token: str
-    ) -> str:
-        now = datetime.now(timezone.utc)
+    async def _refresh_if_needed(self, db: AsyncSession, current_token: str) -> str:
+        now = datetime.now(UTC)
         elapsed = (now - self._token_refreshed_at).total_seconds()
         if elapsed < self._TOKEN_REFRESH_INTERVAL:
             return current_token
@@ -394,9 +442,7 @@ class DriveExportService:
         existing_drive_id: str | None,
     ) -> str:
         if existing_drive_id and await self._drive_file_exists(http, token, existing_drive_id):
-            await self._update_file_metadata(
-                http, token, existing_drive_id, name
-            )
+            await self._update_file_metadata(http, token, existing_drive_id, name)
             return existing_drive_id
         return await self._create_folder(http, token, name, parent_drive_id)
 
@@ -410,9 +456,7 @@ class DriveExportService:
         existing_drive_id: str | None,
     ) -> str:
         if existing_drive_id and await self._drive_file_exists(http, token, existing_drive_id):
-            await self._update_file_metadata(
-                http, token, existing_drive_id, title
-            )
+            await self._update_file_metadata(http, token, existing_drive_id, title)
             await self._update_file_content(http, token, existing_drive_id, html)
             return existing_drive_id
         return await self._create_doc(http, token, title, html, parent_drive_id)
@@ -437,18 +481,16 @@ class DriveExportService:
 
         if is_yearly and rows:
             xlsx_buf = _build_xlsx_multiyear(
-                schema, _group_rows_by_year(rows), metadata,
+                schema,
+                _group_rows_by_year(rows),
+                metadata,
             )
         else:
             xlsx_buf = _build_xlsx(title, schema, rows, metadata)
 
         xlsx_bytes = xlsx_buf.read()
-        if existing_drive_id and await self._drive_file_exists(
-            http, token, existing_drive_id
-        ):
-            await self._update_file_metadata(
-                http, token, existing_drive_id, title
-            )
+        if existing_drive_id and await self._drive_file_exists(http, token, existing_drive_id):
+            await self._update_file_metadata(http, token, existing_drive_id, title)
             resp = await _retry_request(
                 lambda: http.patch(
                     f"{DRIVE_UPLOAD_API}/{existing_drive_id}?uploadType=media",
@@ -475,7 +517,9 @@ class DriveExportService:
                 headers={"Authorization": f"Bearer {token}"},
                 files={
                     "metadata": (
-                        None, json.dumps(drive_meta).encode(), "application/json",
+                        None,
+                        json.dumps(drive_meta).encode(),
+                        "application/json",
                     ),
                     "file": (None, xlsx_bytes, XLSX_CONTENT_TYPE),
                 },
@@ -495,12 +539,10 @@ class DriveExportService:
         cache: dict[uuid.UUID, str],
     ) -> None:
         existing = await db.execute(
-            select(IsoDocDriveMappingDB).where(
-                IsoDocDriveMappingDB.node_id == node_id
-            )
+            select(IsoDocDriveMappingDB).where(IsoDocDriveMappingDB.node_id == node_id)
         )
         mapping = existing.scalar_one_or_none()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if mapping:
             mapping.drive_file_id = drive_file_id
             mapping.drive_file_type = file_type
@@ -524,19 +566,14 @@ class DriveExportService:
         current_node_ids: set[uuid.UUID],
         mappings: dict[uuid.UUID, str],
     ) -> int:
-        orphan_ids = [
-            (nid, did) for nid, did in mappings.items()
-            if nid not in current_node_ids
-        ]
+        orphan_ids = [(nid, did) for nid, did in mappings.items() if nid not in current_node_ids]
         for _, drive_id in orphan_ids:
             await self._delete_drive_file(http, token, drive_id)
 
         if orphan_ids:
             await db.execute(
                 delete(IsoDocDriveMappingDB).where(
-                    IsoDocDriveMappingDB.node_id.in_(
-                        [nid for nid, _ in orphan_ids]
-                    )
+                    IsoDocDriveMappingDB.node_id.in_([nid for nid, _ in orphan_ids])
                 )
             )
             await db.commit()
@@ -569,14 +606,12 @@ class DriveExportService:
     ) -> None:
         pills = self._build_metadata_pills(metadata, category)
         if pills:
-            parts.append(
-                f'<p style="margin:8pt 0 4pt 0">{" &nbsp; ".join(pills)}</p>'
-            )
+            parts.append(f'<p style="margin:8pt 0 4pt 0">{" &nbsp; ".join(pills)}</p>')
 
         if metadata.clauses:
             parts.append(
                 f'<p style="color:#666;font-size:9pt;margin:2pt 0 12pt 0">'
-                f'Clauses: {_escape(", ".join(metadata.clauses))}</p>'
+                f"Clauses: {_escape(', '.join(metadata.clauses))}</p>"
             )
 
         if metadata.changelog:
@@ -607,8 +642,11 @@ class DriveExportService:
     # -- Google Drive API helpers --
 
     async def _create_folder(
-        self, http: httpx.AsyncClient, token: str,
-        name: str, parent_id: str | None,
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        name: str,
+        parent_id: str | None,
     ) -> str:
         body: dict = {
             "name": name,
@@ -627,8 +665,12 @@ class DriveExportService:
         return resp.json()["id"]
 
     async def _create_doc(
-        self, http: httpx.AsyncClient, token: str,
-        title: str, html: str, parent_id: str,
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        title: str,
+        html: str,
+        parent_id: str,
     ) -> str:
         doc_meta = {
             "name": title,
@@ -651,8 +693,11 @@ class DriveExportService:
         return resp.json()["id"]
 
     async def _update_file_metadata(
-        self, http: httpx.AsyncClient, token: str,
-        file_id: str, name: str,
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        file_id: str,
+        name: str,
     ) -> None:
         resp = await http.patch(
             f"{DRIVE_API}/{file_id}",
@@ -663,8 +708,11 @@ class DriveExportService:
         resp.raise_for_status()
 
     async def _update_file_content(
-        self, http: httpx.AsyncClient, token: str,
-        file_id: str, html: str,
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        file_id: str,
+        html: str,
     ) -> None:
         resp = await _retry_request(
             lambda: http.patch(
@@ -678,7 +726,10 @@ class DriveExportService:
         resp.raise_for_status()
 
     async def _drive_file_exists(
-        self, http: httpx.AsyncClient, token: str, file_id: str,
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        file_id: str,
     ) -> bool:
         resp = await http.get(
             f"{DRIVE_API}/{file_id}",
@@ -691,7 +742,10 @@ class DriveExportService:
         return not resp.json().get("trashed", False)
 
     async def _delete_drive_file(
-        self, http: httpx.AsyncClient, token: str, file_id: str,
+        self,
+        http: httpx.AsyncClient,
+        token: str,
+        file_id: str,
     ) -> None:
         resp = await http.delete(
             f"{DRIVE_API}/{file_id}",
@@ -711,7 +765,7 @@ def _render_changelog_table(changelog: list[dict]) -> str:
         + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Date</th>'
         + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Description</th>'
         + '<th style="padding:4pt 8pt;text-align:left;border-bottom:1pt solid #ddd">Author</th>'
-        + '</tr>'
+        + "</tr>"
     ]
     for entry in changelog:
         v = _escape(str(entry.get("version", "")))
@@ -719,12 +773,12 @@ def _render_changelog_table(changelog: list[dict]) -> str:
         desc = _escape(str(entry.get("description", "")))
         a = _escape(str(entry.get("author", "")))
         rows.append(
-            f'<tr>'
+            f"<tr>"
             f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">v{v}</td>'
             f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">{d}</td>'
             f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee">{desc}</td>'
             f'<td style="padding:3pt 8pt;border-bottom:1pt solid #eee;color:#666">{a}</td>'
-            f'</tr>'
+            f"</tr>"
         )
     rows.append("</table>")
     return "\n".join(rows)
@@ -746,8 +800,4 @@ def _strip_leading_h1(content: str, title: str) -> str:
 
 
 def _escape(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

@@ -18,9 +18,7 @@ class UserDB(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -36,21 +34,15 @@ class UserDB(Base):
         ForeignKey("rates.id", ondelete="SET NULL"),
         nullable=True,
     )
-    dedication: Mapped[Decimal | None] = mapped_column(
-        Numeric(3, 2), nullable=True
-    )
+    dedication: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)
     slack_user_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     slack_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     requires_project_reporting: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="true", nullable=False
     )
-    last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

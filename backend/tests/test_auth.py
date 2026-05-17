@@ -1,6 +1,6 @@
 """Tests for authentication functionality."""
 
-from datetime import timedelta
+from datetime import UTC, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -207,9 +207,7 @@ class TestCookieAuth:
                 algorithm="HS256",
             )
             request = _make_request({COOKIE_NAME: cookie_token})
-            credentials = HTTPAuthorizationCredentials(
-                scheme="Bearer", credentials=header_token
-            )
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=header_token)
 
             user = await get_current_user(request, credentials)
 
@@ -229,9 +227,7 @@ class TestCookieAuth:
                 "test-secret",
                 algorithm="HS256",
             )
-            credentials = HTTPAuthorizationCredentials(
-                scheme="Bearer", credentials=token
-            )
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
             user = await get_current_user(_make_request(), credentials)
 
@@ -244,19 +240,17 @@ class TestTokenValidation:
     @pytest.mark.asyncio
     async def test_get_current_user_expired_token_rejected(self) -> None:
         """Expired JWT should be rejected."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from app.core.auth import get_current_user
 
         expired_payload = {
             "sub": "user-123",
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "exp": datetime.now(UTC) - timedelta(hours=1),
         }
         expired_token = jwt.encode(expired_payload, "test-secret", algorithm="HS256")
 
-        credentials = HTTPAuthorizationCredentials(
-            scheme="Bearer", credentials=expired_token
-        )
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=expired_token)
 
         with patch("app.core.auth.settings") as mock_settings:
             mock_settings.debug = False
@@ -385,8 +379,5 @@ class TestPermissionAuthorization:
             with caplog.at_level(logging.WARNING):
                 user = await get_current_user(_make_request(), None)
 
-            assert any(
-                "auth_bypass_dev_mode" in str(record.message)
-                for record in caplog.records
-            )
+            assert any("auth_bypass_dev_mode" in str(record.message) for record in caplog.records)
             assert user.user_id == "00000000-0000-0000-0000-000000000001"

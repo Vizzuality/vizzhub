@@ -1,24 +1,22 @@
 """Tests that Jira OAuth service encrypts tokens at rest."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import decrypt_token
 from app.core.models.oauth import OAuthTokenDB
 from app.core.services.oauth_service import OAuthService
+from app.core.token_encryption import decrypt_token
 
 
 class TestJiraTokenEncryption:
     """Verify Jira tokens are encrypted before DB storage."""
 
     @pytest.mark.asyncio
-    async def test_exchange_code_encrypts_tokens(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_exchange_code_encrypts_tokens(self, db_session: AsyncSession) -> None:
         """Tokens from code exchange should be stored encrypted."""
         token_response = MagicMock()
         token_response.json.return_value = {
@@ -66,7 +64,7 @@ class TestJiraTokenEncryption:
             access_token=encrypt_token("decrypted-jira-token"),
             refresh_token=encrypt_token("refresh"),
             token_type="Bearer",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         db_session.add(token)
         await db_session.flush()
@@ -84,7 +82,7 @@ class TestJiraTokenEncryption:
             access_token=encrypt_token("old-access"),
             refresh_token=encrypt_token("old-refresh"),
             token_type="Bearer",
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
         )
         db_session.add(existing)
         await db_session.commit()

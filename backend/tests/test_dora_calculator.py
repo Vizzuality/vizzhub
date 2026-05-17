@@ -66,9 +66,7 @@ class TestDoraScoreCalculator:
         assert "change_failure_rate" not in result["metrics"]
         assert "mttr" not in result["metrics"]
 
-    def test_zero_change_failure_rate_returns_elite(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_zero_change_failure_rate_returns_elite(self, config: ScoringConfig) -> None:
         """Zero CFR should return Elite classification (0-5%)."""
         indicators = IndicatorsCreate(change_failure_rate=0.0)
         calc = DoraScoreCalculator(config)
@@ -217,9 +215,7 @@ class TestDoraClassificationThresholds:
 class TestDoraOverallClassification:
     """Test overall classification is determined by weakest link."""
 
-    def test_weakest_link_determines_classification(
-        self, config: ScoringConfig
-    ) -> None:
+    def test_weakest_link_determines_classification(self, config: ScoringConfig) -> None:
         """Overall classification should be the weakest metric."""
         indicators = IndicatorsCreate(
             deployment_frequency=2.0,  # Elite

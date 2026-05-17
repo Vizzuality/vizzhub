@@ -1,18 +1,19 @@
 """Tests for ISO module foundation."""
 
-import pytest
-import pytest_asyncio
-from datetime import datetime, date, timezone
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
-from app.modules.iso.models.access_snapshot import AccessSnapshotDB
+import pytest
+
 from app.modules.iso.models.access_review import AccessReviewDB
 from app.modules.iso.models.access_review_action import AccessReviewActionDB
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
 class TestIsoRouterMount:
     def test_iso_router_imported(self) -> None:
         from app.modules.iso.router import router
+
         assert router is not None
 
 
@@ -21,7 +22,7 @@ class TestAccessSnapshotModel:
     async def test_create_snapshot(self, db_session) -> None:
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             captured_by=None,
             data={
                 "users": [],
@@ -65,7 +66,7 @@ class TestAccessSnapshotModel:
 
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             captured_by=user.id,
             data={
                 "users": [],
@@ -93,7 +94,7 @@ class TestAccessReviewModel:
 
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             data={
                 "users": [],
                 "groups": [],
@@ -134,7 +135,7 @@ class TestAccessReviewModel:
 
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             data={},
             summary={},
             source_metadata={},
@@ -148,7 +149,7 @@ class TestAccessReviewModel:
             status="signed",
             scope="All users and groups",
             signed_by=user.id,
-            signed_at=datetime.now(timezone.utc),
+            signed_at=datetime.now(UTC),
         )
         db_session.add(review)
         await db_session.flush()
@@ -169,7 +170,7 @@ class TestAccessReviewActionModel:
 
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             data={},
             summary={},
             source_metadata={},
@@ -217,7 +218,7 @@ class TestAccessReviewActionModel:
 
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             data={},
             summary={},
             source_metadata={},
@@ -262,13 +263,13 @@ class TestIsoSchemas:
         data = {
             "id": uuid4(),
             "provider": "google_workspace",
-            "captured_at": datetime.now(timezone.utc),
+            "captured_at": datetime.now(UTC),
             "captured_by": None,
             "data_version": "1",
             "source_metadata": {"domain": "test.com"},
             "data": {"users": []},
             "summary": {"total_users": 0},
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
         schema = AccessSnapshotResponse(**data)
         assert schema.provider == "google_workspace"
@@ -279,11 +280,11 @@ class TestIsoSchemas:
         data = {
             "id": uuid4(),
             "provider": "google_workspace",
-            "captured_at": datetime.now(timezone.utc),
+            "captured_at": datetime.now(UTC),
             "captured_by": None,
             "data_version": "1",
             "summary": {"total_users": 5},
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
         schema = AccessSnapshotSummary(**data)
         assert schema.summary["total_users"] == 5
@@ -303,8 +304,8 @@ class TestIsoSchemas:
             "notes": None,
             "signed_by": None,
             "signed_at": None,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
         schema = AccessReviewResponse(**data)
         assert schema.status == "draft"
@@ -326,8 +327,9 @@ class TestIsoSchemas:
         assert update.action_taken == "accepted"
 
     def test_action_update_invalid_action(self) -> None:
-        from app.modules.iso.schemas import AccessReviewActionUpdate
         from pydantic import ValidationError
+
+        from app.modules.iso.schemas import AccessReviewActionUpdate
 
         with pytest.raises(ValidationError):
             AccessReviewActionUpdate(action_taken="invalid_value")
@@ -348,8 +350,8 @@ class TestIsoSchemas:
             "justification": None,
             "approved_by": None,
             "exception_until": None,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
         schema = AccessReviewActionResponse(**data)
         assert schema.subject_type == "user"

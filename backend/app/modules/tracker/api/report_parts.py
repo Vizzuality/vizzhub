@@ -19,7 +19,9 @@ from app.modules.tracker.schemas.report_part import (
 )
 from app.modules.tracker.services.cost_service import apply_cost_and_days
 
-OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
+OwnReportManager = Annotated[
+    TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))
+]
 
 router = APIRouter()
 

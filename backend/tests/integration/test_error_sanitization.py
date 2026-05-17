@@ -4,9 +4,9 @@ These tests verify that error responses don't leak sensitive information
 like internal file paths, tracebacks, or implementation details.
 """
 
-import pytest
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
 
 from app.core.models.project import ProjectDB
@@ -54,7 +54,7 @@ class TestErrorSanitizationIntegration:
         # Should not contain internal implementation details
         error_text = str(data).lower()
         assert "traceback" not in error_text
-        assert "file \"/" not in error_text  # No file paths like /app/...
+        assert 'file "/' not in error_text  # No file paths like /app/...
 
     @pytest.mark.asyncio
     async def test_invalid_uuid_returns_clean_error(

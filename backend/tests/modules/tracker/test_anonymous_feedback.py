@@ -10,9 +10,7 @@ from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 
 class TestAnonymousFeedback:
     @pytest.mark.asyncio
-    async def test_create_anonymous_feedback(
-        self, client: AsyncClient, db_session: AsyncSession
-    ):
+    async def test_create_anonymous_feedback(self, client: AsyncClient, db_session: AsyncSession):
         resp = await client.post(
             "/api/tracker/anonymous-feedback",
             json={"month": 3, "year": 2026, "text": "Good vibes"},
@@ -26,9 +24,7 @@ class TestAnonymousFeedback:
         assert row.text == "Good vibes"
 
     @pytest.mark.asyncio
-    async def test_anonymous_feedback_only_has_allowed_columns(
-        self, db_session: AsyncSession
-    ):
+    async def test_anonymous_feedback_only_has_allowed_columns(self, db_session: AsyncSession):
         result = await db_session.execute(
             text(
                 "SELECT column_name FROM information_schema.columns "
@@ -39,9 +35,7 @@ class TestAnonymousFeedback:
         assert columns == {"id", "month", "year", "text"}
 
     @pytest.mark.asyncio
-    async def test_anonymous_feedback_has_no_fk(
-        self, db_session: AsyncSession
-    ):
+    async def test_anonymous_feedback_has_no_fk(self, db_session: AsyncSession):
         result = await db_session.execute(
             text(
                 "SELECT constraint_name FROM information_schema.table_constraints "
@@ -52,9 +46,7 @@ class TestAnonymousFeedback:
         assert result.all() == []
 
     @pytest.mark.asyncio
-    async def test_create_anonymous_feedback_validation(
-        self, client: AsyncClient
-    ):
+    async def test_create_anonymous_feedback_validation(self, client: AsyncClient):
         resp = await client.post(
             "/api/tracker/anonymous-feedback",
             json={"month": 13, "year": 2026, "text": "Bad month"},
@@ -68,9 +60,7 @@ class TestAnonymousFeedback:
         assert resp.status_code in (400, 422)
 
     @pytest.mark.asyncio
-    async def test_create_anonymous_feedback_duplicates_allowed(
-        self, client: AsyncClient
-    ):
+    async def test_create_anonymous_feedback_duplicates_allowed(self, client: AsyncClient):
         payload = {"month": 3, "year": 2026, "text": "Same feedback"}
         resp1 = await client.post("/api/tracker/anonymous-feedback", json=payload)
         resp2 = await client.post("/api/tracker/anonymous-feedback", json=payload)

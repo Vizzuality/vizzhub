@@ -20,22 +20,17 @@ def postponement_subquery():
     postponement closer in time supersedes an earlier far-future one
     (audit finding #27).
     """
-    ranked = (
-        select(
-            InvoicePostponementDB.invoice_id,
-            InvoicePostponementDB.postponed_to,
-            func.row_number()
-            .over(
-                partition_by=InvoicePostponementDB.invoice_id,
-                order_by=InvoicePostponementDB.created_at.desc(),
-            )
-            .label("rn"),
-            func.count()
-            .over(partition_by=InvoicePostponementDB.invoice_id)
-            .label("postpone_count"),
+    ranked = select(
+        InvoicePostponementDB.invoice_id,
+        InvoicePostponementDB.postponed_to,
+        func.row_number()
+        .over(
+            partition_by=InvoicePostponementDB.invoice_id,
+            order_by=InvoicePostponementDB.created_at.desc(),
         )
-        .subquery()
-    )
+        .label("rn"),
+        func.count().over(partition_by=InvoicePostponementDB.invoice_id).label("postpone_count"),
+    ).subquery()
     return (
         select(
             ranked.c.invoice_id,

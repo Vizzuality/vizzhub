@@ -8,8 +8,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 class TestConfigHotReloadIntegration:

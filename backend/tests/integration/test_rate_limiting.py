@@ -24,7 +24,9 @@ class TestRateLimitingIntegration:
             "x-ratelimit-reset",
         ]
         # At least one rate limit header should be present
-        has_rate_limit = any(h.lower() in [k.lower() for k in headers.keys()] for h in rate_limit_headers)
+        has_rate_limit = any(
+            h.lower() in [k.lower() for k in headers.keys()] for h in rate_limit_headers
+        )
         assert has_rate_limit or response.status_code == 200  # May not have headers in all configs
 
     @pytest.mark.asyncio

@@ -31,7 +31,9 @@ from app.modules.tracker.schemas.report import (
     ReportWithPartsResponse,
 )
 
-OwnReportManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))]
+OwnReportManager = Annotated[
+    TokenData, Depends(require_permission(Action.TRACKER_MANAGE_OWN_REPORTS))
+]
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -40,9 +42,7 @@ logger = structlog.get_logger()
 async def _prepopulate_parts(report: ReportDB, db: AsyncSession) -> None:
     """Copy report_part structure from the user's most recent previous period."""
     current_period = await db.execute(
-        select(ReportingPeriodDB).where(
-            ReportingPeriodDB.id == report.reporting_period_id
-        )
+        select(ReportingPeriodDB).where(ReportingPeriodDB.id == report.reporting_period_id)
     )
     period = current_period.scalar_one_or_none()
     if not period:
@@ -86,7 +86,6 @@ async def _prepopulate_parts(report: ReportDB, db: AsyncSession) -> None:
         )
         db.add(new_part)
     await db.flush()
-
 
 
 @router.get("")
@@ -158,7 +157,8 @@ async def get_report(
         .order_by(ReportPartDB.created_at)
     )
     parts = await enrich_parts_batch(
-        list(parts_result.scalars().all()), db,
+        list(parts_result.scalars().all()),
+        db,
     )
 
     return ReportWithPartsResponse(
@@ -177,14 +177,10 @@ async def update_report(
     report = await get_or_404(ReportDB, report_id, db, "Report")
     update_data = data.model_dump(exclude_unset=True)
 
-    is_confirming = (
-        update_data.get("estimated") is False and report.estimated is True
-    )
+    is_confirming = update_data.get("estimated") is False and report.estimated is True
     if is_confirming:
         parts_result = await db.execute(
-            select(ReportPartDB.percentage).where(
-                ReportPartDB.report_id == report_id
-            )
+            select(ReportPartDB.percentage).where(ReportPartDB.report_id == report_id)
         )
         total = sum(p or 0 for (p,) in parts_result.all())
         if not math.isclose(float(total), 1.0, rel_tol=1e-4):

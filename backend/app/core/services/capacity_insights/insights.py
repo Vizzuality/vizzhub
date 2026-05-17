@@ -52,13 +52,15 @@ def _aggregate_fa_period(
             count += 1
         if not count:
             continue
-        fas.append({
-            "short": short,
-            "billable_pct": round(total_billable / count, 4),
-            "absence_pct": round(total_absence / count, 4),
-            "other_pct": round(total_other / count, 4),
-            "user_count": count,
-        })
+        fas.append(
+            {
+                "short": short,
+                "billable_pct": round(total_billable / count, 4),
+                "absence_pct": round(total_absence / count, 4),
+                "other_pct": round(total_other / count, 4),
+                "user_count": count,
+            }
+        )
     return fas
 
 
@@ -72,10 +74,13 @@ async def get_capacity_insights(
     Returns list of dicts sorted by period ascending, each containing
     'period' (YYYY-MM) and 'functional_areas' list.
     """
-    fa_rows = list(await db.execute(
-        select(FunctionalAreaDB.id, FunctionalAreaDB.name)
-        .where(FunctionalAreaDB.name.in_(TARGET_FA_MAPPING.keys()))
-    ))
+    fa_rows = list(
+        await db.execute(
+            select(FunctionalAreaDB.id, FunctionalAreaDB.name).where(
+                FunctionalAreaDB.name.in_(TARGET_FA_MAPPING.keys())
+            )
+        )
+    )
     fa_id_to_short: dict = {}
     found_names: set[str] = set()
     for fa_id, fa_name in fa_rows:
@@ -102,8 +107,7 @@ async def get_capacity_insights(
         return []
 
     eligible_users = await db.execute(
-        select(UserDB.id, UserDB.functional_area_id)
-        .where(
+        select(UserDB.id, UserDB.functional_area_id).where(
             *_reportable_user_filter(),
             UserDB.functional_area_id.in_(fa_id_to_short.keys()),
         )
@@ -118,18 +122,24 @@ async def get_capacity_insights(
             ReportDB.user_id,
             ReportDB.reporting_period_id,
             func.coalesce(func.sum(ReportPartDB.percentage), 0).label("total_pct"),
-            func.coalesce(func.sum(
-                case(
-                    (ProjectDB.is_billable.is_(True), ReportPartDB.percentage),
-                    else_=0,
-                )
-            ), 0).label("billable_pct"),
-            func.coalesce(func.sum(
-                case(
-                    (ProjectDB.is_absence.is_(True), ReportPartDB.percentage),
-                    else_=0,
-                )
-            ), 0).label("absence_pct"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (ProjectDB.is_billable.is_(True), ReportPartDB.percentage),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("billable_pct"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (ProjectDB.is_absence.is_(True), ReportPartDB.percentage),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("absence_pct"),
         )
         .join(ReportPartDB, ReportPartDB.report_id == ReportDB.id)
         .join(ProjectDB, ProjectDB.id == ReportPartDB.project_id)
@@ -157,9 +167,11 @@ async def get_capacity_insights(
     result = []
     for period_id, period_date in periods:
         fas = _aggregate_fa_period(users_by_fa, report_lookup, period_id)
-        result.append({
-            "period": period_date.strftime("%Y-%m"),
-            "functional_areas": fas,
-        })
+        result.append(
+            {
+                "period": period_date.strftime("%Y-%m"),
+                "functional_areas": fas,
+            }
+        )
 
     return result

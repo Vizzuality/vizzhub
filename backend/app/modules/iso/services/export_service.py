@@ -1,6 +1,6 @@
 """XLSX export service for ISO access review data."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 
 from openpyxl import Workbook
@@ -72,16 +72,12 @@ class IsoExportService:
         else:
             self._write_gw_data_tables(ws, data)
 
-        set_column_widths(
-            ws, {"A": 25, "B": 30, "C": 20, "D": 20, "E": 18, "F": 18, "G": 16}
-        )
+        set_column_widths(ws, {"A": 25, "B": 30, "C": 20, "D": 20, "E": 18, "F": 18, "G": 16})
 
     def _write_gw_data_tables(self, ws, data: dict) -> None:
         self._write_users_table(ws, data.get("users", []))
         ws.append([])
-        self._write_groups_table(
-            ws, data.get("groups", []), data.get("group_members", {})
-        )
+        self._write_groups_table(ws, data.get("groups", []), data.get("group_members", {}))
         ws.append([])
         self._write_group_members_table(ws, data.get("group_members", {}))
         ws.append([])
@@ -90,15 +86,11 @@ class IsoExportService:
     def _write_github_data_tables(self, ws, data: dict) -> None:
         self._write_github_members_table(ws, data.get("members", []))
         ws.append([])
-        self._write_github_teams_table(
-            ws, data.get("teams", []), data.get("team_members", {})
-        )
+        self._write_github_teams_table(ws, data.get("teams", []), data.get("team_members", {}))
         ws.append([])
         self._write_github_team_members_table(ws, data.get("team_members", {}))
         ws.append([])
-        self._write_github_outside_collaborators_table(
-            ws, data.get("outside_collaborators", [])
-        )
+        self._write_github_outside_collaborators_table(ws, data.get("outside_collaborators", []))
 
     def _write_iso_header(self, ws, snapshot: dict, review: dict | None) -> None:
         provider = snapshot.get("provider", "google_workspace")
@@ -153,7 +145,7 @@ class IsoExportService:
             ("Signed By", review.get("signed_by_email", "") if review else ""),
             ("Signed Date", self._format_signed_date(review)),
             ("Notes", review.get("notes", "") if review else ""),
-            ("Export Date", datetime.now(timezone.utc).strftime(DATETIME_FORMAT_UTC)),
+            ("Export Date", datetime.now(UTC).strftime(DATETIME_FORMAT_UTC)),
         ]
 
         for label, value in header_rows:
@@ -223,11 +215,7 @@ class IsoExportService:
                     details or "\u2014",
                     action.get("action_taken", ""),
                     action.get("justification", ""),
-                    (
-                        str(action["exception_until"])
-                        if action.get("exception_until")
-                        else ""
-                    ),
+                    (str(action["exception_until"]) if action.get("exception_until") else ""),
                 ]
             )
 
@@ -314,12 +302,14 @@ class IsoExportService:
         apply_header_style(ws, ws.max_row)
 
         for m in members:
-            ws.append([
-                m.get("login", ""),
-                m.get("name", "") or "",
-                m.get("email", "") or "",
-                m.get("role", ""),
-            ])
+            ws.append(
+                [
+                    m.get("login", ""),
+                    m.get("name", "") or "",
+                    m.get("email", "") or "",
+                    m.get("role", ""),
+                ]
+            )
 
     def _write_github_teams_table(
         self, ws, teams: list[dict], team_members: dict[str, list]
@@ -333,17 +323,17 @@ class IsoExportService:
         for t in teams:
             slug = t.get("slug", "")
             members = team_members.get(slug, [])
-            ws.append([
-                t.get("name", ""),
-                slug,
-                t.get("parent_slug", "") or "",
-                t.get("privacy", ""),
-                len(members),
-            ])
+            ws.append(
+                [
+                    t.get("name", ""),
+                    slug,
+                    t.get("parent_slug", "") or "",
+                    t.get("privacy", ""),
+                    len(members),
+                ]
+            )
 
-    def _write_github_team_members_table(
-        self, ws, team_members: dict[str, list]
-    ) -> None:
+    def _write_github_team_members_table(self, ws, team_members: dict[str, list]) -> None:
         ws.append(["Team Members"])
         ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
 
@@ -364,20 +354,20 @@ class IsoExportService:
         apply_header_style(ws, ws.max_row)
 
         for c in outside_collaborators:
-            ws.append([
-                c.get("login", ""),
-                c.get("name", "") or "",
-                c.get("email", "") or "",
-            ])
+            ws.append(
+                [
+                    c.get("login", ""),
+                    c.get("name", "") or "",
+                    c.get("email", "") or "",
+                ]
+            )
 
     # --- Jira-specific tables ---
 
     def _write_jira_data_tables(self, ws, data: dict) -> None:
         self._write_jira_users_table(ws, data.get("users", []))
         ws.append([])
-        self._write_jira_groups_table(
-            ws, data.get("groups", []), data.get("group_members", {})
-        )
+        self._write_jira_groups_table(ws, data.get("groups", []), data.get("group_members", {}))
         ws.append([])
         self._write_jira_group_members_table(ws, data.get("group_members", {}))
 
@@ -389,12 +379,14 @@ class IsoExportService:
         apply_header_style(ws, ws.max_row)
 
         for u in users:
-            ws.append([
-                u.get("display_name", ""),
-                u.get("email", ""),
-                u.get("account_type", ""),
-                "Yes" if u.get("is_external") else "No",
-            ])
+            ws.append(
+                [
+                    u.get("display_name", ""),
+                    u.get("email", ""),
+                    u.get("account_type", ""),
+                    "Yes" if u.get("is_external") else "No",
+                ]
+            )
 
     def _write_jira_groups_table(
         self, ws, groups: list[dict], group_members: dict[str, list]
@@ -419,8 +411,10 @@ class IsoExportService:
 
         for group_name in sorted(group_members.keys()):
             for m in group_members[group_name]:
-                ws.append([
-                    group_name,
-                    m.get("account_id", ""),
-                    m.get("display_name", ""),
-                ])
+                ws.append(
+                    [
+                        group_name,
+                        m.get("account_id", ""),
+                        m.get("display_name", ""),
+                    ]
+                )

@@ -1,7 +1,7 @@
 """Health check endpoints for liveness and readiness probes."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -68,7 +68,8 @@ async def _check_worker(request: Request) -> dict[str, Any]:
 
     try:
         heartbeat = await asyncio.wait_for(
-            redis_client.get(HEARTBEAT_KEY), timeout=REDIS_TIMEOUT_S,
+            redis_client.get(HEARTBEAT_KEY),
+            timeout=REDIS_TIMEOUT_S,
         )
         if heartbeat is None:
             return {"status": "unhealthy", "error": "no heartbeat"}
@@ -102,15 +103,13 @@ async def readiness(request: Request) -> JSONResponse:
         "worker": worker_check,
     }
 
-    all_healthy = all(
-        c.get("status") in ("healthy", "unavailable") for c in checks.values()
-    )
+    all_healthy = all(c.get("status") in ("healthy", "unavailable") for c in checks.values())
 
     return JSONResponse(
         status_code=200 if all_healthy else 503,
         content={
             "status": "healthy" if all_healthy else "degraded",
             "checks": checks,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     )

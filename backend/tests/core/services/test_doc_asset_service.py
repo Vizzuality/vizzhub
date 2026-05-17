@@ -7,8 +7,6 @@ Validates:
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.core.services.doc_asset_service import (
     ALLOWED_CONTENT_TYPES,
     MAX_FILE_SIZE,
@@ -45,7 +43,9 @@ class TestUploadImage:
     @patch("app.core.services.doc_asset_service.get_s3_client")
     @patch("app.core.services.doc_asset_service.get_settings")
     def test_uploads_with_correct_key_and_returns_url(
-        self, mock_settings: MagicMock, mock_get_s3: MagicMock,
+        self,
+        mock_settings: MagicMock,
+        mock_get_s3: MagicMock,
     ) -> None:
         mock_settings.return_value.assets_bucket_name = "test-bucket"
         fake_s3 = MagicMock()
@@ -81,7 +81,9 @@ class TestUploadImage:
     @patch("app.core.services.doc_asset_service.get_s3_client")
     @patch("app.core.services.doc_asset_service.get_settings")
     def test_uploads_svg_with_correct_extension(
-        self, mock_settings: MagicMock, mock_get_s3: MagicMock,
+        self,
+        mock_settings: MagicMock,
+        mock_get_s3: MagicMock,
     ) -> None:
         """svg+xml MIME normalises to .svg extension when filename has no ext."""
         mock_settings.return_value.assets_bucket_name = "test-bucket"
@@ -105,13 +107,13 @@ class TestUploadImage:
 
 def test_allowed_content_types_includes_only_safe_image_mimes() -> None:
     """Whitelist must include exactly the 5 image MIMEs we support — guard against drift."""
-    assert ALLOWED_CONTENT_TYPES == {
+    assert {
         "image/png",
         "image/jpeg",
         "image/gif",
         "image/webp",
         "image/svg+xml",
-    }
+    } == ALLOWED_CONTENT_TYPES
 
 
 def test_max_file_size_is_5mb() -> None:

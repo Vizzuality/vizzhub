@@ -3,14 +3,14 @@
 from fastapi import APIRouter
 
 from app.modules.iso_docs.api.assets import router as assets_router
-from app.modules.iso_docs.api.nodes import router as nodes_router
-from app.modules.iso_docs.api.pages import router as pages_router
-from app.modules.iso_docs.api.metadata import router as metadata_router
 from app.modules.iso_docs.api.drive_export import router as drive_export_router
-from app.modules.iso_docs.api.registry_types import router as registry_types_router
-from app.modules.iso_docs.api.registry_rows import router as registry_rows_router
-from app.modules.iso_docs.api.registry_attachments import router as registry_attachments_router
+from app.modules.iso_docs.api.metadata import router as metadata_router
+from app.modules.iso_docs.api.nodes import router as nodes_router
 from app.modules.iso_docs.api.notes import router as notes_router
+from app.modules.iso_docs.api.pages import router as pages_router
+from app.modules.iso_docs.api.registry_attachments import router as registry_attachments_router
+from app.modules.iso_docs.api.registry_rows import router as registry_rows_router
+from app.modules.iso_docs.api.registry_types import router as registry_types_router
 from app.modules.iso_docs.api.widget_export import router as widget_export_router
 
 router = APIRouter()

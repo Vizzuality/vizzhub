@@ -32,7 +32,9 @@ class DoraScore(BaseModel):
     """DORA metrics score using official DORA thresholds."""
 
     score: int | None = Field(None, ge=0, le=100, description="DORA score 0-100")
-    classification: DoraLevel | None = Field(None, description="Overall classification (weakest link)")
+    classification: DoraLevel | None = Field(
+        None, description="Overall classification (weakest link)"
+    )
     metrics: dict[str, DoraMetricDetail] = Field(
         default_factory=dict,
         description="Individual DORA metric details with level classification",

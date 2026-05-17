@@ -26,16 +26,22 @@ async def test_total_cost_sums_other_costs_plus_attendee_costs(
     )
     db_session.add(event)
     await db_session.flush()
-    db_session.add_all([
-        EventAttendeeDB(
-            event_id=event.id, user_id=debug_user.id,
-            role="Attendee", cost=Decimal("100.00"),
-        ),
-        EventAttendeeDB(
-            event_id=event.id, user_id=test_user.id,
-            role="Speaker", cost=Decimal("250.00"),
-        ),
-    ])
+    db_session.add_all(
+        [
+            EventAttendeeDB(
+                event_id=event.id,
+                user_id=debug_user.id,
+                role="Attendee",
+                cost=Decimal("100.00"),
+            ),
+            EventAttendeeDB(
+                event_id=event.id,
+                user_id=test_user.id,
+                role="Speaker",
+                cost=Decimal("250.00"),
+            ),
+        ]
+    )
     await db_session.commit()
 
     stats = await get_stats(db_session, year=2026)
@@ -43,9 +49,7 @@ async def test_total_cost_sums_other_costs_plus_attendee_costs(
 
 
 @pytest.mark.asyncio
-async def test_total_cost_handles_null_attendee_costs(
-    db_session: AsyncSession, debug_user: UserDB
-):
+async def test_total_cost_handles_null_attendee_costs(db_session: AsyncSession, debug_user: UserDB):
     event = EventDB(
         name="Null Costs",
         event_type="Conference",
@@ -58,8 +62,10 @@ async def test_total_cost_handles_null_attendee_costs(
     await db_session.flush()
     db_session.add(
         EventAttendeeDB(
-            event_id=event.id, user_id=debug_user.id,
-            role="Attendee", cost=None,
+            event_id=event.id,
+            user_id=debug_user.id,
+            role="Attendee",
+            cost=None,
         )
     )
     await db_session.commit()

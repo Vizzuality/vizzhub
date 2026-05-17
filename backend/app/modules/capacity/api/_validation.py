@@ -34,6 +34,7 @@ def validate_date_range(start: date, end: date) -> None:
 @dataclass(frozen=True)
 class MonthRange:
     """Validated YYYY-MM range; first-of-month dates."""
+
     start: date
     end: date
 

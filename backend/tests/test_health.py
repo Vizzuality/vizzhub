@@ -5,7 +5,6 @@ from httpx import AsyncClient
 
 
 class TestLiveness:
-
     @pytest.mark.asyncio
     async def test_returns_200(self, client: AsyncClient) -> None:
         response = await client.get("/health/live")
@@ -14,7 +13,6 @@ class TestLiveness:
 
 
 class TestReadiness:
-
     @pytest.mark.asyncio
     async def test_returns_check_structure(self, client: AsyncClient) -> None:
         response = await client.get("/health/ready")
@@ -28,7 +26,8 @@ class TestReadiness:
 
     @pytest.mark.asyncio
     async def test_redis_shows_unavailable_without_redis(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         response = await client.get("/health/ready")
         data = response.json()
@@ -36,7 +35,8 @@ class TestReadiness:
 
     @pytest.mark.asyncio
     async def test_worker_shows_unavailable_without_redis(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         response = await client.get("/health/ready")
         data = response.json()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,8 +50,7 @@ def build_reminder_context(
     """Template context for a reminder notification."""
     days_open = (now - tracked.first_seen_at).days if tracked.first_seen_at else 0
     alert_url = (
-        f"https://github.com/{project.github_repo}"
-        f"/security/dependabot/{tracked.github_alert_id}"
+        f"https://github.com/{project.github_repo}/security/dependabot/{tracked.github_alert_id}"
     )
     return {
         "project_name": project.name,
@@ -78,7 +77,7 @@ async def send_reminders(
     current_alerts: list[dict],
 ) -> int:
     """Send reminders for unresolved alerts whose cadence has elapsed."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     reminders_sent = 0
     current_alert_ids = {alert["number"] for alert in current_alerts}
 

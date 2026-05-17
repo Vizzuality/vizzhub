@@ -37,8 +37,12 @@ def test_extract_drive_lookup_columns_found():
 
 def test_extract_drive_lookup_columns_empty_for_regular_computed():
     schema = [
-        {"key": "total", "type": "computed", "label": "T",
-         "formula": {"operation": "sum", "fields": ["a", "b"]}},
+        {
+            "key": "total",
+            "type": "computed",
+            "label": "T",
+            "formula": {"operation": "sum", "fields": ["a", "b"]},
+        },
     ]
     assert extract_drive_lookup_columns(schema) == []
 
@@ -48,9 +52,10 @@ def test_extract_slug_from_link_full_url():
 
 
 def test_extract_slug_from_link_hub_url():
-    assert extract_slug_from_link(
-        "https://hub.vizzuality.com/iso/docs?page=access-control-policy"
-    ) == "access-control-policy"
+    assert (
+        extract_slug_from_link("https://hub.vizzuality.com/iso/docs?page=access-control-policy")
+        == "access-control-policy"
+    )
 
 
 def test_extract_slug_from_link_none():
@@ -64,7 +69,9 @@ def test_build_drive_url_document():
 
 
 def test_build_drive_url_spreadsheet():
-    assert build_drive_url("xyz", "spreadsheet") == "https://docs.google.com/spreadsheets/d/xyz/edit"
+    assert (
+        build_drive_url("xyz", "spreadsheet") == "https://docs.google.com/spreadsheets/d/xyz/edit"
+    )
 
 
 def test_build_drive_url_folder():
@@ -83,7 +90,8 @@ def test_build_drive_url_unknown_type():
 
 @pytest_asyncio.fixture
 async def drive_lookup_setup(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> dict:
     """Create registry with drive_lookup schema + a target page with Drive mapping."""
     rt_resp = await client.post(
@@ -125,7 +133,8 @@ async def drive_lookup_setup(
 
 @pytest.mark.asyncio
 async def test_list_rows_resolves_drive_lookup(
-    client: AsyncClient, drive_lookup_setup: dict,
+    client: AsyncClient,
+    drive_lookup_setup: dict,
 ):
     node_id = drive_lookup_setup["node"]["id"]
 
@@ -150,7 +159,8 @@ async def test_list_rows_resolves_drive_lookup(
 
 @pytest.mark.asyncio
 async def test_list_rows_drive_lookup_no_mapping(
-    client: AsyncClient, drive_lookup_setup: dict,
+    client: AsyncClient,
+    drive_lookup_setup: dict,
 ):
     """Row with a slug that has no Drive mapping gets None."""
     node_id = drive_lookup_setup["node"]["id"]

@@ -1,8 +1,8 @@
 """Daily ECB exchange rate fetch — cron task."""
 
-import structlog
 from typing import Any
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.exchange_rate_service import fetch_and_store_rates

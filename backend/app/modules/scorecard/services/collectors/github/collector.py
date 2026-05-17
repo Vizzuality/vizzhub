@@ -10,7 +10,6 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.services.collectors.models import GitHubCollectedMetrics
 from app.modules.scorecard.services.collectors.github.change_failure_rate import (
     collect_change_failure_rate,
 )
@@ -20,8 +19,11 @@ from app.modules.scorecard.services.collectors.github.deployment_frequency impor
 )
 from app.modules.scorecard.services.collectors.github.pr_review import collect_pr_review
 from app.modules.scorecard.services.collectors.github.pr_size import collect_pr_size
-from app.modules.scorecard.services.collectors.github.review_turnaround import collect_review_turnaround
+from app.modules.scorecard.services.collectors.github.review_turnaround import (
+    collect_review_turnaround,
+)
 from app.modules.scorecard.services.collectors.github.vulnerabilities import collect_vulnerabilities
+from app.modules.scorecard.services.collectors.models import GitHubCollectedMetrics
 
 
 class GitHubCollector:

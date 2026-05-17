@@ -43,13 +43,15 @@ def _build_user_segments(
                 [period_dates[pid].strftime("%Y-%m") for pid in info["periods"]],
                 reverse=True,
             )
-            billable_segments.append({
-                "project_id": str(proj_id),
-                "project_name": info["name"],
-                "avg_percentage": round(info["pct_sum"] / num_periods, 4),
-                "months_active": active_months,
-                "type": "billable",
-            })
+            billable_segments.append(
+                {
+                    "project_id": str(proj_id),
+                    "project_name": info["name"],
+                    "avg_percentage": round(info["pct_sum"] / num_periods, 4),
+                    "months_active": active_months,
+                    "type": "billable",
+                }
+            )
             billable_project_ids.add(proj_id)
             billable_appearances += len(active_months)
         elif info["is_absence"]:
@@ -63,27 +65,31 @@ def _build_user_segments(
     segments = list(billable_segments)
 
     if absence_pct_sum > 0:
-        segments.append({
-            "project_id": "__absence__",
-            "project_name": "Absence",
-            "avg_percentage": round(absence_pct_sum / num_periods, 4),
-            "months_active": sorted(
-                [period_dates[pid].strftime("%Y-%m") for pid in absence_periods],
-                reverse=True,
-            ),
-            "type": "absence",
-        })
+        segments.append(
+            {
+                "project_id": "__absence__",
+                "project_name": "Absence",
+                "avg_percentage": round(absence_pct_sum / num_periods, 4),
+                "months_active": sorted(
+                    [period_dates[pid].strftime("%Y-%m") for pid in absence_periods],
+                    reverse=True,
+                ),
+                "type": "absence",
+            }
+        )
     if other_pct_sum > 0:
-        segments.append({
-            "project_id": "__other__",
-            "project_name": "Other",
-            "avg_percentage": round(other_pct_sum / num_periods, 4),
-            "months_active": sorted(
-                [period_dates[pid].strftime("%Y-%m") for pid in other_periods],
-                reverse=True,
-            ),
-            "type": "other",
-        })
+        segments.append(
+            {
+                "project_id": "__other__",
+                "project_name": "Other",
+                "avg_percentage": round(other_pct_sum / num_periods, 4),
+                "months_active": sorted(
+                    [period_dates[pid].strftime("%Y-%m") for pid in other_periods],
+                    reverse=True,
+                ),
+                "type": "other",
+            }
+        )
 
     return segments, billable_appearances, billable_project_ids
 
@@ -111,8 +117,12 @@ async def get_allocation_users(
 
     eligible_rows = await db.execute(
         select(
-            UserDB.id, UserDB.first_name, UserDB.last_name,
-            UserDB.name, UserDB.email, FunctionalAreaDB.name.label("fa_name"),
+            UserDB.id,
+            UserDB.first_name,
+            UserDB.last_name,
+            UserDB.name,
+            UserDB.email,
+            FunctionalAreaDB.name.label("fa_name"),
         )
         .outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
         .where(*_reportable_user_filter())
@@ -168,18 +178,22 @@ async def get_allocation_users(
             continue
 
         segments, billable_appearances, billable_project_ids = _build_user_segments(
-            proj_map, num_periods, period_dates,
+            proj_map,
+            num_periods,
+            period_dates,
         )
 
         fn, ln, full, em, fa_short = user_info[uid]
-        users_list.append({
-            "user_id": str(uid),
-            "name": _format_full_name(fn, ln, full, em),
-            "functional_area": fa_short,
-            "avg_billable_projects": round(billable_appearances / num_periods, 4),
-            "total_distinct_projects": len(billable_project_ids),
-            "segments": segments,
-        })
+        users_list.append(
+            {
+                "user_id": str(uid),
+                "name": _format_full_name(fn, ln, full, em),
+                "functional_area": fa_short,
+                "avg_billable_projects": round(billable_appearances / num_periods, 4),
+                "total_distinct_projects": len(billable_project_ids),
+                "segments": segments,
+            }
+        )
 
     users_list.sort(
         key=lambda u: (-u["avg_billable_projects"], u["name"]),

@@ -6,8 +6,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import encrypt_token
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import encrypt_token
 
 
 class TestIntegrationsStatus:
@@ -47,9 +47,7 @@ class TestGitHubIntegration:
         assert data["expires_at"] is not None
 
     @pytest.mark.asyncio
-    async def test_delete_github_token(
-        self, client: AsyncClient, db_session: AsyncSession
-    ) -> None:
+    async def test_delete_github_token(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """DELETE /github removes the token."""
         record = OAuthTokenDB(
             provider="github",
@@ -88,9 +86,7 @@ class TestSlackIntegration:
         assert data["expires_at"] is None
 
     @pytest.mark.asyncio
-    async def test_delete_slack_token(
-        self, client: AsyncClient, db_session: AsyncSession
-    ) -> None:
+    async def test_delete_slack_token(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """DELETE /slack removes the token."""
         record = OAuthTokenDB(
             provider="slack",
@@ -115,9 +111,7 @@ class TestSlackIntegration:
         assert response.json() == {"leadership_channel_id": "C12345678"}
 
     @pytest.mark.asyncio
-    async def test_slack_channels(
-        self, client: AsyncClient, db_session: AsyncSession
-    ) -> None:
+    async def test_slack_channels(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """GET /slack/channels returns channel list when token exists."""
         record = OAuthTokenDB(
             provider="slack",

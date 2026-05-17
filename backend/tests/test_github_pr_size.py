@@ -1,11 +1,12 @@
 """Tests for GitHub PR Size collector."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from app.modules.scorecard.services.collectors.github.pr_size import (
-    collect_pr_size,
     _get_pr_size,
+    collect_pr_size,
 )
 from app.modules.scorecard.services.collectors.github.utils import TARGET_BRANCHES
 
@@ -29,7 +30,11 @@ class TestCollectPRSize:
         mock_http.get.return_value = MagicMock(
             status_code=200,
             json=lambda: [
-                {"number": 1, "merged_at": "2024-01-01T00:00:00Z", "base": {"ref": "feature-branch"}},
+                {
+                    "number": 1,
+                    "merged_at": "2024-01-01T00:00:00Z",
+                    "base": {"ref": "feature-branch"},
+                },
             ],
         )
         mock_github_client.get_client = AsyncMock(return_value=mock_http)

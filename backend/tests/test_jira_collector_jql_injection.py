@@ -6,8 +6,8 @@ where malicious input could modify JQL queries to access unauthorized data.
 
 import pytest
 
-from app.modules.scorecard.services.collectors.jira import JiraCollector
 from app.core.services.jira_client import JiraClient
+from app.modules.scorecard.services.collectors.jira import JiraCollector
 
 
 class TestJiraClientValidateProjectKey:
@@ -75,7 +75,7 @@ class TestJiraClientValidateProjectKey:
         # SQL/JQL injection attempts
         malicious_keys = [
             "PROJ'; DROP TABLE",
-            "PROJ\" OR 1=1",
+            'PROJ" OR 1=1',
             "PROJ) OR (1=1",
             "PROJ; DELETE FROM",
             "PROJ'--",

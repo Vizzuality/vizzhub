@@ -20,7 +20,9 @@ class ReportPartDB(Base):
     __tablename__ = "report_parts"
     __table_args__ = (
         UniqueConstraint(
-            "project_id", "report_id", "functional_area_id",
+            "project_id",
+            "report_id",
+            "functional_area_id",
             name="uq_report_parts_project_report_area",
         ),
         CheckConstraint(
@@ -37,9 +39,7 @@ class ReportPartDB(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     report_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("reports.id", ondelete="CASCADE"),
@@ -55,18 +55,10 @@ class ReportPartDB(Base):
         ForeignKey("functional_areas.id", ondelete="SET NULL"),
         nullable=True,
     )
-    percentage: Mapped[Decimal | None] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
-    days: Mapped[Decimal | None] = mapped_column(
-        Numeric(8, 4), nullable=True
-    )
-    cost: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    days: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

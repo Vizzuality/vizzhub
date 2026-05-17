@@ -3,9 +3,9 @@
 Tests verify P_satisfaction calculation with both PM and client satisfaction.
 """
 
-import pytest
 from datetime import date, timedelta
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 

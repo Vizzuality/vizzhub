@@ -1,9 +1,9 @@
 """Scheduled jobs API endpoints."""
 
-import structlog
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from redis.exceptions import RedisError
 from sqlalchemy import select
@@ -37,10 +37,11 @@ def _effective_status(run: ScheduledJobRunDB) -> str:
     if (
         run.status == "running"
         and run.started_at is not None
-        and datetime.now(timezone.utc) - run.started_at > RUNNING_STALE_AFTER
+        and datetime.now(UTC) - run.started_at > RUNNING_STALE_AFTER
     ):
         return "stale"
     return run.status
+
 
 SCHEDULED_JOBS = {
     "check_dependabot_alerts": {
@@ -138,9 +139,7 @@ async def list_scheduled_jobs(
         channel_label = None
         channel_setting_key = job_info.get("channel_setting_key")
         if channel_setting_key:
-            channel_id = await IntegrationTokenService.get_setting(
-                db, "slack", channel_setting_key
-            )
+            channel_id = await IntegrationTokenService.get_setting(db, "slack", channel_setting_key)
             channel_label = job_info.get("channel_label")
 
         result.append(
@@ -230,9 +229,7 @@ async def update_scheduled_job_channel(
             detail=f"Job '{job_name}' does not have a configurable channel",
         )
 
-    await IntegrationTokenService.set_setting(
-        db, "slack", channel_setting_key, body.channel_id
-    )
+    await IntegrationTokenService.set_setting(db, "slack", channel_setting_key, body.channel_id)
     await db.flush()
 
     return {"channel_id": body.channel_id}

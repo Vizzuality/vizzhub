@@ -1,9 +1,10 @@
 """Tests for worker metrics and job hooks."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from app.worker.metrics import arq_jobs_total, arq_job_duration_seconds
+import pytest
+
+from app.worker.metrics import arq_jobs_total
 
 
 class TestOnJobHooksMetrics:
@@ -11,7 +12,7 @@ class TestOnJobHooksMetrics:
 
     @pytest.mark.asyncio
     async def test_on_job_end_increments_counter_and_records_duration(self) -> None:
-        from app.worker.settings import on_job_start, on_job_end
+        from app.worker.settings import on_job_end, on_job_start
 
         before_count = arq_jobs_total._value.get()
 

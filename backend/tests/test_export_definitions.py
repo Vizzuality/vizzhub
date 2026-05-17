@@ -11,8 +11,14 @@ class TestExportDefinitions:
     def test_all_eight_dimensions_defined(self):
         dims = [d["key"] for d in DIMENSION_DEFINITIONS]
         expected = [
-            "p_time", "p_cost", "p_quality", "p_value",
-            "p_satisfaction", "p_flow", "p_engineering", "p_risk",
+            "p_time",
+            "p_cost",
+            "p_quality",
+            "p_value",
+            "p_satisfaction",
+            "p_flow",
+            "p_engineering",
+            "p_risk",
         ]
         assert dims == expected
 

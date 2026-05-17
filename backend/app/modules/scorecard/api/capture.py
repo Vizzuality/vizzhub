@@ -21,8 +21,13 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardCapturer = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_CAPTURE))]
-from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB, MetricsWithScores, SnapshotType
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import (
+    MetricsCreate,
+    MetricsDB,
+    MetricsWithScores,
+    SnapshotType,
+)
 from app.modules.scorecard.services.collectors.github import GitHubCollector
 from app.modules.scorecard.services.collectors.jira import JiraCollector
 from app.modules.scorecard.services.collectors.utils import execute_collector
@@ -44,9 +49,7 @@ class CapturePeriodRequest(BaseModel):
 
     year: int | None = Field(default=None, ge=2020, le=2100)
     month: int | None = Field(default=None, ge=1, le=12)
-    force: bool = Field(
-        default=False, description="Overwrite existing periods if they exist"
-    )
+    force: bool = Field(default=False, description="Overwrite existing periods if they exist")
 
 
 class CapturePeriodResponse(BaseModel):
@@ -138,9 +141,7 @@ def _build_response(
     """Build MetricsWithScores response from DB metrics."""
     score_service = ScoreComputationService(config)
     metrics = MetricsCreate.from_db(db_metrics)
-    indicators, scores = score_service.compute(
-        metrics, sev1_incident=db_metrics.sev1_incident
-    )
+    indicators, scores = score_service.compute(metrics, sev1_incident=db_metrics.sev1_incident)
 
     return MetricsWithScores(
         id=str(db_metrics.id),

@@ -71,9 +71,7 @@ class AlertSilenceCreate(BaseModel):
     """Create a new silence."""
 
     project_id: str = Field(..., description="Project UUID")
-    alert_definition_id: int | None = Field(
-        None, description="Null = silence all alerts"
-    )
+    alert_definition_id: int | None = Field(None, description="Null = silence all alerts")
     silenced_until: datetime | None = Field(None, description="Null = indefinite")
     reason: str | None = None
 

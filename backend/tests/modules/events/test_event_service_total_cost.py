@@ -30,16 +30,22 @@ async def event_with_attendees(
     )
     db_session.add(event)
     await db_session.flush()
-    db_session.add_all([
-        EventAttendeeDB(
-            event_id=event.id, user_id=debug_user.id,
-            role="Attendee", cost=Decimal("100.00"),
-        ),
-        EventAttendeeDB(
-            event_id=event.id, user_id=test_user.id,
-            role="Speaker", cost=None,
-        ),
-    ])
+    db_session.add_all(
+        [
+            EventAttendeeDB(
+                event_id=event.id,
+                user_id=debug_user.id,
+                role="Attendee",
+                cost=Decimal("100.00"),
+            ),
+            EventAttendeeDB(
+                event_id=event.id,
+                user_id=test_user.id,
+                role="Speaker",
+                cost=None,
+            ),
+        ]
+    )
     await db_session.commit()
     return event
 
@@ -64,23 +70,29 @@ async def test_list_events_includes_total_cost(
 
 
 @pytest.mark.asyncio
-async def test_list_events_sort_by_total_cost_desc(
-    db_session: AsyncSession, debug_user: UserDB
-):
+async def test_list_events_sort_by_total_cost_desc(db_session: AsyncSession, debug_user: UserDB):
     cheap = EventDB(
-        name="Cheap", event_type="Conference", theme_primary="Climate",
-        region_focus="Global", start_date=date(2026, 2, 1),
+        name="Cheap",
+        event_type="Conference",
+        theme_primary="Climate",
+        region_focus="Global",
+        start_date=date(2026, 2, 1),
         other_costs=Decimal("10.00"),
     )
     pricey = EventDB(
-        name="Pricey", event_type="Conference", theme_primary="Climate",
-        region_focus="Global", start_date=date(2026, 2, 2),
+        name="Pricey",
+        event_type="Conference",
+        theme_primary="Climate",
+        region_focus="Global",
+        start_date=date(2026, 2, 2),
         other_costs=Decimal("1000.00"),
     )
     db_session.add_all([cheap, pricey])
     await db_session.commit()
 
     items, _ = await list_events(
-        db_session, sort_by="total_cost", sort_dir="desc",
+        db_session,
+        sort_by="total_cost",
+        sort_dir="desc",
     )
     assert [i["name"] for i in items] == ["Pricey", "Cheap"]

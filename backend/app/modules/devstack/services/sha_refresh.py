@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 import yaml
@@ -18,7 +18,6 @@ from app.modules.devstack.services.github_sha import (
 )
 from app.modules.devstack.services.npm_security import fetch_npm_advisories
 from app.modules.devstack.services.npm_version import (
-    fetch_npm_latest_version,  # kept for backward compat
     fetch_npm_package_info,
 )
 from app.modules.notifications.public import ScheduledJobRunDB, SlackService
@@ -53,9 +52,7 @@ def _parse_frontmatter(content: str, *, name: str) -> dict:
     return parsed
 
 
-async def _sync_github_frontmatter(
-    entry: DevstackEntryDB, github_token: str | None
-) -> None:
+async def _sync_github_frontmatter(entry: DevstackEntryDB, github_token: str | None) -> None:
     """Pull `description` (and `name`) from the skill/command/agent frontmatter."""
     content = await fetch_github_content(entry.url, github_token)
     if content is None:
@@ -70,14 +67,12 @@ async def _sync_github_frontmatter(
         entry.name = new_name
 
 
-async def _refresh_github_entry(
-    entry: DevstackEntryDB, github_token: str | None
-) -> str:
+async def _refresh_github_entry(entry: DevstackEntryDB, github_token: str | None) -> str:
     """Return 'updated' | 'unchanged' | 'failed' for one github entry."""
     new_sha = await fetch_github_sha(entry.url, github_token)
     if new_sha is None:
         return "failed"
-    entry.last_fetch_ok_at = datetime.now(timezone.utc)
+    entry.last_fetch_ok_at = datetime.now(UTC)
     if new_sha != entry.github_sha:
         entry.github_sha = new_sha
         await _sync_github_frontmatter(entry, github_token)
@@ -93,10 +88,7 @@ def _apply_npm_deprecation(entry: DevstackEntryDB, info: dict) -> bool:
         changed = True
     new_message = info["deprecation_message"]
     new_deprecated = new_message is not None
-    if (
-        new_deprecated != entry.deprecated
-        or new_message != entry.deprecation_message
-    ):
+    if new_deprecated != entry.deprecated or new_message != entry.deprecation_message:
         entry.deprecated = new_deprecated
         entry.deprecation_message = new_message
         changed = True
@@ -108,35 +100,29 @@ async def _refresh_npm_advisories(
 ) -> bool:
     """Fetch + persist advisories for one npm entry. Return True if payload changed."""
     version_to_check = entry.package_version or info["version"]
-    advisories = await fetch_npm_advisories(
-        entry.package, version_to_check, github_token
-    )
+    advisories = await fetch_npm_advisories(entry.package, version_to_check, github_token)
     if advisories is None:
         return False
-    entry.vulnerabilities_checked_at = datetime.now(timezone.utc)
+    entry.vulnerabilities_checked_at = datetime.now(UTC)
     if advisories != entry.vulnerabilities:
         entry.vulnerabilities = advisories
         return True
     return False
 
 
-async def _refresh_npm_entry(
-    entry: DevstackEntryDB, github_token: str | None
-) -> str:
+async def _refresh_npm_entry(entry: DevstackEntryDB, github_token: str | None) -> str:
     """Return 'updated' | 'unchanged' | 'failed' for one npm entry."""
     info = await fetch_npm_package_info(entry.package)
     if info is None:
         return "failed"
-    entry.last_fetch_ok_at = datetime.now(timezone.utc)
+    entry.last_fetch_ok_at = datetime.now(UTC)
     changed = _apply_npm_deprecation(entry, info)
     if await _refresh_npm_advisories(entry, info, github_token):
         changed = True
     return "updated" if changed else "unchanged"
 
 
-async def _refresh_one_entry(
-    entry: DevstackEntryDB, github_token: str | None
-) -> str | None:
+async def _refresh_one_entry(entry: DevstackEntryDB, github_token: str | None) -> str | None:
     """Refresh a single entry. Returns its status, or None when skipped."""
     if entry.install_method == "github" and entry.url:
         return await _refresh_github_entry(entry, github_token)
@@ -166,9 +152,7 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | b
     `required_failures` is the list of names of failed entries flagged
     `required: true` — surfaced separately so callers can escalate (audit #13).
     """
-    result = await db.execute(
-        select(DevstackEntryDB).where(DevstackEntryDB.active.is_(True))
-    )
+    result = await db.execute(select(DevstackEntryDB).where(DevstackEntryDB.active.is_(True)))
     entries = result.scalars().all()
     github_token = await IntegrationTokenService.get_token(db, "github")
 
@@ -190,7 +174,7 @@ async def refresh_all_sources(db: AsyncSession) -> dict[str, int | list[str] | b
     # succeeded or failed. A flaky GitHub outage that succeeded today but
     # was stale yesterday-and-before shows up here, even though
     # `required_failures` for this run is empty.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     required_stale = sorted(e.name for e in entries if _is_entry_stale(e, now))
 
     # `last_fetch_ok_at` advances on every non-failed entry, so commit even
@@ -246,9 +230,7 @@ async def _alert_required_failures(db: AsyncSession, names: list[str]) -> None:
             "Investigate GitHub access / npm registry availability."
         )
         await SlackService.send_message(bot_token, channel_id, message)
-        logger.info(
-            "devstack_required_failure_alert_sent", required_failures=names
-        )
+        logger.info("devstack_required_failure_alert_sent", required_failures=names)
     except Exception:
         logger.exception(
             "devstack_required_failure_alert_send_failed",
@@ -266,7 +248,7 @@ async def refresh_all_sources_tracked(db: AsyncSession) -> dict[str, int | list[
     try:
         result = await refresh_all_sources(db)
         job_run.status = "completed"
-        job_run.completed_at = datetime.now(timezone.utc)
+        job_run.completed_at = datetime.now(UTC)
         job_run.projects_checked = result["total"]
         job_run.alerts_sent = result["updated"]
         await db.commit()
@@ -278,7 +260,7 @@ async def refresh_all_sources_tracked(db: AsyncSession) -> dict[str, int | list[
         return result
     except Exception as e:
         job_run.status = "error"
-        job_run.completed_at = datetime.now(timezone.utc)
+        job_run.completed_at = datetime.now(UTC)
         job_run.error_message = str(e)
         await db.commit()
         raise

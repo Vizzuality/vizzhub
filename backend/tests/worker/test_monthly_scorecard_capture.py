@@ -55,9 +55,7 @@ async def test_job_failure_marks_run_as_error_not_running(
 
 
 @pytest.mark.asyncio
-async def test_job_success_marks_run_as_completed(
-    db_session: AsyncSession, scoring_config
-) -> None:
+async def test_job_success_marks_run_as_completed(db_session: AsyncSession, scoring_config) -> None:
     """Happy path: zero projects → run finalises as 'completed' with counters at 0."""
     ctx = {"db": db_session, "score_cache": None}
 

@@ -1,7 +1,7 @@
 """OAuth 2.0 service for Jira and GitHub authentication."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -41,9 +41,7 @@ class OAuthService:
 
     JIRA_AUTH_URL = "https://auth.atlassian.com/authorize"
     JIRA_TOKEN_URL = "https://auth.atlassian.com/oauth/token"
-    JIRA_ACCESSIBLE_RESOURCES_URL = (
-        "https://api.atlassian.com/oauth/token/accessible-resources"
-    )
+    JIRA_ACCESSIBLE_RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
     JIRA_REQUIRED_SCOPES = (
         "read:jira-work read:jira-user "
         "read:issue-details:jira read:user:jira read:project:jira "
@@ -109,12 +107,10 @@ class OAuthService:
         expires_in = token_data.get("expires_in")
         expires_at = None
         if expires_in:
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
 
         # Delete existing Jira token (single instance)
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira"))
         existing = result.scalar_one_or_none()
         if existing:
             await db.delete(existing)
@@ -153,16 +149,14 @@ class OAuthService:
         expiry inside the critical section so only one Jira call fires.
         """
         async with _refresh_lock("jira"):
-            result = await db.execute(
-                select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-            )
+            result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira"))
             token = result.scalar_one_or_none()
 
             if not token or not token.refresh_token:
                 return None
 
             if token.expires_at:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 if token.expires_at - TOKEN_EXPIRY_BUFFER > now:
                     logger.info("jira_token_refresh_skipped_already_fresh")
                     return token
@@ -190,7 +184,9 @@ class OAuthService:
             db_url = get_settings().database_url
             write_engine = create_async_engine(db_url)
             write_maker = async_sessionmaker(
-                write_engine, class_=AsyncSession, expire_on_commit=False,
+                write_engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
             )
             try:
                 async with write_maker() as write_session:
@@ -201,17 +197,13 @@ class OAuthService:
 
                     expires_in = token_data.get("expires_in")
                     if expires_in:
-                        writable_token.expires_at = datetime.now(
-                            timezone.utc
-                        ) + timedelta(seconds=expires_in)
-
-                    writable_token.access_token = encrypt_token(
-                        token_data["access_token"]
-                    )
-                    if "refresh_token" in token_data:
-                        writable_token.refresh_token = encrypt_token(
-                            token_data["refresh_token"]
+                        writable_token.expires_at = datetime.now(UTC) + timedelta(
+                            seconds=expires_in
                         )
+
+                    writable_token.access_token = encrypt_token(token_data["access_token"])
+                    if "refresh_token" in token_data:
+                        writable_token.refresh_token = encrypt_token(token_data["refresh_token"])
                     writable_token.token_type = token_data.get("token_type", "Bearer")
                     writable_token.scope = token_data.get("scope")
 
@@ -226,16 +218,14 @@ class OAuthService:
     @staticmethod
     async def get_valid_jira_token(db: AsyncSession) -> str | None:
         """Get a valid Jira access token, refreshing if necessary."""
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira"))
         token = result.scalar_one_or_none()
 
         if not token:
             return None
 
         if token.expires_at:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if token.expires_at - TOKEN_EXPIRY_BUFFER <= now:
                 refreshed_token = await OAuthService.refresh_jira_token(db)
                 if refreshed_token:
@@ -247,9 +237,7 @@ class OAuthService:
     @staticmethod
     async def get_jira_site_info(db: AsyncSession) -> dict[str, Any] | None:
         """Get Jira site information from stored OAuth token."""
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira")
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == "jira"))
         token = result.scalar_one_or_none()
 
         if not token:

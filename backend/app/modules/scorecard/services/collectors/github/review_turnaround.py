@@ -38,10 +38,11 @@ Industry Benchmarks:
 """
 
 import asyncio
-import structlog
 import statistics
 from datetime import date
 from typing import TYPE_CHECKING
+
+import structlog
 
 from app.modules.scorecard.services.collectors.github.utils import (
     MAX_CONCURRENT_REQUESTS,
@@ -76,7 +77,9 @@ async def collect_review_turnaround(
     """
     owner, repo = client.validate_repo_slug(repo_slug)
 
-    merged_prs = await get_merged_prs(client, owner, repo, period_start=period_start, period_end=period_end)
+    merged_prs = await get_merged_prs(
+        client, owner, repo, period_start=period_start, period_end=period_end
+    )
 
     if not merged_prs:
         return {"review_turnaround_hours": None}
@@ -152,5 +155,11 @@ async def _get_pr_turnaround_hours(
         return hours
 
     except Exception as e:
-        logger.warning("review_turnaround_fetch_failed", pr_number=pr_number, owner=owner, repo=repo, error=str(e))
+        logger.warning(
+            "review_turnaround_fetch_failed",
+            pr_number=pr_number,
+            owner=owner,
+            repo=repo,
+            error=str(e),
+        )
         return None

@@ -8,11 +8,13 @@ from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.core.api.deps import CurrentUser, DBSession, OptionalScoreCache
+from app.core.api.deps import DBSession, OptionalScoreCache
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
+from fastapi import APIRouter, HTTPException
+
 from app.modules.tracker.api.helpers import refresh_scorecard_evm
 from app.modules.tracker.models.progress_report import ProgressReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
@@ -24,13 +26,13 @@ from app.modules.tracker.schemas.progress_report import (
     ProgressSummary,
 )
 
-from fastapi import APIRouter, HTTPException
-
 router = APIRouter()
 
 
 async def _previous_percentage(
-    db, project_id: UUID, current_period_id: UUID,
+    db,
+    project_id: UUID,
+    current_period_id: UUID,
 ) -> Decimal | None:
     """Get the percentage from the most recent prior period for this project."""
     current_period = await db.get(ReportingPeriodDB, current_period_id)
@@ -52,7 +54,8 @@ async def _previous_percentage(
 
 
 def _to_response(
-    pr: ProgressReportDB, period_date: str | None = None,
+    pr: ProgressReportDB,
+    period_date: str | None = None,
 ) -> ProgressReportResponse:
     return ProgressReportResponse(
         id=pr.id,

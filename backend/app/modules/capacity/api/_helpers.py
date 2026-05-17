@@ -119,7 +119,9 @@ def _process_rows(rows, group_by: str) -> dict[str, dict]:
 
 
 async def _inject_empty_groups(
-    db: AsyncSession, groups_map: dict[str, dict], group_by: str,
+    db: AsyncSession,
+    groups_map: dict[str, dict],
+    group_by: str,
 ) -> None:
     """Add empty groups for all live projects / active reportable users."""
     if group_by == "project":
@@ -152,16 +154,14 @@ async def _inject_empty_groups(
 
 
 async def _inject_pinned_rows(
-    db: AsyncSession, groups_map: dict[str, dict],
+    db: AsyncSession,
+    groups_map: dict[str, dict],
 ) -> None:
     """Ensure every user group has pinned rows for absence + Operations projects."""
     pinned_stmt = (
         select(ProjectDB.id, ProjectDB.name, ProjectDB.is_absence)
         .where(ProjectDB.status != ProjectStatus.FINISHED)
-        .where(
-            (ProjectDB.is_absence.is_(True))
-            | (ProjectDB.name == "Operations")
-        )
+        .where((ProjectDB.is_absence.is_(True)) | (ProjectDB.name == "Operations"))
     )
     pinned_projects = (await db.execute(pinned_stmt)).all()
 
@@ -170,21 +170,25 @@ async def _inject_pinned_rows(
         for pp in pinned_projects:
             pp_id = str(pp.id)
             if pp_id not in existing_project_ids:
-                group["rows"].append({
-                    "user_id": user_key,
-                    "user_name": group["name"],
-                    "functional_area": "",
-                    "project_id": pp_id,
-                    "project_name": pp.name,
-                    "is_absence": pp.is_absence,
-                    "is_other": not pp.is_absence,
-                    "cells": {},
-                    "comments": {},
-                })
+                group["rows"].append(
+                    {
+                        "user_id": user_key,
+                        "user_name": group["name"],
+                        "functional_area": "",
+                        "project_id": pp_id,
+                        "project_name": pp.name,
+                        "is_absence": pp.is_absence,
+                        "is_other": not pp.is_absence,
+                        "cells": {},
+                        "comments": {},
+                    }
+                )
 
 
 async def _get_overallocation_warnings(
-    db: AsyncSession, start_date: date, end_date: date,
+    db: AsyncSession,
+    start_date: date,
+    end_date: date,
 ) -> list[str]:
     """Return user IDs with weeks where allocations exceed 100%."""
     stmt = (

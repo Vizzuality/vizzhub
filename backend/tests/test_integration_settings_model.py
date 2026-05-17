@@ -34,9 +34,7 @@ class TestIntegrationSettingModel:
         assert setting.updated_at is not None
 
     @pytest.mark.asyncio
-    async def test_unique_constraint_provider_key(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_unique_constraint_provider_key(self, db_session: AsyncSession) -> None:
         """Test unique constraint on (provider, key) raises IntegrityError."""
         setting1 = IntegrationSettingDB(
             provider="slack",

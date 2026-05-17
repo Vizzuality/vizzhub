@@ -7,10 +7,10 @@ Runs daily via ARQ cron; exits early on non-target days.
 """
 
 import calendar
-import structlog
 from datetime import date
 from typing import Any
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.notifications.services.slack_service import SlackService
@@ -56,13 +56,9 @@ async def send_monthly_report_reminder(ctx: dict) -> dict[str, Any]:
 
         channel_id = await get_slack_tracker_reminder_channel(db)
         if not channel_id:
-            return await complete_with_error(
-                db, job_run, "Tracker reminder channel not configured"
-            )
+            return await complete_with_error(db, job_run, "Tracker reminder channel not configured")
 
-        response = await SlackService.send_message(
-            bot_token, channel_id, REPORT_REMINDER_MESSAGE
-        )
+        response = await SlackService.send_message(bot_token, channel_id, REPORT_REMINDER_MESSAGE)
 
         ok = response.get("ok")
         alerts_sent = 1 if ok else 0

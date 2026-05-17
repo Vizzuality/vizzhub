@@ -1,6 +1,6 @@
 """Tests for ISO snapshot cron job and failure alerts."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,9 +8,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import encrypt_token
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.worker.collect_iso_snapshot import (
@@ -60,9 +60,7 @@ class TestCollectIsoSnapshot:
         assert "job_run_id" in result
 
     @pytest.mark.asyncio
-    async def test_successful_capture_creates_job_run(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_successful_capture_creates_job_run(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("ya29.test"),
@@ -88,9 +86,7 @@ class TestCollectIsoSnapshot:
             await collect_iso_snapshot({"db": db_session})
 
         db_result = await db_session.execute(
-            select(ScheduledJobRunDB).where(
-                ScheduledJobRunDB.job_name == "collect_iso_snapshot"
-            )
+            select(ScheduledJobRunDB).where(ScheduledJobRunDB.job_name == "collect_iso_snapshot")
         )
         job_run = db_result.scalar_one()
         assert job_run.status == "completed"
@@ -107,9 +103,7 @@ class TestCollectIsoSnapshot:
         assert result["errors"] == []
 
     @pytest.mark.asyncio
-    async def test_gw_failure_creates_error_and_sends_alert(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_gw_failure_creates_error_and_sends_alert(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("ya29.test"),
@@ -139,9 +133,7 @@ class TestCollectIsoSnapshot:
         assert "API rate limit exceeded" in alert_msg
 
     @pytest.mark.asyncio
-    async def test_gw_failure_does_not_block_github(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_gw_failure_does_not_block_github(self, db_session: AsyncSession) -> None:
         gw_token = OAuthTokenDB(
             provider="google_workspace",
             access_token=encrypt_token("ya29.test"),
@@ -163,7 +155,7 @@ class TestCollectIsoSnapshot:
         async def fake_gh_capture(*_args, **_kwargs):
             snap = AccessSnapshotDB(
                 provider="github",
-                captured_at=datetime(2026, 5, 1, 6, tzinfo=timezone.utc),
+                captured_at=datetime(2026, 5, 1, 6, tzinfo=UTC),
                 data_version="1",
                 source_metadata={"org": "acme-corp"},
                 data={"members": [], "teams": [], "outside_collaborators": []},
@@ -227,15 +219,11 @@ class TestSendIsoFailureAlert:
         assert "OAuth token expired" in call_args[0][2]
 
     @pytest.mark.asyncio
-    async def test_no_slack_config_does_not_raise(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_no_slack_config_does_not_raise(self, db_session: AsyncSession) -> None:
         await send_iso_failure_alert(db_session, "Some error")
 
     @pytest.mark.asyncio
-    async def test_slack_send_failure_does_not_raise(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_slack_send_failure_does_not_raise(self, db_session: AsyncSession) -> None:
         token = OAuthTokenDB(
             provider="slack",
             access_token=encrypt_token("xoxb-test-token"),
@@ -263,9 +251,7 @@ class TestWorkerRegistration:
     def test_task_registered_in_worker_functions(self) -> None:
         from app.worker.settings import WorkerSettings
 
-        function_names = [
-            f.__name__ if callable(f) else str(f) for f in WorkerSettings.functions
-        ]
+        function_names = [f.__name__ if callable(f) else str(f) for f in WorkerSettings.functions]
         assert "collect_iso_snapshot" in function_names
 
     def test_cron_job_registered(self) -> None:
@@ -293,9 +279,7 @@ class TestManualTrigger:
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
-            response = await client.post(
-                "/api/admin/jobs/scheduled/collect_iso_snapshot/run"
-            )
+            response = await client.post("/api/admin/jobs/scheduled/collect_iso_snapshot/run")
 
         assert response.status_code == 200
         data = response.json()

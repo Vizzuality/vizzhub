@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.role import RoleDB
 from app.core.models.user import UserDB
-from tests.conftest import seed_roles, assign_roles
+from tests.conftest import assign_roles, seed_roles
 
 
 @pytest_asyncio.fixture
@@ -46,7 +46,6 @@ async def basic_user(db_session: AsyncSession, roles) -> UserDB:
 
 
 class TestListRoles:
-
     @pytest.mark.asyncio
     async def test_returns_all_seeded_roles(self, client: AsyncClient, admin_user, roles):
         resp = await client.get("/api/admin/users/roles")
@@ -66,7 +65,6 @@ class TestListRoles:
 
 
 class TestAssignRoles:
-
     @pytest.mark.asyncio
     async def test_assign_manager_role(self, client: AsyncClient, admin_user, basic_user, roles):
         resp = await client.put(

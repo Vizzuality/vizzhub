@@ -1,9 +1,10 @@
 from decimal import Decimal, InvalidOperation
 
-from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
-from sqlalchemy import String, Text, Index
+from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
+from sqlalchemy import Index, String, Text
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
 
 
@@ -114,12 +115,12 @@ class ConfigParameterUpdate(BaseModel):
     value: Decimal
     notes: str | None = None
 
-    @field_validator('value', mode='before')
+    @field_validator("value", mode="before")
     @classmethod
     def validate_value(cls, v: str | int | float | Decimal, info: ValidationInfo) -> Decimal:
         """Validate and convert value to Decimal with user-friendly error messages."""
         # Get parameter name from the data being validated
-        name = info.data.get('name', 'unknown') if info.data else 'unknown'
+        name = info.data.get("name", "unknown") if info.data else "unknown"
 
         # Handle string values
         if isinstance(v, str):

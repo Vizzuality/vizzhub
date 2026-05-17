@@ -29,9 +29,7 @@ class EngineeringCalculator(BaseCalculator):
             WeightedComponent(
                 name="test_maturity",
                 weight=self._get_weight("test_maturity"),
-                value=self._normalize_to_target(
-                    indicators.test_maturity, test_maturity_target
-                ),
+                value=self._normalize_to_target(indicators.test_maturity, test_maturity_target),
             ),
             WeightedComponent(
                 name="pr_review",
@@ -41,9 +39,7 @@ class EngineeringCalculator(BaseCalculator):
             WeightedComponent(
                 name="architecture",
                 weight=self._get_weight("architecture"),
-                value=self._normalize_to_target(
-                    indicators.arch_checklist, architecture_target
-                ),
+                value=self._normalize_to_target(indicators.arch_checklist, architecture_target),
             ),
         ]
 

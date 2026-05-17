@@ -48,10 +48,7 @@ class TestFetchAlerts:
         alerts = await DependabotCollector.fetch_alerts("owner/repo", "test-token")
 
         assert len(alerts) == 2
-        assert all(
-            a["security_vulnerability"]["severity"] in ["critical", "high"]
-            for a in alerts
-        )
+        assert all(a["security_vulnerability"]["severity"] in ["critical", "high"] for a in alerts)
 
     @pytest.mark.asyncio
     @respx.mock

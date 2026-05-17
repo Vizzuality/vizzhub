@@ -27,19 +27,27 @@ async def user_detail_data(db_session: AsyncSession) -> dict:
     billable1 = ProjectDB(name="Client A", status="live", is_billable=True)
     billable2 = ProjectDB(name="Client B", status="live", is_billable=True)
     internal = ProjectDB(name="Internal", status="live", is_billable=False)
-    absence = ProjectDB(name="Vacation / Absence", status="live", is_billable=False, is_absence=True)
+    absence = ProjectDB(
+        name="Vacation / Absence", status="live", is_billable=False, is_absence=True
+    )
     db_session.add_all([billable1, billable2, internal, absence])
     await db_session.flush()
 
     user = UserDB(
-        email="alice@test.com", first_name="Alice", last_name="Smith",
-        functional_area_id=fa_fe.id, active=True, requires_project_reporting=True,
+        email="alice@test.com",
+        first_name="Alice",
+        last_name="Smith",
+        functional_area_id=fa_fe.id,
+        active=True,
+        requires_project_reporting=True,
     )
     db_session.add(user)
     await db_session.flush()
 
     period = ReportingPeriodDB(
-        date=dt.date(2026, 1, 1), base_rate=Decimal("175"), status="finished",
+        date=dt.date(2026, 1, 1),
+        base_rate=Decimal("175"),
+        status="finished",
     )
     db_session.add(period)
     await db_session.flush()
@@ -48,32 +56,47 @@ async def user_detail_data(db_session: AsyncSession) -> dict:
     report = ReportDB(user_id=user.id, reporting_period_id=period.id)
     db_session.add(report)
     await db_session.flush()
-    db_session.add_all([
-        ReportPartDB(report_id=report.id, project_id=billable1.id, percentage=Decimal("0.4000")),
-        ReportPartDB(report_id=report.id, project_id=billable2.id, percentage=Decimal("0.3000")),
-        ReportPartDB(report_id=report.id, project_id=internal.id, percentage=Decimal("0.1000")),
-        ReportPartDB(report_id=report.id, project_id=absence.id, percentage=Decimal("0.2000")),
-    ])
+    db_session.add_all(
+        [
+            ReportPartDB(
+                report_id=report.id, project_id=billable1.id, percentage=Decimal("0.4000")
+            ),
+            ReportPartDB(
+                report_id=report.id, project_id=billable2.id, percentage=Decimal("0.3000")
+            ),
+            ReportPartDB(report_id=report.id, project_id=internal.id, percentage=Decimal("0.1000")),
+            ReportPartDB(report_id=report.id, project_id=absence.id, percentage=Decimal("0.2000")),
+        ]
+    )
 
     await db_session.commit()
 
     return {
-        "user": user, "billable1": billable1, "billable2": billable2,
-        "internal": internal, "absence": absence, "period": period, "fa_fe": fa_fe,
+        "user": user,
+        "billable1": billable1,
+        "billable2": billable2,
+        "internal": internal,
+        "absence": absence,
+        "period": period,
+        "fa_fe": fa_fe,
     }
 
 
 class TestGetCapacityUserDetail:
     @pytest.mark.asyncio
     async def test_returns_per_project_data(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         user = user_detail_data["user"]
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(user.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(user.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         assert len(result) == 1
         period = result[0]
@@ -88,14 +111,18 @@ class TestGetCapacityUserDetail:
 
     @pytest.mark.asyncio
     async def test_internal_projects_rolled_into_other(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         user = user_detail_data["user"]
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(user.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(user.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         projects = {p["name"]: p for p in result[0]["projects"]}
         # Internal project is folded into the "Other" pseudo-row, not listed individually
@@ -106,14 +133,18 @@ class TestGetCapacityUserDetail:
 
     @pytest.mark.asyncio
     async def test_projects_sorted_alphabetically(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         user = user_detail_data["user"]
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(user.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(user.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         # Billable rows sorted alphabetically; "Other" pseudo-row pinned at the end
         billable_names = [p["name"] for p in result[0]["projects"] if p["type"] == "billable"]
@@ -121,27 +152,35 @@ class TestGetCapacityUserDetail:
 
     @pytest.mark.asyncio
     async def test_unknown_user_returns_empty(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         # A random UUID does not pass the reportable-user gate → empty list
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(uuid4()),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(uuid4()),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         assert result == []
 
     @pytest.mark.asyncio
     async def test_returns_absence_and_other_pct_per_period(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         user = user_detail_data["user"]
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(user.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(user.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         period = result[0]
         assert period["absence_pct"] == pytest.approx(0.2, abs=0.01)
@@ -150,12 +189,14 @@ class TestGetCapacityUserDetail:
 
     @pytest.mark.asyncio
     async def test_user_detail_dedups_same_project_multi_fa(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         """Audit #34: a user reporting the same project under multiple FAs
         collapses to one row with the summed percentage (not two rows)."""
-        from app.core.services.capacity_insights import get_capacity_user_detail
         from app.core.models.functional_area import FunctionalAreaDB
+        from app.core.services.capacity_insights import get_capacity_user_detail
 
         fa_be = FunctionalAreaDB(name="Backend Developer")
         db_session.add(fa_be)
@@ -163,6 +204,7 @@ class TestGetCapacityUserDetail:
 
         # Replace billable1 single-FA row with two FA-split rows summing to 0.7
         from sqlalchemy import delete as sa_delete
+
         await db_session.execute(
             sa_delete(ReportPartDB).where(
                 ReportPartDB.project_id == user_detail_data["billable1"].id,
@@ -172,29 +214,38 @@ class TestGetCapacityUserDetail:
 
         # Re-fetch the existing report
         from sqlalchemy import select as sa_select
-        report = (await db_session.execute(
-            sa_select(ReportDB).where(
-                ReportDB.user_id == user_detail_data["user"].id,
-                ReportDB.reporting_period_id == user_detail_data["period"].id,
+
+        report = (
+            await db_session.execute(
+                sa_select(ReportDB).where(
+                    ReportDB.user_id == user_detail_data["user"].id,
+                    ReportDB.reporting_period_id == user_detail_data["period"].id,
+                )
             )
-        )).scalar_one()
-        db_session.add_all([
-            ReportPartDB(
-                report_id=report.id, project_id=user_detail_data["billable1"].id,
-                functional_area_id=user_detail_data["fa_fe"].id,
-                percentage=Decimal("0.4000"),
-            ),
-            ReportPartDB(
-                report_id=report.id, project_id=user_detail_data["billable1"].id,
-                functional_area_id=fa_be.id,
-                percentage=Decimal("0.3000"),
-            ),
-        ])
+        ).scalar_one()
+        db_session.add_all(
+            [
+                ReportPartDB(
+                    report_id=report.id,
+                    project_id=user_detail_data["billable1"].id,
+                    functional_area_id=user_detail_data["fa_fe"].id,
+                    percentage=Decimal("0.4000"),
+                ),
+                ReportPartDB(
+                    report_id=report.id,
+                    project_id=user_detail_data["billable1"].id,
+                    functional_area_id=fa_be.id,
+                    percentage=Decimal("0.3000"),
+                ),
+            ]
+        )
         await db_session.commit()
 
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(user_detail_data["user"].id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(user_detail_data["user"].id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         # One consolidated row for Client A, summed
         client_a_rows = [p for p in result[0]["projects"] if p["name"] == "Client A"]
@@ -203,64 +254,84 @@ class TestGetCapacityUserDetail:
 
     @pytest.mark.asyncio
     async def test_user_detail_404s_for_inactive_user(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         """Audit #35: inactive users do not pass the reportable filter
         and the API returns an empty list (effectively 'not found')."""
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         inactive = UserDB(
-            email="inactive@test.com", first_name="In", last_name="Active",
+            email="inactive@test.com",
+            first_name="In",
+            last_name="Active",
             functional_area_id=user_detail_data["fa_fe"].id,
-            active=False, requires_project_reporting=True,
+            active=False,
+            requires_project_reporting=True,
         )
         db_session.add(inactive)
         await db_session.commit()
 
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(inactive.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(inactive.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         assert result == []
 
     @pytest.mark.asyncio
     async def test_user_detail_404s_for_exempt_user(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         """Audit #35: users with requires_project_reporting=False do not
         pass the reportable filter."""
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         exempt = UserDB(
-            email="exempt2@test.com", first_name="Exempt", last_name="User",
+            email="exempt2@test.com",
+            first_name="Exempt",
+            last_name="User",
             functional_area_id=user_detail_data["fa_fe"].id,
-            active=True, requires_project_reporting=False,
+            active=True,
+            requires_project_reporting=False,
         )
         db_session.add(exempt)
         await db_session.commit()
 
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(exempt.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 1, 1),
+            db=db_session,
+            user_id=str(exempt.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 1, 1),
         )
         assert result == []
 
     @pytest.mark.asyncio
     async def test_empty_period_returns_no_projects(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_capacity_user_detail
 
         period_feb = ReportingPeriodDB(
-            date=dt.date(2026, 2, 1), base_rate=Decimal("175"), status="finished",
+            date=dt.date(2026, 2, 1),
+            base_rate=Decimal("175"),
+            status="finished",
         )
         db_session.add(period_feb)
         await db_session.commit()
 
         user = user_detail_data["user"]
         result = await get_capacity_user_detail(
-            db=db_session, user_id=str(user.id),
-            start_date=dt.date(2026, 1, 1), end_date=dt.date(2026, 2, 1),
+            db=db_session,
+            user_id=str(user.id),
+            start_date=dt.date(2026, 1, 1),
+            end_date=dt.date(2026, 2, 1),
         )
         assert len(result) == 2
         # Jan: 2 billable + 1 "Other" pseudo-row = 3 entries
@@ -272,7 +343,9 @@ class TestGetCapacityUserDetail:
 class TestGetReportableUsers:
     @pytest.mark.asyncio
     async def test_returns_active_reporting_users(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_reportable_users
 
@@ -284,14 +357,19 @@ class TestGetReportableUsers:
 
     @pytest.mark.asyncio
     async def test_excludes_inactive_users(
-        self, db_session: AsyncSession, user_detail_data: dict,
+        self,
+        db_session: AsyncSession,
+        user_detail_data: dict,
     ):
         from app.core.services.capacity_insights import get_reportable_users
 
         inactive = UserDB(
-            email="gone@test.com", first_name="Gone", last_name="User",
+            email="gone@test.com",
+            first_name="Gone",
+            last_name="User",
             functional_area_id=user_detail_data["fa_fe"].id,
-            active=False, requires_project_reporting=True,
+            active=False,
+            requires_project_reporting=True,
         )
         db_session.add(inactive)
         await db_session.commit()
@@ -304,7 +382,9 @@ class TestGetReportableUsers:
 class TestCapacityUserDetailEndpoint:
     @pytest.mark.asyncio
     async def test_returns_200(
-        self, client: AsyncClient, user_detail_data: dict,
+        self,
+        client: AsyncClient,
+        user_detail_data: dict,
     ):
         user = user_detail_data["user"]
         resp = await client.get(
@@ -319,7 +399,9 @@ class TestCapacityUserDetailEndpoint:
 
     @pytest.mark.asyncio
     async def test_invalid_user_id_returns_422(
-        self, client: AsyncClient, user_detail_data: dict,
+        self,
+        client: AsyncClient,
+        user_detail_data: dict,
     ):
         resp = await client.get(
             "/api/capacity/insights/user-detail",
@@ -329,7 +411,9 @@ class TestCapacityUserDetailEndpoint:
 
     @pytest.mark.asyncio
     async def test_invalid_date_range_returns_422(
-        self, client: AsyncClient, user_detail_data: dict,
+        self,
+        client: AsyncClient,
+        user_detail_data: dict,
     ):
         user = user_detail_data["user"]
         resp = await client.get(
@@ -340,7 +424,9 @@ class TestCapacityUserDetailEndpoint:
 
     @pytest.mark.asyncio
     async def test_reportable_users_endpoint(
-        self, client: AsyncClient, user_detail_data: dict,
+        self,
+        client: AsyncClient,
+        user_detail_data: dict,
     ):
         resp = await client.get("/api/capacity/insights/user-detail/users")
         assert resp.status_code == 200

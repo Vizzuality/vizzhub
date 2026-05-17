@@ -1,21 +1,22 @@
 """Tests for GitHub Change Failure Rate collector."""
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
+
+import pytest
 
 from app.modules.scorecard.services.collectors.github.change_failure_rate import (
-    collect_change_failure_rate,
     _is_failure_response,
-    _parse_semver,
     _is_hotfix_by_name,
     _is_semver_patch,
+    _parse_semver,
+    collect_change_failure_rate,
 )
 
 
 def make_release(tag: str, name: str, days_ago: int) -> dict:
     """Helper to create a release dict."""
-    published = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    published = datetime.now(UTC) - timedelta(days=days_ago)
     return {
         "tag_name": tag,
         "name": name,
@@ -107,7 +108,9 @@ class TestIsFailureResponse:
     def test_detects_hotfix_keyword_as_failure(self) -> None:
         """Should detect hotfix keyword within 7 days as failure."""
         release = make_release("v1.0.0", "Release 1.0.0", 10)
-        next_release = make_release("v1.1.0", "Hotfix for bug", 7)  # Not a patch version but has hotfix
+        next_release = make_release(
+            "v1.1.0", "Hotfix for bug", 7
+        )  # Not a patch version but has hotfix
         assert _is_failure_response(release, next_release) is True
 
 
@@ -162,18 +165,23 @@ class TestCFRContract:
 
     def test_pydantic_rejects_cfr_above_100(self) -> None:
         from pydantic import ValidationError
+
         from app.modules.scorecard.models.indicators import IndicatorsCreate
+
         with pytest.raises(ValidationError):
             IndicatorsCreate(change_failure_rate=150.0)
 
     def test_pydantic_accepts_100_boundary(self) -> None:
         from app.modules.scorecard.models.indicators import IndicatorsCreate
+
         ind = IndicatorsCreate(change_failure_rate=100.0)
         assert ind.change_failure_rate == 100.0
 
     def test_pydantic_rejects_negative(self) -> None:
         from pydantic import ValidationError
+
         from app.modules.scorecard.models.indicators import IndicatorsCreate
+
         with pytest.raises(ValidationError):
             IndicatorsCreate(change_failure_rate=-1.0)
 
@@ -194,4 +202,3 @@ class TestCFRContract:
 
         assert result["change_failure_rate"] is not None
         assert result["change_failure_rate"] <= 100.0
-

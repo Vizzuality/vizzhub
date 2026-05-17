@@ -71,9 +71,7 @@ async def jira_callback(
         # Validate state parameter from session
         stored_state = request.session.get("oauth_state")
         if not stored_state or stored_state != state:
-            log_oauth_state_validation_failed(
-                client_ip, "State mismatch - possible CSRF attack"
-            )
+            log_oauth_state_validation_failed(client_ip, "State mismatch - possible CSRF attack")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid state parameter",
@@ -84,9 +82,7 @@ async def jira_callback(
 
         # Validate state token hasn't been used before
         if not await OAuthStateManager.validate_state(state, db):
-            log_oauth_state_validation_failed(
-                client_ip, "State token expired or already used"
-            )
+            log_oauth_state_validation_failed(client_ip, "State token expired or already used")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired state token",
@@ -114,11 +110,7 @@ async def jira_callback(
         log_suspicious_activity(f"OAuth callback error: {type(e).__name__}", client_ip)
 
         settings = get_settings()
-        detail = (
-            f"Authorization failed: {str(e)}"
-            if settings.debug
-            else "Authorization failed"
-        )
+        detail = f"Authorization failed: {str(e)}" if settings.debug else "Authorization failed"
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -198,7 +190,5 @@ async def disconnect_jira(
     """Disconnect Jira OAuth. Deletes the stored token. Requires admin."""
     deleted = await IntegrationTokenService.delete_token(db, "jira")
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No Jira token found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Jira token found")
     return {"status": "disconnected"}

@@ -18,6 +18,7 @@ router = APIRouter(tags=["commands"])
 
 def _get_command_model():
     from mcp_server.models.command import CommandDB
+
     return CommandDB
 
 
@@ -97,7 +98,9 @@ async def approve_command(
 
     try:
         cmd = await svc.approve(
-            command_id, UUID(user.user_id), executor=executor,
+            command_id,
+            UUID(user.user_id),
+            executor=executor,
         )
     except ValueError as exc:
         msg = str(exc)

@@ -5,8 +5,9 @@ This module contains common functions used across multiple
 collector modules (Jira, GitHub) to avoid duplication.
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from fastapi import HTTPException, status
 

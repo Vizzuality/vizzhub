@@ -1,5 +1,6 @@
 """Tests for admin moods aggregation endpoint."""
 
+import datetime as dt
 from collections.abc import AsyncGenerator
 from decimal import Decimal
 from uuid import UUID
@@ -10,15 +11,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import TokenData, get_current_user
-from app.database import get_db
-from app.main import app
 from app.core.models.rate import RateDB
 from app.core.models.user import UserDB
+from app.database import get_db
+from app.main import app
 from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
-
-import datetime as dt
 
 USER_ID_1 = UUID("00000000-0000-0000-0000-000000000001")
 USER_ID_2 = UUID("00000000-0000-0000-0000-000000000002")
@@ -27,8 +26,8 @@ USER_ID_2 = UUID("00000000-0000-0000-0000-000000000002")
 @pytest_asyncio.fixture
 async def non_admin_client(
     db_session: AsyncSession,
-) -> AsyncGenerator[AsyncClient, None]:
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncClient]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     async def override_get_current_user() -> TokenData:
@@ -137,14 +136,10 @@ class TestMoodsEndpoint:
     async def test_get_moods_requires_admin(
         self, non_admin_client: AsyncClient, mood_data: None
     ) -> None:
-        resp = await non_admin_client.get(
-            "/api/tracker/moods", params={"month": 3, "year": 2026}
-        )
+        resp = await non_admin_client.get("/api/tracker/moods", params={"month": 3, "year": 2026})
         assert resp.status_code == 403
 
-    async def test_get_moods_empty_month(
-        self, client: AsyncClient, mood_data: None
-    ) -> None:
+    async def test_get_moods_empty_month(self, client: AsyncClient, mood_data: None) -> None:
         resp = await client.get("/api/tracker/moods", params={"month": 1, "year": 2025})
         assert resp.status_code == 200
         data = resp.json()
@@ -205,9 +200,7 @@ class TestMoodsEndpoint:
         )
         await db_session.commit()
 
-        resp = await client.get(
-            "/api/tracker/moods", params={"month": 3, "year": 2026}
-        )
+        resp = await client.get("/api/tracker/moods", params={"month": 3, "year": 2026})
         assert resp.status_code == 200
         data = resp.json()
         assert data["total_reports"] == 1
@@ -288,9 +281,7 @@ class TestMoodsTrendEndpoint:
         resp = await client.get("/api/tracker/moods/trend")
         assert resp.status_code == 200
         months = resp.json()["months"]
-        bucket = next(
-            m for m in months if m["month"] == target_month and m["year"] == target_year
-        )
+        bucket = next(m for m in months if m["month"] == target_month and m["year"] == target_year)
         assert bucket["total_reports"] == 1
         assert bucket["total_responses"] == 1
         assert bucket["average_mood"] == 5.0
@@ -385,10 +376,7 @@ class TestMoodsTrendEndpoint:
         resp = await client.get("/api/tracker/moods/trend")
         assert resp.status_code == 200
         months = resp.json()["months"]
-        assert all(
-            not (m["month"] == today.month and m["year"] == today.year)
-            for m in months
-        )
+        assert all(not (m["month"] == today.month and m["year"] == today.year) for m in months)
 
     async def test_get_moods_admin_gate_on_trend(
         self, non_admin_client: AsyncClient, mood_data: None

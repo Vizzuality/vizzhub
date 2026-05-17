@@ -1,4 +1,5 @@
 """Job model for async task tracking."""
+
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -38,9 +39,7 @@ class Job(Base):
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     type: Mapped[JobType] = mapped_column(String(50), nullable=False)
-    status: Mapped[JobStatus] = mapped_column(
-        String(20), default=JobStatus.PENDING, nullable=False
-    )
+    status: Mapped[JobStatus] = mapped_column(String(20), default=JobStatus.PENDING, nullable=False)
 
     # Identification
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -53,9 +52,7 @@ class Job(Base):
         default=None,
         nullable=True,
     )
-    created_by: Mapped[str | None] = mapped_column(
-        String(255), default=None, nullable=True
-    )
+    created_by: Mapped[str | None] = mapped_column(String(255), default=None, nullable=True)
 
     # Input/Output
     params: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
@@ -63,18 +60,12 @@ class Job(Base):
 
     # Progress
     progress: Mapped[int] = mapped_column(default=0, nullable=False)
-    progress_message: Mapped[str | None] = mapped_column(
-        String(500), default=None, nullable=True
-    )
+    progress_message: Mapped[str | None] = mapped_column(String(500), default=None, nullable=True)
 
     # Logs and errors
     logs: Mapped[str | None] = mapped_column(Text, default=None, nullable=True)
-    error_message: Mapped[str | None] = mapped_column(
-        String(1000), default=None, nullable=True
-    )
-    error_traceback: Mapped[str | None] = mapped_column(
-        Text, default=None, nullable=True
-    )
+    error_message: Mapped[str | None] = mapped_column(String(1000), default=None, nullable=True)
+    error_traceback: Mapped[str | None] = mapped_column(Text, default=None, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -88,9 +79,7 @@ class Job(Base):
     )
 
     # ARQ reference
-    arq_job_id: Mapped[str | None] = mapped_column(
-        String(100), default=None, nullable=True
-    )
+    arq_job_id: Mapped[str | None] = mapped_column(String(100), default=None, nullable=True)
 
     __table_args__ = (
         Index("ix_jobs_status", "status"),

@@ -6,7 +6,8 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import CurrentUser, DBSession
@@ -58,9 +59,7 @@ async def _count_descendants(db: AsyncSession, node_id: UUID) -> int:
     """Count all descendants of a node (recursive CTE)."""
     base = select(IsoDocNodeDB.id).where(IsoDocNodeDB.parent_id == node_id)
     cte = base.cte(name="descendants", recursive=True)
-    recursive = select(IsoDocNodeDB.id).where(
-        IsoDocNodeDB.parent_id == cte.c.id
-    )
+    recursive = select(IsoDocNodeDB.id).where(IsoDocNodeDB.parent_id == cte.c.id)
     cte = cte.union_all(recursive)
     result = await db.execute(select(sa_func.count()).select_from(cte))
     return result.scalar_one()
@@ -68,9 +67,7 @@ async def _count_descendants(db: AsyncSession, node_id: UUID) -> int:
 
 @router.get("/tree")
 async def get_tree(db: DBSession, user: CurrentUser) -> list[dict]:
-    result = await db.execute(
-        select(IsoDocNodeDB).order_by(IsoDocNodeDB.position)
-    )
+    result = await db.execute(select(IsoDocNodeDB).order_by(IsoDocNodeDB.position))
     nodes = list(result.scalars().all())
 
     if not is_iso_docs_editor(user):
@@ -81,9 +78,7 @@ async def get_tree(db: DBSession, user: CurrentUser) -> list[dict]:
 
 
 @router.post("/nodes", status_code=201)
-async def create_node(
-    data: NodeCreate, db: DBSession, user: IsoDocsEditor
-) -> NodeResponse:
+async def create_node(data: NodeCreate, db: DBSession, user: IsoDocsEditor) -> NodeResponse:
     if not await validate_depth(db, data.parent_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -142,9 +137,7 @@ async def create_node(
 async def update_node(
     node_id: UUID, data: NodeUpdate, db: DBSession, user: IsoDocsEditor
 ) -> NodeResponse:
-    result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id)
-    )
+    result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id))
     node = result.scalar_one_or_none()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -166,9 +159,7 @@ async def update_node(
 
     if "title" in update and update["title"] != node.title:
         new_slug = generate_slug(update["title"])
-        update["slug"] = await ensure_unique_slug(
-            db, new_slug, exclude_id=node_id
-        )
+        update["slug"] = await ensure_unique_slug(db, new_slug, exclude_id=node_id)
 
     for field, value in update.items():
         setattr(node, field, value)
@@ -179,12 +170,8 @@ async def update_node(
 
 
 @router.delete("/nodes/{node_id}", responses={404: {"description": "Node not found"}})
-async def delete_node(
-    node_id: UUID, db: DBSession, user: IsoDocsEditor
-) -> dict:
-    result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id)
-    )
+async def delete_node(node_id: UUID, db: DBSession, user: IsoDocsEditor) -> dict:
+    result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id))
     node = result.scalar_one_or_none()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -197,21 +184,15 @@ async def delete_node(
 
 
 @router.put("/nodes/reorder", responses={404: {"description": "Node not found"}})
-async def reorder_nodes(
-    data: ReorderRequest, db: DBSession, user: IsoDocsEditor
-) -> dict:
+async def reorder_nodes(data: ReorderRequest, db: DBSession, user: IsoDocsEditor) -> dict:
     node_ids = [item.id for item in data.items]
-    result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id.in_(node_ids))
-    )
+    result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id.in_(node_ids)))
     nodes_by_id = {n.id: n for n in result.scalars()}
 
     for item in data.items:
         node = nodes_by_id.get(item.id)
         if not node:
-            raise HTTPException(
-                status_code=404, detail=f"Node {item.id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Node {item.id} not found")
         node.parent_id = item.parent_id
         node.position = item.position
     await db.flush()

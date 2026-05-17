@@ -17,9 +17,7 @@ class TestJobsAPI:
         assert response.json() == []
 
     @pytest.mark.asyncio
-    async def test_create_capture_history_job_success(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_capture_history_job_success(self, client: AsyncClient) -> None:
         """Create capture history job successfully enqueues to ARQ."""
         project_response = await client.post(
             "/api/projects",
@@ -61,9 +59,7 @@ class TestJobsAPI:
         assert data["progress"] == 0
 
     @pytest.mark.asyncio
-    async def test_create_capture_history_job_invalid_date_range(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_capture_history_job_invalid_date_range(self, client: AsyncClient) -> None:
         """Create capture history job fails with invalid date range."""
         project_response = await client.post(
             "/api/projects",

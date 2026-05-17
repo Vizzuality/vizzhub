@@ -144,9 +144,7 @@ class MetricsCreate(BaseModel):
             percent_completed=(
                 float(db.percent_completed) if db.percent_completed is not None else None
             ),
-            percent_planned=(
-                float(db.percent_planned) if db.percent_planned is not None else None
-            ),
+            percent_planned=(float(db.percent_planned) if db.percent_planned is not None else None),
         )
 
     @staticmethod

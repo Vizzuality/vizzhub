@@ -3,9 +3,9 @@
 Test complete collector -> metrics -> scores pipeline.
 """
 
-import pytest
 from datetime import date, timedelta
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 

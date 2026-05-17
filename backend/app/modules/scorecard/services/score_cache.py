@@ -1,8 +1,8 @@
 """Redis-backed score cache with graceful degradation."""
 
 import json
-import structlog
 
+import structlog
 from redis.asyncio import Redis
 
 logger = structlog.get_logger()
@@ -12,7 +12,9 @@ CACHE_TTL = 3600  # 1 hour safety net
 
 
 async def create_score_cache(
-    host: str, port: int, password: str = "",
+    host: str,
+    port: int,
+    password: str = "",
 ) -> tuple[Redis | None, "ScoreCacheService | None"]:
     """Create a Redis client and ScoreCacheService, or (None, None) on failure."""
     redis_client = None
@@ -70,9 +72,7 @@ class ScoreCacheService:
             logger.warning("score_cache_mget_failed", exc_info=True)
             return dict.fromkeys(project_ids)
 
-    async def set(
-        self, project_id: str, data: dict, snapshot_type: str = "cumulative"
-    ) -> None:
+    async def set(self, project_id: str, data: dict, snapshot_type: str = "cumulative") -> None:
         try:
             await self._redis.set(
                 self._key(project_id, snapshot_type),
@@ -96,9 +96,7 @@ class ScoreCacheService:
         try:
             cursor = 0
             while True:
-                cursor, keys = await self._redis.scan(
-                    cursor, match=f"{CACHE_PREFIX}:*", count=100
-                )
+                cursor, keys = await self._redis.scan(cursor, match=f"{CACHE_PREFIX}:*", count=100)
                 if keys:
                     await self._redis.delete(*keys)
                 if cursor == 0:

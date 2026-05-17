@@ -18,9 +18,7 @@ from app.core.auth import create_access_token
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate JWT token for testing API endpoints"
-    )
+    parser = argparse.ArgumentParser(description="Generate JWT token for testing API endpoints")
     parser.add_argument(
         "--user-id",
         type=str,

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock
 
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
@@ -17,7 +17,11 @@ class TestGenerateSite:
     async def test_generates_all_expected_files(self, db_session):
         svc = PublishService()
         group = PlaybookNodeDB(
-            title="Culture", slug="culture", type="group", position=0, is_public=True,
+            title="Culture",
+            slug="culture",
+            type="group",
+            position=0,
+            is_public=True,
         )
         db_session.add(group)
         await db_session.flush()
@@ -54,7 +58,11 @@ class TestGenerateSite:
     async def test_page_html_contains_rendered_content(self, db_session):
         svc = PublishService()
         page = PlaybookNodeDB(
-            title="Hello", slug="hello", type="page", position=0, is_public=True,
+            title="Hello",
+            slug="hello",
+            type="page",
+            position=0,
+            is_public=True,
         )
         db_session.add(page)
         await db_session.flush()
@@ -74,7 +82,11 @@ class TestGenerateSite:
     async def test_empty_public_pages_raises(self, db_session):
         svc = PublishService()
         page = PlaybookNodeDB(
-            title="Private", slug="private", type="page", position=0, is_public=False,
+            title="Private",
+            slug="private",
+            type="page",
+            position=0,
+            is_public=False,
         )
         db_session.add(page)
         await db_session.flush()
@@ -90,7 +102,11 @@ class TestGenerateSite:
     async def test_manifest_contains_file_list(self, db_session):
         svc = PublishService()
         page = PlaybookNodeDB(
-            title="Test", slug="test", type="page", position=0, is_public=True,
+            title="Test",
+            slug="test",
+            type="page",
+            position=0,
+            is_public=True,
         )
         db_session.add(page)
         await db_session.flush()

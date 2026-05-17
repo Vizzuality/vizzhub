@@ -1,7 +1,7 @@
 """Alert management service."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -13,7 +13,6 @@ from app.modules.notifications.models.slack import (
     AlertSilenceDB,
     MessageTemplateDB,
 )
-
 
 # Slack mrkdwn metacharacters: bold *, italic _, code `, blockquote >, link <…|…>.
 # Escape with backslash so user-controlled strings can't open formatting we
@@ -85,14 +84,13 @@ class AlertService:
         Returns:
             True if alerts are silenced, False otherwise.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         query = select(AlertSilenceDB).where(
             AlertSilenceDB.project_id == project_id,
             (AlertSilenceDB.alert_definition_id.is_(None))
             | (AlertSilenceDB.alert_definition_id == alert_definition_id),
-            (AlertSilenceDB.silenced_until.is_(None))
-            | (AlertSilenceDB.silenced_until > now),
+            (AlertSilenceDB.silenced_until.is_(None)) | (AlertSilenceDB.silenced_until > now),
         )
 
         result = await db.execute(query)
@@ -116,7 +114,7 @@ class AlertService:
         Returns:
             True if a successful notification was sent this month, False otherwise.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         query = select(AlertNotificationDB).where(

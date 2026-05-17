@@ -6,8 +6,8 @@ import httpx
 import pytest
 
 from app.modules.devstack.services.npm_version import (
-  fetch_npm_latest_version,
-  fetch_npm_package_info,
+    fetch_npm_latest_version,
+    fetch_npm_package_info,
 )
 
 

@@ -24,9 +24,7 @@ class TestCollectPostContractTasks:
     @pytest.mark.asyncio
     async def test_returns_none_when_no_end_date(self, mock_jira_client) -> None:
         """Should return None when project has no end_date."""
-        result = await collect_post_contract_tasks(
-            mock_jira_client, "PROJ", end_date=None
-        )
+        result = await collect_post_contract_tasks(mock_jira_client, "PROJ", end_date=None)
 
         assert result["post_contract_tasks"] is None
         assert result["post_contract_cutoff"] is None
@@ -37,9 +35,7 @@ class TestCollectPostContractTasks:
         """Should return None when cutoff date is still in the future."""
         future_end = date.today() - timedelta(days=10)  # Only 10 days ago
 
-        result = await collect_post_contract_tasks(
-            mock_jira_client, "PROJ", end_date=future_end
-        )
+        result = await collect_post_contract_tasks(mock_jira_client, "PROJ", end_date=future_end)
 
         assert result["post_contract_tasks"] is None
         assert result["post_contract_cutoff"] is not None
@@ -51,9 +47,7 @@ class TestCollectPostContractTasks:
         old_end = date.today() - timedelta(days=GRACE_PERIOD_DAYS + 10)
         mock_jira_client.count_issues = AsyncMock(return_value=5)
 
-        result = await collect_post_contract_tasks(
-            mock_jira_client, "PROJ", end_date=old_end
-        )
+        result = await collect_post_contract_tasks(mock_jira_client, "PROJ", end_date=old_end)
 
         assert result["post_contract_tasks"] == 5
         assert result["post_contract_cutoff"] is not None
@@ -65,9 +59,7 @@ class TestCollectPostContractTasks:
         old_end = date.today() - timedelta(days=GRACE_PERIOD_DAYS + 10)
         mock_jira_client.count_issues = AsyncMock(return_value=0)
 
-        result = await collect_post_contract_tasks(
-            mock_jira_client, "PROJ", end_date=old_end
-        )
+        result = await collect_post_contract_tasks(mock_jira_client, "PROJ", end_date=old_end)
 
         assert result["post_contract_tasks"] == 0
 
@@ -101,9 +93,7 @@ class TestEdgeCases:
         end_date = date.today() - timedelta(days=GRACE_PERIOD_DAYS)
         mock_jira_client.count_issues = AsyncMock(return_value=1)
 
-        result = await collect_post_contract_tasks(
-            mock_jira_client, "PROJ", end_date=end_date
-        )
+        result = await collect_post_contract_tasks(mock_jira_client, "PROJ", end_date=end_date)
 
         # Cutoff is today, so we query for tasks created today
         assert result["post_contract_tasks"] == 1
@@ -115,8 +105,6 @@ class TestEdgeCases:
         end_date = date.today() - timedelta(days=GRACE_PERIOD_DAYS + 1)
         mock_jira_client.count_issues = AsyncMock(return_value=2)
 
-        result = await collect_post_contract_tasks(
-            mock_jira_client, "PROJ", end_date=end_date
-        )
+        result = await collect_post_contract_tasks(mock_jira_client, "PROJ", end_date=end_date)
 
         assert result["post_contract_tasks"] == 2

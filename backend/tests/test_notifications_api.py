@@ -1,6 +1,6 @@
 """Tests for Notifications API endpoints."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -30,9 +30,7 @@ class TestListNotifications:
         assert data["pages"] == 0
 
     @pytest.mark.asyncio
-    async def test_list_notifications_returns_all(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_notifications_returns_all(self, client: AsyncClient, db_session) -> None:
         """List notifications returns all notifications."""
         project = ProjectDB(
             id=uuid4(),
@@ -202,7 +200,7 @@ class TestListNotifications:
         await db_session.commit()
         await db_session.refresh(alert)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         recent_notification = AlertNotificationDB(
             project_id=project.id,
             alert_definition_id=alert.id,
@@ -233,9 +231,7 @@ class TestListNotifications:
         assert data["items"][0]["message"] == "Recent notification"
 
     @pytest.mark.asyncio
-    async def test_list_notifications_pagination(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_notifications_pagination(self, client: AsyncClient, db_session) -> None:
         """List notifications supports pagination."""
         project = ProjectDB(
             id=uuid4(),
@@ -254,7 +250,7 @@ class TestListNotifications:
         await db_session.commit()
         await db_session.refresh(alert)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         notifications = [
             AlertNotificationDB(
                 project_id=project.id,
@@ -391,7 +387,7 @@ class TestListNotifications:
         await db_session.commit()
         await db_session.refresh(alert)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         notification_old = AlertNotificationDB(
             project_id=project.id,
             alert_definition_id=alert.id,
@@ -419,17 +415,13 @@ class TestListNotifications:
         assert data["items"][1]["message"] == "Old notification"
 
     @pytest.mark.asyncio
-    async def test_list_notifications_page_size_limit(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_list_notifications_page_size_limit(self, client: AsyncClient) -> None:
         """List notifications enforces max page_size of 100."""
         response = await client.get("/api/notifications?page_size=150")
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_list_notifications_page_minimum(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_list_notifications_page_minimum(self, client: AsyncClient) -> None:
         """List notifications enforces min page of 1."""
         response = await client.get("/api/notifications?page=0")
         assert response.status_code == 400
@@ -450,9 +442,7 @@ class TestNotificationStats:
         assert data["avg_vulnerability_resolution_days"] is None
 
     @pytest.mark.asyncio
-    async def test_stats_total_this_month(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_stats_total_this_month(self, client: AsyncClient, db_session) -> None:
         """Stats counts notifications from current month only."""
         project = ProjectDB(
             id=uuid4(),
@@ -471,7 +461,7 @@ class TestNotificationStats:
         await db_session.commit()
         await db_session.refresh(alert)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         this_month = AlertNotificationDB(
             project_id=project.id,
             alert_definition_id=alert.id,
@@ -505,9 +495,7 @@ class TestNotificationStats:
         assert data["total_this_month"] == 1
 
     @pytest.mark.asyncio
-    async def test_stats_by_type(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_stats_by_type(self, client: AsyncClient, db_session) -> None:
         """Stats groups notifications by alert type."""
         project = ProjectDB(
             id=uuid4(),
@@ -535,7 +523,7 @@ class TestNotificationStats:
         await db_session.refresh(alert1)
         await db_session.refresh(alert2)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         notifications = [
             AlertNotificationDB(
                 project_id=project.id,
@@ -567,9 +555,7 @@ class TestNotificationStats:
         assert data["by_type"]["dependabot"] == 2
 
     @pytest.mark.asyncio
-    async def test_stats_by_project(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_stats_by_project(self, client: AsyncClient, db_session) -> None:
         """Stats groups notifications by project."""
         project1 = ProjectDB(
             id=uuid4(),
@@ -593,7 +579,7 @@ class TestNotificationStats:
         await db_session.commit()
         await db_session.refresh(alert)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         notifications = [
             AlertNotificationDB(
                 project_id=project1.id,
@@ -639,7 +625,7 @@ class TestNotificationStats:
         db_session.add(project)
         await db_session.commit()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         resolved_alert1 = DependabotAlertTrackedDB(
             project_id=project.id,
             github_alert_id=1,
@@ -685,7 +671,7 @@ class TestNotificationStats:
         db_session.add(project)
         await db_session.commit()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         unresolved_alert = DependabotAlertTrackedDB(
             project_id=project.id,
             github_alert_id=1,
@@ -703,9 +689,7 @@ class TestNotificationStats:
         assert data["avg_vulnerability_resolution_days"] is None
 
     @pytest.mark.asyncio
-    async def test_stats_by_project_top_10(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_stats_by_project_top_10(self, client: AsyncClient, db_session) -> None:
         """Stats by_project returns only top 10 projects."""
         alert = AlertDefinitionDB(
             name="score_drop",
@@ -730,7 +714,7 @@ class TestNotificationStats:
         db_session.add_all(projects)
         await db_session.commit()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         notifications = []
         for i, project in enumerate(projects):
             for j in range(i + 1):

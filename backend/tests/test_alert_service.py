@@ -5,17 +5,18 @@ including template rendering, silence checking, notification throttling,
 and notification logging.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.project import ProjectDB
 from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
     AlertSilenceDB,
     MessageTemplateDB,
 )
-from app.core.models.project import ProjectDB
 from app.modules.notifications.services.alert_service import AlertService
 
 
@@ -117,9 +118,7 @@ class TestIsSilenced:
     """Test alert silence checking functionality."""
 
     @pytest.mark.asyncio
-    async def test_is_silenced_no_silence_records(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_is_silenced_no_silence_records(self, db_session: AsyncSession) -> None:
         """is_silenced should return False when no silence records exist."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -131,9 +130,7 @@ class TestIsSilenced:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_is_silenced_active_global_silence(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_is_silenced_active_global_silence(self, db_session: AsyncSession) -> None:
         """is_silenced should return True when global silence is active."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -143,7 +140,7 @@ class TestIsSilenced:
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=None,
-            silenced_until=datetime.now(timezone.utc) + timedelta(hours=1),
+            silenced_until=datetime.now(UTC) + timedelta(hours=1),
             reason="Maintenance window",
         )
         db_session.add(silence)
@@ -164,7 +161,7 @@ class TestIsSilenced:
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=None,
-            silenced_until=datetime.now(timezone.utc) - timedelta(hours=1),
+            silenced_until=datetime.now(UTC) - timedelta(hours=1),
             reason="Past maintenance",
         )
         db_session.add(silence)
@@ -175,9 +172,7 @@ class TestIsSilenced:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_is_silenced_indefinite_silence(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_is_silenced_indefinite_silence(self, db_session: AsyncSession) -> None:
         """is_silenced should return True for indefinite silence (null until)."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -198,9 +193,7 @@ class TestIsSilenced:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_is_silenced_specific_alert_silenced(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_is_silenced_specific_alert_silenced(self, db_session: AsyncSession) -> None:
         """is_silenced should return True when specific alert is silenced."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -220,7 +213,7 @@ class TestIsSilenced:
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=alert_def.id,
-            silenced_until=datetime.now(timezone.utc) + timedelta(days=7),
+            silenced_until=datetime.now(UTC) + timedelta(days=7),
         )
         db_session.add(silence)
         await db_session.commit()
@@ -232,9 +225,7 @@ class TestIsSilenced:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_is_silenced_different_alert_not_silenced(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_is_silenced_different_alert_not_silenced(self, db_session: AsyncSession) -> None:
         """is_silenced should return False when different alert is silenced."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -261,7 +252,7 @@ class TestIsSilenced:
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=alert_def_1.id,
-            silenced_until=datetime.now(timezone.utc) + timedelta(days=7),
+            silenced_until=datetime.now(UTC) + timedelta(days=7),
         )
         db_session.add(silence)
         await db_session.commit()
@@ -295,7 +286,7 @@ class TestIsSilenced:
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=None,
-            silenced_until=datetime.now(timezone.utc) + timedelta(hours=1),
+            silenced_until=datetime.now(UTC) + timedelta(hours=1),
         )
         db_session.add(silence)
         await db_session.commit()
@@ -311,9 +302,7 @@ class TestWasNotifiedThisMonth:
     """Test monthly notification throttling functionality."""
 
     @pytest.mark.asyncio
-    async def test_was_notified_no_notifications(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_was_notified_no_notifications(self, db_session: AsyncSession) -> None:
         """was_notified_this_month should return False when no notifications exist."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -330,9 +319,7 @@ class TestWasNotifiedThisMonth:
         await db_session.commit()
         await db_session.refresh(alert_def)
 
-        result = await AlertService.was_notified_this_month(
-            db_session, project.id, alert_def.id
-        )
+        result = await AlertService.was_notified_this_month(db_session, project.id, alert_def.id)
 
         assert result is False
 
@@ -364,9 +351,7 @@ class TestWasNotifiedThisMonth:
         db_session.add(notification)
         await db_session.commit()
 
-        result = await AlertService.was_notified_this_month(
-            db_session, project.id, alert_def.id
-        )
+        result = await AlertService.was_notified_this_month(db_session, project.id, alert_def.id)
 
         assert result is True
 
@@ -401,16 +386,12 @@ class TestWasNotifiedThisMonth:
         db_session.add(notification)
         await db_session.commit()
 
-        result = await AlertService.was_notified_this_month(
-            db_session, project.id, alert_def.id
-        )
+        result = await AlertService.was_notified_this_month(db_session, project.id, alert_def.id)
 
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_was_notified_different_alert_not_counted(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_was_notified_different_alert_not_counted(self, db_session: AsyncSession) -> None:
         """was_notified_this_month should not count notifications for different alerts."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -444,9 +425,7 @@ class TestWasNotifiedThisMonth:
         db_session.add(notification)
         await db_session.commit()
 
-        result = await AlertService.was_notified_this_month(
-            db_session, project.id, alert_def_2.id
-        )
+        result = await AlertService.was_notified_this_month(db_session, project.id, alert_def_2.id)
 
         assert result is False
 
@@ -455,9 +434,7 @@ class TestGetTemplate:
     """Test message template retrieval functionality."""
 
     @pytest.mark.asyncio
-    async def test_get_template_returns_template(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_get_template_returns_template(self, db_session: AsyncSession) -> None:
         """get_template should return the message template text."""
         alert_def = AlertDefinitionDB(
             name="budget_alert",
@@ -483,9 +460,7 @@ class TestGetTemplate:
         assert result == ":warning: Project {project_name} budget exceeded!"
 
     @pytest.mark.asyncio
-    async def test_get_template_returns_none_when_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_get_template_returns_none_when_not_found(self, db_session: AsyncSession) -> None:
         """get_template should return None when no template exists."""
         alert_def = AlertDefinitionDB(
             name="budget_alert",
@@ -502,9 +477,7 @@ class TestGetTemplate:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_template_ignores_inactive(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_get_template_ignores_inactive(self, db_session: AsyncSession) -> None:
         """get_template should ignore inactive templates."""
         alert_def = AlertDefinitionDB(
             name="budget_alert",
@@ -557,9 +530,7 @@ class TestGetTemplate:
         db_session.add_all([initial_template, reminder_template])
         await db_session.commit()
 
-        result = await AlertService.get_template(
-            db_session, alert_def.id, template_type="reminder"
-        )
+        result = await AlertService.get_template(db_session, alert_def.id, template_type="reminder")
 
         assert result == "Reminder message"
 
@@ -568,9 +539,7 @@ class TestLogNotification:
     """Test notification logging functionality."""
 
     @pytest.mark.asyncio
-    async def test_log_notification_creates_record(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_log_notification_creates_record(self, db_session: AsyncSession) -> None:
         """log_notification should create a notification record."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)
@@ -636,9 +605,7 @@ class TestLogNotification:
         assert notification.error_message == "channel_not_found"
 
     @pytest.mark.asyncio
-    async def test_log_notification_with_metadata(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_log_notification_with_metadata(self, db_session: AsyncSession) -> None:
         """log_notification should store metadata JSON."""
         project = ProjectDB(name="Test Project")
         db_session.add(project)

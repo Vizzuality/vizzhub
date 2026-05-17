@@ -10,7 +10,7 @@ Business alerts:
 3. Project overdue (>30 days past end_date)
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
@@ -18,17 +18,17 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
-from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.core.models.oauth import OAuthTokenDB
 from app.core.models.project import ProjectDB
+from app.core.token_encryption import encrypt_token
 from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
     AlertSilenceDB,
     MessageTemplateDB,
 )
+from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.worker.check_business_alerts import check_business_alerts
 
 
@@ -105,9 +105,7 @@ class TestCheckBusinessAlertsJob:
         assert "job_run_id" in result
 
     @pytest.mark.asyncio
-    async def test_job_returns_error_without_slack_config(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_job_returns_error_without_slack_config(self, db_session: AsyncSession) -> None:
         """Job should return error when Slack is not configured."""
         ctx = {"db": db_session}
 
@@ -328,15 +326,11 @@ class TestCheckBusinessAlertsJob:
         ) as mock_send:
             await check_business_alerts(ctx)
 
-        budget_calls = [
-            call for call in mock_send.call_args_list if "budget" in str(call).lower()
-        ]
+        budget_calls = [call for call in mock_send.call_args_list if "budget" in str(call).lower()]
         assert len(budget_calls) == 0
 
     @pytest.mark.asyncio
-    async def test_respects_silence(
-        self, db_session: AsyncSession, setup_slack_and_alerts
-    ) -> None:
+    async def test_respects_silence(self, db_session: AsyncSession, setup_slack_and_alerts) -> None:
         """Job should not send alerts for silenced projects."""
         _, alert_defs = setup_slack_and_alerts
 
@@ -362,7 +356,7 @@ class TestCheckBusinessAlertsJob:
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=alert_defs["budget_exceeded"].id,
-            silenced_until=datetime.now(timezone.utc) + timedelta(days=7),
+            silenced_until=datetime.now(UTC) + timedelta(days=7),
             reason="Planned overage",
         )
         db_session.add(silence)
@@ -377,9 +371,7 @@ class TestCheckBusinessAlertsJob:
         ) as mock_send:
             await check_business_alerts(ctx)
 
-        budget_calls = [
-            call for call in mock_send.call_args_list if "budget" in str(call).lower()
-        ]
+        budget_calls = [call for call in mock_send.call_args_list if "budget" in str(call).lower()]
         assert len(budget_calls) == 0
 
     @pytest.mark.asyncio
@@ -419,9 +411,7 @@ class TestCheckBusinessAlertsJob:
         from sqlalchemy import select
 
         result = await db_session.execute(
-            select(AlertNotificationDB).where(
-                AlertNotificationDB.project_id == project.id
-            )
+            select(AlertNotificationDB).where(AlertNotificationDB.project_id == project.id)
         )
         notifications = result.scalars().all()
 

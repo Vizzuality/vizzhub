@@ -4,7 +4,15 @@ from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, field_validator
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, SmallInteger, Text, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    SmallInteger,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -41,9 +49,7 @@ class CapacityPlanDB(Base):
     updated_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey(_USERS_ID_FK, ondelete="RESTRICT"), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

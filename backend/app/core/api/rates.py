@@ -3,7 +3,7 @@
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
 from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_or_404
 from app.core.models.rate import Rate, RateCreate, RateDB, RateUpdate

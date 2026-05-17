@@ -2,14 +2,14 @@
 
 import pytest
 
+from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.services.tree_service import (
+    MAX_DEPTH,
     generate_slug,
     get_next_position,
     validate_depth,
     validate_not_circular,
-    MAX_DEPTH,
 )
-from app.modules.playbook.models.node import PlaybookNodeDB
 
 
 def test_generate_slug_basic():
@@ -77,20 +77,30 @@ async def test_validate_depth_too_deep(db_session):
 @pytest.mark.asyncio
 async def test_validate_not_circular(db_session):
     parent = PlaybookNodeDB(
-        title="Parent", slug="parent", type="group",
-        parent_id=None, position=0,
-        created_by_id=None, updated_by_id=None,
+        title="Parent",
+        slug="parent",
+        type="group",
+        parent_id=None,
+        position=0,
+        created_by_id=None,
+        updated_by_id=None,
     )
     db_session.add(parent)
     await db_session.flush()
 
     child = PlaybookNodeDB(
-        title="Child", slug="child", type="group",
-        parent_id=parent.id, position=0,
-        created_by_id=None, updated_by_id=None,
+        title="Child",
+        slug="child",
+        type="group",
+        parent_id=parent.id,
+        position=0,
+        created_by_id=None,
+        updated_by_id=None,
     )
     db_session.add(child)
     await db_session.flush()
 
-    assert await validate_not_circular(db_session, node_id=parent.id, new_parent_id=child.id) is False
+    assert (
+        await validate_not_circular(db_session, node_id=parent.id, new_parent_id=child.id) is False
+    )
     assert await validate_not_circular(db_session, node_id=child.id, new_parent_id=None) is True

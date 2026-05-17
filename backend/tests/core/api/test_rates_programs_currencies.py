@@ -4,8 +4,8 @@ Covers `core/api/rates.py`, `core/api/programs.py`, `core/api/currencies.py`
 write paths that previously had no integration coverage.
 """
 
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 
 import pytest
 import pytest_asyncio
@@ -86,7 +86,9 @@ class TestCurrenciesApi:
         assert "EUR" in resp.json()
 
     async def test_includes_stored_currency_codes(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         db_session.add(
             ExchangeRateDB(

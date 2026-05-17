@@ -147,9 +147,7 @@ async def update_event(
     await db.refresh(event)
 
     count_result = await db.execute(
-        select(func.count(EventAttendeeDB.id)).where(
-            EventAttendeeDB.event_id == event_id
-        )
+        select(func.count(EventAttendeeDB.id)).where(EventAttendeeDB.event_id == event_id)
     )
     attendee_count = count_result.scalar() or 0
 
@@ -177,9 +175,7 @@ async def delete_event(
 ) -> None:
     event = await get_event_or_404(db, event_id)
 
-    other_costs = (
-        str(event.other_costs) if event.other_costs is not None else None
-    )
+    other_costs = str(event.other_costs) if event.other_costs is not None else None
     await db.delete(event)
     await db.commit()
     logger.info(

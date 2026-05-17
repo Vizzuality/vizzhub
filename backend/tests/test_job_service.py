@@ -1,4 +1,5 @@
 """Tests for JobService."""
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -17,5 +17,5 @@ def render_markdown(source: str | None, strip_leading_h1: bool = False) -> str:
     if strip_leading_h1 and html.startswith("<h1>"):
         end = html.find("</h1>")
         if end != -1:
-            html = html[end + 5:].strip()
+            html = html[end + 5 :].strip()
     return html

@@ -1,11 +1,11 @@
 """ISO access review API endpoints."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.sql import func
@@ -115,9 +115,7 @@ async def update_action(
     review = await get_review_or_404(db, review_id)
 
     if review.status == ReviewStatus.SIGNED:
-        raise HTTPException(
-            status_code=409, detail="Cannot modify actions on a signed review"
-        )
+        raise HTTPException(status_code=409, detail="Cannot modify actions on a signed review")
 
     action_result = await db.execute(
         select(AccessReviewActionDB).where(
@@ -213,15 +211,12 @@ async def sign_review(
     if unresolved_count > 0:
         raise HTTPException(
             status_code=409,
-            detail=(
-                f"{unresolved_count} unresolved action(s) must be "
-                f"completed before signing"
-            ),
+            detail=(f"{unresolved_count} unresolved action(s) must be completed before signing"),
         )
 
     review.status = ReviewStatus.SIGNED
     review.signed_by = UUID(current_user.user_id)
-    review.signed_at = datetime.now(timezone.utc)
+    review.signed_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(review)
 
@@ -264,9 +259,7 @@ async def unsign_review(
         review_id=str(review.id),
         unsigner=current_user.user_id,
         previous_signer=str(previous_signed_by) if previous_signed_by else None,
-        previous_signed_at=(
-            previous_signed_at.isoformat() if previous_signed_at else None
-        ),
+        previous_signed_at=(previous_signed_at.isoformat() if previous_signed_at else None),
     )
 
     return review

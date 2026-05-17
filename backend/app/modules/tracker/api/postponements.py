@@ -1,12 +1,12 @@
 """Invoice postponement endpoints."""
 
-import structlog
 from datetime import date, timedelta
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -21,7 +21,7 @@ from app.modules.notifications.services.slack_service import SlackService
 from app.modules.tracker.api.invoices import _invoice_status_info
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
-from app.modules.tracker.schemas.postponement import PostponeRequest, PostponementResponse
+from app.modules.tracker.schemas.postponement import PostponementResponse, PostponeRequest
 from app.utils.slack import get_slack_bot_token
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
@@ -68,16 +68,22 @@ async def _notify_postponement(
             return
 
         detail_url = f"{HUB_BASE_URL}/admin/tracker/invoices/{invoice.id}"
-        message = AlertService.render_template(template, {
-            "project_name": project_name,
-            "due_date": str(invoice.due_date),
-            "new_date": str(new_date),
-            "reason": reason,
-            "detail_url": detail_url,
-        })
+        message = AlertService.render_template(
+            template,
+            {
+                "project_name": project_name,
+                "due_date": str(invoice.due_date),
+                "new_date": str(new_date),
+                "reason": reason,
+                "detail_url": detail_url,
+            },
+        )
 
         slack_result = await SlackService.send_message(
-            bot_token, recipient, message, unfurl_links=False,
+            bot_token,
+            recipient,
+            message,
+            unfurl_links=False,
         )
 
         await AlertService.log_notification(

@@ -25,25 +25,17 @@ def _parse_month_param(value: str) -> tuple[int, int]:
     """Parse 'YYYY-MM' string to (year, month) tuple."""
     match = re.match(r"^(\d{4})-(\d{2})$", value)
     if not match:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid date format: {value}. Use YYYY-MM."
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {value}. Use YYYY-MM.")
     year, month = int(match.group(1)), int(match.group(2))
     if month < 1 or month > 12:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid month: {month}. Must be 01-12."
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid month: {month}. Must be 01-12.")
     return year, month
 
 
-def _validate_date_range(
-    start_year: int, start_month: int, end_year: int, end_month: int
-) -> None:
+def _validate_date_range(start_year: int, start_month: int, end_year: int, end_month: int) -> None:
     """Validate that end >= start and range does not exceed MAX_EXPORT_MONTHS."""
     if (end_year, end_month) < (start_year, start_month):
-        raise HTTPException(
-            status_code=400, detail="End period must not be before start period."
-        )
+        raise HTTPException(status_code=400, detail="End period must not be before start period.")
     months = (end_year - start_year) * 12 + (end_month - start_month) + 1
     if months > MAX_EXPORT_MONTHS:
         raise HTTPException(
@@ -67,7 +59,9 @@ async def export_project_detail(
     config: ScoringConfigDep,
     start: Annotated[str, Query(description="Start period (YYYY-MM)")],
     end: Annotated[str, Query(description="End period (YYYY-MM)")],
-    snapshot_type: Annotated[SnapshotType, Query(description="cumulative or punctual")] = SnapshotType.CUMULATIVE,
+    snapshot_type: Annotated[
+        SnapshotType, Query(description="cumulative or punctual")
+    ] = SnapshotType.CUMULATIVE,
 ) -> Response:
     """Export project scorecard data to XLSX."""
     project = await get_project_or_404(db, project_id)
@@ -103,7 +97,9 @@ async def export_global_dashboard(
     config: ScoringConfigDep,
     start: Annotated[str, Query(description="Start period (YYYY-MM)")],
     end: Annotated[str, Query(description="End period (YYYY-MM)")],
-    snapshot_type: Annotated[SnapshotType, Query(description="cumulative or punctual")] = SnapshotType.CUMULATIVE,
+    snapshot_type: Annotated[
+        SnapshotType, Query(description="cumulative or punctual")
+    ] = SnapshotType.CUMULATIVE,
 ) -> Response:
     """Export global dashboard data to XLSX."""
     start_year, start_month = _parse_month_param(start)

@@ -6,7 +6,7 @@ from typing import Annotated
 
 import httpx
 import structlog
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.services.jira_client import JiraClient
@@ -73,15 +73,17 @@ async def get_jira_issues_for_period(
             project = fields.get("project", {})
             status = fields.get("status", {})
             issue_type = fields.get("issuetype", {})
-            issues.append({
-                "key": issue["key"],
-                "summary": fields.get("summary", ""),
-                "status": status.get("name", ""),
-                "status_category": status.get("statusCategory", {}).get("name", ""),
-                "project_key": project.get("key", ""),
-                "project_name": project.get("name", ""),
-                "issue_type": issue_type.get("name", ""),
-            })
+            issues.append(
+                {
+                    "key": issue["key"],
+                    "summary": fields.get("summary", ""),
+                    "status": status.get("name", ""),
+                    "status_category": status.get("statusCategory", {}).get("name", ""),
+                    "project_key": project.get("key", ""),
+                    "project_name": project.get("name", ""),
+                    "issue_type": issue_type.get("name", ""),
+                }
+            )
 
         site_info = await OAuthService.get_jira_site_info(db)
         site_url = site_info.get("site_url", "") if site_info else ""

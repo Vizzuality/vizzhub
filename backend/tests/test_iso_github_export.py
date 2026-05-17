@@ -1,6 +1,6 @@
 """Tests for ISO export service — GitHub provider XLSX generation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from uuid import uuid4
 
@@ -43,7 +43,7 @@ def _make_github_snapshot(
     return {
         "id": str(uuid4()),
         "provider": "github",
-        "captured_at": captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+        "captured_at": captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=UTC),
         "data_version": "2",
         "source_metadata": {"org": org, "collector": "github"},
         "data": {
@@ -66,7 +66,7 @@ def _make_gw_snapshot(captured_at=None, domain="test.com"):
     return {
         "id": str(uuid4()),
         "provider": "google_workspace",
-        "captured_at": captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc),
+        "captured_at": captured_at or datetime(2026, 6, 15, 10, 0, tzinfo=UTC),
         "data_version": "1",
         "source_metadata": {"domain": domain},
         "data": {
@@ -100,7 +100,7 @@ def _make_review(status="signed", notes="All good"):
         "notes": notes,
         "reviewer_email": "admin@acme.com",
         "signed_by_email": "admin@acme.com",
-        "signed_at": datetime(2026, 6, 16, 12, 0, tzinfo=timezone.utc),
+        "signed_at": datetime(2026, 6, 16, 12, 0, tzinfo=UTC),
         "diff_summary": None,
     }
 
@@ -120,9 +120,7 @@ class TestIsoGitHubExport:
         snapshot = _make_github_snapshot()
         review = _make_review()
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, [])]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, review, [])])
 
         assert isinstance(output, BytesIO)
         wb = load_workbook(output)
@@ -138,9 +136,7 @@ class TestIsoGitHubExport:
         snapshot = _make_github_snapshot(org="my-github-org")
         review = _make_review()
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, review, [])]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, review, [])])
         wb = load_workbook(output)
         ws = wb[wb.sheetnames[0]]
 
@@ -163,9 +159,7 @@ class TestIsoGitHubExport:
             ],
         )
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, None, [])]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, None, [])])
         wb = load_workbook(output)
         ws = wb[wb.sheetnames[0]]
 
@@ -186,9 +180,7 @@ class TestIsoGitHubExport:
             ],
         )
 
-        output = service.export_snapshots(
-            snapshots_with_reviews=[(snapshot, None, [])]
-        )
+        output = service.export_snapshots(snapshots_with_reviews=[(snapshot, None, [])])
         wb = load_workbook(output)
         ws = wb[wb.sheetnames[0]]
 
@@ -200,11 +192,11 @@ class TestIsoGitHubExport:
     def test_mixed_gw_and_github_export(self):
         service = IsoExportService()
         gw_snap = _make_gw_snapshot(
-            captured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 3, 1, tzinfo=UTC),
             domain="acme.com",
         )
         gh_snap = _make_github_snapshot(
-            captured_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 3, 2, tzinfo=UTC),
             org="acme-corp",
         )
         gw_review = _make_review()

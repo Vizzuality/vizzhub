@@ -50,9 +50,7 @@ async def check_business_alerts(ctx: dict) -> dict[str, Any]:
 
         leadership_channel_id = await get_slack_leadership_channel(db)
         if not leadership_channel_id:
-            return await complete_with_error(
-                db, job_run, "Leadership channel not configured"
-            )
+            return await complete_with_error(db, job_run, "Leadership channel not configured")
 
         alert_definitions = await _get_alert_definitions(db)
         if not alert_definitions:
@@ -160,9 +158,7 @@ async def _process_project(
         alerts_sent += 1
 
     if (overdue_def := alert_definitions.get(ALERT_NAMES["project_overdue"])) and (
-        await check_project_overdue(
-            db, project, overdue_def, bot_token, leadership_channel_id
-        )
+        await check_project_overdue(db, project, overdue_def, bot_token, leadership_channel_id)
     ):
         alerts_sent += 1
 

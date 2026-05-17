@@ -11,8 +11,8 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.sql_helpers import format_user_display_name
 from app.core.models.user import UserDB
+from app.core.sql_helpers import format_user_display_name
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
 
 

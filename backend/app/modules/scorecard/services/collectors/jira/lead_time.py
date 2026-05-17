@@ -69,15 +69,17 @@ if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.jira.client import JiraClient
 
 
-IN_PROGRESS_STATUSES = frozenset({
-    "in progress",
-    "in development",
-    "development",
-    "work in progress",
-    "wip",
-    "code review",
-    "qa",
-})
+IN_PROGRESS_STATUSES = frozenset(
+    {
+        "in progress",
+        "in development",
+        "development",
+        "work in progress",
+        "wip",
+        "code review",
+        "qa",
+    }
+)
 
 
 def _calculate_issue_lead_time(issue: dict) -> float | None:
@@ -134,10 +136,7 @@ async def collect_lead_time(
     if not issues:
         return {"lead_time_days": None, "sample_size": 0}
 
-    lead_times = [
-        lt for issue in issues
-        if (lt := _calculate_issue_lead_time(issue)) is not None
-    ]
+    lead_times = [lt for issue in issues if (lt := _calculate_issue_lead_time(issue)) is not None]
 
     # Median (not mean): single outliers don't dominate the team's metric.
     # See audit #7 for the trade-off discussion.
@@ -169,8 +168,7 @@ def _find_first_in_progress(issue: dict) -> datetime | None:
     histories = issue.get("changelog", {}).get("histories", [])
 
     in_progress_times = [
-        dt for history in histories
-        if (dt := _extract_in_progress_time(history)) is not None
+        dt for history in histories if (dt := _extract_in_progress_time(history)) is not None
     ]
 
     return min(in_progress_times) if in_progress_times else None

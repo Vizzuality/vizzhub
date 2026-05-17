@@ -1,19 +1,19 @@
 """Tests for GitHub Vulnerabilities collector."""
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
+
+import pytest
 
 from app.modules.scorecard.services.collectors.github.vulnerabilities import (
-    collect_vulnerabilities,
     _get_dependabot_alerts,
-    DAYS_THRESHOLD,
+    collect_vulnerabilities,
 )
 
 
 def make_alert(days_ago: int, severity: str = "high") -> dict:
     """Helper to create a Dependabot alert dict."""
-    created = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    created = datetime.now(UTC) - timedelta(days=days_ago)
     return {
         "number": days_ago,
         "created_at": created.isoformat(),

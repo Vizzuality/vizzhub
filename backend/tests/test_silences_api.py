@@ -1,6 +1,6 @@
 """Tests for Silences API endpoints."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -21,9 +21,7 @@ class TestListSilences:
         assert response.json() == []
 
     @pytest.mark.asyncio
-    async def test_list_silences_returns_all(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_silences_returns_all(self, client: AsyncClient, db_session) -> None:
         """List silences returns all active silences."""
         project = ProjectDB(
             id=uuid4(),
@@ -52,9 +50,7 @@ class TestListSilences:
         assert len(data) == 2
 
     @pytest.mark.asyncio
-    async def test_list_silences_filter_by_project(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_silences_filter_by_project(self, client: AsyncClient, db_session) -> None:
         """List silences filters by project_id."""
         project1 = ProjectDB(
             id=uuid4(),
@@ -93,7 +89,7 @@ class TestListSilences:
         db_session.add(project)
         await db_session.commit()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         active_silence = AlertSilenceDB(
             project_id=project.id,
             silenced_until=now + timedelta(days=1),
@@ -122,9 +118,7 @@ class TestListSilences:
         assert "Expired" not in reasons
 
     @pytest.mark.asyncio
-    async def test_list_silences_include_expired(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_silences_include_expired(self, client: AsyncClient, db_session) -> None:
         """List silences includes expired when flag is set."""
         project = ProjectDB(
             id=uuid4(),
@@ -134,7 +128,7 @@ class TestListSilences:
         db_session.add(project)
         await db_session.commit()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired_silence = AlertSilenceDB(
             project_id=project.id,
             silenced_until=now - timedelta(days=1),
@@ -191,9 +185,7 @@ class TestCreateSilence:
     """Tests for POST /api/silences endpoint."""
 
     @pytest.mark.asyncio
-    async def test_create_silence_success(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_create_silence_success(self, client: AsyncClient, db_session) -> None:
         """Create silence successfully."""
         project = ProjectDB(
             id=uuid4(),
@@ -256,9 +248,7 @@ class TestCreateSilence:
         assert data["alert_name"] == "score_drop"
 
     @pytest.mark.asyncio
-    async def test_create_silence_with_expiry(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_create_silence_with_expiry(self, client: AsyncClient, db_session) -> None:
         """Create silence with expiry date."""
         project = ProjectDB(
             id=uuid4(),
@@ -268,7 +258,7 @@ class TestCreateSilence:
         db_session.add(project)
         await db_session.commit()
 
-        expiry = datetime.now(timezone.utc) + timedelta(days=7)
+        expiry = datetime.now(UTC) + timedelta(days=7)
         response = await client.post(
             "/api/silences",
             json={
@@ -282,9 +272,7 @@ class TestCreateSilence:
         assert data["silenced_until"] is not None
 
     @pytest.mark.asyncio
-    async def test_create_silence_project_not_found(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_silence_project_not_found(self, client: AsyncClient) -> None:
         """Create silence returns 404 for non-existent project."""
         fake_id = str(uuid4())
         response = await client.post(
@@ -298,9 +286,7 @@ class TestCreateSilence:
         assert "Project not found" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_create_silence_alert_not_found(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_create_silence_alert_not_found(self, client: AsyncClient, db_session) -> None:
         """Create silence returns 404 for non-existent alert definition."""
         project = ProjectDB(
             id=uuid4(),
@@ -322,9 +308,7 @@ class TestCreateSilence:
         assert "Alert definition not found" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_create_silence_invalid_project_id(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_silence_invalid_project_id(self, client: AsyncClient) -> None:
         """Create silence returns 400 for invalid project ID format."""
         response = await client.post(
             "/api/silences",
@@ -341,9 +325,7 @@ class TestUpdateSilence:
     """Tests for PUT /api/silences{id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_update_silence_success(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_silence_success(self, client: AsyncClient, db_session) -> None:
         """Update silence successfully."""
         project = ProjectDB(
             id=uuid4(),
@@ -361,7 +343,7 @@ class TestUpdateSilence:
         await db_session.commit()
         await db_session.refresh(silence)
 
-        new_expiry = datetime.now(timezone.utc) + timedelta(days=14)
+        new_expiry = datetime.now(UTC) + timedelta(days=14)
         response = await client.put(
             f"/api/silences/{silence.id}",
             json={
@@ -375,9 +357,7 @@ class TestUpdateSilence:
         assert data["silenced_until"] is not None
 
     @pytest.mark.asyncio
-    async def test_update_silence_partial(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_silence_partial(self, client: AsyncClient, db_session) -> None:
         """Update silence with partial data."""
         project = ProjectDB(
             id=uuid4(),
@@ -458,9 +438,7 @@ class TestDeleteSilence:
     """Tests for DELETE /api/silences{id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_delete_silence_success(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_delete_silence_success(self, client: AsyncClient, db_session) -> None:
         """Delete silence successfully."""
         project = ProjectDB(
             id=uuid4(),

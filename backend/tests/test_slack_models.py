@@ -1,5 +1,7 @@
 """Tests for Slack notification models."""
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -115,9 +117,7 @@ class TestMessageTemplateModel:
         assert template.updated_at is not None
 
     @pytest.mark.asyncio
-    async def test_message_template_cascade_delete(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_message_template_cascade_delete(self, db_session: AsyncSession) -> None:
         """Test that deleting alert definition cascades to templates."""
         alert = AlertDefinitionDB(
             name="cascade_test_alert",
@@ -163,10 +163,7 @@ class TestEnums:
 
     def test_alert_schedule_values(self) -> None:
         """Test AlertSchedule enum values."""
-        assert (
-            AlertSchedule.DAILY_CHECK_MONTHLY_REPORT.value
-            == "daily_check_monthly_report"
-        )
+        assert AlertSchedule.DAILY_CHECK_MONTHLY_REPORT.value == "daily_check_monthly_report"
         assert AlertSchedule.DAILY.value == "daily"
 
     def test_template_type_values(self) -> None:
@@ -186,8 +183,9 @@ class TestAlertSilenceModel:
     @pytest.mark.asyncio
     async def test_alert_silence_creation(self, db_session: AsyncSession) -> None:
         """Test creating an alert silence record."""
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
         from uuid import uuid4
+
         from app.core.models.project import ProjectDB
 
         project = ProjectDB(
@@ -209,7 +207,7 @@ class TestAlertSilenceModel:
         await db_session.commit()
         await db_session.refresh(alert)
 
-        silenced_until = datetime.now(timezone.utc) + timedelta(days=7)
+        silenced_until = datetime.now(UTC) + timedelta(days=7)
         silence = AlertSilenceDB(
             project_id=project.id,
             alert_definition_id=alert.id,
@@ -229,11 +227,10 @@ class TestAlertSilenceModel:
         assert silence.created_at is not None
 
     @pytest.mark.asyncio
-    async def test_alert_silence_without_alert_definition(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_alert_silence_without_alert_definition(self, db_session: AsyncSession) -> None:
         """Test creating silence without specific alert definition (silences all)."""
         from uuid import uuid4
+
         from app.core.models.project import ProjectDB
 
         project = ProjectDB(
@@ -269,6 +266,7 @@ class TestAlertNotificationModel:
     async def test_alert_notification_creation(self, db_session: AsyncSession) -> None:
         """Test creating an alert notification log."""
         from uuid import uuid4
+
         from app.core.models.project import ProjectDB
 
         project = ProjectDB(
@@ -312,11 +310,10 @@ class TestAlertNotificationModel:
         assert notification.sent_at is not None
 
     @pytest.mark.asyncio
-    async def test_alert_notification_with_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_alert_notification_with_error(self, db_session: AsyncSession) -> None:
         """Test creating a failed notification log."""
         from uuid import uuid4
+
         from app.core.models.project import ProjectDB
 
         project = ProjectDB(
@@ -362,11 +359,10 @@ class TestDependabotAlertTrackedModel:
         assert DependabotAlertTrackedDB.__tablename__ == "dependabot_alerts_tracked"
 
     @pytest.mark.asyncio
-    async def test_dependabot_alert_tracked_creation(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_dependabot_alert_tracked_creation(self, db_session: AsyncSession) -> None:
         """Test creating a tracked Dependabot alert."""
         from uuid import uuid4
+
         from app.core.models.project import ProjectDB
 
         project = ProjectDB(
@@ -400,12 +396,11 @@ class TestDependabotAlertTrackedModel:
         assert tracked_alert.resolved_at is None
 
     @pytest.mark.asyncio
-    async def test_dependabot_alert_tracked_resolved(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_dependabot_alert_tracked_resolved(self, db_session: AsyncSession) -> None:
         """Test marking a Dependabot alert as resolved."""
-        from datetime import datetime, timezone
+        from datetime import datetime
         from uuid import uuid4
+
         from app.core.models.project import ProjectDB
 
         project = ProjectDB(
@@ -427,8 +422,8 @@ class TestDependabotAlertTrackedModel:
         await db_session.commit()
         await db_session.refresh(tracked_alert)
 
-        tracked_alert.resolved_at = datetime.now(timezone.utc)
-        tracked_alert.last_notified_at = datetime.now(timezone.utc)
+        tracked_alert.resolved_at = datetime.now(UTC)
+        tracked_alert.last_notified_at = datetime.now(UTC)
         await db_session.commit()
         await db_session.refresh(tracked_alert)
 
@@ -468,7 +463,7 @@ class TestScheduledJobRunModel:
     @pytest.mark.asyncio
     async def test_scheduled_job_run_completed(self, db_session: AsyncSession) -> None:
         """Test completing a scheduled job run."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         job_run = ScheduledJobRunDB(
             job_name="daily_dependabot_check",
@@ -478,7 +473,7 @@ class TestScheduledJobRunModel:
         await db_session.commit()
         await db_session.refresh(job_run)
 
-        job_run.completed_at = datetime.now(timezone.utc)
+        job_run.completed_at = datetime.now(UTC)
         job_run.status = "completed"
         job_run.projects_checked = 10
         job_run.alerts_sent = 3
@@ -493,7 +488,7 @@ class TestScheduledJobRunModel:
     @pytest.mark.asyncio
     async def test_scheduled_job_run_failed(self, db_session: AsyncSession) -> None:
         """Test a failed scheduled job run."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         job_run = ScheduledJobRunDB(
             job_name="daily_business_alerts_check",
@@ -503,7 +498,7 @@ class TestScheduledJobRunModel:
         await db_session.commit()
         await db_session.refresh(job_run)
 
-        job_run.completed_at = datetime.now(timezone.utc)
+        job_run.completed_at = datetime.now(UTC)
         job_run.status = "failed"
         job_run.error_message = "Database connection timeout"
         await db_session.commit()

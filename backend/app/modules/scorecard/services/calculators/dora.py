@@ -20,7 +20,6 @@ The individual metrics already contribute to P_flow and P_quality dimensions.
 from app.config import ScoringConfig
 from app.modules.scorecard.models.indicators import IndicatorsCreate
 
-
 # Classification levels with numeric values for scoring
 ELITE = "Elite"
 HIGH = "High"
@@ -206,9 +205,7 @@ class DoraScoreCalculator:
         Medium: Less than 1 week (168 hours)
         Low: More than 1 week
         """
-        if hours == 0:  # No incidents = Elite
-            return ELITE
-        elif hours < 1:
+        if hours == 0 or hours < 1:  # No incidents = Elite
             return ELITE
         elif hours < 24:
             return HIGH

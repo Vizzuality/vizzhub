@@ -38,9 +38,7 @@ class TestConfigLoadingIntegration:
         assert scoring_config.get_constant("grace_days") == pytest.approx(3.0)
 
     @pytest.mark.asyncio
-    async def test_config_weight_groups_sum_to_one(
-        self, scoring_config: ScoringConfig
-    ) -> None:
+    async def test_config_weight_groups_sum_to_one(self, scoring_config: ScoringConfig) -> None:
         """Verify all weight groups sum to 1.0."""
         validation = scoring_config.validate_weights()
 

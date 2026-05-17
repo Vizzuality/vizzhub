@@ -5,14 +5,12 @@ import re
 import pytest
 from httpx import AsyncClient
 
-
 UUID4_PATTERN = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
 )
 
 
 class TestRequestIDMiddleware:
-
     @pytest.mark.asyncio
     async def test_response_contains_x_request_id(self, client: AsyncClient) -> None:
         response = await client.get("/health/live")

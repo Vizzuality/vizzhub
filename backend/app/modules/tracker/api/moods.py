@@ -2,9 +2,8 @@
 
 import datetime
 from collections import defaultdict
-from uuid import UUID
-
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select, tuple_
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import AdminUser, DBSession
 from app.core.models.user import UserDB
+from app.modules.tracker.api.helpers import get_or_404
 from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
@@ -22,7 +22,6 @@ from app.modules.tracker.schemas.mood import (
     NamedFeedbackItem,
     TrendMonth,
 )
-from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
 
@@ -105,8 +104,7 @@ async def get_moods(
         )
     )
     anonymous_feedback = [
-        AnonymousFeedbackItem(id=str(r.id), text=r.text)
-        for r in anon_result.scalars().all()
+        AnonymousFeedbackItem(id=str(r.id), text=r.text) for r in anon_result.scalars().all()
     ]
 
     return MoodsResponse(
@@ -124,7 +122,11 @@ def _last_12_months() -> list[tuple[int, int]]:
     d = datetime.date(today.year, today.month, 1)
     months: list[tuple[int, int]] = []
     for _ in range(12):
-        d = datetime.date(d.year - 1, 12, 1) if d.month == 1 else datetime.date(d.year, d.month - 1, 1)
+        d = (
+            datetime.date(d.year - 1, 12, 1)
+            if d.month == 1
+            else datetime.date(d.year, d.month - 1, 1)
+        )
         months.append((d.month, d.year))
     months.reverse()
     return months
@@ -135,9 +137,7 @@ async def _reports_by_month(
     target_months: list[tuple[int, int]],
 ) -> dict[tuple[int, int], list[tuple]]:
     target_set = set(target_months)
-    period_result = await db.execute(
-        select(ReportingPeriodDB.id, ReportingPeriodDB.date)
-    )
+    period_result = await db.execute(select(ReportingPeriodDB.id, ReportingPeriodDB.date))
     period_to_month: dict[UUID, tuple[int, int]] = {
         pid: (pdate.month, pdate.year)
         for pid, pdate in period_result.all()

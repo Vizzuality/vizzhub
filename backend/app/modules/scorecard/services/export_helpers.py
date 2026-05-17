@@ -8,10 +8,10 @@ from app.config import ScoringConfig
 from app.core.services.export_helpers import (
     GREEN_FILL,
     GREEN_FILL_SUBTLE,
-    YELLOW_FILL,
-    YELLOW_FILL_SUBTLE,
     RED_FILL,
     RED_FILL_SUBTLE,
+    YELLOW_FILL,
+    YELLOW_FILL_SUBTLE,
     apply_header_style,
     set_column_widths,
 )
@@ -19,7 +19,6 @@ from app.modules.scorecard.services.export_definitions import (
     DIMENSION_DEFINITIONS,
     INDICATOR_DEFINITIONS,
 )
-
 
 DEFAULT_GREEN_THRESHOLD = 80
 DEFAULT_YELLOW_THRESHOLD = 60
@@ -39,8 +38,12 @@ def create_methodology_sheet(wb: Workbook, config: ScoringConfig) -> Worksheet:
     ws.append(["Scoring Model"])
     ws.cell(row=3, column=1).font = Font(bold=True, size=12)
     ws.append(["Raw Metrics", "->", "Normalized Indicators (0-1)", "->", "Weighted Scores (0-100)"])
-    ws.append(["Collectors fetch data from Jira and GitHub. Manual inputs supplement automated data."])
-    ws.append(["Indicators are normalized to a 0-1 scale. Scores are weighted averages scaled to 0-100."])
+    ws.append(
+        ["Collectors fetch data from Jira and GitHub. Manual inputs supplement automated data."]
+    )
+    ws.append(
+        ["Indicators are normalized to a 0-1 scale. Scores are weighted averages scaled to 0-100."]
+    )
     ws.append([])
 
     ws.append(["Traffic Light Legend"])
@@ -98,14 +101,16 @@ def create_methodology_sheet(wb: Workbook, config: ScoringConfig) -> Worksheet:
             ind = INDICATOR_DEFINITIONS[ind_key]
             target = _safe_get_target(config, ind_key)
             weight = _safe_get_weight(config, dim_key, ind_key)
-            ws.append([
-                dim_def["name"],
-                ind["name"],
-                ind["description"],
-                ind["formula"],
-                target,
-                weight,
-            ])
+            ws.append(
+                [
+                    dim_def["name"],
+                    ind["name"],
+                    ind["description"],
+                    ind["formula"],
+                    target,
+                    weight,
+                ]
+            )
 
     set_column_widths(ws, {"A": 25, "B": 28, "C": 50, "D": 60, "E": 12, "F": 12})
 

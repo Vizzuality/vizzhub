@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Annotated
 from uuid import UUID
@@ -51,9 +51,7 @@ async def export_kpi_widget(
     """
     await check_user_access(db, node_id, user)
 
-    node_result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id)
-    )
+    node_result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id))
     node = node_result.scalar_one_or_none()
     if node is None or node.type != "widget":
         raise HTTPException(status_code=404, detail="Widget node not found")
@@ -126,9 +124,7 @@ async def export_kpi_widget_to_drive(
     if not access_token:
         raise HTTPException(status_code=400, detail="Google Drive not connected")
 
-    node_result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id)
-    )
+    node_result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id))
     node = node_result.scalar_one_or_none()
     if node is None or node.type != "widget":
         raise HTTPException(status_code=404, detail="Widget node not found")
@@ -140,6 +136,7 @@ async def export_kpi_widget_to_drive(
         auth_header = {"Authorization": f"Bearer {access_token}"}
 
         from app.modules.iso_docs.api.registry_rows import _resolve_drive_parent
+
         parent_drive_id = await _resolve_drive_parent(db, node, http, auth_header)
 
         existing_mapping = await db.execute(
@@ -189,17 +186,19 @@ async def export_kpi_widget_to_drive(
             resp.raise_for_status()
             drive_file_id = resp.json()["id"]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if existing:
         existing.drive_file_id = drive_file_id
         existing.last_exported_at = now
     else:
-        db.add(IsoDocDriveMappingDB(
-            node_id=node.id,
-            drive_file_id=drive_file_id,
-            drive_file_type="spreadsheet",
-            last_exported_at=now,
-        ))
+        db.add(
+            IsoDocDriveMappingDB(
+                node_id=node.id,
+                drive_file_id=drive_file_id,
+                drive_file_type="spreadsheet",
+                last_exported_at=now,
+            )
+        )
     await db.flush()
 
     logger.info("kpi_widget_exported_to_drive", node_id=str(node_id), drive_file_id=drive_file_id)

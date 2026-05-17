@@ -3,7 +3,7 @@
 Delegates to core TreeService, re-exports for backward compatibility.
 """
 
-from app.core.services.tree_service import TreeService, generate_slug, MAX_DEPTH
+from app.core.services.tree_service import MAX_DEPTH, TreeService, generate_slug
 from app.modules.playbook.models.node import PlaybookNodeDB
 
 _tree = TreeService(PlaybookNodeDB)

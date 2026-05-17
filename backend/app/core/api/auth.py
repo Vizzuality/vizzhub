@@ -1,15 +1,16 @@
 """Authentication API endpoints for Google SSO."""
 
+from datetime import UTC, datetime
+
 import structlog
-from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.core.api.deps import CurrentUser, DBSession
 from app.config import get_settings
+from app.core.api.deps import CurrentUser, DBSession
 from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
 from app.core.models.role import RoleDB, UserRoleDB
 from app.core.models.user import User, UserDB, UserPublic
@@ -28,7 +29,7 @@ async def _create_new_user(db, email: str, idinfo: dict, app_settings) -> UserDB
         first_name=idinfo.get("given_name"),
         last_name=idinfo.get("family_name"),
         picture=idinfo.get("picture"),
-        last_login_at=datetime.now(timezone.utc),
+        last_login_at=datetime.now(UTC),
     )
     try:
         bot_token = await get_slack_bot_token(db)
@@ -43,15 +44,13 @@ async def _create_new_user(db, email: str, idinfo: dict, app_settings) -> UserDB
     db.add(user)
     await db.flush()
 
-    user_role_obj = (await db.execute(
-        select(RoleDB).where(RoleDB.name == "user")
-    )).scalar_one()
+    user_role_obj = (await db.execute(select(RoleDB).where(RoleDB.name == "user"))).scalar_one()
     db.add(UserRoleDB(user_id=user.id, role_id=user_role_obj.id))
 
     if app_settings.initial_admin_email and email == app_settings.initial_admin_email.lower():
-        admin_role_obj = (await db.execute(
-            select(RoleDB).where(RoleDB.name == "admin")
-        )).scalar_one()
+        admin_role_obj = (
+            await db.execute(select(RoleDB).where(RoleDB.name == "admin"))
+        ).scalar_one()
         db.add(UserRoleDB(user_id=user.id, role_id=admin_role_obj.id))
         logger.info("initial_admin_created", email=email)
 
@@ -67,7 +66,7 @@ async def _update_existing_user(db, user: UserDB, idinfo: dict) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account deactivated. Contact an administrator.",
         )
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     user.first_name = idinfo.get("given_name") or user.first_name
     user.last_name = idinfo.get("family_name") or user.last_name
     user.picture = idinfo.get("picture") or user.picture
@@ -176,9 +175,7 @@ async def get_current_user_info(
     db: DBSession,
 ) -> MeResponse:
     """Get the current authenticated user's information."""
-    result = await db.execute(
-        select(UserDB).where(UserDB.id == current_user.user_id)
-    )
+    result = await db.execute(select(UserDB).where(UserDB.id == current_user.user_id))
     user = result.scalar_one_or_none()
 
     if user is None:

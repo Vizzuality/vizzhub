@@ -45,9 +45,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
 
         github_token = await IntegrationTokenService.get_token(db, "github")
         if not github_token:
-            return await complete_with_error(
-                db, job_run, "GitHub token not configured"
-            )
+            return await complete_with_error(db, job_run, "GitHub token not configured")
 
         alert_definition = await _get_alert_definition(db)
         if not alert_definition:
@@ -67,9 +65,7 @@ async def check_dependabot_alerts(ctx: dict) -> dict[str, Any]:
             try:
                 projects_checked += 1
 
-                is_silenced = await AlertService.is_silenced(
-                    db, project.id, alert_definition.id
-                )
+                is_silenced = await AlertService.is_silenced(db, project.id, alert_definition.id)
                 if is_silenced:
                     logger.debug("project_silenced", project=project_name)
                     continue
@@ -138,15 +134,11 @@ async def _process_project(
     github_token: str,
 ) -> int:
     """Fetch GitHub alerts; diff against tracked rows; notify/remind/resolve."""
-    current_alerts = await DependabotCollector.fetch_alerts(
-        project.github_repo, github_token
-    )
+    current_alerts = await DependabotCollector.fetch_alerts(project.github_repo, github_token)
     current_alert_ids = {alert["number"] for alert in current_alerts}
 
     tracked_alerts = await get_tracked_alerts(db, project.id)
-    tracked_alert_ids = {
-        ta.github_alert_id for ta in tracked_alerts if not ta.resolved_at
-    }
+    tracked_alert_ids = {ta.github_alert_id for ta in tracked_alerts if not ta.resolved_at}
     new_alert_ids = current_alert_ids - tracked_alert_ids
 
     await backfill_manifest_paths(db, tracked_alerts, current_alerts)
@@ -154,9 +146,7 @@ async def _process_project(
     alerts_sent = 0
     for alert in current_alerts:
         if alert["number"] in new_alert_ids:
-            sent = await notify_new_alert(
-                db, project, alert_definition, bot_token, alert
-            )
+            sent = await notify_new_alert(db, project, alert_definition, bot_token, alert)
             if sent:
                 alerts_sent += 1
 

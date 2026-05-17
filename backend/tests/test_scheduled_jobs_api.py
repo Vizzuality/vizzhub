@@ -1,6 +1,6 @@
 """Tests for Scheduled Jobs API endpoints."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,11 +38,9 @@ class TestListScheduledJobs:
             assert job["last_run"] is None
 
     @pytest.mark.asyncio
-    async def test_list_scheduled_jobs_with_last_run(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_scheduled_jobs_with_last_run(self, client: AsyncClient, db_session) -> None:
         """List scheduled jobs includes last run info when available."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         job_run = ScheduledJobRunDB(
             job_name="check_dependabot_alerts",
             started_at=now,
@@ -59,9 +57,7 @@ class TestListScheduledJobs:
         assert response.status_code == 200
         data = response.json()
 
-        dependabot_job = next(
-            (j for j in data if j["name"] == "check_dependabot_alerts"), None
-        )
+        dependabot_job = next((j for j in data if j["name"] == "check_dependabot_alerts"), None)
         assert dependabot_job is not None
         assert dependabot_job["last_run"] is not None
         assert dependabot_job["last_run"]["status"] == "completed"
@@ -69,9 +65,7 @@ class TestListScheduledJobs:
         assert dependabot_job["last_run"]["alerts_sent"] == 3
         assert dependabot_job["last_run"]["error_message"] is None
 
-        business_job = next(
-            (j for j in data if j["name"] == "check_business_alerts"), None
-        )
+        business_job = next((j for j in data if j["name"] == "check_business_alerts"), None)
         assert business_job is not None
         assert business_job["last_run"] is None
 
@@ -80,12 +74,12 @@ class TestListScheduledJobs:
         self, client: AsyncClient, db_session
     ) -> None:
         """List scheduled jobs returns only the most recent run."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         old_run = ScheduledJobRunDB(
             job_name="check_dependabot_alerts",
-            started_at=datetime(2024, 1, 1, 8, 0, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2024, 1, 1, 8, 5, 0, tzinfo=timezone.utc),
+            started_at=datetime(2024, 1, 1, 8, 0, 0, tzinfo=UTC),
+            completed_at=datetime(2024, 1, 1, 8, 5, 0, tzinfo=UTC),
             status="completed",
             projects_checked=2,
             alerts_sent=1,
@@ -106,31 +100,23 @@ class TestListScheduledJobs:
         assert response.status_code == 200
         data = response.json()
 
-        dependabot_job = next(
-            (j for j in data if j["name"] == "check_dependabot_alerts"), None
-        )
+        dependabot_job = next((j for j in data if j["name"] == "check_dependabot_alerts"), None)
         assert dependabot_job["last_run"]["status"] == "error"
         assert dependabot_job["last_run"]["error_message"] == "Connection failed"
 
     @pytest.mark.asyncio
-    async def test_list_scheduled_jobs_job_info_fields(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_list_scheduled_jobs_job_info_fields(self, client: AsyncClient) -> None:
         """List scheduled jobs returns correct job info fields."""
         response = await client.get("/api/admin/jobs/scheduled")
         assert response.status_code == 200
         data = response.json()
 
-        dependabot_job = next(
-            (j for j in data if j["name"] == "check_dependabot_alerts"), None
-        )
+        dependabot_job = next((j for j in data if j["name"] == "check_dependabot_alerts"), None)
         assert dependabot_job is not None
         assert "Daily at 8:00 AM" in dependabot_job["schedule"]
         assert "Dependabot" in dependabot_job["description"]
 
-        business_job = next(
-            (j for j in data if j["name"] == "check_business_alerts"), None
-        )
+        business_job = next((j for j in data if j["name"] == "check_business_alerts"), None)
         assert business_job is not None
         assert "Daily at 9:00 AM" in business_job["schedule"]
         assert "budget" in business_job["description"].lower()
@@ -161,9 +147,7 @@ class TestTriggerScheduledJob:
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
-            response = await client.post(
-                "/api/admin/jobs/scheduled/check_dependabot_alerts/run"
-            )
+            response = await client.post("/api/admin/jobs/scheduled/check_dependabot_alerts/run")
 
         assert response.status_code == 200
         data = response.json()
@@ -186,9 +170,7 @@ class TestTriggerScheduledJob:
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
-            response = await client.post(
-                "/api/admin/jobs/scheduled/check_business_alerts/run"
-            )
+            response = await client.post("/api/admin/jobs/scheduled/check_business_alerts/run")
 
         assert response.status_code == 200
         data = response.json()
@@ -204,9 +186,7 @@ class TestTriggerScheduledJob:
             new_callable=AsyncMock,
             side_effect=ConnectionError("Redis connection refused"),
         ):
-            response = await client.post(
-                "/api/admin/jobs/scheduled/check_dependabot_alerts/run"
-            )
+            response = await client.post("/api/admin/jobs/scheduled/check_dependabot_alerts/run")
 
         assert response.status_code == 500
         assert "Failed to enqueue job" in response.json()["detail"]
@@ -227,12 +207,8 @@ class TestTriggerScheduledJob:
             new_callable=AsyncMock,
             return_value=mock_pool,
         ):
-            response1 = await client.post(
-                "/api/admin/jobs/scheduled/check_dependabot_alerts/run"
-            )
-            response2 = await client.post(
-                "/api/admin/jobs/scheduled/check_business_alerts/run"
-            )
+            response1 = await client.post("/api/admin/jobs/scheduled/check_dependabot_alerts/run")
+            response2 = await client.post("/api/admin/jobs/scheduled/check_business_alerts/run")
 
         assert response1.status_code == 200
         assert response1.json()["success"] is True
@@ -247,7 +223,7 @@ class TestScheduledJobsWithRunHistory:
     @pytest.mark.asyncio
     async def test_running_job_status(self, client: AsyncClient, db_session) -> None:
         """List shows running job status correctly."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         job_run = ScheduledJobRunDB(
             job_name="check_dependabot_alerts",
             started_at=now,
@@ -263,9 +239,7 @@ class TestScheduledJobsWithRunHistory:
         assert response.status_code == 200
         data = response.json()
 
-        dependabot_job = next(
-            (j for j in data if j["name"] == "check_dependabot_alerts"), None
-        )
+        dependabot_job = next((j for j in data if j["name"] == "check_dependabot_alerts"), None)
         assert dependabot_job["last_run"]["status"] == "running"
         assert dependabot_job["last_run"]["completed_at"] is None
         assert dependabot_job["last_run"]["projects_checked"] == 3
@@ -275,7 +249,7 @@ class TestScheduledJobsWithRunHistory:
         self, client: AsyncClient, db_session
     ) -> None:
         """A row stuck in 'running' past the worker job_timeout reports as 'stale'."""
-        started = datetime.now(timezone.utc) - timedelta(hours=3)
+        started = datetime.now(UTC) - timedelta(hours=3)
         job_run = ScheduledJobRunDB(
             job_name="monthly_scorecard_capture",
             started_at=started,
@@ -291,18 +265,14 @@ class TestScheduledJobsWithRunHistory:
         assert response.status_code == 200
         data = response.json()
 
-        job = next(
-            (j for j in data if j["name"] == "monthly_scorecard_capture"), None
-        )
+        job = next((j for j in data if j["name"] == "monthly_scorecard_capture"), None)
         assert job["last_run"]["status"] == "stale"
         assert job["last_run"]["completed_at"] is None
 
     @pytest.mark.asyncio
-    async def test_recent_running_job_stays_running(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_recent_running_job_stays_running(self, client: AsyncClient, db_session) -> None:
         """A recent 'running' row (within job_timeout) keeps the 'running' label."""
-        started = datetime.now(timezone.utc) - timedelta(minutes=10)
+        started = datetime.now(UTC) - timedelta(minutes=10)
         job_run = ScheduledJobRunDB(
             job_name="monthly_scorecard_capture",
             started_at=started,
@@ -318,17 +288,13 @@ class TestScheduledJobsWithRunHistory:
         assert response.status_code == 200
         data = response.json()
 
-        job = next(
-            (j for j in data if j["name"] == "monthly_scorecard_capture"), None
-        )
+        job = next((j for j in data if j["name"] == "monthly_scorecard_capture"), None)
         assert job["last_run"]["status"] == "running"
 
     @pytest.mark.asyncio
-    async def test_error_job_with_message(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_error_job_with_message(self, client: AsyncClient, db_session) -> None:
         """List shows error job with error message."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         job_run = ScheduledJobRunDB(
             job_name="check_business_alerts",
             started_at=now,
@@ -345,8 +311,6 @@ class TestScheduledJobsWithRunHistory:
         assert response.status_code == 200
         data = response.json()
 
-        business_job = next(
-            (j for j in data if j["name"] == "check_business_alerts"), None
-        )
+        business_job = next((j for j in data if j["name"] == "check_business_alerts"), None)
         assert business_job["last_run"]["status"] == "error"
         assert "Slack not configured" in business_job["last_run"]["error_message"]

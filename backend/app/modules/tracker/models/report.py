@@ -19,14 +19,13 @@ class ReportDB(Base):
     __tablename__ = "reports"
     __table_args__ = (
         UniqueConstraint(
-            "user_id", "reporting_period_id",
+            "user_id",
+            "reporting_period_id",
             name="uq_reports_user_period",
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
@@ -40,9 +39,7 @@ class ReportDB(Base):
     estimated: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     mood: Mapped[int | None] = mapped_column(Integer, nullable=True)
     feedback_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

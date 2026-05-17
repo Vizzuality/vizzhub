@@ -16,7 +16,11 @@ class TestPublishIntegration:
     async def test_full_publish_flow(self, db_session):
         """End-to-end: create tree -> generate -> verify HTML structure."""
         culture = PlaybookNodeDB(
-            title="Culture", slug="culture", type="group", position=0, is_public=True,
+            title="Culture",
+            slug="culture",
+            type="group",
+            position=0,
+            is_public=True,
         )
         db_session.add(culture)
         await db_session.flush()
@@ -83,10 +87,18 @@ class TestPublishIntegration:
     async def test_private_pages_excluded(self, db_session):
         """Private pages should not appear in generated site."""
         public = PlaybookNodeDB(
-            title="Public", slug="public", type="page", position=0, is_public=True,
+            title="Public",
+            slug="public",
+            type="page",
+            position=0,
+            is_public=True,
         )
         private = PlaybookNodeDB(
-            title="Private", slug="private", type="page", position=1, is_public=False,
+            title="Private",
+            slug="private",
+            type="page",
+            position=1,
+            is_public=False,
         )
         db_session.add_all([public, private])
         await db_session.flush()
@@ -108,7 +120,11 @@ class TestPublishIntegration:
     async def test_non_public_group_included_if_has_public_children(self, db_session):
         """Non-public group with public descendants should appear in nav."""
         group = PlaybookNodeDB(
-            title="Internal", slug="internal", type="group", position=0, is_public=False,
+            title="Internal",
+            slug="internal",
+            type="group",
+            position=0,
+            is_public=False,
         )
         db_session.add(group)
         await db_session.flush()

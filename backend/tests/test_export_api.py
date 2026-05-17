@@ -1,16 +1,16 @@
 """Tests for export API endpoints."""
 
-import pytest
-import pytest_asyncio
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 @pytest_asyncio.fixture
@@ -63,9 +63,7 @@ class TestProjectExportEndpoint:
         assert "attachment" in response.headers.get("content-disposition", "")
 
     @pytest.mark.asyncio
-    async def test_includes_filename(
-        self, client: AsyncClient, export_project: ProjectDB
-    ):
+    async def test_includes_filename(self, client: AsyncClient, export_project: ProjectDB):
         response = await client.get(
             f"/api/exports/project/{export_project.id}",
             params={"start": "2025-01", "end": "2025-03"},
@@ -84,9 +82,7 @@ class TestProjectExportEndpoint:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_snapshot_type_parameter(
-        self, client: AsyncClient, export_project: ProjectDB
-    ):
+    async def test_snapshot_type_parameter(self, client: AsyncClient, export_project: ProjectDB):
         response = await client.get(
             f"/api/exports/project/{export_project.id}",
             params={
@@ -106,7 +102,6 @@ class TestProjectExportEndpoint:
             params={"start": "2025-1", "end": "2025-03"},
         )
         assert response.status_code == 400
-
 
     @pytest.mark.asyncio
     async def test_end_before_start_returns_400(
@@ -143,9 +138,7 @@ class TestProjectExportEndpoint:
 
 class TestGlobalExportEndpoint:
     @pytest.mark.asyncio
-    async def test_returns_xlsx(
-        self, client: AsyncClient, export_project: ProjectDB
-    ):
+    async def test_returns_xlsx(self, client: AsyncClient, export_project: ProjectDB):
         response = await client.get(
             "/api/exports/global",
             params={"start": "2025-01", "end": "2025-03"},

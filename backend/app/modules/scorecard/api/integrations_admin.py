@@ -1,8 +1,8 @@
 """Admin API endpoints for managing integration tokens."""
 
-import structlog
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.api.deps import CurrentUser, DBSession, limiter
@@ -10,6 +10,8 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 IntegrationAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_INTEGRATIONS))]
+from app.core.services.integration_token_service import IntegrationTokenService
+from app.modules.notifications.public import SlackChannel, SlackService, SlackTestResult
 from app.modules.scorecard.api.schemas.integrations import (
     AllIntegrationsStatus,
     GitHubTokenInput,
@@ -17,8 +19,6 @@ from app.modules.scorecard.api.schemas.integrations import (
     SlackSettingsUpdate,
     SlackTokenInput,
 )
-from app.core.services.integration_token_service import IntegrationTokenService
-from app.modules.notifications.public import SlackChannel, SlackService, SlackTestResult
 
 logger = structlog.get_logger()
 
@@ -47,9 +47,7 @@ async def get_all_integrations_status(
 ) -> AllIntegrationsStatus:
     """Get connection status for all integration providers."""
     jira_raw = await IntegrationTokenService.get_provider_status(db, "jira")
-    google_raw = await IntegrationTokenService.get_provider_status(
-        db, "google_workspace"
-    )
+    google_raw = await IntegrationTokenService.get_provider_status(db, "google_workspace")
     github_raw = await IntegrationTokenService.get_provider_status(db, "github")
     slack_raw = await IntegrationTokenService.get_provider_status(db, "slack")
 

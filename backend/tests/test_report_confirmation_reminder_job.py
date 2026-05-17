@@ -95,9 +95,7 @@ class TestSendReportConfirmationReminder:
         return user
 
     @pytest.mark.asyncio
-    async def test_skips_outside_window(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_skips_outside_window(self, db_session: AsyncSession) -> None:
         """Job skips when outside the reminder window."""
         ctx = {"db": db_session}
         with patch(
@@ -110,9 +108,7 @@ class TestSendReportConfirmationReminder:
         assert result["alerts_sent"] == 0
 
     @pytest.mark.asyncio
-    async def test_error_no_bot_token(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_error_no_bot_token(self, db_session: AsyncSession) -> None:
         """Job errors when Slack bot token missing."""
         ctx = {"db": db_session}
         with patch(
@@ -338,12 +334,16 @@ class TestSendReportConfirmationReminder:
             result = await send_report_confirmation_reminder(ctx)
 
         rows = (
-            await db_session.execute(
-                sa_select(ScheduledJobRunDB).where(
-                    ScheduledJobRunDB.job_name == "send_report_confirmation_reminder"
+            (
+                await db_session.execute(
+                    sa_select(ScheduledJobRunDB).where(
+                        ScheduledJobRunDB.job_name == "send_report_confirmation_reminder"
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].status == "completed"
         assert rows[0].id == result["job_run_id"]

@@ -16,7 +16,7 @@ class NodeCreate(BaseModel):
     widget_key: str | None = Field(None, max_length=100)
 
     @model_validator(mode="after")
-    def validate_widget_key(self) -> "NodeCreate":
+    def validate_widget_key(self) -> NodeCreate:
         if self.type == "widget" and not self.widget_key:
             raise ValueError("widget_key is required for widget nodes")
         if self.type != "widget" and self.widget_key:

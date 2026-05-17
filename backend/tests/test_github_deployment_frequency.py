@@ -1,19 +1,20 @@
 """Tests for GitHub Deployment Frequency collector."""
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
+
+import pytest
 
 from app.modules.scorecard.services.collectors.github.deployment_frequency import (
-    collect_deployment_frequency,
     LOOKBACK_DAYS,
+    collect_deployment_frequency,
 )
 from app.modules.scorecard.services.collectors.github.utils import get_releases
 
 
 def make_release(days_ago: int, draft: bool = False, prerelease: bool = False) -> dict:
     """Helper to create a release dict."""
-    published = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    published = datetime.now(UTC) - timedelta(days=days_ago)
     return {
         "id": days_ago,
         "tag_name": f"v1.0.{days_ago}",

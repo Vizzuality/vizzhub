@@ -20,9 +20,7 @@ class IsoDocNoteDB(Base):
 
     __tablename__ = "iso_doc_notes"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     node_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("iso_doc_nodes.id", ondelete="CASCADE"),
@@ -30,12 +28,8 @@ class IsoDocNoteDB(Base):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    done: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
-    done_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    done: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     done_by_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete=_SET_NULL),
@@ -46,9 +40,7 @@ class IsoDocNoteDB(Base):
         ForeignKey("users.id", ondelete=_SET_NULL),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

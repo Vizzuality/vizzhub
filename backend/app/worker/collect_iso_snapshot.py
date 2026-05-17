@@ -1,8 +1,8 @@
 """ISO access snapshot cron job."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.integration_token_service import IntegrationTokenService
@@ -74,7 +74,7 @@ async def collect_iso_snapshot(ctx: dict) -> dict:
         "job_run_id": job_run.id,
         "providers": results,
         "errors": errors,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -92,9 +92,7 @@ async def _is_github_connected(db: AsyncSession) -> bool:
     token = await IntegrationTokenService.get_token(db, "github")
     if not token:
         return False
-    org_name = await IntegrationTokenService.get_setting(
-        db, "github", "iso_org_name"
-    )
+    org_name = await IntegrationTokenService.get_setting(db, "github", "iso_org_name")
     return bool(org_name)
 
 
@@ -113,7 +111,7 @@ async def send_iso_failure_alert(db: AsyncSession, error_message: str) -> None:
         message = (
             ":rotating_light: *ISO Access Review \u2014 Snapshot capture failed*\n"
             f"Error: {error_message}\n"
-            f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
+            f"Time: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}\n"
             "Action required: Check provider connections in ISO settings."
         )
 

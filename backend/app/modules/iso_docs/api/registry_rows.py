@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO, StringIO
 from typing import Annotated
 from uuid import UUID
@@ -16,7 +16,8 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from sqlalchemy import delete as sql_delete, select
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import select
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.modules.iso_docs.api.deps import IsoDocsEditor, check_user_access
@@ -52,9 +53,7 @@ from app.modules.iso_docs.services.registry_service import (
 
 logger = structlog.get_logger()
 
-XLSX_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter()
 
@@ -74,9 +73,7 @@ async def _get_registry_node(db, node_id: UUID) -> IsoDocNodeDB:
 async def _get_registry_type(db, type_id: UUID | None) -> RegistryTypeDB | None:
     if type_id is None:
         return None
-    result = await db.execute(
-        select(RegistryTypeDB).where(RegistryTypeDB.id == type_id)
-    )
+    result = await db.execute(select(RegistryTypeDB).where(RegistryTypeDB.id == type_id))
     rt = result.scalar_one_or_none()
     if not rt:
         raise HTTPException(status_code=404, detail=_REGISTRY_TYPE_NOT_FOUND)
@@ -91,9 +88,7 @@ async def _fetch_rows(
     if year is not None:
         query = query.where(RegistryRowDB.year == year)
     if sort_key:
-        query = query.order_by(
-            RegistryRowDB.data[sort_key].astext, RegistryRowDB.row_index
-        )
+        query = query.order_by(RegistryRowDB.data[sort_key].astext, RegistryRowDB.row_index)
     else:
         query = query.order_by(RegistryRowDB.row_index)
     result = await db.execute(query)
@@ -101,9 +96,7 @@ async def _fetch_rows(
 
 
 async def _fetch_metadata(db, node_id: UUID) -> IsoDocMetadataDB | None:
-    result = await db.execute(
-        select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id)
-    )
+    result = await db.execute(select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id))
     return result.scalar_one_or_none()
 
 
@@ -118,9 +111,7 @@ def _group_rows_by_year(rows: list) -> dict[int, list]:
     "/registries/{node_id}/years",
     responses={404: {"description": "Registry node not found"}},
 )
-async def list_years(
-    node_id: UUID, db: DBSession, user: CurrentUser
-) -> list[int]:
+async def list_years(node_id: UUID, db: DBSession, user: CurrentUser) -> list[int]:
     await check_user_access(db, node_id, user)
     node = await _get_registry_node(db, node_id)
     result = await db.execute(
@@ -132,9 +123,7 @@ async def list_years(
     return list(result.scalars())
 
 
-def _enrich_row(
-    row, schema: list[dict]
-) -> RegistryRowResponse:
+def _enrich_row(row, schema: list[dict]) -> RegistryRowResponse:
     """Serialize a row with computed field values and attachment URLs injected."""
     resp = RegistryRowResponse.model_validate(row)
     resp.data = compute_row_fields(schema, resp.data)
@@ -143,16 +132,12 @@ def _enrich_row(
     return resp
 
 
-def _enrich_rows(
-    rows: list, schema: list[dict]
-) -> list[RegistryRowResponse]:
+def _enrich_rows(rows: list, schema: list[dict]) -> list[RegistryRowResponse]:
     """Serialize rows with computed field values and attachment URLs injected."""
     return [_enrich_row(r, schema) for r in rows]
 
 
-async def _enrich_drive_lookups(
-    db, rows: list[RegistryRowResponse], schema: list[dict]
-) -> None:
+async def _enrich_drive_lookups(db, rows: list[RegistryRowResponse], schema: list[dict]) -> None:
     """Resolve drive_lookup computed columns via a single batch query."""
     from app.modules.iso_docs.models.drive_mapping import IsoDocDriveMappingDB
 
@@ -179,10 +164,7 @@ async def _enrich_drive_lookups(
         .join(IsoDocDriveMappingDB, IsoDocNodeDB.id == IsoDocDriveMappingDB.node_id)
         .where(IsoDocNodeDB.slug.in_(all_slugs))
     )
-    slug_to_url = {
-        slug: build_drive_url(file_id, file_type)
-        for slug, file_id, file_type in result
-    }
+    slug_to_url = {slug: build_drive_url(file_id, file_type) for slug, file_id, file_type in result}
 
     for row in rows:
         for col_key, source_key in lookups:
@@ -276,9 +258,7 @@ async def update_row(
     schema = rt.schema if rt else []
 
     result = await db.execute(
-        select(RegistryRowDB).where(
-            RegistryRowDB.id == row_id, RegistryRowDB.node_id == node.id
-        )
+        select(RegistryRowDB).where(RegistryRowDB.id == row_id, RegistryRowDB.node_id == node.id)
     )
     row = result.scalar_one_or_none()
     if not row:
@@ -314,9 +294,7 @@ async def delete_row(
     await _get_registry_node(db, node_id)
 
     result = await db.execute(
-        select(RegistryRowDB).where(
-            RegistryRowDB.id == row_id, RegistryRowDB.node_id == node_id
-        )
+        select(RegistryRowDB).where(RegistryRowDB.id == row_id, RegistryRowDB.node_id == node_id)
     )
     row = result.scalar_one_or_none()
     if not row:
@@ -399,7 +377,9 @@ async def export_registry(
     if rt.is_yearly and year is None:
         all_rows = await _fetch_rows(db, node.id)
         xlsx_buf = _build_xlsx_multiyear(
-            columns, _group_rows_by_year(all_rows), metadata,
+            columns,
+            _group_rows_by_year(all_rows),
+            metadata,
         )
     else:
         xlsx_buf = _build_xlsx(node.title, columns, rows, metadata)
@@ -437,8 +417,7 @@ def _parse_csv(text: str, columns: list[dict]) -> list[dict]:
         raise HTTPException(status_code=400, detail="CSV has no headers")
 
     unknown = [
-        h for h in reader.fieldnames
-        if h and h not in label_to_col and h not in computed_labels
+        h for h in reader.fieldnames if h and h not in label_to_col and h not in computed_labels
     ]
     if unknown:
         raise HTTPException(
@@ -492,9 +471,7 @@ async def import_registry(
     parsed_rows = _parse_csv(text, rt.schema)
 
     await db.execute(
-        select(RegistryRowDB)
-        .where(RegistryRowDB.node_id == node.id)
-        .with_for_update()
+        select(RegistryRowDB).where(RegistryRowDB.node_id == node.id).with_for_update()
     )
 
     if year is not None:
@@ -505,9 +482,7 @@ async def import_registry(
             )
         )
     else:
-        await db.execute(
-            sql_delete(RegistryRowDB).where(RegistryRowDB.node_id == node.id)
-        )
+        await db.execute(sql_delete(RegistryRowDB).where(RegistryRowDB.node_id == node.id))
 
     for idx, data in enumerate(parsed_rows):
         db.add(
@@ -554,9 +529,9 @@ async def copy_year(
         raise HTTPException(status_code=400, detail="Source and target year must differ")
 
     existing = await db.execute(
-        select(RegistryRowDB).where(
-            RegistryRowDB.node_id == node.id, RegistryRowDB.year == target_year
-        ).limit(1)
+        select(RegistryRowDB)
+        .where(RegistryRowDB.node_id == node.id, RegistryRowDB.year == target_year)
+        .limit(1)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Target year already has data")
@@ -567,14 +542,16 @@ async def copy_year(
 
     user_id = UUID(user.user_id)
     for idx, src in enumerate(source_rows):
-        db.add(RegistryRowDB(
-            node_id=node.id,
-            year=target_year,
-            row_index=idx,
-            data=dict(src.data),
-            created_by_id=user_id,
-            updated_by_id=user_id,
-        ))
+        db.add(
+            RegistryRowDB(
+                node_id=node.id,
+                year=target_year,
+                row_index=idx,
+                data=dict(src.data),
+                created_by_id=user_id,
+                updated_by_id=user_id,
+            )
+        )
 
     await db.flush()
     logger.info(
@@ -597,11 +574,16 @@ META_VALUE_FONT = Font(name="Calibri", size=10)
 
 STATUS_LABELS = {"draft": "Draft", "approved": "Approved", "under_review": "Under review"}
 CATEGORY_LABELS = {
-    "manual": "Manual", "policy": "Policy", "procedure": "Procedure",
-    "plan": "Plan", "record": "Record", "report": "Report",
+    "manual": "Manual",
+    "policy": "Policy",
+    "procedure": "Procedure",
+    "plan": "Plan",
+    "record": "Record",
+    "report": "Report",
 }
 CLASSIFICATION_LABELS = {
-    "internal_use": "Internal use", "confidential": "Confidential",
+    "internal_use": "Internal use",
+    "confidential": "Confidential",
 }
 
 
@@ -617,9 +599,15 @@ def _build_meta_rows(metadata) -> list[tuple[str, str]]:
     if metadata.status:
         pairs.append(("Status", STATUS_LABELS.get(metadata.status, metadata.status)))
     if metadata.classification:
-        pairs.append(("Classification", CLASSIFICATION_LABELS.get(
-            metadata.classification, metadata.classification,
-        )))
+        pairs.append(
+            (
+                "Classification",
+                CLASSIFICATION_LABELS.get(
+                    metadata.classification,
+                    metadata.classification,
+                ),
+            )
+        )
     if metadata.standard:
         pairs.append(("Standard", ", ".join(metadata.standard)))
     if metadata.clauses:
@@ -632,7 +620,10 @@ def _build_meta_rows(metadata) -> list[tuple[str, str]]:
 
 
 def _populate_sheet(
-    ws, columns: list[dict], rows: list, metadata=None,
+    ws,
+    columns: list[dict],
+    rows: list,
+    metadata=None,
 ) -> None:
     """Write optional metadata header, column headers + rows with styling."""
     meta_rows = _build_meta_rows(metadata)
@@ -665,7 +656,9 @@ def _populate_sheet(
     for col_idx, header in enumerate(headers, 1):
         max_len = len(str(header))
         for row in ws.iter_rows(
-            min_row=header_row_num + 1, min_col=col_idx, max_col=col_idx,
+            min_row=header_row_num + 1,
+            min_col=col_idx,
+            max_col=col_idx,
         ):
             val = row[0].value
             if val is not None:
@@ -676,7 +669,10 @@ def _populate_sheet(
 
 
 def _build_xlsx(
-    node_title: str, columns: list[dict], rows: list, metadata=None,
+    node_title: str,
+    columns: list[dict],
+    rows: list,
+    metadata=None,
 ) -> BytesIO:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -689,7 +685,8 @@ def _build_xlsx(
 
 
 def _build_xlsx_multiyear(
-    columns: list[dict], rows_by_year: dict[int, list],
+    columns: list[dict],
+    rows_by_year: dict[int, list],
     metadata=None,
 ) -> BytesIO:
     """Build an XLSX with one tab per year, most recent first."""
@@ -711,23 +708,19 @@ async def _resolve_drive_parent(
     auth_header: dict[str, str],
 ) -> str:
     """Walk up ancestors to find a Drive folder, creating missing ones."""
-    from app.modules.iso_docs.models.drive_mapping import IsoDocDriveMappingDB
     from app.core.services.integration_token_service import IntegrationTokenService
+    from app.modules.iso_docs.models.drive_mapping import IsoDocDriveMappingDB
     from app.modules.iso_docs.services.google_drive_oauth import PROVIDER
 
     ancestors: list[IsoDocNodeDB] = []
     current = node
     while current.parent_id:
-        result = await db.execute(
-            select(IsoDocNodeDB).where(IsoDocNodeDB.id == current.parent_id)
-        )
+        result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == current.parent_id))
         parent = result.scalar_one_or_none()
         if not parent:
             break
         mapping_result = await db.execute(
-            select(IsoDocDriveMappingDB).where(
-                IsoDocDriveMappingDB.node_id == parent.id
-            )
+            select(IsoDocDriveMappingDB).where(IsoDocDriveMappingDB.node_id == parent.id)
         )
         mapping = mapping_result.scalar_one_or_none()
         if mapping:
@@ -736,9 +729,7 @@ async def _resolve_drive_parent(
         ancestors.append(parent)
         current = parent
     else:
-        root_folder_id = await IntegrationTokenService.get_setting(
-            db, PROVIDER, "root_folder_id"
-        )
+        root_folder_id = await IntegrationTokenService.get_setting(db, PROVIDER, "root_folder_id")
         if not root_folder_id:
             raise HTTPException(
                 status_code=400,
@@ -746,7 +737,7 @@ async def _resolve_drive_parent(
             )
         drive_parent_id = root_folder_id
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for ancestor in reversed(ancestors):
         body = {
             "name": ancestor.title,
@@ -803,7 +794,9 @@ async def export_registry_to_drive(
     if rt.is_yearly and year is None:
         all_rows = await _fetch_rows(db, node.id)
         xlsx_buf = _build_xlsx_multiyear(
-            rt.schema, _group_rows_by_year(all_rows), doc_metadata,
+            rt.schema,
+            _group_rows_by_year(all_rows),
+            doc_metadata,
         )
         row_count = len(all_rows)
     else:
@@ -817,9 +810,7 @@ async def export_registry_to_drive(
         parent_drive_id = await _resolve_drive_parent(db, node, http, auth_header)
 
         existing_mapping = await db.execute(
-            select(IsoDocDriveMappingDB).where(
-                IsoDocDriveMappingDB.node_id == node.id
-            )
+            select(IsoDocDriveMappingDB).where(IsoDocDriveMappingDB.node_id == node.id)
         )
         existing = existing_mapping.scalar_one_or_none()
         existing_drive_id = existing.drive_file_id if existing else None
@@ -861,7 +852,9 @@ async def export_registry_to_drive(
                 headers=auth_header,
                 files={
                     "metadata": (
-                        None, json.dumps(drive_meta).encode(), "application/json",
+                        None,
+                        json.dumps(drive_meta).encode(),
+                        "application/json",
                     ),
                     "file": (None, xlsx_buf.read(), XLSX_CONTENT_TYPE),
                 },
@@ -870,7 +863,7 @@ async def export_registry_to_drive(
             resp.raise_for_status()
             drive_file_id = resp.json()["id"]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if existing:
         existing.drive_file_id = drive_file_id
         existing.last_exported_at = now

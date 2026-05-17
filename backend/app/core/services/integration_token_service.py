@@ -7,7 +7,7 @@ from an HTTP handler the ``get_db`` autocommit boundary covers it; worker
 contexts must call ``session.commit()`` themselves after the write.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,9 +26,7 @@ class IntegrationTokenService:
     @staticmethod
     async def get_token(db: AsyncSession, provider: str) -> str | None:
         """Get decrypted token for provider. Returns None if not found."""
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == provider)
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == provider))
         record = result.scalar_one_or_none()
         if record is None:
             return None
@@ -37,9 +35,7 @@ class IntegrationTokenService:
     @staticmethod
     async def get_token_record(db: AsyncSession, provider: str) -> OAuthTokenDB | None:
         """Get raw OAuthTokenDB record (for metadata like expires_at)."""
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == provider)
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == provider))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -56,7 +52,7 @@ class IntegrationTokenService:
 
         expires_at = None
         if expires_in_days is not None:
-            expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
+            expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
 
         record = OAuthTokenDB(
             provider=provider,
@@ -72,9 +68,7 @@ class IntegrationTokenService:
     @staticmethod
     async def delete_token(db: AsyncSession, provider: str) -> bool:
         """Delete token for provider. Returns True if deleted, False if not found."""
-        result = await db.execute(
-            delete(OAuthTokenDB).where(OAuthTokenDB.provider == provider)
-        )
+        result = await db.execute(delete(OAuthTokenDB).where(OAuthTokenDB.provider == provider))
         return result.rowcount > 0
 
     @staticmethod
@@ -92,9 +86,7 @@ class IntegrationTokenService:
         return record.value
 
     @staticmethod
-    async def set_setting(
-        db: AsyncSession, provider: str, key: str, value: str
-    ) -> None:
+    async def set_setting(db: AsyncSession, provider: str, key: str, value: str) -> None:
         """Create or update setting (upsert)."""
         result = await db.execute(
             select(IntegrationSettingDB).where(

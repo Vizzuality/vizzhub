@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import delete
@@ -15,11 +15,9 @@ logger = structlog.get_logger()
 async def cleanup_mcp_oauth(ctx: dict) -> None:
     """Purge expired MCP OAuth codes and refresh tokens."""
     db = ctx["db"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
-    codes_result = await db.execute(
-        delete(MCPOAuthCodeDB).where(MCPOAuthCodeDB.expires_at < now)
-    )
+    codes_result = await db.execute(delete(MCPOAuthCodeDB).where(MCPOAuthCodeDB.expires_at < now))
     tokens_result = await db.execute(
         delete(MCPOAuthRefreshTokenDB).where(MCPOAuthRefreshTokenDB.expires_at < now)
     )

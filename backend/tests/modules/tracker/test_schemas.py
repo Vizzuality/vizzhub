@@ -7,15 +7,15 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from app.modules.tracker.schemas.report import ReportCreate
+from app.modules.tracker.schemas.report_part import (
+    ReportPartCreate,
+    ReportPartResponse,
+)
 from app.modules.tracker.schemas.reporting_period import (
     ReportingPeriodCreate,
     ReportingPeriodResponse,
     ReportingPeriodUpdate,
-)
-from app.modules.tracker.schemas.report import ReportCreate, ReportResponse
-from app.modules.tracker.schemas.report_part import (
-    ReportPartCreate,
-    ReportPartResponse,
 )
 
 
@@ -27,14 +27,16 @@ class TestReportingPeriodSchemas:
 
     def test_create_with_custom_base_rate(self):
         schema = ReportingPeriodCreate(
-            date=dt.date(2026, 3, 1), base_rate=Decimal("190.00"),
+            date=dt.date(2026, 3, 1),
+            base_rate=Decimal("190.00"),
         )
         assert schema.base_rate == Decimal("190.00")
 
     def test_create_rejects_negative_base_rate(self):
         with pytest.raises(ValidationError):
             ReportingPeriodCreate(
-                date=dt.date(2026, 3, 1), base_rate=Decimal("-1"),
+                date=dt.date(2026, 3, 1),
+                base_rate=Decimal("-1"),
             )
 
     def test_update_all_optional(self):
@@ -43,7 +45,7 @@ class TestReportingPeriodSchemas:
         assert schema.base_rate is None
 
     def test_response_serializes_decimal_as_float(self):
-        now = dt.datetime.now(tz=dt.timezone.utc)
+        now = dt.datetime.now(tz=dt.UTC)
         schema = ReportingPeriodResponse(
             id=uuid4(),
             date=dt.date(2026, 3, 1),
@@ -65,7 +67,8 @@ class TestReportSchemas:
 
     def test_create_with_estimated(self):
         schema = ReportCreate(
-            reporting_period_id=uuid4(), estimated=True,
+            reporting_period_id=uuid4(),
+            estimated=True,
         )
         assert schema.estimated is True
 
@@ -97,7 +100,7 @@ class TestReportPartSchemas:
             )
 
     def test_response_serializes_decimals(self):
-        now = dt.datetime.now(tz=dt.timezone.utc)
+        now = dt.datetime.now(tz=dt.UTC)
         schema = ReportPartResponse(
             id=uuid4(),
             report_id=uuid4(),

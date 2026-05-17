@@ -55,12 +55,8 @@ async def _build_metadata_response(
         404: {"description": "Metadata not found"},
     },
 )
-async def get_metadata(
-    node_id: UUID, db: DBSession, user: CurrentUser
-) -> MetadataResponse:
-    result = await db.execute(
-        select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id)
-    )
+async def get_metadata(node_id: UUID, db: DBSession, user: CurrentUser) -> MetadataResponse:
+    result = await db.execute(select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id))
     meta = result.scalar_one_or_none()
     if not meta:
         raise HTTPException(status_code=404, detail="Metadata not found")
@@ -75,15 +71,11 @@ async def get_metadata(
 async def update_metadata(
     node_id: UUID, data: MetadataUpdate, db: DBSession, user: IsoDocsEditor
 ) -> MetadataResponse:
-    node_result = await db.execute(
-        select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id)
-    )
+    node_result = await db.execute(select(IsoDocNodeDB).where(IsoDocNodeDB.id == node_id))
     if not node_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Node not found")
 
-    result = await db.execute(
-        select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id)
-    )
+    result = await db.execute(select(IsoDocMetadataDB).where(IsoDocMetadataDB.node_id == node_id))
     meta = result.scalar_one_or_none()
 
     update = data.model_dump(exclude_unset=True)
@@ -137,7 +129,4 @@ async def search_metadata(
         query = query.where(IsoDocMetadataDB.status == status)
 
     result = await db.execute(query.order_by(IsoDocNodeDB.title))
-    return [
-        MetadataSearchResult(**row._mapping)
-        for row in result.all()
-    ]
+    return [MetadataSearchResult(**row._mapping) for row in result.all()]

@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConfigurationError
 from app.core.models.oauth import OAuthTokenDB
-from app.modules.scorecard.services.collectors.jira import JiraCollector
 from app.core.services.jira_client import JiraClient
+from app.modules.scorecard.services.collectors.jira import JiraCollector
 
 
 class TestOAuthIntegration:
@@ -58,9 +58,7 @@ class TestOAuthIntegration:
         assert client.headers["Authorization"] == "Bearer oauth-access-token"
 
     @pytest.mark.asyncio
-    async def test_jira_collector_falls_back_to_legacy_auth(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_jira_collector_falls_back_to_legacy_auth(self, db_session: AsyncSession) -> None:
         """Collector should use API token if OAuth unavailable."""
         with patch("app.core.services.jira_client.get_settings") as mock_settings:
             mock_settings.return_value.jira_base_url = "https://company.atlassian.net"
@@ -81,18 +79,14 @@ class TestOAuthIntegration:
         assert client.auth is not None
 
     @pytest.mark.asyncio
-    async def test_jira_collector_raises_error_when_no_auth(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_jira_collector_raises_error_when_no_auth(self, db_session: AsyncSession) -> None:
         """Collector should raise ConfigurationError if neither OAuth nor legacy configured."""
         with patch(
             "app.core.services.jira_client.OAuthService.get_valid_jira_token"
         ) as mock_get_token:
             mock_get_token.return_value = None
 
-            with patch(
-                "app.core.services.jira_client.get_settings"
-            ) as mock_settings:
+            with patch("app.core.services.jira_client.get_settings") as mock_settings:
                 mock_settings.return_value.jira_base_url = ""
                 mock_settings.return_value.jira_email = ""
                 mock_settings.return_value.jira_api_token = ""
@@ -228,9 +222,7 @@ class TestJiraClientCountIssues:
     """Test JiraClient.count_issues method."""
 
     @pytest.mark.asyncio
-    async def test_count_issues_handles_api_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_count_issues_handles_api_error(self, db_session: AsyncSession) -> None:
         """count_issues should return 0 on JQL error."""
         jira_client = JiraClient(db=db_session)
 
@@ -263,9 +255,7 @@ class TestJiraClientCountIssues:
         mock_http_client.post.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_count_issues_handles_network_timeout(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_count_issues_handles_network_timeout(self, db_session: AsyncSession) -> None:
         """count_issues should handle httpx.TimeoutException gracefully."""
         jira_client = JiraClient(db=db_session)
 
@@ -278,9 +268,7 @@ class TestJiraClientCountIssues:
         assert count == 0
 
     @pytest.mark.asyncio
-    async def test_count_issues_handles_rate_limit_429(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_count_issues_handles_rate_limit_429(self, db_session: AsyncSession) -> None:
         """count_issues should handle 429 Too Many Requests gracefully."""
         jira_client = JiraClient(db=db_session)
 
@@ -315,9 +303,7 @@ class TestErrorHandling:
 
         collector = JiraCollector(db=db_session)
 
-        with patch(
-            "app.core.services.jira_client.OAuthService.get_valid_jira_token"
-        ) as mock_token:
+        with patch("app.core.services.jira_client.OAuthService.get_valid_jira_token") as mock_token:
             mock_token.return_value = "refreshed-token"
 
             with patch(
@@ -339,14 +325,10 @@ class TestErrorHandling:
         """Collector should raise exception if refresh fails."""
         collector = JiraCollector(db=db_session)
 
-        with patch(
-            "app.core.services.jira_client.OAuthService.get_valid_jira_token"
-        ) as mock_token:
+        with patch("app.core.services.jira_client.OAuthService.get_valid_jira_token") as mock_token:
             mock_token.return_value = None
 
-            with patch(
-                "app.core.services.jira_client.get_settings"
-            ) as mock_settings:
+            with patch("app.core.services.jira_client.get_settings") as mock_settings:
                 mock_settings.return_value.jira_base_url = ""
                 mock_settings.return_value.jira_email = ""
                 mock_settings.return_value.jira_api_token = ""

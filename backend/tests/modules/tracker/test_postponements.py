@@ -8,7 +8,7 @@ Postpone rules (see app/modules/tracker/api/postponements.py):
 - Paid / voided invoices cannot have their postponements deleted.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -55,7 +55,9 @@ async def setup_pending_invoice(db_session: AsyncSession, client: AsyncClient) -
 @pytest.mark.asyncio
 class TestPostponeWindow:
     async def test_postpone_rejected_when_invoice_scheduled(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Scheduled (future due) invoices cannot be postponed."""
         user = UserDB(id=DEBUG_USER_ID, email="test@example.com", name="Test User")
@@ -83,7 +85,9 @@ class TestPostponeWindow:
         assert "pending" in resp.json()["detail"].lower()
 
     async def test_postpone_within_30_days_succeeds(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """First postpone: window_base = today (due_date is in the past)."""
         pid = setup_pending_invoice["project_id"]
@@ -98,7 +102,9 @@ class TestPostponeWindow:
         assert resp.json()["postponed_to"] == new_date
 
     async def test_postpone_beyond_max_window_rejected(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """Cannot postpone past window_base + 30 days."""
         pid = setup_pending_invoice["project_id"]
@@ -114,7 +120,9 @@ class TestPostponeWindow:
         assert "30 days" in resp.json()["detail"]
 
     async def test_postpone_must_be_after_base_date(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """First postpone: new date must be > due_date."""
         pid = setup_pending_invoice["project_id"]
@@ -130,7 +138,9 @@ class TestPostponeWindow:
         assert "after" in resp.json()["detail"].lower()
 
     async def test_cannot_postpone_already_postponed_invoice(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """Once postponed (latest > today), effective status is 'postponed' and a
         new postponement is blocked until the previous one expires."""
@@ -153,7 +163,9 @@ class TestPostponeWindow:
         assert "pending" in r2.json()["detail"].lower()
 
     async def test_postpone_to_past_date_rejected(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """Backdated postponement (postponed_to in the past) must be rejected
         even when base_date is older than today. Audit finding #28."""
@@ -169,7 +181,9 @@ class TestPostponeWindow:
         assert "after" in resp.json()["detail"].lower()
 
     async def test_postpone_exactly_at_window_boundary(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """window_base + 30 succeeds; +31 fails. Boundary is inclusive on the high side."""
         pid = setup_pending_invoice["project_id"]
@@ -197,7 +211,9 @@ class TestPostponeWindow:
         assert "30 days" in resp.json()["detail"]
 
     async def test_postpone_when_base_date_is_today(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """When base_date == today, today+30 is allowed; today+31 is not."""
         user = UserDB(id=DEBUG_USER_ID, email="test@example.com", name="Test User")
@@ -242,7 +258,9 @@ class TestPostponeWindow:
         assert "30 days" in resp.json()["detail"]
 
     async def test_delete_latest_postponement(
-        self, client: AsyncClient, setup_pending_invoice: dict,
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
     ) -> None:
         """Removing the latest postponement is allowed when invoice is still pending."""
         pid = setup_pending_invoice["project_id"]
@@ -300,7 +318,9 @@ async def _seed_user_project_invoice(
 @pytest.mark.asyncio
 class TestEffectiveStatusMostRecent:
     async def test_effective_status_uses_most_recent_postponement_not_max_date(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """When two postponements exist, the most-recently-created one wins —
         not the one with the maximum ``postponed_to`` date. Audit #27."""
@@ -312,7 +332,7 @@ class TestEffectiveStatusMostRecent:
         # Insert the far-future postponement first, then the corrective one.
         # created_at is set via server_default=func.now(); we set explicit
         # values to guarantee ordering regardless of DB clock resolution.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         db_session.add(
             InvoicePostponementDB(
                 invoice_id=invoice.id,
@@ -342,7 +362,9 @@ class TestEffectiveStatusMostRecent:
         assert inv["postpone_count"] == 2
 
     async def test_effective_status_boundary_today(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """``postponed_to == today`` → ``pending_to_issue`` (postponed branch
         uses strict ``> today``). Audit #27 boundary."""
@@ -366,14 +388,16 @@ class TestEffectiveStatusMostRecent:
         assert items[0]["postpone_count"] == 1
 
     async def test_invoice_status_info_python_matches_sql(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """The Python ``_invoice_status_info`` (used by create/update/transition
         responses) must agree with the SQL CASE (used by the list endpoint) on
         the same fixture. Guards the duplication called out in audit #27."""
         pid, inv_id, invoice = await _seed_user_project_invoice(db_session)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         db_session.add(
             InvoicePostponementDB(
                 invoice_id=invoice.id,
@@ -409,7 +433,9 @@ class TestEffectiveStatusMostRecent:
         assert sql_view["postpone_count"] == py_view["postpone_count"] == 2
 
     async def test_postponement_correction_updates_effective_status(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """End-to-end: an earlier far-future postponement plus a later corrective
         one must surface the corrective date through the GET list endpoint.
@@ -433,7 +459,7 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=near,
                 reason="corrected",
-                created_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+                created_at=datetime.now(UTC) + timedelta(minutes=1),
             )
         )
         await db_session.commit()

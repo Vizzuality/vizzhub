@@ -1,4 +1,5 @@
 """Jobs API endpoints."""
+
 import uuid
 from typing import Annotated
 
@@ -25,9 +26,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 JOB_NOT_FOUND = "Job not found"
 
 
-@router.post(
-    "/capture-history", response_model=JobResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/capture-history", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def create_capture_history_job(
     request: CaptureHistoryRequest,
     current_user: JobAdmin,
@@ -43,9 +42,7 @@ async def create_capture_history_job(
         )
 
     months = (
-        (request.to_year - request.from_year) * 12
-        + (request.to_month - request.from_month)
-        + 1
+        (request.to_year - request.from_year) * 12 + (request.to_month - request.from_month) + 1
     )
 
     from_month_name = MONTH_NAMES[request.from_month - 1]
@@ -181,9 +178,7 @@ async def delete_job(
     await JobService.delete_job(db, job_id)
 
 
-@router.post(
-    "/{job_id}/retry", response_model=JobResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/{job_id}/retry", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def retry_job(
     job_id: uuid.UUID,
     current_user: JobAdmin,

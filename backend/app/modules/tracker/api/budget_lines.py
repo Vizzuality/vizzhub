@@ -12,6 +12,8 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
+from fastapi import APIRouter
+
 from app.core.models.functional_area import FunctionalAreaDB
 from app.modules.tracker.models.budget_line import BudgetLineDB
 from app.modules.tracker.schemas.budget_line import (
@@ -19,13 +21,12 @@ from app.modules.tracker.schemas.budget_line import (
     BudgetLineResponse,
 )
 
-from fastapi import APIRouter
-
 router = APIRouter()
 
 
 async def _list_budget_lines(
-    db: DBSession, project_id: UUID,
+    db: DBSession,
+    project_id: UUID,
 ) -> list[BudgetLineResponse]:
     """Fetch budget lines with functional area names joined."""
     stmt = (
@@ -70,25 +71,21 @@ async def bulk_replace_budget_lines(
     db: DBSession,
     user: TrackerManager,
 ) -> list[BudgetLineResponse]:
-    await db.execute(
-        delete(BudgetLineDB).where(BudgetLineDB.project_id == project_id)
-    )
+    await db.execute(delete(BudgetLineDB).where(BudgetLineDB.project_id == project_id))
 
     total_days = sum(line.days for line in body.lines)
 
     for line in body.lines:
-        percentage = (
-            Decimal(str(line.days)) / Decimal(str(total_days))
-            if total_days > 0
-            else None
+        percentage = Decimal(str(line.days)) / Decimal(str(total_days)) if total_days > 0 else None
+        db.add(
+            BudgetLineDB(
+                project_id=project_id,
+                functional_area_id=line.functional_area_id,
+                days=line.days,
+                percentage=percentage,
+                details=line.details,
+            )
         )
-        db.add(BudgetLineDB(
-            project_id=project_id,
-            functional_area_id=line.functional_area_id,
-            days=line.days,
-            percentage=percentage,
-            details=line.details,
-        ))
 
     await db.flush()
     return await _list_budget_lines(db, project_id)

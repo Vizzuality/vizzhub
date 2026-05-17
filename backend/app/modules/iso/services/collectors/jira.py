@@ -1,11 +1,11 @@
 """Jira collector for ISO access snapshots."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import httpx
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.oauth_service import OAuthService
@@ -86,6 +86,7 @@ class JiraCollector:
         if not self._site_url:
             return None
         from urllib.parse import urlparse
+
         host = urlparse(self._site_url).hostname or ""
         subdomain = host.split(".")[0] if "." in host else ""
         return f"{subdomain}.com" if subdomain else None
@@ -104,13 +105,15 @@ class JiraCollector:
             is_external = True
             if org_domain and email and "@" in email:
                 is_external = email.rsplit("@", 1)[-1].lower() != org_domain
-            users.append({
-                "account_id": u["accountId"],
-                "email": email,
-                "display_name": u.get("displayName", ""),
-                "account_type": u.get("accountType", "atlassian"),
-                "is_external": is_external,
-            })
+            users.append(
+                {
+                    "account_id": u["accountId"],
+                    "email": email,
+                    "display_name": u.get("displayName", ""),
+                    "account_type": u.get("accountType", "atlassian"),
+                    "is_external": is_external,
+                }
+            )
         return users
 
     async def collect_groups(self) -> list[dict[str, Any]]:
@@ -224,7 +227,7 @@ class JiraCollector:
 
         snapshot = AccessSnapshotDB(
             provider=PROVIDER,
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.now(UTC),
             captured_by=captured_by,
             data_version=COLLECTOR_VERSION,
             source_metadata=self._build_source_metadata(run_mode),

@@ -1,15 +1,15 @@
 """Shared fixtures for integration tests."""
 
-import pytest_asyncio
 from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.scorecard.models.metrics import MetricsDB
-from app.core.models.project import ProjectDB
 from app.config import ScoringConfig
+from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 @pytest_asyncio.fixture

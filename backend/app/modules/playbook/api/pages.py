@@ -16,8 +16,6 @@ from app.core.services.content_version_service import ContentVersionService
 from app.modules.playbook.api.deps import PlaybookEditor
 from app.modules.playbook.models.node import PlaybookNodeDB
 from app.modules.playbook.models.page_version import PlaybookPageVersionDB
-from app.modules.playbook.services.asset_service import rewrite_image_urls
-from app.modules.playbook.services.tree_service import ensure_unique_slug, generate_slug
 from app.modules.playbook.schemas.page import (
     PageContentResponse,
     PageSave,
@@ -25,6 +23,8 @@ from app.modules.playbook.schemas.page import (
     VersionDetailResponse,
     VersionListItem,
 )
+from app.modules.playbook.services.asset_service import rewrite_image_urls
+from app.modules.playbook.services.tree_service import ensure_unique_slug, generate_slug
 
 router = APIRouter()
 
@@ -35,9 +35,7 @@ _versions = ContentVersionService(
 
 
 async def _get_page_node(db: DBSession, node_id: UUID) -> PlaybookNodeDB:
-    result = await db.execute(
-        select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id)
-    )
+    result = await db.execute(select(PlaybookNodeDB).where(PlaybookNodeDB.id == node_id))
     node = result.scalar_one_or_none()
     if not node:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -56,9 +54,7 @@ async def _get_page_node(db: DBSession, node_id: UUID) -> PlaybookNodeDB:
         404: {"description": "Page not found"},
     },
 )
-async def get_page(
-    node_id: UUID, db: DBSession, user: CurrentUser
-) -> PageContentResponse:
+async def get_page(node_id: UUID, db: DBSession, user: CurrentUser) -> PageContentResponse:
     node = await _get_page_node(db, node_id)
     latest = await _versions.get_latest(db, entity_id=node_id)
 
@@ -98,7 +94,9 @@ async def save_page(
     if h1_title and h1_title != node.title:
         node.title = h1_title
         node.slug = await ensure_unique_slug(
-            db, generate_slug(h1_title), exclude_id=node_id,
+            db,
+            generate_slug(h1_title),
+            exclude_id=node_id,
         )
         node.updated_by_id = user_id
         await db.flush()
@@ -130,6 +128,7 @@ def _extract_h1(content: str) -> str | None:
 def _compute_line_diff(old: str, new: str) -> tuple[int, int]:
     """Return (lines_added, lines_removed) between two content strings."""
     from collections import Counter
+
     old_counts = Counter(old.splitlines())
     new_counts = Counter(new.splitlines())
     added = sum((new_counts - old_counts).values())
@@ -138,14 +137,13 @@ def _compute_line_diff(old: str, new: str) -> tuple[int, int]:
 
 
 async def _resolve_user_names(
-    db: DBSession, user_ids: set[UUID],
+    db: DBSession,
+    user_ids: set[UUID],
 ) -> dict[UUID, str]:
     """Batch-resolve user IDs to display names."""
     if not user_ids:
         return {}
-    result = await db.execute(
-        select(UserDB).where(UserDB.id.in_(user_ids))
-    )
+    result = await db.execute(select(UserDB).where(UserDB.id.in_(user_ids)))
     users = result.scalars().all()
     names: dict[UUID, str] = {}
     for u in users:
@@ -165,9 +163,7 @@ async def _resolve_user_names(
         404: {"description": "Page not found"},
     },
 )
-async def list_versions(
-    node_id: UUID, db: DBSession, user: CurrentUser
-) -> list[VersionListItem]:
+async def list_versions(node_id: UUID, db: DBSession, user: CurrentUser) -> list[VersionListItem]:
     await _get_page_node(db, node_id)
     versions = await _versions.list_versions(db, entity_id=node_id)
 
@@ -178,14 +174,16 @@ async def list_versions(
     for i, v in enumerate(versions):
         prev_content = versions[i + 1].content if i + 1 < len(versions) else ""
         added, removed = _compute_line_diff(prev_content, v.content)
-        items.append(VersionListItem(
-            version=v.version,
-            created_by_id=v.created_by_id,
-            created_by_name=user_names.get(v.created_by_id) if v.created_by_id else None,
-            created_at=v.created_at,
-            lines_added=added,
-            lines_removed=removed,
-        ))
+        items.append(
+            VersionListItem(
+                version=v.version,
+                created_by_id=v.created_by_id,
+                created_by_name=user_names.get(v.created_by_id) if v.created_by_id else None,
+                created_at=v.created_at,
+                lines_added=added,
+                lines_removed=removed,
+            )
+        )
     return items
 
 

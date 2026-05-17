@@ -65,8 +65,15 @@ async def get_allocation_projects(
     )
 
     for (
-        proj_id, proj_name, pid, uid,
-        fn, ln, full, email, pct,
+        proj_id,
+        proj_name,
+        pid,
+        uid,
+        fn,
+        ln,
+        full,
+        email,
+        pct,
     ) in rows:
         proj_names[proj_id] = proj_name
         user_map = proj_users[proj_id]
@@ -82,9 +89,7 @@ async def get_allocation_projects(
 
     projects_list = []
     for proj_id, user_map in proj_users.items():
-        total_people_per_period = sum(
-            len(users) for users in proj_period_users[proj_id].values()
-        )
+        total_people_per_period = sum(len(users) for users in proj_period_users[proj_id].values())
         avg_people = round(total_people_per_period / num_periods, 2)
 
         all_user_ids: set = set()
@@ -99,22 +104,26 @@ async def get_allocation_projects(
                 [period_dates[pid].strftime("%Y-%m") for pid in info["periods"]],
                 reverse=True,
             )
-            segments.append({
-                "user_id": str(uid),
-                "user_name": info["name"],
-                "avg_percentage": avg_pct,
-                "months_active": active_months,
-            })
+            segments.append(
+                {
+                    "user_id": str(uid),
+                    "user_name": info["name"],
+                    "avg_percentage": avg_pct,
+                    "months_active": active_months,
+                }
+            )
 
         segments.sort(key=lambda s: -s["avg_percentage"])
 
-        projects_list.append({
-            "project_id": str(proj_id),
-            "name": proj_names[proj_id],
-            "avg_people": avg_people,
-            "total_distinct_people": total_distinct,
-            "segments": segments,
-        })
+        projects_list.append(
+            {
+                "project_id": str(proj_id),
+                "name": proj_names[proj_id],
+                "avg_people": avg_people,
+                "total_distinct_people": total_distinct,
+                "segments": segments,
+            }
+        )
 
     projects_list.sort(key=lambda p: (-p["avg_people"], p["name"]))
 

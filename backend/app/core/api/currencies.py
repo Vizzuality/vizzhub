@@ -1,9 +1,9 @@
 """Available currencies endpoint."""
 
+from fastapi import APIRouter
+
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.services.exchange_rate_service import get_available_currencies
-
-from fastapi import APIRouter
 
 router = APIRouter()
 

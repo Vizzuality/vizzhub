@@ -1,12 +1,14 @@
 """Admin user management API endpoints."""
 
-import structlog
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from jose import JWTError, jwt as jose_jwt
+from jose import JWTError
+from jose import jwt as jose_jwt
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import delete as sa_delete, select
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_or_404
@@ -29,6 +31,7 @@ router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 # Pydantic models for role management
 # ---------------------------------------------------------------------------
 
+
 class RoleResponse(PydanticBaseModel):
     id: UUID
     name: str
@@ -48,6 +51,7 @@ class UserRolesResponse(PydanticBaseModel):
 # Role management endpoints (must precede /{user_id} routes)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/roles")
 async def list_roles(
     current_user: AdminUser,
@@ -55,15 +59,13 @@ async def list_roles(
 ) -> list[RoleResponse]:
     """List all available roles."""
     result = await db.execute(select(RoleDB).order_by(RoleDB.name))
-    return [
-        RoleResponse(id=r.id, name=r.name, description=r.description)
-        for r in result.scalars()
-    ]
+    return [RoleResponse(id=r.id, name=r.name, description=r.description) for r in result.scalars()]
 
 
 # ---------------------------------------------------------------------------
 # Static-path endpoints (before {user_id} catch-all)
 # ---------------------------------------------------------------------------
+
 
 @router.get("")
 async def list_users(
@@ -119,14 +121,14 @@ async def sync_slack_all(
             profile = slack_user.get("profile", {})
             user.slack_user_id = slack_user["id"]
             user.slack_display_name = (
-                profile.get("display_name")
-                or profile.get("real_name")
-                or slack_user.get("name")
+                profile.get("display_name") or profile.get("real_name") or slack_user.get("name")
             )
             updated.append(user)
 
     await db.flush()
-    logger.info("slack_sync_all_completed", synced=len(updated), total=len(users), admin=current_user.email)
+    logger.info(
+        "slack_sync_all_completed", synced=len(updated), total=len(users), admin=current_user.email
+    )
     return [User.model_validate(u) for u in updated]
 
 
@@ -147,9 +149,7 @@ async def stop_impersonate(
 
     settings = get_settings()
     try:
-        payload = jose_jwt.decode(
-            admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM]
-        )
+        payload = jose_jwt.decode(admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM])
         token_permissions = payload.get("permissions", [])
         if not is_admin(token_permissions):
             raise HTTPException(
@@ -188,6 +188,7 @@ async def stop_impersonate(
 # ---------------------------------------------------------------------------
 # Parameterized endpoints (/{user_id} pattern)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/{user_id}")
 async def get_user(
@@ -233,9 +234,7 @@ async def assign_roles(
 
     await get_or_404(db, UserDB, user_id, _USER_NOT_FOUND)
 
-    await db.execute(
-        sa_delete(UserRoleDB).where(UserRoleDB.user_id == user_id)
-    )
+    await db.execute(sa_delete(UserRoleDB).where(UserRoleDB.user_id == user_id))
     for role_name in body.roles:
         db.add(UserRoleDB(user_id=user_id, role_id=found_roles[role_name].id))
 
@@ -303,7 +302,9 @@ async def update_user(
         setattr(user, field, value)
 
     if "active" in update_data:
-        logger.info("user_active_changed", email=user.email, active=update.active, admin=current_user.email)
+        logger.info(
+            "user_active_changed", email=user.email, active=update.active, admin=current_user.email
+        )
 
     await db.flush()
     await db.refresh(user)

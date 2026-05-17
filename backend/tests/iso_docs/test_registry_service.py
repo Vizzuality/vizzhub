@@ -1,7 +1,5 @@
 """Tests for registry_service — validation, computed fields, stripping."""
 
-import pytest
-
 from app.modules.iso_docs.services.registry_service import (
     compute_row_fields,
     strip_computed_keys,
@@ -10,7 +8,13 @@ from app.modules.iso_docs.services.registry_service import (
 
 SCHEMA = [
     {"key": "name", "label": "Name", "type": "string", "required": True},
-    {"key": "category", "label": "Category", "type": "select", "required": True, "options": ["A", "B"]},
+    {
+        "key": "category",
+        "label": "Category",
+        "type": "select",
+        "required": True,
+        "options": ["A", "B"],
+    },
     {"key": "count", "label": "Count", "type": "number", "required": False},
     {"key": "active", "label": "Active", "type": "boolean", "required": False},
     {"key": "start_date", "label": "Start Date", "type": "date", "required": False},
@@ -91,16 +95,12 @@ SCHEMA_WITH_COMPUTED = [
 
 
 def test_computed_field_skipped_in_validation():
-    errors = validate_row_data(
-        SCHEMA_WITH_COMPUTED, {"probability": 2, "impact": 3}
-    )
+    errors = validate_row_data(SCHEMA_WITH_COMPUTED, {"probability": 2, "impact": 3})
     assert errors == []
 
 
 def test_computed_field_not_required():
-    errors = validate_row_data(
-        SCHEMA_WITH_COMPUTED, {"probability": 2, "impact": 3}
-    )
+    errors = validate_row_data(SCHEMA_WITH_COMPUTED, {"probability": 2, "impact": 3})
     assert not any("Evaluation" in e for e in errors)
 
 

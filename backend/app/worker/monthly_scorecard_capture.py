@@ -5,13 +5,14 @@ metrics for all live projects with has_scorecard enabled.
 """
 
 import asyncio
-import structlog
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
+import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
+from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.api.capture import (
     _build_metrics_data,
     _collect_from_github,
@@ -20,7 +21,6 @@ from app.modules.scorecard.api.capture import (
     _last_day_of_month,
 )
 from app.modules.scorecard.models.metrics import SnapshotType
-from app.modules.notifications.models.slack import ScheduledJobRunDB
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.tracker.public import inject_evm_into_preserved
 from app.worker.utils import complete_job_run, start_job_run
@@ -102,7 +102,9 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
                 )
 
                 cumulative_jira = await _collect_from_jira(db, project, project_start, month_end)
-                cumulative_github = await _collect_from_github(db, project, project_start, month_end)
+                cumulative_github = await _collect_from_github(
+                    db, project, project_start, month_end
+                )
                 cumulative_data = _build_metrics_data(
                     project_start, month_end, cumulative_jira, cumulative_github, preserved
                 )
@@ -159,7 +161,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
             .where(ScheduledJobRunDB.id == job_run_id)
             .values(
                 status="error",
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
                 error_message=str(e)[:2000],
             )
         )

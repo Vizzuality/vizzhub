@@ -10,7 +10,7 @@ from arq.cron import cron
 from app.config import get_settings
 from app.core.logging_config import configure_logging
 from app.database import async_session_maker
-from app.worker.metrics import arq_jobs_total, arq_job_duration_seconds
+from app.worker.metrics import arq_job_duration_seconds, arq_jobs_total
 
 settings = get_settings()
 
@@ -43,6 +43,7 @@ async def startup(ctx: dict) -> None:
         ctx["score_cache"] = score_cache
 
     from app.worker.heartbeat import write_heartbeat
+
     await write_heartbeat(ctx)
 
     logger.info("worker_started")
@@ -100,20 +101,20 @@ class WorkerSettings:
 
 
 # Register tasks at module level for ARQ discovery
-from app.worker.tasks import capture_history_task  # noqa: E402
-from app.worker.check_dependabot import check_dependabot_alerts  # noqa: E402
 from app.worker.check_business_alerts import check_business_alerts  # noqa: E402
-from app.worker.collect_iso_snapshot import collect_iso_snapshot  # noqa: E402
-from app.worker.monthly_scorecard_capture import monthly_scorecard_capture  # noqa: E402
-from app.worker.fetch_exchange_rates import fetch_exchange_rates  # noqa: E402
-from app.worker.report_reminder import send_monthly_report_reminder  # noqa: E402
-from app.worker.report_confirmation_reminder import send_report_confirmation_reminder  # noqa: E402
-from app.worker.rotate_reporting_period import rotate_reporting_period  # noqa: E402
-from app.worker.heartbeat import write_heartbeat  # noqa: E402
-from app.worker.publish_playbook import publish_playbook_task  # noqa: E402
-from app.worker.export_iso_docs_gdrive import export_iso_docs_gdrive_task  # noqa: E402
+from app.worker.check_dependabot import check_dependabot_alerts  # noqa: E402
 from app.worker.cleanup_mcp_oauth import cleanup_mcp_oauth  # noqa: E402
+from app.worker.collect_iso_snapshot import collect_iso_snapshot  # noqa: E402
+from app.worker.export_iso_docs_gdrive import export_iso_docs_gdrive_task  # noqa: E402
+from app.worker.fetch_exchange_rates import fetch_exchange_rates  # noqa: E402
+from app.worker.heartbeat import write_heartbeat  # noqa: E402
+from app.worker.monthly_scorecard_capture import monthly_scorecard_capture  # noqa: E402
+from app.worker.publish_playbook import publish_playbook_task  # noqa: E402
 from app.worker.refresh_devstack_sources import refresh_devstack_sources  # noqa: E402
+from app.worker.report_confirmation_reminder import send_report_confirmation_reminder  # noqa: E402
+from app.worker.report_reminder import send_monthly_report_reminder  # noqa: E402
+from app.worker.rotate_reporting_period import rotate_reporting_period  # noqa: E402
+from app.worker.tasks import capture_history_task  # noqa: E402
 
 WorkerSettings.functions = [
     capture_history_task,
@@ -139,8 +140,12 @@ WorkerSettings.cron_jobs = [
     cron(collect_iso_snapshot, day=1, hour=6, minute=0),  # Monthly 1st at 6 AM UTC
     cron(monthly_scorecard_capture, day=5, hour=2, minute=0),  # Monthly 5th at 2 AM UTC
     cron(fetch_exchange_rates, hour=14, minute=30),  # Daily — ECB publishes ~14:00 UTC
-    cron(send_monthly_report_reminder, hour=10, minute=0),  # Daily — sends only on last business day
-    cron(send_report_confirmation_reminder, hour=12, minute=0),  # Daily — sends only on business days 2nd-12th
+    cron(
+        send_monthly_report_reminder, hour=10, minute=0
+    ),  # Daily — sends only on last business day
+    cron(
+        send_report_confirmation_reminder, hour=12, minute=0
+    ),  # Daily — sends only on business days 2nd-12th
     cron(rotate_reporting_period, day=15, hour=0, minute=0),  # Monthly 15th at midnight UTC
     cron(write_heartbeat, minute=set(range(60)), run_at_startup=True),
     cron(cleanup_mcp_oauth, hour=3, minute=0),  # Daily 3 AM UTC

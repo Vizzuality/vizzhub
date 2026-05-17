@@ -1,6 +1,6 @@
 """Tests for the collect_iso_snapshot cron job recovery + review-creation paths."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -33,7 +33,7 @@ async def test_cron_creates_draft_review_for_each_connected_provider(
     async def fake_gw_capture(self, run_mode: str = "cron", **_):
         snap = _fake_snapshot(
             "google_workspace",
-            datetime(2026, 5, 1, 6, tzinfo=timezone.utc),
+            datetime(2026, 5, 1, 6, tzinfo=UTC),
             {"users": [], "groups": [], "group_members": {}, "role_assignments": []},
         )
         db_session.add(snap)
@@ -81,7 +81,7 @@ async def test_cron_review_links_previous_snapshot_and_computes_diff(
     """When a previous snapshot exists, the cron review must link it and persist actions."""
     previous = _fake_snapshot(
         "google_workspace",
-        datetime(2026, 4, 1, 6, tzinfo=timezone.utc),
+        datetime(2026, 4, 1, 6, tzinfo=UTC),
         {
             "users": [{"email": "a@test.com", "name": "A", "is_admin": False}],
             "groups": [],
@@ -96,7 +96,7 @@ async def test_cron_review_links_previous_snapshot_and_computes_diff(
     async def fake_gw_capture(self, run_mode: str = "cron", **_):
         snap = _fake_snapshot(
             "google_workspace",
-            datetime(2026, 5, 1, 6, tzinfo=timezone.utc),
+            datetime(2026, 5, 1, 6, tzinfo=UTC),
             {
                 "users": [
                     {"email": "a@test.com", "name": "A", "is_admin": False},
@@ -137,8 +137,12 @@ async def test_cron_review_links_previous_snapshot_and_computes_diff(
     assert review.previous_snapshot_id == previous_id
 
     actions = (
-        (await db_session.execute(
-            select(AccessReviewActionDB).where(AccessReviewActionDB.review_id == review.id)
-        )).scalars().all()
+        (
+            await db_session.execute(
+                select(AccessReviewActionDB).where(AccessReviewActionDB.review_id == review.id)
+            )
+        )
+        .scalars()
+        .all()
     )
     assert len(actions) >= 1, "expected at least one diff action for the new user b@test.com"

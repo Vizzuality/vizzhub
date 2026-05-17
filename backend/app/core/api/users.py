@@ -30,9 +30,5 @@ async def list_users(
     db: DBSession,
 ) -> list[UserSummary]:
     """List active users. Available to any authenticated user."""
-    result = await db.execute(
-        select(UserDB)
-        .where(UserDB.active.is_(True))
-        .order_by(UserDB.name)
-    )
+    result = await db.execute(select(UserDB).where(UserDB.active.is_(True)).order_by(UserDB.name))
     return [UserSummary.model_validate(u) for u in result.scalars().all()]

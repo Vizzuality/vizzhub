@@ -8,18 +8,17 @@ These tests verify:
 5. History retrieval with optional type filtering
 """
 
-import pytest
-import pytest_asyncio
 from datetime import date
-from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
 from app.modules.scorecard.services.metrics_service import MetricsService
 
 
@@ -51,9 +50,7 @@ class TestMetricsServiceGetMetrics:
         test_project: ProjectDB,
     ) -> None:
         """Test getting non-existent metrics returns None."""
-        result = await MetricsService.get_metrics(
-            db_session, test_project.id, 2024, 6
-        )
+        result = await MetricsService.get_metrics(db_session, test_project.id, 2024, 6)
         assert result is None
 
     @pytest.mark.asyncio
@@ -299,9 +296,7 @@ class TestMetricsServiceHistory:
         test_project: ProjectDB,
     ) -> None:
         """Test getting history with no metrics."""
-        history = await MetricsService.get_project_history(
-            db_session, test_project.id
-        )
+        history = await MetricsService.get_project_history(db_session, test_project.id)
         assert history == []
 
     @pytest.mark.asyncio
@@ -322,9 +317,7 @@ class TestMetricsServiceHistory:
             {"period_start": date(2024, 1, 1), "period_end": date(2024, 1, 31)},
         )
 
-        history = await MetricsService.get_project_history(
-            db_session, test_project.id
-        )
+        history = await MetricsService.get_project_history(db_session, test_project.id)
         assert len(history) == 1
         assert history[0].period_year == 2024
         assert history[0].period_month == 1
@@ -351,9 +344,7 @@ class TestMetricsServiceHistory:
                 },
             )
 
-        history = await MetricsService.get_project_history(
-            db_session, test_project.id, limit=2
-        )
+        history = await MetricsService.get_project_history(db_session, test_project.id, limit=2)
         assert len(history) == 2
 
     @pytest.mark.asyncio
@@ -378,9 +369,7 @@ class TestMetricsServiceHistory:
                 },
             )
 
-        history = await MetricsService.get_project_history(
-            db_session, test_project.id
-        )
+        history = await MetricsService.get_project_history(db_session, test_project.id)
 
         assert len(history) == 3
         assert history[0].period_month == 3
@@ -420,9 +409,7 @@ class TestMetricsServiceHistory:
         cumulative_only = await MetricsService.get_project_history(
             db_session, test_project.id, snapshot_type=SnapshotType.CUMULATIVE
         )
-        all_types = await MetricsService.get_project_history(
-            db_session, test_project.id
-        )
+        all_types = await MetricsService.get_project_history(db_session, test_project.id)
 
         assert len(punctual_only) == 1
         assert punctual_only[0].snapshot_type == "punctual"

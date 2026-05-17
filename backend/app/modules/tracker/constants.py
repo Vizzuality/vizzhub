@@ -14,4 +14,3 @@ LEGACY_CURRENCY_TO_ISO: dict[str, str] = {
 
 # Valid axes the aggregation service accepts for ``group_by``.
 ALLOWED_GROUP_BY: frozenset[str] = frozenset({"functional_area", "user", "functional_area_user"})
-

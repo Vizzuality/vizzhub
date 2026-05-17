@@ -36,6 +36,7 @@ def _make_service_context_processor(
     release: str | None,
 ) -> structlog.types.Processor:
     """Build a processor that stamps service-level context on every log entry."""
+
     def processor(
         logger: logging.Logger,
         method_name: str,
@@ -46,6 +47,7 @@ def _make_service_context_processor(
         if release:
             event_dict.setdefault("release", release)
         return event_dict
+
     return processor
 
 

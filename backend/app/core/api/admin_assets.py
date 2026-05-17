@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -61,9 +61,7 @@ async def list_assets(
     base = select(
         RegistryAttachmentDB,
         IsoDocNodeDB.title.label("node_title"),
-    ).outerjoin(
-        IsoDocNodeDB, RegistryAttachmentDB.node_id == IsoDocNodeDB.id
-    )
+    ).outerjoin(IsoDocNodeDB, RegistryAttachmentDB.node_id == IsoDocNodeDB.id)
 
     if content_type:
         base = base.where(RegistryAttachmentDB.content_type.ilike(f"%{content_type}%"))
@@ -149,13 +147,15 @@ async def list_images(
             filename = key.removeprefix(prefix)
             if not filename:
                 continue
-            objects.append(S3ImageItem(
-                key=key,
-                filename=filename,
-                url=_image_url(key),
-                size_bytes=obj["Size"],
-                last_modified=obj["LastModified"].replace(tzinfo=timezone.utc),
-            ))
+            objects.append(
+                S3ImageItem(
+                    key=key,
+                    filename=filename,
+                    url=_image_url(key),
+                    size_bytes=obj["Size"],
+                    last_modified=obj["LastModified"].replace(tzinfo=UTC),
+                )
+            )
 
     objects.sort(key=lambda o: o.last_modified, reverse=True)
 
@@ -175,7 +175,8 @@ def _has_valid_prefix(key: str) -> bool:
     responses={400: {"description": "Invalid S3 key prefix"}},
 )
 async def delete_image(
-    key: Annotated[str, Query()], _user: AdminUser,
+    key: Annotated[str, Query()],
+    _user: AdminUser,
 ) -> dict:
     if not _has_valid_prefix(key):
         raise HTTPException(status_code=400, detail="Invalid S3 key prefix")
@@ -191,9 +192,7 @@ class BatchDeleteImagesRequest(BaseModel):
 
 
 @router.post("/images/batch-delete")
-async def batch_delete_images(
-    body: BatchDeleteImagesRequest, _user: AdminUser
-) -> dict:
+async def batch_delete_images(body: BatchDeleteImagesRequest, _user: AdminUser) -> dict:
     settings = get_settings()
     client = get_s3_client()
     valid_keys = [k for k in body.keys if _has_valid_prefix(k)]
@@ -208,13 +207,12 @@ async def batch_delete_images(
 # Registry attachment management (DB-tracked)
 # ---------------------------------------------------------------------------
 
+
 @router.delete(
     "/{asset_id}",
     responses={404: {"description": "Asset not found"}},
 )
-async def delete_asset(
-    asset_id: UUID, db: DBSession, _user: AdminUser
-) -> dict:
+async def delete_asset(asset_id: UUID, db: DBSession, _user: AdminUser) -> dict:
     result = await db.execute(
         select(RegistryAttachmentDB).where(RegistryAttachmentDB.id == asset_id)
     )

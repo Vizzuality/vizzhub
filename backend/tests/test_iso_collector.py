@@ -1,11 +1,12 @@
 """Tests for Google Workspace collector."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-from app.core.token_encryption import encrypt_token
+import pytest
+
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import encrypt_token
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
@@ -69,9 +70,7 @@ class TestPagination:
         with patch.object(
             collector._client, "get", new_callable=AsyncMock, return_value=mock_response
         ):
-            result = await collector._paginate(
-                "/users", "users", {"customer": "my_customer"}
-            )
+            result = await collector._paginate("/users", "users", {"customer": "my_customer"})
 
         assert len(result) == 1
         assert result[0]["id"] == "1"
@@ -100,9 +99,7 @@ class TestPagination:
             new_callable=AsyncMock,
             side_effect=[page1, page2],
         ):
-            result = await collector._paginate(
-                "/users", "users", {"customer": "my_customer"}
-            )
+            result = await collector._paginate("/users", "users", {"customer": "my_customer"})
 
         assert len(result) == 2
         await collector._client.aclose()
@@ -408,10 +405,7 @@ class TestBuildSourceMetadata:
         assert meta["collector"] == "google_workspace"
         assert meta["collector_version"] == "1"
         assert meta["run_mode"] == "manual"
-        assert (
-            "https://www.googleapis.com/auth/admin.directory.user.readonly"
-            in meta["scopes"]
-        )
+        assert "https://www.googleapis.com/auth/admin.directory.user.readonly" in meta["scopes"]
 
 
 class TestCapture:
@@ -497,9 +491,7 @@ class TestCapture:
         assert snapshot.source_metadata["run_mode"] == "manual"
 
     @pytest.mark.asyncio
-    async def test_capture_maps_user_email_to_role_assignments(
-        self, db_session
-    ) -> None:
+    async def test_capture_maps_user_email_to_role_assignments(self, db_session) -> None:
         from app.modules.iso.services.collectors.google_workspace import (
             GoogleWorkspaceCollector,
         )

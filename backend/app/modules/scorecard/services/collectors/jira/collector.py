@@ -13,7 +13,6 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.scorecard.services.collectors.jira.client import JiraClient
-from app.modules.scorecard.services.collectors.models import JiraCollectedMetrics
 from app.modules.scorecard.services.collectors.jira.commitment_reliability import (
     collect_commitment_reliability,
 )
@@ -21,8 +20,13 @@ from app.modules.scorecard.services.collectors.jira.defect_density import collec
 from app.modules.scorecard.services.collectors.jira.escaped_rate import collect_escaped_rate
 from app.modules.scorecard.services.collectors.jira.lead_time import collect_lead_time
 from app.modules.scorecard.services.collectors.jira.mttr import collect_mttr
-from app.modules.scorecard.services.collectors.jira.post_contract_tasks import collect_post_contract_tasks
-from app.modules.scorecard.services.collectors.jira.story_review_ratio import collect_story_review_ratio
+from app.modules.scorecard.services.collectors.jira.post_contract_tasks import (
+    collect_post_contract_tasks,
+)
+from app.modules.scorecard.services.collectors.jira.story_review_ratio import (
+    collect_story_review_ratio,
+)
+from app.modules.scorecard.services.collectors.models import JiraCollectedMetrics
 
 
 class JiraCollector:

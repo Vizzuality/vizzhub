@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,18 +24,14 @@ class ConfigService:
     @staticmethod
     async def get_parameter_value(db: AsyncSession, name: str) -> Decimal:
         """Get a single parameter value by name."""
-        result = await db.execute(
-            select(ConfigParameter.value).where(ConfigParameter.name == name)
-        )
+        result = await db.execute(select(ConfigParameter.value).where(ConfigParameter.name == name))
         value = result.scalar_one_or_none()
         if value is None:
             raise ValueError(f"Parameter {name} not found")
         return value
 
     @staticmethod
-    async def get_parameters_by_category(
-        db: AsyncSession, category: str
-    ) -> dict[str, Decimal]:
+    async def get_parameters_by_category(db: AsyncSession, category: str) -> dict[str, Decimal]:
         """Get all parameters in a category as dict {name: value}."""
         result = await db.execute(
             select(ConfigParameter).where(ConfigParameter.category == category)
@@ -48,9 +45,7 @@ class ConfigService:
     ) -> dict[str, list[ConfigParameter]]:
         """Get all parameters grouped by category."""
         result = await db.execute(
-            select(ConfigParameter).order_by(
-                ConfigParameter.category, ConfigParameter.name
-            )
+            select(ConfigParameter).order_by(ConfigParameter.category, ConfigParameter.name)
         )
         parameters = result.scalars().all()
 
@@ -87,9 +82,7 @@ class ConfigService:
         ]
 
     @staticmethod
-    async def update_parameters(
-        db: AsyncSession, updates: list[ConfigParameterUpdate]
-    ) -> None:
+    async def update_parameters(db: AsyncSession, updates: list[ConfigParameterUpdate]) -> None:
         """Update parameters and validate weight groups."""
         # Update values and notes
         for update in updates:

@@ -11,9 +11,7 @@ _ADVISORY_URL = "https://api.github.com/advisories"
 _SEVERITY_KEYS = ("critical", "high", "moderate", "low")
 
 
-async def fetch_npm_advisories(
-    package: str, version: str, token: str | None
-) -> dict | None:
+async def fetch_npm_advisories(package: str, version: str, token: str | None) -> dict | None:
     """Fetch advisories for package@version from the GitHub Advisory DB.
 
     Returns a dict with per-severity counts and a list of {id, severity, title, url},

@@ -17,9 +17,7 @@ async def _ensure_dev_user(db_session: AsyncSession) -> None:
     """Create the dev user so FK constraints on created_by_id pass."""
     from sqlalchemy import select
 
-    result = await db_session.execute(
-        select(UserDB).where(UserDB.id == DEBUG_USER_ID)
-    )
+    result = await db_session.execute(select(UserDB).where(UserDB.id == DEBUG_USER_ID))
     if not result.scalar_one_or_none():
         db_session.add(UserDB(id=DEBUG_USER_ID, email="dev@test.com"))
         await db_session.flush()
@@ -167,12 +165,8 @@ async def test_delete_group_cascades(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_reorder_nodes(client: AsyncClient):
-    a = await client.post(
-        "/api/playbook/nodes", json={"title": "A", "type": "page"}
-    )
-    b = await client.post(
-        "/api/playbook/nodes", json={"title": "B", "type": "page"}
-    )
+    a = await client.post("/api/playbook/nodes", json={"title": "A", "type": "page"})
+    b = await client.post("/api/playbook/nodes", json={"title": "B", "type": "page"})
     a_id = a.json()["id"]
     b_id = b.json()["id"]
 

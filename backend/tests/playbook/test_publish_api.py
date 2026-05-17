@@ -55,13 +55,17 @@ class TestPublishEndpoint:
                 roles=["user", "manager", "admin"],
                 permissions=_admin_permissions(),
             )
+
         app.dependency_overrides[get_current_user] = mock_admin
         yield
         app.dependency_overrides.pop(get_current_user, None)
 
     @pytest.mark.asyncio
     async def test_creates_log_and_enqueues_job(
-        self, client: AsyncClient, db_session: AsyncSession, admin_user: UserDB,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        admin_user: UserDB,
     ):
         with patch("app.modules.playbook.api.publish.get_redis_pool") as mock_pool:
             mock_redis = AsyncMock()
@@ -89,7 +93,10 @@ class TestPublishEndpoint:
 
     @pytest.mark.asyncio
     async def test_returns_409_when_already_running(
-        self, client: AsyncClient, db_session: AsyncSession, admin_user: UserDB,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        admin_user: UserDB,
     ):
         existing = PlaybookPublishLogDB(
             status="running",
@@ -111,6 +118,7 @@ class TestPublishEndpoint:
                 roles=["user"],
                 permissions=_user_permissions(),
             )
+
         app.dependency_overrides[get_current_user] = mock_user
 
         resp = await client.post("/api/playbook/publish")
@@ -129,6 +137,7 @@ class TestPublishStatusEndpoint:
                 roles=["user", "manager", "admin"],
                 permissions=_admin_permissions(),
             )
+
         app.dependency_overrides[get_current_user] = mock_admin
         yield
         app.dependency_overrides.pop(get_current_user, None)
@@ -141,7 +150,10 @@ class TestPublishStatusEndpoint:
 
     @pytest.mark.asyncio
     async def test_returns_latest_entry(
-        self, client: AsyncClient, db_session: AsyncSession, admin_user: UserDB,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        admin_user: UserDB,
     ):
         log = PlaybookPublishLogDB(
             status="completed",
@@ -169,6 +181,7 @@ class TestPublishStatusEndpoint:
                 roles=["user"],
                 permissions=_user_permissions(),
             )
+
         app.dependency_overrides[get_current_user] = mock_user
 
         resp = await client.get("/api/playbook/publish/status")

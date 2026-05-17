@@ -40,9 +40,7 @@ async def get_global_metrics_history(
     """
     service = get_service(config)
     records = await service.get_history(db, limit)
-    return GlobalMetricsHistoryResponse(
-        records=[GlobalMetricsRecord.from_db(r) for r in records]
-    )
+    return GlobalMetricsHistoryResponse(records=[GlobalMetricsRecord.from_db(r) for r in records])
 
 
 @router.get("/available-months")
@@ -88,7 +86,9 @@ async def get_global_metrics(
     return GlobalMetricsRecord.from_db(record)
 
 
-@router.post("/calculate", responses={400: {"description": "Invalid date range or year before 2023"}})
+@router.post(
+    "/calculate", responses={400: {"description": "Invalid date range or year before 2023"}}
+)
 @limiter.limit("10/minute")
 async def calculate_global_metrics(
     request: Request,
@@ -131,7 +131,9 @@ async def calculate_global_metrics(
     )
 
 
-@router.post("/recalculate", responses={400: {"description": "Invalid date range or year before 2023"}})
+@router.post(
+    "/recalculate", responses={400: {"description": "Invalid date range or year before 2023"}}
+)
 @limiter.limit("10/minute")
 async def recalculate_global_metrics(
     request: Request,
@@ -145,6 +147,4 @@ async def recalculate_global_metrics(
     Same as /calculate - the upsert behavior handles overwriting.
     Use this after changing weights/targets in configuration.
     """
-    return await calculate_global_metrics(
-        request, batch_request, db, config, current_user
-    )
+    return await calculate_global_metrics(request, batch_request, db, config, current_user)

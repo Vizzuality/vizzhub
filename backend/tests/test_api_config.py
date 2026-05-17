@@ -1,10 +1,12 @@
 """Tests for config API endpoints."""
 
+from decimal import Decimal
+
 import pytest
 import pytest_asyncio
-from decimal import Decimal
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.scorecard.models.config import ConfigParameter
 
 
@@ -138,9 +140,7 @@ async def test_update_config_parameters(client: AsyncClient, seeded_db: AsyncSes
     assert defect_param["value"] == "2.5000"
 
     # Restore original
-    await client.patch(
-        "/api/config/parameters", json=[{"name": "DefDensity_t", "value": "3.0000"}]
-    )
+    await client.patch("/api/config/parameters", json=[{"name": "DefDensity_t", "value": "3.0000"}])
 
 
 @pytest.mark.asyncio

@@ -6,16 +6,15 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, case, literal
+from pydantic import BaseModel
+from sqlalchemy import case, func, literal, select
 
 from app.core.api.deps import DBSession
 from app.core.auth import TokenData
-from app.core.permissions import Action, require_permission
 from app.core.models.exchange_rate import ExchangeRateDB
 from app.core.models.project import ProjectDB
+from app.core.permissions import Action, require_permission
 from app.modules.tracker.models.invoice import InvoiceDB
-from app.modules.tracker.models.postponement import InvoicePostponementDB
-from pydantic import BaseModel
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 
@@ -24,6 +23,8 @@ router = APIRouter()
 
 from app.modules.tracker.services.invoice_status import (
     effective_status_expr as _effective_status_expr,
+)
+from app.modules.tracker.services.invoice_status import (
     postponement_subquery as _postponement_subquery,
 )
 
@@ -32,10 +33,9 @@ def _status_filter(status: str, today, pp_sub):
     """Return a WHERE clause for the given effective status."""
     if status == "pending_to_issue":
         return (
-            ((InvoiceDB.status == "pending_to_issue") |
-             ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today)))
-            & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
-        )
+            (InvoiceDB.status == "pending_to_issue")
+            | ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today))
+        ) & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
     if status == "postponed":
         return (
             InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
@@ -293,7 +293,9 @@ async def list_all_invoices(
     rows = result.all()
 
     items = [
-        _to_admin_invoice_response(inv, project_name, project_currency, eff_status, pp_count, pp_date)
+        _to_admin_invoice_response(
+            inv, project_name, project_currency, eff_status, pp_count, pp_date
+        )
         for inv, project_name, project_currency, eff_status, pp_count, pp_date in rows
     ]
 

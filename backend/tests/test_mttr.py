@@ -6,7 +6,7 @@ Tests cover:
 - Edge cases (no incidents, missing dates)
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -55,20 +55,22 @@ class TestCollectMTTR:
     async def test_collect_mttr_calculates_average(self) -> None:
         """Should calculate average resolution time."""
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            {
-                "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",
-                    "resolutiondate": "2026-01-20T17:00:00+00:00",
-                }
-            },
-            {
-                "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",
-                    "resolutiondate": "2026-01-20T13:00:00+00:00",
-                }
-            },
-        ])
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                {
+                    "fields": {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "resolutiondate": "2026-01-20T17:00:00+00:00",
+                    }
+                },
+                {
+                    "fields": {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "resolutiondate": "2026-01-20T13:00:00+00:00",
+                    }
+                },
+            ]
+        )
 
         result = await collect_mttr(mock_client, "TEST")
 
@@ -79,16 +81,18 @@ class TestCollectMTTR:
     async def test_collect_mttr_skips_invalid_dates(self) -> None:
         """Should skip issues with missing or invalid dates."""
         mock_client = AsyncMock()
-        mock_client.search_issues = AsyncMock(return_value=[
-            {"fields": {"created": "2026-01-20T09:00:00+00:00", "resolutiondate": None}},
-            {"fields": {"created": None, "resolutiondate": "2026-01-20T17:00:00+00:00"}},
-            {
-                "fields": {
-                    "created": "2026-01-20T09:00:00+00:00",
-                    "resolutiondate": "2026-01-20T17:00:00+00:00",
-                }
-            },
-        ])
+        mock_client.search_issues = AsyncMock(
+            return_value=[
+                {"fields": {"created": "2026-01-20T09:00:00+00:00", "resolutiondate": None}},
+                {"fields": {"created": None, "resolutiondate": "2026-01-20T17:00:00+00:00"}},
+                {
+                    "fields": {
+                        "created": "2026-01-20T09:00:00+00:00",
+                        "resolutiondate": "2026-01-20T17:00:00+00:00",
+                    }
+                },
+            ]
+        )
 
         result = await collect_mttr(mock_client, "TEST")
 
@@ -102,12 +106,12 @@ class TestParseJiraDatetime:
     def test_parse_iso_format(self) -> None:
         """Should parse ISO format with timezone."""
         result = parse_jira_datetime("2026-01-20T10:30:00+00:00")
-        assert result == datetime(2026, 1, 20, 10, 30, 0, tzinfo=timezone.utc)
+        assert result == datetime(2026, 1, 20, 10, 30, 0, tzinfo=UTC)
 
     def test_parse_z_suffix(self) -> None:
         """Should handle Z suffix."""
         result = parse_jira_datetime("2026-01-20T10:30:00Z")
-        assert result == datetime(2026, 1, 20, 10, 30, 0, tzinfo=timezone.utc)
+        assert result == datetime(2026, 1, 20, 10, 30, 0, tzinfo=UTC)
 
     def test_parse_none(self) -> None:
         """Should return None for None input."""
@@ -128,26 +132,26 @@ class TestBusinessHoursDiff:
     def test_same_day_business_hours(self) -> None:
         """Should calculate hours within same business day."""
         start = datetime(2026, 1, 20, 9, 0, 0)  # Monday 9am
-        end = datetime(2026, 1, 20, 17, 0, 0)    # Monday 5pm
+        end = datetime(2026, 1, 20, 17, 0, 0)  # Monday 5pm
         assert business_time_diff(start, end) == pytest.approx(8.0)
 
     def test_partial_day(self) -> None:
         """Should calculate partial day hours."""
         start = datetime(2026, 1, 20, 10, 0, 0)  # Monday 10am
-        end = datetime(2026, 1, 20, 14, 0, 0)    # Monday 2pm
+        end = datetime(2026, 1, 20, 14, 0, 0)  # Monday 2pm
         assert business_time_diff(start, end) == pytest.approx(4.0)
 
     def test_skip_weekend(self) -> None:
         """Should skip weekend days."""
-        start = datetime(2026, 1, 17, 9, 0, 0)   # Friday 9am
-        end = datetime(2026, 1, 19, 17, 0, 0)    # Sunday 5pm
+        start = datetime(2026, 1, 17, 9, 0, 0)  # Friday 9am
+        end = datetime(2026, 1, 19, 17, 0, 0)  # Sunday 5pm
         # Only Friday counts (8 hours)
         assert business_time_diff(start, end) == pytest.approx(8.0)
 
     def test_multiple_business_days(self) -> None:
         """Should calculate across multiple business days."""
-        start = datetime(2026, 1, 20, 9, 0, 0)   # Monday 9am
-        end = datetime(2026, 1, 21, 17, 0, 0)    # Tuesday 5pm
+        start = datetime(2026, 1, 20, 9, 0, 0)  # Monday 9am
+        end = datetime(2026, 1, 21, 17, 0, 0)  # Tuesday 5pm
         assert business_time_diff(start, end) == pytest.approx(16.0)
 
     def test_end_before_start(self) -> None:
@@ -158,8 +162,8 @@ class TestBusinessHoursDiff:
 
     def test_outside_business_hours(self) -> None:
         """Should handle times outside business hours."""
-        start = datetime(2026, 1, 20, 6, 0, 0)   # Monday 6am (before business)
-        end = datetime(2026, 1, 20, 10, 0, 0)    # Monday 10am
+        start = datetime(2026, 1, 20, 6, 0, 0)  # Monday 6am (before business)
+        end = datetime(2026, 1, 20, 10, 0, 0)  # Monday 10am
         # Only 9am-10am counts = 1 hour
         assert business_time_diff(start, end) == pytest.approx(1.0)
 

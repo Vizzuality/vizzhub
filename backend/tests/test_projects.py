@@ -52,7 +52,12 @@ class TestJiraProjectKeyUppercase:
         """POST /projects should uppercase mixed case keys."""
         for input_key, expected in [("Fip", "FIP"), ("fIp", "FIP"), ("proj-123", "PROJ-123")]:
             response = await client.post(
-                "/api/projects", json={"name": f"Test {input_key}", "code": f"T{input_key}", "jira_project_key": input_key}
+                "/api/projects",
+                json={
+                    "name": f"Test {input_key}",
+                    "code": f"T{input_key}",
+                    "jira_project_key": input_key,
+                },
             )
             assert response.json()["jira_project_key"] == expected, f"Failed for {input_key}"
 
@@ -179,9 +184,7 @@ class TestProjectPagination:
         await client.post("/api/projects", json={"name": "Zulu", "code": "Zulu"})
         await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
 
-        response = await client.get(
-            "/api/projects", params={"sort": "name", "order": "asc"}
-        )
+        response = await client.get("/api/projects", params={"sort": "name", "order": "asc"})
         data = response.json()
         assert data["items"][0]["name"] == "Alpha"
         assert data["items"][1]["name"] == "Zulu"
@@ -192,9 +195,7 @@ class TestProjectPagination:
         await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
         await client.post("/api/projects", json={"name": "Zulu", "code": "Zulu"})
 
-        response = await client.get(
-            "/api/projects", params={"sort": "name", "order": "desc"}
-        )
+        response = await client.get("/api/projects", params={"sort": "name", "order": "desc"})
         data = response.json()
         assert data["items"][0]["name"] == "Zulu"
         assert data["items"][1]["name"] == "Alpha"
@@ -204,9 +205,7 @@ class TestProjectPagination:
         """Invalid sort field falls back to created_at."""
         await client.post("/api/projects", json={"name": "Test", "code": "Test"})
 
-        response = await client.get(
-            "/api/projects", params={"sort": "invalid_field"}
-        )
+        response = await client.get("/api/projects", params={"sort": "invalid_field"})
         assert response.status_code == 200
 
     @pytest.mark.asyncio
@@ -214,9 +213,7 @@ class TestProjectPagination:
         """Search with no matches returns empty items."""
         await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
 
-        response = await client.get(
-            "/api/projects", params={"search": "nonexistent"}
-        )
+        response = await client.get("/api/projects", params={"search": "nonexistent"})
         data = response.json()
         assert data["items"] == []
         assert data["total"] == 0
@@ -228,9 +225,7 @@ class TestProjectPagination:
         for i in range(7):
             await client.post("/api/projects", json={"name": f"Project {i}", "code": f"P{i}"})
 
-        response = await client.get(
-            "/api/projects", params={"page_size": 3, "page": 2}
-        )
+        response = await client.get("/api/projects", params={"page_size": 3, "page": 2})
         data = response.json()
         assert data["total"] == 7
         assert data["page"] == 2
@@ -262,9 +257,7 @@ class TestLightweightMode:
         await client.post("/api/projects", json={"name": "Project A", "code": "Project A"})
         await client.post("/api/projects", json={"name": "Project B", "code": "Project B"})
 
-        response = await client.get(
-            "/api/projects", params={"lightweight": "true"}
-        )
+        response = await client.get("/api/projects", params={"lightweight": "true"})
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -280,9 +273,7 @@ class TestLightweightMode:
         await client.post("/api/projects", json={"name": "Zulu", "code": "Zulu"})
         await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
 
-        response = await client.get(
-            "/api/projects", params={"lightweight": "true"}
-        )
+        response = await client.get("/api/projects", params={"lightweight": "true"})
         data = response.json()
         assert data[0]["name"] == "Alpha"
         assert data[1]["name"] == "Zulu"
@@ -300,7 +291,9 @@ class TestProjectManagerFilter:
 
     @pytest.mark.asyncio
     async def test_project_managers_endpoint_returns_assigned(
-        self, client: AsyncClient, pm_user: dict,
+        self,
+        client: AsyncClient,
+        pm_user: dict,
     ) -> None:
         """Returns only users assigned as PM on at least one project."""
         await client.post(
@@ -318,7 +311,9 @@ class TestProjectManagerFilter:
 
     @pytest.mark.asyncio
     async def test_filter_by_project_manager(
-        self, client: AsyncClient, pm_user: dict,
+        self,
+        client: AsyncClient,
+        pm_user: dict,
     ) -> None:
         """project_manager_id filter returns only matching projects."""
         await client.post(
@@ -328,7 +323,8 @@ class TestProjectManagerFilter:
         await client.post("/api/projects", json={"name": "Unmanaged", "code": "UNM"})
 
         response = await client.get(
-            "/api/projects", params={"project_manager_id": pm_user["id"]},
+            "/api/projects",
+            params={"project_manager_id": pm_user["id"]},
         )
         data = response.json()
         assert data["total"] == 1

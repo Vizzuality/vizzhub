@@ -32,8 +32,8 @@ def _viewer_token() -> TokenData:
 @pytest_asyncio.fixture
 async def viewer_client(
     db_session: AsyncSession,
-) -> AsyncGenerator[AsyncClient, None]:
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncClient]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     async def override_get_current_user() -> TokenData:
@@ -75,7 +75,5 @@ async def test_delete_row_denies_user_without_capacity_manage(
     viewer_client: AsyncClient,
 ) -> None:
     """DELETE /api/capacity/planner/rows/... must reject CAPACITY_VIEW-only users."""
-    resp = await viewer_client.delete(
-        f"/api/capacity/planner/rows/{uuid4()}/{uuid4()}"
-    )
+    resp = await viewer_client.delete(f"/api/capacity/planner/rows/{uuid4()}/{uuid4()}")
     assert resp.status_code == 403

@@ -1,12 +1,13 @@
 """Tests for GitHub collector."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-from app.core.token_encryption import encrypt_token
-from app.core.models.oauth import OAuthTokenDB
+import pytest
+
 from app.core.models.integration_setting import IntegrationSettingDB
+from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import encrypt_token
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
@@ -186,9 +187,7 @@ class TestPagination:
             new_callable=AsyncMock,
             return_value=resp,
         ):
-            result = await collector._paginate(
-                "/orgs/my-org/teams", optional=True
-            )
+            result = await collector._paginate("/orgs/my-org/teams", optional=True)
 
         assert result == []
         await collector._client.aclose()
@@ -200,10 +199,12 @@ class TestCollectMembers:
         collector = _setup_collector_with_client(db_session)
 
         admins_resp = _make_response([{"login": "alice", "id": 1}])
-        all_members_resp = _make_response([
-            {"login": "alice", "id": 1},
-            {"login": "bob", "id": 2},
-        ])
+        all_members_resp = _make_response(
+            [
+                {"login": "alice", "id": 1},
+                {"login": "bob", "id": 2},
+            ]
+        )
         alice_profile = _make_response({"name": "Alice A", "email": "alice@co.com"})
         bob_profile = _make_response({"name": "Bob B", "email": None})
 
@@ -217,12 +218,18 @@ class TestCollectMembers:
 
         assert len(members) == 2
         assert members[0] == {
-            "login": "alice", "id": 1, "name": "Alice A",
-            "email": "alice@co.com", "role": "admin",
+            "login": "alice",
+            "id": 1,
+            "name": "Alice A",
+            "email": "alice@co.com",
+            "role": "admin",
         }
         assert members[1] == {
-            "login": "bob", "id": 2, "name": "Bob B",
-            "email": None, "role": "member",
+            "login": "bob",
+            "id": 2,
+            "name": "Bob B",
+            "email": None,
+            "role": "member",
         }
         await collector._client.aclose()
 
@@ -252,24 +259,26 @@ class TestCollectTeams:
     async def test_returns_normalized_teams(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        teams_resp = _make_response([
-            {
-                "id": 10,
-                "name": "Backend",
-                "slug": "backend",
-                "parent": {"slug": "engineering"},
-                "description": "Backend team",
-                "privacy": "closed",
-            },
-            {
-                "id": 11,
-                "name": "Frontend",
-                "slug": "frontend",
-                "parent": None,
-                "description": "",
-                "privacy": "secret",
-            },
-        ])
+        teams_resp = _make_response(
+            [
+                {
+                    "id": 10,
+                    "name": "Backend",
+                    "slug": "backend",
+                    "parent": {"slug": "engineering"},
+                    "description": "Backend team",
+                    "privacy": "closed",
+                },
+                {
+                    "id": 11,
+                    "name": "Frontend",
+                    "slug": "frontend",
+                    "parent": None,
+                    "description": "",
+                    "privacy": "secret",
+                },
+            ]
+        )
 
         with patch.object(
             collector._client,
@@ -295,9 +304,11 @@ class TestCollectTeams:
     async def test_handles_missing_parent_key(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        teams_resp = _make_response([
-            {"id": 12, "name": "Ops", "slug": "ops"},
-        ])
+        teams_resp = _make_response(
+            [
+                {"id": 12, "name": "Ops", "slug": "ops"},
+            ]
+        )
 
         with patch.object(
             collector._client,
@@ -317,10 +328,12 @@ class TestCollectTeamMembers:
         collector = _setup_collector_with_client(db_session)
 
         maintainers_resp = _make_response([{"login": "alice"}])
-        all_team_resp = _make_response([
-            {"login": "alice"},
-            {"login": "bob"},
-        ])
+        all_team_resp = _make_response(
+            [
+                {"login": "alice"},
+                {"login": "bob"},
+            ]
+        )
         teams = [{"slug": "backend"}]
 
         with patch.object(
@@ -361,9 +374,11 @@ class TestCollectOutsideCollaborators:
     async def test_returns_normalized_list_with_profile(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        outside_resp = _make_response([
-            {"login": "external-user", "id": 999},
-        ])
+        outside_resp = _make_response(
+            [
+                {"login": "external-user", "id": 999},
+            ]
+        )
         profile_resp = _make_response({"name": "Ext User", "email": "ext@co.com"})
 
         with patch.object(
@@ -376,8 +391,10 @@ class TestCollectOutsideCollaborators:
 
         assert len(result) == 1
         assert result[0] == {
-            "login": "external-user", "id": 999,
-            "name": "Ext User", "email": "ext@co.com",
+            "login": "external-user",
+            "id": 999,
+            "name": "Ext User",
+            "email": "ext@co.com",
         }
         await collector._client.aclose()
 
@@ -450,9 +467,11 @@ class TestCapture:
         admins_resp = _make_response([{"login": "alice", "id": 1}])
         all_members_resp = _make_response([{"login": "alice", "id": 1}])
         alice_profile = _make_response({"name": "Alice", "email": "a@co.com"})
-        teams_resp = _make_response([
-            {"id": 10, "name": "Backend", "slug": "backend", "parent": None},
-        ])
+        teams_resp = _make_response(
+            [
+                {"id": 10, "name": "Backend", "slug": "backend", "parent": None},
+            ]
+        )
         maintainers_resp = _make_response([{"login": "alice"}])
         team_all_resp = _make_response([{"login": "alice"}])
         outside_resp = _make_response([{"login": "ext-user", "id": 500}])

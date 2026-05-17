@@ -34,9 +34,7 @@ class TimeCalculator(BaseCalculator):
             WeightedComponent(
                 name="milestones",
                 weight=self._get_weight("milestones"),
-                value=self._normalize_to_target(
-                    indicators.on_time_milestones, milestones_target
-                ),
+                value=self._normalize_to_target(indicators.on_time_milestones, milestones_target),
             ),
         ]
 

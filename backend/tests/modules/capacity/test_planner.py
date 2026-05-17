@@ -23,11 +23,15 @@ async def planner_data(db_session: AsyncSession):
     await db_session.flush()
 
     user1 = UserDB(
-        id=uuid4(), email="alice@test.com", name="Alice Test",
+        id=uuid4(),
+        email="alice@test.com",
+        name="Alice Test",
         functional_area_id=fa_fe.id,
     )
     user2 = UserDB(
-        id=uuid4(), email="bob@test.com", name="Bob Test",
+        id=uuid4(),
+        email="bob@test.com",
+        name="Bob Test",
         functional_area_id=fa_be.id,
     )
     project1 = ProjectDB(id=uuid4(), name="Alpha", status="live")
@@ -38,37 +42,52 @@ async def planner_data(db_session: AsyncSession):
 
     cells = [
         CapacityPlanDB(
-            project_id=project1.id, user_id=user1.id,
-            week_start=date(2026, 1, 5), percentage=50,
-            created_by=user1.id, updated_by=user1.id,
+            project_id=project1.id,
+            user_id=user1.id,
+            week_start=date(2026, 1, 5),
+            percentage=50,
+            created_by=user1.id,
+            updated_by=user1.id,
         ),
         CapacityPlanDB(
-            project_id=project1.id, user_id=user1.id,
-            week_start=date(2026, 1, 12), percentage=80,
-            created_by=user1.id, updated_by=user1.id,
+            project_id=project1.id,
+            user_id=user1.id,
+            week_start=date(2026, 1, 12),
+            percentage=80,
+            created_by=user1.id,
+            updated_by=user1.id,
         ),
         CapacityPlanDB(
-            project_id=project2.id, user_id=user1.id,
-            week_start=date(2026, 1, 5), percentage=30,
-            created_by=user1.id, updated_by=user1.id,
+            project_id=project2.id,
+            user_id=user1.id,
+            week_start=date(2026, 1, 5),
+            percentage=30,
+            created_by=user1.id,
+            updated_by=user1.id,
         ),
         CapacityPlanDB(
-            project_id=project1.id, user_id=user2.id,
-            week_start=date(2026, 1, 5), percentage=60,
-            created_by=user2.id, updated_by=user2.id,
+            project_id=project1.id,
+            user_id=user2.id,
+            week_start=date(2026, 1, 5),
+            percentage=60,
+            created_by=user2.id,
+            updated_by=user2.id,
         ),
     ]
     db_session.add_all(cells)
     await db_session.flush()
 
     return {
-        "user1": user1, "user2": user2,
-        "project1": project1, "project2": project2,
+        "user1": user1,
+        "user2": user2,
+        "project1": project1,
+        "project2": project2,
     }
 
 
 class FakeUser:
     """Minimal auth user stub for direct endpoint calls."""
+
     def __init__(self, user_id):
         self.user_id = user_id
 
@@ -79,8 +98,11 @@ class TestGetPlanner:
         from app.modules.capacity.api.planner import get_planner
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         assert "groups" in result
@@ -95,8 +117,11 @@ class TestGetPlanner:
         from app.modules.capacity.api.planner import get_planner
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="user",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="user",
         )
 
         alice = next(g for g in result["groups"] if "Alice" in g["name"])
@@ -107,8 +132,11 @@ class TestGetPlanner:
         from app.modules.capacity.api.planner import get_planner
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         alpha = next(g for g in result["groups"] if g["name"] == "Alpha")
@@ -119,9 +147,10 @@ class TestGetPlanner:
 
     @pytest.mark.asyncio
     async def test_returns_comments_per_row(self, db_session, planner_data):
+        from sqlalchemy import update
+
         from app.modules.capacity.api.planner import get_planner
 
-        from sqlalchemy import update
         await db_session.execute(
             update(CapacityPlanDB)
             .where(
@@ -135,13 +164,17 @@ class TestGetPlanner:
 
         fake_user = FakeUser(planner_data["user1"].id)
         result = await get_planner(
-            db_session, fake_user,
-            start="2026-01-05", end="2026-01-12",
+            db_session,
+            fake_user,
+            start="2026-01-05",
+            end="2026-01-12",
             group_by="user",
         )
 
         user1_group = next(g for g in result["groups"] if g["id"] == str(planner_data["user1"].id))
-        row = next(r for r in user1_group["rows"] if r["project_id"] == str(planner_data["project1"].id))
+        row = next(
+            r for r in user1_group["rows"] if r["project_id"] == str(planner_data["project1"].id)
+        )
         assert row["comments"] == {"2026-01-05": "Need reviewer"}
 
     @pytest.mark.asyncio
@@ -150,8 +183,10 @@ class TestGetPlanner:
 
         fake_user = FakeUser(planner_data["user1"].id)
         result = await get_planner(
-            db_session, fake_user,
-            start="2026-01-05", end="2026-01-12",
+            db_session,
+            fake_user,
+            start="2026-01-05",
+            end="2026-01-12",
             group_by="user",
         )
 
@@ -164,8 +199,11 @@ class TestGetPlanner:
         from app.modules.capacity.api.planner import get_planner
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         alpha = next(g for g in result["groups"] if g["name"] == "Alpha")
@@ -179,15 +217,21 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        body = BulkCellUpdate(updates=[{
-            "project_id": str(planner_data["project2"].id),
-            "user_id": str(planner_data["user2"].id),
-            "week_start": "2026-01-05",
-            "percentage": 40,
-        }])
+        body = BulkCellUpdate(
+            updates=[
+                {
+                    "project_id": str(planner_data["project2"].id),
+                    "user_id": str(planner_data["user2"].id),
+                    "week_start": "2026-01-05",
+                    "percentage": 40,
+                }
+            ]
+        )
 
         result = await update_cells(
-            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            body=body,
         )
         assert result["updated"] == 1
 
@@ -204,15 +248,21 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        body = BulkCellUpdate(updates=[{
-            "project_id": str(planner_data["project1"].id),
-            "user_id": str(planner_data["user1"].id),
-            "week_start": "2026-01-05",
-            "percentage": 99,
-        }])
+        body = BulkCellUpdate(
+            updates=[
+                {
+                    "project_id": str(planner_data["project1"].id),
+                    "user_id": str(planner_data["user1"].id),
+                    "week_start": "2026-01-05",
+                    "percentage": 99,
+                }
+            ]
+        )
 
         result = await update_cells(
-            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            body=body,
         )
         assert result["updated"] == 1
 
@@ -229,15 +279,21 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        body = BulkCellUpdate(updates=[{
-            "project_id": str(planner_data["project1"].id),
-            "user_id": str(planner_data["user1"].id),
-            "week_start": "2026-01-05",
-            "percentage": None,
-        }])
+        body = BulkCellUpdate(
+            updates=[
+                {
+                    "project_id": str(planner_data["project1"].id),
+                    "user_id": str(planner_data["user1"].id),
+                    "week_start": "2026-01-05",
+                    "percentage": None,
+                }
+            ]
+        )
 
         result = await update_cells(
-            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            body=body,
         )
         assert result["updated"] == 1
 
@@ -254,15 +310,21 @@ class TestUpdateCells:
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate
 
-        body = BulkCellUpdate(updates=[{
-            "project_id": str(planner_data["project1"].id),
-            "user_id": str(planner_data["user1"].id),
-            "week_start": "2026-01-05",
-            "percentage": 0,
-        }])
+        body = BulkCellUpdate(
+            updates=[
+                {
+                    "project_id": str(planner_data["project1"].id),
+                    "user_id": str(planner_data["user1"].id),
+                    "week_start": "2026-01-05",
+                    "percentage": 0,
+                }
+            ]
+        )
 
         result = await update_cells(
-            db=db_session, user=FakeUser(planner_data["user1"].id), body=body,
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            body=body,
         )
         assert result["updated"] == 1
 
@@ -273,7 +335,8 @@ class TestDeleteRow:
         from app.modules.capacity.api.planner import delete_row
 
         result = await delete_row(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
             project_id=planner_data["project1"].id,
             user_id=planner_data["user1"].id,
         )
@@ -289,8 +352,11 @@ class TestGetPlannerFiltering:
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         group_names = [g["name"] for g in result["groups"]]
@@ -304,8 +370,11 @@ class TestGetPlannerFiltering:
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         alpha = next(g for g in result["groups"] if g["name"] == "Alpha")
@@ -322,8 +391,11 @@ class TestGetPlannerFiltering:
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         alpha = next(g for g in result["groups"] if g["name"] == "Alpha")
@@ -333,34 +405,49 @@ class TestGetPlannerFiltering:
     @pytest.mark.asyncio
     async def test_overallocation_warnings_skip_exempt_users(self, db_session):
         """Audit #35: warnings only fire for reportable users (active + reporting)."""
-        from app.modules.capacity.api.planner import get_planner
         from uuid import uuid4
 
+        from app.modules.capacity.api.planner import get_planner
+
         exempt = UserDB(
-            id=uuid4(), email="exempt@t.com", name="Exempt",
-            active=True, requires_project_reporting=False,
+            id=uuid4(),
+            email="exempt@t.com",
+            name="Exempt",
+            active=True,
+            requires_project_reporting=False,
         )
         p1 = ProjectDB(id=uuid4(), name="P1 Warn", status="live", is_billable=True)
         p2 = ProjectDB(id=uuid4(), name="P2 Warn", status="live", is_billable=True)
         db_session.add_all([exempt, p1, p2])
         await db_session.flush()
-        db_session.add_all([
-            CapacityPlanDB(
-                project_id=p1.id, user_id=exempt.id,
-                week_start=date(2026, 1, 5), percentage=70,
-                created_by=exempt.id, updated_by=exempt.id,
-            ),
-            CapacityPlanDB(
-                project_id=p2.id, user_id=exempt.id,
-                week_start=date(2026, 1, 5), percentage=60,
-                created_by=exempt.id, updated_by=exempt.id,
-            ),
-        ])
+        db_session.add_all(
+            [
+                CapacityPlanDB(
+                    project_id=p1.id,
+                    user_id=exempt.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=70,
+                    created_by=exempt.id,
+                    updated_by=exempt.id,
+                ),
+                CapacityPlanDB(
+                    project_id=p2.id,
+                    user_id=exempt.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=60,
+                    created_by=exempt.id,
+                    updated_by=exempt.id,
+                ),
+            ]
+        )
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(exempt.id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(exempt.id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
         assert str(exempt.id) not in result["warnings"]
 
@@ -378,8 +465,11 @@ class TestGetPlannerFiltering:
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(user.id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(user.id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         zeta = next((g for g in result["groups"] if g["name"] == "Zeta New"), None)
@@ -396,8 +486,11 @@ class TestGetPlannerFiltering:
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         groups = result["groups"]
@@ -416,20 +509,30 @@ class TestAbsenceAndOthers:
         """Absence project rows don't appear in project view."""
         from app.modules.capacity.api.planner import get_planner
 
-        absence = ProjectDB(id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False)
+        absence = ProjectDB(
+            id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False
+        )
         db_session.add(absence)
         await db_session.flush()
 
-        db_session.add(CapacityPlanDB(
-            project_id=absence.id, user_id=planner_data["user1"].id,
-            week_start=date(2026, 1, 5), percentage=20,
-            created_by=planner_data["user1"].id, updated_by=planner_data["user1"].id,
-        ))
+        db_session.add(
+            CapacityPlanDB(
+                project_id=absence.id,
+                user_id=planner_data["user1"].id,
+                week_start=date(2026, 1, 5),
+                percentage=20,
+                created_by=planner_data["user1"].id,
+                updated_by=planner_data["user1"].id,
+            )
+        )
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         group_names = [g["name"] for g in result["groups"]]
@@ -440,22 +543,32 @@ class TestAbsenceAndOthers:
         """Every user group in user view gets a pinned absence row."""
         from app.modules.capacity.api.planner import get_planner
 
-        absence = ProjectDB(id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False)
+        absence = ProjectDB(
+            id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False
+        )
         user = UserDB(id=uuid4(), email="test@t.com", name="Test", requires_project_reporting=True)
         proj = ProjectDB(id=uuid4(), name="Proj", status="live", is_billable=True)
         db_session.add_all([absence, user, proj])
         await db_session.flush()
 
-        db_session.add(CapacityPlanDB(
-            project_id=proj.id, user_id=user.id,
-            week_start=date(2026, 1, 5), percentage=50,
-            created_by=user.id, updated_by=user.id,
-        ))
+        db_session.add(
+            CapacityPlanDB(
+                project_id=proj.id,
+                user_id=user.id,
+                week_start=date(2026, 1, 5),
+                percentage=50,
+                created_by=user.id,
+                updated_by=user.id,
+            )
+        )
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(user.id),
-            start="2026-01-05", end="2026-01-19", group_by="user",
+            db=db_session,
+            user=FakeUser(user.id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="user",
         )
 
         test_group = next(g for g in result["groups"] if "Test" in g["name"])
@@ -472,16 +585,24 @@ class TestAbsenceAndOthers:
         db_session.add(internal)
         await db_session.flush()
 
-        db_session.add(CapacityPlanDB(
-            project_id=internal.id, user_id=planner_data["user1"].id,
-            week_start=date(2026, 1, 5), percentage=10,
-            created_by=planner_data["user1"].id, updated_by=planner_data["user1"].id,
-        ))
+        db_session.add(
+            CapacityPlanDB(
+                project_id=internal.id,
+                user_id=planner_data["user1"].id,
+                week_start=date(2026, 1, 5),
+                percentage=10,
+                created_by=planner_data["user1"].id,
+                updated_by=planner_data["user1"].id,
+            )
+        )
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         group_names = [g["name"] for g in result["groups"]]
@@ -500,23 +621,34 @@ class TestWarnings:
         db_session.add_all([user, p1, p2])
         await db_session.flush()
 
-        db_session.add_all([
-            CapacityPlanDB(
-                project_id=p1.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=60,
-                created_by=user.id, updated_by=user.id,
-            ),
-            CapacityPlanDB(
-                project_id=p2.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=50,
-                created_by=user.id, updated_by=user.id,
-            ),
-        ])
+        db_session.add_all(
+            [
+                CapacityPlanDB(
+                    project_id=p1.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=60,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+                CapacityPlanDB(
+                    project_id=p2.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=50,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+            ]
+        )
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(user.id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(user.id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         assert str(user.id) in result["warnings"]
@@ -532,23 +664,34 @@ class TestWarnings:
         db_session.add_all([user, p1, p2])
         await db_session.flush()
 
-        db_session.add_all([
-            CapacityPlanDB(
-                project_id=p1.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=60,
-                created_by=user.id, updated_by=user.id,
-            ),
-            CapacityPlanDB(
-                project_id=p2.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=40,
-                created_by=user.id, updated_by=user.id,
-            ),
-        ])
+        db_session.add_all(
+            [
+                CapacityPlanDB(
+                    project_id=p1.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=60,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+                CapacityPlanDB(
+                    project_id=p2.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=40,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+            ]
+        )
         await db_session.flush()
 
         result = await get_planner(
-            db=db_session, user=FakeUser(user.id),
-            start="2026-01-05", end="2026-01-19", group_by="project",
+            db=db_session,
+            user=FakeUser(user.id),
+            start="2026-01-05",
+            end="2026-01-19",
+            group_by="project",
         )
 
         assert str(user.id) not in result["warnings"]
@@ -568,22 +711,32 @@ class TestSuggestions:
 
         # 3 Mondays in Jan 2026: 5, 12, 19, 26
         for monday in [date(2026, 1, 5), date(2026, 1, 12), date(2026, 1, 19), date(2026, 1, 26)]:
-            db_session.add_all([
-                CapacityPlanDB(
-                    project_id=p1.id, user_id=user.id,
-                    week_start=monday, percentage=60,
-                    created_by=user.id, updated_by=user.id,
-                ),
-                CapacityPlanDB(
-                    project_id=p2.id, user_id=user.id,
-                    week_start=monday, percentage=40,
-                    created_by=user.id, updated_by=user.id,
-                ),
-            ])
+            db_session.add_all(
+                [
+                    CapacityPlanDB(
+                        project_id=p1.id,
+                        user_id=user.id,
+                        week_start=monday,
+                        percentage=60,
+                        created_by=user.id,
+                        updated_by=user.id,
+                    ),
+                    CapacityPlanDB(
+                        project_id=p2.id,
+                        user_id=user.id,
+                        week_start=monday,
+                        percentage=40,
+                        created_by=user.id,
+                        updated_by=user.id,
+                    ),
+                ]
+            )
         await db_session.flush()
 
         result = await get_planner_suggestions(
-            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+            db=db_session,
+            user=FakeUser(user.id),
+            month="2026-01-01",
         )
 
         total = sum(s["percentage"] for s in result["suggestions"])
@@ -603,22 +756,32 @@ class TestSuggestions:
         db_session.add_all([user, billable, operations])
         await db_session.flush()
 
-        db_session.add_all([
-            CapacityPlanDB(
-                project_id=billable.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=80,
-                created_by=user.id, updated_by=user.id,
-            ),
-            CapacityPlanDB(
-                project_id=operations.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=20,
-                created_by=user.id, updated_by=user.id,
-            ),
-        ])
+        db_session.add_all(
+            [
+                CapacityPlanDB(
+                    project_id=billable.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=80,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+                CapacityPlanDB(
+                    project_id=operations.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=20,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+            ]
+        )
         await db_session.flush()
 
         result = await get_planner_suggestions(
-            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+            db=db_session,
+            user=FakeUser(user.id),
+            month="2026-01-01",
         )
 
         assert result["others_percentage"] == 20.0
@@ -633,26 +796,38 @@ class TestSuggestions:
 
         user = UserDB(id=uuid4(), email="a@t.com", name="Abs")
         billable = ProjectDB(id=uuid4(), name="Work", status="live", is_billable=True)
-        absence = ProjectDB(id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False)
+        absence = ProjectDB(
+            id=uuid4(), name="Vacation", status="live", is_absence=True, is_billable=False
+        )
         db_session.add_all([user, billable, absence])
         await db_session.flush()
 
-        db_session.add_all([
-            CapacityPlanDB(
-                project_id=billable.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=80,
-                created_by=user.id, updated_by=user.id,
-            ),
-            CapacityPlanDB(
-                project_id=absence.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=20,
-                created_by=user.id, updated_by=user.id,
-            ),
-        ])
+        db_session.add_all(
+            [
+                CapacityPlanDB(
+                    project_id=billable.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=80,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+                CapacityPlanDB(
+                    project_id=absence.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=20,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+            ]
+        )
         await db_session.flush()
 
         result = await get_planner_suggestions(
-            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+            db=db_session,
+            user=FakeUser(user.id),
+            month="2026-01-01",
         )
 
         vacation = next(s for s in result["suggestions"] if s["project_name"] == "Vacation")
@@ -669,7 +844,9 @@ class TestSuggestions:
         await db_session.flush()
 
         result = await get_planner_suggestions(
-            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+            db=db_session,
+            user=FakeUser(user.id),
+            month="2026-01-01",
         )
 
         assert result["suggestions"] == []
@@ -682,37 +859,55 @@ class TestSuggestions:
 
         user = UserDB(id=uuid4(), email="f@t.com", name="Fin")
         live = ProjectDB(
-            id=uuid4(), name="Live", status="live", is_billable=True,
+            id=uuid4(),
+            name="Live",
+            status="live",
+            is_billable=True,
         )
         finished = ProjectDB(
-            id=uuid4(), name="Old", status="finished", is_billable=True,
+            id=uuid4(),
+            name="Old",
+            status="finished",
+            is_billable=True,
         )
         db_session.add_all([user, live, finished])
         await db_session.flush()
 
-        db_session.add_all([
-            CapacityPlanDB(
-                project_id=live.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=60,
-                created_by=user.id, updated_by=user.id,
-            ),
-            CapacityPlanDB(
-                project_id=finished.id, user_id=user.id,
-                week_start=date(2026, 1, 5), percentage=40,
-                created_by=user.id, updated_by=user.id,
-            ),
-        ])
+        db_session.add_all(
+            [
+                CapacityPlanDB(
+                    project_id=live.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=60,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+                CapacityPlanDB(
+                    project_id=finished.id,
+                    user_id=user.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=40,
+                    created_by=user.id,
+                    updated_by=user.id,
+                ),
+            ]
+        )
         await db_session.flush()
 
         result = await get_planner_suggestions(
-            db=db_session, user=FakeUser(user.id), month="2026-01-01",
+            db=db_session,
+            user=FakeUser(user.id),
+            month="2026-01-01",
         )
 
         names = [s["project_name"] for s in result["suggestions"]]
         assert "Old" not in names
         assert "Live" in names
         # Live alone normalises to 100% once finished is filtered out.
-        live_pct = next(s["percentage"] for s in result["suggestions"] if s["project_name"] == "Live")
+        live_pct = next(
+            s["percentage"] for s in result["suggestions"] if s["project_name"] == "Live"
+        )
         assert live_pct == 100.0
 
 
@@ -722,8 +917,10 @@ class TestUpdatedAt:
         from app.modules.capacity.api.planner import get_updated_at
 
         result = await get_updated_at(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2026-01-05", end="2026-01-19",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2026-01-05",
+            end="2026-01-19",
         )
         assert result["updated_at"] is not None
 
@@ -732,17 +929,20 @@ class TestUpdatedAt:
         from app.modules.capacity.api.planner import get_updated_at
 
         result = await get_updated_at(
-            db=db_session, user=FakeUser(planner_data["user1"].id),
-            start="2030-01-05", end="2030-01-19",
+            db=db_session,
+            user=FakeUser(planner_data["user1"].id),
+            start="2030-01-05",
+            end="2030-01-19",
         )
         assert result["updated_at"] is None
 
 
 class TestCellUpdateSchema:
     def test_accepts_comment_within_limit(self):
-        from app.modules.capacity.models.capacity_plan import CellUpdate
-        from uuid import uuid4
         from datetime import date
+        from uuid import uuid4
+
+        from app.modules.capacity.models.capacity_plan import CellUpdate
 
         update = CellUpdate(
             project_id=uuid4(),
@@ -754,11 +954,13 @@ class TestCellUpdateSchema:
         assert update.comment == "Short note"
 
     def test_rejects_comment_over_500_chars(self):
-        from app.modules.capacity.models.capacity_plan import CellUpdate
-        from pydantic import ValidationError
-        from uuid import uuid4
         from datetime import date
+        from uuid import uuid4
+
         import pytest
+        from pydantic import ValidationError
+
+        from app.modules.capacity.models.capacity_plan import CellUpdate
 
         with pytest.raises(ValidationError):
             CellUpdate(
@@ -768,6 +970,7 @@ class TestCellUpdateSchema:
                 percentage=50,
                 comment="x" * 501,
             )
+
 
 class TestPatchCellsWithComment:
     @pytest.mark.asyncio
@@ -779,14 +982,17 @@ class TestPatchCellsWithComment:
         p = planner_data["project2"]
         fake_user = FakeUser(u.id)
 
-        body = BulkCellUpdate(updates=[
-            CellUpdate(
-                project_id=p.id, user_id=u.id,
-                week_start=date(2026, 1, 12),
-                percentage=40,
-                comment="Blocked on review",
-            ),
-        ])
+        body = BulkCellUpdate(
+            updates=[
+                CellUpdate(
+                    project_id=p.id,
+                    user_id=u.id,
+                    week_start=date(2026, 1, 12),
+                    percentage=40,
+                    comment="Blocked on review",
+                ),
+            ]
+        )
         await update_cells(db_session, fake_user, body)
 
         stmt = select(CapacityPlanDB).where(
@@ -807,14 +1013,17 @@ class TestPatchCellsWithComment:
         p = planner_data["project1"]
         fake_user = FakeUser(u.id)
 
-        body = BulkCellUpdate(updates=[
-            CellUpdate(
-                project_id=p.id, user_id=u.id,
-                week_start=date(2026, 1, 5),
-                percentage=50,
-                comment="Updated note",
-            ),
-        ])
+        body = BulkCellUpdate(
+            updates=[
+                CellUpdate(
+                    project_id=p.id,
+                    user_id=u.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=50,
+                    comment="Updated note",
+                ),
+            ]
+        )
         await update_cells(db_session, fake_user, body)
 
         stmt = select(CapacityPlanDB).where(
@@ -828,9 +1037,10 @@ class TestPatchCellsWithComment:
 
     @pytest.mark.asyncio
     async def test_percentage_update_preserves_existing_comment(self, db_session, planner_data):
+        from sqlalchemy import update as sa_update
+
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CellUpdate
-        from sqlalchemy import update as sa_update
 
         u = planner_data["user1"]
         p = planner_data["project1"]
@@ -847,13 +1057,16 @@ class TestPatchCellsWithComment:
         )
         await db_session.flush()
 
-        body = BulkCellUpdate(updates=[
-            CellUpdate(
-                project_id=p.id, user_id=u.id,
-                week_start=date(2026, 1, 5),
-                percentage=80,
-            ),
-        ])
+        body = BulkCellUpdate(
+            updates=[
+                CellUpdate(
+                    project_id=p.id,
+                    user_id=u.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=80,
+                ),
+            ]
+        )
         await update_cells(db_session, fake_user, body)
 
         stmt = select(CapacityPlanDB).where(
@@ -867,9 +1080,10 @@ class TestPatchCellsWithComment:
 
     @pytest.mark.asyncio
     async def test_delete_wipes_comment(self, db_session, planner_data):
+        from sqlalchemy import update as sa_update
+
         from app.modules.capacity.api.planner import update_cells
         from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CellUpdate
-        from sqlalchemy import update as sa_update
 
         u = planner_data["user1"]
         p = planner_data["project1"]
@@ -886,14 +1100,17 @@ class TestPatchCellsWithComment:
         )
         await db_session.flush()
 
-        body = BulkCellUpdate(updates=[
-            CellUpdate(
-                project_id=p.id, user_id=u.id,
-                week_start=date(2026, 1, 5),
-                percentage=None,
-                comment="ignored because cell is being deleted",
-            ),
-        ])
+        body = BulkCellUpdate(
+            updates=[
+                CellUpdate(
+                    project_id=p.id,
+                    user_id=u.id,
+                    week_start=date(2026, 1, 5),
+                    percentage=None,
+                    comment="ignored because cell is being deleted",
+                ),
+            ]
+        )
         await update_cells(db_session, fake_user, body)
 
         stmt = select(CapacityPlanDB).where(

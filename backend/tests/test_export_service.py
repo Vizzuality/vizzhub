@@ -1,19 +1,19 @@
 """Tests for ExportService."""
 
-import pytest
-import pytest_asyncio
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
+from app.core.models.project import ProjectDB
 from app.modules.scorecard.models.global_metrics import GlobalMetricsDB
 from app.modules.scorecard.models.metrics import MetricsDB
-from app.core.models.project import ProjectDB
 from app.modules.scorecard.services.export_service import ExportService
 
 
@@ -64,9 +64,7 @@ async def project_with_3_months(
 
 class TestExportServiceProjectDetail:
     @pytest.mark.asyncio
-    async def test_generates_valid_xlsx(
-        self, db_session, scoring_config, project_with_3_months
-    ):
+    async def test_generates_valid_xlsx(self, db_session, scoring_config, project_with_3_months):
         project = project_with_3_months
         service = ExportService(scoring_config)
         output = await service.export_project_detail(
@@ -215,9 +213,7 @@ async def global_metrics_3_months(db_session: AsyncSession) -> list[GlobalMetric
 
 class TestExportServiceGlobalDashboard:
     @pytest.mark.asyncio
-    async def test_generates_valid_xlsx(
-        self, db_session, scoring_config, global_metrics_3_months
-    ):
+    async def test_generates_valid_xlsx(self, db_session, scoring_config, global_metrics_3_months):
         service = ExportService(scoring_config)
         output = await service.export_global_dashboard(
             db=db_session,
@@ -308,9 +304,7 @@ class TestExportServiceGlobalDashboard:
         assert len(all_values) > 0
 
     @pytest.mark.asyncio
-    async def test_no_data_returns_valid_xlsx(
-        self, db_session, scoring_config
-    ):
+    async def test_no_data_returns_valid_xlsx(self, db_session, scoring_config):
         service = ExportService(scoring_config)
         output = await service.export_global_dashboard(
             db=db_session,

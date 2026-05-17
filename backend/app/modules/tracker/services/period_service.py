@@ -27,16 +27,12 @@ VALID_TRANSITIONS = {
 
 
 async def get_periods(db: AsyncSession) -> list[ReportingPeriodDB]:
-    result = await db.execute(
-        select(ReportingPeriodDB).order_by(ReportingPeriodDB.date.desc())
-    )
+    result = await db.execute(select(ReportingPeriodDB).order_by(ReportingPeriodDB.date.desc()))
     return list(result.scalars().all())
 
 
 async def get_period(period_id: UUID, db: AsyncSession) -> ReportingPeriodDB:
-    result = await db.execute(
-        select(ReportingPeriodDB).where(ReportingPeriodDB.id == period_id)
-    )
+    result = await db.execute(select(ReportingPeriodDB).where(ReportingPeriodDB.id == period_id))
     period = result.scalar_one_or_none()
     if not period:
         raise HTTPException(
@@ -47,7 +43,8 @@ async def get_period(period_id: UUID, db: AsyncSession) -> ReportingPeriodDB:
 
 
 async def create_period(
-    data: ReportingPeriodCreate, db: AsyncSession,
+    data: ReportingPeriodCreate,
+    db: AsyncSession,
 ) -> ReportingPeriodDB:
     period = ReportingPeriodDB(
         date=data.date,
@@ -61,7 +58,9 @@ async def create_period(
 
 
 async def update_period(
-    period_id: UUID, data: ReportingPeriodUpdate, db: AsyncSession,
+    period_id: UUID,
+    data: ReportingPeriodUpdate,
+    db: AsyncSession,
 ) -> ReportingPeriodDB:
     period = await get_period(period_id, db)
     update_data = data.model_dump(exclude_unset=True)
@@ -76,9 +75,7 @@ async def delete_period(period_id: UUID, db: AsyncSession) -> None:
     period = await get_period(period_id, db)
 
     report_count_result = await db.execute(
-        select(func.count()).select_from(ReportDB).where(
-            ReportDB.reporting_period_id == period_id
-        )
+        select(func.count()).select_from(ReportDB).where(ReportDB.reporting_period_id == period_id)
     )
     if report_count_result.scalar() > 0:
         raise HTTPException(
@@ -111,7 +108,9 @@ async def _deactivate_current_active(
 
 
 async def _transition_period(
-    period_id: UUID, target_status: ReportingPeriodStatus, db: AsyncSession,
+    period_id: UUID,
+    target_status: ReportingPeriodStatus,
+    db: AsyncSession,
 ) -> ReportingPeriodDB:
     """Apply a state transition with validation."""
     period = await get_period(period_id, db)
@@ -144,18 +143,22 @@ async def _transition_period(
 
 
 async def activate_period(
-    period_id: UUID, db: AsyncSession,
+    period_id: UUID,
+    db: AsyncSession,
 ) -> ReportingPeriodDB:
     return await _transition_period(
-        period_id, ReportingPeriodStatus.ACTIVE, db,
+        period_id,
+        ReportingPeriodStatus.ACTIVE,
+        db,
     )
 
 
 async def finish_period(
-    period_id: UUID, db: AsyncSession,
+    period_id: UUID,
+    db: AsyncSession,
 ) -> ReportingPeriodDB:
     return await _transition_period(
-        period_id, ReportingPeriodStatus.FINISHED, db,
+        period_id,
+        ReportingPeriodStatus.FINISHED,
+        db,
     )
-
-

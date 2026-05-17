@@ -1,5 +1,6 @@
 """Tests for admin assets API endpoints."""
 
+from datetime import UTC
 from uuid import UUID, uuid4
 
 import pytest
@@ -20,9 +21,7 @@ DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 async def _ensure_dev_user(db_session: AsyncSession) -> None:
     from sqlalchemy import select
 
-    result = await db_session.execute(
-        select(UserDB).where(UserDB.id == DEBUG_USER_ID)
-    )
+    result = await db_session.execute(select(UserDB).where(UserDB.id == DEBUG_USER_ID))
     if not result.scalar_one_or_none():
         db_session.add(UserDB(id=DEBUG_USER_ID, email="dev@test.com"))
         await db_session.flush()
@@ -136,9 +135,7 @@ async def test_delete_asset(
     sample_attachment: RegistryAttachmentDB,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "app.core.api.admin_assets.delete_attachment", lambda s3_key: None
-    )
+    monkeypatch.setattr("app.core.api.admin_assets.delete_attachment", lambda s3_key: None)
 
     resp = await client.delete(f"/api/admin/assets/{sample_attachment.id}")
     assert resp.status_code == 200
@@ -158,6 +155,7 @@ async def test_delete_asset_not_found(client: AsyncClient) -> None:
 # S3 image management tests
 # ---------------------------------------------------------------------------
 
+
 class FakeS3Client:
     """Mock S3 client that returns canned list_objects_v2 results."""
 
@@ -169,13 +167,13 @@ class FakeS3Client:
         return self
 
     def paginate(self, **_kwargs):  # noqa: ANN003, ANN201
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         contents = [
             {
                 "Key": obj["key"],
                 "Size": obj.get("size", 1024),
-                "LastModified": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                "LastModified": datetime(2026, 1, 1, tzinfo=UTC),
             }
             for obj in self._objects
         ]
@@ -190,13 +188,13 @@ class FakeS3Client:
 
 @pytest.fixture
 def fake_s3(monkeypatch: pytest.MonkeyPatch) -> FakeS3Client:
-    fake = FakeS3Client(objects=[
-        {"key": "playbook/images/logo-abc123.png", "size": 2048},
-        {"key": "playbook/images/hero-def456.jpg", "size": 4096},
-    ])
-    monkeypatch.setattr(
-        "app.core.api.admin_assets.get_s3_client", lambda: fake
+    fake = FakeS3Client(
+        objects=[
+            {"key": "playbook/images/logo-abc123.png", "size": 2048},
+            {"key": "playbook/images/hero-def456.jpg", "size": 4096},
+        ]
     )
+    monkeypatch.setattr("app.core.api.admin_assets.get_s3_client", lambda: fake)
     return fake
 
 
@@ -240,11 +238,13 @@ async def test_delete_image_invalid_prefix(client: AsyncClient, fake_s3: FakeS3C
 async def test_batch_delete_images(client: AsyncClient, fake_s3: FakeS3Client) -> None:
     resp = await client.post(
         "/api/admin/assets/images/batch-delete",
-        json={"keys": [
-            "playbook/images/logo-abc123.png",
-            "iso-docs/images/diagram.png",
-            "secret/hack.txt",
-        ]},
+        json={
+            "keys": [
+                "playbook/images/logo-abc123.png",
+                "iso-docs/images/diagram.png",
+                "secret/hack.txt",
+            ]
+        },
     )
     assert resp.status_code == 200
     data = resp.json()

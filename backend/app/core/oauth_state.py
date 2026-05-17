@@ -1,7 +1,7 @@
 """DB-backed OAuth state management for CSRF protection."""
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,7 @@ class OAuthStateManager:
     async def generate_state(db: AsyncSession) -> str:
         """Generate a cryptographically secure state token and persist it."""
         state = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+        expires_at = datetime.now(UTC) + timedelta(minutes=10)
 
         db.add(OAuthStateDB(state=state, expires_at=expires_at))
         await db.flush()
@@ -33,9 +33,7 @@ class OAuthStateManager:
     @staticmethod
     async def validate_state(state: str, db: AsyncSession) -> bool:
         """Validate and consume a state token (one-time use)."""
-        result = await db.execute(
-            select(OAuthStateDB).where(OAuthStateDB.state == state)
-        )
+        result = await db.execute(select(OAuthStateDB).where(OAuthStateDB.state == state))
         row = result.scalar_one_or_none()
 
         if row is None:
@@ -44,7 +42,7 @@ class OAuthStateManager:
         await db.delete(row)
         await db.flush()
 
-        if datetime.now(timezone.utc) > row.expires_at:
+        if datetime.now(UTC) > row.expires_at:
             return False
 
         return True
@@ -52,8 +50,6 @@ class OAuthStateManager:
     @staticmethod
     async def cleanup_expired(db: AsyncSession) -> int:
         """Remove expired states. Returns count of removed rows."""
-        now = datetime.now(timezone.utc)
-        result = await db.execute(
-            delete(OAuthStateDB).where(OAuthStateDB.expires_at < now)
-        )
+        now = datetime.now(UTC)
+        result = await db.execute(delete(OAuthStateDB).where(OAuthStateDB.expires_at < now))
         return result.rowcount

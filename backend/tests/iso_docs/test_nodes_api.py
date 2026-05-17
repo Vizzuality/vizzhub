@@ -158,7 +158,11 @@ async def test_duplicate_slug_gets_suffix(client: AsyncClient):
 async def test_create_widget_node(client: AsyncClient):
     response = await client.post(
         "/api/iso-docs/nodes",
-        json={"title": "Management Review", "type": "widget", "widget_key": "management-review-report"},
+        json={
+            "title": "Management Review",
+            "type": "widget",
+            "widget_key": "management-review-report",
+        },
     )
     assert response.status_code == 201
     data = response.json()

@@ -48,7 +48,8 @@ class TestReportingPeriodsCRUD:
 
     @pytest.mark.asyncio
     async def test_reporting_period_create_rejects_zero_base_rate(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Audit #25: base_rate=0 would crash cost calc with ZeroDivisionError."""
         resp = await client.post(
@@ -59,7 +60,8 @@ class TestReportingPeriodsCRUD:
 
     @pytest.mark.asyncio
     async def test_reporting_period_create_rejects_negative_base_rate(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Audit #25: negative base_rate would invert the cost multiplier."""
         resp = await client.post(
@@ -99,7 +101,9 @@ class TestReportingPeriodsCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_unstarted_period(
-        self, client: AsyncClient, period: ReportingPeriodDB,
+        self,
+        client: AsyncClient,
+        period: ReportingPeriodDB,
     ):
         resp = await client.delete(f"/api/tracker/reporting-periods/{period.id}")
         assert resp.status_code == 204
@@ -108,7 +112,9 @@ class TestReportingPeriodsCRUD:
 class TestReportingPeriodsStateMachine:
     @pytest.mark.asyncio
     async def test_activate_period(
-        self, client: AsyncClient, period: ReportingPeriodDB,
+        self,
+        client: AsyncClient,
+        period: ReportingPeriodDB,
     ):
         resp = await client.post(
             f"/api/tracker/reporting-periods/{period.id}/activate",
@@ -118,7 +124,9 @@ class TestReportingPeriodsStateMachine:
 
     @pytest.mark.asyncio
     async def test_finish_active_period(
-        self, client: AsyncClient, period: ReportingPeriodDB,
+        self,
+        client: AsyncClient,
+        period: ReportingPeriodDB,
     ):
         await client.post(f"/api/tracker/reporting-periods/{period.id}/activate")
         resp = await client.post(
@@ -129,7 +137,9 @@ class TestReportingPeriodsStateMachine:
 
     @pytest.mark.asyncio
     async def test_reactivate_finished_period(
-        self, client: AsyncClient, period: ReportingPeriodDB,
+        self,
+        client: AsyncClient,
+        period: ReportingPeriodDB,
     ):
         await client.post(f"/api/tracker/reporting-periods/{period.id}/activate")
         await client.post(f"/api/tracker/reporting-periods/{period.id}/finish")
@@ -141,7 +151,9 @@ class TestReportingPeriodsStateMachine:
 
     @pytest.mark.asyncio
     async def test_invalid_transition_unstarted_to_finished(
-        self, client: AsyncClient, period: ReportingPeriodDB,
+        self,
+        client: AsyncClient,
+        period: ReportingPeriodDB,
     ):
         resp = await client.post(
             f"/api/tracker/reporting-periods/{period.id}/finish",
@@ -150,7 +162,9 @@ class TestReportingPeriodsStateMachine:
 
     @pytest.mark.asyncio
     async def test_single_active_constraint(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ):
         p1 = ReportingPeriodDB(date=dt.date(2026, 1, 1), base_rate=175, status="unstarted")
         p2 = ReportingPeriodDB(date=dt.date(2026, 2, 1), base_rate=175, status="unstarted")
@@ -169,7 +183,9 @@ class TestReportingPeriodsStateMachine:
 
     @pytest.mark.asyncio
     async def test_can_delete_active_period_without_reports(
-        self, client: AsyncClient, period: ReportingPeriodDB,
+        self,
+        client: AsyncClient,
+        period: ReportingPeriodDB,
     ):
         await client.post(f"/api/tracker/reporting-periods/{period.id}/activate")
         resp = await client.delete(f"/api/tracker/reporting-periods/{period.id}")

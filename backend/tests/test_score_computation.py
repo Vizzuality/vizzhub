@@ -3,7 +3,13 @@
 import pytest
 
 from app.config import ScoringConfig
-from app.modules.scorecard.models.metrics import MetricsCreate, EVMData, GitHubMetrics, FlowMetrics, JiraDefectMetrics
+from app.modules.scorecard.models.metrics import (
+    EVMData,
+    FlowMetrics,
+    GitHubMetrics,
+    JiraDefectMetrics,
+    MetricsCreate,
+)
 from app.modules.scorecard.services.score_computation import ScoreComputationService
 
 
@@ -91,12 +97,8 @@ class TestScoreComputationService:
     def test_compute_with_sev1_incident_caps_quality(
         self, service: ScoreComputationService, complete_metrics: MetricsCreate
     ):
-        _, scores_without = service.compute(
-            complete_metrics, sev1_incident=False
-        )
-        _, scores_with = service.compute(
-            complete_metrics, sev1_incident=True
-        )
+        _, scores_without = service.compute(complete_metrics, sev1_incident=False)
+        _, scores_with = service.compute(complete_metrics, sev1_incident=True)
 
         # If both have p_quality, the sev1 version should be capped at 60
         if scores_with.dimensions.p_quality is not None:
@@ -120,9 +122,7 @@ class TestScoreComputationService:
         # Engineering score depends on having enough PRs
         assert scores is not None
 
-    def test_compute_without_github_metrics(
-        self, service: ScoreComputationService
-    ):
+    def test_compute_without_github_metrics(self, service: ScoreComputationService):
         metrics = MetricsCreate(
             period_start="2024-01-01",
             period_end="2024-01-31",
@@ -158,7 +158,7 @@ class TestScoreComputationService:
         # DORA score should be computed when github/flow metrics present
         assert scores.dora is not None
         assert scores.dora.score is not None
-        assert scores.dora.classification in ['Low', 'Medium', 'High', 'Elite']
+        assert scores.dora.classification in ["Low", "Medium", "High", "Elite"]
 
     def test_service_uses_default_config_if_none_provided(self):
         service = ScoreComputationService()

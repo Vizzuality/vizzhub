@@ -22,9 +22,7 @@ class GlobalMetricsDB(Base):
 
     __tablename__ = "global_metrics"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     period_year: Mapped[int] = mapped_column(Integer, nullable=False)
     period_month: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -32,9 +30,7 @@ class GlobalMetricsDB(Base):
     project_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -246,16 +242,38 @@ class GlobalMetricsRecord(BaseModel):
     def from_db(cls, db: GlobalMetricsDB) -> "GlobalMetricsRecord":
         """Create response from DB model."""
         indicator_fields = [
-            "spi", "cpi", "on_time_milestones", "defect_density", "escaped_rate",
-            "mttr_hours", "governance_compliance", "lead_time_days", "deployment_frequency",
-            "change_failure_rate", "commitment_reliability", "pr_review_ratio",
-            "test_maturity", "arch_checklist", "high_vulns", "okr_impact",
-            "pm_satisfaction", "client_satisfaction", "story_review_ratio", "strategic_impact",
+            "spi",
+            "cpi",
+            "on_time_milestones",
+            "defect_density",
+            "escaped_rate",
+            "mttr_hours",
+            "governance_compliance",
+            "lead_time_days",
+            "deployment_frequency",
+            "change_failure_rate",
+            "commitment_reliability",
+            "pr_review_ratio",
+            "test_maturity",
+            "arch_checklist",
+            "high_vulns",
+            "okr_impact",
+            "pm_satisfaction",
+            "client_satisfaction",
+            "story_review_ratio",
+            "strategic_impact",
         ]
 
         score_fields = [
-            "score", "p_time", "p_cost", "p_quality", "p_value",
-            "p_satisfaction", "p_flow", "p_engineering", "p_risk",
+            "score",
+            "p_time",
+            "p_cost",
+            "p_quality",
+            "p_value",
+            "p_satisfaction",
+            "p_flow",
+            "p_engineering",
+            "p_risk",
         ]
 
         indicators_data = {}

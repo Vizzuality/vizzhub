@@ -17,9 +17,7 @@ from app.modules.scorecard.services.collectors.utils import HTTP_CLIENT_TIMEOUT
 class GitHubClient:
     """Authenticated HTTP client for GitHub API."""
 
-    def __init__(
-        self, db: AsyncSession | None = None, token: str | None = None
-    ) -> None:
+    def __init__(self, db: AsyncSession | None = None, token: str | None = None) -> None:
         self._db = db
         self._token = token
         self._client: httpx.AsyncClient | None = None
@@ -30,8 +28,7 @@ class GitHubClient:
             token = self._token or await self._get_token_from_db()
             if not token:
                 raise ConfigurationError(
-                    "GitHub token not configured. "
-                    "Set token via Admin > Integrations."
+                    "GitHub token not configured. Set token via Admin > Integrations."
                 )
 
             headers = {
@@ -74,15 +71,11 @@ class GitHubClient:
             ValueError: If format is invalid
         """
         if not repo_slug or "/" not in repo_slug:
-            raise ValueError(
-                f"Invalid repo format: {repo_slug}. " "Expected 'owner/repo' format."
-            )
+            raise ValueError(f"Invalid repo format: {repo_slug}. Expected 'owner/repo' format.")
 
         parts = repo_slug.split("/")
         if len(parts) != 2:
-            raise ValueError(
-                f"Invalid repo format: {repo_slug}. " "Expected 'owner/repo' format."
-            )
+            raise ValueError(f"Invalid repo format: {repo_slug}. Expected 'owner/repo' format.")
 
         owner, repo = parts[0].strip(), parts[1].strip()
 

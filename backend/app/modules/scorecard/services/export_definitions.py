@@ -1,6 +1,5 @@
 """Metric definitions for XLSX export — names, descriptions, formulas for ISO audits."""
 
-
 INDICATOR_DEFINITIONS: dict[str, dict[str, str]] = {
     "spi": {
         "name": "Schedule Performance Index",
@@ -154,9 +153,14 @@ DIMENSION_DEFINITIONS: list[dict] = [
         "description": "Software quality across defects, governance, reviews, and failure rates. Capped at 60 if Sev1 incident.",
         "formula": "weighted_avg(defect_density, escaped_rate, mttr, story_review, governance, pr_review, change_failure_rate, post_contract_tasks). Sev1 cap applied.",
         "indicators": [
-            "defect_density", "escaped_rate", "mttr_hours",
-            "governance_compliance", "story_review_ratio", "pr_review_ratio",
-            "change_failure_rate", "post_contract_tasks",
+            "defect_density",
+            "escaped_rate",
+            "mttr_hours",
+            "governance_compliance",
+            "story_review_ratio",
+            "pr_review_ratio",
+            "change_failure_rate",
+            "post_contract_tasks",
         ],
     },
     {
@@ -179,8 +183,11 @@ DIMENSION_DEFINITIONS: list[dict] = [
         "description": "Development flow efficiency and predictability.",
         "formula": "weighted_avg(lead_time, commitment_reliability, pr_size, review_turnaround, deployment_frequency)",
         "indicators": [
-            "lead_time_days", "commitment_reliability", "pr_size_median",
-            "review_turnaround_hours", "deployment_frequency",
+            "lead_time_days",
+            "commitment_reliability",
+            "pr_size_median",
+            "review_turnaround_hours",
+            "deployment_frequency",
         ],
     },
     {
@@ -208,30 +215,36 @@ def get_metric_rows() -> list[dict]:
     """
     rows: list[dict] = []
 
-    rows.append({
-        "level": 0,
-        "key": "final_score",
-        "name": "FINAL SCORE",
-        "description": "Weighted aggregate of all 8 dimension scores.",
-        "formula": "Sum(dimension_score * global_weight) for active dimensions",
-    })
+    rows.append(
+        {
+            "level": 0,
+            "key": "final_score",
+            "name": "FINAL SCORE",
+            "description": "Weighted aggregate of all 8 dimension scores.",
+            "formula": "Sum(dimension_score * global_weight) for active dimensions",
+        }
+    )
 
     for dim in DIMENSION_DEFINITIONS:
-        rows.append({
-            "level": 1,
-            "key": dim["key"],
-            "name": dim["name"],
-            "description": dim["description"],
-            "formula": dim["formula"],
-        })
+        rows.append(
+            {
+                "level": 1,
+                "key": dim["key"],
+                "name": dim["name"],
+                "description": dim["description"],
+                "formula": dim["formula"],
+            }
+        )
         for ind_key in dim["indicators"]:
             ind = INDICATOR_DEFINITIONS[ind_key]
-            rows.append({
-                "level": 2,
-                "key": ind_key,
-                "name": ind["name"],
-                "description": ind["description"],
-                "formula": ind["formula"],
-            })
+            rows.append(
+                {
+                    "level": 2,
+                    "key": ind_key,
+                    "name": ind["name"],
+                    "description": ind["description"],
+                    "formula": ind["formula"],
+                }
+            )
 
     return rows

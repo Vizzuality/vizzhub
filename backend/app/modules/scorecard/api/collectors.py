@@ -1,6 +1,6 @@
 """Data collection endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -58,9 +58,7 @@ async def collect_jira_metrics(
 
     collector = JiraCollector(db=db)
     try:
-        collected = await collector.collect(
-            project.jira_project_key, end_date=project.end_date
-        )
+        collected = await collector.collect(project.jira_project_key, end_date=project.end_date)
         raw_metrics = collected.model_dump()
     except ConfigurationError:
         raise
@@ -77,7 +75,7 @@ async def collect_jira_metrics(
     finally:
         await collector.close()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     period_start = project.start_date or now.date()
     period_end = now.date()
 
@@ -186,13 +184,9 @@ async def collect_github_metrics(
         existing_metrics.prs_without_review = raw_metrics.get("prs_without_review", 0)
         existing_metrics.total_merged_prs = raw_metrics.get("total_merged_prs", 0)
         existing_metrics.high_severity_vulns = raw_metrics.get("high_severity_vulns", 0)
-        existing_metrics.high_severity_vulns_total = raw_metrics.get(
-            "high_severity_vulns_total", 0
-        )
+        existing_metrics.high_severity_vulns_total = raw_metrics.get("high_severity_vulns_total", 0)
         existing_metrics.pr_size_median = raw_metrics.get("pr_size_median")
-        existing_metrics.review_turnaround_hours = raw_metrics.get(
-            "review_turnaround_hours"
-        )
+        existing_metrics.review_turnaround_hours = raw_metrics.get("review_turnaround_hours")
         existing_metrics.deployment_frequency = raw_metrics.get("deployment_frequency")
         existing_metrics.release_count_90d = raw_metrics.get("release_count_90d", 0)
         existing_metrics.change_failure_rate = raw_metrics.get("change_failure_rate")
@@ -209,7 +203,7 @@ async def collect_github_metrics(
     else:
         # Create new record with only GitHub data
         # These collector endpoints create cumulative metrics (project start to current day)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         period_start = project.start_date or now.date()
         period_end = now.date()
 

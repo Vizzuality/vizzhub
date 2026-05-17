@@ -21,7 +21,9 @@ class TestProjectBudgetEndpoint:
     """Tests for the project budget (milestones) endpoint."""
 
     async def _create_project(
-        self, client: AsyncClient, budget: float | None = None,
+        self,
+        client: AsyncClient,
+        budget: float | None = None,
     ) -> dict:
         """Helper to create a project and return its data."""
         payload: dict = {"name": "Budget Test Project", "code": "BTP.001"}
@@ -32,9 +34,7 @@ class TestProjectBudgetEndpoint:
         return resp.json()
 
     @pytest.mark.asyncio
-    async def test_budget_creates_metrics_with_budget_total(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_budget_creates_metrics_with_budget_total(self, client: AsyncClient) -> None:
         project = await self._create_project(client, budget=100000)
         resp = await client.put(
             f"/api/projects/{project['id']}/budget",
@@ -68,9 +68,7 @@ class TestProjectBudgetEndpoint:
         assert data["milestones"][1]["actual_date"] == "2026-06-15"
 
     @pytest.mark.asyncio
-    async def test_sequential_updates_preserve_milestones(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_sequential_updates_preserve_milestones(self, client: AsyncClient) -> None:
         project = await self._create_project(client, budget=100000)
         url = f"/api/projects/{project['id']}/budget"
 
@@ -99,9 +97,7 @@ class TestProjectBudgetEndpoint:
         assert "milestones" in data
 
     @pytest.mark.asyncio
-    async def test_nonexistent_project_returns_404(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_nonexistent_project_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid4())
         resp = await client.put(
             f"/api/projects/{fake_id}/budget",

@@ -1,6 +1,6 @@
 """Event statistics aggregation service."""
 
-from sqlalchemy import ColumnElement, Select, desc, func, select, true
+from sqlalchemy import ColumnElement, desc, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -95,9 +95,7 @@ async def get_stats(
     total_attendees = (await db.execute(total_attendees_stmt)).scalar() or 0
 
     other_costs_sum = (
-        await db.execute(
-            select(func.coalesce(func.sum(EventDB.other_costs), 0)).where(yf)
-        )
+        await db.execute(select(func.coalesce(func.sum(EventDB.other_costs), 0)).where(yf))
     ).scalar() or 0
     attendees_cost_sum = (
         await db.execute(

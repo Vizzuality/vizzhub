@@ -1,23 +1,22 @@
 """Tests for ISO snapshot API endpoints."""
 
-import pytest
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
 
-from app.core.token_encryption import encrypt_token
 from app.core.models.oauth import OAuthTokenDB
-from app.modules.iso.models.access_snapshot import AccessSnapshotDB
+from app.core.token_encryption import encrypt_token
 from app.modules.iso.models.access_review import AccessReviewDB
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from tests.iso_fixtures import ensure_dev_user
 
 
 class TestCaptureEndpoint:
     @pytest.mark.asyncio
-    async def test_capture_creates_snapshot(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_capture_creates_snapshot(self, client: AsyncClient, db_session) -> None:
         await ensure_dev_user(db_session)
         token = OAuthTokenDB(
             provider="google_workspace",
@@ -59,7 +58,10 @@ class TestCaptureEndpoint:
 
     @pytest.mark.asyncio
     async def test_capture_creates_draft_review(
-        self, client: AsyncClient, db_session, caplog,
+        self,
+        client: AsyncClient,
+        db_session,
+        caplog,
     ) -> None:
         from sqlalchemy import select
 
@@ -89,11 +91,14 @@ class TestCaptureEndpoint:
         }
         mock_api_response.raise_for_status = MagicMock()
 
-        with patch(
-            "httpx.AsyncClient.get",
-            new_callable=AsyncMock,
-            return_value=mock_api_response,
-        ), caplog.at_level("INFO"):
+        with (
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=mock_api_response,
+            ),
+            caplog.at_level("INFO"),
+        ):
             response = await client.post("/api/iso/snapshots/capture")
 
         assert response.status_code == 201
@@ -115,10 +120,9 @@ class TestCaptureEndpoint:
         assert review_events, "expected iso_review_created log on capture"
 
     @pytest.mark.asyncio
-    async def test_capture_links_previous_snapshot(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_capture_links_previous_snapshot(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
+
         from sqlalchemy import select
 
         await ensure_dev_user(db_session)
@@ -132,7 +136,7 @@ class TestCaptureEndpoint:
 
         previous = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 1, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={
@@ -173,9 +177,7 @@ class TestCaptureEndpoint:
         assert review.previous_snapshot_id == previous_id
 
     @pytest.mark.asyncio
-    async def test_capture_returns_400_when_not_connected(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_capture_returns_400_when_not_connected(self, client: AsyncClient) -> None:
         response = await client.post("/api/iso/snapshots/capture")
         assert response.status_code == 400
 
@@ -191,14 +193,12 @@ class TestListSnapshots:
         assert data["page"] == 1
 
     @pytest.mark.asyncio
-    async def test_list_snapshots_returns_summaries(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_list_snapshots_returns_summaries(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={"domain": "test.com"},
             data={"users": []},
@@ -215,15 +215,13 @@ class TestListSnapshots:
         assert "data" not in data["items"][0]
 
     @pytest.mark.asyncio
-    async def test_list_snapshots_pagination(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_list_snapshots_pagination(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
 
         for i in range(3):
             snap = AccessSnapshotDB(
                 provider="google_workspace",
-                captured_at=datetime(2026, 1, i + 1, tzinfo=timezone.utc),
+                captured_at=datetime(2026, 1, i + 1, tzinfo=UTC),
                 data_version="1",
                 source_metadata={},
                 data={"users": []},
@@ -240,14 +238,12 @@ class TestListSnapshots:
         assert data["pages"] == 2
 
     @pytest.mark.asyncio
-    async def test_list_snapshots_filter_by_provider(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_list_snapshots_filter_by_provider(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
 
         snap1 = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 1, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={},
@@ -255,7 +251,7 @@ class TestListSnapshots:
         )
         snap2 = AccessSnapshotDB(
             provider="azure_ad",
-            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 1, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={},
@@ -273,11 +269,11 @@ class TestListSnapshots:
 class TestSnapshotDetail:
     @pytest.mark.asyncio
     async def test_get_snapshot_detail(self, client: AsyncClient, db_session) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={"domain": "empresa.com"},
             data={"users": [{"id": "u1", "email": "a@empresa.com"}]},
@@ -305,7 +301,8 @@ class TestCaptureWithDiff:
     async def test_capture_populates_diff_and_actions(
         self, client: AsyncClient, db_session
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from sqlalchemy import select
 
         await ensure_dev_user(db_session)
@@ -319,7 +316,7 @@ class TestCaptureWithDiff:
 
         previous = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 1, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={"domain": "empresa.com"},
             data={
@@ -376,9 +373,7 @@ class TestCaptureWithDiff:
         assert response.status_code == 201
 
         result = await db_session.execute(
-            select(AccessReviewDB).where(
-                AccessReviewDB.snapshot_id == response.json()["id"]
-            )
+            select(AccessReviewDB).where(AccessReviewDB.snapshot_id == response.json()["id"])
         )
         review = result.scalar_one()
         assert review.diff_summary is not None
@@ -388,9 +383,7 @@ class TestCaptureWithDiff:
         from app.modules.iso.models.access_review_action import AccessReviewActionDB
 
         result = await db_session.execute(
-            select(AccessReviewActionDB).where(
-                AccessReviewActionDB.review_id == review.id
-            )
+            select(AccessReviewActionDB).where(AccessReviewActionDB.review_id == review.id)
         )
         actions = result.scalars().all()
         assert len(actions) >= 1
@@ -398,9 +391,7 @@ class TestCaptureWithDiff:
         assert len(new_user_actions) >= 1
 
     @pytest.mark.asyncio
-    async def test_first_snapshot_no_diff(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_first_snapshot_no_diff(self, client: AsyncClient, db_session) -> None:
         from sqlalchemy import select
 
         await ensure_dev_user(db_session)
@@ -439,9 +430,7 @@ class TestCaptureWithDiff:
         assert response.status_code == 201
 
         result = await db_session.execute(
-            select(AccessReviewDB).where(
-                AccessReviewDB.snapshot_id == response.json()["id"]
-            )
+            select(AccessReviewDB).where(AccessReviewDB.snapshot_id == response.json()["id"])
         )
         review = result.scalar_one()
         assert review.diff_summary is None
@@ -451,11 +440,11 @@ class TestCaptureWithDiff:
 class TestSnapshotReview:
     @pytest.mark.asyncio
     async def test_get_snapshot_review(self, client: AsyncClient, db_session) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -483,15 +472,14 @@ class TestSnapshotReview:
         assert isinstance(data["actions"], list)
 
     @pytest.mark.asyncio
-    async def test_get_snapshot_review_with_actions(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_get_snapshot_review_with_actions(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
+
         from app.modules.iso.models.access_review_action import AccessReviewActionDB
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -535,11 +523,11 @@ class TestSnapshotReview:
     async def test_get_snapshot_review_no_review_for_snapshot(
         self, client: AsyncClient, db_session
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -554,14 +542,12 @@ class TestSnapshotReview:
 
 class TestListSnapshotsReviewStatus:
     @pytest.mark.asyncio
-    async def test_list_returns_review_status(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_list_returns_review_status(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -587,11 +573,11 @@ class TestListSnapshotsReviewStatus:
     async def test_list_returns_null_review_status_when_no_review(
         self, client: AsyncClient, db_session
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -608,14 +594,12 @@ class TestListSnapshotsReviewStatus:
 
 class TestDeleteSnapshot:
     @pytest.mark.asyncio
-    async def test_delete_snapshot_no_review(
-        self, client: AsyncClient, db_session
-    ) -> None:
-        from datetime import datetime, timezone
+    async def test_delete_snapshot_no_review(self, client: AsyncClient, db_session) -> None:
+        from datetime import datetime
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -639,13 +623,15 @@ class TestDeleteSnapshot:
     async def test_delete_snapshot_cascades_review_and_actions(
         self, client: AsyncClient, db_session
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from sqlalchemy import select
+
         from app.modules.iso.models.access_review_action import AccessReviewActionDB
 
         snap = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -703,12 +689,13 @@ class TestDeleteSnapshot:
     async def test_delete_snapshot_nullifies_previous_snapshot_ref(
         self, client: AsyncClient, db_session
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from sqlalchemy import select
 
         snap1 = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 1, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -716,7 +703,7 @@ class TestDeleteSnapshot:
         )
         snap2 = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 2, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -747,8 +734,6 @@ class TestDeleteSnapshot:
 
 class TestSnapshotRouterWiring:
     @pytest.mark.asyncio
-    async def test_snapshots_accessible_via_iso_prefix(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_snapshots_accessible_via_iso_prefix(self, client: AsyncClient) -> None:
         response = await client.get("/api/iso/snapshots")
         assert response.status_code == 200

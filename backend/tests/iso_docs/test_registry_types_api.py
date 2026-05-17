@@ -39,7 +39,9 @@ async def test_create_registry_type(client: AsyncClient):
         "/api/iso-docs/registry-types",
         json={
             "name": "Asset Inventory",
-            "schema": [{"key": "asset_id", "label": "Asset ID", "type": "string", "required": True}],
+            "schema": [
+                {"key": "asset_id", "label": "Asset ID", "type": "string", "required": True}
+            ],
         },
     )
     assert resp.status_code == 201
@@ -65,9 +67,7 @@ async def test_get_registry_type(client: AsyncClient, registry_type: dict):
 
 @pytest.mark.asyncio
 async def test_get_registry_type_not_found(client: AsyncClient):
-    resp = await client.get(
-        "/api/iso-docs/registry-types/00000000-0000-0000-0000-000000000099"
-    )
+    resp = await client.get("/api/iso-docs/registry-types/00000000-0000-0000-0000-000000000099")
     assert resp.status_code == 404
 
 
@@ -84,7 +84,8 @@ async def test_update_registry_type(client: AsyncClient, registry_type: dict):
 
 @pytest.mark.asyncio
 async def test_update_registry_type_renames_column_and_migrates_row_data(
-    client: AsyncClient, registry_type: dict,
+    client: AsyncClient,
+    registry_type: dict,
 ):
     """When a column key changes (same type, same position), existing
     registry_rows.data must be migrated so values stay reachable under
@@ -124,7 +125,8 @@ async def test_update_registry_type_renames_column_and_migrates_row_data(
 
 @pytest.mark.asyncio
 async def test_update_registry_type_does_not_migrate_when_types_differ(
-    client: AsyncClient, registry_type: dict,
+    client: AsyncClient,
+    registry_type: dict,
 ):
     """A column whose key AND type both change is treated as remove+add,
     not rename. Avoids confusing a string column with a date column."""
@@ -161,7 +163,8 @@ async def test_update_registry_type_does_not_migrate_when_types_differ(
 
 @pytest.mark.asyncio
 async def test_update_registry_type_renames_multiple_columns_in_one_call(
-    client: AsyncClient, registry_type: dict,
+    client: AsyncClient,
+    registry_type: dict,
 ):
     """Two columns renamed in a single PATCH: BOTH renames must migrate.
     Audit Tier 2 #10 — schema-rename drift risk on multi-rename."""
@@ -195,7 +198,8 @@ async def test_update_registry_type_renames_multiple_columns_in_one_call(
 
 @pytest.mark.asyncio
 async def test_update_registry_type_rename_with_no_row_data_is_safe(
-    client: AsyncClient, registry_type: dict,
+    client: AsyncClient,
+    registry_type: dict,
 ):
     """Renaming a column that no row carries must be a clean no-op on data,
     even though the rename detector fires. Audit Tier 2 #10."""
@@ -226,7 +230,8 @@ async def test_update_registry_type_rename_with_no_row_data_is_safe(
 
 @pytest.mark.asyncio
 async def test_update_registry_type_name_only_does_not_touch_rows(
-    client: AsyncClient, registry_type: dict,
+    client: AsyncClient,
+    registry_type: dict,
 ):
     """PATCHing without a schema field must not run the rename detector."""
     node_resp = await client.post(
@@ -255,9 +260,7 @@ async def test_update_registry_type_name_only_does_not_touch_rows(
 
 @pytest.mark.asyncio
 async def test_delete_registry_type(client: AsyncClient, registry_type: dict):
-    resp = await client.delete(
-        f"/api/iso-docs/registry-types/{registry_type['id']}"
-    )
+    resp = await client.delete(f"/api/iso-docs/registry-types/{registry_type['id']}")
     assert resp.status_code == 200
 
 
@@ -271,15 +274,15 @@ async def test_delete_registry_type_in_use(client: AsyncClient, registry_type: d
             "registry_type_id": registry_type["id"],
         },
     )
-    resp = await client.delete(
-        f"/api/iso-docs/registry-types/{registry_type['id']}"
-    )
+    resp = await client.delete(f"/api/iso-docs/registry-types/{registry_type['id']}")
     assert resp.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_delete_registry_type_blocked_emits_audit_log(
-    client: AsyncClient, registry_type: dict, caplog,
+    client: AsyncClient,
+    registry_type: dict,
+    caplog,
 ):
     """Compliance: blocked deletion must leave an audit trail (Major #6)."""
     await client.post(
@@ -291,9 +294,7 @@ async def test_delete_registry_type_blocked_emits_audit_log(
         },
     )
     with caplog.at_level("INFO"):
-        resp = await client.delete(
-            f"/api/iso-docs/registry-types/{registry_type['id']}"
-        )
+        resp = await client.delete(f"/api/iso-docs/registry-types/{registry_type['id']}")
     assert resp.status_code == 409
     blocked = [r for r in caplog.records if "iso_registry_type_delete_blocked" in r.message]
     assert blocked, "expected iso_registry_type_delete_blocked log on 409"
@@ -301,7 +302,9 @@ async def test_delete_registry_type_blocked_emits_audit_log(
 
 @pytest.mark.asyncio
 async def test_rename_emits_keys_renamed_audit_log(
-    client: AsyncClient, registry_type: dict, caplog,
+    client: AsyncClient,
+    registry_type: dict,
+    caplog,
 ):
     """Compliance: cross-row JSONB rename must log type_slug, registries
     affected, rows rewritten, and actor (Major #5)."""
@@ -397,7 +400,8 @@ async def test_update_column_visibility_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_update_column_visibility_ignores_unknown_keys(
-    client: AsyncClient, registry_type: dict,
+    client: AsyncClient,
+    registry_type: dict,
 ):
     type_id = registry_type["id"]
     resp = await client.patch(
@@ -436,6 +440,7 @@ REGULAR_TOKEN = TokenData(
 def _override_user(token: TokenData):
     async def _get_user() -> TokenData:
         return token
+
     return _get_user
 
 
@@ -443,6 +448,7 @@ def _override_user(token: TokenData):
 async def _override_db_for_visibility(db_session):
     async def override_get_db():
         yield db_session
+
     app.dependency_overrides[get_db] = override_get_db
     yield
     app.dependency_overrides.clear()
@@ -453,18 +459,20 @@ async def visibility_setup(_override_db_for_visibility):
     """Build: a registry-type attached under `policies` (visible), and another
     free-floating registry-type (hidden from regular users)."""
     app.dependency_overrides[get_current_user] = _override_user(EDITOR_TOKEN)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         # Visible type: lives under `policies` root group.
-        visible_type = (await c.post(
-            "/api/iso-docs/registry-types",
-            json={"name": "Visible Register", "schema": SAMPLE_SCHEMA},
-        )).json()
-        policies = (await c.post(
-            "/api/iso-docs/nodes",
-            json={"title": "Policies", "type": "group"},
-        )).json()
+        visible_type = (
+            await c.post(
+                "/api/iso-docs/registry-types",
+                json={"name": "Visible Register", "schema": SAMPLE_SCHEMA},
+            )
+        ).json()
+        policies = (
+            await c.post(
+                "/api/iso-docs/nodes",
+                json={"title": "Policies", "type": "group"},
+            )
+        ).json()
         await c.post(
             "/api/iso-docs/nodes",
             json={
@@ -475,18 +483,18 @@ async def visibility_setup(_override_db_for_visibility):
             },
         )
         # Hidden type: never attached to any node.
-        hidden_type = (await c.post(
-            "/api/iso-docs/registry-types",
-            json={"name": "Hidden Register", "schema": SAMPLE_SCHEMA},
-        )).json()
+        hidden_type = (
+            await c.post(
+                "/api/iso-docs/registry-types",
+                json={"name": "Hidden Register", "schema": SAMPLE_SCHEMA},
+            )
+        ).json()
     return {"visible": visible_type, "hidden": hidden_type}
 
 
-async def _client_as(token: TokenData) -> AsyncGenerator[AsyncClient, None]:
+async def _client_as(token: TokenData) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_current_user] = _override_user(token)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
 
@@ -513,9 +521,7 @@ async def test_regular_user_lists_only_visible_registry_types(visibility_setup: 
 @pytest.mark.asyncio
 async def test_regular_user_can_read_visible_registry_type(visibility_setup: dict):
     async for c in _client_as(REGULAR_TOKEN):
-        resp = await c.get(
-            f"/api/iso-docs/registry-types/{visibility_setup['visible']['id']}"
-        )
+        resp = await c.get(f"/api/iso-docs/registry-types/{visibility_setup['visible']['id']}")
         assert resp.status_code == 200
         assert resp.json()["name"] == "Visible Register"
 
@@ -525,7 +531,5 @@ async def test_regular_user_cannot_read_hidden_registry_type(visibility_setup: d
     """Information-disclosure guard: a non-editor must not be able to
     GET an unattached registry type by id."""
     async for c in _client_as(REGULAR_TOKEN):
-        resp = await c.get(
-            f"/api/iso-docs/registry-types/{visibility_setup['hidden']['id']}"
-        )
+        resp = await c.get(f"/api/iso-docs/registry-types/{visibility_setup['hidden']['id']}")
         assert resp.status_code == 403

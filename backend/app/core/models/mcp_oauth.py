@@ -20,9 +20,7 @@ class MCPOAuthClientDB(Base):
     client_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     client_secret: Mapped[str | None] = mapped_column(String(256))
     client_info: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -51,12 +49,8 @@ class MCPOAuthCodeDB(Base):
     user_permissions: Mapped[list[str] | None] = mapped_column(JSONB)
     resource: Mapped[str | None] = mapped_column(Text)
     mcp_state: Mapped[str | None] = mapped_column(Text)
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class MCPOAuthRefreshTokenDB(Base):
@@ -78,9 +72,5 @@ class MCPOAuthRefreshTokenDB(Base):
     user_permissions: Mapped[list[str] | None] = mapped_column(JSONB)
     scopes: Mapped[list[str] | None] = mapped_column(JSONB)
     resource: Mapped[str | None] = mapped_column(Text)
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

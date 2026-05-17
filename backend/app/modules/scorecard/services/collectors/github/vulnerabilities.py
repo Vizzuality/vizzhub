@@ -29,10 +29,11 @@ Edge Cases:
 == END SPEC ==
 """
 
-import structlog
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
+
+import structlog
 
 if TYPE_CHECKING:
     from app.modules.scorecard.services.collectors.github.client import GitHubClient
@@ -40,7 +41,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 DAYS_THRESHOLD = 30
-_CURSOR_PATTERN = re.compile(r'after=([^&>]+)')
+_CURSOR_PATTERN = re.compile(r"after=([^&>]+)")
 
 
 async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dict:
@@ -65,7 +66,7 @@ async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dic
             "vulns_older_than_30d": 0,
         }
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     threshold_date = now - timedelta(days=DAYS_THRESHOLD)
 
     older_than_30d = []

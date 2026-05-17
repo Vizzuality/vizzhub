@@ -17,13 +17,9 @@ class PlaybookNodeDB(Base):
     """Tree node: either a page (has content) or a group (container only)."""
 
     __tablename__ = "playbook_nodes"
-    __table_args__ = (
-        UniqueConstraint("parent_id", "slug", name="uq_playbook_nodes_parent_slug"),
-    )
+    __table_args__ = (UniqueConstraint("parent_id", "slug", name="uq_playbook_nodes_parent_slug"),)
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(
@@ -47,9 +43,7 @@ class PlaybookNodeDB(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

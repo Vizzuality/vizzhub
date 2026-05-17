@@ -1,10 +1,10 @@
 """Alert silences API endpoints."""
 
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
@@ -13,12 +13,12 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
+from app.core.models.project import ProjectDB
 from app.modules.notifications.api.schemas.slack import (
     AlertSilenceCreate,
     AlertSilenceResponse,
     AlertSilenceUpdate,
 )
-from app.core.models.project import ProjectDB
 from app.modules.notifications.models.slack import AlertDefinitionDB, AlertSilenceDB
 
 logger = structlog.get_logger()
@@ -53,10 +53,9 @@ async def list_silences(
         query = query.where(AlertSilenceDB.project_id == project_id)
 
     if not include_expired:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         query = query.where(
-            (AlertSilenceDB.silenced_until.is_(None))
-            | (AlertSilenceDB.silenced_until > now)
+            (AlertSilenceDB.silenced_until.is_(None)) | (AlertSilenceDB.silenced_until > now)
         )
 
     result = await db.execute(query)
@@ -78,9 +77,7 @@ async def list_silences(
     ]
 
 
-@router.post(
-    "", status_code=status.HTTP_201_CREATED
-)
+@router.post("", status_code=status.HTTP_201_CREATED)
 @limiter.limit("30/minute")
 async def create_silence(
     request: Request,
@@ -97,9 +94,7 @@ async def create_silence(
             detail="Invalid project ID format",
         )
 
-    project_result = await db.execute(
-        select(ProjectDB).where(ProjectDB.id == project_uuid)
-    )
+    project_result = await db.execute(select(ProjectDB).where(ProjectDB.id == project_uuid))
     project = project_result.scalar_one_or_none()
     if not project:
         raise HTTPException(
@@ -110,9 +105,7 @@ async def create_silence(
     alert_name = None
     if silence.alert_definition_id:
         alert_result = await db.execute(
-            select(AlertDefinitionDB).where(
-                AlertDefinitionDB.id == silence.alert_definition_id
-            )
+            select(AlertDefinitionDB).where(AlertDefinitionDB.id == silence.alert_definition_id)
         )
         alert = alert_result.scalar_one_or_none()
         if not alert:
@@ -156,9 +149,7 @@ async def update_silence(
     db: DBSession,
 ) -> AlertSilenceResponse:
     """Update a silence."""
-    result = await db.execute(
-        select(AlertSilenceDB).where(AlertSilenceDB.id == silence_id)
-    )
+    result = await db.execute(select(AlertSilenceDB).where(AlertSilenceDB.id == silence_id))
     silence = result.scalar_one_or_none()
 
     if not silence:
@@ -175,17 +166,13 @@ async def update_silence(
     await db.flush()
     await db.refresh(silence)
 
-    project_result = await db.execute(
-        select(ProjectDB).where(ProjectDB.id == silence.project_id)
-    )
+    project_result = await db.execute(select(ProjectDB).where(ProjectDB.id == silence.project_id))
     project = project_result.scalar_one_or_none()
 
     alert_name = None
     if silence.alert_definition_id:
         alert_result = await db.execute(
-            select(AlertDefinitionDB).where(
-                AlertDefinitionDB.id == silence.alert_definition_id
-            )
+            select(AlertDefinitionDB).where(AlertDefinitionDB.id == silence.alert_definition_id)
         )
         alert = alert_result.scalar_one_or_none()
         alert_name = alert.name if alert else None
@@ -212,9 +199,7 @@ async def delete_silence(
     db: DBSession,
 ) -> None:
     """Delete a silence."""
-    result = await db.execute(
-        select(AlertSilenceDB).where(AlertSilenceDB.id == silence_id)
-    )
+    result = await db.execute(select(AlertSilenceDB).where(AlertSilenceDB.id == silence_id))
     silence = result.scalar_one_or_none()
 
     if not silence:

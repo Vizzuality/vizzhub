@@ -79,8 +79,12 @@ async def collect_change_failure_rate(
     owner, repo = client.validate_repo_slug(repo_slug)
 
     releases = await get_releases(
-        client, owner, repo, include_prereleases=True,
-        period_start=period_start, period_end=period_end
+        client,
+        owner,
+        repo,
+        include_prereleases=True,
+        period_start=period_start,
+        period_end=period_end,
     )
 
     if not releases:

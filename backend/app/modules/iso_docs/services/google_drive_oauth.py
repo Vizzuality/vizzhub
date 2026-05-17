@@ -1,6 +1,6 @@
 """Google Drive OAuth service for ISO Docs export."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -26,16 +26,12 @@ class GoogleDriveOAuth:
     def _get_client_credentials() -> tuple[str, str]:
         settings = get_settings()
         client_id = settings.google_workspace_client_id or settings.google_client_id
-        client_secret = (
-            settings.google_workspace_client_secret or settings.google_client_secret
-        )
+        client_secret = settings.google_workspace_client_secret or settings.google_client_secret
         return client_id, client_secret
 
     @staticmethod
     async def _get_token(db: AsyncSession) -> OAuthTokenDB | None:
-        result = await db.execute(
-            select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER)
-        )
+        result = await db.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == PROVIDER))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -75,7 +71,7 @@ class GoogleDriveOAuth:
         expires_in = token_data.get("expires_in")
         expires_at = None
         if expires_in:
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
 
         existing = await GoogleDriveOAuth._get_token(db)
         if existing:
@@ -123,9 +119,7 @@ class GoogleDriveOAuth:
 
         expires_in = token_data.get("expires_in")
         if expires_in:
-            token.expires_at = datetime.now(timezone.utc) + timedelta(
-                seconds=expires_in
-            )
+            token.expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
         token.access_token = encrypt_token(token_data["access_token"])
         if "refresh_token" in token_data:
             token.refresh_token = encrypt_token(token_data["refresh_token"])
@@ -144,7 +138,7 @@ class GoogleDriveOAuth:
 
         if token.expires_at:
             buffer = timedelta(minutes=5)
-            if token.expires_at - buffer <= datetime.now(timezone.utc):
+            if token.expires_at - buffer <= datetime.now(UTC):
                 refreshed = await GoogleDriveOAuth.refresh_token(db)
                 if refreshed:
                     return decrypt_token(refreshed.access_token)

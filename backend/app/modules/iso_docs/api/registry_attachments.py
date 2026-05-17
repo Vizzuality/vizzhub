@@ -7,6 +7,7 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Form, HTTPException, UploadFile
+from sqlalchemy import select
 
 from app.core.api.deps import DBSession
 from app.modules.iso_docs.api.deps import IsoDocsEditor
@@ -20,8 +21,6 @@ from app.modules.iso_docs.services.registry_attachment_service import (
     get_attachment_url,
     upload_attachment,
 )
-
-from sqlalchemy import select
 
 logger = structlog.get_logger()
 
@@ -45,9 +44,7 @@ async def upload_row_attachment(
     field_key: Annotated[str | None, Form()] = None,
 ) -> AttachmentResponse:
     result = await db.execute(
-        select(RegistryRowDB).where(
-            RegistryRowDB.id == row_id, RegistryRowDB.node_id == node_id
-        )
+        select(RegistryRowDB).where(RegistryRowDB.id == row_id, RegistryRowDB.node_id == node_id)
     )
     row = result.scalar_one_or_none()
     if not row:
@@ -90,9 +87,7 @@ async def upload_row_attachment(
     "/registries/attachments/{attachment_id}",
     responses={404: {"description": "Attachment not found"}},
 )
-async def delete_row_attachment(
-    attachment_id: UUID, db: DBSession, user: IsoDocsEditor
-) -> dict:
+async def delete_row_attachment(attachment_id: UUID, db: DBSession, user: IsoDocsEditor) -> dict:
     result = await db.execute(
         select(RegistryAttachmentDB).where(RegistryAttachmentDB.id == attachment_id)
     )

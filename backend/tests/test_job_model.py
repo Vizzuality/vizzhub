@@ -1,8 +1,4 @@
 """Tests for Job model."""
-import uuid
-from datetime import datetime
-
-import pytest
 
 from app.core.models.job import Job, JobStatus, JobType
 

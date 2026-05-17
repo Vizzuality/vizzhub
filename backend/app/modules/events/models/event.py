@@ -38,9 +38,7 @@ class EventDB(Base):
         Index("ix_events_start_date", "start_date"),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(300), nullable=False)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     theme_primary: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -50,9 +48,7 @@ class EventDB(Base):
     location_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    other_costs: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, server_default="0"
-    )
+    other_costs: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, server_default="0")
     rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     attending: Mapped[str | None] = mapped_column(String(10), nullable=True)
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -62,9 +58,7 @@ class EventDB(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

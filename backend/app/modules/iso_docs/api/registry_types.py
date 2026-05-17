@@ -36,9 +36,7 @@ def _slugify(name: str) -> str:
 
 
 async def _get_registry_type_or_404(db: DBSession, type_id: UUID) -> RegistryTypeDB:
-    result = await db.execute(
-        select(RegistryTypeDB).where(RegistryTypeDB.id == type_id)
-    )
+    result = await db.execute(select(RegistryTypeDB).where(RegistryTypeDB.id == type_id))
     rt = result.scalar_one_or_none()
     if not rt:
         raise HTTPException(status_code=404, detail=_NOT_FOUND)
@@ -46,7 +44,8 @@ async def _get_registry_type_or_404(db: DBSession, type_id: UUID) -> RegistryTyp
 
 
 def _detect_column_renames(
-    old_schema: list[dict], new_schema: list[dict],
+    old_schema: list[dict],
+    new_schema: list[dict],
 ) -> dict[str, str]:
     """Detect columns whose key changed between two schemas.
 
@@ -67,7 +66,9 @@ def _detect_column_renames(
 
 
 async def _migrate_renamed_keys(
-    db: AsyncSession, type_id: UUID, renames: dict[str, str],
+    db: AsyncSession,
+    type_id: UUID,
+    renames: dict[str, str],
 ) -> tuple[int, list[UUID]]:
     """Rewrite renamed keys in registry_rows.data for all rows of nodes
     using this registry type. Each rename is a single jsonb statement.
@@ -100,9 +101,7 @@ async def _migrate_renamed_keys(
     return affected_rows, sorted(nodes_touched, key=str)
 
 
-async def _visible_registry_type_ids(
-    db: AsyncSession, user: CurrentUser
-) -> set[UUID] | None:
+async def _visible_registry_type_ids(db: AsyncSession, user: CurrentUser) -> set[UUID] | None:
     """Return the set of `registry_type_id`s referenced by nodes visible to the user.
 
     Editors see all types — returns None as a sentinel for "no filter".
@@ -125,9 +124,7 @@ async def _visible_registry_type_ids(
 
 
 @router.get("/registry-types")
-async def list_registry_types(
-    db: DBSession, user: CurrentUser
-) -> list[RegistryTypeResponse]:
+async def list_registry_types(db: DBSession, user: CurrentUser) -> list[RegistryTypeResponse]:
     """List registry types. Non-editors only see types attached to visible nodes."""
     allowed = await _visible_registry_type_ids(db, user)
     query = select(RegistryTypeDB).order_by(RegistryTypeDB.name)
@@ -136,9 +133,7 @@ async def list_registry_types(
             return []
         query = query.where(RegistryTypeDB.id.in_(allowed))
     result = await db.execute(query)
-    return [
-        RegistryTypeResponse.model_validate(rt) for rt in result.scalars()
-    ]
+    return [RegistryTypeResponse.model_validate(rt) for rt in result.scalars()]
 
 
 @router.get(
@@ -168,9 +163,7 @@ async def create_registry_type(
     data: RegistryTypeCreate, db: DBSession, user: IsoDocsEditor
 ) -> RegistryTypeResponse:
     slug = _slugify(data.name)
-    existing = await db.execute(
-        select(RegistryTypeDB).where(RegistryTypeDB.slug == slug)
-    )
+    existing = await db.execute(select(RegistryTypeDB).where(RegistryTypeDB.slug == slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Registry type with this name already exists")
 
@@ -210,10 +203,7 @@ async def update_registry_type(
         setattr(rt, field, value)
     rt.updated_by_id = UUID(user.user_id)
 
-    renames = (
-        _detect_column_renames(old_schema, rt.schema)
-        if "schema" in update else {}
-    )
+    renames = _detect_column_renames(old_schema, rt.schema) if "schema" in update else {}
 
     await db.flush()
 
@@ -248,7 +238,8 @@ async def update_column_visibility(
 
     hidden_set = set(data.hidden_columns)
     rt.schema = [
-        {**col, "hidden": True} if col["key"] in hidden_set
+        {**col, "hidden": True}
+        if col["key"] in hidden_set
         else {k: v for k, v in col.items() if k != "hidden"}
         for col in rt.schema
     ]
@@ -270,15 +261,11 @@ async def update_column_visibility(
         409: {"description": "Cannot delete registry type while nodes reference it"},
     },
 )
-async def delete_registry_type(
-    type_id: UUID, db: DBSession, user: IsoDocsEditor
-) -> dict:
+async def delete_registry_type(type_id: UUID, db: DBSession, user: IsoDocsEditor) -> dict:
     rt = await _get_registry_type_or_404(db, type_id)
 
     nodes_count_result = await db.execute(
-        select(func.count(IsoDocNodeDB.id)).where(
-            IsoDocNodeDB.registry_type_id == type_id
-        )
+        select(func.count(IsoDocNodeDB.id)).where(IsoDocNodeDB.registry_type_id == type_id)
     )
     node_count = nodes_count_result.scalar_one() or 0
     if node_count:

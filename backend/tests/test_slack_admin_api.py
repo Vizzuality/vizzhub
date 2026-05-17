@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.core.token_encryption import encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import encrypt_token
 from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
 
 
@@ -22,9 +22,7 @@ class TestAlertDefinitionsAPI:
         assert response.json() == []
 
     @pytest.mark.asyncio
-    async def test_list_alert_definitions(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_list_alert_definitions(self, client: AsyncClient, db_session) -> None:
         """List alert definitions returns all definitions."""
         alert1 = AlertDefinitionDB(
             name="test_alert_1",
@@ -56,9 +54,7 @@ class TestAlertDefinitionsAPI:
         assert data[1]["is_enabled"] is False
 
     @pytest.mark.asyncio
-    async def test_update_alert_definition(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_alert_definition(self, client: AsyncClient, db_session) -> None:
         """Update alert definition successfully."""
         alert = AlertDefinitionDB(
             name="test_alert",
@@ -238,9 +234,7 @@ class TestMessageTemplatesAPI:
     """Tests for message templates endpoints."""
 
     @pytest.mark.asyncio
-    async def test_update_message_template(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_message_template(self, client: AsyncClient, db_session) -> None:
         """Update message template successfully."""
         alert = AlertDefinitionDB(
             name="test_alert",
@@ -287,9 +281,7 @@ class TestMessageTemplatesAPI:
         assert "Message template not found" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_update_message_template_partial(
-        self, client: AsyncClient, db_session
-    ) -> None:
+    async def test_update_message_template_partial(self, client: AsyncClient, db_session) -> None:
         """Update message template with partial data."""
         alert = AlertDefinitionDB(
             name="test_alert",

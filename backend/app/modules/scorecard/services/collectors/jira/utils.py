@@ -72,12 +72,8 @@ def business_time_diff(
         weekday = current.weekday()
 
         if weekday < 5:  # Monday-Friday
-            day_start = current.replace(
-                hour=work_start_hour, minute=0, second=0, microsecond=0
-            )
-            day_end = current.replace(
-                hour=work_end_hour, minute=0, second=0, microsecond=0
-            )
+            day_start = current.replace(hour=work_start_hour, minute=0, second=0, microsecond=0)
+            day_end = current.replace(hour=work_end_hour, minute=0, second=0, microsecond=0)
 
             work_start = max(current, day_start)
             work_end = min(end, day_end)
@@ -87,9 +83,7 @@ def business_time_diff(
                 total_hours += min(hours, hours_per_day)
 
         # Move to next day
-        next_day = (current + timedelta(days=1)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        next_day = (current + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         current = next_day
 
     return total_hours

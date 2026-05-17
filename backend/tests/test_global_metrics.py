@@ -5,19 +5,19 @@ Tests cover:
 - API integration tests (GET/POST endpoints, validation, batch calculation)
 """
 
-import pytest
-import pytest_asyncio
 from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
+from app.core.models.project import ProjectDB
 from app.modules.scorecard.models.global_metrics import (
     GlobalIndicators,
-    GlobalMetricsDB,
     GlobalMetricsRecord,
     GlobalScores,
     IndicatorValue,
@@ -25,13 +25,11 @@ from app.modules.scorecard.models.global_metrics import (
 )
 from app.modules.scorecard.models.indicators import IndicatorsCreate
 from app.modules.scorecard.models.metrics import MetricsDB
-from app.core.models.project import ProjectDB
 from app.modules.scorecard.models.scores import DimensionScores, FinalScore
 from app.modules.scorecard.services.global_metrics_service import (
-    GlobalMetricsService,
     STRATEGIC_IMPACT_VALUES,
+    GlobalMetricsService,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -102,9 +100,7 @@ async def test_projects_with_metrics(
     results = []
 
     # Project 1: Good metrics
-    project1 = await create_test_project(
-        db_session, "Project Alpha", "ALPHA", "test/alpha"
-    )
+    project1 = await create_test_project(db_session, "Project Alpha", "ALPHA", "test/alpha")
     metrics1 = await create_test_metrics(
         db_session,
         project1,
@@ -124,9 +120,7 @@ async def test_projects_with_metrics(
     results.append((project1, metrics1))
 
     # Project 2: Different metrics values
-    project2 = await create_test_project(
-        db_session, "Project Beta", "BETA", "test/beta", 120, 180
-    )
+    project2 = await create_test_project(db_session, "Project Beta", "BETA", "test/beta", 120, 180)
     metrics2 = await create_test_metrics(
         db_session,
         project2,
@@ -231,9 +225,7 @@ class TestGlobalMetricsServiceAveraging:
         assert result.strategic_impact.value == pytest.approx(0.9, rel=0.01)  # (0.8+1.0)/2
         assert result.strategic_impact.count == 2
 
-    def test_average_scores_with_values(
-        self, global_metrics_service: GlobalMetricsService
-    ) -> None:
+    def test_average_scores_with_values(self, global_metrics_service: GlobalMetricsService) -> None:
         """Verify score averaging only counts non-null dimensions."""
         scores = [
             FinalScore(
@@ -280,9 +272,7 @@ class TestGlobalMetricsServiceAveraging:
         assert result.p_satisfaction.value == pytest.approx(75.0, rel=0.01)  # Only 1 value
         assert result.p_satisfaction.count == 1
 
-    def test_average_scores_by_budget(
-        self, global_metrics_service: GlobalMetricsService
-    ) -> None:
+    def test_average_scores_by_budget(self, global_metrics_service: GlobalMetricsService) -> None:
         """Audit #17: weighted average uses project.budget as the weight.
         Projects without budget are excluded."""
         scores = [
@@ -358,9 +348,7 @@ class TestGlobalMetricsServiceAveraging:
         # p_cost: only the 200k project contributes → 40.0
         assert result.p_cost == pytest.approx(40.0, rel=0.001)
 
-    def test_average_scores_empty_list(
-        self, global_metrics_service: GlobalMetricsService
-    ) -> None:
+    def test_average_scores_empty_list(self, global_metrics_service: GlobalMetricsService) -> None:
         """Verify empty score list returns null values with count=0."""
         result = global_metrics_service._average_scores([])
 
@@ -421,9 +409,7 @@ class TestGlobalMetricsServiceCalculation:
         await create_test_metrics(db_session, finished, year, month)
         await create_test_metrics(db_session, proposal, year, month)
 
-        result = await global_metrics_service.calculate_and_store(
-            db_session, year, month
-        )
+        result = await global_metrics_service.calculate_and_store(db_session, year, month)
 
         # All three contributed because all three had a captured row.
         assert result.project_count == 3
@@ -453,14 +439,10 @@ class TestGlobalMetricsServiceCalculation:
         today = date.today()
         year, month = today.year, today.month
 
-        first_result = await global_metrics_service.calculate_and_store(
-            db_session, year, month
-        )
+        first_result = await global_metrics_service.calculate_and_store(db_session, year, month)
         first_id = first_result.id
 
-        second_result = await global_metrics_service.calculate_and_store(
-            db_session, year, month
-        )
+        second_result = await global_metrics_service.calculate_and_store(db_session, year, month)
 
         assert second_result.id == first_id  # Same record updated
         assert second_result.project_count == 3
@@ -488,9 +470,7 @@ class TestGlobalMetricsServiceCalculation:
         assert len(results) == expected_months
 
         # Current month should have projects, earlier months may be empty
-        current_month_record = next(
-            r for r in results if r.period_month == today.month
-        )
+        current_month_record = next(r for r in results if r.period_month == today.month)
         assert current_month_record.project_count == 3
 
     @pytest.mark.asyncio
@@ -652,9 +632,7 @@ class TestGlobalMetricsAPI:
         assert len(data["records"]) == 2
 
     @pytest.mark.asyncio
-    async def test_get_specific_month_not_found(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_get_specific_month_not_found(self, client: AsyncClient) -> None:
         """Verify GET /global/{year}/{month} returns null for missing data."""
         response = await client.get("/api/global/2020/1")
 
@@ -685,9 +663,7 @@ class TestGlobalMetricsAPI:
         assert data["project_count"] == 3
 
     @pytest.mark.asyncio
-    async def test_get_specific_month_invalid_month(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_get_specific_month_invalid_month(self, client: AsyncClient) -> None:
         """Verify GET /global/{year}/{month} validates month range."""
         response = await client.get("/api/global/2024/13")
         assert response.status_code == 400
@@ -775,9 +751,7 @@ class TestGlobalMetricsAPI:
         assert data["months_processed"] == expected_months
 
     @pytest.mark.asyncio
-    async def test_calculate_batch_invalid_range(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_calculate_batch_invalid_range(self, client: AsyncClient) -> None:
         """Verify POST /global/calculate rejects invalid date range."""
         # from > to
         response = await client.post(
@@ -792,9 +766,7 @@ class TestGlobalMetricsAPI:
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_calculate_batch_invalid_year(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_calculate_batch_invalid_year(self, client: AsyncClient) -> None:
         """Verify POST /global/calculate rejects year before 2023."""
         response = await client.post(
             "/api/global/calculate",

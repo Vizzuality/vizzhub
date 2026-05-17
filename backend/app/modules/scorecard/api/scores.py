@@ -1,8 +1,8 @@
 """Score computation endpoints."""
 
-import structlog
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect
@@ -27,19 +27,21 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 # Fields excluded from consolidation (metadata, not metrics data)
-_CONSOLIDATION_EXCLUDE_FIELDS = frozenset({
-    "id",
-    "project_id",
-    "period_start",
-    "period_end",
-    "period_year",
-    "period_month",
-    "snapshot_type",
-    "weights_applied",
-    "targets_applied",
-    "created_at",
-    "sev1_incident",  # Handled separately with OR logic
-})
+_CONSOLIDATION_EXCLUDE_FIELDS = frozenset(
+    {
+        "id",
+        "project_id",
+        "period_start",
+        "period_end",
+        "period_year",
+        "period_month",
+        "snapshot_type",
+        "weights_applied",
+        "targets_applied",
+        "created_at",
+        "sev1_incident",  # Handled separately with OR logic
+    }
+)
 
 
 def _get_consolidation_fields() -> list[str]:
@@ -49,10 +51,7 @@ def _get_consolidation_fields() -> list[str]:
     excluding metadata fields. This ensures new columns are automatically included.
     """
     mapper = inspect(MetricsDB)
-    return [
-        col.key for col in mapper.columns
-        if col.key not in _CONSOLIDATION_EXCLUDE_FIELDS
-    ]
+    return [col.key for col in mapper.columns if col.key not in _CONSOLIDATION_EXCLUDE_FIELDS]
 
 
 class ScoreRequest(BaseModel):
@@ -141,9 +140,7 @@ async def get_project_scores(
     await get_project_or_404(db, project_id)
 
     if year is not None and month is not None:
-        metrics_db = await MetricsService.get_metrics(
-            db, project_id, year, month, snapshot_type
-        )
+        metrics_db = await MetricsService.get_metrics(db, project_id, year, month, snapshot_type)
         if not metrics_db:
             raise MetricsNotFoundError(str(project_id))
 

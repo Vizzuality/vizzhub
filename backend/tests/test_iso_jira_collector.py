@@ -1,11 +1,12 @@
 """Tests for Jira ISO collector."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-from app.core.token_encryption import encrypt_token
+import pytest
+
 from app.core.models.oauth import OAuthTokenDB
+from app.core.token_encryption import encrypt_token
 from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
@@ -66,22 +67,24 @@ class TestCollectUsers:
     async def test_returns_active_users(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        page1 = _make_response([
-            {
-                "accountId": "user-1",
-                "emailAddress": "alice@company.com",
-                "displayName": "Alice",
-                "accountType": "atlassian",
-                "active": True,
-            },
-            {
-                "accountId": "user-2",
-                "emailAddress": "bob@company.com",
-                "displayName": "Bob",
-                "accountType": "atlassian",
-                "active": True,
-            },
-        ])
+        page1 = _make_response(
+            [
+                {
+                    "accountId": "user-1",
+                    "emailAddress": "alice@company.com",
+                    "displayName": "Alice",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+                {
+                    "accountId": "user-2",
+                    "emailAddress": "bob@company.com",
+                    "displayName": "Bob",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+            ]
+        )
         page2 = _make_response([])
 
         with patch.object(
@@ -107,22 +110,24 @@ class TestCollectUsers:
     async def test_filters_inactive_users(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        resp = _make_response([
-            {
-                "accountId": "user-1",
-                "emailAddress": "alice@company.com",
-                "displayName": "Alice",
-                "accountType": "atlassian",
-                "active": True,
-            },
-            {
-                "accountId": "user-inactive",
-                "emailAddress": "gone@company.com",
-                "displayName": "Gone User",
-                "accountType": "atlassian",
-                "active": False,
-            },
-        ])
+        resp = _make_response(
+            [
+                {
+                    "accountId": "user-1",
+                    "emailAddress": "alice@company.com",
+                    "displayName": "Alice",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+                {
+                    "accountId": "user-inactive",
+                    "emailAddress": "gone@company.com",
+                    "displayName": "Gone User",
+                    "accountType": "atlassian",
+                    "active": False,
+                },
+            ]
+        )
         empty = _make_response([])
 
         with patch.object(
@@ -141,29 +146,31 @@ class TestCollectUsers:
     async def test_filters_app_and_customer_accounts(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        resp = _make_response([
-            {
-                "accountId": "user-1",
-                "emailAddress": "alice@company.com",
-                "displayName": "Alice",
-                "accountType": "atlassian",
-                "active": True,
-            },
-            {
-                "accountId": "app-bot",
-                "emailAddress": None,
-                "displayName": "Automation Bot",
-                "accountType": "app",
-                "active": True,
-            },
-            {
-                "accountId": "jsm-portal",
-                "emailAddress": "alice@gmail.com",
-                "displayName": "Alice Portal",
-                "accountType": "customer",
-                "active": True,
-            },
-        ])
+        resp = _make_response(
+            [
+                {
+                    "accountId": "user-1",
+                    "emailAddress": "alice@company.com",
+                    "displayName": "Alice",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+                {
+                    "accountId": "app-bot",
+                    "emailAddress": None,
+                    "displayName": "Automation Bot",
+                    "accountType": "app",
+                    "active": True,
+                },
+                {
+                    "accountId": "jsm-portal",
+                    "emailAddress": "alice@gmail.com",
+                    "displayName": "Alice Portal",
+                    "accountType": "customer",
+                    "active": True,
+                },
+            ]
+        )
         empty = _make_response([])
 
         with patch.object(
@@ -184,22 +191,24 @@ class TestCollectUsers:
         collector = _setup_collector_with_client(db_session)
         # site_url is https://company.atlassian.net → org domain = company.com
 
-        resp = _make_response([
-            {
-                "accountId": "user-1",
-                "emailAddress": "alice@company.com",
-                "displayName": "Alice",
-                "accountType": "atlassian",
-                "active": True,
-            },
-            {
-                "accountId": "ext-1",
-                "emailAddress": "external@vendor.com",
-                "displayName": "External User",
-                "accountType": "atlassian",
-                "active": True,
-            },
-        ])
+        resp = _make_response(
+            [
+                {
+                    "accountId": "user-1",
+                    "emailAddress": "alice@company.com",
+                    "displayName": "Alice",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+                {
+                    "accountId": "ext-1",
+                    "emailAddress": "external@vendor.com",
+                    "displayName": "External User",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+            ]
+        )
         empty = _make_response([])
 
         with patch.object(
@@ -219,15 +228,17 @@ class TestCollectUsers:
     async def test_no_email_is_external(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        resp = _make_response([
-            {
-                "accountId": "user-1",
-                "emailAddress": None,
-                "displayName": "No Email",
-                "accountType": "atlassian",
-                "active": True,
-            },
-        ])
+        resp = _make_response(
+            [
+                {
+                    "accountId": "user-1",
+                    "emailAddress": None,
+                    "displayName": "No Email",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+            ]
+        )
         empty = _make_response([])
 
         with patch.object(
@@ -264,19 +275,23 @@ class TestCollectGroups:
     async def test_returns_groups_from_bulk_api(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        page1 = _make_response({
-            "values": [
-                {"groupId": "grp-1", "name": "jira-administrators"},
-                {"groupId": "grp-2", "name": "developers"},
-            ],
-            "isLast": False,
-        })
-        page2 = _make_response({
-            "values": [
-                {"groupId": "grp-3", "name": "design"},
-            ],
-            "isLast": True,
-        })
+        page1 = _make_response(
+            {
+                "values": [
+                    {"groupId": "grp-1", "name": "jira-administrators"},
+                    {"groupId": "grp-2", "name": "developers"},
+                ],
+                "isLast": False,
+            }
+        )
+        page2 = _make_response(
+            {
+                "values": [
+                    {"groupId": "grp-3", "name": "design"},
+                ],
+                "isLast": True,
+            }
+        )
 
         with patch.object(
             collector._client,
@@ -296,10 +311,12 @@ class TestCollectGroups:
     async def test_single_page(self, db_session) -> None:
         collector = _setup_collector_with_client(db_session)
 
-        resp = _make_response({
-            "values": [{"groupId": "grp-1", "name": "admins"}],
-            "isLast": True,
-        })
+        resp = _make_response(
+            {
+                "values": [{"groupId": "grp-1", "name": "admins"}],
+                "isLast": True,
+            }
+        )
 
         with patch.object(
             collector._client,
@@ -327,13 +344,17 @@ class TestCollectGroupMembers:
             {"group_id": "grp-2", "name": "developers"},
         ]
 
-        alice_groups = _make_response([
-            {"name": "jira-administrators", "groupId": "grp-1"},
-            {"name": "developers", "groupId": "grp-2"},
-        ])
-        bob_groups = _make_response([
-            {"name": "developers", "groupId": "grp-2"},
-        ])
+        alice_groups = _make_response(
+            [
+                {"name": "jira-administrators", "groupId": "grp-1"},
+                {"name": "developers", "groupId": "grp-2"},
+            ]
+        )
+        bob_groups = _make_response(
+            [
+                {"name": "developers", "groupId": "grp-2"},
+            ]
+        )
 
         with patch.object(
             collector._client,
@@ -384,10 +405,12 @@ class TestCollectGroupMembers:
         users = [{"account_id": "user-1", "display_name": "Alice"}]
         groups = [{"group_id": "grp-1", "name": "developers"}]
 
-        alice_groups = _make_response([
-            {"name": "developers", "groupId": "grp-1"},
-            {"name": "unknown-group", "groupId": "grp-99"},
-        ])
+        alice_groups = _make_response(
+            [
+                {"name": "developers", "groupId": "grp-1"},
+                {"name": "unknown-group", "groupId": "grp-99"},
+            ]
+        )
 
         with patch.object(
             collector._client,
@@ -410,9 +433,24 @@ class TestBuildSummary:
 
         data = {
             "users": [
-                {"account_id": "user-1", "display_name": "Alice", "account_type": "atlassian", "is_external": False},
-                {"account_id": "user-2", "display_name": "Bob", "account_type": "atlassian", "is_external": False},
-                {"account_id": "ext-1", "display_name": "External", "account_type": "customer", "is_external": True},
+                {
+                    "account_id": "user-1",
+                    "display_name": "Alice",
+                    "account_type": "atlassian",
+                    "is_external": False,
+                },
+                {
+                    "account_id": "user-2",
+                    "display_name": "Bob",
+                    "account_type": "atlassian",
+                    "is_external": False,
+                },
+                {
+                    "account_id": "ext-1",
+                    "display_name": "External",
+                    "account_type": "customer",
+                    "is_external": True,
+                },
             ],
             "groups": [
                 {"group_id": "grp-1", "name": "jira-administrators"},
@@ -443,7 +481,12 @@ class TestBuildSummary:
 
         data = {
             "users": [
-                {"account_id": "user-1", "display_name": "Alice", "account_type": "atlassian", "is_external": False},
+                {
+                    "account_id": "user-1",
+                    "display_name": "Alice",
+                    "account_type": "atlassian",
+                    "is_external": False,
+                },
             ],
             "groups": [
                 {"group_id": "grp-1", "name": "site-admins"},
@@ -465,7 +508,12 @@ class TestBuildSummary:
 
         data = {
             "users": [
-                {"account_id": "user-1", "display_name": "Alice", "account_type": "atlassian", "is_external": False},
+                {
+                    "account_id": "user-1",
+                    "display_name": "Alice",
+                    "account_type": "atlassian",
+                    "is_external": False,
+                },
             ],
             "groups": [
                 {"group_id": "grp-1", "name": "jira-administrators"},
@@ -515,28 +563,34 @@ class TestCapture:
         db_session.add(token)
         await db_session.flush()
 
-        users_page = _make_response([
-            {
-                "accountId": "user-1",
-                "emailAddress": "alice@company.com",
-                "displayName": "Alice",
-                "accountType": "atlassian",
-                "active": True,
-            },
-        ])
+        users_page = _make_response(
+            [
+                {
+                    "accountId": "user-1",
+                    "emailAddress": "alice@company.com",
+                    "displayName": "Alice",
+                    "accountType": "atlassian",
+                    "active": True,
+                },
+            ]
+        )
         users_empty = _make_response([])
-        groups_resp = _make_response({
-            "values": [
-                {"groupId": "grp-1", "name": "jira-administrators"},
-                {"groupId": "grp-2", "name": "developers"},
-            ],
-            "isLast": True,
-        })
+        groups_resp = _make_response(
+            {
+                "values": [
+                    {"groupId": "grp-1", "name": "jira-administrators"},
+                    {"groupId": "grp-2", "name": "developers"},
+                ],
+                "isLast": True,
+            }
+        )
         # /user/groups response for Alice (she's in both groups)
-        alice_user_groups = _make_response([
-            {"name": "jira-administrators", "groupId": "grp-1"},
-            {"name": "developers", "groupId": "grp-2"},
-        ])
+        alice_user_groups = _make_response(
+            [
+                {"name": "jira-administrators", "groupId": "grp-1"},
+                {"name": "developers", "groupId": "grp-2"},
+            ]
+        )
 
         collector = JiraCollector(db_session)
 

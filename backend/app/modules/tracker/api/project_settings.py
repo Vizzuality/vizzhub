@@ -35,9 +35,7 @@ async def get_project_settings(
     user: TrackerManager,
 ) -> ProjectSettingsResponse:
     result = await db.execute(
-        select(TrackerProjectSettingsDB).where(
-            TrackerProjectSettingsDB.project_id == project_id
-        )
+        select(TrackerProjectSettingsDB).where(TrackerProjectSettingsDB.project_id == project_id)
     )
     settings = result.scalar_one_or_none()
     return ProjectSettingsResponse(
@@ -54,9 +52,7 @@ async def update_project_settings(
     user: TrackerManager,
 ) -> ProjectSettingsResponse:
     result = await db.execute(
-        select(TrackerProjectSettingsDB).where(
-            TrackerProjectSettingsDB.project_id == project_id
-        )
+        select(TrackerProjectSettingsDB).where(TrackerProjectSettingsDB.project_id == project_id)
     )
     settings = result.scalar_one_or_none()
 

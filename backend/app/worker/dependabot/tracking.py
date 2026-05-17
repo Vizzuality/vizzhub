@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
@@ -21,14 +21,10 @@ from app.worker.dependabot.shared import NO_CVE, slack_send
 logger = structlog.get_logger()
 
 
-async def get_tracked_alerts(
-    db: AsyncSession, project_id: UUID
-) -> list[DependabotAlertTrackedDB]:
+async def get_tracked_alerts(db: AsyncSession, project_id: UUID) -> list[DependabotAlertTrackedDB]:
     """All tracked alert rows for a project (resolved + unresolved)."""
     result = await db.execute(
-        select(DependabotAlertTrackedDB).where(
-            DependabotAlertTrackedDB.project_id == project_id
-        )
+        select(DependabotAlertTrackedDB).where(DependabotAlertTrackedDB.project_id == project_id)
     )
     return list(result.scalars().all())
 
@@ -124,7 +120,7 @@ async def notify_new_alert(
             severity=alert_info["severity"],
             cve_id=alert_info["cve_id"],
             manifest_path=alert_info.get("manifest_path"),
-            last_notified_at=datetime.now(timezone.utc),
+            last_notified_at=datetime.now(UTC),
         )
         db.add(tracked)
         await db.commit()
@@ -133,11 +129,9 @@ async def notify_new_alert(
     return False
 
 
-async def mark_alerts_resolved(
-    db: AsyncSession, project_id: UUID, resolved_ids: set[int]
-) -> None:
+async def mark_alerts_resolved(db: AsyncSession, project_id: UUID, resolved_ids: set[int]) -> None:
     """Mark tracked alerts as resolved when they disappear from GitHub."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     result = await db.execute(
         select(DependabotAlertTrackedDB).where(

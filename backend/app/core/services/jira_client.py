@@ -7,9 +7,8 @@ common methods for querying Jira APIs.
 
 import re
 
-import structlog
-
 import httpx
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings

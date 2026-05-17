@@ -10,10 +10,7 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.modules.scorecard.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
-from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB
 from app.core.models.project import ProjectDB
-from app.modules.scorecard.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
 from app.core.services.export_helpers import (
     DEFAULT_GREEN_THRESHOLD,
     DEFAULT_YELLOW_THRESHOLD,
@@ -27,6 +24,9 @@ from app.core.services.export_helpers import (
     save_to_bytes,
     set_column_widths,
 )
+from app.modules.scorecard.models.global_metrics import GlobalMetricsDB, GlobalMetricsRecord
+from app.modules.scorecard.models.metrics import MetricsCreate, MetricsDB
+from app.modules.scorecard.services.export_definitions import DIMENSION_DEFINITIONS, get_metric_rows
 from app.modules.scorecard.services.export_helpers import create_methodology_sheet
 from app.modules.scorecard.services.score_computation import ScoreComputationService
 
@@ -64,9 +64,11 @@ class ExportService:
         self._write_project_summary(ws, project, snapshot_type)
         ws.append([])
         self._write_metrics_table(
-            ws, periods, lambda key, level, period: self._extract_value(
+            ws,
+            periods,
+            lambda key, level, period: self._extract_value(
                 key, level, scores_by_period.get(period)
-            )
+            ),
         )
         self._apply_scorecard_widths(ws, periods)
 
@@ -101,9 +103,11 @@ class ExportService:
         self._write_global_summary(ws, periods, global_by_period)
         ws.append([])
         self._write_metrics_table(
-            ws, periods, lambda key, level, period: self._extract_global_value(
+            ws,
+            periods,
+            lambda key, level, period: self._extract_global_value(
                 key, level, global_by_period.get(period)
-            )
+            ),
         )
         self._apply_scorecard_widths(ws, periods)
 
@@ -132,9 +136,7 @@ class ExportService:
             select(MetricsDB)
             .where(MetricsDB.project_id == project_id)
             .where(MetricsDB.snapshot_type == snapshot_type)
-            .where(
-                tuple_(MetricsDB.period_year, MetricsDB.period_month).in_(periods)
-            )
+            .where(tuple_(MetricsDB.period_year, MetricsDB.period_month).in_(periods))
             .order_by(MetricsDB.created_at.desc())
         )
         res = await db.execute(query)
@@ -154,13 +156,8 @@ class ExportService:
         if not periods:
             return result
 
-        query = (
-            select(GlobalMetricsDB)
-            .where(
-                tuple_(
-                    GlobalMetricsDB.period_year, GlobalMetricsDB.period_month
-                ).in_(periods)
-            )
+        query = select(GlobalMetricsDB).where(
+            tuple_(GlobalMetricsDB.period_year, GlobalMetricsDB.period_month).in_(periods)
         )
         res = await db.execute(query)
         for row in res.scalars().all():
@@ -231,9 +228,7 @@ class ExportService:
             return round(score_val.value, 1)
         return None
 
-    def _apply_score_row_styling(
-        self, ws, row: int, num_periods: int
-    ) -> None:
+    def _apply_score_row_styling(self, ws, row: int, num_periods: int) -> None:
         """Apply border and traffic-light styling to score cells in a row."""
         for col_idx in range(2, 2 + num_periods):
             cell = ws.cell(row=row, column=col_idx)
@@ -270,9 +265,7 @@ class ExportService:
             dim_key = dim_def["key"]
             row = [dim_def["name"]]
             for period in periods:
-                row.append(
-                    self._get_global_dimension_score(global_by_period.get(period), dim_key)
-                )
+                row.append(self._get_global_dimension_score(global_by_period.get(period), dim_key))
             ws.append(row)
             self._apply_score_row_styling(ws, ws.max_row, len(periods))
 
@@ -318,13 +311,13 @@ class ExportService:
                 cell = ws.cell(row=current_row, column=col_idx)
                 cell.border = THIN_BORDER
                 if level <= 1:
-                    apply_score_traffic_light(
-                        cell, cell.value, self._green, self._yellow
-                    )
+                    apply_score_traffic_light(cell, cell.value, self._green, self._yellow)
                 else:
                     apply_indicator_traffic_light(
-                        cell, cell.value,
-                        self._green / 100, self._yellow / 100,
+                        cell,
+                        cell.value,
+                        self._green / 100,
+                        self._yellow / 100,
                     )
 
         freeze_panes(ws, header_row + 1, 5)
@@ -374,9 +367,7 @@ class ExportService:
             return default
 
     @staticmethod
-    def _extract_value(
-        key: str, level: int, score_data: dict | None
-    ) -> int | float | None:
+    def _extract_value(key: str, level: int, score_data: dict | None) -> int | float | None:
         """Extract the appropriate value from computed score data."""
         if score_data is None:
             return None

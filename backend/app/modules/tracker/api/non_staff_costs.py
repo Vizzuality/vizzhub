@@ -11,13 +11,13 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
+from app.modules.tracker.api.helpers import get_or_404
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
 from app.modules.tracker.schemas.non_staff_cost import (
     NonStaffCostCreate,
     NonStaffCostResponse,
     NonStaffCostUpdate,
 )
-from app.modules.tracker.api.helpers import get_or_404
 
 router = APIRouter()
 
@@ -31,13 +31,9 @@ async def list_non_staff_costs(
     user: CurrentUser,
     reporting_period_id: Annotated[UUID | None, Query()] = None,
 ) -> list[NonStaffCostResponse]:
-    stmt = select(NonStaffCostDB).where(
-        NonStaffCostDB.project_id == project_id
-    )
+    stmt = select(NonStaffCostDB).where(NonStaffCostDB.project_id == project_id)
     if reporting_period_id:
-        stmt = stmt.where(
-            NonStaffCostDB.reporting_period_id == reporting_period_id
-        )
+        stmt = stmt.where(NonStaffCostDB.reporting_period_id == reporting_period_id)
     stmt = stmt.order_by(NonStaffCostDB.created_at)
     result = await db.execute(stmt)
     return [NonStaffCostResponse.model_validate(c) for c in result.scalars().all()]

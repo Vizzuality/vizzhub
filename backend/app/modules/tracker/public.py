@@ -11,10 +11,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
+from app.modules.tracker.models.progress_report import ProgressReportDB
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.models.reporting_period import ReportingPeriodDB
-from app.modules.tracker.models.progress_report import ProgressReportDB
 
 
 class TrackerEVMData(BaseModel):
@@ -63,8 +63,9 @@ async def _get_total_cost(project_id: UUID, db: AsyncSession) -> float | None:
     staff = float(staff_result.scalar_one())
 
     non_staff_result = await db.execute(
-        select(func.coalesce(func.sum(NonStaffCostDB.cost), 0))
-        .where(NonStaffCostDB.project_id == project_id)
+        select(func.coalesce(func.sum(NonStaffCostDB.cost), 0)).where(
+            NonStaffCostDB.project_id == project_id
+        )
     )
     non_staff = float(non_staff_result.scalar_one())
 
@@ -119,9 +120,7 @@ async def inject_evm_into_preserved(
             preserved[field] = value
 
 
-async def has_tracker_references(
-    project_id: UUID, db: AsyncSession
-) -> list[str]:
+async def has_tracker_references(project_id: UUID, db: AsyncSession) -> list[str]:
     """Check if a project has tracker references that block deletion.
 
     Returns a list of human-readable reference descriptions.
@@ -148,9 +147,7 @@ async def has_tracker_references(
             )
         ).scalar() or 0
         if rp_count > 0:
-            references.append(
-                f"Cannot delete: project has {rp_count} time report entries."
-            )
+            references.append(f"Cannot delete: project has {rp_count} time report entries.")
 
     if "progress_reports" in existing_tables:
         pr_count = (
@@ -161,8 +158,6 @@ async def has_tracker_references(
             )
         ).scalar() or 0
         if pr_count > 0:
-            references.append(
-                f"Cannot delete: project has {pr_count} progress reports."
-            )
+            references.append(f"Cannot delete: project has {pr_count} progress reports.")
 
     return references

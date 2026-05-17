@@ -3,16 +3,16 @@
 Tests that all 8 dimension calculators work together correctly.
 """
 
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ScoringConfig
-from app.modules.scorecard.models.metrics import MetricsDB
 from app.core.models.project import ProjectDB
+from app.modules.scorecard.models.metrics import MetricsDB
 
 
 class TestCalculatorChainIntegration:
@@ -35,8 +35,14 @@ class TestCalculatorChainIntegration:
 
         # All 8 dimensions should be present (though some may be null if data missing)
         expected_dimensions = [
-            "p_time", "p_cost", "p_quality", "p_value",
-            "p_satisfaction", "p_flow", "p_engineering", "p_risk"
+            "p_time",
+            "p_cost",
+            "p_quality",
+            "p_value",
+            "p_satisfaction",
+            "p_flow",
+            "p_engineering",
+            "p_risk",
         ]
         for dim in expected_dimensions:
             assert dim in dimensions, f"Missing dimension: {dim}"
@@ -105,4 +111,6 @@ class TestCalculatorChainIntegration:
             if dimensions.get(dim_key) is not None:
                 expected += dimensions[dim_key] * weight
 
-        assert abs(final_score - expected) < 1, f"Final score {final_score} doesn't match weighted average {expected}"
+        assert abs(final_score - expected) < 1, (
+            f"Final score {final_score} doesn't match weighted average {expected}"
+        )

@@ -69,9 +69,7 @@ class TestSecurityHeadersMiddleware:
 
         assert response.status_code == 200
         assert "Referrer-Policy" in response.headers
-        assert (
-            response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
-        )
+        assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
 
     @pytest.mark.asyncio
     async def test_security_headers_middleware_adds_permissions_policy(

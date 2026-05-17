@@ -254,7 +254,9 @@ class TestGovernanceCompliance:
 
     def test_none_returns_zero_when_no_neutral(self) -> None:
         """When neutral_on_missing=False, None should return 0.0 (line 168)."""
-        assert normalize_governance_compliance(None, 2, neutral_on_missing=False) == pytest.approx(0.0)
+        assert normalize_governance_compliance(None, 2, neutral_on_missing=False) == pytest.approx(
+            0.0
+        )
 
     def test_zero_target_with_no_exceptions(self) -> None:
         """Zero target with zero exceptions should return 1.0 (line 170)."""
@@ -290,7 +292,9 @@ class TestCountToRatio:
 
     def test_none_value_returns_zero_when_no_neutral(self) -> None:
         """When neutral_on_missing=False, None should return 0.0 (line 197)."""
-        assert normalize_count_to_ratio(None, 2, 100, neutral_on_missing=False) == pytest.approx(0.0)
+        assert normalize_count_to_ratio(None, 2, 100, neutral_on_missing=False) == pytest.approx(
+            0.0
+        )
 
     def test_none_total_with_zero_value(self) -> None:
         """None total with zero value should return 1.0 (line 199)."""

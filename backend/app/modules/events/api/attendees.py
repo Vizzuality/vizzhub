@@ -10,7 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from app.core.api.deps import DBSession
 from app.modules.events.api.deps import EventsManager, get_event_or_404
 from app.modules.events.models.event_attendee import EventAttendeeDB
-from app.modules.events.schemas.event_attendee import AttendeeCreate, AttendeeResponse, AttendeeUpdate
+from app.modules.events.schemas.event_attendee import (
+    AttendeeCreate,
+    AttendeeResponse,
+    AttendeeUpdate,
+)
 from app.modules.events.services.event_service import load_attendee_details
 
 logger = structlog.get_logger()
@@ -131,7 +135,5 @@ async def update_attendee(
         user_id=str(user_id),
         fields=list(updates.keys()),
     )
-    details = await load_attendee_details(
-        db, [event_id], attendee_ids=[attendee.id]
-    )
+    details = await load_attendee_details(db, [event_id], attendee_ids=[attendee.id])
     return AttendeeResponse(**details[0])

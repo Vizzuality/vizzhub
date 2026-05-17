@@ -4,11 +4,11 @@ Tests verify that finished projects only allow end-of-project metrics
 (strategic_impact, client_survey) and block regular metric updates.
 """
 
-import pytest
-import pytest_asyncio
 from datetime import date, timedelta
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 

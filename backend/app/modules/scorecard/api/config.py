@@ -1,8 +1,8 @@
 """Configuration endpoints."""
 
-import structlog
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
 
@@ -11,6 +11,7 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
+from app.config import load_scoring_config_from_db
 from app.core.error_handler import ValidationErrorHandler
 from app.modules.scorecard.models.config import (
     ConfigParameterResponse,
@@ -21,7 +22,6 @@ from app.modules.scorecard.models.config import (
     ScoringConfigModel,
     TargetsConfig,
 )
-from app.config import load_scoring_config_from_db
 from app.modules.scorecard.services.config_service import ConfigService
 
 logger = structlog.get_logger()
@@ -105,9 +105,7 @@ async def get_config_parameters(
     # Convert to response models
     response = {}
     for category, params in parameters.items():
-        response[category] = [
-            ConfigParameterResponse.model_validate(p) for p in params
-        ]
+        response[category] = [ConfigParameterResponse.model_validate(p) for p in params]
 
     return response
 

@@ -20,7 +20,8 @@ class ProgressReportDB(Base):
     __tablename__ = "progress_reports"
     __table_args__ = (
         UniqueConstraint(
-            "reporting_period_id", "project_id",
+            "reporting_period_id",
+            "project_id",
             name="uq_progress_reports_period_project",
         ),
         CheckConstraint(
@@ -33,9 +34,7 @@ class ProgressReportDB(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     reporting_period_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("reporting_periods.id", ondelete="CASCADE"),
@@ -48,9 +47,7 @@ class ProgressReportDB(Base):
     )
     percentage: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     delta: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

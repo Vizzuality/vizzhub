@@ -44,7 +44,9 @@ def _validate_field_type(value: object, col: dict) -> str | None:
 
 
 def _validate_column(
-    col: dict, value: object, partial: bool,
+    col: dict,
+    value: object,
+    partial: bool,
 ) -> str | None:
     """Validate a single column value. Returns error message or None."""
     if col["type"] in ("computed", "attachment"):
@@ -61,9 +63,7 @@ def _validate_column(
     return _validate_field_type(value, col)
 
 
-def validate_row_data(
-    schema: list[dict], data: dict, *, partial: bool = False
-) -> list[str]:
+def validate_row_data(schema: list[dict], data: dict, *, partial: bool = False) -> list[str]:
     """Validate row data against registry type schema. Returns error list."""
     columns_by_key = {col["key"]: col for col in schema}
 
@@ -156,15 +156,11 @@ _DRIVE_URL_TEMPLATES: dict[str, str] = {
 
 def build_drive_url(drive_file_id: str, drive_file_type: str) -> str:
     """Construct the Google Drive URL for a file/folder."""
-    template = _DRIVE_URL_TEMPLATES.get(
-        drive_file_type, "https://drive.google.com/file/d/{}/view"
-    )
+    template = _DRIVE_URL_TEMPLATES.get(drive_file_type, "https://drive.google.com/file/d/{}/view")
     return template.format(drive_file_id)
 
 
-async def get_next_row_index(
-    db: AsyncSession, node_id, year: int | None = None
-) -> int:
+async def get_next_row_index(db: AsyncSession, node_id, year: int | None = None) -> int:
     """Get the next row_index for a registry node (optionally within a year)."""
     from app.modules.iso_docs.models.registry_row import RegistryRowDB
 

@@ -77,22 +77,33 @@ class TestEntryList:
         assert resp_optional.json()["total"] == 1
         assert resp_optional.json()["items"][0]["name"] == "my-command"
 
-
     @pytest.mark.asyncio
     async def test_list_sort_by_install_count(
-        self, client: AsyncClient, db_session: AsyncSession,
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         from app.modules.devstack.models.entry import DevstackEntryDB
 
         low = DevstackEntryDB(
-            name="lo", description="d", type="skill",
-            install_method="github", url="https://github.com/a/b/blob/main/x.md",
-            install_count=1, active=True, origin="internal",
+            name="lo",
+            description="d",
+            type="skill",
+            install_method="github",
+            url="https://github.com/a/b/blob/main/x.md",
+            install_count=1,
+            active=True,
+            origin="internal",
         )
         hi = DevstackEntryDB(
-            name="hi", description="d", type="skill",
-            install_method="github", url="https://github.com/a/b/blob/main/y.md",
-            install_count=99, active=True, origin="internal",
+            name="hi",
+            description="d",
+            type="skill",
+            install_method="github",
+            url="https://github.com/a/b/blob/main/y.md",
+            install_count=99,
+            active=True,
+            origin="internal",
         )
         db_session.add_all([low, hi])
         await db_session.commit()
@@ -184,7 +195,9 @@ class TestGithubSha:
         return_value="a" * 40,
     )
     async def test_create_fetches_sha_for_github_entry(
-        self, mock_fetch: AsyncMock, client: AsyncClient,
+        self,
+        mock_fetch: AsyncMock,
+        client: AsyncClient,
     ) -> None:
         resp = await client.post(
             "/api/devstack",
@@ -218,7 +231,9 @@ class TestGithubSha:
         return_value="b" * 40,
     )
     async def test_update_refetches_sha_when_url_changes(
-        self, mock_fetch: AsyncMock, client: AsyncClient,
+        self,
+        mock_fetch: AsyncMock,
+        client: AsyncClient,
     ) -> None:
         create_resp = await client.post(
             "/api/devstack",
@@ -308,7 +323,9 @@ class TestRefreshShas:
         return_value="c" * 40,
     )
     async def test_refresh_shas_endpoint(
-        self, mock_fetch: AsyncMock, client: AsyncClient,
+        self,
+        mock_fetch: AsyncMock,
+        client: AsyncClient,
     ) -> None:
         await client.post(
             "/api/devstack",
@@ -334,7 +351,9 @@ class TestGetEntryContent:
         return_value="# Hello\n\nThis is markdown",
     )
     async def test_returns_content_for_github_entry(
-        self, mock_fetch: AsyncMock, client: AsyncClient,
+        self,
+        mock_fetch: AsyncMock,
+        client: AsyncClient,
     ) -> None:
         create_resp = await client.post(
             "/api/devstack",
@@ -372,7 +391,9 @@ class TestGetEntryContent:
         return_value=None,
     )
     async def test_returns_404_when_fetch_fails(
-        self, mock_fetch: AsyncMock, client: AsyncClient,
+        self,
+        mock_fetch: AsyncMock,
+        client: AsyncClient,
     ) -> None:
         create_resp = await client.post(
             "/api/devstack",
@@ -389,50 +410,60 @@ class TestGetEntryContent:
 class TestInstallMethodValidation:
     @pytest.mark.asyncio
     async def test_rejects_invalid_npm_package(self, client: AsyncClient) -> None:
-        resp = await client.post("/api/devstack", json=_entry_payload(
-            name="invalid-npm",
-            type="plugin",
-            install_method="npm",
-            package="superpowers@claude-plugins-official",
-            url=None,
-        ))
+        resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                name="invalid-npm",
+                type="plugin",
+                install_method="npm",
+                package="superpowers@claude-plugins-official",
+                url=None,
+            ),
+        )
         # App maps validation errors to 400 (see main.py validation_exception_handler)
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_accepts_scoped_npm_package(self, client: AsyncClient) -> None:
-        resp = await client.post("/api/devstack", json=_entry_payload(
-            name="valid-npm",
-            type="plugin",
-            install_method="npm",
-            package="@vizzuality/claude-plugin",
-            url=None,
-        ))
+        resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                name="valid-npm",
+                type="plugin",
+                install_method="npm",
+                package="@vizzuality/claude-plugin",
+                url=None,
+            ),
+        )
         assert resp.status_code == 201
 
     @pytest.mark.asyncio
     async def test_accepts_simple_npm_package(self, client: AsyncClient) -> None:
-        resp = await client.post("/api/devstack", json=_entry_payload(
-            name="simple-npm",
-            type="plugin",
-            install_method="npm",
-            package="react",
-            url=None,
-        ))
+        resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                name="simple-npm",
+                type="plugin",
+                install_method="npm",
+                package="react",
+                url=None,
+            ),
+        )
         assert resp.status_code == 201
 
     @pytest.mark.asyncio
     async def test_accepts_claude_plugin(self, client: AsyncClient) -> None:
-        resp = await client.post("/api/devstack", json=_entry_payload(
-            name="superpowers",
-            type="plugin",
-            install_method="claude_plugin",
-            package="superpowers@claude-plugins-official",
-            url=None,
-        ))
+        resp = await client.post(
+            "/api/devstack",
+            json=_entry_payload(
+                name="superpowers",
+                type="plugin",
+                install_method="claude_plugin",
+                package="superpowers@claude-plugins-official",
+                url=None,
+            ),
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["install_method"] == "claude_plugin"
         assert data["package"] == "superpowers@claude-plugins-official"
-
-

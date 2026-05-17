@@ -55,6 +55,8 @@ async def capture_history_task(
     Returns:
         Report dict with summary of captured months
     """
+    from app.config import get_scoring_config
+    from app.core.api.deps import get_project_or_404
     from app.modules.scorecard.api.capture import (
         _build_metrics_data,
         _collect_from_github,
@@ -62,8 +64,6 @@ async def capture_history_task(
         _first_day_of_month,
         _last_day_of_month,
     )
-    from app.core.api.deps import get_project_or_404
-    from app.config import get_scoring_config
     from app.modules.scorecard.models.metrics import SnapshotType
     from app.modules.scorecard.services.metrics_service import MetricsService
 
@@ -98,9 +98,7 @@ async def capture_history_task(
             month_name = f"{MONTH_NAMES[month - 1]} {year}"
             progress = int((i / total_months) * 100)
 
-            await JobService.update_progress(
-                db, job_uuid, progress, f"Processing {month_name}..."
-            )
+            await JobService.update_progress(db, job_uuid, progress, f"Processing {month_name}...")
 
             try:
                 month_start = _first_day_of_month(year, month)
@@ -122,7 +120,9 @@ async def capture_history_task(
                 )
 
                 cumulative_jira = await _collect_from_jira(db, project, project_start, month_end)
-                cumulative_github = await _collect_from_github(db, project, project_start, month_end)
+                cumulative_github = await _collect_from_github(
+                    db, project, project_start, month_end
+                )
                 cumulative_data = _build_metrics_data(
                     project_start, month_end, cumulative_jira, cumulative_github, preserved
                 )
@@ -136,22 +136,26 @@ async def capture_history_task(
                     await score_cache.invalidate(project_id)
 
                 await JobService.append_log(db, job_uuid, f"OK: {month_name}")
-                results.append({
-                    "year": year,
-                    "month": month,
-                    "status": "created",
-                    "error_message": None,
-                })
+                results.append(
+                    {
+                        "year": year,
+                        "month": month,
+                        "status": "created",
+                        "error_message": None,
+                    }
+                )
 
             except Exception as e:
                 error_msg = str(e)
                 await JobService.append_log(db, job_uuid, f"ERROR: {month_name} - {error_msg}")
-                errors.append({
-                    "year": year,
-                    "month": month,
-                    "status": "error",
-                    "error_message": error_msg,
-                })
+                errors.append(
+                    {
+                        "year": year,
+                        "month": month,
+                        "status": "error",
+                        "error_message": error_msg,
+                    }
+                )
 
             await asyncio.sleep(5)
 
@@ -171,9 +175,7 @@ async def capture_history_task(
         }
 
         await JobService.update_progress(db, job_uuid, 100, "Completed")
-        await JobService.update_status(
-            db, job_uuid, JobStatus.COMPLETED, result=report
-        )
+        await JobService.update_status(db, job_uuid, JobStatus.COMPLETED, result=report)
 
         return report
 

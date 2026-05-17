@@ -6,7 +6,8 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Column, Computed, DateTime, ForeignKey, Integer, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import TSVECTOR, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -18,14 +19,10 @@ class IsoDocVersionDB(Base):
 
     __tablename__ = "iso_doc_versions"
     __table_args__ = (
-        UniqueConstraint(
-            "node_id", "version", name="uq_iso_doc_versions_node_version"
-        ),
+        UniqueConstraint("node_id", "version", name="uq_iso_doc_versions_node_version"),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     node_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("iso_doc_nodes.id", ondelete="CASCADE"),
@@ -38,9 +35,7 @@ class IsoDocVersionDB(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     search_vector = Column(
         TSVECTOR,
         Computed("to_tsvector('english', coalesce(content, ''))", persisted=True),

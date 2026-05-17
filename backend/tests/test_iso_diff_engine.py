@@ -1,17 +1,18 @@
 """Tests for ISO diff engine."""
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
+import pytest
+
+from app.modules.iso.models.access_review import AccessReviewDB
+from app.modules.iso.models.access_review_action import AccessReviewActionDB
+from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 from app.modules.iso.services.diff_engine import (
     build_diff_summary,
     compute_diff,
     create_review_actions,
 )
-from app.modules.iso.models.access_review import AccessReviewDB
-from app.modules.iso.models.access_review_action import AccessReviewActionDB
-from app.modules.iso.models.access_snapshot import AccessSnapshotDB
 
 
 class TestUserDiff:
@@ -105,9 +106,7 @@ class TestUserDiff:
         }
 
         changes = compute_diff(data, data, "test.com")
-        user_changes = [
-            c for c in changes if c["change_type"] in ("new_user", "removed_user")
-        ]
+        user_changes = [c for c in changes if c["change_type"] in ("new_user", "removed_user")]
         assert len(user_changes) == 0
 
 
@@ -229,9 +228,7 @@ class TestGroupMembershipDiff:
 
         changes = compute_diff(current, previous, "test.com")
 
-        membership = [
-            c for c in changes if c["change_type"] == "group_membership_change"
-        ]
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
         assert len(membership) == 1
         assert membership[0]["subject_type"] == "group"
         assert membership[0]["subject_id"] == "team@test.com"
@@ -251,9 +248,7 @@ class TestGroupMembershipDiff:
         }
 
         changes = compute_diff(data, data, "test.com")
-        membership = [
-            c for c in changes if c["change_type"] == "group_membership_change"
-        ]
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
         assert len(membership) == 0
 
     def test_new_group_detected(self) -> None:
@@ -275,9 +270,7 @@ class TestGroupMembershipDiff:
         }
 
         changes = compute_diff(current, previous, "test.com")
-        membership = [
-            c for c in changes if c["change_type"] == "group_membership_change"
-        ]
+        membership = [c for c in changes if c["change_type"] == "group_membership_change"]
         assert len(membership) == 1
         assert "a@test.com" in membership[0]["current_value"]["added"]
 
@@ -373,7 +366,7 @@ class TestCreateReviewActions:
 
         snapshot = AccessSnapshotDB(
             provider="google_workspace",
-            captured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            captured_at=datetime(2026, 1, 1, tzinfo=UTC),
             data_version="1",
             source_metadata={},
             data={"users": []},
@@ -413,9 +406,7 @@ class TestCreateReviewActions:
         await create_review_actions(db_session, review_id, changes)
 
         result = await db_session.execute(
-            select(AccessReviewActionDB).where(
-                AccessReviewActionDB.review_id == review_id
-            )
+            select(AccessReviewActionDB).where(AccessReviewActionDB.review_id == review_id)
         )
         actions = result.scalars().all()
         assert len(actions) == 2
@@ -431,9 +422,7 @@ class TestCreateReviewActions:
         await create_review_actions(db_session, review_id, [])
 
         result = await db_session.execute(
-            select(AccessReviewActionDB).where(
-                AccessReviewActionDB.review_id == review_id
-            )
+            select(AccessReviewActionDB).where(AccessReviewActionDB.review_id == review_id)
         )
         actions = result.scalars().all()
         assert len(actions) == 0

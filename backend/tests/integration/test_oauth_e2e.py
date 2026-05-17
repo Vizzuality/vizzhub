@@ -1,7 +1,6 @@
 """OAuth end-to-end integration tests."""
 
 import pytest
-
 from httpx import AsyncClient
 
 

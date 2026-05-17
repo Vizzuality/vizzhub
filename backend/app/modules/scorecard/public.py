@@ -3,10 +3,10 @@
 Other modules should import from here, never from scorecard internals.
 """
 
-import structlog
 from datetime import date
 from uuid import UUID
 
+import structlog
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,18 +80,14 @@ async def refresh_tracker_evm(
         return
 
     effective_budget = _resolve_budget(budget, project)
-    tracker_evm = await get_evm_from_tracker(
-        project_id, db, project.start_date, project.end_date
-    )
+    tracker_evm = await get_evm_from_tracker(project_id, db, project.start_date, project.end_date)
 
     today = date.today()
     year, month = today.year, today.month
     updated = False
 
     for snapshot_type in (SnapshotType.CUMULATIVE, SnapshotType.PUNCTUAL):
-        metrics = await MetricsService.get_metrics(
-            db, project_id, year, month, snapshot_type
-        )
+        metrics = await MetricsService.get_metrics(db, project_id, year, month, snapshot_type)
         if not metrics:
             continue
         _apply_evm_fields(metrics, effective_budget, tracker_evm)

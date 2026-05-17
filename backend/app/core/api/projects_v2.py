@@ -22,7 +22,7 @@ from app.core.api.deps import (
     limiter,
 )
 from app.core.auth import TokenData
-from app.core.models.link import Link, LinkCreate, LinkDB
+from app.core.models.link import Link, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.core.models.user import UserDB
@@ -66,9 +66,7 @@ def _build_project_filters(
         filters.append(ProjectDB.has_scorecard.is_(has_scorecard))
     if search:
         safe = _escape_like(search)
-        filters.append(
-            (ProjectDB.name.ilike(f"%{safe}%")) | (ProjectDB.code.ilike(f"%{safe}%"))
-        )
+        filters.append((ProjectDB.name.ilike(f"%{safe}%")) | (ProjectDB.code.ilike(f"%{safe}%")))
     if filter_status and filter_status in ("proposal", "live", "finished"):
         filters.append(ProjectDB.status == filter_status)
     if start_date_from:
@@ -99,9 +97,7 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.budget = data.budget
     project.notes = data.notes
     project.summary = data.summary
-    project.jira_project_key = (
-        data.jira_project_key.upper() if data.jira_project_key else None
-    )
+    project.jira_project_key = data.jira_project_key.upper() if data.jira_project_key else None
     project.github_repo = data.github_repo
     project.start_date = data.start_date
     project.end_date = data.end_date
@@ -159,7 +155,11 @@ async def list_projects(
     count_query = select(func.count()).select_from(ProjectDB)
 
     filters = _build_project_filters(
-        f.search, f.filter_status, f.start_date_from, f.start_date_to, f.has_scorecard,
+        f.search,
+        f.filter_status,
+        f.start_date_from,
+        f.start_date_to,
+        f.has_scorecard,
         f.project_manager_id,
     )
     if filters:
@@ -169,9 +169,7 @@ async def list_projects(
     sort_field = sort if sort in ALLOWED_SORT_FIELDS else "created_at"
     sort_order = order if order in ("asc", "desc") else "desc"
     sort_column = getattr(ProjectDB, sort_field)
-    query = query.order_by(
-        sort_column.asc() if sort_order == "asc" else sort_column.desc()
-    )
+    query = query.order_by(sort_column.asc() if sort_order == "asc" else sort_column.desc())
 
     total = (await db.execute(count_query)).scalar() or 0
     pages = max(1, math.ceil(total / page_size))
@@ -214,10 +212,7 @@ async def list_project_managers(
         .distinct()
         .order_by("display_name")
     )
-    return [
-        ProjectManagerOption(id=str(row.id), name=row.display_name)
-        for row in result.all()
-    ]
+    return [ProjectManagerOption(id=str(row.id), name=row.display_name) for row in result.all()]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -278,7 +273,11 @@ async def replace_project(
     _apply_project_data(project, data)
     await db.flush()
     await db.refresh(project)
-    if project.budget != old_budget or project.start_date != old_start or project.end_date != old_end:
+    if (
+        project.budget != old_budget
+        or project.start_date != old_start
+        or project.end_date != old_end
+    ):
         await refresh_tracker_evm(db, project_id, score_cache=cache)
     logger.info(
         "project_replaced",
@@ -299,11 +298,25 @@ async def update_project(
     cache: OptionalScoreCache,
 ) -> ProjectResponse:
     PATCHABLE_FIELDS = {
-        "name", "code", "program_id", "is_billable", "currency", "budget",
-        "notes", "summary", "jira_project_key", "github_repo",
-        "start_date", "end_date", "status", "finished_at",
-        "slack_channel_id", "has_scorecard", "has_dependabot_alerts",
-        "has_budget_alerts", "project_manager_id",
+        "name",
+        "code",
+        "program_id",
+        "is_billable",
+        "currency",
+        "budget",
+        "notes",
+        "summary",
+        "jira_project_key",
+        "github_repo",
+        "start_date",
+        "end_date",
+        "status",
+        "finished_at",
+        "slack_channel_id",
+        "has_scorecard",
+        "has_dependabot_alerts",
+        "has_budget_alerts",
+        "project_manager_id",
     }
 
     project = await get_project_or_404(db, project_id)
@@ -413,9 +426,7 @@ async def update_project_budget(
     if payload.milestones is not None:
         data["milestones"] = [m.model_dump(mode="json") for m in payload.milestones]
 
-    has_budget_data = any(
-        k not in ("period_start", "period_end") for k in data
-    )
+    has_budget_data = any(k not in ("period_start", "period_end") for k in data)
     if not has_budget_data:
         existing = await MetricsService.get_metrics(db, str(project_id), year, month)
         if existing:

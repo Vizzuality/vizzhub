@@ -52,10 +52,7 @@ def _row_to_response(note: IsoDocNoteDB, creator_name, doner_name) -> NoteRespon
 
 
 async def _hydrate_response(db, note: IsoDocNoteDB) -> NoteResponse:
-    row = (await db.execute(
-        _select_notes_with_names()
-        .where(IsoDocNoteDB.id == note.id)
-    )).one()
+    row = (await db.execute(_select_notes_with_names().where(IsoDocNoteDB.id == note.id))).one()
     return _row_to_response(*row)
 
 
@@ -63,18 +60,18 @@ async def _hydrate_response(db, note: IsoDocNoteDB) -> NoteResponse:
     "/nodes/{node_id}/notes",
     responses={404: {"description": "Node not found"}},
 )
-async def list_node_notes(
-    node_id: UUID, db: DBSession, _: IsoDocsEditor
-) -> list[NoteResponse]:
+async def list_node_notes(node_id: UUID, db: DBSession, _: IsoDocsEditor) -> list[NoteResponse]:
     node = await db.get(IsoDocNodeDB, node_id)
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
 
-    rows = (await db.execute(
-        _select_notes_with_names()
-        .where(IsoDocNoteDB.node_id == node_id)
-        .order_by(IsoDocNoteDB.done.asc(), desc(IsoDocNoteDB.created_at))
-    )).all()
+    rows = (
+        await db.execute(
+            _select_notes_with_names()
+            .where(IsoDocNoteDB.node_id == node_id)
+            .order_by(IsoDocNoteDB.done.asc(), desc(IsoDocNoteDB.created_at))
+        )
+    ).all()
     return [_row_to_response(*row) for row in rows]
 
 
@@ -145,9 +142,7 @@ async def update_note(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={404: {"description": "Note not found"}},
 )
-async def delete_note(
-    note_id: UUID, db: DBSession, user: IsoDocsEditor
-) -> Response:
+async def delete_note(note_id: UUID, db: DBSession, user: IsoDocsEditor) -> Response:
     note = await db.get(IsoDocNoteDB, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")

@@ -1,8 +1,10 @@
+from decimal import Decimal
+
 import pytest
 import pytest_asyncio
-from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.scorecard.models.config import ConfigParameter
 from app.modules.scorecard.services.config_service import ConfigService
 
@@ -98,9 +100,7 @@ async def test_validate_weight_groups_detects_invalid(seeded_db: AsyncSession):
     """Test weight validation detects invalid sum."""
     db = seeded_db
     # Temporarily break Quality Weights (change W_def to 0)
-    result = await db.execute(
-        select(ConfigParameter).where(ConfigParameter.name == "W_def")
-    )
+    result = await db.execute(select(ConfigParameter).where(ConfigParameter.name == "W_def"))
     param = result.scalar_one()
     param.value = Decimal("0")
     await db.commit()

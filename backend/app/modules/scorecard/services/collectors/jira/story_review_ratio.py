@@ -80,9 +80,7 @@ async def collect_story_review_ratio(
     }
 
 
-def calculate_story_review_ratio(
-    total_stories: int, stories_with_reviewer: int
-) -> float | None:
+def calculate_story_review_ratio(total_stories: int, stories_with_reviewer: int) -> float | None:
     """
     Calculate story review ratio from raw counts.
 

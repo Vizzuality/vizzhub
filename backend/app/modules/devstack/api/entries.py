@@ -67,11 +67,15 @@ async def list_entries(
     total_result = await db.execute(select(func.count(DevstackEntryDB.id)).where(*filters))
     total = total_result.scalar() or 0
 
-    order_col = getattr(DevstackEntryDB, sort_by, DevstackEntryDB.name) if sort_by else DevstackEntryDB.name
+    order_col = (
+        getattr(DevstackEntryDB, sort_by, DevstackEntryDB.name) if sort_by else DevstackEntryDB.name
+    )
     order_expr = order_col.desc() if sort_dir == "desc" else order_col.asc()
 
     offset = (page - 1) * page_size
-    query = select(DevstackEntryDB).where(*filters).order_by(order_expr).offset(offset).limit(page_size)
+    query = (
+        select(DevstackEntryDB).where(*filters).order_by(order_expr).offset(offset).limit(page_size)
+    )
     result = await db.execute(query)
     entries = result.scalars().all()
 
@@ -150,9 +154,7 @@ async def create_entry(
     db: DBSession,
     user: DevstackManager,
 ) -> EntryResponse:
-    existing = await db.execute(
-        select(DevstackEntryDB).where(DevstackEntryDB.name == body.name)
-    )
+    existing = await db.execute(select(DevstackEntryDB).where(DevstackEntryDB.name == body.name))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="Entry name already exists")
 

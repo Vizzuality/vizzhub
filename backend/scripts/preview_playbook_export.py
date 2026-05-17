@@ -37,8 +37,8 @@ async def generate():
 
 
 def serve():
-    import http.server
     import functools
+    import http.server
 
     handler = functools.partial(
         http.server.SimpleHTTPRequestHandler,

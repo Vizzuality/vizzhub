@@ -1,4 +1,5 @@
 """Pydantic schemas for Job API."""
+
 import uuid
 from datetime import datetime
 

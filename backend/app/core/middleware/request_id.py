@@ -19,7 +19,9 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint,
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
 

@@ -5,7 +5,7 @@ JWT cookie that encodes a specific permission set. This is the closest we
 get to an authenticated end-to-end request without the production OAuth flow.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -17,13 +17,15 @@ from app.core.auth import ALGORITHM, COOKIE_NAME
 settings = get_settings()
 
 
-def _signed_token(*, permissions: list[str], user_id: str = "00000000-0000-0000-0000-000000000999") -> str:
+def _signed_token(
+    *, permissions: list[str], user_id: str = "00000000-0000-0000-0000-000000000999"
+) -> str:
     payload = {
         "sub": user_id,
         "email": "scoped@example.com",
         "roles": ["user"],
         "permissions": permissions,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+        "exp": datetime.now(UTC) + timedelta(minutes=10),
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=ALGORITHM)
 

@@ -57,7 +57,9 @@ async def _make_chain(db_session: AsyncSession, depth: int) -> list[PlaybookNode
 
 @pytest.mark.asyncio
 async def test_create_node_rejects_when_max_depth_exceeded(
-    client: AsyncClient, db_session: AsyncSession, debug_user: UserDB,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    debug_user: UserDB,
 ) -> None:
     """Creating a child under a 10-deep parent fails with 400."""
     chain = await _make_chain(db_session, depth=10)
@@ -73,7 +75,9 @@ async def test_create_node_rejects_when_max_depth_exceeded(
 
 @pytest.mark.asyncio
 async def test_create_node_within_depth_succeeds(
-    client: AsyncClient, db_session: AsyncSession, debug_user: UserDB,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    debug_user: UserDB,
 ) -> None:
     chain = await _make_chain(db_session, depth=3)
     parent = chain[-1]
@@ -88,7 +92,9 @@ async def test_create_node_within_depth_succeeds(
 
 @pytest.mark.asyncio
 async def test_update_node_rejects_move_under_own_descendant(
-    client: AsyncClient, db_session: AsyncSession, debug_user: UserDB,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    debug_user: UserDB,
 ) -> None:
     """Moving a node under its own descendant must 400."""
     chain = await _make_chain(db_session, depth=3)
@@ -104,7 +110,9 @@ async def test_update_node_rejects_move_under_own_descendant(
 
 @pytest.mark.asyncio
 async def test_reorder_rejects_cycle(
-    client: AsyncClient, db_session: AsyncSession, debug_user: UserDB,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    debug_user: UserDB,
 ) -> None:
     chain = await _make_chain(db_session, depth=3)
     root, _, leaf = chain
@@ -122,7 +130,9 @@ async def test_reorder_rejects_cycle(
 
 @pytest.mark.asyncio
 async def test_reorder_rejects_max_depth(
-    client: AsyncClient, db_session: AsyncSession, debug_user: UserDB,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    debug_user: UserDB,
 ) -> None:
     """Attaching a node under a depth-10 chain (would make it depth 11) → 400."""
     chain = await _make_chain(db_session, depth=10)

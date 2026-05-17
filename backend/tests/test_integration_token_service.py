@@ -1,15 +1,15 @@
 """Tests for IntegrationTokenService."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.token_encryption import decrypt_token, encrypt_token
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
 from app.core.services.integration_token_service import IntegrationTokenService
+from app.core.token_encryption import decrypt_token, encrypt_token
 
 
 class TestGetToken:
@@ -72,7 +72,7 @@ class TestSaveToken:
 
     @pytest.mark.asyncio
     async def test_saves_with_expiry(self, db_session: AsyncSession) -> None:
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         record = await IntegrationTokenService.save_token(
             db_session,
             provider="github",
@@ -80,7 +80,7 @@ class TestSaveToken:
             token_type="pat",
             expires_in_days=90,
         )
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert record.expires_at is not None
         expected_min = before + timedelta(days=90)
@@ -108,9 +108,7 @@ class TestDeleteToken:
         assert check.scalar_one_or_none() is None
 
     @pytest.mark.asyncio
-    async def test_returns_false_for_nonexistent(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_returns_false_for_nonexistent(self, db_session: AsyncSession) -> None:
         result = await IntegrationTokenService.delete_token(db_session, "nonexistent")
         assert result is False
 
@@ -118,9 +116,7 @@ class TestDeleteToken:
 class TestGetSetting:
     @pytest.mark.asyncio
     async def test_returns_none_when_missing(self, db_session: AsyncSession) -> None:
-        result = await IntegrationTokenService.get_setting(
-            db_session, "slack", "channel_id"
-        )
+        result = await IntegrationTokenService.get_setting(db_session, "slack", "channel_id")
         assert result is None
 
     @pytest.mark.asyncio
@@ -133,9 +129,7 @@ class TestGetSetting:
         db_session.add(setting)
         await db_session.flush()
 
-        result = await IntegrationTokenService.get_setting(
-            db_session, "slack", "channel_id"
-        )
+        result = await IntegrationTokenService.get_setting(db_session, "slack", "channel_id")
         assert result == "C12345"
 
 
@@ -157,12 +151,8 @@ class TestSetSetting:
 
     @pytest.mark.asyncio
     async def test_updates_existing_setting(self, db_session: AsyncSession) -> None:
-        await IntegrationTokenService.set_setting(
-            db_session, "slack", "channel_id", "C_old"
-        )
-        await IntegrationTokenService.set_setting(
-            db_session, "slack", "channel_id", "C_new"
-        )
+        await IntegrationTokenService.set_setting(db_session, "slack", "channel_id", "C_old")
+        await IntegrationTokenService.set_setting(db_session, "slack", "channel_id", "C_new")
 
         result = await db_session.execute(
             select(IntegrationSettingDB).where(
@@ -177,9 +167,7 @@ class TestSetSetting:
 
 class TestGetProviderStatus:
     @pytest.mark.asyncio
-    async def test_returns_disconnected_when_no_token(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_returns_disconnected_when_no_token(self, db_session: AsyncSession) -> None:
         status = await IntegrationTokenService.get_provider_status(db_session, "github")
         assert status == {
             "connected": False,
@@ -190,10 +178,8 @@ class TestGetProviderStatus:
         }
 
     @pytest.mark.asyncio
-    async def test_returns_connected_status_with_metadata(
-        self, db_session: AsyncSession
-    ) -> None:
-        expires = datetime.now(timezone.utc) + timedelta(days=90)
+    async def test_returns_connected_status_with_metadata(self, db_session: AsyncSession) -> None:
+        expires = datetime.now(UTC) + timedelta(days=90)
         token = OAuthTokenDB(
             provider="jira",
             access_token=encrypt_token("jira_token"),

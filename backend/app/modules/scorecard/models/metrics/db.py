@@ -20,9 +20,7 @@ class MetricsDB(Base):
 
     __tablename__ = "metrics"
 
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False
     )
@@ -90,9 +88,7 @@ class MetricsDB(Base):
     client_survey: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # === Metadata ===
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Fields that are manually entered and should be preserved across collector runs
     MANUAL_FIELDS = [
