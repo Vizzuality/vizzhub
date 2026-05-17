@@ -16,7 +16,7 @@ Registry of the tech-debt and calculations audits. Consolidated output from `aud
 | ToDo Next High Priority (T1–T7) | 0 | 25 |
 | CALCULATIONS — WRONG | 0 | 1 |
 | CALCULATIONS — SUSPICIOUS | 0 | 26 |
-| Pending boy-scout backlog | **105** (0 Major / 100 Minor / 5 Nit) | — |
+| Pending boy-scout backlog | **106** (0 Major / 101 Minor / 5 Nit) | — |
 | Won't do (deliberate) | — | 18 |
 | Fixed (historical) | — | 112 |
 
@@ -68,9 +68,28 @@ warning in the same PR.
 
 - ~~**No test for "approve same command twice"**~~ **[FIXED — Batch 3]** — three new tests in `mcp_server/tests/test_command_tools.py`: `test_approve_command_twice_second_call_fails_cleanly`, `test_approve_command_concurrent_race_only_one_wins`, `test_handler_exception_marks_command_failed_with_error`. Cover idempotency (only one IsoDocNode row even after a double-approve), `asyncio.gather` race (exactly one executed + one ToolError), and CommandDB.error persistence on handler failure.
 
-### Minor (100)
+### Minor (101)
 
-The first sub-section ("Downgraded from Major in the 2026-05-16 retriage") contains file-size warnings, DRY nits, UX paper cuts, and defensive coverage gaps that were originally tagged Major but lack real-impact justification. The second sub-section ("From earlier audits") is the original Minor backlog. Both are boy-scout candidates.
+The first sub-section ("Phase 0 baseline-debt") tracks rules frozen at the code-quality rollout's Phase 0 activation. The second ("Downgraded from Major in the 2026-05-16 retriage") contains file-size warnings, DRY nits, UX paper cuts, and defensive coverage gaps that were originally tagged Major but lack real-impact justification. The third ("From earlier audits") is the original Minor backlog. All are boy-scout candidates.
+
+#### Phase 0 baseline-debt (1, 2026-05-17 — code-quality rollout)
+
+- **Ruff rules frozen at baseline activation** — `backend/pyproject.toml` (~140 pre-existing violations across the listed rule categories) [warning] — PR gate enforces these rules going forward; existing violations are not back-fixed.
+  - Module: `backend (all)`
+  - Detail: Rules ignored in `[tool.ruff.lint] ignore = [...]`:
+    - **E402** module-import-not-at-top — legitimate pattern in some routers/tests (mock injection, conditional imports).
+    - **E501** line-too-long (107 at line-length=100) — formatter handles structural cases; residual is long URLs, error strings, SQL.
+    - **E741** ambiguous-variable-name (5) — single-letter `l`/`I`/`O`.
+    - **B007** unused-loop-control-variable (1).
+    - **B904** raise-without-from (28) — false-positive prone in async/web exception wrappers.
+    - **B905** zip-without-strict (4).
+    - **UP042** replace-str-enum (17) — migration to Python 3.13 `StrEnum` pending.
+    - **F821** undefined-name (2) — SQLAlchemy forward refs; canonical fix is `from typing import TYPE_CHECKING` + quoted annotations.
+    - **F841** local-variable-unused (3).
+    - **SIM102/103/108/110/114/117/118/300** (~10 total) — various simplification opportunities (collapsible-if, needless-bool, if-else-to-if-exp, etc.).
+  - Per-file ignores (`F401` + `I001`) cover re-export modules where ruff's auto-fix removed legitimate re-exports despite `# noqa: F401` markers on multi-line `from X import (...)` blocks: `alembic/env.py`, `app/modules/*/schemas/page.py`, `app/modules/*/services/asset_service.py`, `app/worker/dependabot/shared.py`.
+  - Fix: Address opportunistically as code is touched (boy-scout). Each `ignore = [...]` entry should be removed from `pyproject.toml` once its category is back at zero violations. Per-file ignores can be removed once the noqa pattern is migrated to per-import-line style.
+  - Added: 2026-05-17 by Phase 0 of code-quality rollout (commit `fa8b43c2`)
 
 #### Downgraded from Major (42, 2026-05-16 retriage)
 
