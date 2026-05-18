@@ -306,6 +306,33 @@ async def _get_alert_definitions(db: AsyncSession) -> dict[str, AlertDefinitionD
     return {d.name: d for d in result.scalars().all()}
 
 
+ADVANCE_STEPS: tuple[tuple[int, str], ...] = ((30, KIND_30D), (15, KIND_15D))
+
+
+async def _process_candidate(
+    db: AsyncSession,
+    inv_ctx: InvoiceContext,
+    advance_def: AlertDefinitionDB | None,
+    issue_def: AlertDefinitionDB | None,
+    bot_token: str,
+) -> int:
+    """Fire every applicable alert for a single invoice; return alerts sent.
+
+    Wrapped by the orchestrator in a try/except so a single bad row can
+    rollback its own changes and not poison the rest of the run.
+    """
+    sent = 0
+    if advance_def is not None:
+        for threshold, kind in ADVANCE_STEPS:
+            if await _fire_advance(db, inv_ctx, advance_def, bot_token, threshold, kind):
+                sent += 1
+    if issue_def is not None and await _fire_issue_reminder(
+        db, inv_ctx, issue_def, bot_token
+    ):
+        sent += 1
+    return sent
+
+
 async def check_invoice_alerts(ctx: dict) -> dict[str, Any]:
     """Send invoice advance warnings and issue reminders."""
     db: AsyncSession = ctx["db"]
@@ -333,7 +360,6 @@ async def check_invoice_alerts(ctx: dict) -> dict[str, Any]:
         alerts_sent = 0
         advance_def = definitions.get(ALERT_ADVANCE)
         issue_def = definitions.get(ALERT_ISSUE)
-        advance_steps = ((30, KIND_30D), (15, KIND_15D))
 
         for inv_ctx in candidates:
             # Capture identifiers up-front: a rollback in the except branch
@@ -341,16 +367,9 @@ async def check_invoice_alerts(ctx: dict) -> dict[str, Any]:
             invoice_id = inv_ctx.invoice.id
             project_name = inv_ctx.project.name
             try:
-                if advance_def is not None:
-                    for threshold, kind in advance_steps:
-                        if await _fire_advance(
-                            db, inv_ctx, advance_def, bot_token, threshold, kind
-                        ):
-                            alerts_sent += 1
-                if issue_def is not None and await _fire_issue_reminder(
-                    db, inv_ctx, issue_def, bot_token
-                ):
-                    alerts_sent += 1
+                alerts_sent += await _process_candidate(
+                    db, inv_ctx, advance_def, issue_def, bot_token
+                )
             except Exception:
                 await db.rollback()
                 logger.exception(

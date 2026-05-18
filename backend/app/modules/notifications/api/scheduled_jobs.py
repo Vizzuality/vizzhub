@@ -201,7 +201,7 @@ async def trigger_scheduled_job(
             message=f"Job '{job_name}' could not be enqueued (may already be queued)",
         )
 
-    except (RedisError, ConnectionError, OSError) as e:
+    except (RedisError, OSError) as e:  # ConnectionError is an OSError subclass
         # Keep the "Is Redis running?" hint for the operator on real
         # infrastructure failures. Programming bugs propagate to the
         # global 500 handler with a full traceback in Sentry instead of
