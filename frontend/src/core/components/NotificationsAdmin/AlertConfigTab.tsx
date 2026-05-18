@@ -78,6 +78,21 @@ function hasChannelConfig(configJson: Record<string, unknown>): boolean {
   return 'recipient_slack_channel_id' in configJson;
 }
 
+function getDeliveryLabel(alert: AlertDefinition): string {
+  const config = alert.config_json as Record<string, string>;
+  const hasUserDM = Boolean(config.recipient_slack_user_id);
+  const hasChannel = Boolean(config.recipient_slack_channel_id);
+
+  if (hasUserDM && hasChannel) return 'DM + channel';
+  if (hasUserDM) return 'Direct message';
+  if (hasChannel) return 'Slack channel';
+
+  // No explicit recipient configured: alert resolves its target at runtime
+  // (e.g. the project manager DM for project-typed alerts).
+  if (alert.channel_type === 'project') return "Project manager's DM";
+  return 'Leadership channel';
+}
+
 function hasThresholdEntries(configJson: Record<string, unknown>): boolean {
   return Object.keys(configJson).some((k) => !NON_THRESHOLD_KEYS.has(k));
 }
@@ -334,7 +349,7 @@ export default function AlertConfigTab(): JSX.Element {
                       <p className="text-sm text-muted-foreground">{alert.description}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Channel: {alert.channel_type === 'leadership' ? 'Leadership' : 'Project'}
+                      Delivery: {getDeliveryLabel(alert)}
                     </p>
                   </div>
 
