@@ -38,6 +38,8 @@ class InvoiceDB(Base):
     invoiced_on: Mapped[date | None] = mapped_column(nullable=True)
     milestone: Mapped[str] = mapped_column(Text, nullable=False)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    invoicing_contact_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    invoicing_contact_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="scheduled")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

@@ -1,161 +1,73 @@
-import { useState, Fragment, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/core/hooks/queryKeys';
+import { useState } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
-import { Input } from '@/shared/components/ui/input';
-import { Plus, ExternalLink } from 'lucide-react';
-import { useInvoices, useCreateInvoice } from '../hooks/useInvoices';
+import { Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Can, Action } from '@/core/permissions';
+import { useInvoices } from '../hooks/useInvoices';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import {
-  EditableCell,
-  StatusCell,
-  PostponeButton,
-  PostponementHistory,
-  HistoryToggle,
-  RevertButton,
-  DeleteButton,
-  useInvoiceFieldSave,
+  STATUS_LABELS,
+  STATUS_DOT_COLORS,
   getDisplayDate,
 } from './invoice-shared';
+import InvoiceOverlay from './InvoiceOverlay';
 import type { Invoice } from '../types/tracker';
 
 interface InvoicesCardProps {
   readonly projectId: string;
   readonly currency: string;
+  readonly projectName?: string;
 }
-
-const COL_COUNT = 6;
 
 function InvoiceRow({
   invoice,
-  projectId,
   currency,
-  onError,
+  onClick,
 }: {
   readonly invoice: Invoice;
-  readonly projectId: string;
   readonly currency: string;
-  readonly onError: (msg: string) => void;
+  readonly onClick: () => void;
 }): JSX.Element {
-  const qc = useQueryClient();
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const invalidate = useCallback(
-    () => { qc.invalidateQueries({ queryKey: queryKeys.tracker.invoices.byProject(projectId) }); },
-    [qc, projectId],
-  );
-  const save = useInvoiceFieldSave(projectId, invoice.id, invalidate);
-
   const displayDate = getDisplayDate(invoice);
-
   return (
-    <Fragment>
-      <tr className="border-b last:border-0">
-        <td className="py-2 text-sm">
-          <EditableCell
-            value={invoice.milestone}
-            display={invoice.milestone}
-            displayClass="truncate block max-w-[200px]"
-            onSave={(v) => save('milestone', v)}
-            inputClass="h-6 w-full text-sm px-1"
-          />
-        </td>
-        <td className="py-2 text-sm hidden lg:table-cell">
-          <EditableCell
-            value={invoice.code ?? ''}
-            placeholder="add code"
-            onSave={(v) => save('code', v)}
-            inputClass="h-6 w-24 text-sm px-1"
-          />
-        </td>
-        <td className="py-2 text-sm text-right tabular-nums pr-4">
-          <EditableCell
-            value={invoice.amount.toString()}
-            display={formatCurrency(invoice.amount, currency, 2)}
-            inputType="number"
-            onSave={(v) => save('amount', v)}
-            inputClass="h-6 w-24 text-sm px-1 text-right"
-          />
-        </td>
-        <td className="py-2 text-sm pl-4 hidden sm:table-cell">
-          <EditableCell
-            value={displayDate}
-            inputType="date"
-            onSave={(v) => save('due_date', v)}
-            inputClass="h-6 w-36 text-sm px-1"
-          />
-        </td>
-        <td className="py-2">
-          <div className="flex items-center gap-2">
-            <StatusCell invoice={invoice} currency={currency} onError={onError} onSuccess={invalidate} />
-            <PostponeButton invoice={invoice} currency={currency} onError={onError} onSuccess={invalidate} />
-            <HistoryToggle
-              count={invoice.postpone_count}
-              expanded={historyOpen}
-              onToggle={() => setHistoryOpen(!historyOpen)}
-            />
-          </div>
-        </td>
-        <td className="py-2 text-right hidden sm:table-cell">
-          <div className="flex items-center gap-1 justify-end">
-            <Link to={`/tracker/invoices/${invoice.id}`}>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            </Link>
-            <RevertButton invoice={invoice} onSuccess={invalidate} />
-            <DeleteButton invoice={invoice} projectId={projectId} currency={currency} onSuccess={invalidate} />
-          </div>
-        </td>
-      </tr>
-      <PostponementHistory
-        projectId={projectId}
-        invoiceId={invoice.id}
-        expanded={historyOpen}
-        colSpan={COL_COUNT}
-        onDelete={invalidate}
-      />
-    </Fragment>
+    <tr
+      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+      onClick={onClick}
+    >
+      <td className="py-2 text-sm">
+        <span className="truncate block max-w-[200px]">{invoice.milestone}</span>
+      </td>
+      <td className="py-2 text-sm hidden lg:table-cell">{invoice.code ?? '—'}</td>
+      <td className="py-2 text-sm text-right tabular-nums pr-4">
+        {formatCurrency(invoice.amount, currency, 2)}
+      </td>
+      <td className="py-2 text-sm pl-4 hidden sm:table-cell tabular-nums">{displayDate}</td>
+      <td className="py-2">
+        <div className="inline-flex items-center gap-1.5">
+          <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', STATUS_DOT_COLORS[invoice.status])} />
+          <span className="text-sm">{STATUS_LABELS[invoice.status]}</span>
+          {invoice.postpone_count > 0 && (
+            <span className="text-xs text-muted-foreground ml-1">×{invoice.postpone_count}</span>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
 
-export default function InvoicesCard({ projectId, currency }: InvoicesCardProps): JSX.Element {
+export default function InvoicesCard({
+  projectId,
+  currency,
+  projectName,
+}: InvoicesCardProps): JSX.Element {
   const { data: invoices } = useInvoices(projectId);
-  const createMutation = useCreateInvoice(projectId);
-  const [adding, setAdding] = useState(false);
-  const [newCode, setNewCode] = useState('');
-  const [newMilestone, setNewMilestone] = useState('');
-  const [newAmount, setNewAmount] = useState('');
-  const [newDueDate, setNewDueDate] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [overlay, setOverlay] = useState<{ mode: 'edit' | 'create'; invoiceId?: string } | null>(null);
 
   const totalAmount = (invoices ?? []).reduce((s, i) => s + Number(i.amount ?? 0), 0);
   const paidAmount = (invoices ?? [])
     .filter((i) => i.status === 'paid')
     .reduce((s, i) => s + Number(i.amount ?? 0), 0);
-
-  const showError = (msg: string): void => {
-    setErrorMsg(msg);
-    setTimeout(() => setErrorMsg(null), 5000);
-  };
-
-  const handleAdd = (): void => {
-    const amount = Number.parseFloat(newAmount);
-    if (!newMilestone || Number.isNaN(amount) || !newDueDate) return;
-    createMutation.mutate(
-      { code: newCode || undefined, milestone: newMilestone, amount, due_date: newDueDate },
-      {
-        onSuccess: () => {
-          setAdding(false);
-          setNewCode('');
-          setNewMilestone('');
-          setNewAmount('');
-          setNewDueDate('');
-        },
-      },
-    );
-  };
 
   return (
     <Card className="min-w-0 overflow-hidden">
@@ -171,12 +83,6 @@ export default function InvoicesCard({ projectId, currency }: InvoicesCardProps)
           )}
         </div>
 
-        {errorMsg && (
-          <div className="mb-3 px-3 py-2 rounded bg-destructive/10 text-destructive text-sm">
-            {errorMsg}
-          </div>
-        )}
-
         {invoices && invoices.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -187,37 +93,47 @@ export default function InvoicesCard({ projectId, currency }: InvoicesCardProps)
                   <th className="text-right font-medium pb-1 pr-4">Amount</th>
                   <th className="text-left font-medium pb-1 pl-4 hidden sm:table-cell">Due</th>
                   <th className="text-left font-medium pb-1">Status</th>
-                  <th className="w-24 hidden sm:table-cell" />
                 </tr>
               </thead>
               <tbody>
                 {invoices.map((inv) => (
-                  <InvoiceRow key={inv.id} invoice={inv} projectId={projectId} currency={currency} onError={showError} />
+                  <InvoiceRow
+                    key={inv.id}
+                    invoice={inv}
+                    currency={currency}
+                    onClick={() => setOverlay({ mode: 'edit', invoiceId: inv.id })}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
         )}
 
-        {invoices?.length === 0 && !adding && (
+        {invoices?.length === 0 && (
           <p className="text-muted-foreground text-sm">No invoices</p>
         )}
 
-        {adding ? (
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Input placeholder="Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="w-24 h-8 text-sm" />
-            <Input placeholder="Milestone" value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} className="h-8 text-sm min-w-[120px] flex-1" />
-            <Input type="number" min="0" step="0.01" placeholder="Amount" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} className="w-28 h-8 text-right text-sm" />
-            <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="w-36 h-8 text-sm" />
-            <Button size="sm" className="h-8" onClick={handleAdd} disabled={createMutation.isPending}>Save</Button>
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => setAdding(false)}>Cancel</Button>
-          </div>
-        ) : (
-          <Button variant="ghost" size="sm" className="mt-3 gap-1 text-muted-foreground" onClick={() => setAdding(true)}>
+        <Can do={Action.TRACKER_MANAGE}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-3 gap-1 text-muted-foreground"
+            onClick={() => setOverlay({ mode: 'create' })}
+          >
             <Plus className="h-3.5 w-3.5" />
             Add invoice
           </Button>
-        )}
+        </Can>
+
+        <InvoiceOverlay
+          open={!!overlay}
+          onOpenChange={(open) => { if (!open) setOverlay(null); }}
+          mode={overlay?.mode ?? 'edit'}
+          projectId={projectId}
+          currency={currency}
+          projectName={projectName}
+          invoiceId={overlay?.invoiceId}
+        />
       </CardContent>
     </Card>
   );

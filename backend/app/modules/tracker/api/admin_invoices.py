@@ -22,33 +22,62 @@ router = APIRouter()
 
 
 from app.modules.tracker.services.invoice_status import (
-    effective_status_expr as _effective_status_expr,
-)
-from app.modules.tracker.services.invoice_status import (
-    postponement_subquery as _postponement_subquery,
+    approved_postponement_subquery,
+    effective_status_expr,
+    latest_postponement_subquery,
 )
 
 
-def _status_filter(status: str, today, pp_sub):
-    """Return a WHERE clause for the given effective status."""
+def _postponement_context(today: dt.date):
+    """Build the two postponement subqueries + effective-status expression.
+
+    Returned tuple is the standard 3-piece kit needed by every admin invoice
+    query: ``(latest_pp, approved_pp, effective_status)``. Use
+    ``_join_postponements`` to attach the subqueries to a ``select`` stmt.
+    """
+    latest_pp = latest_postponement_subquery()
+    approved_pp = approved_postponement_subquery()
+    return latest_pp, approved_pp, effective_status_expr(today, latest_pp, approved_pp)
+
+
+def _join_postponements(stmt, latest_pp, approved_pp):
+    """Attach the two postponement subqueries as left joins on ``invoice_id``."""
+    return stmt.outerjoin(
+        latest_pp, latest_pp.c.invoice_id == InvoiceDB.id
+    ).outerjoin(approved_pp, approved_pp.c.invoice_id == InvoiceDB.id)
+
+
+def _status_filter(status: str, today, latest_pp, approved_pp):
+    """Return a WHERE clause matching ``effective_status_expr``."""
+    if status == "postpone_pending":
+        return latest_pp.c.latest_status == "pending"
+    not_pending = (latest_pp.c.latest_status != "pending") | latest_pp.c.latest_status.is_(None)
     if status == "pending_to_issue":
-        return (
+        return not_pending & (
             (InvoiceDB.status == "pending_to_issue")
             | ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today))
-        ) & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
+        ) & (
+            approved_pp.c.approved_postponed_to.is_(None)
+            | (approved_pp.c.approved_postponed_to <= today)
+        )
     if status == "postponed":
         return (
-            InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
-            & pp_sub.c.postponed_to.isnot(None)
-            & (pp_sub.c.postponed_to > today)
+            not_pending
+            & InvoiceDB.status.in_(["scheduled", "pending_to_issue"])
+            & approved_pp.c.approved_postponed_to.isnot(None)
+            & (approved_pp.c.approved_postponed_to > today)
         )
     if status == "scheduled":
         return (
-            (InvoiceDB.status == "scheduled")
+            not_pending
+            & (InvoiceDB.status == "scheduled")
             & (InvoiceDB.due_date > today)
-            & (pp_sub.c.postponed_to.is_(None) | (pp_sub.c.postponed_to <= today))
+            & (
+                approved_pp.c.approved_postponed_to.is_(None)
+                | (approved_pp.c.approved_postponed_to <= today)
+            )
         )
-    return InvoiceDB.status == status
+    return not_pending & (InvoiceDB.status == status)
 
 
 def _apply_filters(
@@ -59,10 +88,11 @@ def _apply_filters(
     due_from: dt.date | None,
     due_to: dt.date | None,
     today: dt.date,
-    pp_sub,
+    latest_pp,
+    approved_pp,
 ):
     if status:
-        stmt = stmt.where(_status_filter(status, today, pp_sub))
+        stmt = stmt.where(_status_filter(status, today, latest_pp, approved_pp))
     if project_id:
         stmt = stmt.where(InvoiceDB.project_id == project_id)
     if search:
@@ -86,6 +116,8 @@ class AdminInvoiceResponse(BaseModel):
     invoiced_on: dt.date | None
     milestone: str
     observations: str | None
+    invoicing_contact_name: str | None
+    invoicing_contact_email: str | None
     status: str
     postpone_count: int
     postponed_to: dt.date | None
@@ -110,6 +142,8 @@ def _to_admin_invoice_response(
         invoiced_on=inv.invoiced_on,
         milestone=inv.milestone,
         observations=inv.observations,
+        invoicing_contact_name=inv.invoicing_contact_name,
+        invoicing_contact_email=inv.invoicing_contact_email,
         status=eff_status,
         postpone_count=pp_count,
         postponed_to=pp_date if eff_status == "postponed" else None,
@@ -141,8 +175,7 @@ async def get_invoice_totals(
     today = dt.date.today()
     current_year = today.year
 
-    pp_sub = _postponement_subquery()
-    effective_status = _effective_status_expr(today, pp_sub)
+    latest_pp, approved_pp, effective_status = _postponement_context(today)
 
     currency_code_expr = case(
         (ProjectDB.currency == "dollar", literal("USD")),
@@ -160,18 +193,17 @@ async def get_invoice_totals(
         .subquery()
     )
 
-    stmt = (
+    stmt = _join_postponements(
         select(
             InvoiceDB.amount,
             currency_code_expr.label("cur_code"),
             effective_status.label("eff_status"),
             InvoiceDB.due_date,
             latest_rate.c.rate,
-        )
-        .join(ProjectDB, InvoiceDB.project_id == ProjectDB.id)
-        .outerjoin(pp_sub, pp_sub.c.invoice_id == InvoiceDB.id)
-        .outerjoin(latest_rate, latest_rate.c.currency_code == currency_code_expr)
-    )
+        ).join(ProjectDB, InvoiceDB.project_id == ProjectDB.id),
+        latest_pp,
+        approved_pp,
+    ).outerjoin(latest_rate, latest_rate.c.currency_code == currency_code_expr)
 
     result = await db.execute(stmt)
     rows = result.all()
@@ -230,37 +262,39 @@ async def list_all_invoices(
     sort_order: Annotated[str, Query()] = "asc",
 ) -> PaginatedInvoicesResponse:
     today = dt.date.today()
-    pp_sub = _postponement_subquery()
-    effective_status = _effective_status_expr(today, pp_sub)
+    latest_pp, approved_pp, effective_status = _postponement_context(today)
 
-    base = (
+    base = _join_postponements(
         select(
             InvoiceDB,
             ProjectDB.name.label("project_name"),
             ProjectDB.currency.label("project_currency"),
             effective_status.label("eff_status"),
-            func.coalesce(pp_sub.c.postpone_count, 0).label("pp_count"),
-            pp_sub.c.postponed_to.label("pp_date"),
-        )
-        .join(ProjectDB, InvoiceDB.project_id == ProjectDB.id)
-        .outerjoin(pp_sub, pp_sub.c.invoice_id == InvoiceDB.id)
+            func.coalesce(approved_pp.c.approved_count, 0).label("pp_count"),
+            approved_pp.c.approved_postponed_to.label("pp_date"),
+        ).join(ProjectDB, InvoiceDB.project_id == ProjectDB.id),
+        latest_pp,
+        approved_pp,
     )
 
-    base = _apply_filters(base, status, project_id, search, due_from, due_to, today, pp_sub)
+    base = _apply_filters(
+        base, status, project_id, search, due_from, due_to, today, latest_pp, approved_pp,
+    )
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(count_stmt)).scalar() or 0
 
     status_order = case(
         {
-            "pending_to_issue": 0,
-            "postponed": 1,
-            "waiting_for_payment": 2,
-            "scheduled": 3,
-            "paid": 4,
+            "postpone_pending": 0,
+            "pending_to_issue": 1,
+            "postponed": 2,
+            "waiting_for_payment": 3,
+            "scheduled": 4,
+            "paid": 5,
         },
         value=effective_status,
-        else_=5,
+        else_=6,
     )
 
     if sort_by == "project":
@@ -312,22 +346,20 @@ async def get_admin_invoice(
 ) -> AdminInvoiceResponse:
     """Fetch a single invoice by ID with project info and effective status."""
     today = dt.date.today()
-    pp_sub = _postponement_subquery()
-    effective_status = _effective_status_expr(today, pp_sub)
+    latest_pp, approved_pp, effective_status = _postponement_context(today)
 
-    stmt = (
+    stmt = _join_postponements(
         select(
             InvoiceDB,
             ProjectDB.name.label("project_name"),
             ProjectDB.currency.label("project_currency"),
             effective_status.label("eff_status"),
-            func.coalesce(pp_sub.c.postpone_count, 0).label("pp_count"),
-            pp_sub.c.postponed_to.label("pp_date"),
-        )
-        .join(ProjectDB, InvoiceDB.project_id == ProjectDB.id)
-        .outerjoin(pp_sub, pp_sub.c.invoice_id == InvoiceDB.id)
-        .where(InvoiceDB.id == invoice_id)
-    )
+            func.coalesce(approved_pp.c.approved_count, 0).label("pp_count"),
+            approved_pp.c.approved_postponed_to.label("pp_date"),
+        ).join(ProjectDB, InvoiceDB.project_id == ProjectDB.id),
+        latest_pp,
+        approved_pp,
+    ).where(InvoiceDB.id == invoice_id)
 
     result = await db.execute(stmt)
     row = result.first()

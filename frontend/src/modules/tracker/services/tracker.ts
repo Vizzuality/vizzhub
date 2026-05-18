@@ -303,6 +303,43 @@ export const trackerApi = {
     await api.delete(`/tracker/projects/${projectId}/invoices/${invoiceId}/postponements/latest`);
   },
 
+  approvePostponement: async (
+    projectId: string,
+    invoiceId: string,
+    postponementId: string,
+    body?: { note?: string },
+  ): Promise<Postponement> => {
+    const { data } = await api.post<Postponement>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postponements/${postponementId}/approve`,
+      body ?? {},
+    );
+    return data;
+  },
+
+  rejectPostponement: async (
+    projectId: string,
+    invoiceId: string,
+    postponementId: string,
+    body: { note: string },
+  ): Promise<Postponement> => {
+    const { data } = await api.post<Postponement>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postponements/${postponementId}/reject`,
+      body,
+    );
+    return data;
+  },
+
+  cancelPostponement: async (
+    projectId: string,
+    invoiceId: string,
+    postponementId: string,
+  ): Promise<Postponement> => {
+    const { data } = await api.post<Postponement>(
+      `/tracker/projects/${projectId}/invoices/${invoiceId}/postponements/${postponementId}/cancel`,
+    );
+    return data;
+  },
+
   // Non-Staff Costs
   listNonStaffCosts: async (projectId: string): Promise<NonStaffCost[]> => {
     const { data } = await api.get<NonStaffCost[]>('/tracker/non-staff-costs', {

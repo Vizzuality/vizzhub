@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 VALID_STATUSES = ("scheduled", "pending_to_issue", "waiting_for_payment", "paid")
 
 ALLOWED_TRANSITIONS: dict[str, list[str]] = {
-    "scheduled": [],
+    "scheduled": ["waiting_for_payment"],
     "pending_to_issue": ["waiting_for_payment"],
     "postponed": [],
     "waiting_for_payment": ["paid", "pending_to_issue"],
@@ -23,6 +23,8 @@ class InvoiceCreate(BaseModel):
     invoiced_on: dt.date | None = None
     milestone: str = Field(min_length=1)
     observations: str | None = None
+    invoicing_contact_name: str | None = Field(None, max_length=200)
+    invoicing_contact_email: str | None = Field(None, max_length=320)
     status: str = "scheduled"
 
 
@@ -33,6 +35,8 @@ class InvoiceUpdate(BaseModel):
     invoiced_on: dt.date | None = None
     milestone: str | None = None
     observations: str | None = None
+    invoicing_contact_name: str | None = Field(None, max_length=200)
+    invoicing_contact_email: str | None = Field(None, max_length=320)
 
 
 class InvoiceTransition(BaseModel):
@@ -50,6 +54,8 @@ class InvoiceResponse(BaseModel):
     invoiced_on: dt.date | None
     milestone: str
     observations: str | None
+    invoicing_contact_name: str | None = None
+    invoicing_contact_email: str | None = None
     status: str
     postpone_count: int = 0
     postponed_to: dt.date | None = None

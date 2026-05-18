@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
   X,
@@ -8,9 +8,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Eye,
 } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -20,124 +19,46 @@ import { cn } from '@/lib/utils';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { trackerApi } from '../services/tracker';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
-import {
-  EditableCell,
-  StatusCell,
-  PostponeButton,
-  PostponementHistory,
-  HistoryToggle,
-  RevertButton,
-  DeleteButton,
-  useInvoiceFieldSave,
-  getDisplayDate,
-} from '../components/invoice-shared';
+import { STATUS_LABELS, STATUS_DOT_COLORS, getDisplayDate } from '../components/invoice-shared';
 import type { AdminInvoice, AdminInvoiceParams, InvoiceTotals } from '../types/tracker';
 
 const SEARCH_DEBOUNCE_MS = 300;
-const COL_COUNT = 7;
 type SortField = 'status' | 'project' | 'due_date' | 'amount';
 
-function InvoiceRow({
-  invoice,
-  onError,
-}: {
-  readonly invoice: AdminInvoice;
-  readonly onError: (msg: string) => void;
-}): JSX.Element {
-  const qc = useQueryClient();
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const invalidate = useCallback(
-    () => {
-      qc.invalidateQueries({ queryKey: ['tracker', 'invoices', 'all'] });
-      qc.invalidateQueries({ queryKey: queryKeys.tracker.invoices.totals });
-    },
-    [qc],
-  );
-  const save = useInvoiceFieldSave(invoice.project_id, invoice.id, invalidate);
-
+function InvoiceRow({ invoice }: { readonly invoice: AdminInvoice }): JSX.Element {
+  const navigate = useNavigate();
   const displayDate = getDisplayDate(invoice);
 
   return (
-    <Fragment>
-      <tr className="border-b last:border-0 text-sm">
-        <td className="py-2 pr-4 max-w-[140px]">
-          <Link
-            to={`/tracker/projects/${invoice.project_id}`}
-            className="hover:underline font-medium text-sm leading-tight block"
-          >
-            {invoice.project_name}
-          </Link>
-        </td>
-        <td className="py-2 max-w-[200px] hidden lg:table-cell">
-          <EditableCell
-            value={invoice.milestone}
-            display={invoice.milestone}
-            displayClass="truncate block max-w-[200px]"
-            onSave={(v) => save('milestone', v)}
-            inputClass="h-6 w-full text-sm px-1"
-          />
-        </td>
-        <td className="py-2 hidden xl:table-cell">
-          <EditableCell
-            value={invoice.code ?? ''}
-            placeholder="add code"
-            onSave={(v) => save('code', v)}
-            inputClass="h-6 w-24 text-sm px-1"
-          />
-        </td>
-        <td className="py-2 text-right tabular-nums pr-4">
-          <EditableCell
-            value={invoice.amount.toString()}
-            display={formatCurrency(invoice.amount, invoice.currency, 2)}
-            inputType="number"
-            onSave={(v) => save('amount', v)}
-            inputClass="h-6 w-24 text-sm px-1 text-right"
-          />
-        </td>
-        <td className="py-2 pl-4 hidden sm:table-cell">
-          <EditableCell
-            value={displayDate}
-            inputType="date"
-            onSave={(v) => save('due_date', v)}
-            inputClass="h-6 w-36 text-sm px-1"
-          />
-        </td>
-        <td className="py-2">
-          <div className="flex items-center gap-2">
-            <StatusCell invoice={invoice} onError={onError} onSuccess={invalidate} />
-            <PostponeButton invoice={invoice} onError={onError} onSuccess={invalidate} />
-            <HistoryToggle
-              count={invoice.postpone_count}
-              expanded={historyOpen}
-              onToggle={() => setHistoryOpen(!historyOpen)}
-            />
-            <Link to={`/admin/tracker/invoices/${invoice.id}`}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                title="View detail"
-              >
-                <Eye className="h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
-        </td>
-        <td className="py-2 text-right hidden sm:table-cell">
-          <div className="flex items-center gap-1 justify-end">
-            <RevertButton invoice={invoice} onSuccess={invalidate} />
-            <DeleteButton invoice={invoice} projectId={invoice.project_id} onSuccess={invalidate} />
-          </div>
-        </td>
-      </tr>
-      <PostponementHistory
-        projectId={invoice.project_id}
-        invoiceId={invoice.id}
-        expanded={historyOpen}
-        colSpan={COL_COUNT}
-        onDelete={invalidate}
-      />
-    </Fragment>
+    <tr
+      className="border-b last:border-0 text-sm hover:bg-muted/40 cursor-pointer"
+      onClick={() => navigate(`/admin/tracker/invoices/${invoice.id}`)}
+    >
+      <td className="py-2 pr-4 max-w-[140px]">
+        <Link
+          to={`/tracker/projects/${invoice.project_id}`}
+          className="hover:underline font-medium text-sm leading-tight block"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {invoice.project_name}
+        </Link>
+      </td>
+      <td className="py-2 max-w-[200px] hidden lg:table-cell truncate">{invoice.milestone}</td>
+      <td className="py-2 hidden xl:table-cell">{invoice.code ?? '—'}</td>
+      <td className="py-2 text-right tabular-nums pr-4">
+        {formatCurrency(invoice.amount, invoice.currency, 2)}
+      </td>
+      <td className="py-2 pl-4 hidden sm:table-cell tabular-nums">{displayDate}</td>
+      <td className="py-2">
+        <div className="inline-flex items-center gap-1.5">
+          <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', STATUS_DOT_COLORS[invoice.status])} />
+          <span className="text-foreground">{STATUS_LABELS[invoice.status]}</span>
+          {invoice.postpone_count > 0 && (
+            <span className="text-xs text-muted-foreground ml-1">×{invoice.postpone_count}</span>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -255,12 +176,6 @@ export default function AdminInvoices(): JSX.Element {
     staleTime: 60_000,
   });
 
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const showError = useCallback((msg: string) => {
-    setErrorMsg(msg);
-    setTimeout(() => setErrorMsg(null), 5000);
-  }, []);
-
   const handleSort = (field: SortField): void => {
     if (state.sort_by === field) {
       setState({ sort_order: state.sort_order === 'asc' ? 'desc' : 'asc', page: '1' });
@@ -297,9 +212,10 @@ export default function AdminInvoices(): JSX.Element {
           <div className="flex items-center gap-1 flex-wrap">
             {([
               { value: '', label: 'All' },
-              { value: 'pending_to_issue', label: 'Pending' },
+              { value: 'postpone_pending', label: 'Awaiting approval' },
+              { value: 'pending_to_issue', label: 'Pending to invoice' },
               { value: 'postponed', label: 'Postponed' },
-              { value: 'waiting_for_payment', label: 'Waiting' },
+              { value: 'waiting_for_payment', label: 'Waiting for payment' },
               { value: 'scheduled', label: 'Scheduled' },
               { value: 'paid', label: 'Paid' },
             ] as const).map((opt) => (
@@ -351,12 +267,6 @@ export default function AdminInvoices(): JSX.Element {
         </div>
       )}
 
-      {errorMsg && (
-        <div className="px-3 py-2 rounded bg-destructive/10 text-destructive text-sm">
-          {errorMsg}
-        </div>
-      )}
-
       {/* Table */}
       <Card className="min-w-0 overflow-hidden">
         <CardContent className="pt-4 pb-3">
@@ -371,12 +281,11 @@ export default function AdminInvoices(): JSX.Element {
                     <th className="text-right font-medium pb-2 pr-4">Amount</th>
                     <th className="text-left font-medium pb-2 pl-4 hidden sm:table-cell">Due</th>
                     <th className="text-left font-medium pb-2">Status</th>
-                    <th className="w-20 hidden sm:table-cell" />
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((inv) => (
-                    <InvoiceRow key={inv.id} invoice={inv} onError={showError} />
+                    <InvoiceRow key={inv.id} invoice={inv} />
                   ))}
                 </tbody>
               </table>

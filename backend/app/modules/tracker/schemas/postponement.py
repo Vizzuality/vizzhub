@@ -1,6 +1,7 @@
 """Postponement request/response schemas."""
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -11,6 +12,12 @@ class PostponeRequest(BaseModel):
     reason: str = Field(..., min_length=1, max_length=500)
 
 
+class PostponementDecision(BaseModel):
+    """Body for reject/cancel (reason required) and approve (optional note)."""
+
+    note: str | None = Field(None, max_length=500)
+
+
 class PostponementResponse(BaseModel):
     id: UUID
     invoice_id: UUID
@@ -19,5 +26,10 @@ class PostponementResponse(BaseModel):
     created_by: UUID | None
     created_by_name: str | None = None
     created_at: datetime
+    approval_status: Literal["pending", "approved", "rejected", "cancelled"]
+    decided_by: UUID | None = None
+    decided_by_name: str | None = None
+    decided_at: datetime | None = None
+    decision_note: str | None = None
 
     model_config = {"from_attributes": True}

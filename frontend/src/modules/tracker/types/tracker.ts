@@ -183,7 +183,15 @@ export interface BatchProgressResponse {
   progress: Record<string, ProgressSummary>;
 }
 
-export type InvoiceStatus = 'scheduled' | 'pending_to_issue' | 'postponed' | 'waiting_for_payment' | 'paid';
+export type InvoiceStatus =
+  | 'scheduled'
+  | 'pending_to_issue'
+  | 'postpone_pending'
+  | 'postponed'
+  | 'waiting_for_payment'
+  | 'paid';
+
+export type PostponementApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 export interface Invoice {
   id: string;
@@ -194,6 +202,8 @@ export interface Invoice {
   invoiced_on: string | null;
   milestone: string;
   observations: string | null;
+  invoicing_contact_name: string | null;
+  invoicing_contact_email: string | null;
   status: InvoiceStatus;
   postpone_count: number;
   postponed_to: string | null;
@@ -205,6 +215,8 @@ export interface InvoiceCreate {
   due_date: string;
   milestone: string;
   observations?: string | null;
+  invoicing_contact_name?: string | null;
+  invoicing_contact_email?: string | null;
 }
 
 export interface AdminInvoice {
@@ -218,6 +230,8 @@ export interface AdminInvoice {
   invoiced_on: string | null;
   milestone: string;
   observations: string | null;
+  invoicing_contact_name: string | null;
+  invoicing_contact_email: string | null;
   status: InvoiceStatus;
   postpone_count: number;
   postponed_to: string | null;
@@ -247,6 +261,11 @@ export interface Postponement {
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
+  approval_status: PostponementApprovalStatus;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
 }
 
 export interface AdminInvoiceParams {
@@ -268,6 +287,8 @@ export interface InvoiceUpdate {
   invoiced_on?: string | null;
   milestone?: string;
   observations?: string | null;
+  invoicing_contact_name?: string | null;
+  invoicing_contact_email?: string | null;
 }
 
 export type NonStaffCostType = 'outsource' | 'travel' | 'servers' | 'others';

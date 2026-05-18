@@ -6,19 +6,13 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import DBSession
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
-
-logger = structlog.get_logger()
-
-TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
-from fastapi import APIRouter, HTTPException
-
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 from app.modules.tracker.schemas.invoice import (
@@ -28,52 +22,53 @@ from app.modules.tracker.schemas.invoice import (
     InvoiceTransition,
     InvoiceUpdate,
 )
+from app.modules.tracker.services.invoice_status import (
+    approved_postponement_subquery,
+    effective_status_expr,
+    latest_postponement_subquery,
+)
+
+logger = structlog.get_logger()
+
+TrackerManager = Annotated[TokenData, Depends(require_permission(Action.TRACKER_MANAGE))]
 
 router = APIRouter()
 
 _INVOICE_NOT_FOUND = "Invoice not found"
 
 
-from app.modules.tracker.services.invoice_status import (
-    effective_status_expr as _effective_status_expr,
-)
-from app.modules.tracker.services.invoice_status import (
-    postponement_subquery as _postponement_subquery,
-)
-
-
 async def _invoice_status_info(inv: InvoiceDB, db: AsyncSession) -> tuple[str, int, date | None]:
-    """Single query: return (effective_status, postpone_count, latest_postponed_to).
+    """Return (effective_status, approved_postpone_count, latest_approved_postponed_to).
 
-    ``latest_postponed_to`` is the ``postponed_to`` of the most recently
-    *created* postponement (not the furthest-future one) — keeps this
-    Python mirror semantically aligned with ``postponement_subquery``.
+    Python mirror of ``effective_status_expr`` for single-invoice endpoints.
     """
-    count_result = await db.execute(
-        select(func.count()).where(InvoicePostponementDB.invoice_id == inv.id)
-    )
-    count = count_result.scalar() or 0
-
-    latest_result = await db.execute(
-        select(InvoicePostponementDB.postponed_to)
+    pp_result = await db.execute(
+        select(InvoicePostponementDB)
         .where(InvoicePostponementDB.invoice_id == inv.id)
         .order_by(InvoicePostponementDB.created_at.desc())
-        .limit(1)
     )
-    latest = latest_result.scalar_one_or_none()
+    pps = list(pp_result.scalars().all())
+    latest = pps[0] if pps else None
+    latest_approved = next((p for p in pps if p.approval_status == "approved"), None)
+    approved_count = sum(1 for p in pps if p.approval_status == "approved")
 
-    if inv.status in ("scheduled", "pending_to_issue") and latest is not None:
-        eff = "postponed" if latest > date.today() else "pending_to_issue"
-    elif inv.status == "scheduled" and inv.due_date <= date.today():
+    today = date.today()
+    if latest is not None and latest.approval_status == "pending":
+        eff = "postpone_pending"
+    elif inv.status in ("scheduled", "pending_to_issue") and latest_approved is not None:
+        eff = "postponed" if latest_approved.postponed_to > today else "pending_to_issue"
+    elif inv.status == "scheduled" and inv.due_date <= today:
         eff = "pending_to_issue"
     else:
         eff = inv.status
 
-    return eff, count, latest
+    return eff, approved_count, latest_approved.postponed_to if latest_approved else None
 
 
-async def _to_response(inv: InvoiceDB, db: AsyncSession) -> InvoiceResponse:
-    eff, count, latest_pp = await _invoice_status_info(inv, db)
+def _build_response(
+    inv: InvoiceDB, eff_status: str, pp_count: int, pp_date: date | None
+) -> InvoiceResponse:
+    """Assemble an ``InvoiceResponse`` from an invoice + computed status fields."""
     return InvoiceResponse(
         id=inv.id,
         project_id=inv.project_id,
@@ -83,10 +78,17 @@ async def _to_response(inv: InvoiceDB, db: AsyncSession) -> InvoiceResponse:
         invoiced_on=inv.invoiced_on,
         milestone=inv.milestone,
         observations=inv.observations,
-        status=eff,
-        postpone_count=count,
-        postponed_to=latest_pp if eff == "postponed" else None,
+        invoicing_contact_name=inv.invoicing_contact_name,
+        invoicing_contact_email=inv.invoicing_contact_email,
+        status=eff_status,
+        postpone_count=pp_count,
+        postponed_to=pp_date if eff_status == "postponed" else None,
     )
+
+
+async def _to_response(inv: InvoiceDB, db: AsyncSession) -> InvoiceResponse:
+    eff, count, latest_pp = await _invoice_status_info(inv, db)
+    return _build_response(inv, eff, count, latest_pp)
 
 
 @router.get("/{project_id}/invoices")
@@ -96,35 +98,25 @@ async def list_invoices(
     user: TrackerManager,
 ) -> list[InvoiceResponse]:
     today = date.today()
-    pp_sub = _postponement_subquery()
-    eff_status = _effective_status_expr(today, pp_sub)
+    latest_pp = latest_postponement_subquery()
+    approved_pp = approved_postponement_subquery()
+    eff_status = effective_status_expr(today, latest_pp, approved_pp)
 
     stmt = (
         select(
             InvoiceDB,
             eff_status.label("eff_status"),
-            func.coalesce(pp_sub.c.postpone_count, 0).label("pp_count"),
-            pp_sub.c.postponed_to.label("pp_date"),
+            func.coalesce(approved_pp.c.approved_count, 0).label("pp_count"),
+            approved_pp.c.approved_postponed_to.label("pp_date"),
         )
-        .outerjoin(pp_sub, pp_sub.c.invoice_id == InvoiceDB.id)
+        .outerjoin(latest_pp, latest_pp.c.invoice_id == InvoiceDB.id)
+        .outerjoin(approved_pp, approved_pp.c.invoice_id == InvoiceDB.id)
         .where(InvoiceDB.project_id == project_id)
         .order_by(InvoiceDB.due_date.asc())
     )
     result = await db.execute(stmt)
     return [
-        InvoiceResponse(
-            id=inv.id,
-            project_id=inv.project_id,
-            code=inv.code,
-            amount=float(inv.amount),
-            due_date=inv.due_date,
-            invoiced_on=inv.invoiced_on,
-            milestone=inv.milestone,
-            observations=inv.observations,
-            status=eff,
-            postpone_count=pp_count,
-            postponed_to=pp_date if eff == "postponed" else None,
-        )
+        _build_response(inv, eff, pp_count, pp_date)
         for inv, eff, pp_count, pp_date in result.all()
     ]
 
@@ -144,6 +136,8 @@ async def create_invoice(
         invoiced_on=body.invoiced_on,
         milestone=body.milestone,
         observations=body.observations,
+        invoicing_contact_name=body.invoicing_contact_name,
+        invoicing_contact_email=body.invoicing_contact_email,
         status=body.status,
     )
     db.add(inv)

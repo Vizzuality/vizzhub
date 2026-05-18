@@ -154,7 +154,7 @@ class TestInvoices:
         client: AsyncClient,
         setup_invoices: dict,
     ) -> None:
-        """Scheduled with future date cannot be manually transitioned."""
+        """Scheduled invoices cannot jump straight to paid (skipping waiting)."""
         pid = setup_invoices["project_id"]
         resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices",
@@ -172,6 +172,32 @@ class TestInvoices:
             json={"status": "paid"},
         )
         assert resp.status_code == 400
+
+    async def test_issue_scheduled_invoice_early(
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
+    ) -> None:
+        """Scheduled invoices can be invoiced early (jump directly to waiting)."""
+        pid = setup_invoices["project_id"]
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices",
+            json={
+                "amount": 1000,
+                "code": "INV-EARLY",
+                "due_date": "2030-06-01",
+                "milestone": "M1",
+            },
+        )
+        inv_id = resp.json()["id"]
+        assert resp.json()["status"] == "scheduled"
+
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
+            json={"status": "waiting_for_payment"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "waiting_for_payment"
 
     async def test_reverse_transition_paid_to_waiting(
         self,
@@ -228,6 +254,42 @@ class TestInvoices:
 
         resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
         assert resp.json() == []
+
+    async def test_invoicing_contact_round_trip(
+        self,
+        client: AsyncClient,
+        setup_invoices: dict,
+    ) -> None:
+        """Contact name/email persist across create, list, and update."""
+        pid = setup_invoices["project_id"]
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices",
+            json={
+                "amount": 1000,
+                "code": "INV-001",
+                "due_date": "2026-06-01",
+                "milestone": "M1",
+                "invoicing_contact_name": "Maria Lopez",
+                "invoicing_contact_email": "maria@client.com",
+            },
+        )
+        assert resp.status_code == 201
+        inv_id = resp.json()["id"]
+        assert resp.json()["invoicing_contact_name"] == "Maria Lopez"
+        assert resp.json()["invoicing_contact_email"] == "maria@client.com"
+
+        # List exposes the fields
+        resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert resp.json()[0]["invoicing_contact_name"] == "Maria Lopez"
+
+        # Update can clear them
+        resp = await client.put(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}",
+            json={"invoicing_contact_name": None, "invoicing_contact_email": None},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["invoicing_contact_name"] is None
+        assert resp.json()["invoicing_contact_email"] is None
 
     async def test_list_ordered_by_due_date(
         self,

@@ -1,7 +1,7 @@
 """Tests for invoice postponement math and window boundaries.
 
 Postpone rules (see app/modules/tracker/api/postponements.py):
-- Only `pending_to_issue` invoices can be postponed.
+- Scheduled and `pending_to_issue` invoices can be postponed.
 - `base_date` = latest existing postponement date, else invoice.due_date.
 - `window_base` = max(base_date, today)
 - new date must be > base_date AND <= window_base + MAX_POSTPONE_DAYS (30).
@@ -54,12 +54,12 @@ async def setup_pending_invoice(db_session: AsyncSession, client: AsyncClient) -
 
 @pytest.mark.asyncio
 class TestPostponeWindow:
-    async def test_postpone_rejected_when_invoice_scheduled(
+    async def test_postpone_scheduled_invoice_within_window(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
     ) -> None:
-        """Scheduled (future due) invoices cannot be postponed."""
+        """Scheduled invoices: request creates pending; approve flips to postponed."""
         user = UserDB(id=DEBUG_USER_ID, email="test@example.com", name="Test User")
         db_session.add(user)
         await db_session.flush()
@@ -75,14 +75,64 @@ class TestPostponeWindow:
             json={"amount": 1000, "code": "INV-001", "due_date": future, "milestone": "M1"},
         )
         inv_id = resp.json()["id"]
+        assert resp.json()["status"] == "scheduled"
 
-        new_date = (date.today() + timedelta(days=90)).isoformat()
+        new_date = (date.today() + timedelta(days=85)).isoformat()
         resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
             json={"postponed_to": new_date, "reason": "client delay"},
         )
+        assert resp.status_code == 201
+        pp_id = resp.json()["id"]
+
+        # Pending → effective status is postpone_pending
+        resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert resp.json()[0]["status"] == "postpone_pending"
+
+        # Approve flips to postponed
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/approve",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["approval_status"] == "approved"
+
+        resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
+        assert resp.json()[0]["status"] == "postponed"
+
+    async def test_postpone_rejected_when_invoice_paid(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        """Paid invoices cannot be postponed."""
+        user = UserDB(id=DEBUG_USER_ID, email="paid@example.com", name="Paid User")
+        db_session.add(user)
+        await db_session.flush()
+        project = ProjectDB(name="ProjPaid", status="live")
+        db_session.add(project)
+        await db_session.commit()
+        await db_session.refresh(project)
+        pid = str(project.id)
+
+        past = (date.today() - timedelta(days=10)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices",
+            json={"amount": 1000, "code": "INV-P", "due_date": past, "milestone": "M1"},
+        )
+        inv_id = resp.json()["id"]
+        for s in ("waiting_for_payment", "paid"):
+            await client.post(
+                f"/api/tracker/projects/{pid}/invoices/{inv_id}/transition",
+                json={"status": s},
+            )
+
+        new_date = (date.today() + timedelta(days=20)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": new_date, "reason": "wrong"},
+        )
         assert resp.status_code == 400
-        assert "pending" in resp.json()["detail"].lower()
+        assert "scheduled or pending" in resp.json()["detail"].lower()
 
     async def test_postpone_within_30_days_succeeds(
         self,
@@ -137,13 +187,12 @@ class TestPostponeWindow:
         assert resp.status_code == 400
         assert "after" in resp.json()["detail"].lower()
 
-    async def test_cannot_postpone_already_postponed_invoice(
+    async def test_cannot_open_second_pending_postponement(
         self,
         client: AsyncClient,
         setup_pending_invoice: dict,
     ) -> None:
-        """Once postponed (latest > today), effective status is 'postponed' and a
-        new postponement is blocked until the previous one expires."""
+        """While a postpone request is pending approval, a second request is blocked."""
         pid = setup_pending_invoice["project_id"]
         inv_id = setup_pending_invoice["invoice_id"]
 
@@ -159,7 +208,7 @@ class TestPostponeWindow:
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
             json={"postponed_to": another, "reason": "second"},
         )
-        assert r2.status_code == 400
+        assert r2.status_code == 409
         assert "pending" in r2.json()["detail"].lower()
 
     async def test_postpone_to_past_date_rejected(
@@ -196,10 +245,11 @@ class TestPostponeWindow:
             json={"postponed_to": at_boundary, "reason": "max allowed"},
         )
         assert resp.status_code == 201, resp.text
+        pp_id = resp.json()["id"]
 
-        # Clear the postponement so we can retry with the over-boundary date.
-        await client.delete(
-            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
+        # Cancel the pending request so we can retry with the over-boundary date.
+        await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/cancel",
         )
 
         past_boundary = (date.today() + timedelta(days=31)).isoformat()
@@ -244,9 +294,10 @@ class TestPostponeWindow:
             json={"postponed_to": at_boundary, "reason": "max"},
         )
         assert resp.status_code == 201, resp.text
+        pp_id = resp.json()["id"]
 
-        await client.delete(
-            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
+        await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/cancel",
         )
 
         past_boundary = (date.today() + timedelta(days=31)).isoformat()
@@ -257,26 +308,140 @@ class TestPostponeWindow:
         assert resp.status_code == 400
         assert "30 days" in resp.json()["detail"]
 
-    async def test_delete_latest_postponement(
+    async def test_approve_pending_postpone_flips_to_postponed(
         self,
         client: AsyncClient,
         setup_pending_invoice: dict,
     ) -> None:
-        """Removing the latest postponement is allowed when invoice is still pending."""
         pid = setup_pending_invoice["project_id"]
         inv_id = setup_pending_invoice["invoice_id"]
 
         new_date = (date.today() + timedelta(days=15)).isoformat()
-        await client.post(
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": new_date, "reason": "client request"},
+        )
+        pp_id = resp.json()["id"]
+
+        # Pending → effective status is postpone_pending
+        items = (await client.get(f"/api/tracker/projects/{pid}/invoices")).json()
+        assert items[0]["status"] == "postpone_pending"
+
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/approve",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["approval_status"] == "approved"
+        assert resp.json()["decided_by"] is not None
+        assert resp.json()["decided_at"] is not None
+
+        items = (await client.get(f"/api/tracker/projects/{pid}/invoices")).json()
+        assert items[0]["status"] == "postponed"
+        assert items[0]["postponed_to"] == new_date
+        assert items[0]["postpone_count"] == 1
+
+    async def test_reject_pending_postpone_requires_note(
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
+    ) -> None:
+        pid = setup_pending_invoice["project_id"]
+        inv_id = setup_pending_invoice["invoice_id"]
+
+        new_date = (date.today() + timedelta(days=15)).isoformat()
+        resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
             json={"postponed_to": new_date, "reason": "x"},
+        )
+        pp_id = resp.json()["id"]
+
+        # Missing note → 400
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/reject",
+            json={"note": ""},
+        )
+        assert resp.status_code == 400
+
+        # With note → rejected
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/reject",
+            json={"note": "budget conflict"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["approval_status"] == "rejected"
+        assert resp.json()["decision_note"] == "budget conflict"
+
+        # Effective status reverts (rejected postponement is ignored)
+        items = (await client.get(f"/api/tracker/projects/{pid}/invoices")).json()
+        assert items[0]["status"] == "pending_to_issue"
+
+        # Cannot decide on a rejected request
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/approve",
+        )
+        assert resp.status_code == 400
+
+    async def test_cancel_pending_postpone_unblocks_new_request(
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
+    ) -> None:
+        pid = setup_pending_invoice["project_id"]
+        inv_id = setup_pending_invoice["invoice_id"]
+
+        new_date = (date.today() + timedelta(days=15)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": new_date, "reason": "first try"},
+        )
+        pp_id = resp.json()["id"]
+
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/cancel",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["approval_status"] == "cancelled"
+
+        # New request now allowed
+        another = (date.today() + timedelta(days=20)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": another, "reason": "second try"},
+        )
+        assert resp.status_code == 201
+
+    async def test_delete_latest_approved_postponement(
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
+    ) -> None:
+        """delete-latest removes the most recent *approved* postponement; pending/
+        rejected/cancelled rows are resolved via their own endpoints."""
+        pid = setup_pending_invoice["project_id"]
+        inv_id = setup_pending_invoice["invoice_id"]
+
+        new_date = (date.today() + timedelta(days=15)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": new_date, "reason": "x"},
+        )
+        pp_id = resp.json()["id"]
+
+        # While pending, delete-latest finds nothing to delete.
+        resp = await client.delete(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
+        )
+        assert resp.status_code == 404
+
+        # Approve and try again.
+        await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{pp_id}/approve",
         )
         resp = await client.delete(
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
         )
         assert resp.status_code == 204
 
-        # Subsequent delete returns 404 (nothing to delete).
         resp = await client.delete(
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/latest",
         )
@@ -338,6 +503,8 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=far_future,
                 reason="initial postpone",
+                approval_status="approved",
+                decided_at=now - timedelta(minutes=10),
                 created_at=now - timedelta(minutes=10),
             )
         )
@@ -346,6 +513,8 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=correction,
                 reason="corrected closer in",
+                approval_status="approved",
+                decided_at=now,
                 created_at=now,
             )
         )
@@ -374,6 +543,8 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=date.today(),
                 reason="expires today",
+                approval_status="approved",
+                decided_at=datetime.now(UTC),
             )
         )
         await db_session.commit()
@@ -403,6 +574,8 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=date.today() + timedelta(days=20),
                 reason="first",
+                approval_status="approved",
+                decided_at=now - timedelta(minutes=5),
                 created_at=now - timedelta(minutes=5),
             )
         )
@@ -411,6 +584,8 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=date.today() + timedelta(days=8),
                 reason="correction",
+                approval_status="approved",
+                decided_at=now,
                 created_at=now,
             )
         )
@@ -442,13 +617,17 @@ class TestEffectiveStatusMostRecent:
         Closes audit #27 against the read path."""
         pid, inv_id, invoice = await _seed_user_project_invoice(db_session)
 
-        # First postponement via the API (the legitimate happy path).
+        # First postponement via the API + admin approval (legitimate happy path).
         far = (date.today() + timedelta(days=30)).isoformat()
         resp = await client.post(
             f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
             json={"postponed_to": far, "reason": "client delay"},
         )
         assert resp.status_code == 201, resp.text
+        first_pp = resp.json()["id"]
+        await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{first_pp}/approve",
+        )
 
         # Corrective postponement (closer in). The API blocks a second
         # postponement while one is active, so insert directly — the bug under
@@ -459,6 +638,8 @@ class TestEffectiveStatusMostRecent:
                 invoice_id=invoice.id,
                 postponed_to=near,
                 reason="corrected",
+                approval_status="approved",
+                decided_at=datetime.now(UTC) + timedelta(minutes=1),
                 created_at=datetime.now(UTC) + timedelta(minutes=1),
             )
         )
