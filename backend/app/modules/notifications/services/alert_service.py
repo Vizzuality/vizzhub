@@ -1,11 +1,11 @@
 """Alert management service."""
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.notifications.models.slack import (
@@ -126,6 +126,34 @@ class AlertService:
 
         result = await db.execute(query)
         return result.scalar_one_or_none() is not None
+
+    @staticmethod
+    async def was_invoice_alert_sent(
+        db: AsyncSession,
+        alert_definition_id: int,
+        invoice_id: UUID,
+        fired_for_date: date,
+        alert_kind: str,
+    ) -> bool:
+        """Check if a per-invoice alert was already sent for this effective date.
+
+        Uses the shared ``alert_notifications`` table — the dedup key lives in
+        ``metadata_json`` ({invoice_id, fired_for_date, alert_kind}). The
+        re-fire semantics fall out naturally: when an approved postpone shifts
+        the effective date, the new ``fired_for_date`` has no match and the
+        alert fires for the new date.
+        """
+        query = select(
+            exists().where(
+                AlertNotificationDB.alert_definition_id == alert_definition_id,
+                AlertNotificationDB.status == "sent",
+                AlertNotificationDB.metadata_json["invoice_id"].astext == str(invoice_id),
+                AlertNotificationDB.metadata_json["fired_for_date"].astext
+                == fired_for_date.isoformat(),
+                AlertNotificationDB.metadata_json["alert_kind"].astext == alert_kind,
+            )
+        )
+        return bool(await db.scalar(query))
 
     @staticmethod
     async def get_template(

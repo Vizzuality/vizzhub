@@ -56,6 +56,14 @@ SCHEDULED_JOBS = {
         "channel_setting_key": "leadership_channel_id",
         "channel_label": "Leadership Channel",
     },
+    "check_invoice_alerts": {
+        "name": "check_invoice_alerts",
+        "schedule": "Daily at 9:30 AM UTC",
+        "description": (
+            "DMs the project manager 30 and 15 days before an invoice's scheduled date, "
+            "and pings the configured issuer in the configured channel 1 day before."
+        ),
+    },
     "collect_iso_snapshot": {
         "name": "collect_iso_snapshot",
         "schedule": "Monthly on 1st at 6:00 AM UTC",

@@ -1,14 +1,18 @@
 """Tests for Slack Alert and Template Admin API endpoints."""
 
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
 
 from app.core.models.integration_setting import IntegrationSettingDB
 from app.core.models.oauth import OAuthTokenDB
+from app.core.models.user import UserDB
 from app.core.token_encryption import encrypt_token
 from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
+
+DEBUG_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 class TestAlertDefinitionsAPI:
@@ -228,6 +232,55 @@ class TestAlertTestEndpoint:
         """Test alert returns 404 for non-existent alert."""
         response = await client.post("/api/admin/alerts/99999/test")
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_test_alert_project_type_dms_caller(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        """Project-typed alerts without an explicit recipient DM the caller.
+
+        Mirrors what runtime-resolved recipients (PM, issuer) would see,
+        instead of misleadingly using the leadership channel.
+        """
+        token = OAuthTokenDB(
+            provider="slack",
+            access_token=encrypt_token("xoxb-test-token"),
+            token_type="bot",
+        )
+        db_session.add(token)
+
+        caller = UserDB(
+            id=DEBUG_USER_ID,
+            email="caller@example.com",
+            name="Caller",
+            slack_user_id="U_CALLER",
+        )
+        db_session.add(caller)
+
+        alert = AlertDefinitionDB(
+            name="project_runtime_alert",
+            category="business",
+            channel_type="project",
+            schedule="daily",
+            is_enabled=True,
+            config_json={},
+        )
+        db_session.add(alert)
+        await db_session.commit()
+        await db_session.refresh(alert)
+
+        with patch(
+            "app.modules.notifications.api.slack_admin.SlackService.send_message",
+            new_callable=AsyncMock,
+            return_value={"ok": True},
+        ) as mock_send:
+            response = await client.post(f"/api/admin/alerts/{alert.id}/test")
+
+        assert response.status_code == 200
+        assert response.json()["ok"] is True
+        assert response.json()["channel_id"] == "U_CALLER"
+        mock_send.assert_called_once()
+        assert mock_send.call_args.args[1] == "U_CALLER"
 
 
 class TestMessageTemplatesAPI:

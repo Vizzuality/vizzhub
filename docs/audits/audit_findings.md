@@ -577,7 +577,7 @@ These items were tagged Major in the original audit but landed in the T1–T7 fi
   - Fix: `data.amount = value === '' ? 0 : Number(value)` and check for `Number.isFinite`.
   - Added: 2026-05-14 by audit_tech_debt iteration #18
 
-- ~~**Unused error state in `InvoiceDetail`**~~ **[fixed by invoice-detail unification refactor]** — `frontend/src/modules/tracker/pages/InvoiceDetail.tsx` is now a thin route wrapper; error state lives in the new `InvoiceDetailContent` where it's actually rendered via `setError` → in-card banner.
+- ~~**Unused error state in `InvoiceDetail`**~~ **[fixed d8c62300]** — `frontend/src/modules/tracker/pages/InvoiceDetail.tsx` is now a thin route wrapper; error state lives in the new `InvoiceDetailContent` where it's actually rendered via `setError` → in-card banner.
   - Module: `frontend / tracker / pages`
   - Detail: `useState<string | null>` for `errorMsg` and a `showError` callback are declared but never written. Dead code.
   - Fix: Either wire the error path (improves the AlertDialog fix above) or delete.

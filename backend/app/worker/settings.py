@@ -103,6 +103,7 @@ class WorkerSettings:
 # Register tasks at module level for ARQ discovery
 from app.worker.check_business_alerts import check_business_alerts  # noqa: E402
 from app.worker.check_dependabot import check_dependabot_alerts  # noqa: E402
+from app.worker.check_invoice_alerts import check_invoice_alerts  # noqa: E402
 from app.worker.cleanup_mcp_oauth import cleanup_mcp_oauth  # noqa: E402
 from app.worker.collect_iso_snapshot import collect_iso_snapshot  # noqa: E402
 from app.worker.export_iso_docs_gdrive import export_iso_docs_gdrive_task  # noqa: E402
@@ -120,6 +121,7 @@ WorkerSettings.functions = [
     capture_history_task,
     check_dependabot_alerts,
     check_business_alerts,
+    check_invoice_alerts,
     collect_iso_snapshot,
     monthly_scorecard_capture,
     fetch_exchange_rates,
@@ -137,6 +139,7 @@ WorkerSettings.functions = [
 WorkerSettings.cron_jobs = [
     cron(check_dependabot_alerts, hour=8, minute=0),
     cron(check_business_alerts, hour=9, minute=0),
+    cron(check_invoice_alerts, hour=9, minute=30),  # Daily — invoice advance + issue reminders
     cron(collect_iso_snapshot, day=1, hour=6, minute=0),  # Monthly 1st at 6 AM UTC
     cron(monthly_scorecard_capture, day=5, hour=2, minute=0),  # Monthly 5th at 2 AM UTC
     cron(fetch_exchange_rates, hour=14, minute=30),  # Daily — ECB publishes ~14:00 UTC

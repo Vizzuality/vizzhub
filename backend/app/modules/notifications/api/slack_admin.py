@@ -23,6 +23,7 @@ from app.modules.notifications.api.schemas.slack import (
     MessageTemplateResponse,
     MessageTemplateUpdate,
 )
+from app.core.models.user import UserDB
 from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
 from app.modules.notifications.services.slack_service import SlackAPIError, SlackService
 
@@ -104,10 +105,24 @@ async def test_alert(
             error="No Slack bot token configured",
         )
 
-    recipient = (alert.config_json or {}).get("recipient_slack_user_id", "")
-    if recipient:
-        channel_id = recipient
-    else:
+    # Resolution order:
+    #   1. explicit recipient_slack_user_id  (DM that user)
+    #   2. explicit recipient_slack_channel_id  (post to that channel)
+    #   3. channel_type == 'project' → caller's own DM, so the admin pressing
+    #      Test gets a representative preview of what the runtime-resolved
+    #      recipient (PM, issuer) would actually receive.
+    #   4. leadership channel as last resort.
+    config = alert.config_json or {}
+    channel_id = config.get("recipient_slack_user_id") or config.get(
+        "recipient_slack_channel_id"
+    )
+
+    if not channel_id and alert.channel_type == "project":
+        channel_id = await db.scalar(
+            select(UserDB.slack_user_id).where(UserDB.id == current_user.user_id)
+        )
+
+    if not channel_id:
         channel_id = await IntegrationTokenService.get_setting(db, "slack", "leadership_channel_id")
         if not channel_id:
             return AlertTestResponse(

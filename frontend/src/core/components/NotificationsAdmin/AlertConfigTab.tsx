@@ -7,6 +7,8 @@ import {
   useTestAlert,
 } from '../../hooks/useAlertDefinitions';
 import { useUsers } from '../../hooks/useUsers';
+import { useSlackChannels } from '@/core/hooks/useSlackChannels';
+import { SlackChannelCombobox } from '@/shared/components/ui/SlackChannelCombobox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
@@ -36,7 +38,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/shared/components/ui/dialog';
-import { FileText, Settings, Play, CheckCircle, XCircle, User, Check, ChevronsUpDown } from 'lucide-react';
+import { FileText, Settings, Play, CheckCircle, XCircle, User, Check, ChevronsUpDown, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getFullName } from '@/utils/formatters';
 import type { AlertDefinition, MessageTemplate } from '@/types';
@@ -66,20 +68,28 @@ function getScheduleBadge(schedule: string): JSX.Element {
   return <Badge variant="outline">{label}</Badge>;
 }
 
+const NON_THRESHOLD_KEYS = new Set(['recipient_slack_user_id', 'recipient_slack_channel_id']);
+
 function hasRecipientConfig(configJson: Record<string, unknown>): boolean {
   return 'recipient_slack_user_id' in configJson;
 }
 
+function hasChannelConfig(configJson: Record<string, unknown>): boolean {
+  return 'recipient_slack_channel_id' in configJson;
+}
+
 function hasThresholdEntries(configJson: Record<string, unknown>): boolean {
-  return Object.keys(configJson).some((k) => k !== 'recipient_slack_user_id');
+  return Object.keys(configJson).some((k) => !NON_THRESHOLD_KEYS.has(k));
 }
 
 
 function configToEntries(configJson: Record<string, unknown>): ThresholdEntry[] {
-  return Object.entries(configJson).map(([key, value]) => ({
-    key,
-    value: String(value),
-  }));
+  return Object.entries(configJson)
+    .filter(([key]) => !NON_THRESHOLD_KEYS.has(key))
+    .map(([key, value]) => ({
+      key,
+      value: String(value),
+    }));
 }
 
 function entriesToConfig(entries: ThresholdEntry[]): Record<string, unknown> {
@@ -115,6 +125,9 @@ export default function AlertConfigTab(): JSX.Element {
   const [selectedRecipient, setSelectedRecipient] = useState<string>('');
   const [recipientComboOpen, setRecipientComboOpen] = useState(false);
 
+  const [channelDialogAlert, setChannelDialogAlert] = useState<AlertDefinition | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<string>('');
+
   const [testResult, setTestResult] = useState<{
     alertId: number;
     ok: boolean;
@@ -123,6 +136,7 @@ export default function AlertConfigTab(): JSX.Element {
 
   const { data: alertDefinitions, isLoading } = useAlertDefinitions();
   const { data: allUsers } = useUsers();
+  const { channels: slackChannels } = useSlackChannels();
   const updateAlert = useUpdateAlertDefinition();
   const { data: templates, isLoading: templatesLoading } = useAlertTemplates(
     templateDialogAlert?.id ?? null
@@ -187,10 +201,16 @@ export default function AlertConfigTab(): JSX.Element {
 
   const handleSaveThresholds = async (): Promise<void> => {
     if (!thresholdsDialogAlert) return;
-    const newConfig = entriesToConfig(thresholdEntries);
+    const thresholdsConfig = entriesToConfig(thresholdEntries);
+    const preserved: Record<string, unknown> = {};
+    for (const key of NON_THRESHOLD_KEYS) {
+      if (key in thresholdsDialogAlert.config_json) {
+        preserved[key] = (thresholdsDialogAlert.config_json as Record<string, unknown>)[key];
+      }
+    }
     await updateAlert.mutateAsync({
       id: thresholdsDialogAlert.id,
-      data: { config_json: newConfig },
+      data: { config_json: { ...preserved, ...thresholdsConfig } },
     });
     handleCloseThresholdsDialog();
   };
@@ -236,6 +256,39 @@ export default function AlertConfigTab(): JSX.Element {
     if (!slackId) return null;
     const user = (allUsers ?? []).find((u: UserType) => u.slack_user_id === slackId);
     return user ? getFullName(user.first_name, user.last_name, user.email) : slackId;
+  };
+
+  const handleOpenChannelDialog = (alert: AlertDefinition): void => {
+    setChannelDialogAlert(alert);
+    setSelectedChannel(
+      (alert.config_json as Record<string, string>).recipient_slack_channel_id ?? '',
+    );
+  };
+
+  const handleCloseChannelDialog = (): void => {
+    setChannelDialogAlert(null);
+    setSelectedChannel('');
+  };
+
+  const handleSaveChannel = async (): Promise<void> => {
+    if (!channelDialogAlert) return;
+    await updateAlert.mutateAsync({
+      id: channelDialogAlert.id,
+      data: {
+        config_json: {
+          ...channelDialogAlert.config_json,
+          recipient_slack_channel_id: selectedChannel,
+        },
+      },
+    });
+    handleCloseChannelDialog();
+  };
+
+  const getChannelName = (alert: AlertDefinition): string | null => {
+    const id = (alert.config_json as Record<string, string>).recipient_slack_channel_id;
+    if (!id) return null;
+    const channel = slackChannels.find((c) => c.id === id);
+    return channel ? `#${channel.name}` : id;
   };
 
   const handleTestAlert = async (alert: AlertDefinition): Promise<void> => {
@@ -320,6 +373,17 @@ export default function AlertConfigTab(): JSX.Element {
                       >
                         <User className="h-4 w-4 mr-2" />
                         {getRecipientName(alert) ?? 'Recipient'}
+                      </Button>
+                    )}
+
+                    {hasChannelConfig(alert.config_json) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenChannelDialog(alert)}
+                      >
+                        <Hash className="h-4 w-4 mr-2" />
+                        {getChannelName(alert) ?? 'Channel'}
                       </Button>
                     )}
 
@@ -561,6 +625,48 @@ export default function AlertConfigTab(): JSX.Element {
             <Button
               onClick={handleSaveRecipient}
               disabled={updateAlert.isPending || !selectedRecipient}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Channel Dialog */}
+      <Dialog
+        open={channelDialogAlert !== null}
+        onOpenChange={(open) => !open && handleCloseChannelDialog()}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Channel</DialogTitle>
+            <DialogDescription>
+              Choose the Slack channel where this alert will be posted.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <Label className="font-medium mb-2 block">Channel</Label>
+            <SlackChannelCombobox
+              value={selectedChannel}
+              onValueChange={setSelectedChannel}
+              channels={slackChannels}
+              className="w-full"
+            />
+            {slackChannels.length === 0 && (
+              <p className="text-muted-foreground text-sm mt-2">
+                No Slack channels available — check the Slack integration is connected.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseChannelDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveChannel}
+              disabled={updateAlert.isPending || !selectedChannel}
             >
               Save
             </Button>
