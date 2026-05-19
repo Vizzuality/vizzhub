@@ -172,7 +172,7 @@ already cover it; pre-commit duplication isn't worth it for the pilot).
   recipe is the working-tree variant for ad-hoc checks; the two are
   intentionally different commands.
 
-**Shipped in commits:** `f4eb24d0` (configs + justfile + doc).
+**Shipped in commits:** `90a68c0c` (configs + justfile + doc).
 
 ---
 
