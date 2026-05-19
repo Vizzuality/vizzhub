@@ -20,11 +20,16 @@ from app.main import app
 
 
 def _viewer_token() -> TokenData:
-    """A user-role token: has CAPACITY_VIEW, lacks CAPACITY_MANAGE."""
+    """A token with CAPACITY_VIEW only — exercises the require_permission gate.
+
+    Note: the `user` role grants CAPACITY_MANAGE in production (planner is
+    self-service for everyone). This synthetic token strips it on purpose to
+    keep the FastAPI dependency-chain check covered.
+    """
     return TokenData(
         user_id=str(uuid4()),
         email="viewer@example.com",
-        roles=["user"],
+        roles=["viewer_only"],
         permissions=["capacity:view"],
     )
 

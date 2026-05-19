@@ -12,6 +12,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.EVENTS_VIEW,
         Action.DEVSTACK_VIEW,
         Action.CAPACITY_VIEW,
+        Action.CAPACITY_MANAGE,
     },
     "manager": {
         Action.PROJECTS_VIEW,
