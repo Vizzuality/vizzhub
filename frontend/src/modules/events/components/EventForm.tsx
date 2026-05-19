@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -138,8 +138,13 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
   const [warning, setWarning] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Hydrate the form once from the loaded event. Re-syncing on every
+  // `existingEvent` reference change (e.g. background refetch after a save
+  // invalidates the query) would silently overwrite in-progress edits and
+  // make field changes look like "they didn't save".
+  const hydratedForId = useRef<string | null>(null);
   useEffect(() => {
-    if (existingEvent && !isNew) {
+    if (existingEvent && !isNew && hydratedForId.current !== existingEvent.id) {
       setForm({
         name: existingEvent.name,
         event_type: existingEvent.event_type,
@@ -159,6 +164,7 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
       const mapped = existingEvent.attendees.map(attendeeToLocal);
       setAttendees(mapped);
       setOriginalAttendees(mapped);
+      hydratedForId.current = existingEvent.id;
     }
   }, [existingEvent, isNew]);
 

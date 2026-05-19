@@ -76,6 +76,24 @@ class TestEventsCRUD:
         assert Decimal(str(data["other_costs"])) == Decimal("3000")
 
     @pytest.mark.asyncio
+    async def test_update_event_region_focus_persists(self, client: AsyncClient):
+        """PUT /events/{id} with region_focus must persist the new value."""
+        create_resp = await client.post("/api/events", json=_event_payload())
+        event_id = create_resp.json()["id"]
+        assert create_resp.json()["region_focus"] == "Europe"
+
+        resp = await client.put(
+            f"/api/events/{event_id}",
+            json={"region_focus": "Asia-Pacific"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["region_focus"] == "Asia-Pacific"
+
+        # Read back to confirm DB state (not just response echo)
+        get_resp = await client.get(f"/api/events/{event_id}")
+        assert get_resp.json()["region_focus"] == "Asia-Pacific"
+
+    @pytest.mark.asyncio
     async def test_delete_event(self, client: AsyncClient):
         create_resp = await client.post("/api/events", json=_event_payload())
         event_id = create_resp.json()["id"]
