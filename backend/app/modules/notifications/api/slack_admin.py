@@ -13,6 +13,7 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 ScorecardManager = Annotated[TokenData, Depends(require_permission(Action.SCORECARD_MANAGE))]
+from app.core.models.user import UserDB
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.notifications.api.schemas.slack import (
     AlertDefinitionResponse,
@@ -23,7 +24,6 @@ from app.modules.notifications.api.schemas.slack import (
     MessageTemplateResponse,
     MessageTemplateUpdate,
 )
-from app.core.models.user import UserDB
 from app.modules.notifications.models.slack import AlertDefinitionDB, MessageTemplateDB
 from app.modules.notifications.services.slack_service import SlackAPIError, SlackService
 
@@ -113,9 +113,7 @@ async def test_alert(
     #      recipient (PM, issuer) would actually receive.
     #   4. leadership channel as last resort.
     config = alert.config_json or {}
-    channel_id = config.get("recipient_slack_user_id") or config.get(
-        "recipient_slack_channel_id"
-    )
+    channel_id = config.get("recipient_slack_user_id") or config.get("recipient_slack_channel_id")
 
     if not channel_id and alert.channel_type == "project":
         channel_id = await db.scalar(

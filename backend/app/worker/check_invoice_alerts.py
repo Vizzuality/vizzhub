@@ -81,9 +81,7 @@ def _currency_label(project: ProjectDB) -> str:
     return mapping.get(project.currency, project.currency.upper())
 
 
-async def _effective_date_for(
-    db: AsyncSession, invoice: InvoiceDB, today: date
-) -> date | None:
+async def _effective_date_for(db: AsyncSession, invoice: InvoiceDB, today: date) -> date | None:
     """Return the effective scheduled date for this invoice.
 
     Returns ``None`` when the invoice is not in an alertable state
@@ -100,9 +98,7 @@ async def _effective_date_for(
     )
     postponements = list(result.scalars().all())
 
-    latest_approved = next(
-        (p for p in postponements if p.approval_status == "approved"), None
-    )
+    latest_approved = next((p for p in postponements if p.approval_status == "approved"), None)
     if latest_approved is not None and latest_approved.postponed_to > today:
         return latest_approved.postponed_to
 
@@ -326,9 +322,7 @@ async def _process_candidate(
         for threshold, kind in ADVANCE_STEPS:
             if await _fire_advance(db, inv_ctx, advance_def, bot_token, threshold, kind):
                 sent += 1
-    if issue_def is not None and await _fire_issue_reminder(
-        db, inv_ctx, issue_def, bot_token
-    ):
+    if issue_def is not None and await _fire_issue_reminder(db, inv_ctx, issue_def, bot_token):
         sent += 1
     return sent
 
@@ -348,9 +342,7 @@ async def check_invoice_alerts(ctx: dict) -> dict[str, Any]:
 
         definitions = await _get_alert_definitions(db)
         if not definitions:
-            return await complete_with_error(
-                db, job_run, "No enabled invoice alert definitions"
-            )
+            return await complete_with_error(db, job_run, "No enabled invoice alert definitions")
 
         today = date.today()
         candidates = await _candidate_contexts(db, today)

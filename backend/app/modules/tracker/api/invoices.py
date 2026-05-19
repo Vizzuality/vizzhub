@@ -116,8 +116,7 @@ async def list_invoices(
     )
     result = await db.execute(stmt)
     return [
-        _build_response(inv, eff, pp_count, pp_date)
-        for inv, eff, pp_count, pp_date in result.all()
+        _build_response(inv, eff, pp_count, pp_date) for inv, eff, pp_count, pp_date in result.all()
     ]
 
 

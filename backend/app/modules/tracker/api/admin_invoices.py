@@ -42,9 +42,9 @@ def _postponement_context(today: dt.date):
 
 def _join_postponements(stmt, latest_pp, approved_pp):
     """Attach the two postponement subqueries as left joins on ``invoice_id``."""
-    return stmt.outerjoin(
-        latest_pp, latest_pp.c.invoice_id == InvoiceDB.id
-    ).outerjoin(approved_pp, approved_pp.c.invoice_id == InvoiceDB.id)
+    return stmt.outerjoin(latest_pp, latest_pp.c.invoice_id == InvoiceDB.id).outerjoin(
+        approved_pp, approved_pp.c.invoice_id == InvoiceDB.id
+    )
 
 
 def _status_filter(status: str, today, latest_pp, approved_pp):
@@ -53,12 +53,16 @@ def _status_filter(status: str, today, latest_pp, approved_pp):
         return latest_pp.c.latest_status == "pending"
     not_pending = (latest_pp.c.latest_status != "pending") | latest_pp.c.latest_status.is_(None)
     if status == "pending_to_issue":
-        return not_pending & (
-            (InvoiceDB.status == "pending_to_issue")
-            | ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today))
-        ) & (
-            approved_pp.c.approved_postponed_to.is_(None)
-            | (approved_pp.c.approved_postponed_to <= today)
+        return (
+            not_pending
+            & (
+                (InvoiceDB.status == "pending_to_issue")
+                | ((InvoiceDB.status == "scheduled") & (InvoiceDB.due_date <= today))
+            )
+            & (
+                approved_pp.c.approved_postponed_to.is_(None)
+                | (approved_pp.c.approved_postponed_to <= today)
+            )
         )
     if status == "postponed":
         return (
@@ -278,7 +282,15 @@ async def list_all_invoices(
     )
 
     base = _apply_filters(
-        base, status, project_id, search, due_from, due_to, today, latest_pp, approved_pp,
+        base,
+        status,
+        project_id,
+        search,
+        due_from,
+        due_to,
+        today,
+        latest_pp,
+        approved_pp,
     )
 
     count_stmt = select(func.count()).select_from(base.subquery())

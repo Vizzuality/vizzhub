@@ -17,17 +17,16 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
-from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.oauth import OAuthTokenDB
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.core.token_encryption import encrypt_token
-from app.core.models.oauth import OAuthTokenDB
 from app.modules.notifications.models.slack import (
     AlertDefinitionDB,
     AlertNotificationDB,
@@ -38,9 +37,7 @@ from app.modules.tracker.models.postponement import InvoicePostponementDB
 from app.worker.check_invoice_alerts import (
     ALERT_ADVANCE,
     ALERT_ISSUE,
-    KIND_15D,
     KIND_30D,
-    KIND_ISSUE,
     check_invoice_alerts,
 )
 
@@ -148,9 +145,7 @@ async def _make_invoice_with_pm(
 
 @pytest.mark.asyncio
 class TestInvoiceAlerts:
-    async def test_30d_alert_fires_for_pm(
-        self, db_session: AsyncSession, slack_and_alerts
-    ) -> None:
+    async def test_30d_alert_fires_for_pm(self, db_session: AsyncSession, slack_and_alerts) -> None:
         project, invoice, pm = await _make_invoice_with_pm(db_session, due_in_days=20)
         assert pm is not None
 
@@ -173,8 +168,7 @@ class TestInvoiceAlerts:
         log = (
             await db_session.execute(
                 select(AlertNotificationDB).where(
-                    AlertNotificationDB.alert_definition_id
-                    == slack_and_alerts[ALERT_ADVANCE].id
+                    AlertNotificationDB.alert_definition_id == slack_and_alerts[ALERT_ADVANCE].id
                 )
             )
         ).scalar_one()
@@ -269,8 +263,7 @@ class TestInvoiceAlerts:
         log = (
             await db_session.execute(
                 select(AlertNotificationDB).where(
-                    AlertNotificationDB.alert_definition_id
-                    == slack_and_alerts[ALERT_ADVANCE].id
+                    AlertNotificationDB.alert_definition_id == slack_and_alerts[ALERT_ADVANCE].id
                 )
             )
         ).scalar_one()
@@ -331,9 +324,7 @@ class TestInvoiceAlerts:
         db_session.add(pm)
         await db_session.flush()
 
-        project = ProjectDB(
-            name="P", status="live", currency="dollar", project_manager_id=pm.id
-        )
+        project = ProjectDB(name="P", status="live", currency="dollar", project_manager_id=pm.id)
         db_session.add(project)
         await db_session.flush()
         db_session.add(
@@ -357,9 +348,7 @@ class TestInvoiceAlerts:
         assert result["alerts_sent"] == 0
         mock_send.assert_not_called()
 
-    async def test_paid_invoice_skipped(
-        self, db_session: AsyncSession, slack_and_alerts
-    ) -> None:
+    async def test_paid_invoice_skipped(self, db_session: AsyncSession, slack_and_alerts) -> None:
         await _make_invoice_with_pm(db_session, due_in_days=10, raw_status="paid")
 
         with patch(

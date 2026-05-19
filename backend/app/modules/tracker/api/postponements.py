@@ -110,7 +110,10 @@ async def _send_dm(
     if not bot_token:
         return
     slack_result = await SlackService.send_message(
-        bot_token, recipient, message, unfurl_links=False,
+        bot_token,
+        recipient,
+        message,
+        unfurl_links=False,
     )
     if alert_def_id is not None:
         await AlertService.log_notification(
@@ -273,9 +276,7 @@ async def _project_name(db: AsyncSession, project_id: UUID) -> str:
     return project.name if project else "Unknown"
 
 
-async def _latest_approved_postponed_to(
-    db: AsyncSession, invoice_id: UUID
-) -> date | None:
+async def _latest_approved_postponed_to(db: AsyncSession, invoice_id: UUID) -> date | None:
     """Date of the most recently approved postponement, if any."""
     result = await db.execute(
         select(InvoicePostponementDB.postponed_to)
