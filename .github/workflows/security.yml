@@ -1,0 +1,123 @@
+name: Security
+
+# Phase 3 of the code-quality rollout (see docs/code-quality-rollout.md).
+# - Semgrep: SAST. Diff-aware on PRs, full scan on push to main/dev.
+# - Gitleaks: secret scanning. Commit-range on PRs, full history on push.
+# Both upload SARIF to the GitHub Security tab under distinct categories,
+# so duplicates with SonarCloud (where adopted) can be triaged separately.
+
+on:
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main, dev]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  workflow_call:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install Semgrep
+        run: pip install semgrep==1.163.0
+
+      - name: Run Semgrep (PR diff-aware)
+        if: github.event_name == 'pull_request'
+        env:
+          SEMGREP_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          semgrep scan \
+            --config p/default \
+            --baseline-commit "$SEMGREP_BASELINE_REF" \
+            --sarif --output=semgrep.sarif \
+            --error \
+            --metrics=off
+
+      - name: Run Semgrep (full scan on push)
+        if: github.event_name == 'push'
+        run: |
+          semgrep scan \
+            --config p/default \
+            --sarif --output=semgrep.sarif \
+            --metrics=off
+
+      - name: Upload SARIF to GitHub Security
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@f411752efdf656cb71aa17b755b22c890960da1d  # v3.35.5
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar xzf gitleaks.tar.gz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run gitleaks (PR scope)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gitleaks git \
+            --log-opts="--no-merges $BASE_SHA..$HEAD_SHA" \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1 \
+            --redact
+
+      - name: Run gitleaks (full scan on push)
+        if: github.event_name == 'push'
+        run: |
+          gitleaks git \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1 \
+            --redact
+
+      - name: Upload SARIF to GitHub Security
+        if: always() && hashFiles('gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@f411752efdf656cb71aa17b755b22c890960da1d  # v3.35.5
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks

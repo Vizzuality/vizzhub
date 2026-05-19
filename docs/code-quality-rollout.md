@@ -204,31 +204,73 @@ either. Failing early here is cheap.
 
 ---
 
-## Phase 3 — SAST + secrets in PR gate (SARIF)
+## Phase 3 — SAST + secrets in PR gate (SARIF) ✅ Done (2026-05-19, VizzHub-local)
 
 **Goal:** route security findings through GitHub's Security tab with
 stable categories and SARIF history.
 
-**Adds, into the same callable workflow:**
-- Semgrep step. On `pull_request`: `semgrep ci` (diff-aware against
-  base ref). On `push`: `semgrep scan` (full). SARIF uploaded with
-  `category: semgrep`.
-- Gitleaks action (PR-scoped). SARIF uploaded with `category: gitleaks`.
-- `security-events: write` permission added to the caller in VizzHub.
+**Adds, into a VizzHub-local `.github/workflows/security.yml`** (Phase 2
+callable workflow deferred — shipped here directly; will be lifted into
+`quality-templates` when Phase 2 lands):
+- Semgrep job. On `pull_request`: diff-aware via `--baseline-commit
+  ${PR base SHA}`. On `push` to `main`/`dev`: full scan. SARIF uploaded
+  with `category: semgrep`.
+- Gitleaks job. On `pull_request`: scoped to the PR commit range. On
+  `push`: full scan. SARIF uploaded with `category: gitleaks`.
+- `permissions: security-events: write` set at workflow level so SARIF
+  uploads land in the Security tab.
 
 **Exit criteria:**
-- One PR that intentionally introduces a finding shows up in the
-  Security tab under the correct category and **blocks merge**.
-- Three weeks of real PRs without Semgrep + Sonar producing duplicate
+- ✅ Workflow lands on `dev` + `main`; both Semgrep and Gitleaks jobs
+  run on the next PR/push.
+- ⏳ One PR that intentionally introduces a finding shows up in the
+  Security tab under the correct category and **blocks merge** (needs
+  branch-protection rule wiring + a synthetic PR).
+- ⏳ Three weeks of real PRs without Semgrep + Sonar producing duplicate
   blocking findings on the same line. If duplicates happen, decide
   category dedup strategy before any other repo joins.
-- The baseline-debt policy in `SECURITY.md` is exercised at least once
+- ⏳ The baseline-debt policy in `SECURITY.md` is exercised at least once
   — a legacy finding triaged as `baseline` instead of fixed.
 
 **Why now and not earlier:** running SAST against a repo with years of
 history without the baseline-debt policy in place would either flood the
 backlog or train the team to dismiss findings. Phase 0 wrote the policy;
 this phase is the first time we exercise it.
+
+**Implementation notes (2026-05-19):**
+
+- **Phase 2 deferred, content shipped VizzHub-local.** Creating
+  `Vizzuality/quality-templates` is an org-level decision (new repo,
+  branch protection, versioning) that doesn't belong in a coding
+  session. We applied the same precedent as Phase 0's frontend-lint
+  addition — ship the content in VizzHub, lift it to the callable
+  workflow later when Phase 2 lands. The file is structured so the
+  move is mechanical: the `workflow_call:` trigger is already in
+  place, and the steps are framework-agnostic.
+- **No `semgrep ci`; we use `semgrep scan --baseline-commit`.**
+  `semgrep ci` requires login to the Semgrep AppSec Platform; the
+  bare `semgrep scan` command with `--baseline-commit "$GITHUB_BASE_SHA"`
+  delivers the same diff-aware semantics on PRs without an account.
+  `--config p/default` pulls the curated Semgrep registry pack — no
+  config file in the repo.
+- **Gitleaks via binary, not the v2 action.** `gitleaks-action@v2`
+  changed licensing in 2024 (free for OSS, paid for org-private). We
+  download the binary directly from the upstream GitHub release and
+  pin to `v8.30.1` — same version pinned in `.pre-commit-config.yaml`,
+  keeping local hooks and CI in lockstep. Repo's existing
+  `.gitleaks.toml` + `.gitleaksignore` apply to both.
+- **SARIF upload guarded by `hashFiles(...) != ''`.** When a scan
+  produces zero findings, some versions of Semgrep skip writing the
+  SARIF file. Without the guard, `upload-sarif` fails the job
+  spuriously. Matches the pattern documented in `codeql-action`'s
+  README.
+- **`--error` on PRs, no `--error` on push.** PRs fail on net-new
+  findings (the gate). Pushes to `main`/`dev` only upload SARIF for
+  visibility — they don't fail. This is what makes the baseline-debt
+  policy operational: legacy findings stay reportable without
+  spamming the on-call build status.
+
+**Shipped in commit:** TBD.
 
 ---
 
@@ -417,6 +459,9 @@ phases conclude; this file is the durable record once memory ages out.
 | 2026-05-17 | 0 | Add `npm run lint` to frontend CI as part of Phase 0 | Discovery surfaced during implementation: frontend job only ran `npm test`, so 3 pre-existing ESLint errors had never failed CI. Fix is generic, belongs in the baseline. |
 | 2026-05-19 | 1 | Use `.gitleaksignore` fingerprints for one-shot exceptions, regex allowlist only for *families* of placeholders | Fingerprints are surgical (single commit + line) and decay when code moves; regexes mask whole shape-classes and risk hiding real secrets. The repo's only historical FP (`max_results=1` matched as a generic key) is fingerprint-only — no new regex needed. |
 | 2026-05-19 | 1 | Pin `ruff-pre-commit` to the same ruff version as `backend/pyproject.toml` (`v0.15.12`) | Keeps local hooks and CI in lockstep; Renovate (Phase 4) will move both pins together. Tag pinning over SHA pinning matches the Phase 0 precedent — readability over reproducibility for hooks the dev runs locally. |
+| 2026-05-19 | 3 | Ship Phase 3 VizzHub-local, defer Phase 2 (`quality-templates` callable) | Creating a new org-wide repo is heavier than the unblocking value it provides. Precedent set by Phase 0's frontend-lint addition. The security workflow file is structured so the move into a callable workflow is mechanical (`workflow_call:` trigger pre-wired). |
+| 2026-05-19 | 3 | Semgrep via `pip install semgrep==1.163.0` + `--config p/default`, not `semgrep ci` | `semgrep ci` requires a Semgrep AppSec Platform account; `--baseline-commit` on `scan` delivers the same diff-aware semantics for free. `p/default` is the broad curated pack — narrow it later if signal/noise needs tuning. |
+| 2026-05-19 | 3 | Gitleaks via the upstream binary (`v8.30.1`), not `gitleaks-action@v2` | Action v2 changed licensing in 2024 (free for OSS, paid for org-private). Binary install is one curl + tar, version-pinned identically to `.pre-commit-config.yaml` so local hooks and CI stay in lockstep. |
 
 ## Open questions
 
