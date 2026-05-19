@@ -220,7 +220,7 @@ function StatusBlock({
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {(status === 'scheduled' || status === 'pending_to_issue') && (
+            {(status === 'scheduled' || status === 'pending_to_issue' || status === 'postponed') && (
               <PostponeAction
                 invoice={invoice}
                 open={postponeOpen}

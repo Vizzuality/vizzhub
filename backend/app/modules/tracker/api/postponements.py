@@ -328,10 +328,10 @@ async def postpone_invoice(
         )
 
     eff, _, _ = await _invoice_status_info(inv, db)
-    if eff not in ("scheduled", "pending_to_issue"):
+    if eff not in ("scheduled", "pending_to_issue", "postponed"):
         raise HTTPException(
             status_code=400,
-            detail="Only scheduled or pending invoices can be postponed",
+            detail="Only scheduled, pending or already-postponed invoices can be postponed",
         )
 
     latest_approved = await _latest_approved_postponed_to(db, invoice_id)

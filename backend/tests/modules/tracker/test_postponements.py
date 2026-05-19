@@ -99,6 +99,51 @@ class TestPostponeWindow:
         resp = await client.get(f"/api/tracker/projects/{pid}/invoices")
         assert resp.json()[0]["status"] == "postponed"
 
+    async def test_postpone_already_postponed_invoice_extends(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        """An invoice already in `postponed` state can receive a new (further) postpone request."""
+        user = UserDB(id=DEBUG_USER_ID, email="ext@example.com", name="Ext User")
+        db_session.add(user)
+        await db_session.flush()
+        project = ProjectDB(name="ProjExt", status="live")
+        db_session.add(project)
+        await db_session.commit()
+        await db_session.refresh(project)
+        pid = str(project.id)
+
+        future = (date.today() + timedelta(days=60)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices",
+            json={"amount": 1000, "code": "INV-EXT", "due_date": future, "milestone": "M1"},
+        )
+        inv_id = resp.json()["id"]
+
+        first_date = (date.today() + timedelta(days=85)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": first_date, "reason": "first delay"},
+        )
+        assert resp.status_code == 201
+        first_pp_id = resp.json()["id"]
+
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postponements/{first_pp_id}/approve",
+        )
+        assert resp.status_code == 200
+
+        # Effective status is now `postponed`. A new request should still be accepted,
+        # with window_base = first_date (the approved postpone date).
+        second_date = (date.today() + timedelta(days=110)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{pid}/invoices/{inv_id}/postpone",
+            json={"postponed_to": second_date, "reason": "client needs more time"},
+        )
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["postponed_to"] == second_date
+
     async def test_postpone_rejected_when_invoice_paid(
         self,
         client: AsyncClient,
@@ -132,7 +177,7 @@ class TestPostponeWindow:
             json={"postponed_to": new_date, "reason": "wrong"},
         )
         assert resp.status_code == 400
-        assert "scheduled or pending" in resp.json()["detail"].lower()
+        assert "scheduled, pending" in resp.json()["detail"].lower()
 
     async def test_postpone_within_30_days_succeeds(
         self,
