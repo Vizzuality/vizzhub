@@ -1,6 +1,6 @@
 # Legacy VizzTracker Models Reference
 
-Source: `/Volumes/Work/Dev/Vizz Tracker/vizz_trackr/app/models/`
+Source: legacy Vizz Tracker Rails app (`app/models/`).
 
 ## State Machines (AASM)
 
@@ -55,7 +55,7 @@ All use `HasStateMachine` concern (provides `next_event`, `next_state`, `with_st
 
 ### Contract
 - **Associations**: belongs_to project. has_many report_parts (restrict_with_error), non_staff_costs (destroy), budget_lines (destroy), invoices (destroy), progress_reports (destroy).
-- **Fields**: name, code, budget (float), contract_rate (float, default 175.0), start_date, end_date, alias (string array, GIN index), notes (text), summary (text), aasm_state
+- **Fields**: name, code, budget (float), contract_rate (float), start_date, end_date, alias (string array, GIN index), notes (text), summary (text), aasm_state
 - **Validations**: start_date after 2018-01-01, end_date after start_date
 - **Methods**: `full_name`, `total_burn`, `burn_percentage`, `income_to_date`, `income_percentage`, `budget_left`, `linear_income`, `latest_progress_report`
 - **Nested**: accepts_nested_attributes_for budget_lines
@@ -66,7 +66,7 @@ All use `HasStateMachine` concern (provides `next_event`, `next_state`, `with_st
 
 ### ReportingPeriod
 - **Associations**: has_many reports (destroy), non_staff_costs (destroy). has_many report_parts, contracts, users through reports.
-- **Fields**: date (unique), base_rate (float, default 175.0), aasm_state
+- **Fields**: date (unique), base_rate (float), aasm_state
 - **Methods**: `active_period` (class), `display_name`, `copy_reports_from(source)`, `to_csv`, `contracts_mean_variance_and_stdev`
 
 ### Report

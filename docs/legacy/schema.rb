@@ -41,7 +41,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_11_08_100105) do
     t.string "code"
     t.text "notes"
     t.text "summary"
-    t.float "contract_rate", default: 175.0
+    t.float "contract_rate"
     t.index ["alias"], name: "index_contracts_on_alias", using: :gin
     t.index ["project_id"], name: "index_contracts_on_project_id"
   end
@@ -131,7 +131,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_11_08_100105) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "aasm_state"
-    t.float "base_rate", default: 175.0
+    t.float "base_rate"
     t.index ["date"], name: "index_reporting_periods_on_date", unique: true
   end
 
