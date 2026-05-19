@@ -8,7 +8,7 @@ Usage (from repo root):
     PYTHONPATH=backend python backend/scripts/audit_iso_changelog.py
 
 Against prod via SSM:
-    aws ssm start-session --target i-097d6d92ab30d9622
+    aws ssm start-session --target "$EC2_INSTANCE_ID"
     # then inside the session:
     docker exec -i hub-backend python /opt/audit.py
 """
