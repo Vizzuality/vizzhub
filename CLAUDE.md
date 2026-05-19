@@ -1,5 +1,27 @@
 # CLAUDE.md
 
+## ⚠ Public repository
+
+This repository is **public on GitHub** since 2026-05-19 (MIT licensed). Every
+commit, file, and issue is visible to anyone on the internet. Before adding any
+content, consider:
+
+- **No secrets, ever** — credentials, tokens, API keys, OAuth client secrets,
+  internal connection strings. The pre-commit hook (`gitleaks`) catches the
+  obvious shapes but is not infallible.
+- **No customer-attributable detail** — real client/project names tied to
+  internal commentary, financials, or unflattering context. Generic technical
+  examples are fine.
+- **No internal-only operational data** — exact infra identifiers (EC2 instance
+  IDs, account IDs, internal hostnames), real employee names attached to
+  blame/opinions, internal Slack message quotes.
+- **Defaults that leak commercial intel** — historical defaults like the `175`
+  rate in tracker constants/models are public-aware decisions; don't introduce
+  new ones casually. Discuss before adding a new pricing/cost literal.
+
+When in doubt, ask before committing. The cost of a public mistake is much
+higher than the cost of a 30-second confirmation.
+
 ## Tech Radar
 
 **MUST check before suggesting any library, framework, or pattern.** Run:
