@@ -1,0 +1,7 @@
+# Per-commit gitleaks exceptions. One fingerprint per line.
+# Format: <commit-sha>:<file>:<rule>:<line>
+# See https://github.com/gitleaks/gitleaks#gitleaksignore.
+
+# False positive: matches a Python kwarg `max_results=1` as if it were a generic
+# API key. Match string is "project_key, max_results=1". Not a secret.
+fc3fcd2dd516e27cc09ecacfd645f111d6064048:backend/scripts/run_jira_basic.py:generic-api-key:95

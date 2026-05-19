@@ -108,7 +108,7 @@ tracking).
 
 ---
 
-## Phase 1 — Local pre-commit + secret scanning
+## Phase 1 — Local pre-commit + secret scanning ✅ Done (2026-05-19)
 
 **Goal:** catch secrets and lint regressions before they reach `origin`.
 
@@ -118,15 +118,25 @@ tracking).
   in Trial as a multi-language Husky replacement and is the radar's
   preferred path). Hooks:
   - `gitleaks` (first — fail before formatting runs)
-  - `ruff-check --fix`
+  - `ruff` with `--fix`
   - `ruff-format`
 - `.gitleaks.toml` with the baseline allowlist (test fixtures, snapshots,
   `*.example`, common false positives).
+- `.gitleaksignore` with per-commit fingerprint exceptions (the per-repo
+  exceptions file — explicitly kept *out* of the DevStack baseline).
+- `justfile` recipes: `just hooks` (installs prek hooks) and `just
+  security` (runs gitleaks on the working tree).
 
 **Exit criteria:**
-- Hooks installed on Miguel's machine via `pre-commit install`.
-- Two weeks of normal commits without `--no-verify` workarounds.
-- Zero false-positive secret findings on existing fixtures/snapshots.
+- ✅ Configs committed; `gitleaks detect --log-opts=HEAD` returns 0
+  findings against full 1566-commit history with the calibrated config.
+- ✅ Pre-commit hook (`gitleaks git --pre-commit --staged`) blocks a
+  realistic GH PAT + Slack bot token in a sanity-test file.
+- ⏳ Hooks installed on Miguel's machine via `brew install prek &&
+  just hooks` (one-time, manual).
+- ⏳ Two weeks of normal commits without `--no-verify` workarounds.
+- ✅ Zero false-positive secret findings on existing fixtures/snapshots
+  after one calibration pass.
 - If false positives appear, `.gitleaks.toml` is tuned **once** to fix
   them. If it needs tuning a second time, the rule is wrong, not the
   config — escalate before adding the second exception.
@@ -137,6 +147,32 @@ tracking).
 **Explicitly excluded from pre-commit:** Pyright (too slow, encourages
 `--no-verify`), Biome (still using ESLint), npm/eslint (project scripts
 already cover it; pre-commit duplication isn't worth it for the pilot).
+
+**Implementation notes (2026-05-19):**
+
+- **One historical false positive surfaced**: gitleaks' `generic-api-key`
+  regex matched the Python kwarg fragment `project_key, max_results=1`
+  in `backend/scripts/run_jira_basic.py:95` (commit `fc3fcd2d`).
+  Suppressed via `.gitleaksignore` fingerprint, not via a config regex —
+  fingerprints are surgical and decay automatically when the line moves.
+- **Allowlist files self-flag.** Both `.gitleaks.toml` and
+  `.gitleaksignore` contain fingerprint/secret-shaped strings by design.
+  Added both filenames to the path allowlist in the same commit so the
+  hook can scan its own config without flagging it.
+- **Hook IDs.** `ruff-pre-commit` exposes `ruff` (was `ruff-check` in
+  older revs) and `ruff-format`. Pinned both to `v0.15.12` to match the
+  ruff version in `backend/pyproject.toml` exactly — keeps the local
+  hook and CI in lockstep.
+- **AWS example keys are silently allowlisted by gitleaks defaults.**
+  Negative-testing with `AKIAIOSFODNN7EXAMPLE` (the canonical AWS-docs
+  example) returns 0 findings. Use a fake-but-realistic GH PAT
+  (`ghp_…`) for sanity tests instead.
+- **Hook pre-commit invocation is `gitleaks git --pre-commit --staged`**
+  (per the upstream `.pre-commit-hooks.yaml`). The local `just security`
+  recipe is the working-tree variant for ad-hoc checks; the two are
+  intentionally different commands.
+
+**Shipped in commits:** `f4eb24d0` (configs + justfile + doc).
 
 ---
 
@@ -379,6 +415,8 @@ phases conclude; this file is the durable record once memory ages out.
 | 2026-05-17 | 0 | Drop CodeQL from the plan entirely | GHAS licensing on private repos (~$49/committer/month) exceeds current SonarCloud spend at Vizzuality scale. Semgrep covers SAST baseline; Sonar goes deeper where adopted. Reconsider only if GitHub unbundles CodeQL or org adopts GHAS for other reasons. |
 | 2026-05-17 | 0 | Sonar stays Adopt (no sunset implied) | Sonar works where it's adopted; the new baseline (Semgrep, Gitleaks, Trivy) puts a floor under repos that don't have Sonar. They coexist; one does not replace the other. |
 | 2026-05-17 | 0 | Add `npm run lint` to frontend CI as part of Phase 0 | Discovery surfaced during implementation: frontend job only ran `npm test`, so 3 pre-existing ESLint errors had never failed CI. Fix is generic, belongs in the baseline. |
+| 2026-05-19 | 1 | Use `.gitleaksignore` fingerprints for one-shot exceptions, regex allowlist only for *families* of placeholders | Fingerprints are surgical (single commit + line) and decay when code moves; regexes mask whole shape-classes and risk hiding real secrets. The repo's only historical FP (`max_results=1` matched as a generic key) is fingerprint-only — no new regex needed. |
+| 2026-05-19 | 1 | Pin `ruff-pre-commit` to the same ruff version as `backend/pyproject.toml` (`v0.15.12`) | Keeps local hooks and CI in lockstep; Renovate (Phase 4) will move both pins together. Tag pinning over SHA pinning matches the Phase 0 precedent — readability over reproducibility for hooks the dev runs locally. |
 
 ## Open questions
 

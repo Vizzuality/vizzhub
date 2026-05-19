@@ -1,0 +1,49 @@
+# VizzHub gitleaks config — Phase 1 of the code-quality rollout
+# (see docs/code-quality-rollout.md).
+#
+# Tuning policy: this allowlist is calibrated ONCE for known false-positive
+# patterns. If a new false positive appears, prefer a `.gitleaksignore`
+# fingerprint (one-shot) over extending these regexes. If the same kind of
+# pattern recurs a second time, the rule is wrong and we escalate via the
+# SECURITY.md exception process — we do not keep adding regexes.
+
+title = "VizzHub gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths that never carry real secrets + deliberate placeholders"
+paths = [
+    # Test fixtures and snapshots
+    '''(^|/)tests?(/|$)''',
+    '''__tests__''',
+    '''__snapshots__''',
+    '''\.snap$''',
+    # Documentation and examples
+    '''\.example$''',
+    '''(^|/)docs/''',
+    '''(^|/)CHANGELOG\.md$''',
+    # Lockfiles (deps + hashes only, no secrets)
+    '''(^|/)package-lock\.json$''',
+    '''(^|/)uv\.lock$''',
+    # Vendor / build artefacts
+    '''(^|/)node_modules/''',
+    '''(^|/)\.terraform/''',
+    '''(^|/)dist/''',
+    '''(^|/)build/''',
+    # Allowlist files themselves carry fingerprint strings that look like keys
+    '''(^|/)\.gitleaksignore$''',
+    '''(^|/)\.gitleaks\.toml$''',
+]
+
+# Regex allowlist: deliberate placeholder shapes used in tracked source.
+# The patterns are narrow so they don't mask real secrets of the same family.
+regexes = [
+    # GitHub PAT placeholders used in test fixtures
+    '''ghp_test[0-9A-Za-z]*''',
+    # Slack token placeholders used in test fixtures
+    '''xox[abpe]-test[-_0-9A-Za-z]*''',
+    # JWT-shape illustrative tokens in API / planning docs
+    '''eyJhbGciOi[A-Za-z0-9._-]+''',
+]

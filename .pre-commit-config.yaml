@@ -1,0 +1,26 @@
+# Phase 1 of the code-quality rollout (see docs/code-quality-rollout.md).
+# YAML is compatible with both `pre-commit` and `prek`; we install `prek`
+# per the Tech Radar (Trial). Install locally:
+#
+#   brew install prek
+#   prek install         # equivalent to `pre-commit install`
+#
+# Order matters: gitleaks runs FIRST so a secret never gets formatted in
+# the same commit. Ruff fixes are applied to backend files only — the
+# frontend has its own ESLint pipeline.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff
+        name: ruff (check + fix)
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/

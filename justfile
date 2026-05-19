@@ -12,13 +12,14 @@ format:
     cd backend && uv run ruff check --fix .
     cd backend && uv run ruff format .
 
-# Run security scanners (added in later rollout phases — see docs/code-quality-rollout.md)
+# Install local git hooks via prek (Phase 1 — see docs/code-quality-rollout.md)
+hooks:
+    @command -v prek >/dev/null 2>&1 || { echo 'prek not installed — run `brew install prek`'; exit 1; }
+    prek install --install-hooks
+
+# Run security scanners locally (mirrors what the pre-commit hook runs)
 security:
-    @echo "Security scanners come online in later phases:"
-    @echo "  Phase 1: gitleaks (pre-commit + nightly)"
-    @echo "  Phase 3: semgrep (PR gate)"
-    @echo "  Phase 5: trivy, pip-audit, npm audit (nightly)"
-    @echo "Nothing to run yet at Phase 0."
+    gitleaks detect --no-banner --redact --verbose
 
 # What CI runs locally (lint check + format check + tests)
 ci:
