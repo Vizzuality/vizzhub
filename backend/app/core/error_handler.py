@@ -55,24 +55,10 @@ class ValidationErrorHandler:
 
         if isinstance(error, ValidationError):
             message = ValidationErrorHandler.format_pydantic_error(error)
-            return HTTPException(
-                status_code=status_code,
-                detail={
-                    "error": "Validation Error",
-                    "message": message,
-                    "type": "validation_error",
-                },
-            )
+            return HTTPException(status_code=status_code, detail=message)
 
         elif isinstance(error, ValueError):
-            return HTTPException(
-                status_code=status_code,
-                detail={
-                    "error": "Invalid Input",
-                    "message": str(error),
-                    "type": "value_error",
-                },
-            )
+            return HTTPException(status_code=status_code, detail=str(error))
 
         else:
             # Don't expose internal errors to users

@@ -182,16 +182,12 @@ async def validation_exception_handler(
     # Use centralized error handler to format message
     message = ValidationErrorHandler.format_pydantic_error(exc)
 
-    # Return user-friendly error response
+    # Flat string detail keeps the response compatible with the
+    # `{ detail: string }` shape every frontend form expects. Returning
+    # an object here used to crash React on render (issue #31).
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,  # Use 400 instead of 422 for consistency
-        content={
-            "detail": {
-                "error": "Validation Error",
-                "message": message,
-                "type": "validation_error",
-            }
-        },
+        content={"detail": message},
     )
 
 

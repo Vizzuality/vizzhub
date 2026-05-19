@@ -185,6 +185,10 @@ export function EventForm({ eventId, onClose }: EventFormProps): JSX.Element {
       setError('Start date is required.');
       return;
     }
+    if (!form.region_focus) {
+      setError('Region is required.');
+      return;
+    }
 
     const payload: EventCreate = {
       name: form.name.trim(),
