@@ -269,8 +269,17 @@ this phase is the first time we exercise it.
   visibility — they don't fail. This is what makes the baseline-debt
   policy operational: legacy findings stay reportable without
   spamming the on-call build status.
+- **Measured wall-clock cost on push**: 55–60 s end-to-end (Semgrep
+  ~50 s, Gitleaks ~15 s, in parallel runners). `ci.yml` still gates
+  merge at ~5 min, so Phase 3 adds **0 s to the critical path**.
+  Runner-minute consumption is ~2/push and the repo is public, so
+  Actions minutes are unbilled.
+- **codeql-action bumped v3.35.5 → v4.35.5** during the first test
+  push. v3 emits a Node-20 deprecation warning that goes away on v4
+  (Node-24-native). Done in a follow-up commit on the same day.
 
-**Shipped in commit:** TBD.
+**Shipped in commits:** `e8d4694a` (workflow + doc) · `4b1f2f83`
+(codeql-action v3 → v4).
 
 ---
 
