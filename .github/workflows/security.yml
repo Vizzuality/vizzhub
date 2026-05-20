@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload SARIF to GitHub Security
         if: always() && hashFiles('semgrep.sarif') != ''
-        uses: github/codeql-action/upload-sarif@f411752efdf656cb71aa17b755b22c890960da1d  # v3.35.5
+        uses: github/codeql-action/upload-sarif@f25eda876ebb741d872b63b9f2c6dfdd77f14b83  # v4.35.5
         with:
           sarif_file: semgrep.sarif
           category: semgrep
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload SARIF to GitHub Security
         if: always() && hashFiles('gitleaks.sarif') != ''
-        uses: github/codeql-action/upload-sarif@f411752efdf656cb71aa17b755b22c890960da1d  # v3.35.5
+        uses: github/codeql-action/upload-sarif@f25eda876ebb741d872b63b9f2c6dfdd77f14b83  # v4.35.5
         with:
           sarif_file: gitleaks.sarif
           category: gitleaks
