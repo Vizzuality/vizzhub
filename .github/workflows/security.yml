@@ -19,10 +19,10 @@ on:
       - 'docs/**'
   workflow_call:
 
+# Least-privilege at workflow level (Sonar githubactions:S8233):
+# write permissions live on individual jobs that need them.
 permissions:
   contents: read
-  security-events: write
-  pull-requests: read
 
 concurrency:
   group: security-${{ github.ref }}
@@ -32,6 +32,9 @@ jobs:
   semgrep:
     name: Semgrep SAST
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -77,6 +80,9 @@ jobs:
   gitleaks:
     name: Gitleaks secret scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
