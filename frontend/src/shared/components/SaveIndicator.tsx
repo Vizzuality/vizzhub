@@ -1,14 +1,14 @@
 import { Check, Loader2 } from 'lucide-react';
 
-interface PlannerSaveIndicatorProps {
+interface SaveIndicatorProps {
   readonly isSaving: boolean;
   readonly pendingCount: number;
 }
 
-export function PlannerSaveIndicator({
+export function SaveIndicator({
   isSaving,
   pendingCount,
-}: PlannerSaveIndicatorProps): JSX.Element | null {
+}: SaveIndicatorProps): JSX.Element | null {
   if (isSaving) {
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground">

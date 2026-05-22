@@ -17,7 +17,7 @@ import {
 } from '@/shared/components/ui/select';
 import { FA_ORDER } from '@/modules/capacity/utils/constants';
 import { getPlannerCellColors } from '@/modules/capacity/utils/plannerColors';
-import { PlannerSaveIndicator } from '@/modules/capacity/components/PlannerSaveIndicator';
+import { SaveIndicator } from '@/shared/components/SaveIndicator';
 
 interface LegendItem {
   readonly sample: number;
@@ -83,7 +83,7 @@ export function PlannerToolbar({
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold">Capacity Planner</h1>
-        <PlannerSaveIndicator isSaving={isSaving} pendingCount={pendingCount} />
+        <SaveIndicator isSaving={isSaving} pendingCount={pendingCount} />
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
