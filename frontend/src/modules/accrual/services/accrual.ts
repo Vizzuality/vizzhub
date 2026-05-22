@@ -23,5 +23,9 @@ export const accrualApi = {
       const r = await api.patch<AccrualPeriod>(`/accrual/periods/${id}`, payload);
       return r.data;
     },
+    seedRates: async (): Promise<Record<string, string>> => {
+      const r = await api.get<Record<string, string>>('/accrual/periods/seed-rates');
+      return r.data;
+    },
   },
 };

@@ -10,6 +10,10 @@ from app.core.api.deps import DBSession
 from app.core.auth import TokenData
 from app.core.permissions.actions import Action
 from app.core.permissions.dependencies import require_permission
+from app.core.services.exchange_rate_service import (
+    get_available_currencies,
+    get_latest_rate,
+)
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 from app.modules.accrual.schemas.accrual_period import (
     AccrualPeriod,
@@ -32,6 +36,25 @@ async def list_periods(db: DBSession, _: PeriodAdmin) -> list[AccrualPeriodDB]:
 @router.get("/current", response_model=AccrualPeriod | None)
 async def get_current(db: DBSession, _: PeriodAdmin) -> AccrualPeriodDB | None:
     return await period_service.get_current_period(db)
+
+
+@router.get("/seed-rates")
+async def seed_rates(db: DBSession, _: PeriodAdmin) -> dict[str, str]:
+    """Latest ECB rate per available currency, as Decimal strings.
+
+    Used by the PeriodEditor dialog to pre-populate the fx_rates form so the
+    admin only has to change the values they want to lock — not type every
+    currency from scratch. EUR is skipped (always 1.0 passthrough).
+    """
+    codes = await get_available_currencies(db)
+    result: dict[str, str] = {}
+    for code in codes:
+        if code == "EUR":
+            continue
+        rate = await get_latest_rate(db, code)
+        if rate is not None:
+            result[code] = str(rate[0])
+    return result
 
 
 @router.post("", response_model=AccrualPeriod, status_code=status.HTTP_201_CREATED)

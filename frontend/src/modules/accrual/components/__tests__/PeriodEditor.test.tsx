@@ -92,7 +92,7 @@ describe('PeriodEditor', () => {
       />,
     );
     expect(screen.getByText('new — needs rate')).toBeInTheDocument();
-    expect(screen.getByText('copied from previous')).toBeInTheDocument();
+    expect(screen.getByText('from previous period')).toBeInTheDocument();
   });
 
   it('shows the freeze note when previousPeriod is set', () => {

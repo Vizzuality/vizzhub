@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
-import { useCreatePeriod } from '@/modules/accrual/hooks/usePeriods';
+import { useCreatePeriod, useSeedRates } from '@/modules/accrual/hooks/usePeriods';
 import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
 
 interface PeriodEditorProps {
@@ -29,7 +29,7 @@ function firstOfCurrentMonth(): string {
 interface RateRow {
   currency: string;
   rate: string;
-  source: 'copied' | 'edited' | 'new';
+  source: 'copied' | 'ecb' | 'edited' | 'new';
 }
 
 export function PeriodEditor({
@@ -40,7 +40,10 @@ export function PeriodEditor({
 }: PeriodEditorProps): JSX.Element {
   const [startDate, setStartDate] = useState(firstOfCurrentMonth());
 
+  const { data: seedRates } = useSeedRates(open);
+
   const initialRows = useMemo<RateRow[]>(() => {
+    // 1. Start with the previous period's locked rates (highest priority).
     const copied: RateRow[] = previousPeriod
       ? Object.entries(previousPeriod.fx_rates).map(([currency, rate]) => ({
           currency,
@@ -49,13 +52,27 @@ export function PeriodEditor({
         }))
       : [];
     const known = new Set(copied.map((r) => r.currency));
-    const missing: RateRow[] = usedCurrencies
+    // 2. Add every currency known to the system (from ECB cron) that's not
+    //    already covered, pre-filled with the latest ECB rate.
+    const ecbRows: RateRow[] = Object.entries(seedRates ?? {})
+      .filter(([currency]) => currency !== 'EUR' && !known.has(currency))
+      .map(([currency, rate]) => ({ currency, rate, source: 'ecb' as const }));
+    for (const r of ecbRows) known.add(r.currency);
+    // 3. Add usedCurrencies still uncovered (rare — no ECB row, no previous).
+    const stillMissing: RateRow[] = usedCurrencies
       .filter((c) => c !== 'EUR' && !known.has(c))
       .map((currency) => ({ currency, rate: '', source: 'new' as const }));
-    return [...copied, ...missing];
-  }, [previousPeriod, usedCurrencies]);
+    return [...copied, ...ecbRows, ...stillMissing].sort((a, b) =>
+      a.currency.localeCompare(b.currency),
+    );
+  }, [previousPeriod, usedCurrencies, seedRates]);
 
   const [rows, setRows] = useState<RateRow[]>(initialRows);
+
+  // Re-seed the rows whenever the inputs change (e.g. seedRates loads after mount).
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
   const [newCurrency, setNewCurrency] = useState('');
   const [newRate, setNewRate] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
@@ -149,7 +166,8 @@ export function PeriodEditor({
                     <td className="py-1 text-xs text-muted-foreground">
                       <div className="flex items-center justify-between gap-2">
                         <span>
-                          {r.source === 'copied' && 'copied from previous'}
+                          {r.source === 'copied' && 'from previous period'}
+                          {r.source === 'ecb' && 'latest ECB rate'}
                           {r.source === 'edited' && 'edited'}
                           {r.source === 'new' && 'new — needs rate'}
                         </span>

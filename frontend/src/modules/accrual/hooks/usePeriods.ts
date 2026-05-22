@@ -21,6 +21,15 @@ export function useCurrentPeriod() {
   });
 }
 
+export function useSeedRates(enabled = true) {
+  return useQuery<Record<string, string>>({
+    queryKey: ['accrual', 'periods', 'seed-rates'] as const,
+    queryFn: () => accrualApi.periods.seedRates(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useCreatePeriod() {
   const qc = useQueryClient();
   return useMutation({
