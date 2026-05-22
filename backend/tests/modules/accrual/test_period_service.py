@@ -193,6 +193,7 @@ async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession
         status="live",
         currency="USD",
         budget=Decimal("1200"),
+        original_budget=Decimal("1200"),
         start_date=date(2025, 1, 1),
         end_date=date(2025, 12, 1),
     )
@@ -241,6 +242,7 @@ async def test_close_period_skips_cells_with_unresolvable_rate(
         status="live",
         currency="JPY",
         budget=Decimal("1200"),
+        original_budget=Decimal("1200"),
         start_date=date(2025, 1, 1),
         end_date=date(2025, 12, 1),
     )

@@ -136,7 +136,7 @@ async def redistribute_for_project(
     is set. Returns the count of cells written/updated.
     """
     project = (await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))).scalar_one()
-    if project.budget is None or project.start_date is None or project.end_date is None:
+    if project.original_budget is None or project.start_date is None or project.end_date is None:
         return 0
 
     period = await period_service.get_current_period(db)
@@ -161,7 +161,7 @@ async def redistribute_for_project(
         return 0
 
     reserved = _reserved_amount(by_ym, set(months), force=force)
-    remaining_budget = max(Decimal(project.budget) - reserved, Decimal("0"))
+    remaining_budget = max(Decimal(project.original_budget) - reserved, Decimal("0"))
     per_month = _quantize(remaining_budget / Decimal(len(target_months)))
 
     written = _apply_redistribution(db, project_id, target_months, by_ym, per_month, force=force)

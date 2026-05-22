@@ -109,6 +109,7 @@ async def get_grid(
         select(ProjectDB, user_display_name_expr(pm).label("pm_name"))
         .outerjoin(pm, ProjectDB.project_manager_id == pm.id)
         .where(ProjectDB.is_billable.is_(True))
+        .where(ProjectDB.original_budget.is_not(None))
     )
     if status is not None:
         stmt = stmt.where(ProjectDB.status == status)

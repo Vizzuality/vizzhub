@@ -80,6 +80,7 @@ class ProjectDB(Base):
     currency: Mapped[str] = mapped_column(String(20), nullable=False, default="dollar")
     budget: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     locked_fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    original_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     jira_project_key: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -226,3 +227,4 @@ class ProjectResponse(Project):
 
     program_name: str | None = None
     project_manager_name: str | None = None
+    original_budget: Decimal | None = None
