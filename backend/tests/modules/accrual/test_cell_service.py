@@ -1,6 +1,6 @@
 """Unit tests for cell_service.redistribute_for_project."""
 
-from datetime import date
+from datetime import UTC, date
 from decimal import Decimal
 
 import pytest
@@ -163,3 +163,254 @@ async def test_redistribute_force_overrides_manual(db_session: AsyncSession) -> 
     cells = result.scalars().all()
     assert all(c.amount == Decimal("100.00") for c in cells)
     assert all(c.is_manual_override is False for c in cells)
+
+
+# --- T2.7: set_cell_amount + clear_override ---
+
+
+@pytest.mark.asyncio
+async def test_set_cell_amount_creates_override(db_session: AsyncSession) -> None:
+    await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+    cell = await cell_service.set_cell_amount(
+        db_session,
+        project_id=project.id,
+        year=2026,
+        month=5,
+        amount=Decimal("250.00"),
+    )
+    assert cell.amount == Decimal("250.00")
+    assert cell.is_manual_override is True
+
+
+@pytest.mark.asyncio
+async def test_set_cell_amount_creates_when_missing(db_session: AsyncSession) -> None:
+    """No prior cell at (year, month) → set creates one as override."""
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    cell = await cell_service.set_cell_amount(
+        db_session,
+        project_id=project.id,
+        year=2026,
+        month=7,
+        amount=Decimal("123.45"),
+    )
+    assert cell.amount == Decimal("123.45")
+    assert cell.is_manual_override is True
+    assert cell.is_frozen is False
+
+
+@pytest.mark.asyncio
+async def test_set_cell_amount_frozen_raises(db_session: AsyncSession) -> None:
+    from datetime import datetime
+
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    db_session.add(
+        ProjectAccrualCellDB(
+            project_id=project.id,
+            year=2025,
+            month=3,
+            amount=Decimal("100"),
+            is_frozen=True,
+            frozen_at=datetime.now(UTC),
+            frozen_rate=Decimal("1.05"),
+            frozen_eur_amount=Decimal("95.24"),
+        )
+    )
+    await db_session.flush()
+    with pytest.raises(cell_service.CellFrozenError):
+        await cell_service.set_cell_amount(
+            db_session,
+            project_id=project.id,
+            year=2025,
+            month=3,
+            amount=Decimal("999"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_clear_override_redistributes(db_session: AsyncSession) -> None:
+    await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+    await cell_service.set_cell_amount(
+        db_session,
+        project_id=project.id,
+        year=2026,
+        month=5,
+        amount=Decimal("300"),
+    )
+    await cell_service.clear_override(
+        db_session,
+        project_id=project.id,
+        year=2026,
+        month=5,
+    )
+    result = await db_session.execute(
+        select(ProjectAccrualCellDB).where(
+            ProjectAccrualCellDB.project_id == project.id,
+            ProjectAccrualCellDB.month == 5,
+        )
+    )
+    cell = result.scalar_one()
+    assert cell.is_manual_override is False
+    assert cell.amount == Decimal("100.00")
+
+
+@pytest.mark.asyncio
+async def test_clear_override_frozen_raises(db_session: AsyncSession) -> None:
+    from datetime import datetime
+
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    db_session.add(
+        ProjectAccrualCellDB(
+            project_id=project.id,
+            year=2025,
+            month=3,
+            amount=Decimal("100"),
+            is_frozen=True,
+            frozen_at=datetime.now(UTC),
+            frozen_rate=Decimal("1.05"),
+            frozen_eur_amount=Decimal("95.24"),
+        )
+    )
+    await db_session.flush()
+    with pytest.raises(cell_service.CellFrozenError):
+        await cell_service.clear_override(
+            db_session,
+            project_id=project.id,
+            year=2025,
+            month=3,
+        )
+
+
+# --- T2.8: bulk_set_cells ---
+
+
+@pytest.mark.asyncio
+async def test_bulk_set_cells_happy_path(db_session: AsyncSession) -> None:
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    updates = [
+        {"project_id": project.id, "year": 2026, "month": 2, "amount": Decimal("150")},
+        {"project_id": project.id, "year": 2026, "month": 3, "amount": Decimal("200")},
+    ]
+    cells = await cell_service.bulk_set_cells(db_session, updates=updates)
+    assert len(cells) == 2
+    assert {c.month for c in cells} == {2, 3}
+    assert all(c.is_manual_override for c in cells)
+
+
+@pytest.mark.asyncio
+async def test_bulk_set_cells_rollback_on_frozen(db_session: AsyncSession) -> None:
+    from datetime import datetime
+
+    await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+
+    result = await db_session.execute(
+        select(ProjectAccrualCellDB).where(
+            ProjectAccrualCellDB.project_id == project.id,
+            ProjectAccrualCellDB.month == 5,
+        )
+    )
+    may = result.scalar_one()
+    may.is_frozen = True
+    may.frozen_at = datetime.now(UTC)
+    may.frozen_rate = Decimal("1.10")
+    may.frozen_eur_amount = Decimal("90.91")
+    await db_session.flush()
+
+    updates = [
+        {"project_id": project.id, "year": 2026, "month": 2, "amount": Decimal("150")},
+        {"project_id": project.id, "year": 2026, "month": 5, "amount": Decimal("999")},  # frozen
+    ]
+    with pytest.raises(cell_service.CellFrozenError):
+        await cell_service.bulk_set_cells(db_session, updates=updates)
+
+    feb_result = await db_session.execute(
+        select(ProjectAccrualCellDB).where(
+            ProjectAccrualCellDB.project_id == project.id,
+            ProjectAccrualCellDB.month == 2,
+        )
+    )
+    feb = feb_result.scalar_one()
+    assert feb.amount == Decimal("100.00")

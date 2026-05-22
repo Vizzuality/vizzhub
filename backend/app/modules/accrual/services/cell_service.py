@@ -132,3 +132,122 @@ async def redistribute_for_project(
         force=force,
     )
     return written
+
+
+async def set_cell_amount(
+    db: AsyncSession,
+    *,
+    project_id: UUID,
+    year: int,
+    month: int,
+    amount: Decimal,
+    user_id: UUID | None = None,
+) -> ProjectAccrualCellDB:
+    cell = (
+        await db.execute(
+            select(ProjectAccrualCellDB).where(
+                ProjectAccrualCellDB.project_id == project_id,
+                ProjectAccrualCellDB.year == year,
+                ProjectAccrualCellDB.month == month,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if cell is None:
+        cell = ProjectAccrualCellDB(
+            project_id=project_id,
+            year=year,
+            month=month,
+            amount=_quantize(amount),
+            is_manual_override=True,
+        )
+        db.add(cell)
+        await db.flush()
+        logger.info(
+            "accrual_cell_overridden",
+            project_id=str(project_id),
+            year=year,
+            month=month,
+            prev_amount="0",
+            new_amount=str(cell.amount),
+            user_id=str(user_id) if user_id else None,
+        )
+        return cell
+
+    if cell.is_frozen:
+        logger.warning(
+            "accrual_cell_frozen_blocked",
+            project_id=str(project_id),
+            year=year,
+            month=month,
+            user_id=str(user_id) if user_id else None,
+        )
+        raise CellFrozenError(f"Cell {year}-{month:02d} is frozen")
+
+    prev = cell.amount
+    cell.amount = _quantize(amount)
+    cell.is_manual_override = True
+    await db.flush()
+    logger.info(
+        "accrual_cell_overridden",
+        project_id=str(project_id),
+        year=year,
+        month=month,
+        prev_amount=str(prev),
+        new_amount=str(cell.amount),
+        user_id=str(user_id) if user_id else None,
+    )
+    return cell
+
+
+async def clear_override(
+    db: AsyncSession, *, project_id: UUID, year: int, month: int
+) -> ProjectAccrualCellDB:
+    cell = (
+        await db.execute(
+            select(ProjectAccrualCellDB).where(
+                ProjectAccrualCellDB.project_id == project_id,
+                ProjectAccrualCellDB.year == year,
+                ProjectAccrualCellDB.month == month,
+            )
+        )
+    ).scalar_one()
+    if cell.is_frozen:
+        raise CellFrozenError(f"Cell {year}-{month:02d} is frozen")
+    cell.is_manual_override = False
+    await db.flush()
+    await redistribute_for_project(db, project_id=project_id)
+    await db.refresh(cell)
+    return cell
+
+
+async def bulk_set_cells(
+    db: AsyncSession,
+    *,
+    updates: list[dict],
+    user_id: UUID | None = None,
+) -> list[ProjectAccrualCellDB]:
+    """Apply many overrides atomically via a SAVEPOINT.
+
+    On any exception during the batch, the SAVEPOINT is rolled back so partial
+    writes never persist. The outer transaction is not touched — that's the
+    caller's responsibility.
+    """
+    results: list[ProjectAccrualCellDB] = []
+    savepoint = await db.begin_nested()
+    try:
+        for update in updates:
+            cell = await set_cell_amount(
+                db,
+                project_id=update["project_id"],
+                year=update["year"],
+                month=update["month"],
+                amount=update["amount"],
+                user_id=user_id,
+            )
+            results.append(cell)
+        await savepoint.commit()
+    except Exception:
+        await savepoint.rollback()
+        raise
+    return results
