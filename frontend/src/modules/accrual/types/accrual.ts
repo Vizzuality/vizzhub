@@ -49,9 +49,14 @@ export interface AccrualGridFilters {
 
 export interface AccrualGridProject {
   id: string;
+  code: string | null;
   name: string;
   currency: string;
+  budget: string | null;
+  locked_fx_rate: string | null;
   status: string;
+  start_date: string | null;
+  end_date: string | null;
   project_manager_id: string | null;
   project_manager_name: string | null;
 }
