@@ -24,6 +24,21 @@ import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
  */
 const MAJOR_CURRENCIES = ['USD', 'GBP', 'CAD', 'CHF'] as const;
 
+/**
+ * Currencies that sort to the top of the rates table (in this exact order).
+ * Anything outside the priority list sorts alphabetically beneath them.
+ */
+const PRIORITY_ORDER = ['USD', 'GBP', 'CAD'] as const;
+
+function sortByPriority(a: { currency: string }, b: { currency: string }): number {
+  const ai = (PRIORITY_ORDER as readonly string[]).indexOf(a.currency);
+  const bi = (PRIORITY_ORDER as readonly string[]).indexOf(b.currency);
+  if (ai !== -1 && bi !== -1) return ai - bi;
+  if (ai !== -1) return -1;
+  if (bi !== -1) return 1;
+  return a.currency.localeCompare(b.currency);
+}
+
 interface PeriodEditorProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -90,8 +105,17 @@ export function PeriodEditor({
         built.push({ currency: code, rate: '', source: 'new' });
       }
     }
-    return built.sort((a, b) => a.currency.localeCompare(b.currency));
+    return built.sort(sortByPriority);
   }, [previousPeriod, usedCurrencies, seedRates]);
+
+  // In edit mode, currencies already present in the period when the dialog
+  // opened are locked (read-only value, can't be removed). The set is captured
+  // once from `previousPeriod` and stays stable across re-renders so newly
+  // picked rows aren't accidentally treated as locked.
+  const lockedCurrencies = useMemo<Set<string>>(
+    () => (isEdit ? new Set(Object.keys(previousPeriod?.fx_rates ?? {})) : new Set<string>()),
+    [isEdit, previousPeriod],
+  );
 
   const [rows, setRows] = useState<RateRow[]>(initialRows);
 
@@ -123,11 +147,7 @@ export function PeriodEditor({
     if (rows.some((r) => r.currency === code)) return;
     const rate = seedRates?.[code] ?? '';
     const source: RateRow['source'] = rate ? 'ecb' : 'new';
-    setRows((prev) =>
-      [...prev, { currency: code, rate, source }].sort((a, b) =>
-        a.currency.localeCompare(b.currency),
-      ),
-    );
+    setRows((prev) => [...prev, { currency: code, rate, source }].sort(sortByPriority));
     setPickerValue('');
   };
 
@@ -188,37 +208,52 @@ export function PeriodEditor({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.currency}>
-                    <td className="py-1 font-mono">{r.currency}</td>
-                    <td className="py-1">
-                      <Input
-                        aria-label={`FX rate for ${r.currency}`}
-                        value={r.rate}
-                        onChange={(e) => updateRow(r.currency, e.target.value)}
-                        placeholder="e.g. 1.10"
-                      />
-                    </td>
-                    <td className="py-1 text-xs text-muted-foreground">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>
-                          {r.source === 'copied' && 'from previous period'}
-                          {r.source === 'ecb' && 'latest ECB rate'}
-                          {r.source === 'edited' && 'edited'}
-                          {r.source === 'new' && 'new — needs rate'}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Remove ${r.currency}`}
-                          onClick={() => removeRow(r.currency)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((r) => {
+                  const locked = lockedCurrencies.has(r.currency);
+                  return (
+                    <tr key={r.currency}>
+                      <td className="py-1 font-mono">{r.currency}</td>
+                      <td className="py-1">
+                        {locked ? (
+                          <span
+                            className="font-mono text-sm tabular-nums text-muted-foreground"
+                            aria-label={`Locked FX rate for ${r.currency}`}
+                          >
+                            {r.rate}
+                          </span>
+                        ) : (
+                          <Input
+                            aria-label={`FX rate for ${r.currency}`}
+                            value={r.rate}
+                            onChange={(e) => updateRow(r.currency, e.target.value)}
+                            placeholder="e.g. 1.10"
+                          />
+                        )}
+                      </td>
+                      <td className="py-1 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>
+                            {locked && 'locked for this period'}
+                            {!locked && r.source === 'copied' && 'from previous period'}
+                            {!locked && r.source === 'ecb' && 'latest ECB rate'}
+                            {!locked && r.source === 'edited' && 'edited'}
+                            {!locked && r.source === 'new' && 'new — needs rate'}
+                          </span>
+                          {!locked && (
+                            <button
+                              type="button"
+                              aria-label={`Remove ${r.currency}`}
+                              onClick={() => removeRow(r.currency)}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {rows.length === 0 && (
                   <tr>
                     <td colSpan={3} className="py-3 text-xs text-muted-foreground italic">

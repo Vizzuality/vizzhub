@@ -201,4 +201,64 @@ describe('PeriodEditor', () => {
     expect(screen.queryByText('USD')).not.toBeInTheDocument();
     expect(screen.getByText('GBP')).toBeInTheDocument();
   });
+
+  it('orders rows USD → GBP → CAD → rest alphabetically', () => {
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={{
+          id: 'p1', start_date: '2025-01-01', status: 'open',
+          fx_rates: { BRL: '6.00', JPY: '160', USD: '1.10', CHF: '0.95' },
+          closed_at: null, created_at: '', created_by: null,
+        }}
+        usedCurrencies={[]}
+      />,
+    );
+    const bodyRows = screen.getAllByRole('row').slice(1);
+    const codes = bodyRows.map((r) => r.querySelector('td')?.textContent?.trim());
+    // USD, GBP, CAD first (whitelist), then BRL, CHF, JPY alphabetically.
+    expect(codes).toEqual(['USD', 'GBP', 'CAD', 'BRL', 'CHF', 'JPY']);
+  });
+
+  it('in edit mode existing rates are read-only with no remove button', () => {
+    renderWith(
+      <PeriodEditor
+        open
+        mode="edit"
+        onClose={vi.fn()}
+        previousPeriod={{
+          id: 'p1', start_date: '2026-01-01', status: 'open',
+          fx_rates: { USD: '1.10' },
+          closed_at: null, created_at: '', created_by: null,
+        }}
+        usedCurrencies={[]}
+      />,
+    );
+    expect(screen.queryByLabelText(/^FX rate for USD$/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Locked FX rate for USD$/i)).toHaveTextContent('1.10');
+    expect(screen.queryByRole('button', { name: /Remove USD/i })).not.toBeInTheDocument();
+    expect(screen.getByText('locked for this period')).toBeInTheDocument();
+    // GBP is in the majors whitelist (not in previousPeriod) → editable + removable.
+    expect(screen.getByLabelText(/^FX rate for GBP$/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Remove GBP/i })).toBeInTheDocument();
+  });
+
+  it('in create mode rates from previous period stay editable', () => {
+    renderWith(
+      <PeriodEditor
+        open
+        mode="create"
+        onClose={vi.fn()}
+        previousPeriod={{
+          id: 'p1', start_date: '2025-01-01', status: 'open',
+          fx_rates: { USD: '1.05' },
+          closed_at: null, created_at: '', created_by: null,
+        }}
+        usedCurrencies={[]}
+      />,
+    );
+    expect(screen.getByLabelText(/^FX rate for USD$/i)).toHaveValue('1.05');
+    expect(screen.getByRole('button', { name: /Remove USD/i })).toBeInTheDocument();
+  });
 });
