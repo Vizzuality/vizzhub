@@ -68,7 +68,7 @@ export function Accrual(): JSX.Element {
   function renderGrid(): JSX.Element {
     if (error) return <p className="text-sm text-destructive">Failed to load grid.</p>;
     if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-    if (data && data.projects.length === 0) {
+    if (data?.projects.length === 0) {
       return <p className="text-sm text-muted-foreground">No projects match the current filters.</p>;
     }
     return (

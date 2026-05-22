@@ -54,67 +54,59 @@ async def _get_cell(
     return result.scalar_one_or_none()
 
 
-async def redistribute_for_project(
-    db: AsyncSession, *, project_id: UUID, force: bool = False
-) -> int:
-    """Redistribute the project budget across its mutable months.
+def _eligible_target_months(
+    by_ym: dict[tuple[int, int], ProjectAccrualCellDB],
+    months: list[tuple[int, int]],
+    *,
+    force: bool,
+) -> list[tuple[int, int]]:
+    """Months that redistribute may write: not frozen, and not override-when-not-force."""
+    result: list[tuple[int, int]] = []
+    for ym in months:
+        cell = by_ym.get(ym)
+        if cell and cell.is_frozen:
+            continue
+        if cell and cell.is_manual_override and not force:
+            continue
+        result.append(ym)
+    return result
 
-    Frozen cells are never touched. Manual overrides survive unless ``force``
-    is set. Returns the count of cells written/updated.
+
+def _reserved_amount(
+    by_ym: dict[tuple[int, int], ProjectAccrualCellDB],
+    months_set: set[tuple[int, int]],
+    *,
+    force: bool,
+) -> Decimal:
+    """Sum of cell amounts excluded from redistribution (frozen always, overrides unless force).
+
+    Frozen cells are summed across the whole project (out-of-range frozen amounts still
+    reduce the budget pool); overrides only count when in the visible range.
     """
-    project = (await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))).scalar_one()
-
-    if project.budget is None or project.start_date is None or project.end_date is None:
-        return 0
-
-    period = await period_service.get_current_period(db)
-    range_start = max(project.start_date, period.start_date) if period else project.start_date
-    if range_start > project.end_date:
-        return 0
-
-    months = _months_between(range_start, project.end_date)
-    months_set = set(months)
-
-    existing = (
-        (
-            await db.execute(
-                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project_id)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    by_ym: dict[tuple[int, int], ProjectAccrualCellDB] = {(c.year, c.month): c for c in existing}
-
-    frozen_total = sum(
-        (c.amount for c in by_ym.values() if c.is_frozen),
-        Decimal("0"),
-    )
-    override_total = sum(
+    frozen = sum((c.amount for c in by_ym.values() if c.is_frozen), Decimal("0"))
+    if force:
+        return frozen
+    overrides = sum(
         (
             c.amount
             for c in by_ym.values()
-            if not force
-            and c.is_manual_override
-            and not c.is_frozen
-            and (c.year, c.month) in months_set
+            if c.is_manual_override and not c.is_frozen and (c.year, c.month) in months_set
         ),
         Decimal("0"),
     )
+    return frozen + overrides
 
-    target_months = [
-        ym
-        for ym in months
-        if not (by_ym.get(ym) and by_ym[ym].is_frozen)
-        and not (not force and by_ym.get(ym) and by_ym[ym].is_manual_override)
-    ]
-    if not target_months:
-        return 0
 
-    remaining_budget = max(Decimal(project.budget) - frozen_total - override_total, Decimal("0"))
-    per_month = _quantize(remaining_budget / Decimal(len(target_months)))
-
-    written = 0
+def _apply_redistribution(
+    db: AsyncSession,
+    project_id: UUID,
+    target_months: list[tuple[int, int]],
+    by_ym: dict[tuple[int, int], ProjectAccrualCellDB],
+    per_month: Decimal,
+    *,
+    force: bool,
+) -> int:
+    """Upsert per_month into every target cell, clearing override flag when force."""
     for ym in target_months:
         existing_cell = by_ym.get(ym)
         if existing_cell is None:
@@ -132,8 +124,47 @@ async def redistribute_for_project(
             existing_cell.amount = per_month
             if force:
                 existing_cell.is_manual_override = False
-        written += 1
+    return len(target_months)
 
+
+async def redistribute_for_project(
+    db: AsyncSession, *, project_id: UUID, force: bool = False
+) -> int:
+    """Redistribute the project budget across its mutable months.
+
+    Frozen cells are never touched. Manual overrides survive unless ``force``
+    is set. Returns the count of cells written/updated.
+    """
+    project = (await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))).scalar_one()
+    if project.budget is None or project.start_date is None or project.end_date is None:
+        return 0
+
+    period = await period_service.get_current_period(db)
+    range_start = max(project.start_date, period.start_date) if period else project.start_date
+    if range_start > project.end_date:
+        return 0
+
+    months = _months_between(range_start, project.end_date)
+    existing = (
+        (
+            await db.execute(
+                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by_ym: dict[tuple[int, int], ProjectAccrualCellDB] = {(c.year, c.month): c for c in existing}
+
+    target_months = _eligible_target_months(by_ym, months, force=force)
+    if not target_months:
+        return 0
+
+    reserved = _reserved_amount(by_ym, set(months), force=force)
+    remaining_budget = max(Decimal(project.budget) - reserved, Decimal("0"))
+    per_month = _quantize(remaining_budget / Decimal(len(target_months)))
+
+    written = _apply_redistribution(db, project_id, target_months, by_ym, per_month, force=force)
     await db.flush()
     logger.info(
         "accrual_redistribute_ran",

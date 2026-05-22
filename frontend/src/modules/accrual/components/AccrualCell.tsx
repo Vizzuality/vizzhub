@@ -14,7 +14,7 @@ interface AccrualCellProps {
 const fmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function formatAmount(value: string): string {
-  const num = parseFloat(value);
+  const num = Number.parseFloat(value);
   return Number.isNaN(num) ? value : fmt.format(num);
 }
 
@@ -50,10 +50,7 @@ export function AccrualCell({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commit();
-    } else if (e.key === 'Tab') {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       commit();
     } else if (e.key === 'Escape') {
@@ -79,13 +76,14 @@ export function AccrualCell({
     );
   }
 
+  const interactive = canEdit && !isFrozen;
   return (
     <button
       type="button"
-      title={eurAmount !== null ? `EUR ${eurAmount}` : undefined}
-      className={`flex h-full w-full items-center justify-end gap-1 px-1 text-xs bg-transparent border-0 select-none ${canEdit && !isFrozen ? 'cursor-pointer' : 'cursor-default'} ${ringClass}`}
+      title={eurAmount ? `EUR ${eurAmount}` : undefined}
+      className={`flex h-full w-full items-center justify-end gap-1 px-1 text-xs bg-transparent border-0 select-none ${interactive ? 'cursor-pointer' : 'cursor-default'} ${ringClass}`}
       onClick={() => {
-        if (canEdit && !isFrozen) {
+        if (interactive) {
           setDraft(amount);
           setEditing(true);
         }
