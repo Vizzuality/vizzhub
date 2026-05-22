@@ -16,7 +16,7 @@ import { currentMondayString } from '@/modules/capacity/utils/plannerDates';
 import {
   useCellSelection,
   type CellCoord,
-} from '@/modules/capacity/hooks/useCellSelection';
+} from '@/shared/hooks/useCellSelection';
 import type { PlannerGroup } from '@/modules/capacity/types/planner';
 import {
   CURRENT_WEEK_BORDER_DARK,
