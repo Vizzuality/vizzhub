@@ -25,3 +25,15 @@ class ResizeObserverMock implements ResizeObserver {
 globalThis.ResizeObserver = ResizeObserverMock;
 
 Element.prototype.scrollIntoView = () => {};
+
+// Radix UI primitives call hasPointerCapture/releasePointerCapture which jsdom
+// does not implement. Stub them so Select/Popover tests don't throw.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = () => {};
+}
