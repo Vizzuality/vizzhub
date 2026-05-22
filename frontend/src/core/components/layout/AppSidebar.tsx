@@ -66,7 +66,11 @@ const ADMIN_ITEMS = [
   { to: '/admin/jobs', label: 'Jobs', icon: Cog },
   { to: '/admin/commands', label: 'Command Queue', icon: ListTodo },
   { to: '/admin/users', label: 'Users', icon: Users },
-  { to: '/admin/accrual/periods', label: 'Accrual periods', icon: CalendarRange },
+] as const;
+
+const ACCRUAL_TABS = [
+  { to: '/admin/accrual', label: 'Grid' },
+  { to: '/admin/accrual/periods', label: 'Periods' },
 ] as const;
 
 const NOTIFICATION_TABS = [
@@ -403,6 +407,15 @@ export function AppSidebar(): JSX.Element {
                       label="ISO"
                       isActive={location.pathname.startsWith('/admin/iso')}
                       items={ISO_ADMIN_TABS}
+                    />
+                  )}
+
+                  {isAdmin && (
+                    <CollapsibleMenuItem
+                      icon={CalendarRange}
+                      label="Accrual"
+                      isActive={location.pathname.startsWith('/admin/accrual')}
+                      items={ACCRUAL_TABS}
                     />
                   )}
                 </SidebarMenu>
