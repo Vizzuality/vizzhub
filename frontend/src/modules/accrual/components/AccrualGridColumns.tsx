@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
 import { MONTHS_SHORT } from '@/shared/constants/dates';
 import { AccrualCell } from '@/modules/accrual/components/AccrualCell';
+import { LockedFxRateEditor } from '@/modules/accrual/components/LockedFxRateEditor';
 import { getStatusLabel } from '@/utils/projectStatus';
 import type {
   AccrualCell as AccrualCellType,
@@ -142,9 +143,12 @@ export function buildColumns(
       header: 'FX',
       size: 100,
       cell: ({ row }) => (
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {row.original.locked_fx_rate ? fmt.format(Number(row.original.locked_fx_rate)) : '—'}
-        </span>
+        <LockedFxRateEditor
+          projectId={row.original.id}
+          projectCurrency={row.original.currency ?? ''}
+          currentRate={row.original.locked_fx_rate}
+          canEdit={canEdit}
+        />
       ),
     },
     {

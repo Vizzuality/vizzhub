@@ -60,6 +60,7 @@ export interface ProjectUpdate {
   has_budget_alerts?: boolean;
   currency?: string;
   budget?: number | null;
+  locked_fx_rate?: number | null;
   notes?: string | null;
   summary?: string | null;
   jira_project_key?: string;
