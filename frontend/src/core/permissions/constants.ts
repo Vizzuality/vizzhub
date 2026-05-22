@@ -28,6 +28,10 @@ export const Action = {
   CAPACITY_VIEW: 'capacity:view',
   CAPACITY_MANAGE: 'capacity:manage',
 
+  ACCRUAL_VIEW: 'accrual:view',
+  ACCRUAL_MANAGE: 'accrual:manage',
+  ACCRUAL_PERIOD_MANAGE: 'accrual:period_manage',
+
   ADMIN_USERS: 'admin:users',
   ADMIN_JOBS: 'admin:jobs',
   ADMIN_INTEGRATIONS: 'admin:integrations',

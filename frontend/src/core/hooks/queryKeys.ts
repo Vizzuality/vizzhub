@@ -155,6 +155,27 @@ export const queryKeys = {
     plannerSuggestions: (month: string) =>
       ['capacity', 'planner', 'suggestions', month] as const,
   },
+  accrual: {
+    periods: {
+      all: ['accrual', 'periods'] as const,
+      list: () => ['accrual', 'periods', 'list'] as const,
+      current: () => ['accrual', 'periods', 'current'] as const,
+      detail: (id: string) => ['accrual', 'periods', id] as const,
+    },
+    cells: {
+      all: ['accrual', 'cells'] as const,
+      grid: (filters: Record<string, unknown>) =>
+        ['accrual', 'cells', 'grid', filters] as const,
+      byProject: (projectId: string) =>
+        ['accrual', 'cells', 'project', projectId] as const,
+    },
+    dashboard: {
+      monthly: (filters: Record<string, unknown>) =>
+        ['accrual', 'dashboard', 'monthly', filters] as const,
+      byProject: (filters: Record<string, unknown>) =>
+        ['accrual', 'dashboard', 'by-project', filters] as const,
+    },
+  },
   tracker: {
     periods: {
       all: ['tracker', 'periods'] as const,
