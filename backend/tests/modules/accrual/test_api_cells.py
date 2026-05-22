@@ -423,6 +423,36 @@ async def test_grid_excludes_projects_with_only_start_date(client: AsyncClient) 
 
 
 @pytest.mark.asyncio
+async def test_grid_excludes_non_billable_projects(client: AsyncClient) -> None:
+    """Non-billable engagements never appear in the revenue grid."""
+    dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Billable",
+            "code": "TEST.AC.BILL1",
+            "currency": "USD",
+            "is_billable": True,
+            **dated,
+        },
+    )
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Pro bono",
+            "code": "TEST.AC.BILL2",
+            "currency": "USD",
+            "is_billable": False,
+            **dated,
+        },
+    )
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    codes = {p["code"] for p in resp.json()["projects"]}
+    assert "TEST.AC.BILL1" in codes
+    assert "TEST.AC.BILL2" not in codes
+
+
+@pytest.mark.asyncio
 async def test_grid_includes_eur_in_available_currencies(client: AsyncClient) -> None:
     """Legacy 'euro' label normalises to EUR and shows up in the dropdown source."""
     await client.post(

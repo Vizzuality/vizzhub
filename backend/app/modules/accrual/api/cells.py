@@ -81,6 +81,9 @@ async def get_grid(
     """Joined projects + cells + month columns for the accrual admin grid.
 
     Filtering:
+    - Non-billable projects are excluded unconditionally — the grid is
+      a revenue-recognition tool, and non-billable engagements don't
+      generate revenue.
     - status / project_manager_id / currency narrow the project set.
     - year_from / year_to additionally require the project to have BOTH
       start_date and end_date set, and the [start_date, end_date] range
@@ -98,8 +101,10 @@ async def get_grid(
         raise HTTPException(status_code=400, detail="year_to must be >= year_from")
 
     pm = aliased(UserDB)
-    stmt = select(ProjectDB, user_display_name_expr(pm).label("pm_name")).outerjoin(
-        pm, ProjectDB.project_manager_id == pm.id
+    stmt = (
+        select(ProjectDB, user_display_name_expr(pm).label("pm_name"))
+        .outerjoin(pm, ProjectDB.project_manager_id == pm.id)
+        .where(ProjectDB.is_billable.is_(True))
     )
     if status is not None:
         stmt = stmt.where(ProjectDB.status == status)
