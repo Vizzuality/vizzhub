@@ -95,3 +95,25 @@ async def close_period(db: AsyncSession, period_id: UUID) -> int:
         frozen_cells_count=0,
     )
     return 0
+
+
+async def get_period_for_month(
+    db: AsyncSession,
+    *,
+    year: int,
+    month: int,
+) -> AccrualPeriodDB | None:
+    """Return the period covering (year, month).
+
+    A period covers ``[start_date, next_period.start_date)``. Looks up the
+    latest period whose start_date <= the first day of the given month.
+    Returns None if no period starts on or before that month.
+    """
+    first_of_month = date(year, month, 1)
+    result = await db.execute(
+        select(AccrualPeriodDB)
+        .where(AccrualPeriodDB.start_date <= first_of_month)
+        .order_by(AccrualPeriodDB.start_date.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
