@@ -65,3 +65,46 @@ async def test_create_period_rejects_duplicate_start_date(
             fx_rates_input={"USD": "1.10"},
             created_by=admin_user.id,
         )
+
+
+@pytest.mark.asyncio
+async def test_create_second_period_closes_previous(
+    db_session: AsyncSession,
+    admin_user: UserDB,
+) -> None:
+    first = await period_service.create_period(
+        db_session,
+        start_date=date(2025, 1, 1),
+        fx_rates_input={"USD": "1.05"},
+        created_by=admin_user.id,
+    )
+    second = await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=admin_user.id,
+    )
+    await db_session.refresh(first)
+    assert first.status == "closed"
+    assert first.closed_at is not None
+    assert second.status == "open"
+
+
+@pytest.mark.asyncio
+async def test_create_period_copies_unchanged_rates(
+    db_session: AsyncSession,
+    admin_user: UserDB,
+) -> None:
+    await period_service.create_period(
+        db_session,
+        start_date=date(2025, 1, 1),
+        fx_rates_input={"USD": "1.05", "GBP": "0.85"},
+        created_by=admin_user.id,
+    )
+    second = await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},  # GBP unchanged → copied
+        created_by=admin_user.id,
+    )
+    assert second.fx_rates == {"USD": "1.10", "GBP": "0.85"}
