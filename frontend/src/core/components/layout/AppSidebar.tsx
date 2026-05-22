@@ -6,6 +6,7 @@ import {
   Blocks,
   BookOpen,
   CalendarDays,
+  CalendarRange,
   ClipboardList,
   FolderKanban,
   ListTodo,
@@ -65,6 +66,7 @@ const ADMIN_ITEMS = [
   { to: '/admin/jobs', label: 'Jobs', icon: Cog },
   { to: '/admin/commands', label: 'Command Queue', icon: ListTodo },
   { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/accrual/periods', label: 'Accrual periods', icon: CalendarRange },
 ] as const;
 
 const NOTIFICATION_TABS = [

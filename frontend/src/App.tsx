@@ -50,6 +50,7 @@ import DevstackCatalog from './modules/devstack/pages/Catalog';
 import EntryDetail from './modules/devstack/pages/EntryDetail';
 import IsoDocs from './modules/iso-docs/pages/IsoDocs';
 import IsoNotesAdmin from './modules/iso-docs/pages/IsoNotesAdmin';
+import { Periods as AccrualPeriods } from './modules/accrual/pages/Periods';
 import NotFound from './core/pages/NotFound';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
@@ -96,6 +97,9 @@ function AdminCoreRoutes(): JSX.Element {
       <Route path="commands" element={<CommandsContent />} />
       <Route path="users" element={<UsersContent />} />
       <Route path="users/:userId" element={<UserDetail />} />
+      <Route element={<PermissionRoute require={Action.ACCRUAL_PERIOD_MANAGE} />}>
+        <Route path="accrual/periods" element={<AccrualPeriods />} />
+      </Route>
     </>
   );
 }
