@@ -11,18 +11,37 @@ describe('AccrualToolbar', () => {
     expect(screen.getByText('2026')).toBeInTheDocument();
   });
 
-  it('next-year arrow advances year_to', async () => {
+  it('next-year arrow shifts both year_from and year_to forward', async () => {
     const onChange = vi.fn();
     render(<AccrualToolbar filters={defaultFilters} onChange={onChange} currencies={['USD']} />);
     await userEvent.click(screen.getByRole('button', { name: /next year/i }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ year_to: 2027 }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ year_from: 2027, year_to: 2027 }),
+    );
   });
 
-  it('previous-year arrow rewinds year_from', async () => {
+  it('previous-year arrow shifts both year_from and year_to back', async () => {
     const onChange = vi.fn();
     render(<AccrualToolbar filters={defaultFilters} onChange={onChange} currencies={['USD']} />);
     await userEvent.click(screen.getByRole('button', { name: /previous year/i }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ year_from: 2025 }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ year_from: 2025, year_to: 2025 }),
+    );
+  });
+
+  it('shifting preserves the range size for multi-year views', async () => {
+    const onChange = vi.fn();
+    render(
+      <AccrualToolbar
+        filters={{ year_from: 2024, year_to: 2026, status: 'live', currency: 'all' }}
+        onChange={onChange}
+        currencies={['USD']}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /next year/i }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ year_from: 2025, year_to: 2027 }),
+    );
   });
 
   it('status select changes status', async () => {

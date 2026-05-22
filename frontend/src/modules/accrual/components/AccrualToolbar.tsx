@@ -51,7 +51,7 @@ export function AccrualToolbar({
         size="icon"
         aria-label="previous year"
         disabled={!canGoPrev}
-        onClick={() => onChange({ ...filters, year_from: year_from - 1 })}
+        onClick={() => onChange({ ...filters, year_from: year_from - 1, year_to: year_to - 1 })}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -65,7 +65,7 @@ export function AccrualToolbar({
         size="icon"
         aria-label="next year"
         disabled={!canGoNext}
-        onClick={() => onChange({ ...filters, year_to: year_to + 1 })}
+        onClick={() => onChange({ ...filters, year_from: year_from + 1, year_to: year_to + 1 })}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

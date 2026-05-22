@@ -82,13 +82,11 @@ async def get_grid(
 
     Filtering:
     - status / project_manager_id / currency narrow the project set.
-    - year_from / year_to additionally require the project's [start_date,
-      end_date] to overlap the requested year span (projects whose dates
-      lie outside the visible range are dropped — empty rows in years
-      they don't cover are noise, not data).
-    Projects with no start_date or no end_date are treated as
-    always-overlapping so we don't accidentally hide projects whose
-    timeline isn't filled in yet.
+    - year_from / year_to additionally require the project to have BOTH
+      start_date and end_date set, and the [start_date, end_date] range
+      must overlap the requested year span. Projects without dates can't
+      be redistributed across a timeline anyway (cell_service requires
+      both), so they don't belong in the grid.
 
     The response also carries ``bounds`` (min/max year across the
     status+pm-filtered set, ignoring year+currency) and
@@ -139,8 +137,10 @@ async def get_grid(
     rows = [
         (project, pm_name)
         for project, pm_name in rows
-        if (project.start_date is None or project.start_date <= range_end)
-        and (project.end_date is None or project.end_date >= range_start)
+        if project.start_date is not None
+        and project.end_date is not None
+        and project.start_date <= range_end
+        and project.end_date >= range_start
     ]
 
     projects = [

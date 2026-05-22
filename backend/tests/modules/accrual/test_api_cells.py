@@ -241,17 +241,18 @@ async def test_grid_year_range_validation(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_grid_currency_normalises_legacy_label(client: AsyncClient) -> None:
     """Legacy 'dollar' rows are included when filtering by USD."""
+    dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
     await client.post(
         "/api/projects",
-        json={"name": "Legacy", "code": "TEST.AC.GRID.LEG", "currency": "dollar"},
+        json={"name": "Legacy", "code": "TEST.AC.GRID.LEG", "currency": "dollar", **dated},
     )
     await client.post(
         "/api/projects",
-        json={"name": "Modern", "code": "TEST.AC.GRID.MOD", "currency": "USD"},
+        json={"name": "Modern", "code": "TEST.AC.GRID.MOD", "currency": "USD", **dated},
     )
     await client.post(
         "/api/projects",
-        json={"name": "Other", "code": "TEST.AC.GRID.OTH", "currency": "GBP"},
+        json={"name": "Other", "code": "TEST.AC.GRID.OTH", "currency": "GBP", **dated},
     )
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&currency=USD")
@@ -263,6 +264,7 @@ async def test_grid_currency_normalises_legacy_label(client: AsyncClient) -> Non
 @pytest.mark.asyncio
 async def test_grid_filter_by_status(client: AsyncClient) -> None:
     """status filter narrows projects."""
+    dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
     await client.post(
         "/api/projects",
         json={
@@ -270,6 +272,7 @@ async def test_grid_filter_by_status(client: AsyncClient) -> None:
             "code": "TEST.AC.GRID.LIVE",
             "currency": "USD",
             "status": "live",
+            **dated,
         },
     )
     await client.post(
@@ -279,6 +282,7 @@ async def test_grid_filter_by_status(client: AsyncClient) -> None:
             "code": "TEST.AC.GRID.PROP",
             "currency": "USD",
             "status": "proposal",
+            **dated,
         },
     )
 
@@ -390,15 +394,32 @@ async def test_grid_filters_projects_by_year_overlap(client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_grid_keeps_projects_with_null_dates(client: AsyncClient) -> None:
-    """Projects without start/end dates aren't accidentally hidden by the overlap filter."""
+async def test_grid_excludes_projects_without_dates(client: AsyncClient) -> None:
+    """Projects without start/end dates can't be redistributed — drop them from the grid."""
     await client.post(
         "/api/projects",
         json={"name": "Undated", "code": "TEST.AC.OVL3", "currency": "USD"},
     )
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     codes = {p["code"] for p in resp.json()["projects"]}
-    assert "TEST.AC.OVL3" in codes
+    assert "TEST.AC.OVL3" not in codes
+
+
+@pytest.mark.asyncio
+async def test_grid_excludes_projects_with_only_start_date(client: AsyncClient) -> None:
+    """end_date NULL → project is hidden (we don't know when it stops accruing)."""
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Open-ended",
+            "code": "TEST.AC.OVL4",
+            "currency": "USD",
+            "start_date": "2024-01-01",
+        },
+    )
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    codes = {p["code"] for p in resp.json()["projects"]}
+    assert "TEST.AC.OVL4" not in codes
 
 
 @pytest.mark.asyncio
