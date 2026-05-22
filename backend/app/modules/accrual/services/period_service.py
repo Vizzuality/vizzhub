@@ -35,15 +35,10 @@ async def create_period(
     period's rates — currencies not present in the input are copied unchanged.
     """
     open_period = await get_current_period(db)
-
-    closed_previous_id: UUID | None = None
     if open_period is not None:
         await close_period(db, open_period.id)
-        closed_previous_id = open_period.id
 
-    merged_rates: dict[str, str] = {}
-    if open_period is not None:
-        merged_rates.update(dict(open_period.fx_rates))
+    merged_rates: dict[str, str] = dict(open_period.fx_rates) if open_period else {}
     merged_rates.update(fx_rates_input)
 
     new_period = AccrualPeriodDB(
@@ -64,7 +59,7 @@ async def create_period(
         period_id=str(new_period.id),
         start_date=str(start_date),
         fx_rates_keys=sorted(merged_rates.keys()),
-        closed_previous_id=str(closed_previous_id) if closed_previous_id else None,
+        closed_previous_id=str(open_period.id) if open_period else None,
     )
     return new_period
 
@@ -82,8 +77,9 @@ async def close_period(db: AsyncSession, period_id: UUID) -> int:
     layered on in Slice 2 (Task 2.9). Returns the number of cells frozen
     (currently 0 — no cells table yet).
     """
-    result = await db.execute(select(AccrualPeriodDB).where(AccrualPeriodDB.id == period_id))
-    period = result.scalar_one()
+    period = await db.get(AccrualPeriodDB, period_id)
+    if period is None:
+        raise PeriodError(f"Period {period_id} not found")
     if period.status != "open":
         raise PeriodError(f"Period {period_id} is not open (status={period.status})")
     period.status = "closed"

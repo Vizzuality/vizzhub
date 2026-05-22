@@ -160,6 +160,7 @@ export const queryKeys = {
       all: ['accrual', 'periods'] as const,
       list: () => ['accrual', 'periods', 'list'] as const,
       current: () => ['accrual', 'periods', 'current'] as const,
+      seedRates: () => ['accrual', 'periods', 'seed-rates'] as const,
       detail: (id: string) => ['accrual', 'periods', id] as const,
     },
     cells: {

@@ -8,8 +8,10 @@ from uuid import UUID
 from pydantic import BaseModel, field_validator
 
 
-def _validate_rates(v: dict[str, str]) -> dict[str, str]:
-    """Validate fx_rates: ISO-4217 codes, positive Decimal values."""
+def _validate_rates(v: dict[str, str] | None) -> dict[str, str] | None:
+    """Validate fx_rates: ISO-4217 codes, positive Decimal values. ``None`` passes through."""
+    if v is None:
+        return None
     for code, rate in v.items():
         if len(code) != 3 or not code.isupper():
             raise ValueError(f"Invalid currency code: {code!r}")
@@ -28,10 +30,7 @@ class AccrualPeriodBase(BaseModel):
     start_date: date
     fx_rates: dict[str, str]
 
-    @field_validator("fx_rates")
-    @classmethod
-    def _validate_fx_rates(cls, v: dict[str, str]) -> dict[str, str]:
-        return _validate_rates(v)
+    _validate_fx_rates = field_validator("fx_rates")(_validate_rates)
 
 
 class AccrualPeriodCreate(AccrualPeriodBase):
@@ -45,12 +44,7 @@ class AccrualPeriodUpdate(BaseModel):
 
     fx_rates: dict[str, str] | None = None
 
-    @field_validator("fx_rates")
-    @classmethod
-    def _validate_fx_rates(cls, v: dict[str, str] | None) -> dict[str, str] | None:
-        if v is None:
-            return None
-        return _validate_rates(v)
+    _validate_fx_rates = field_validator("fx_rates")(_validate_rates)
 
 
 class AccrualPeriod(AccrualPeriodBase):

@@ -3,6 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
@@ -22,6 +23,7 @@ from app.modules.accrual.schemas.accrual_period import (
 )
 from app.modules.accrual.services import period_service
 
+logger = structlog.get_logger()
 router = APIRouter()
 
 PeriodAdmin = Annotated[TokenData, Depends(require_permission(Action.ACCRUAL_PERIOD_MANAGE))]
@@ -47,14 +49,15 @@ async def seed_rates(db: DBSession, _: PeriodAdmin) -> dict[str, str]:
     currency from scratch. EUR is skipped (always 1.0 passthrough).
     """
     codes = await get_available_currencies(db)
-    result: dict[str, str] = {}
+    seed: dict[str, str] = {}
     for code in codes:
         if code == "EUR":
             continue
-        rate = await get_latest_rate(db, code)
-        if rate is not None:
-            result[code] = str(rate[0])
-    return result
+        latest = await get_latest_rate(db, code)
+        if latest is not None:
+            rate, _ = latest
+            seed[code] = str(rate)
+    return seed
 
 
 @router.post("", response_model=AccrualPeriod, status_code=status.HTTP_201_CREATED)
@@ -79,10 +82,9 @@ async def patch_period(
     period_id: UUID,
     payload: AccrualPeriodUpdate,
     db: DBSession,
-    _: PeriodAdmin,
+    user: PeriodAdmin,
 ) -> AccrualPeriodDB:
-    result = await db.execute(select(AccrualPeriodDB).where(AccrualPeriodDB.id == period_id))
-    period = result.scalar_one_or_none()
+    period = await db.get(AccrualPeriodDB, period_id)
     if period is None:
         raise HTTPException(status_code=404, detail="Period not found")
     if period.status != "open":
@@ -90,4 +92,10 @@ async def patch_period(
     if payload.fx_rates is not None:
         period.fx_rates = payload.fx_rates
     await db.flush()
+    logger.info(
+        "accrual_period_patched",
+        period_id=str(period_id),
+        fx_rates_keys=sorted(period.fx_rates.keys()),
+        user_id=user.user_id,
+    )
     return period

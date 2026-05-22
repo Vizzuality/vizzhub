@@ -72,21 +72,12 @@ export function Periods(): JSX.Element {
           </tbody>
         </table>
       )}
-      {editor.open && editor.mode === 'create' && (
+      {editor.open && (
         <PeriodEditor
           open
-          mode="create"
+          mode={editor.mode}
           onClose={close}
-          previousPeriod={currentPeriod}
-          usedCurrencies={usedCurrencies}
-        />
-      )}
-      {editor.open && editor.mode === 'edit' && (
-        <PeriodEditor
-          open
-          mode="edit"
-          onClose={close}
-          previousPeriod={editor.period}
+          previousPeriod={editor.mode === 'edit' ? editor.period : currentPeriod}
           usedCurrencies={usedCurrencies}
         />
       )}

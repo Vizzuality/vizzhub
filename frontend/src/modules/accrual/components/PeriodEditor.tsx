@@ -18,25 +18,69 @@ import {
 } from '@/modules/accrual/hooks/usePeriods';
 import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
 
-/**
- * Currencies always visible by default. Others can be added on demand from
- * the dropdown below the table (which lists every code with an ECB rate).
- */
-const MAJOR_CURRENCIES = ['USD', 'GBP', 'CAD', 'CHF'] as const;
+interface RateRow {
+  currency: string;
+  rate: string;
+  source: 'copied' | 'ecb' | 'edited' | 'new';
+}
 
 /**
  * Currencies that sort to the top of the rates table (in this exact order).
  * Anything outside the priority list sorts alphabetically beneath them.
  */
-const PRIORITY_ORDER = ['USD', 'GBP', 'CAD'] as const;
+const PRIORITY_ORDER: readonly string[] = ['USD', 'GBP', 'CAD'];
 
-function sortByPriority(a: { currency: string }, b: { currency: string }): number {
-  const ai = (PRIORITY_ORDER as readonly string[]).indexOf(a.currency);
-  const bi = (PRIORITY_ORDER as readonly string[]).indexOf(b.currency);
+/**
+ * Currencies always visible by default (priority block + CHF). Others can be
+ * added on demand from the dropdown below the table.
+ */
+const MAJOR_CURRENCIES: readonly string[] = [...PRIORITY_ORDER, 'CHF'];
+
+const SOURCE_LABEL: Record<RateRow['source'], string> = {
+  copied: 'from previous period',
+  ecb: 'latest ECB rate',
+  edited: 'edited',
+  new: 'new — needs rate',
+};
+
+function compareByPriority(a: string, b: string): number {
+  const ai = PRIORITY_ORDER.indexOf(a);
+  const bi = PRIORITY_ORDER.indexOf(b);
   if (ai !== -1 && bi !== -1) return ai - bi;
   if (ai !== -1) return -1;
   if (bi !== -1) return 1;
-  return a.currency.localeCompare(b.currency);
+  return a.localeCompare(b);
+}
+
+function sortRows(rows: RateRow[]): RateRow[] {
+  return rows.sort((a, b) => compareByPriority(a.currency, b.currency));
+}
+
+function buildInitialRows(
+  prevRates: Record<string, string>,
+  seedRates: Record<string, string> | undefined,
+  usedCurrencies: readonly string[],
+): RateRow[] {
+  const seen = new Set<string>();
+  const rows: RateRow[] = [];
+  const candidates = [...Object.keys(prevRates), ...MAJOR_CURRENCIES, ...usedCurrencies];
+
+  for (const raw of candidates) {
+    const code = raw.toUpperCase();
+    if (code === 'EUR' || seen.has(code)) continue;
+    seen.add(code);
+
+    const fromPrev = prevRates[code];
+    const fromEcb = seedRates?.[code];
+    if (fromPrev) {
+      rows.push({ currency: code, rate: fromPrev, source: 'copied' });
+    } else if (fromEcb) {
+      rows.push({ currency: code, rate: fromEcb, source: 'ecb' });
+    } else {
+      rows.push({ currency: code, rate: '', source: 'new' });
+    }
+  }
+  return sortRows(rows);
 }
 
 interface PeriodEditorProps {
@@ -58,12 +102,6 @@ function firstOfCurrentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-interface RateRow {
-  currency: string;
-  rate: string;
-  source: 'copied' | 'ecb' | 'edited' | 'new';
-}
-
 export function PeriodEditor({
   open,
   onClose,
@@ -76,37 +114,13 @@ export function PeriodEditor({
 
   const { data: seedRates } = useSeedRates(open);
 
-  const initialRows = useMemo<RateRow[]>(() => {
-    // Start with the union of: previous period's locked currencies, the
-    // major-currency whitelist, and any currency in active use by Projects.
-    // For each, pre-fill the rate from (in order): previous period → ECB seed → empty.
-    const seen = new Set<string>();
-    const built: RateRow[] = [];
-    const prevRates = previousPeriod?.fx_rates ?? {};
-
-    const candidates = [
-      ...Object.keys(prevRates),
-      ...MAJOR_CURRENCIES,
-      ...usedCurrencies,
-    ];
-
-    for (const raw of candidates) {
-      const code = raw.toUpperCase();
-      if (code === 'EUR' || seen.has(code)) continue;
-      seen.add(code);
-
-      const fromPrev = prevRates[code];
-      const fromEcb = seedRates?.[code];
-      if (fromPrev) {
-        built.push({ currency: code, rate: fromPrev, source: 'copied' });
-      } else if (fromEcb) {
-        built.push({ currency: code, rate: fromEcb, source: 'ecb' });
-      } else {
-        built.push({ currency: code, rate: '', source: 'new' });
-      }
-    }
-    return built.sort(sortByPriority);
-  }, [previousPeriod, usedCurrencies, seedRates]);
+  // Builds the union of: previous period's locked currencies, the major-
+  // currency whitelist, and any currency in active use by Projects. Rate is
+  // pre-filled from (in order): previous period → ECB seed → empty.
+  const initialRows = useMemo<RateRow[]>(
+    () => buildInitialRows(previousPeriod?.fx_rates ?? {}, seedRates, usedCurrencies),
+    [previousPeriod, usedCurrencies, seedRates],
+  );
 
   // In edit mode, currencies already present in the period when the dialog
   // opened are locked (read-only value, can't be removed). The set is captured
@@ -147,7 +161,7 @@ export function PeriodEditor({
     if (rows.some((r) => r.currency === code)) return;
     const rate = seedRates?.[code] ?? '';
     const source: RateRow['source'] = rate ? 'ecb' : 'new';
-    setRows((prev) => [...prev, { currency: code, rate, source }].sort(sortByPriority));
+    setRows((prev) => sortRows([...prev, { currency: code, rate, source }]));
     setPickerValue('');
   };
 
@@ -159,6 +173,13 @@ export function PeriodEditor({
   }, [rows, seedRates]);
 
   const missingRates = rows.filter((r) => !r.rate.trim());
+
+  let submitLabel: string;
+  if (submitting) {
+    submitLabel = isEdit ? 'Saving…' : 'Opening…';
+  } else {
+    submitLabel = isEdit ? 'Save changes' : 'Open period';
+  }
 
   const handleSubmit = async (): Promise<void> => {
     const fx_rates = Object.fromEntries(
@@ -232,13 +253,7 @@ export function PeriodEditor({
                       </td>
                       <td className="py-1 text-xs text-muted-foreground">
                         <div className="flex items-center justify-between gap-2">
-                          <span>
-                            {locked && 'locked for this period'}
-                            {!locked && r.source === 'copied' && 'from previous period'}
-                            {!locked && r.source === 'ecb' && 'latest ECB rate'}
-                            {!locked && r.source === 'edited' && 'edited'}
-                            {!locked && r.source === 'new' && 'new — needs rate'}
-                          </span>
+                          <span>{locked ? 'locked for this period' : SOURCE_LABEL[r.source]}</span>
                           {!locked && (
                             <button
                               type="button"
@@ -312,9 +327,7 @@ export function PeriodEditor({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting
-              ? (isEdit ? 'Saving…' : 'Opening…')
-              : (isEdit ? 'Save changes' : 'Open period')}
+            {submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
