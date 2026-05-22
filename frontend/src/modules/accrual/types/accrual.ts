@@ -66,8 +66,15 @@ export interface AccrualGridMonth {
   month: number;
 }
 
+export interface AccrualGridBounds {
+  min_year: number;
+  max_year: number;
+}
+
 export interface AccrualGridResponse {
   projects: AccrualGridProject[];
   cells: AccrualCell[];
   months: AccrualGridMonth[];
+  bounds: AccrualGridBounds | null;
+  available_currencies: string[];
 }

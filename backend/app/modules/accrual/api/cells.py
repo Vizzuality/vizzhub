@@ -1,5 +1,6 @@
 """HTTP endpoints for accrual cells and per-project operations."""
 
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -79,12 +80,21 @@ async def get_grid(
 ) -> dict:
     """Joined projects + cells + month columns for the accrual admin grid.
 
-    Returns all matching projects, their cells within [year_from, year_to],
-    and the ordered month columns in a single round-trip.
+    Filtering:
+    - status / project_manager_id / currency narrow the project set.
+    - year_from / year_to additionally require the project's [start_date,
+      end_date] to overlap the requested year span (projects whose dates
+      lie outside the visible range are dropped — empty rows in years
+      they don't cover are noise, not data).
+    Projects with no start_date or no end_date are treated as
+    always-overlapping so we don't accidentally hide projects whose
+    timeline isn't filled in yet.
 
-    Note: cells_serialised uses _serialize per cell; each call does one
-    db.get(ProjectDB) that hits the SQLAlchemy identity map after the first
-    project — cheap in practice. A batched resolver is a future optimisation.
+    The response also carries ``bounds`` (min/max year across the
+    status+pm-filtered set, ignoring year+currency) and
+    ``available_currencies`` (ISO-normalised set of currencies across
+    that same set). The toolbar uses these to cap year-navigation arrows
+    and populate the currency dropdown.
     """
     if year_to < year_from:
         raise HTTPException(status_code=400, detail="year_to must be >= year_from")
@@ -101,6 +111,21 @@ async def get_grid(
     result = await db.execute(stmt)
     rows = result.all()
 
+    bounds_min = min(
+        (p.start_date.year for p, _ in rows if p.start_date is not None),
+        default=None,
+    )
+    bounds_max = max(
+        (p.end_date.year for p, _ in rows if p.end_date is not None),
+        default=None,
+    )
+    bounds = (
+        {"min_year": bounds_min, "max_year": bounds_max}
+        if bounds_min is not None and bounds_max is not None
+        else None
+    )
+    available_currencies = sorted({currency_to_code(p.currency) for p, _ in rows if p.currency})
+
     if currency is not None:
         target_code = currency_to_code(currency)
         rows = [
@@ -108,6 +133,15 @@ async def get_grid(
             for project, pm_name in rows
             if project.currency and currency_to_code(project.currency) == target_code
         ]
+
+    range_start = date(year_from, 1, 1)
+    range_end = date(year_to, 12, 31)
+    rows = [
+        (project, pm_name)
+        for project, pm_name in rows
+        if (project.start_date is None or project.start_date <= range_end)
+        and (project.end_date is None or project.end_date >= range_start)
+    ]
 
     projects = [
         {
@@ -150,7 +184,13 @@ async def get_grid(
         for year in range(year_from, year_to + 1)
         for month in range(1, 13)
     ]
-    return {"projects": projects, "cells": cells_serialised, "months": months}
+    return {
+        "projects": projects,
+        "cells": cells_serialised,
+        "months": months,
+        "bounds": bounds,
+        "available_currencies": available_currencies,
+    }
 
 
 @router.get("/projects/{project_id}/cells")

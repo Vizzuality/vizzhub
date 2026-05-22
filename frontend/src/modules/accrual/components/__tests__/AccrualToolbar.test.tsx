@@ -47,4 +47,50 @@ describe('AccrualToolbar', () => {
     expect(screen.getByRole('option', { name: /GBP/i })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /CAD/i })).toBeInTheDocument();
   });
+
+  it('includes EUR in the dropdown when projects use EUR', async () => {
+    render(
+      <AccrualToolbar
+        filters={defaultFilters}
+        onChange={vi.fn()}
+        currencies={['EUR', 'USD']}
+      />,
+    );
+    await userEvent.click(screen.getByRole('combobox', { name: /currency/i }));
+    expect(screen.getByRole('option', { name: /EUR/i })).toBeInTheDocument();
+  });
+
+  it('disables the previous-year arrow at the lower bound', () => {
+    render(
+      <AccrualToolbar
+        filters={{ ...defaultFilters, year_from: 2024 }}
+        onChange={vi.fn()}
+        currencies={[]}
+        minYear={2024}
+        maxYear={2030}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /previous year/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /next year/i })).not.toBeDisabled();
+  });
+
+  it('disables the next-year arrow at the upper bound', () => {
+    render(
+      <AccrualToolbar
+        filters={{ ...defaultFilters, year_to: 2030 }}
+        onChange={vi.fn()}
+        currencies={[]}
+        minYear={2024}
+        maxYear={2030}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /next year/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /previous year/i })).not.toBeDisabled();
+  });
+
+  it('leaves both arrows enabled when bounds are unset', () => {
+    render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} currencies={[]} />);
+    expect(screen.getByRole('button', { name: /previous year/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /next year/i })).not.toBeDisabled();
+  });
 });

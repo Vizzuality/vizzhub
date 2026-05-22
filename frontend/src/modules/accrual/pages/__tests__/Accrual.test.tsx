@@ -5,7 +5,13 @@ import { Accrual } from '@/modules/accrual/pages/Accrual';
 
 vi.mock('@/modules/accrual/hooks/useAccrualGrid', () => ({
   useAccrualGrid: () => ({
-    data: { projects: [], cells: [], months: [{ year: 2026, month: 1 }] },
+    data: {
+      projects: [],
+      cells: [],
+      months: [{ year: 2026, month: 1 }],
+      bounds: null,
+      available_currencies: [],
+    },
     isLoading: false,
     error: null,
   }),
@@ -35,12 +41,12 @@ describe('Accrual page', () => {
     expect(screen.getByRole('heading', { name: /accrual grid/i })).toBeInTheDocument();
   });
 
-  it('renders the grid with no rows when projects is empty', () => {
+  it('shows an empty-state message when no projects match', () => {
     render(
       <MemoryRouter>
         <Accrual />
       </MemoryRouter>,
     );
-    expect(screen.getAllByRole('row').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/no projects match the current filters/i)).toBeInTheDocument();
   });
 });

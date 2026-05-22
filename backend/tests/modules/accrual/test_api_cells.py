@@ -318,3 +318,95 @@ async def test_bulk_cells_happy_path(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["updated"] == 2
+
+
+@pytest.mark.asyncio
+async def test_grid_returns_bounds_and_currencies(client: AsyncClient) -> None:
+    """bounds + available_currencies reflect projects matching status+pm, not year/currency."""
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Old",
+            "code": "TEST.AC.B1",
+            "currency": "dollar",
+            "start_date": "2022-01-01",
+            "end_date": "2024-12-01",
+        },
+    )
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Recent",
+            "code": "TEST.AC.B2",
+            "currency": "GBP",
+            "start_date": "2026-01-01",
+            "end_date": "2027-12-01",
+        },
+    )
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    assert resp.status_code == 200
+    body = resp.json()
+    # Year filter narrows the rendered project list but bounds reflect the wider span.
+    assert body["bounds"] == {"min_year": 2022, "max_year": 2027}
+    # USD comes from the legacy 'dollar' label, normalised. EUR isn't present.
+    assert body["available_currencies"] == ["GBP", "USD"]
+
+
+@pytest.mark.asyncio
+async def test_grid_bounds_null_when_no_projects(client: AsyncClient) -> None:
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bounds"] is None
+    assert body["available_currencies"] == []
+
+
+@pytest.mark.asyncio
+async def test_grid_filters_projects_by_year_overlap(client: AsyncClient) -> None:
+    """A project that ended before the visible range is dropped from the response."""
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Ended in 2024",
+            "code": "TEST.AC.OVL1",
+            "currency": "USD",
+            "start_date": "2022-01-01",
+            "end_date": "2024-12-01",
+        },
+    )
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Active 2026",
+            "code": "TEST.AC.OVL2",
+            "currency": "USD",
+            "start_date": "2026-01-01",
+            "end_date": "2027-12-01",
+        },
+    )
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    codes = {p["code"] for p in resp.json()["projects"]}
+    assert codes == {"TEST.AC.OVL2"}
+
+
+@pytest.mark.asyncio
+async def test_grid_keeps_projects_with_null_dates(client: AsyncClient) -> None:
+    """Projects without start/end dates aren't accidentally hidden by the overlap filter."""
+    await client.post(
+        "/api/projects",
+        json={"name": "Undated", "code": "TEST.AC.OVL3", "currency": "USD"},
+    )
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    codes = {p["code"] for p in resp.json()["projects"]}
+    assert "TEST.AC.OVL3" in codes
+
+
+@pytest.mark.asyncio
+async def test_grid_includes_eur_in_available_currencies(client: AsyncClient) -> None:
+    """Legacy 'euro' label normalises to EUR and shows up in the dropdown source."""
+    await client.post(
+        "/api/projects",
+        json={"name": "Euro one", "code": "TEST.AC.EUR1", "currency": "euro"},
+    )
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    assert "EUR" in resp.json()["available_currencies"]
