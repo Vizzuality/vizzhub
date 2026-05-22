@@ -79,7 +79,7 @@ describe('AccrualGrid', () => {
   it('shows the project name as a link to the project detail page', () => {
     renderGrid();
     const link = screen.getByRole('link', { name: /project a/i });
-    expect(link).toHaveAttribute('href', '/projects/p1');
+    expect(link).toHaveAttribute('href', '/tracker/projects/p1');
   });
 
   it('renders the amount for months with a cell and zero for months without', () => {

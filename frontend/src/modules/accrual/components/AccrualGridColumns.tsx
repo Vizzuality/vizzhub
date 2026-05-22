@@ -55,7 +55,7 @@ function ProjectCodeCellRenderer({ project }: { readonly project: AccrualGridPro
 function ProjectNameCellRenderer({ project }: { readonly project: AccrualGridProject }): JSX.Element {
   return (
     <Link
-      to={`/projects/${project.id}`}
+      to={`/tracker/projects/${project.id}`}
       className="block min-w-0 truncate text-sm hover:underline"
       title={project.name}
     >
