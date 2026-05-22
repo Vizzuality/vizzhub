@@ -1,8 +1,4 @@
-"""Cell-level operations for the accrual module.
-
-Today this module is responsible for redistribute_for_project; T2.7+ add
-set_cell_amount, clear_override, and bulk_set_cells.
-"""
+"""Cell-level operations for the accrual module."""
 
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
@@ -42,6 +38,20 @@ def _months_between(start: date, end: date) -> list[tuple[int, int]]:
 
 def _quantize(amount: Decimal) -> Decimal:
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+async def _get_cell(
+    db: AsyncSession, *, project_id: UUID, year: int, month: int
+) -> ProjectAccrualCellDB | None:
+    """Fetch a single cell by (project_id, year, month), or None."""
+    result = await db.execute(
+        select(ProjectAccrualCellDB).where(
+            ProjectAccrualCellDB.project_id == project_id,
+            ProjectAccrualCellDB.year == year,
+            ProjectAccrualCellDB.month == month,
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def redistribute_for_project(
@@ -143,15 +153,8 @@ async def set_cell_amount(
     amount: Decimal,
     user_id: UUID | None = None,
 ) -> ProjectAccrualCellDB:
-    cell = (
-        await db.execute(
-            select(ProjectAccrualCellDB).where(
-                ProjectAccrualCellDB.project_id == project_id,
-                ProjectAccrualCellDB.year == year,
-                ProjectAccrualCellDB.month == month,
-            )
-        )
-    ).scalar_one_or_none()
+    cell = await _get_cell(db, project_id=project_id, year=year, month=month)
+    uid = str(user_id) if user_id else None
 
     if cell is None:
         cell = ProjectAccrualCellDB(
@@ -170,7 +173,7 @@ async def set_cell_amount(
             month=month,
             prev_amount="0",
             new_amount=str(cell.amount),
-            user_id=str(user_id) if user_id else None,
+            user_id=uid,
         )
         return cell
 
@@ -180,7 +183,7 @@ async def set_cell_amount(
             project_id=str(project_id),
             year=year,
             month=month,
-            user_id=str(user_id) if user_id else None,
+            user_id=uid,
         )
         raise CellFrozenError(f"Cell {year}-{month:02d} is frozen")
 
@@ -195,7 +198,7 @@ async def set_cell_amount(
         month=month,
         prev_amount=str(prev),
         new_amount=str(cell.amount),
-        user_id=str(user_id) if user_id else None,
+        user_id=uid,
     )
     return cell
 
@@ -203,15 +206,9 @@ async def set_cell_amount(
 async def clear_override(
     db: AsyncSession, *, project_id: UUID, year: int, month: int
 ) -> ProjectAccrualCellDB:
-    cell = (
-        await db.execute(
-            select(ProjectAccrualCellDB).where(
-                ProjectAccrualCellDB.project_id == project_id,
-                ProjectAccrualCellDB.year == year,
-                ProjectAccrualCellDB.month == month,
-            )
-        )
-    ).scalar_one()
+    cell = await _get_cell(db, project_id=project_id, year=year, month=month)
+    if cell is None:
+        raise CellError(f"Cell {year}-{month:02d} not found for project {project_id}")
     if cell.is_frozen:
         raise CellFrozenError(f"Cell {year}-{month:02d} is frozen")
     cell.is_manual_override = False

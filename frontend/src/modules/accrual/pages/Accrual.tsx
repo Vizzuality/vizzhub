@@ -65,6 +65,24 @@ export function Accrual(): JSX.Element {
     }
   };
 
+  function renderGrid(): JSX.Element {
+    if (error) return <p className="text-sm text-destructive">Failed to load grid.</p>;
+    if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+    if (data && data.projects.length === 0) {
+      return <p className="text-sm text-muted-foreground">No projects match the current filters.</p>;
+    }
+    return (
+      <AccrualGrid
+        projects={data?.projects ?? []}
+        cells={data?.cells ?? []}
+        months={data?.months ?? []}
+        onCellChange={handleCellChange}
+        canEdit={canEdit}
+        failedCells={failedCells}
+      />
+    );
+  }
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -82,24 +100,7 @@ export function Accrual(): JSX.Element {
           {errorMessage}
         </div>
       )}
-      {error ? (
-        <p className="text-sm text-destructive">Failed to load grid.</p>
-      ) : isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : data && data.projects.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No projects match the current filters.
-        </p>
-      ) : (
-        <AccrualGrid
-          projects={data?.projects ?? []}
-          cells={data?.cells ?? []}
-          months={data?.months ?? []}
-          onCellChange={handleCellChange}
-          canEdit={canEdit}
-          failedCells={failedCells}
-        />
-      )}
+      {renderGrid()}
     </div>
   );
 }

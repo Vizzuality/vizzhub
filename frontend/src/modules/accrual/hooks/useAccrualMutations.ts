@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { accrualApi } from '@/modules/accrual/services/accrual';
+import { buildCellKey } from '@/modules/accrual/types/accrual';
 import type { AccrualGridResponse, BulkCellUpdate } from '@/modules/accrual/types/accrual';
 
 type SavingState = 'idle' | 'saving' | 'error';
@@ -35,10 +36,6 @@ function applyAmountToCells(
       c.id === cellId ? { ...c, amount, is_manual_override: true } : c,
     ),
   };
-}
-
-function buildCellKey(cell: { project_id: string; year: number; month: number }): string {
-  return `${cell.project_id}:${cell.year}:${cell.month}`;
 }
 
 export function useAccrualMutations(): UseAccrualMutationsReturn {
@@ -139,7 +136,7 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
         if (!data) continue;
         const found = data.cells.find((c) => c.id === cellId);
         if (found) {
-          cellKey = buildCellKey(found);
+          cellKey = buildCellKey(found.project_id, found.year, found.month);
           break;
         }
       }

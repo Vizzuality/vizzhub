@@ -33,6 +33,10 @@ AccrualViewer = Annotated[TokenData, Depends(require_permission(Action.ACCRUAL_V
 AccrualManager = Annotated[TokenData, Depends(require_permission(Action.ACCRUAL_MANAGE))]
 
 
+def _parse_user_id(token: TokenData) -> UUID | None:
+    return UUID(token.user_id) if token.user_id else None
+
+
 async def _serialize(db: AsyncSession, cell: ProjectAccrualCellDB) -> dict:
     """Return the cell as a JSON-serialisable dict with eur_amount resolved for live cells."""
     project = await db.get(ProjectDB, cell.project_id)
@@ -260,7 +264,7 @@ async def patch_cell(
             year=cell.year,
             month=cell.month,
             amount=payload.amount,
-            user_id=UUID(user.user_id) if user.user_id else None,
+            user_id=_parse_user_id(user),
         )
     except cell_service.CellFrozenError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
@@ -313,20 +317,11 @@ async def bulk_cells(
     user: AccrualManager,
 ) -> dict:
     """Apply many cell overrides atomically. A frozen cell aborts the whole batch."""
-    updates = [
-        {
-            "project_id": update.project_id,
-            "year": update.year,
-            "month": update.month,
-            "amount": update.amount,
-        }
-        for update in payload.updates
-    ]
     try:
         results = await cell_service.bulk_set_cells(
             db,
-            updates=updates,
-            user_id=UUID(user.user_id) if user.user_id else None,
+            updates=[u.model_dump() for u in payload.updates],
+            user_id=_parse_user_id(user),
         )
     except cell_service.CellFrozenError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

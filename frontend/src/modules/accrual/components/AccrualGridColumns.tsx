@@ -4,6 +4,7 @@ import { MONTHS_SHORT } from '@/shared/constants/dates';
 import { AccrualCell } from '@/modules/accrual/components/AccrualCell';
 import { LockedFxRateEditor } from '@/modules/accrual/components/LockedFxRateEditor';
 import { getStatusLabel } from '@/utils/projectStatus';
+import { buildCellKey } from '@/modules/accrual/types/accrual';
 import type {
   AccrualCell as AccrualCellType,
   AccrualGridMonth,
@@ -25,6 +26,12 @@ function formatAmount(val: string | null | undefined): string {
   return Number.isNaN(n) ? val : fmt.format(n);
 }
 
+/** Returns the effective EUR amount for a cell, preferring the frozen rate when frozen. */
+function resolveEurAmount(cell: AccrualCellType): number {
+  const eur = cell.is_frozen ? cell.frozen_eur_amount : cell.eur_amount;
+  return Number(eur) || 0;
+}
+
 export function monthLabel(month: number): string {
   return MONTHS_SHORT[month - 1] ?? String(month);
 }
@@ -43,7 +50,6 @@ export interface MonthColumnMeta {
   readonly year: number;
   readonly month: number;
 }
-
 
 function ProjectCodeCellRenderer({ project }: { readonly project: AccrualGridProject }): JSX.Element {
   return (
@@ -169,9 +175,7 @@ export function buildColumns(
           const c = cells.find(
             (cell) => cell.project_id === project.id && cell.year === m.year && cell.month === m.month,
           );
-          if (!c) return sum;
-          const eur = c.is_frozen ? c.frozen_eur_amount : c.eur_amount;
-          return sum + (Number(eur) || 0);
+          return c ? sum + resolveEurAmount(c) : sum;
         }, 0);
         return <span className="text-xs tabular-nums">{fmt.format(total)}</span>;
       },
@@ -197,7 +201,7 @@ export function buildColumns(
       const cell = cells.find(
         (c) => c.project_id === project.id && c.year === m.year && c.month === m.month,
       );
-      const hasError = failedCells?.has(`${project.id}:${m.year}:${m.month}`) ?? false;
+      const hasError = failedCells?.has(buildCellKey(project.id, m.year, m.month)) ?? false;
       return (
         <MonthCellRenderer
           project={project}
@@ -229,8 +233,7 @@ export function computeMonthTotals(
         (c) => c.project_id === p.id && c.year === m.year && c.month === m.month,
       );
       if (!cell) continue;
-      const eur = cell.is_frozen ? cell.frozen_eur_amount : cell.eur_amount;
-      total += Number(eur) || 0;
+      total += resolveEurAmount(cell);
     }
     result.set(`${m.year}_${m.month}`, total);
   }

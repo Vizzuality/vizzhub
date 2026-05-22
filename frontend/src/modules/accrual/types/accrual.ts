@@ -78,3 +78,8 @@ export interface AccrualGridResponse {
   bounds: AccrualGridBounds | null;
   available_currencies: string[];
 }
+
+/** Canonical key used for failedCells sets and optimistic-update maps. */
+export function buildCellKey(projectId: string, year: number, month: number): string {
+  return `${projectId}:${year}:${month}`;
+}
