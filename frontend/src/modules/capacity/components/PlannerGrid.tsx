@@ -27,7 +27,7 @@ import {
   stickyLeft,
   weekCellStyle,
   type WeekStyleConfig,
-} from '@/modules/capacity/components/plannerGridStyles';
+} from '@/shared/components/grid/stickyGridStyles';
 import {
   CommentOverlay,
   FACell,
