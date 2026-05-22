@@ -1,7 +1,7 @@
 """Unit tests for period_service."""
 
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 import pytest
@@ -174,3 +174,134 @@ async def test_validate_currencies_returns_missing(
     )
     missing = await period_service.validate_currencies_covered(db_session, period)
     assert set(missing) == {"GBP", "CHF"}
+
+
+@pytest.mark.asyncio
+async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession) -> None:
+    """Auto-close on rotation freezes all 2025 cells with the 2025 rate."""
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.services import cell_service
+
+    await period_service.create_period(
+        db_session,
+        start_date=date(2025, 1, 1),
+        fx_rates_input={"USD": "1.05"},
+        created_by=None,
+    )
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("1200"),
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+
+    # Rotating to 2026 should auto-close 2025 with cutoff (2026, 1).
+    await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+
+    result = await db_session.execute(
+        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
+    )
+    cells = sorted(result.scalars().all(), key=lambda c: (c.year, c.month))
+    assert len(cells) == 12
+    for cell in cells:
+        assert cell.is_frozen is True
+        assert cell.frozen_at is not None
+        assert cell.frozen_rate == Decimal("1.05")
+        expected = (cell.amount / Decimal("1.05")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        assert cell.frozen_eur_amount == expected
+
+
+@pytest.mark.asyncio
+async def test_close_period_skips_cells_with_unresolvable_rate(
+    db_session: AsyncSession,
+) -> None:
+    """A cell whose currency has no rate anywhere is left live (warned, not crashed)."""
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.services import cell_service
+
+    # Period only covers USD, but the project is in JPY with no ECB record either.
+    await period_service.create_period(
+        db_session,
+        start_date=date(2025, 1, 1),
+        fx_rates_input={"USD": "1.05"},
+        created_by=None,
+    )
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="JPY",
+        budget=Decimal("1200"),
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+
+    await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+
+    result = await db_session.execute(
+        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
+    )
+    cells = result.scalars().all()
+    assert len(cells) == 12
+    assert all(c.is_frozen is False for c in cells)
+
+
+@pytest.mark.asyncio
+async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) -> None:
+    """Cells dated 2026-onwards must NOT freeze when 2025 closes at cutoff 2026-01."""
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.services import cell_service
+
+    await period_service.create_period(
+        db_session,
+        start_date=date(2025, 1, 1),
+        fx_rates_input={"USD": "1.05"},
+        created_by=None,
+    )
+    # Two-year project: spans 2025-2026.
+    project = ProjectDB(
+        name="A",
+        status="live",
+        currency="USD",
+        budget=Decimal("2400"),
+        start_date=date(2025, 1, 1),
+        end_date=date(2026, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+
+    await period_service.create_period(
+        db_session,
+        start_date=date(2026, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+
+    result = await db_session.execute(
+        select(ProjectAccrualCellDB)
+        .where(ProjectAccrualCellDB.project_id == project.id)
+        .order_by(ProjectAccrualCellDB.year, ProjectAccrualCellDB.month)
+    )
+    cells = result.scalars().all()
+    cells_2025 = [c for c in cells if c.year == 2025]
+    cells_2026 = [c for c in cells if c.year == 2026]
+    assert all(c.is_frozen for c in cells_2025), "2025 cells must freeze"
+    assert not any(c.is_frozen for c in cells_2026), "2026 cells must stay live"
