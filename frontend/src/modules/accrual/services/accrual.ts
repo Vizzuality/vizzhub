@@ -1,8 +1,10 @@
 import api from '@/core/services/client';
 import type {
+  AccrualCell,
   AccrualPeriod,
   AccrualPeriodCreate,
   AccrualPeriodUpdate,
+  BulkCellUpdate,
 } from '@/modules/accrual/types/accrual';
 
 export const accrualApi = {
@@ -25,6 +27,34 @@ export const accrualApi = {
     },
     seedRates: async (): Promise<Record<string, string>> => {
       const r = await api.get<Record<string, string>>('/accrual/periods/seed-rates');
+      return r.data;
+    },
+  },
+  cells: {
+    listByProject: async (projectId: string): Promise<AccrualCell[]> => {
+      const r = await api.get<AccrualCell[]>(`/accrual/projects/${projectId}/cells`);
+      return r.data;
+    },
+    redistribute: async (
+      projectId: string,
+      force = false,
+    ): Promise<{ cells_updated: number }> => {
+      const r = await api.post<{ cells_updated: number }>(
+        `/accrual/projects/${projectId}/redistribute`,
+        { force },
+      );
+      return r.data;
+    },
+    patch: async (cellId: string, amount: string): Promise<AccrualCell> => {
+      const r = await api.patch<AccrualCell>(`/accrual/cells/${cellId}`, { amount });
+      return r.data;
+    },
+    clearOverride: async (cellId: string): Promise<AccrualCell> => {
+      const r = await api.delete<AccrualCell>(`/accrual/cells/${cellId}/override`);
+      return r.data;
+    },
+    bulk: async (updates: BulkCellUpdate[]): Promise<{ updated: number }> => {
+      const r = await api.post<{ updated: number }>('/accrual/cells/bulk', { updates });
       return r.data;
     },
   },

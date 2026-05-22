@@ -16,3 +16,25 @@ export interface AccrualPeriodCreate {
 export interface AccrualPeriodUpdate {
   fx_rates?: Record<string, string>;
 }
+
+export interface AccrualCell {
+  id: string;
+  project_id: string;
+  year: number;
+  month: number;
+  amount: string;
+  is_manual_override: boolean;
+  is_frozen: boolean;
+  frozen_at: string | null;
+  frozen_rate: string | null;
+  frozen_eur_amount: string | null;
+  eur_amount: string | null;
+  updated_at: string;
+}
+
+export interface BulkCellUpdate {
+  project_id: string;
+  year: number;
+  month: number;
+  amount: string;
+}

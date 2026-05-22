@@ -36,3 +36,45 @@ describe('accrualApi.periods', () => {
     expect(api.patch).toHaveBeenCalledWith('/accrual/periods/p1', { fx_rates: { USD: '1.11' } });
   });
 });
+
+describe('accrualApi.cells', () => {
+  it('listByProject calls GET /accrual/projects/{id}/cells', async () => {
+    (api.get as any).mockResolvedValue({ data: [] });
+    await accrualApi.cells.listByProject('p1');
+    expect(api.get).toHaveBeenCalledWith('/accrual/projects/p1/cells');
+  });
+
+  it('redistribute POSTs with body', async () => {
+    (api.post as any).mockResolvedValue({ data: { cells_updated: 12 } });
+    await accrualApi.cells.redistribute('p1', false);
+    expect(api.post).toHaveBeenCalledWith('/accrual/projects/p1/redistribute', { force: false });
+  });
+
+  it('redistribute defaults force to false', async () => {
+    (api.post as any).mockResolvedValue({ data: { cells_updated: 12 } });
+    await accrualApi.cells.redistribute('p1');
+    expect(api.post).toHaveBeenCalledWith('/accrual/projects/p1/redistribute', { force: false });
+  });
+
+  it('patch PATCHes by id with amount', async () => {
+    (api.patch as any).mockResolvedValue({ data: { id: 'c1' } });
+    await accrualApi.cells.patch('c1', '250.00');
+    expect(api.patch).toHaveBeenCalledWith('/accrual/cells/c1', { amount: '250.00' });
+  });
+
+  it('clearOverride DELETEs', async () => {
+    (api.delete as any).mockResolvedValue({ data: { id: 'c1' } });
+    await accrualApi.cells.clearOverride('c1');
+    expect(api.delete).toHaveBeenCalledWith('/accrual/cells/c1/override');
+  });
+
+  it('bulk POSTs updates', async () => {
+    (api.post as any).mockResolvedValue({ data: { updated: 3 } });
+    await accrualApi.cells.bulk([
+      { project_id: 'p1', year: 2026, month: 1, amount: '100' },
+    ]);
+    expect(api.post).toHaveBeenCalledWith('/accrual/cells/bulk', {
+      updates: [{ project_id: 'p1', year: 2026, month: 1, amount: '100' }],
+    });
+  });
+});
