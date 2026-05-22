@@ -95,6 +95,7 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.has_budget_alerts = data.has_budget_alerts
     project.currency = data.currency
     project.budget = data.budget
+    project.locked_fx_rate = data.locked_fx_rate
     project.notes = data.notes
     project.summary = data.summary
     project.jira_project_key = data.jira_project_key.upper() if data.jira_project_key else None
@@ -304,6 +305,7 @@ async def update_project(
         "is_billable",
         "currency",
         "budget",
+        "locked_fx_rate",
         "notes",
         "summary",
         "jira_project_key",
