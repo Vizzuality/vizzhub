@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from app.modules.accrual.api import periods as periods_router
 
 # Import models to register with Base.metadata
-from app.modules.accrual.models import AccrualPeriodDB  # noqa: F401
+from app.modules.accrual.models import AccrualPeriodDB, ProjectAccrualCellDB  # noqa: F401
 
 router = APIRouter()
 

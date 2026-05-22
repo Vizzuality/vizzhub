@@ -51,3 +51,33 @@ async def test_accrual_periods_start_date_unique(db_session: AsyncSession) -> No
         )
     )
     assert result.scalar() == "uq_accrual_periods_start_date"
+
+
+@pytest.mark.asyncio
+async def test_project_accrual_cells_table_exists(db_session: AsyncSession) -> None:
+    result = await db_session.execute(text("SELECT to_regclass('public.project_accrual_cells')"))
+    assert result.scalar() is not None
+
+
+@pytest.mark.asyncio
+async def test_project_accrual_cells_unique_project_month(db_session: AsyncSession) -> None:
+    result = await db_session.execute(
+        text(
+            "SELECT conname FROM pg_constraint "
+            "WHERE conrelid = 'project_accrual_cells'::regclass "
+            "AND conname = 'uq_accrual_cells_project_month'"
+        )
+    )
+    assert result.scalar() == "uq_accrual_cells_project_month"
+
+
+@pytest.mark.asyncio
+async def test_project_accrual_cells_month_check(db_session: AsyncSession) -> None:
+    result = await db_session.execute(
+        text(
+            "SELECT conname FROM pg_constraint "
+            "WHERE conrelid = 'project_accrual_cells'::regclass "
+            "AND conname = 'ck_accrual_cells_month_range'"
+        )
+    )
+    assert result.scalar() == "ck_accrual_cells_month_range"
