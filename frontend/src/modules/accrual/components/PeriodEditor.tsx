@@ -169,7 +169,7 @@ export function PeriodEditor({
     const present = new Set(rows.map((r) => r.currency));
     return Object.keys(seedRates ?? {})
       .filter((c) => c !== 'EUR' && !present.has(c))
-      .sort();
+      .sort((a, b) => a.localeCompare(b));
   }, [rows, seedRates]);
 
   const missingRates = rows.filter((r) => !r.rate.trim());

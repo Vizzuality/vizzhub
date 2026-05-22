@@ -60,7 +60,12 @@ async def seed_rates(db: DBSession, _: PeriodAdmin) -> dict[str, str]:
     return seed
 
 
-@router.post("", response_model=AccrualPeriod, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AccrualPeriod,
+    status_code=status.HTTP_201_CREATED,
+    responses={409: {"description": "Duplicate start_date or constraint violation"}},
+)
 async def create_period(
     payload: AccrualPeriodCreate,
     db: DBSession,
@@ -77,7 +82,14 @@ async def create_period(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.patch("/{period_id}", response_model=AccrualPeriod)
+@router.patch(
+    "/{period_id}",
+    response_model=AccrualPeriod,
+    responses={
+        404: {"description": "Period not found"},
+        409: {"description": "Period is closed"},
+    },
+)
 async def patch_period(
     period_id: UUID,
     payload: AccrualPeriodUpdate,

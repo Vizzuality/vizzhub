@@ -53,7 +53,7 @@ export function Periods(): JSX.Element {
                   {p.closed_at ? new Date(p.closed_at).toLocaleString() : '—'}
                 </td>
                 <td className="text-muted-foreground">
-                  {Object.keys(p.fx_rates).sort().join(', ') || '—'}
+                  {Object.keys(p.fx_rates).sort((a, b) => a.localeCompare(b)).join(', ') || '—'}
                 </td>
                 <td>
                   {p.status === 'open' && (
