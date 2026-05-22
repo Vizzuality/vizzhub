@@ -32,6 +32,7 @@ from app.core.logging_config import configure_logging
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import async_session_maker, init_db
+from app.modules.accrual.router import router as accrual_router
 from app.modules.capacity.router import router as capacity_router
 from app.modules.devstack.router import router as devstack_router
 from app.modules.events.router import router as events_router
@@ -242,6 +243,7 @@ app.include_router(jobs_router.router, prefix="/api")
 app.include_router(scorecard_router, prefix="/api", tags=["scorecard"])
 app.include_router(iso_router, prefix="/api/iso", tags=["iso"])
 app.include_router(tracker_router, prefix="/api/tracker", tags=["tracker"])
+app.include_router(accrual_router, prefix="/api/accrual", tags=["accrual"])
 app.include_router(capacity_router, prefix="/api/capacity", tags=["capacity"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
