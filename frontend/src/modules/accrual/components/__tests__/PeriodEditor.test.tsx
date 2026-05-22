@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { PeriodEditor } from '@/modules/accrual/components/PeriodEditor';
@@ -161,5 +162,103 @@ describe('PeriodEditor', () => {
     const rows = screen.getAllByRole('row');
     // header + USD row only, not EUR
     expect(rows).toHaveLength(2); // 1 header + 1 data row
+  });
+
+  it('shows the empty-state hint when no currencies are present', () => {
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={null}
+        usedCurrencies={[]}
+      />,
+    );
+    expect(screen.getByText(/No currencies yet/i)).toBeInTheDocument();
+  });
+
+  it('lets the user add a new currency via the inline form', async () => {
+    const user = userEvent.setup();
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={null}
+        usedCurrencies={[]}
+      />,
+    );
+    await user.type(screen.getByLabelText(/Add currency/i), 'usd');
+    await user.type(screen.getByLabelText(/Rate \(per 1 EUR\)/i), '1.10');
+    await user.click(screen.getByRole('button', { name: /^Add$/ }));
+    expect(screen.getByText('USD')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('1.10')).toBeInTheDocument();
+  });
+
+  it('rejects malformed codes when adding', async () => {
+    const user = userEvent.setup();
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={null}
+        usedCurrencies={[]}
+      />,
+    );
+    await user.type(screen.getByLabelText(/Add currency/i), 'XX');
+    await user.click(screen.getByRole('button', { name: /^Add$/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/3-letter/);
+  });
+
+  it('rejects EUR explicitly', async () => {
+    const user = userEvent.setup();
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={null}
+        usedCurrencies={[]}
+      />,
+    );
+    await user.type(screen.getByLabelText(/Add currency/i), 'eur');
+    await user.click(screen.getByRole('button', { name: /^Add$/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/EUR is the base/);
+  });
+
+  it('rejects duplicates', async () => {
+    const user = userEvent.setup();
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={{
+          id: 'p1', start_date: '2025-01-01', status: 'open',
+          fx_rates: { USD: '1.05' },
+          closed_at: null, created_at: '', created_by: null,
+        }}
+        usedCurrencies={[]}
+      />,
+    );
+    await user.type(screen.getByLabelText(/Add currency/i), 'USD');
+    await user.click(screen.getByRole('button', { name: /^Add$/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/already in the list/i);
+  });
+
+  it('lets the user remove a row', async () => {
+    const user = userEvent.setup();
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={{
+          id: 'p1', start_date: '2025-01-01', status: 'open',
+          fx_rates: { USD: '1.05', GBP: '0.85' },
+          closed_at: null, created_at: '', created_by: null,
+        }}
+        usedCurrencies={[]}
+      />,
+    );
+    expect(screen.getByText('USD')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Remove USD/i }));
+    expect(screen.queryByText('USD')).not.toBeInTheDocument();
+    expect(screen.getByText('GBP')).toBeInTheDocument();
   });
 });

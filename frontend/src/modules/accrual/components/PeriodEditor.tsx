@@ -10,7 +10,7 @@ import {
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { useCreatePeriod } from '@/modules/accrual/hooks/usePeriods';
 import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
 
@@ -56,6 +56,9 @@ export function PeriodEditor({
   }, [previousPeriod, usedCurrencies]);
 
   const [rows, setRows] = useState<RateRow[]>(initialRows);
+  const [newCurrency, setNewCurrency] = useState('');
+  const [newRate, setNewRate] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
 
   const create = useCreatePeriod();
 
@@ -65,6 +68,30 @@ export function PeriodEditor({
         r.currency === currency ? { ...r, rate, source: 'edited' as const } : r,
       ),
     );
+  };
+
+  const removeRow = (currency: string): void => {
+    setRows((prev) => prev.filter((r) => r.currency !== currency));
+  };
+
+  const addRow = (): void => {
+    const code = newCurrency.trim().toUpperCase();
+    if (code.length !== 3 || !/^[A-Z]{3}$/.test(code)) {
+      setAddError('Currency must be a 3-letter ISO code (e.g. USD).');
+      return;
+    }
+    if (code === 'EUR') {
+      setAddError('EUR is the base currency — no rate needed.');
+      return;
+    }
+    if (rows.some((r) => r.currency === code)) {
+      setAddError(`${code} is already in the list.`);
+      return;
+    }
+    setRows((prev) => [...prev, { currency: code, rate: newRate.trim(), source: 'new' }]);
+    setNewCurrency('');
+    setNewRate('');
+    setAddError(null);
   };
 
   const missingRates = rows.filter((r) => !r.rate.trim());
@@ -120,14 +147,62 @@ export function PeriodEditor({
                       />
                     </td>
                     <td className="py-1 text-xs text-muted-foreground">
-                      {r.source === 'copied' && 'copied from previous'}
-                      {r.source === 'edited' && 'edited'}
-                      {r.source === 'new' && 'new — needs rate'}
+                      <div className="flex items-center justify-between gap-2">
+                        <span>
+                          {r.source === 'copied' && 'copied from previous'}
+                          {r.source === 'edited' && 'edited'}
+                          {r.source === 'new' && 'new — needs rate'}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${r.currency}`}
+                          onClick={() => removeRow(r.currency)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-3 text-xs text-muted-foreground italic">
+                      No currencies yet — add at least one below (USD is typical).
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+            <div className="mt-3 flex items-end gap-2">
+              <div className="flex-1">
+                <Label htmlFor="new_currency" className="text-xs">Add currency</Label>
+                <Input
+                  id="new_currency"
+                  value={newCurrency}
+                  onChange={(e) => setNewCurrency(e.target.value.toUpperCase())}
+                  placeholder="USD"
+                  maxLength={3}
+                  className="font-mono"
+                />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="new_rate" className="text-xs">Rate (per 1 EUR)</Label>
+                <Input
+                  id="new_rate"
+                  value={newRate}
+                  onChange={(e) => setNewRate(e.target.value)}
+                  placeholder="1.10"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRow(); } }}
+                />
+              </div>
+              <Button type="button" variant="outline" onClick={addRow}>
+                <Plus className="w-4 h-4 mr-1" /> Add
+              </Button>
+            </div>
+            {addError && (
+              <p className="mt-1 text-xs text-destructive" role="alert">{addError}</p>
+            )}
           </div>
           {missingRates.length > 0 && (
             <div className="flex items-start gap-2 text-amber-600 text-sm">
