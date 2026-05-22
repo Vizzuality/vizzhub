@@ -1,6 +1,8 @@
 import api from '@/core/services/client';
 import type {
   AccrualCell,
+  AccrualGridFilters,
+  AccrualGridResponse,
   AccrualPeriod,
   AccrualPeriodCreate,
   AccrualPeriodUpdate,
@@ -31,6 +33,14 @@ export const accrualApi = {
     },
   },
   cells: {
+    grid: async (filters: AccrualGridFilters): Promise<AccrualGridResponse> => {
+      const params: Record<string, unknown> = { year_from: filters.year_from, year_to: filters.year_to };
+      if (filters.status !== undefined) params.status = filters.status;
+      if (filters.currency !== undefined) params.currency = filters.currency;
+      if (filters.project_manager_id !== undefined) params.project_manager_id = filters.project_manager_id;
+      const r = await api.get<AccrualGridResponse>('/accrual/grid', { params });
+      return r.data;
+    },
     listByProject: async (projectId: string): Promise<AccrualCell[]> => {
       const r = await api.get<AccrualCell[]>(`/accrual/projects/${projectId}/cells`);
       return r.data;

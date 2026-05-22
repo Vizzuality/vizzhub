@@ -37,6 +37,24 @@ describe('accrualApi.periods', () => {
   });
 });
 
+describe('accrualApi.cells.grid', () => {
+  it('GETs /accrual/grid with filter params', async () => {
+    (api.get as any).mockResolvedValue({ data: { projects: [], cells: [], months: [] } });
+    await accrualApi.cells.grid({ year_from: 2026, year_to: 2026, status: 'live' });
+    expect(api.get).toHaveBeenCalledWith('/accrual/grid', {
+      params: { year_from: 2026, year_to: 2026, status: 'live' },
+    });
+  });
+
+  it('omits undefined optional filters', async () => {
+    (api.get as any).mockResolvedValue({ data: { projects: [], cells: [], months: [] } });
+    await accrualApi.cells.grid({ year_from: 2026, year_to: 2026 });
+    expect(api.get).toHaveBeenCalledWith('/accrual/grid', {
+      params: { year_from: 2026, year_to: 2026 },
+    });
+  });
+});
+
 describe('accrualApi.cells', () => {
   it('listByProject calls GET /accrual/projects/{id}/cells', async () => {
     (api.get as any).mockResolvedValue({ data: [] });

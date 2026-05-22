@@ -38,3 +38,31 @@ export interface BulkCellUpdate {
   month: number;
   amount: string;
 }
+
+export interface AccrualGridFilters {
+  year_from: number;
+  year_to: number;
+  status?: string;
+  currency?: string;
+  project_manager_id?: string;
+}
+
+export interface AccrualGridProject {
+  id: string;
+  name: string;
+  currency: string;
+  status: string;
+  project_manager_id: string | null;
+  project_manager_name: string | null;
+}
+
+export interface AccrualGridMonth {
+  year: number;
+  month: number;
+}
+
+export interface AccrualGridResponse {
+  projects: AccrualGridProject[];
+  cells: AccrualCell[];
+  months: AccrualGridMonth[];
+}
