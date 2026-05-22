@@ -117,3 +117,24 @@ async def get_period_for_month(
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def validate_currencies_covered(
+    db: AsyncSession,
+    period: AccrualPeriodDB,
+) -> list[str]:
+    """Return currencies used by non-archived Projects that lack a rate in the period.
+
+    EUR is always passthrough — never flagged. Projects in status='finished'
+    are included (their accruals still need a rate for unfrozen cells, if any).
+    """
+    from app.core.models.project import ProjectDB
+
+    result = await db.execute(
+        select(ProjectDB.currency)
+        .distinct()
+        .where(ProjectDB.status.in_(["proposal", "live", "finished"]))
+    )
+    used = {row[0] for row in result.all() if row[0] and row[0].upper() != "EUR"}
+    covered = set(period.fx_rates.keys())
+    return sorted(used - covered)
