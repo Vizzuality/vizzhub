@@ -14,6 +14,12 @@ import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { useCreatePeriod, useSeedRates } from '@/modules/accrual/hooks/usePeriods';
 import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
 
+/**
+ * Currencies always visible by default. Others can be added on demand from
+ * the dropdown below the table (which lists every code with an ECB rate).
+ */
+const MAJOR_CURRENCIES = ['USD', 'GBP', 'CAD', 'CHF'] as const;
+
 interface PeriodEditorProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -43,28 +49,35 @@ export function PeriodEditor({
   const { data: seedRates } = useSeedRates(open);
 
   const initialRows = useMemo<RateRow[]>(() => {
-    // 1. Start with the previous period's locked rates (highest priority).
-    const copied: RateRow[] = previousPeriod
-      ? Object.entries(previousPeriod.fx_rates).map(([currency, rate]) => ({
-          currency,
-          rate,
-          source: 'copied' as const,
-        }))
-      : [];
-    const known = new Set(copied.map((r) => r.currency));
-    // 2. Add every currency known to the system (from ECB cron) that's not
-    //    already covered, pre-filled with the latest ECB rate.
-    const ecbRows: RateRow[] = Object.entries(seedRates ?? {})
-      .filter(([currency]) => currency !== 'EUR' && !known.has(currency))
-      .map(([currency, rate]) => ({ currency, rate, source: 'ecb' as const }));
-    for (const r of ecbRows) known.add(r.currency);
-    // 3. Add usedCurrencies still uncovered (rare — no ECB row, no previous).
-    const stillMissing: RateRow[] = usedCurrencies
-      .filter((c) => c !== 'EUR' && !known.has(c))
-      .map((currency) => ({ currency, rate: '', source: 'new' as const }));
-    return [...copied, ...ecbRows, ...stillMissing].sort((a, b) =>
-      a.currency.localeCompare(b.currency),
-    );
+    // Start with the union of: previous period's locked currencies, the
+    // major-currency whitelist, and any currency in active use by Projects.
+    // For each, pre-fill the rate from (in order): previous period → ECB seed → empty.
+    const seen = new Set<string>();
+    const built: RateRow[] = [];
+    const prevRates = previousPeriod?.fx_rates ?? {};
+
+    const candidates = [
+      ...Object.keys(prevRates),
+      ...MAJOR_CURRENCIES,
+      ...usedCurrencies,
+    ];
+
+    for (const raw of candidates) {
+      const code = raw.toUpperCase();
+      if (code === 'EUR' || seen.has(code)) continue;
+      seen.add(code);
+
+      const fromPrev = prevRates[code];
+      const fromEcb = seedRates?.[code];
+      if (fromPrev) {
+        built.push({ currency: code, rate: fromPrev, source: 'copied' });
+      } else if (fromEcb) {
+        built.push({ currency: code, rate: fromEcb, source: 'ecb' });
+      } else {
+        built.push({ currency: code, rate: '', source: 'new' });
+      }
+    }
+    return built.sort((a, b) => a.currency.localeCompare(b.currency));
   }, [previousPeriod, usedCurrencies, seedRates]);
 
   const [rows, setRows] = useState<RateRow[]>(initialRows);
@@ -73,9 +86,8 @@ export function PeriodEditor({
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
-  const [newCurrency, setNewCurrency] = useState('');
-  const [newRate, setNewRate] = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
+
+  const [pickerValue, setPickerValue] = useState('');
 
   const create = useCreatePeriod();
 
@@ -91,25 +103,25 @@ export function PeriodEditor({
     setRows((prev) => prev.filter((r) => r.currency !== currency));
   };
 
-  const addRow = (): void => {
-    const code = newCurrency.trim().toUpperCase();
-    if (code.length !== 3 || !/^[A-Z]{3}$/.test(code)) {
-      setAddError('Currency must be a 3-letter ISO code (e.g. USD).');
-      return;
-    }
-    if (code === 'EUR') {
-      setAddError('EUR is the base currency — no rate needed.');
-      return;
-    }
-    if (rows.some((r) => r.currency === code)) {
-      setAddError(`${code} is already in the list.`);
-      return;
-    }
-    setRows((prev) => [...prev, { currency: code, rate: newRate.trim(), source: 'new' }]);
-    setNewCurrency('');
-    setNewRate('');
-    setAddError(null);
+  const addFromPicker = (code: string): void => {
+    if (!code || code === 'EUR') return;
+    if (rows.some((r) => r.currency === code)) return;
+    const rate = seedRates?.[code] ?? '';
+    const source: RateRow['source'] = rate ? 'ecb' : 'new';
+    setRows((prev) =>
+      [...prev, { currency: code, rate, source }].sort((a, b) =>
+        a.currency.localeCompare(b.currency),
+      ),
+    );
+    setPickerValue('');
   };
+
+  const availableForPicker = useMemo(() => {
+    const present = new Set(rows.map((r) => r.currency));
+    return Object.keys(seedRates ?? {})
+      .filter((c) => c !== 'EUR' && !present.has(c))
+      .sort();
+  }, [rows, seedRates]);
 
   const missingRates = rows.filter((r) => !r.rate.trim());
 
@@ -127,8 +139,9 @@ export function PeriodEditor({
         <DialogHeader>
           <DialogTitle>Open new accrual period</DialogTitle>
           <DialogDescription>
-            Set the start date and FX rates for the new accrual period. Any currency left without a
-            manual rate will use the European Central Bank daily rate at save time.
+            Set the start date and FX rates for the new accrual period. Any
+            currency left without a manual rate will use the European Central
+            Bank daily rate at save time.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -186,40 +199,39 @@ export function PeriodEditor({
                 {rows.length === 0 && (
                   <tr>
                     <td colSpan={3} className="py-3 text-xs text-muted-foreground italic">
-                      No currencies yet — add at least one below (USD is typical).
+                      No currencies — pick one below to add.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-            <div className="mt-3 flex items-end gap-2">
-              <div className="flex-1">
-                <Label htmlFor="new_currency" className="text-xs">Add currency</Label>
-                <Input
-                  id="new_currency"
-                  value={newCurrency}
-                  onChange={(e) => setNewCurrency(e.target.value.toUpperCase())}
-                  placeholder="USD"
-                  maxLength={3}
-                  className="font-mono"
-                />
+            {availableForPicker.length > 0 && (
+              <div className="mt-3 flex items-end gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="add_currency_picker" className="text-xs">
+                    Add another currency
+                  </Label>
+                  <select
+                    id="add_currency_picker"
+                    value={pickerValue}
+                    onChange={(e) => setPickerValue(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm font-mono"
+                  >
+                    <option value="">— select —</option>
+                    {availableForPicker.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addFromPicker(pickerValue)}
+                  disabled={!pickerValue}
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </Button>
               </div>
-              <div className="flex-1">
-                <Label htmlFor="new_rate" className="text-xs">Rate (per 1 EUR)</Label>
-                <Input
-                  id="new_rate"
-                  value={newRate}
-                  onChange={(e) => setNewRate(e.target.value)}
-                  placeholder="1.10"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRow(); } }}
-                />
-              </div>
-              <Button type="button" variant="outline" onClick={addRow}>
-                <Plus className="w-4 h-4 mr-1" /> Add
-              </Button>
-            </div>
-            {addError && (
-              <p className="mt-1 text-xs text-destructive" role="alert">{addError}</p>
             )}
           </div>
           {missingRates.length > 0 && (

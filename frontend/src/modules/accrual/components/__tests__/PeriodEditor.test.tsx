@@ -68,13 +68,13 @@ describe('PeriodEditor', () => {
         onClose={vi.fn()}
         previousPeriod={{
           id: 'p1', start_date: '2025-01-01', status: 'open',
-          fx_rates: { USD: '1.05', GBP: '0.85' },
+          // All four major currencies have explicit rates → no empty cells, no warning.
+          fx_rates: { USD: '1.05', GBP: '0.85', CAD: '1.45', CHF: '0.95' },
           closed_at: null, created_at: '', created_by: null,
         }}
         usedCurrencies={['USD', 'GBP']}
       />,
     );
-    // The amber warning (with AlertTriangle) should NOT be present; the DialogDescription still has "ECB"
     expect(screen.queryByText(/fall back to ECB/i)).not.toBeInTheDocument();
   });
 
@@ -85,14 +85,16 @@ describe('PeriodEditor', () => {
         onClose={vi.fn()}
         previousPeriod={{
           id: 'p1', start_date: '2025-01-01', status: 'open',
-          fx_rates: { USD: '1.05' },
+          // All four majors have rates so only the added one (BRL) is "new — needs rate".
+          fx_rates: { USD: '1.05', GBP: '0.85', CAD: '1.45', CHF: '0.95' },
           closed_at: null, created_at: '', created_by: null,
         }}
-        usedCurrencies={['USD', 'CHF']}
+        usedCurrencies={['BRL']}
       />,
     );
     expect(screen.getByText('new — needs rate')).toBeInTheDocument();
-    expect(screen.getByText('from previous period')).toBeInTheDocument();
+    // Each of the four majors shows "from previous period".
+    expect(screen.getAllByText('from previous period')).toHaveLength(4);
   });
 
   it('shows the freeze note when previousPeriod is set', () => {
@@ -158,43 +160,13 @@ describe('PeriodEditor', () => {
         usedCurrencies={['EUR', 'USD']}
       />,
     );
-    // EUR should not appear as a row (it's the base currency)
-    const rows = screen.getAllByRole('row');
-    // header + USD row only, not EUR
-    expect(rows).toHaveLength(2); // 1 header + 1 data row
-  });
-
-  it('shows the empty-state hint when no currencies are present', () => {
-    renderWith(
-      <PeriodEditor
-        open
-        onClose={vi.fn()}
-        previousPeriod={null}
-        usedCurrencies={[]}
-      />,
-    );
-    expect(screen.getByText(/No currencies yet/i)).toBeInTheDocument();
-  });
-
-  it('lets the user add a new currency via the inline form', async () => {
-    const user = userEvent.setup();
-    renderWith(
-      <PeriodEditor
-        open
-        onClose={vi.fn()}
-        previousPeriod={null}
-        usedCurrencies={[]}
-      />,
-    );
-    await user.type(screen.getByLabelText(/Add currency/i), 'usd');
-    await user.type(screen.getByLabelText(/Rate \(per 1 EUR\)/i), '1.10');
-    await user.click(screen.getByRole('button', { name: /^Add$/ }));
+    // EUR should not appear as a row (it's the base currency).
+    // The default rows = MAJOR_CURRENCIES (USD, GBP, CAD, CHF), no EUR.
+    expect(screen.queryByText('EUR')).not.toBeInTheDocument();
     expect(screen.getByText('USD')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('1.10')).toBeInTheDocument();
   });
 
-  it('rejects malformed codes when adding', async () => {
-    const user = userEvent.setup();
+  it('shows the four major currencies by default even with no previous period', () => {
     renderWith(
       <PeriodEditor
         open
@@ -203,43 +175,11 @@ describe('PeriodEditor', () => {
         usedCurrencies={[]}
       />,
     );
-    await user.type(screen.getByLabelText(/Add currency/i), 'XX');
-    await user.click(screen.getByRole('button', { name: /^Add$/ }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/3-letter/);
-  });
-
-  it('rejects EUR explicitly', async () => {
-    const user = userEvent.setup();
-    renderWith(
-      <PeriodEditor
-        open
-        onClose={vi.fn()}
-        previousPeriod={null}
-        usedCurrencies={[]}
-      />,
-    );
-    await user.type(screen.getByLabelText(/Add currency/i), 'eur');
-    await user.click(screen.getByRole('button', { name: /^Add$/ }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/EUR is the base/);
-  });
-
-  it('rejects duplicates', async () => {
-    const user = userEvent.setup();
-    renderWith(
-      <PeriodEditor
-        open
-        onClose={vi.fn()}
-        previousPeriod={{
-          id: 'p1', start_date: '2025-01-01', status: 'open',
-          fx_rates: { USD: '1.05' },
-          closed_at: null, created_at: '', created_by: null,
-        }}
-        usedCurrencies={[]}
-      />,
-    );
-    await user.type(screen.getByLabelText(/Add currency/i), 'USD');
-    await user.click(screen.getByRole('button', { name: /^Add$/ }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/already in the list/i);
+    // MAJOR_CURRENCIES = USD, GBP, CAD, CHF — all should appear as rows.
+    expect(screen.getByText('USD')).toBeInTheDocument();
+    expect(screen.getByText('GBP')).toBeInTheDocument();
+    expect(screen.getByText('CAD')).toBeInTheDocument();
+    expect(screen.getByText('CHF')).toBeInTheDocument();
   });
 
   it('lets the user remove a row', async () => {
