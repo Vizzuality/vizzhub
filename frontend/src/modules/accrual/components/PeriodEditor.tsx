@@ -11,7 +11,11 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
-import { useCreatePeriod, useSeedRates } from '@/modules/accrual/hooks/usePeriods';
+import {
+  useCreatePeriod,
+  usePatchPeriod,
+  useSeedRates,
+} from '@/modules/accrual/hooks/usePeriods';
 import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
 
 /**
@@ -23,6 +27,13 @@ const MAJOR_CURRENCIES = ['USD', 'GBP', 'CAD', 'CHF'] as const;
 interface PeriodEditorProps {
   readonly open: boolean;
   readonly onClose: () => void;
+  /**
+   * - `'create'` (default): opens a new period; closes the current open one
+   *   and freezes its cells.
+   * - `'edit'`: patches `fx_rates` of the period passed as `previousPeriod`.
+   *   No freeze, no `start_date` change.
+   */
+  readonly mode?: 'create' | 'edit';
   readonly previousPeriod: AccrualPeriod | null;
   readonly usedCurrencies: readonly string[];
 }
@@ -41,9 +52,11 @@ interface RateRow {
 export function PeriodEditor({
   open,
   onClose,
+  mode = 'create',
   previousPeriod,
   usedCurrencies,
 }: PeriodEditorProps): JSX.Element {
+  const isEdit = mode === 'edit';
   const [startDate, setStartDate] = useState(firstOfCurrentMonth());
 
   const { data: seedRates } = useSeedRates(open);
@@ -90,6 +103,8 @@ export function PeriodEditor({
   const [pickerValue, setPickerValue] = useState('');
 
   const create = useCreatePeriod();
+  const patch = usePatchPeriod();
+  const submitting = create.isPending || patch.isPending;
 
   const updateRow = (currency: string, rate: string): void => {
     setRows((prev) =>
@@ -129,7 +144,11 @@ export function PeriodEditor({
     const fx_rates = Object.fromEntries(
       rows.filter((r) => r.rate.trim()).map((r) => [r.currency, r.rate.trim()]),
     );
-    await create.mutateAsync({ start_date: startDate, fx_rates });
+    if (isEdit && previousPeriod) {
+      await patch.mutateAsync({ id: previousPeriod.id, payload: { fx_rates } });
+    } else {
+      await create.mutateAsync({ start_date: startDate, fx_rates });
+    }
     onClose();
   };
 
@@ -137,23 +156,27 @@ export function PeriodEditor({
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Open new accrual period</DialogTitle>
+          <DialogTitle>
+            {isEdit ? 'Edit period FX rates' : 'Open new accrual period'}
+          </DialogTitle>
           <DialogDescription>
-            Set the start date and FX rates for the new accrual period. Any
-            currency left without a manual rate will use the European Central
-            Bank daily rate at save time.
+            {isEdit
+              ? 'Add or change the FX rates locked for this period. Past months are not affected.'
+              : 'Set the start date and FX rates for the new accrual period. Any currency left without a manual rate will use the European Central Bank daily rate at save time.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="period_start_date">Start date</Label>
-            <Input
-              id="period_start_date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
+          {!isEdit && (
+            <div>
+              <Label htmlFor="period_start_date">Start date</Label>
+              <Input
+                id="period_start_date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+          )}
           <div>
             <Label>FX rates</Label>
             <table className="w-full text-sm mt-2">
@@ -243,7 +266,7 @@ export function PeriodEditor({
               </span>
             </div>
           )}
-          {previousPeriod && (
+          {!isEdit && previousPeriod && (
             <p className="text-sm text-muted-foreground">
               This will close the current open period and freeze its cells.
             </p>
@@ -253,8 +276,10 @@ export function PeriodEditor({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={create.isPending}>
-            {create.isPending ? 'Opening…' : 'Open period'}
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting
+              ? (isEdit ? 'Saving…' : 'Opening…')
+              : (isEdit ? 'Save changes' : 'Open period')}
           </Button>
         </DialogFooter>
       </DialogContent>

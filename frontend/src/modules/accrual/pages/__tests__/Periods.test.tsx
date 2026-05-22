@@ -24,6 +24,8 @@ vi.mock('@/modules/accrual/hooks/usePeriods', () => ({
   }),
   useCurrentPeriod: () => ({ data: null }),
   useCreatePeriod: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePatchPeriod: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSeedRates: () => ({ data: { USD: '1.10', GBP: '0.85' } }),
 }));
 
 const renderPage = (): void => {
@@ -46,5 +48,17 @@ describe('Periods page', () => {
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /new period/i }));
     expect(screen.getByText(/Open new accrual period/i)).toBeInTheDocument();
+  });
+
+  it('shows "Edit currencies" only on the open row', () => {
+    renderPage();
+    const editButtons = screen.getAllByRole('button', { name: /edit currencies/i });
+    expect(editButtons).toHaveLength(1);
+  });
+
+  it('opens the edit dialog on Edit currencies click', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /edit currencies/i }));
+    expect(screen.getByText(/Edit period FX rates/i)).toBeInTheDocument();
   });
 });
