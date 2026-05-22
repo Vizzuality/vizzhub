@@ -381,3 +381,34 @@ class TestPermissionAuthorization:
 
             assert any("auth_bypass_dev_mode" in str(record.message) for record in caplog.records)
             assert user.user_id == "00000000-0000-0000-0000-000000000001"
+
+
+def test_accrual_actions_defined():
+    from app.core.permissions.actions import Action
+
+    assert Action.ACCRUAL_VIEW == "accrual:view"
+    assert Action.ACCRUAL_MANAGE == "accrual:manage"
+    assert Action.ACCRUAL_PERIOD_MANAGE == "accrual:period_manage"
+
+
+def test_accrual_view_in_user_role():
+    from app.core.permissions.actions import Action
+    from app.core.permissions.roles import ROLE_PERMISSIONS
+
+    assert Action.ACCRUAL_VIEW in ROLE_PERMISSIONS["user"]
+
+
+def test_accrual_manage_in_manager_role():
+    from app.core.permissions.actions import Action
+    from app.core.permissions.roles import ROLE_PERMISSIONS
+
+    assert Action.ACCRUAL_MANAGE in ROLE_PERMISSIONS["manager"]
+    assert Action.ACCRUAL_VIEW in ROLE_PERMISSIONS["manager"]
+
+
+def test_accrual_period_manage_admin_only():
+    from app.core.permissions.actions import Action
+    from app.core.permissions.roles import ROLE_PERMISSIONS
+
+    assert Action.ACCRUAL_PERIOD_MANAGE not in ROLE_PERMISSIONS["manager"]
+    assert Action.ACCRUAL_PERIOD_MANAGE not in ROLE_PERMISSIONS["user"]

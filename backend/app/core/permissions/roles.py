@@ -13,6 +13,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.DEVSTACK_VIEW,
         Action.CAPACITY_VIEW,
         Action.CAPACITY_MANAGE,
+        Action.ACCRUAL_VIEW,
     },
     "manager": {
         Action.PROJECTS_VIEW,
@@ -24,6 +25,8 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         Action.EVENTS_VIEW,
         Action.CAPACITY_VIEW,
         Action.CAPACITY_MANAGE,
+        Action.ACCRUAL_VIEW,
+        Action.ACCRUAL_MANAGE,
     },
     "playbook_editor": {
         Action.PLAYBOOK_EDIT,
