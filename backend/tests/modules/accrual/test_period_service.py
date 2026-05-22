@@ -283,12 +283,14 @@ async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) 
         status="live",
         currency="USD",
         budget=Decimal("2400"),
+        original_budget=Decimal("2400"),
         start_date=date(2025, 1, 1),
         end_date=date(2026, 12, 1),
     )
     db_session.add(project)
     await db_session.flush()
-    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+    written = await cell_service.redistribute_for_project(db_session, project_id=project.id)
+    assert written == 24, "redistribute should populate all 24 months (2025-01 .. 2026-12)"
 
     await period_service.create_period(
         db_session,
