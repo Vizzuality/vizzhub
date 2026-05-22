@@ -1,6 +1,7 @@
-"""Model-layer tests for accrual_periods."""
+"""Model-layer tests for accrual_periods and project_accrual_cells."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,3 +86,65 @@ def test_accrual_period_create_happy_path() -> None:
     payload = AccrualPeriodCreate(start_date=date(2026, 1, 1), fx_rates={"USD": "1.10"})
     assert payload.start_date == date(2026, 1, 1)
     assert payload.fx_rates == {"USD": "1.10"}
+
+
+@pytest.mark.asyncio
+async def test_persist_live_cell(db_session: AsyncSession) -> None:
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+
+    project = ProjectDB(name="Test", status="live", currency="USD", budget=Decimal("1200"))
+    db_session.add(project)
+    await db_session.flush()
+    cell = ProjectAccrualCellDB(
+        project_id=project.id,
+        year=2026,
+        month=3,
+        amount=Decimal("100"),
+        is_manual_override=False,
+        is_frozen=False,
+    )
+    db_session.add(cell)
+    await db_session.flush()
+    assert cell.id is not None
+
+
+@pytest.mark.asyncio
+async def test_frozen_cell_requires_three_stamp_fields(db_session: AsyncSession) -> None:
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+
+    project = ProjectDB(name="Test", status="live", currency="USD", budget=Decimal("1200"))
+    db_session.add(project)
+    await db_session.flush()
+    cell = ProjectAccrualCellDB(
+        project_id=project.id,
+        year=2025,
+        month=6,
+        amount=Decimal("100"),
+        is_frozen=True,
+    )
+    db_session.add(cell)
+    with pytest.raises(Exception) as exc_info:
+        await db_session.flush()
+    assert "frozen" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_month_check_rejects_13(db_session: AsyncSession) -> None:
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+
+    project = ProjectDB(name="Test", status="live", currency="USD", budget=Decimal("1200"))
+    db_session.add(project)
+    await db_session.flush()
+    db_session.add(
+        ProjectAccrualCellDB(
+            project_id=project.id,
+            year=2026,
+            month=13,
+            amount=Decimal("100"),
+        )
+    )
+    with pytest.raises(Exception):
+        await db_session.flush()
