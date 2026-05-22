@@ -7,12 +7,16 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.api.deps import DBSession
 from app.core.auth import TokenData
 from app.core.models.project import ProjectDB
+from app.core.models.user import UserDB
 from app.core.permissions.actions import Action
 from app.core.permissions.dependencies import require_permission
+from app.core.services.exchange_rate_service import currency_to_code
+from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
 from app.modules.accrual.schemas.accrual_cell import (
     BulkCellsRequest,
@@ -58,6 +62,95 @@ async def _serialize(db: AsyncSession, cell: ProjectAccrualCellDB) -> dict:
         "eur_amount": str(eur) if eur is not None else None,
         "updated_at": cell.updated_at.isoformat(),
     }
+
+
+@router.get(
+    "/grid",
+    responses={400: {"description": "year_to must be >= year_from"}},
+)
+async def get_grid(
+    db: DBSession,
+    _: AccrualViewer,
+    year_from: int,
+    year_to: int,
+    status: str | None = None,
+    currency: str | None = None,
+    project_manager_id: UUID | None = None,
+) -> dict:
+    """Joined projects + cells + month columns for the accrual admin grid.
+
+    Returns all matching projects, their cells within [year_from, year_to],
+    and the ordered month columns in a single round-trip.
+
+    Note: cells_serialised uses _serialize per cell; each call does one
+    db.get(ProjectDB) that hits the SQLAlchemy identity map after the first
+    project — cheap in practice. A batched resolver is a future optimisation.
+    """
+    if year_to < year_from:
+        raise HTTPException(status_code=400, detail="year_to must be >= year_from")
+
+    pm = aliased(UserDB)
+    stmt = select(ProjectDB, user_display_name_expr(pm).label("pm_name")).outerjoin(
+        pm, ProjectDB.project_manager_id == pm.id
+    )
+    if status is not None:
+        stmt = stmt.where(ProjectDB.status == status)
+    if project_manager_id is not None:
+        stmt = stmt.where(ProjectDB.project_manager_id == project_manager_id)
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    if currency is not None:
+        target_code = currency_to_code(currency)
+        rows = [
+            (project, pm_name)
+            for project, pm_name in rows
+            if project.currency and currency_to_code(project.currency) == target_code
+        ]
+
+    projects = [
+        {
+            "id": str(p.id),
+            "name": p.name,
+            "code": p.code,
+            "currency": p.currency,
+            "budget": str(p.budget) if p.budget is not None else None,
+            "locked_fx_rate": str(p.locked_fx_rate) if p.locked_fx_rate is not None else None,
+            "status": p.status,
+            "start_date": p.start_date.isoformat() if p.start_date else None,
+            "end_date": p.end_date.isoformat() if p.end_date else None,
+            "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
+            "project_manager_name": pm_name,
+        }
+        for p, pm_name in rows
+    ]
+
+    project_ids = [UUID(p["id"]) for p in projects]
+    cells_serialised: list[dict] = []
+    if project_ids:
+        cells_result = await db.execute(
+            select(ProjectAccrualCellDB)
+            .where(
+                ProjectAccrualCellDB.project_id.in_(project_ids),
+                ProjectAccrualCellDB.year >= year_from,
+                ProjectAccrualCellDB.year <= year_to,
+            )
+            .order_by(
+                ProjectAccrualCellDB.project_id,
+                ProjectAccrualCellDB.year,
+                ProjectAccrualCellDB.month,
+            )
+        )
+        cells = cells_result.scalars().all()
+        cells_serialised = [await _serialize(db, c) for c in cells]
+
+    months = [
+        {"year": year, "month": month}
+        for year in range(year_from, year_to + 1)
+        for month in range(1, 13)
+    ]
+    return {"projects": projects, "cells": cells_serialised, "months": months}
 
 
 @router.get("/projects/{project_id}/cells")

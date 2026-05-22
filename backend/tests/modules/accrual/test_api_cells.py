@@ -191,6 +191,104 @@ async def test_delete_override_clears_and_redistributes(client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
+async def test_grid_empty_no_projects(client: AsyncClient) -> None:
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["projects"] == []
+    assert body["cells"] == []
+    assert len(body["months"]) == 12
+    assert body["months"][0] == {"year": 2026, "month": 1}
+    assert body["months"][-1] == {"year": 2026, "month": 12}
+
+
+@pytest.mark.asyncio
+async def test_grid_returns_projects_and_cells(client: AsyncClient) -> None:
+    await client.post(
+        "/api/accrual/periods",
+        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+    )
+    p = await client.post(
+        "/api/projects",
+        json={
+            "name": "Grid Test",
+            "code": "TEST.AC.GRID1",
+            "currency": "USD",
+            "budget": 1200,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
+        },
+    )
+    pid = p.json()["id"]
+    await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
+
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["projects"]) == 1
+    assert body["projects"][0]["id"] == pid
+    assert body["projects"][0]["code"] == "TEST.AC.GRID1"
+    assert len(body["cells"]) == 12
+    assert all(c["project_id"] == pid for c in body["cells"])
+
+
+@pytest.mark.asyncio
+async def test_grid_year_range_validation(client: AsyncClient) -> None:
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2024")
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_grid_currency_normalises_legacy_label(client: AsyncClient) -> None:
+    """Legacy 'dollar' rows are included when filtering by USD."""
+    await client.post(
+        "/api/projects",
+        json={"name": "Legacy", "code": "TEST.AC.GRID.LEG", "currency": "dollar"},
+    )
+    await client.post(
+        "/api/projects",
+        json={"name": "Modern", "code": "TEST.AC.GRID.MOD", "currency": "USD"},
+    )
+    await client.post(
+        "/api/projects",
+        json={"name": "Other", "code": "TEST.AC.GRID.OTH", "currency": "GBP"},
+    )
+
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&currency=USD")
+    assert resp.status_code == 200
+    codes = {p["code"] for p in resp.json()["projects"]}
+    assert codes == {"TEST.AC.GRID.LEG", "TEST.AC.GRID.MOD"}
+
+
+@pytest.mark.asyncio
+async def test_grid_filter_by_status(client: AsyncClient) -> None:
+    """status filter narrows projects."""
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Live one",
+            "code": "TEST.AC.GRID.LIVE",
+            "currency": "USD",
+            "status": "live",
+        },
+    )
+    await client.post(
+        "/api/projects",
+        json={
+            "name": "Proposal",
+            "code": "TEST.AC.GRID.PROP",
+            "currency": "USD",
+            "status": "proposal",
+        },
+    )
+
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&status=live")
+    assert resp.status_code == 200
+    codes = {p["code"] for p in resp.json()["projects"]}
+    assert codes == {"TEST.AC.GRID.LIVE"}
+
+
+@pytest.mark.asyncio
 async def test_bulk_cells_happy_path(client: AsyncClient) -> None:
     await client.post(
         "/api/accrual/periods",
