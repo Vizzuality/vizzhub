@@ -5,6 +5,8 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "accrual_minimal.xlsx"
 
 
@@ -19,6 +21,127 @@ def test_script_help_runs():
     assert "--spreadsheet" in proc.stdout
     assert "--dry-run" in proc.stdout
     assert "--periods-only" in proc.stdout
+
+
+def test_normalize_code_strips_internal_whitespace_and_collapses_dots():
+    from scripts.import_accrual_spreadsheet import _normalize_code
+
+    assert _normalize_code("LSE .TPI2025 .35054413") == "LSE.TPI2025.35054413"
+    assert _normalize_code("ICIMOD..34229341") == "ICIMOD.34229341"
+    assert _normalize_code("  hal.halfe4  ") == "HAL.HALFE4"
+    assert _normalize_code(None) is None
+    assert _normalize_code("   ") is None
+
+
+def test_code_prefix_strips_trailing_segment():
+    from scripts.import_accrual_spreadsheet import _code_prefix
+
+    assert _code_prefix("TNC.BCCT.32232147") == "TNC.BCCT"
+    assert _code_prefix("AFOC.AMVP.24") == "AFOC.AMVP"
+    assert _code_prefix("HAL.HALFE4.24/25") == "HAL.HALFE4"
+    # No-op when stripping wouldn't shorten or leaves nothing.
+    assert _code_prefix("AFOC") is None
+    assert _code_prefix(None) is None
+
+
+@pytest.mark.asyncio
+async def test_match_via_excel_suffix(db_session, _ensure_fixture):
+    """DB project has the bare code; Excel row has trailing Jira ID. Matches via Excel prefix."""
+    from datetime import date
+    from decimal import Decimal
+
+    from app.core.models.project import ProjectDB
+    from scripts.import_accrual_spreadsheet import (
+        SpreadsheetRow,
+        bootstrap_periods,
+        import_projects,
+        parse_spreadsheet,
+    )
+
+    db_session.add(
+        ProjectDB(
+            name="bare",
+            code="TNC.BCCT",
+            status="finished",
+            currency="USD",
+            is_billable=True,
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 1),
+        )
+    )
+    await db_session.flush()
+
+    base_rows = parse_spreadsheet(FIXTURE)
+    extra_row = SpreadsheetRow(
+        type="2-Signed",
+        code="TNC.BCCT.32232147",
+        pm=None,
+        name="TNC Blue Carbon Cost tool",
+        value=Decimal("50000"),
+        rate=Decimal("1.1"),
+        value_eur=Decimal("45454.54"),
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 12, 1),
+        duration=12,
+        monthly={(2024, m): Decimal("4166.67") for m in range(1, 13)},
+    )
+    rows = [*base_rows, extra_row]
+
+    await bootstrap_periods(db_session, rows, current_year=2026)
+    report = await import_projects(db_session, rows)
+
+    assert report["matched"] >= 1
+    assert not any(u["code"] == "TNC.BCCT.32232147" for u in report["unmatched"])
+
+
+@pytest.mark.asyncio
+async def test_match_via_db_suffix(db_session, _ensure_fixture):
+    """DB project has trailing suffix; Excel row has the bare prefix. Matches via DB prefix."""
+    from datetime import date
+    from decimal import Decimal
+
+    from app.core.models.project import ProjectDB
+    from scripts.import_accrual_spreadsheet import (
+        SpreadsheetRow,
+        bootstrap_periods,
+        import_projects,
+        parse_spreadsheet,
+    )
+
+    db_session.add(
+        ProjectDB(
+            name="suffix",
+            code="HAL.HALFE4.24/25",
+            status="finished",
+            currency="USD",
+            is_billable=True,
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 1),
+        )
+    )
+    await db_session.flush()
+
+    base_rows = parse_spreadsheet(FIXTURE)
+    extra_row = SpreadsheetRow(
+        type="2-Signed",
+        code="HAL.HALFE4",
+        pm=None,
+        name="Half-Earth 2024/2026",
+        value=Decimal("100000"),
+        rate=Decimal("1.08"),
+        value_eur=Decimal("92592.59"),
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 12, 1),
+        duration=12,
+        monthly={(2024, m): Decimal("8333.33") for m in range(1, 13)},
+    )
+    rows = [*base_rows, extra_row]
+
+    await bootstrap_periods(db_session, rows, current_year=2026)
+    report = await import_projects(db_session, rows)
+
+    assert report["matched"] >= 1
+    assert not any(u["code"] == "HAL.HALFE4" for u in report["unmatched"])
 
 
 def test_parse_spreadsheet_returns_rows(_ensure_fixture):
@@ -50,9 +173,6 @@ def test_parse_spreadsheet_skips_rows_without_rate(_ensure_fixture):
     assert "A001" in codes
     assert "B001" in codes
     assert "C001" in codes
-
-
-import pytest
 
 
 @pytest.mark.asyncio

@@ -36,6 +36,108 @@ class SpreadsheetRow:
     monthly: dict[tuple[int, int], Decimal] = field(default_factory=dict)
 
 
+import re
+
+_SUFFIX_PATTERN = re.compile(r"\.[\w/]+$")
+
+
+def _normalize_code(code: str | None) -> str | None:
+    """Strip ALL whitespace + collapse repeated dots + upper-case.
+
+    Handles divergences such as ``"LSE .TPI2025 .35054413"`` (internal spaces),
+    ``"ICIMOD..34229341"`` (doubled dots), and trailing whitespace from copy-
+    paste mistakes between Excel and VizzHub.
+    """
+    if not code:
+        return None
+    no_ws = "".join(code.split())  # strip all whitespace, internal + external
+    collapsed = re.sub(r"\.{2,}", ".", no_ws)
+    return collapsed.upper() or None
+
+
+def _code_prefix(code: str | None) -> str | None:
+    """Return the code with its trailing dot-segment stripped, or None.
+
+    Trailing segments are typically Jira issue IDs (``.32232147``), signing
+    years (``.24``), or version markers (``.24/25``, ``.2``). Returns None
+    when the normalised code has no dot or no trailing alphanumeric segment.
+    Only returns a *changed* form (no-op when stripping wouldn't shorten).
+    """
+    norm = _normalize_code(code)
+    if not norm:
+        return None
+    stripped = _SUFFIX_PATTERN.sub("", norm)
+    return stripped if stripped and stripped != norm else None
+
+
+_AMBIGUOUS = object()  # sentinel for prefix collisions
+
+
+def _build_excel_index(
+    rows: list[SpreadsheetRow],
+) -> tuple[dict[str, SpreadsheetRow], dict[str, SpreadsheetRow | object]]:
+    """Index Excel rows by normalized code + by unique prefix.
+
+    Returned ``exact_by_code`` keys are full normalized codes. ``prefix_by_code``
+    maps prefix → row only when the prefix is unique across rows AND doesn't
+    collide with a full normalized code; collisions are marked ``_AMBIGUOUS``.
+    """
+    exact_by_code: dict[str, SpreadsheetRow] = {}
+    for r in rows:
+        full = _normalize_code(r.code)
+        if full and full not in exact_by_code:
+            exact_by_code[full] = r
+
+    prefix_by_code: dict[str, SpreadsheetRow | object] = {}
+    for r in rows:
+        p = _code_prefix(r.code)
+        if not p or p in exact_by_code:
+            continue
+        if p in prefix_by_code:
+            prefix_by_code[p] = _AMBIGUOUS
+        else:
+            prefix_by_code[p] = r
+    return exact_by_code, prefix_by_code
+
+
+def _db_unique_prefixes(projects: list) -> set[str]:
+    """Return prefixes that identify a single DB project."""
+    counts: dict[str, int] = defaultdict(int)
+    for p in projects:
+        prefix = _code_prefix(p.code)
+        if prefix:
+            counts[prefix] += 1
+    return {prefix for prefix, c in counts.items() if c == 1}
+
+
+def _match_project_to_row(
+    project,
+    *,
+    exact_by_code: dict[str, SpreadsheetRow],
+    prefix_by_code: dict[str, SpreadsheetRow | object],
+    db_unique_prefixes: set[str],
+) -> SpreadsheetRow | None:
+    """Resolve a DB project to its Excel row via exact-then-prefix matching.
+
+    Resolution order:
+    1. Exact match on normalized code.
+    2. DB project's prefix-stripped form matches an Excel full code, provided
+       this prefix uniquely identifies one DB project.
+    3. DB project's full normalized code is a unique Excel prefix.
+    """
+    norm = _normalize_code(project.code)
+    if norm and norm in exact_by_code:
+        return exact_by_code[norm]
+    proj_prefix = _code_prefix(project.code)
+    if proj_prefix and proj_prefix in db_unique_prefixes and proj_prefix in exact_by_code:
+        return exact_by_code[proj_prefix]
+    if norm and norm in prefix_by_code:
+        candidate = prefix_by_code[norm]
+        if candidate is not _AMBIGUOUS:
+            return candidate  # type: ignore[return-value]
+    return None
+
+
 def parse_spreadsheet(path: Path) -> list[SpreadsheetRow]:
     """Parse the CEO's accrual workbook into structured rows.
 
@@ -127,25 +229,32 @@ async def bootstrap_periods(
     if not projects:
         return []
 
-    projects_by_code: dict[str, ProjectDB] = {p.code.upper(): p for p in projects if p.code}
+    exact_by_code, prefix_by_code = _build_excel_index(rows)
+    db_unique_prefixes = _db_unique_prefixes(projects)
 
     by_year_cur: dict[int, dict[str, list[Decimal]]] = defaultdict(lambda: defaultdict(list))
-    for row in rows:
-        if row.rate is None or row.code is None or row.start_date is None:
+    for project in projects:
+        if not project.currency:
             continue
-        proj = projects_by_code.get(row.code.upper())
-        if proj is None or not proj.currency:
-            continue
-        currency = currency_to_code(proj.currency)
+        currency = currency_to_code(project.currency)
         if not currency or currency == "EUR":
+            continue
+        row = _match_project_to_row(
+            project,
+            exact_by_code=exact_by_code,
+            prefix_by_code=prefix_by_code,
+            db_unique_prefixes=db_unique_prefixes,
+        )
+        if row is None or row.rate is None or row.start_date is None:
             continue
         by_year_cur[row.start_date.year][currency].append(row.rate)
 
-    min_year = min(p.start_date.year for p in projects)
-    max_year = max(p.end_date.year for p in projects)
     if current_year is None:
         current_year = date.today().year
-    years = sorted(set(range(min_year, max_year + 1)) | {current_year})
+    min_year = min(min(p.start_date.year for p in projects), current_year)
+    # Cap year range at current_year: future cells live under the open period
+    # until the CEO creates the next period via the UI in due time.
+    years = list(range(min_year, current_year + 1))
 
     from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 
@@ -196,22 +305,28 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
         "overrides_imported": 0,
         "unmatched": [],
     }
-    by_code = {r.code.upper(): r for r in rows if r.code}
+    exact_by_code, prefix_by_code = _build_excel_index(rows)
 
     proj_result = await db.execute(
         select(ProjectDB).where(ProjectDB.status.in_(["proposal", "live", "finished"]))
     )
     projects = list(proj_result.scalars().all())
-    matched_codes: set[str] = set()
+    db_unique_prefixes = _db_unique_prefixes(projects)
+    matched_rows: set[int] = set()  # track id() of matched SpreadsheetRow objects
 
     for project in projects:
         if not project.start_date or not project.end_date:
             continue
-        row = by_code.get((project.code or "").upper())
+        row = _match_project_to_row(
+            project,
+            exact_by_code=exact_by_code,
+            prefix_by_code=prefix_by_code,
+            db_unique_prefixes=db_unique_prefixes,
+        )
         if row is None:
             continue
         report["matched"] += 1
-        matched_codes.add((project.code or "").upper())
+        matched_rows.add(id(row))
 
         if project.original_budget is None and row.value:
             project.original_budget = row.value
@@ -242,8 +357,8 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
                 )
                 report["overrides_imported"] += 1
 
-    for code, r in by_code.items():
-        if code not in matched_codes:
+    for r in rows:
+        if r.code and id(r) not in matched_rows:
             report["unmatched"].append({"code": r.code, "name": r.name, "type": r.type})
 
     return report
