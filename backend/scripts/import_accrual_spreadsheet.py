@@ -147,11 +147,23 @@ async def bootstrap_periods(
         current_year = date.today().year
     years = sorted(set(range(min_year, max_year + 1)) | {current_year})
 
+    from app.modules.accrual.models.accrual_period import AccrualPeriodDB
+
     created = []
     for y in years:
         fx_rates: dict[str, str] = {}
         for cur, rates in by_year_cur.get(y, {}).items():
             fx_rates[cur] = str(median(rates).quantize(Decimal("0.000001")))
+
+        existing = (
+            await db.execute(
+                select(AccrualPeriodDB).where(AccrualPeriodDB.start_date == date(y, 1, 1))
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            created.append(existing)
+            continue
+
         period = await period_service.create_period(
             db,
             start_date=date(y, 1, 1),

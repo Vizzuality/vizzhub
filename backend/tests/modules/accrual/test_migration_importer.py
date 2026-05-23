@@ -191,3 +191,79 @@ async def test_import_projects_sets_original_budget_and_historical_freeze(
     assert report["original_budget_set"] == 1
     assert "locked_fx_set" not in report  # field removed from the report
     assert frozen >= 24  # 24 cells frozen across 2024+2025
+
+
+@pytest.mark.asyncio
+async def test_importer_is_idempotent_on_rerun(db_session, _ensure_fixture):
+    from datetime import date
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.models.accrual_period import AccrualPeriodDB
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from scripts.import_accrual_spreadsheet import (
+        bootstrap_periods,
+        freeze_historical_periods,
+        import_projects,
+        parse_spreadsheet,
+    )
+
+    rows = parse_spreadsheet(FIXTURE)
+    p = ProjectDB(
+        name="B",
+        code="B001",
+        currency="USD",
+        is_billable=True,
+        budget=Decimal("21818.18"),
+        original_budget=None,
+        status="live",
+        start_date=date(2024, 1, 1),
+        end_date=date(2025, 12, 1),
+    )
+    db_session.add(p)
+    await db_session.flush()
+
+    # First run — fresh state.
+    await bootstrap_periods(db_session, rows, current_year=2026)
+    first_report = await import_projects(db_session, rows)
+    await freeze_historical_periods(db_session)
+
+    periods_after_first = (await db_session.execute(select(AccrualPeriodDB))).scalars().all()
+    cells_after_first = (
+        (
+            await db_session.execute(
+                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == p.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    n_periods_1 = len(periods_after_first)
+    n_cells_1 = len(cells_after_first)
+    assert first_report["matched"] == 1
+    assert first_report["original_budget_set"] == 1
+    assert first_report["overrides_imported"] >= 1
+
+    # Second run — must not crash, must not duplicate, must report zero deltas.
+    await bootstrap_periods(db_session, rows, current_year=2026)
+    second_report = await import_projects(db_session, rows)
+    frozen_again = await freeze_historical_periods(db_session)
+
+    periods_after_second = (await db_session.execute(select(AccrualPeriodDB))).scalars().all()
+    cells_after_second = (
+        (
+            await db_session.execute(
+                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == p.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(periods_after_second) == n_periods_1, "no duplicate periods"
+    assert len(cells_after_second) == n_cells_1, "no duplicate cells"
+    assert second_report["matched"] == 1
+    assert second_report["original_budget_set"] == 0, "already set on first run"
+    assert second_report["overrides_imported"] == 0, "cell amounts already match"
+    assert frozen_again == 0, "all historical cells frozen on first run"
