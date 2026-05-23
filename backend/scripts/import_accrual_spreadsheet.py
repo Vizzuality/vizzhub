@@ -162,6 +162,104 @@ async def bootstrap_periods(
     return created
 
 
+async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
+    """Apply Excel data to DB projects matched by code.
+
+    For each match: set original_budget (if absent), redistribute uniformly
+    over the full project range, then overlay per-month overrides where the
+    Excel value diverges from the uniform split by more than
+    OVERRIDE_THRESHOLD_EUR. Does NOT touch locked_fx_rate — that is a
+    CEO-managed transitional override set via the UI.
+    """
+    from sqlalchemy import select
+
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.constants import OVERRIDE_THRESHOLD_EUR
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.services import cell_service
+
+    report: dict = {
+        "matched": 0,
+        "original_budget_set": 0,
+        "overrides_imported": 0,
+        "unmatched": [],
+    }
+    by_code = {r.code.upper(): r for r in rows if r.code}
+
+    proj_result = await db.execute(
+        select(ProjectDB).where(ProjectDB.status.in_(["proposal", "live", "finished"]))
+    )
+    projects = list(proj_result.scalars().all())
+    matched_codes: set[str] = set()
+
+    for project in projects:
+        if not project.start_date or not project.end_date:
+            continue
+        row = by_code.get((project.code or "").upper())
+        if row is None:
+            continue
+        report["matched"] += 1
+        matched_codes.add((project.code or "").upper())
+
+        if project.original_budget is None and row.value:
+            project.original_budget = row.value
+            report["original_budget_set"] += 1
+
+        await db.flush()
+
+        # full_range=True: populate cells across the entire project lifespan,
+        # bypassing the active-period clip (current period may be 2026+).
+        await cell_service.redistribute_for_project(db, project_id=project.id, full_range=True)
+
+        existing_result = await db.execute(
+            select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
+        )
+        existing = {(c.year, c.month): c for c in existing_result.scalars().all()}
+        for (y, m), spreadsheet_amount in row.monthly.items():
+            cell = existing.get((y, m))
+            if cell is None or cell.is_frozen:
+                continue
+            uniform = cell.amount
+            if abs(spreadsheet_amount - uniform) > OVERRIDE_THRESHOLD_EUR:
+                await cell_service.set_cell_amount(
+                    db,
+                    project_id=project.id,
+                    year=y,
+                    month=m,
+                    amount=spreadsheet_amount,
+                )
+                report["overrides_imported"] += 1
+
+    for code, r in by_code.items():
+        if code not in matched_codes:
+            report["unmatched"].append({"code": r.code, "name": r.name, "type": r.type})
+
+    return report
+
+
+async def freeze_historical_periods(db: AsyncSession) -> int:
+    """Re-run the freeze pass on every closed period.
+
+    Periods are created in bootstrap_periods before any cells exist, so the
+    initial close freezes nothing. After import_projects populates cells,
+    this step retroactively freezes them with each period's resolved rate.
+    """
+    from sqlalchemy import select
+
+    from app.modules.accrual.models.accrual_period import AccrualPeriodDB
+    from app.modules.accrual.services import period_service
+
+    result = await db.execute(
+        select(AccrualPeriodDB)
+        .where(AccrualPeriodDB.status == "closed")
+        .order_by(AccrualPeriodDB.start_date)
+    )
+    total = 0
+    for period in result.scalars().all():
+        total += await period_service.freeze_period_cells(db, period_id=period.id)
+    return total
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--spreadsheet", required=True, type=Path)
@@ -174,14 +272,36 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+class _DryRun(Exception):
+    """Sentinel to trigger db.begin() rollback for --dry-run."""
+
+
 async def main_async(args: argparse.Namespace) -> int:
-    print(
-        f"[importer] spreadsheet={args.spreadsheet} dry_run={args.dry_run} periods_only={args.periods_only}"
-    )
     if not args.spreadsheet.exists():
         print(f"[importer] file not found: {args.spreadsheet}", file=sys.stderr)
         return 1
-    # Subsequent tasks fill in the implementation.
+
+    from app.database import async_session_maker
+
+    rows = parse_spreadsheet(args.spreadsheet)
+    print(f"[importer] parsed {len(rows)} rows from {args.spreadsheet}")
+
+    async with async_session_maker() as db:
+        try:
+            async with db.begin():
+                periods = await bootstrap_periods(db, rows)
+                print(f"[importer] created {len(periods)} periods")
+                if args.periods_only:
+                    if args.dry_run:
+                        raise _DryRun()
+                    return 0
+                report = await import_projects(db, rows)
+                frozen = await freeze_historical_periods(db)
+                print(f"[importer] {report} | frozen_cells={frozen}")
+                if args.dry_run:
+                    raise _DryRun()
+        except _DryRun:
+            print("[importer] dry-run complete — rolled back", file=sys.stderr)
     return 0
 
 
