@@ -144,6 +144,186 @@ async def test_match_via_db_suffix(db_session, _ensure_fixture):
     assert not any(u["code"] == "HAL.HALFE4" for u in report["unmatched"])
 
 
+def test_consolidate_duplicates_sums_value_and_merges_monthly():
+    from datetime import date
+    from decimal import Decimal
+
+    from scripts.import_accrual_spreadsheet import (
+        SpreadsheetRow,
+        consolidate_duplicate_rows,
+    )
+
+    rows = [
+        SpreadsheetRow(
+            type="2-Signed",
+            code="X",
+            pm=None,
+            name="X",
+            value=Decimal("100"),
+            rate=Decimal("1.0"),
+            value_eur=Decimal("100"),
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 6, 1),
+            duration=6,
+            monthly={(2024, m): Decimal("16.67") for m in range(1, 7)},
+        ),
+        SpreadsheetRow(
+            type="2-Signed",
+            code="X",
+            pm=None,
+            name="X amendment",
+            value=Decimal("50"),
+            rate=Decimal("1.1"),
+            value_eur=Decimal("45.45"),
+            start_date=date(2024, 7, 1),
+            end_date=date(2024, 12, 1),
+            duration=6,
+            monthly={(2024, m): Decimal("8.33") for m in range(7, 13)},
+        ),
+        SpreadsheetRow(
+            type="2-Signed",
+            code="Y",
+            pm=None,
+            name="Y solo",
+            value=Decimal("999"),
+            rate=Decimal("1.0"),
+            value_eur=Decimal("999"),
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 1),
+            duration=12,
+            monthly={(2024, 1): Decimal("999")},
+        ),
+    ]
+    out = consolidate_duplicate_rows(rows)
+    assert len(out) == 2  # X merged, Y untouched
+
+    x_row = next(r for r in out if r.code == "X")
+    assert x_row.value == Decimal("150")
+    assert x_row.start_date == date(2024, 1, 1)
+    assert x_row.end_date == date(2024, 12, 1)
+    assert len(x_row.monthly) == 12
+    assert x_row.monthly[(2024, 1)] == Decimal("16.67")
+    assert x_row.monthly[(2024, 12)] == Decimal("8.33")
+    assert "amendment" in (x_row.name or "")
+
+
+def test_consolidate_sums_monthly_when_groups_overlap():
+    from datetime import date
+    from decimal import Decimal
+
+    from scripts.import_accrual_spreadsheet import (
+        SpreadsheetRow,
+        consolidate_duplicate_rows,
+    )
+
+    rows = [
+        SpreadsheetRow(
+            type="2-Signed",
+            code="X",
+            pm=None,
+            name="X",
+            value=Decimal("100"),
+            rate=Decimal("1.0"),
+            value_eur=Decimal("100"),
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 1),
+            duration=12,
+            monthly={(2024, 6): Decimal("50")},
+        ),
+        SpreadsheetRow(
+            type="2-Signed",
+            code="X",
+            pm=None,
+            name="X amend",
+            value=Decimal("30"),
+            rate=Decimal("1.0"),
+            value_eur=Decimal("30"),
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 1),
+            duration=12,
+            monthly={(2024, 6): Decimal("20")},  # same month, different amount
+        ),
+    ]
+    out = consolidate_duplicate_rows(rows)
+    assert len(out) == 1
+    assert out[0].value == Decimal("130")
+    assert out[0].monthly[(2024, 6)] == Decimal("70")  # 50 + 20 summed
+
+
+@pytest.mark.asyncio
+async def test_import_extends_dates_when_excel_exceeds_db(db_session, _ensure_fixture):
+    """When merged Excel rows extend beyond DB project dates, project range is widened."""
+    from datetime import date
+    from decimal import Decimal
+
+    from app.core.models.project import ProjectDB
+    from scripts.import_accrual_spreadsheet import (
+        SpreadsheetRow,
+        bootstrap_periods,
+        consolidate_duplicate_rows,
+        import_projects,
+        parse_spreadsheet,
+    )
+
+    db_session.add(
+        ProjectDB(
+            name="multi-year",
+            code="EXT.AMD",
+            status="live",
+            currency="USD",
+            is_billable=True,
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 1),
+        )
+    )
+    await db_session.flush()
+
+    base_rows = parse_spreadsheet(FIXTURE)
+    amend_row_1 = SpreadsheetRow(
+        type="2-Signed",
+        code="EXT.AMD",
+        pm=None,
+        name="base",
+        value=Decimal("12000"),
+        rate=Decimal("1.1"),
+        value_eur=Decimal("10909.09"),
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 12, 1),
+        duration=12,
+        monthly={(2024, m): Decimal("1000") for m in range(1, 13)},
+    )
+    amend_row_2 = SpreadsheetRow(
+        type="2-Signed",
+        code="EXT.AMD",
+        pm=None,
+        name="extension",
+        value=Decimal("12000"),
+        rate=Decimal("1.1"),
+        value_eur=Decimal("10909.09"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 1),
+        duration=12,
+        monthly={(2026, m): Decimal("1000") for m in range(1, 13)},
+    )
+    rows = [*base_rows, amend_row_1, amend_row_2]
+    consolidated = consolidate_duplicate_rows(rows)
+
+    await bootstrap_periods(db_session, rows, current_year=2026)
+    report = await import_projects(db_session, consolidated)
+
+    from sqlalchemy import select
+
+    project = (
+        await db_session.execute(select(ProjectDB).where(ProjectDB.code == "EXT.AMD"))
+    ).scalar_one()
+    # Dates extended to encompass both amendments.
+    assert project.start_date == date(2024, 1, 1)
+    assert project.end_date == date(2026, 12, 1)
+    # original_budget = sum of both rows (12k + 12k).
+    assert project.original_budget == Decimal("24000")
+    assert report["dates_extended"] == 1
+
+
 def test_parse_spreadsheet_returns_rows(_ensure_fixture):
     from scripts.import_accrual_spreadsheet import parse_spreadsheet
 

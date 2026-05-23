@@ -197,6 +197,61 @@ def parse_spreadsheet(path: Path) -> list[SpreadsheetRow]:
     return rows
 
 
+def consolidate_duplicate_rows(rows: list[SpreadsheetRow]) -> list[SpreadsheetRow]:
+    """Merge Excel rows sharing the same normalized code into one synthetic row.
+
+    The CEO's spreadsheet uses multiple rows per code to track contract
+    amendments / extensions (e.g. EVF.ESAGDA appears 4 times, one per annual
+    renewal). The accrual model has one project per code, so for each duplicate
+    group we sum ``value`` and merge ``monthly`` (summing if both rows cover
+    the same month). ``start_date``/``end_date`` are set to the min/max across
+    the group so downstream date-extension logic can spot range mismatches.
+
+    Rows with no code are passed through untouched. The rate of the first row
+    in the group is kept on the synthetic row (rate aggregation per period is
+    handled in ``bootstrap_periods`` against the raw rows, not these merged
+    ones).
+    """
+    by_code: dict[str | None, list[SpreadsheetRow]] = defaultdict(list)
+    for r in rows:
+        key = _normalize_code(r.code)
+        by_code[key].append(r)
+
+    consolidated: list[SpreadsheetRow] = []
+    for key, group in by_code.items():
+        if key is None or len(group) == 1:
+            consolidated.extend(group)
+            continue
+        # Multi-row group: merge.
+        total_value = sum((r.value for r in group), Decimal("0"))
+        total_value_eur = sum((r.value_eur for r in group), Decimal("0"))
+        monthly: dict[tuple[int, int], Decimal] = defaultdict(lambda: Decimal("0"))
+        for r in group:
+            for ym, amount in r.monthly.items():
+                monthly[ym] += amount
+        starts = [r.start_date for r in group if r.start_date]
+        ends = [r.end_date for r in group if r.end_date]
+        # Keep first row's metadata except numbers/dates/monthly.
+        head = group[0]
+        consolidated.append(
+            SpreadsheetRow(
+                type=head.type,
+                code=head.code,
+                pm=head.pm,
+                name=(head.name or "")
+                + f" (+{len(group) - 1} amendment{'s' if len(group) > 2 else ''})",
+                value=total_value,
+                rate=head.rate,
+                value_eur=total_value_eur,
+                start_date=min(starts) if starts else None,
+                end_date=max(ends) if ends else None,
+                duration=None,
+                monthly=dict(monthly),
+            )
+        )
+    return consolidated
+
+
 async def bootstrap_periods(
     db: AsyncSession,
     rows: list[SpreadsheetRow],
@@ -303,6 +358,7 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
         "matched": 0,
         "original_budget_set": 0,
         "overrides_imported": 0,
+        "dates_extended": 0,
         "unmatched": [],
     }
     exact_by_code, prefix_by_code = _build_excel_index(rows)
@@ -331,6 +387,25 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
         if project.original_budget is None and row.value:
             project.original_budget = row.value
             report["original_budget_set"] += 1
+
+        # Extend DB project range if the consolidated Excel row spans further.
+        # Amendments typically push end_date forward; some go backward too.
+        extended_here = False
+        if row.start_date and row.start_date < project.start_date:
+            print(
+                f"[importer] extend start_date {project.code}: "
+                f"{project.start_date} -> {row.start_date}"
+            )
+            project.start_date = row.start_date
+            extended_here = True
+        if row.end_date and row.end_date > project.end_date:
+            print(
+                f"[importer] extend end_date   {project.code}: {project.end_date} -> {row.end_date}"
+            )
+            project.end_date = row.end_date
+            extended_here = True
+        if extended_here:
+            report["dates_extended"] += 1
 
         await db.flush()
 
@@ -411,18 +486,26 @@ async def main_async(args: argparse.Namespace) -> int:
     from app.database import async_session_maker
 
     rows = parse_spreadsheet(args.spreadsheet)
-    print(f"[importer] parsed {len(rows)} rows from {args.spreadsheet}")
+    consolidated = consolidate_duplicate_rows(rows)
+    print(
+        f"[importer] parsed {len(rows)} rows ({len(rows) - len(consolidated)} duplicates "
+        f"consolidated into amendments) from {args.spreadsheet}"
+    )
 
     async with async_session_maker() as db:
         try:
             async with db.begin():
+                # bootstrap uses RAW rows so every per-row rate observation
+                # contributes to the period median.
                 periods = await bootstrap_periods(db, rows)
                 print(f"[importer] created {len(periods)} periods")
                 if args.periods_only:
                     if args.dry_run:
                         raise _DryRun()
                     return 0
-                report = await import_projects(db, rows)
+                # import uses CONSOLIDATED rows so amendments collapse into
+                # a single per-project payload.
+                report = await import_projects(db, consolidated)
                 frozen = await freeze_historical_periods(db)
                 print(f"[importer] {report} | frozen_cells={frozen}")
                 if args.dry_run:
