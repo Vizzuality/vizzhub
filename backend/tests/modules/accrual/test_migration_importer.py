@@ -251,8 +251,9 @@ def test_consolidate_sums_monthly_when_groups_overlap():
 
 
 @pytest.mark.asyncio
-async def test_import_extends_dates_when_excel_exceeds_db(db_session, _ensure_fixture):
-    """When merged Excel rows extend beyond DB project dates, project range is widened."""
+async def test_import_reports_date_mismatches_without_mutating_project(db_session, _ensure_fixture):
+    """Excel rows outside the DB project's date range produce a date_mismatch
+    entry with orphan-cell counts; the project record is NOT mutated."""
     from datetime import date
     from decimal import Decimal
 
@@ -316,12 +317,18 @@ async def test_import_extends_dates_when_excel_exceeds_db(db_session, _ensure_fi
     project = (
         await db_session.execute(select(ProjectDB).where(ProjectDB.code == "EXT.AMD"))
     ).scalar_one()
-    # Dates extended to encompass both amendments.
-    assert project.start_date == date(2024, 1, 1)
-    assert project.end_date == date(2026, 12, 1)
-    # original_budget = sum of both rows (12k + 12k).
+    # DB dates UNCHANGED — importer must not widen the range.
+    assert project.start_date == date(2025, 1, 1)
+    assert project.end_date == date(2025, 12, 1)
+    # original_budget = sum of both amendments (12k + 12k).
     assert project.original_budget == Decimal("24000")
-    assert report["dates_extended"] == 1
+    # Mismatch reported with orphan count: 24 cells (2024 ×12 + 2026 ×12) outside DB range.
+    mismatches = [m for m in report["date_mismatches"] if m["code"] == "EXT.AMD"]
+    assert len(mismatches) == 1
+    assert mismatches[0]["excel_start"] == "2024-01-01"
+    assert mismatches[0]["excel_end"] == "2026-12-01"
+    assert mismatches[0]["cells_orphaned"] == 24
+    assert "dates_extended" not in report
 
 
 def test_parse_spreadsheet_returns_rows(_ensure_fixture):

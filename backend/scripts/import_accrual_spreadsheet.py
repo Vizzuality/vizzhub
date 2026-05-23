@@ -358,8 +358,10 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
         "matched": 0,
         "original_budget_set": 0,
         "overrides_imported": 0,
-        "dates_extended": 0,
         "unmatched": [],
+        # Each entry: code, name, db_start, db_end, excel_start, excel_end,
+        # cells_orphaned (count of Excel monthly cells outside the DB range).
+        "date_mismatches": [],
     }
     exact_by_code, prefix_by_code = _build_excel_index(rows)
 
@@ -388,28 +390,17 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
             project.original_budget = row.value
             report["original_budget_set"] += 1
 
-        # Extend DB project range if the consolidated Excel row spans further.
-        # Amendments typically push end_date forward; some go backward too.
-        extended_here = False
-        if row.start_date and row.start_date < project.start_date:
-            print(
-                f"[importer] extend start_date {project.code}: "
-                f"{project.start_date} -> {row.start_date}"
-            )
-            project.start_date = row.start_date
-            extended_here = True
-        if row.end_date and row.end_date > project.end_date:
-            print(
-                f"[importer] extend end_date   {project.code}: {project.end_date} -> {row.end_date}"
-            )
-            project.end_date = row.end_date
-            extended_here = True
-        if extended_here:
-            report["dates_extended"] += 1
+        # Detect date mismatches but do NOT mutate project.start_date/end_date.
+        # Other modules (tracker burn, scorecard cost, capacity plan) consume
+        # those fields; silently widening them here would propagate possibly
+        # wrong Excel data into unrelated calculations. Instead, cells outside
+        # the DB range are reported as orphaned for human review.
+        excel_start_outside = row.start_date is not None and row.start_date < project.start_date
+        excel_end_outside = row.end_date is not None and row.end_date > project.end_date
 
         await db.flush()
 
-        # full_range=True: populate cells across the entire project lifespan,
+        # full_range=True: populate cells across the entire DB project lifespan,
         # bypassing the active-period clip (current period may be 2026+).
         await cell_service.redistribute_for_project(db, project_id=project.id, full_range=True)
 
@@ -417,9 +408,14 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
             select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
         )
         existing = {(c.year, c.month): c for c in existing_result.scalars().all()}
+        cells_orphaned = 0
         for (y, m), spreadsheet_amount in row.monthly.items():
             cell = existing.get((y, m))
-            if cell is None or cell.is_frozen:
+            if cell is None:
+                # (y, m) falls outside the DB project's date range — orphaned.
+                cells_orphaned += 1
+                continue
+            if cell.is_frozen:
                 continue
             uniform = cell.amount
             if abs(spreadsheet_amount - uniform) > OVERRIDE_THRESHOLD_EUR:
@@ -431,6 +427,21 @@ async def import_projects(db: AsyncSession, rows: list[SpreadsheetRow]) -> dict:
                     amount=spreadsheet_amount,
                 )
                 report["overrides_imported"] += 1
+
+        # Record mismatches AFTER processing so cells_orphaned reflects the
+        # actual number of dropped cells.
+        if excel_start_outside or excel_end_outside or cells_orphaned > 0:
+            report["date_mismatches"].append(
+                {
+                    "code": project.code,
+                    "name": project.name,
+                    "db_start": str(project.start_date),
+                    "db_end": str(project.end_date),
+                    "excel_start": str(row.start_date) if row.start_date else None,
+                    "excel_end": str(row.end_date) if row.end_date else None,
+                    "cells_orphaned": cells_orphaned,
+                }
+            )
 
     for r in rows:
         if r.code and id(r) not in matched_rows:
