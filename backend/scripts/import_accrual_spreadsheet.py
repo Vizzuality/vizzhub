@@ -11,10 +11,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from statistics import median
 
 from openpyxl import load_workbook
 
@@ -91,6 +93,73 @@ def parse_spreadsheet(path: Path) -> list[SpreadsheetRow]:
             )
         )
     return rows
+
+
+async def bootstrap_periods(
+    db: AsyncSession,
+    rows: list[SpreadsheetRow],
+    *,
+    current_year: int | None = None,
+) -> list:
+    """Create one accrual period per year spanned by billable DB projects.
+
+    Year range, currencies and rates are derived from DB state + Excel data
+    — no hardcoding. For each (year, non-EUR currency) the period's fx rate
+    is the median of ``row.rate`` over spreadsheet rows whose project (matched
+    by ``code``) starts that year with that currency. Currencies absent in a
+    given year inherit from the previous period via ``create_period``'s merge.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
+
+    from app.core.models.project import ProjectDB
+    from app.core.services.exchange_rate_service import currency_to_code
+    from app.modules.accrual.services import period_service
+
+    proj_result = await db.execute(
+        select(ProjectDB).where(
+            ProjectDB.is_billable.is_(True),
+            ProjectDB.start_date.is_not(None),
+            ProjectDB.end_date.is_not(None),
+        )
+    )
+    projects = list(proj_result.scalars().all())
+    if not projects:
+        return []
+
+    projects_by_code: dict[str, ProjectDB] = {p.code.upper(): p for p in projects if p.code}
+
+    by_year_cur: dict[int, dict[str, list[Decimal]]] = defaultdict(lambda: defaultdict(list))
+    for row in rows:
+        if row.rate is None or row.code is None or row.start_date is None:
+            continue
+        proj = projects_by_code.get(row.code.upper())
+        if proj is None or not proj.currency:
+            continue
+        currency = currency_to_code(proj.currency)
+        if not currency or currency == "EUR":
+            continue
+        by_year_cur[row.start_date.year][currency].append(row.rate)
+
+    min_year = min(p.start_date.year for p in projects)
+    max_year = max(p.end_date.year for p in projects)
+    if current_year is None:
+        current_year = date.today().year
+    years = sorted(set(range(min_year, max_year + 1)) | {current_year})
+
+    created = []
+    for y in years:
+        fx_rates: dict[str, str] = {}
+        for cur, rates in by_year_cur.get(y, {}).items():
+            fx_rates[cur] = str(median(rates).quantize(Decimal("0.000001")))
+        period = await period_service.create_period(
+            db,
+            start_date=date(y, 1, 1),
+            fx_rates_input=fx_rates,
+            created_by=None,
+        )
+        created.append(period)
+    return created
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
