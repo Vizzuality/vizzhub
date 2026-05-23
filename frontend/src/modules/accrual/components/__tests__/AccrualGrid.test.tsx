@@ -16,6 +16,8 @@ const project: AccrualGridProject = {
   name: 'Project A',
   currency: 'USD',
   budget: '1200.00',
+  original_budget: '1200.00',
+  budget_eur: '1090.91',
   locked_fx_rate: null,
   status: 'live',
   start_date: '2026-01-01',

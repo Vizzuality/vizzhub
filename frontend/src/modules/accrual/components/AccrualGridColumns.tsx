@@ -161,24 +161,25 @@ export function buildColumns(
       id: 'budget',
       header: 'Budget',
       size: 130,
-      cell: ({ row }) => (
-        <span className="text-xs tabular-nums">{formatAmount(row.original.budget)}</span>
-      ),
-    },
-    {
-      id: 'sigma_eur',
-      header: 'Σ EUR',
-      size: 110,
       cell: ({ row }) => {
         const project = row.original;
-        const total = months.reduce((sum, m) => {
-          const c = cells.find(
-            (cell) => cell.project_id === project.id && cell.year === m.year && cell.month === m.month,
-          );
-          return c ? sum + resolveEurAmount(c) : sum;
-        }, 0);
-        return <span className="text-xs tabular-nums">{fmt.format(total)}</span>;
+        return (
+          <span className="text-xs tabular-nums">
+            {formatAmount(project.original_budget)}
+            {project.original_budget && project.currency ? (
+              <span className="ml-1 text-muted-foreground">{project.currency}</span>
+            ) : null}
+          </span>
+        );
       },
+    },
+    {
+      id: 'budget_eur',
+      header: 'Budget €',
+      size: 110,
+      cell: ({ row }) => (
+        <span className="text-xs tabular-nums">{formatAmount(row.original.budget_eur)}</span>
+      ),
     },
   ];
 

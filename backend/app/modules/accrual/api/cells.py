@@ -1,6 +1,7 @@
 """HTTP endpoints for accrual cells and per-project operations."""
 
 from datetime import date
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -153,22 +154,39 @@ async def get_grid(
         and project.end_date >= range_start
     ]
 
-    projects = [
-        {
-            "id": str(p.id),
-            "name": p.name,
-            "code": p.code,
-            "currency": p.currency,
-            "budget": str(p.budget) if p.budget is not None else None,
-            "locked_fx_rate": str(p.locked_fx_rate) if p.locked_fx_rate is not None else None,
-            "status": p.status,
-            "start_date": p.start_date.isoformat() if p.start_date else None,
-            "end_date": p.end_date.isoformat() if p.end_date else None,
-            "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
-            "project_manager_name": pm_name,
-        }
-        for p, pm_name in rows
-    ]
+    projects: list[dict] = []
+    for p, pm_name in rows:
+        # Resolve the contract-signing EUR equivalent: original_budget in the
+        # project's currency, divided by the FX rate that applies at the
+        # start month (priority: locked_fx_rate -> period.fx_rates -> ECB).
+        # Mirrors the CEO's "Value €" column in the source spreadsheet.
+        budget_eur: str | None = None
+        if p.original_budget is not None and p.start_date is not None:
+            signing_rate = await rate_resolver.resolve_rate(
+                db, project=p, year=p.start_date.year, month=p.start_date.month
+            )
+            if signing_rate is not None and signing_rate != 0:
+                budget_eur = str((p.original_budget / signing_rate).quantize(Decimal("0.01")))
+
+        projects.append(
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "code": p.code,
+                "currency": p.currency,
+                "budget": str(p.budget) if p.budget is not None else None,
+                "original_budget": str(p.original_budget)
+                if p.original_budget is not None
+                else None,
+                "budget_eur": budget_eur,
+                "locked_fx_rate": str(p.locked_fx_rate) if p.locked_fx_rate is not None else None,
+                "status": p.status,
+                "start_date": p.start_date.isoformat() if p.start_date else None,
+                "end_date": p.end_date.isoformat() if p.end_date else None,
+                "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
+                "project_manager_name": pm_name,
+            }
+        )
 
     project_ids = [UUID(p["id"]) for p in projects]
     cells_serialised: list[dict] = []

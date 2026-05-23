@@ -52,7 +52,9 @@ export interface AccrualGridProject {
   code: string | null;
   name: string;
   currency: string;
-  budget: string | null;
+  budget: string | null; // legacy EUR field, kept for now
+  original_budget: string | null; // budget in project's original currency
+  budget_eur: string | null; // original_budget converted to EUR at the signing rate
   locked_fx_rate: string | null;
   status: string;
   start_date: string | null;
