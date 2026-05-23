@@ -266,6 +266,62 @@ async def test_close_period_skips_cells_with_unresolvable_rate(
 
 
 @pytest.mark.asyncio
+async def test_freeze_period_cells_idempotent_on_already_closed_period(
+    db_session: AsyncSession,
+) -> None:
+    """When called twice on a closed period, the second call returns 0 (idempotent)."""
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.services import cell_service
+
+    # Two periods: 2024 (will close), 2025 (open).
+    p_2024 = await period_service.create_period(
+        db_session,
+        start_date=date(2024, 1, 1),
+        fx_rates_input={"USD": "1.10"},
+        created_by=None,
+    )
+    await period_service.create_period(
+        db_session,
+        start_date=date(2025, 1, 1),
+        fx_rates_input={"USD": "1.05"},
+        created_by=None,
+    )
+
+    # Create a project + cells AFTER 2024 was already closed.
+    project = ProjectDB(
+        name="X",
+        code="FRZ",
+        status="live",
+        currency="USD",
+        is_billable=True,
+        budget=Decimal("12000"),
+        original_budget=Decimal("12000"),
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 12, 1),
+    )
+    db_session.add(project)
+    await db_session.flush()
+    # full_range=True: current open period is 2025, so we must bypass the clip
+    # to populate historical 2024 cells for a project that ends in 2024-12.
+    await cell_service.redistribute_for_project(db_session, project_id=project.id, full_range=True)
+
+    # First freeze: 12 cells freeze.
+    n1 = await period_service.freeze_period_cells(db_session, period_id=p_2024.id)
+    assert n1 == 12, "all 12 cells in 2024 must freeze"
+
+    # Re-run: nothing more to freeze.
+    n2 = await period_service.freeze_period_cells(db_session, period_id=p_2024.id)
+    assert n2 == 0, "second call is a no-op"
+
+    # Verify all 2024 cells are now frozen.
+    result = await db_session.execute(
+        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
+    )
+    cells = result.scalars().all()
+    assert all(c.is_frozen for c in cells)
+
+
+@pytest.mark.asyncio
 async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) -> None:
     """Cells dated 2026-onwards must NOT freeze when 2025 closes at cutoff 2026-01."""
     from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB

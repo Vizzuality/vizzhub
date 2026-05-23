@@ -71,21 +71,18 @@ async def get_current_period(db: AsyncSession) -> AccrualPeriodDB | None:
     return result.scalar_one_or_none()
 
 
-async def close_period(
+async def freeze_period_cells(
     db: AsyncSession,
-    period_id: UUID,
     *,
-    freeze_cutoff: date | None = None,
+    period_id: UUID,
+    cutoff: date | None = None,
 ) -> int:
-    """Close an open period, optionally freezing cells before ``freeze_cutoff``.
+    """Freeze unfrozen cells in the period's range. Idempotent.
 
-    Called from two places:
-    - ``create_period`` (period rotation): passes the new period's start_date
-      as ``freeze_cutoff``.
-    - Standalone admin "close period" (no successor yet): omits the cutoff;
-      we then look up the next period if one exists, otherwise freeze nothing.
-
-    Returns the number of cells frozen.
+    Cutoff defaults to the start_date of the NEXT period (chronologically after
+    the one identified by period_id). When the given period is the latest/open
+    one, cutoff is None → nothing freezes. Already-frozen cells are skipped.
+    Resolves each cell's EUR amount via rate_resolver and persists frozen_*.
     """
     from app.core.models.project import ProjectDB
     from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
@@ -94,11 +91,9 @@ async def close_period(
     period = await db.get(AccrualPeriodDB, period_id)
     if period is None:
         raise PeriodError(f"Period {period_id} not found")
-    if period.status != "open":
-        raise PeriodError(f"Period {period_id} is not open (status={period.status})")
 
-    cutoff = freeze_cutoff
-    if cutoff is None:
+    effective_cutoff = cutoff
+    if effective_cutoff is None:
         next_result = await db.execute(
             select(AccrualPeriodDB)
             .where(AccrualPeriodDB.start_date > period.start_date)
@@ -107,11 +102,11 @@ async def close_period(
         )
         next_period = next_result.scalar_one_or_none()
         if next_period is not None:
-            cutoff = next_period.start_date
+            effective_cutoff = next_period.start_date
 
     frozen_count = 0
-    if cutoff is not None:
-        cutoff_y, cutoff_m = cutoff.year, cutoff.month
+    if effective_cutoff is not None:
+        cutoff_y, cutoff_m = effective_cutoff.year, effective_cutoff.month
         cells_result = await db.execute(
             select(ProjectAccrualCellDB, ProjectDB)
             .join(ProjectDB, ProjectDB.id == ProjectAccrualCellDB.project_id)
@@ -151,14 +146,50 @@ async def close_period(
             )
             frozen_count += 1
 
+    if frozen_count:
+        await db.flush()
+    logger.info(
+        "accrual_period_cells_frozen",
+        period_id=str(period_id),
+        frozen_cells_count=frozen_count,
+        freeze_cutoff=effective_cutoff.isoformat() if effective_cutoff else None,
+    )
+    return frozen_count
+
+
+async def close_period(
+    db: AsyncSession,
+    period_id: UUID,
+    *,
+    freeze_cutoff: date | None = None,
+) -> int:
+    """Flip status to closed, stamp closed_at, then freeze cells before cutoff.
+
+    Called from two places:
+    - ``create_period`` (period rotation): passes the new period's start_date
+      as ``freeze_cutoff``.
+    - Standalone admin "close period" (no successor yet): omits the cutoff;
+      freeze_period_cells then looks up the next period if one exists, otherwise
+      freezes nothing.
+
+    Returns the number of cells frozen.
+    """
+    period = await db.get(AccrualPeriodDB, period_id)
+    if period is None:
+        raise PeriodError(f"Period {period_id} not found")
+    if period.status != "open":
+        raise PeriodError(f"Period {period_id} is not open (status={period.status})")
+
     period.status = "closed"
     period.closed_at = datetime.now(UTC)
     await db.flush()
+
+    frozen_count = await freeze_period_cells(db, period_id=period_id, cutoff=freeze_cutoff)
     logger.info(
         "accrual_period_closed",
         period_id=str(period_id),
         frozen_cells_count=frozen_count,
-        freeze_cutoff=cutoff.isoformat() if cutoff else None,
+        freeze_cutoff=freeze_cutoff.isoformat() if freeze_cutoff else None,
     )
     return frozen_count
 

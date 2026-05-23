@@ -128,19 +128,31 @@ def _apply_redistribution(
 
 
 async def redistribute_for_project(
-    db: AsyncSession, *, project_id: UUID, force: bool = False
+    db: AsyncSession,
+    *,
+    project_id: UUID,
+    force: bool = False,
+    full_range: bool = False,
 ) -> int:
     """Redistribute the project budget across its mutable months.
 
     Frozen cells are never touched. Manual overrides survive unless ``force``
     is set. Returns the count of cells written/updated.
+
+    When ``full_range`` is True the active-period clip is skipped and cells
+    are generated for the entire project lifespan (``start_date``..``end_date``).
+    Use this in import/migration contexts where historical projects must have
+    their full cell grid populated regardless of the current open period.
     """
     project = (await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))).scalar_one()
     if project.original_budget is None or project.start_date is None or project.end_date is None:
         return 0
 
-    period = await period_service.get_current_period(db)
-    range_start = max(project.start_date, period.start_date) if period else project.start_date
+    if full_range:
+        range_start = project.start_date
+    else:
+        period = await period_service.get_current_period(db)
+        range_start = max(project.start_date, period.start_date) if period else project.start_date
     if range_start > project.end_date:
         return 0
 
