@@ -60,6 +60,14 @@ export function AccrualGrid({
     return Array.from(map.entries());
   }, [months]);
 
+  // Authoritative column widths consumed both by <colgroup> (forces layout)
+  // and by the sticky offset math. `table-fixed` + explicit total width make
+  // the column widths load-bearing — without an explicit numeric width the
+  // browser falls back to max-content sizing, which lets long codes blow up
+  // the first column and breaks every sticky offset downstream.
+  const allColumns = table.getAllLeafColumns();
+  const tableWidth = allColumns.reduce((sum, c) => sum + c.getSize(), 0);
+
   return (
     <div
       className="relative overflow-auto rounded-md border"
@@ -67,7 +75,12 @@ export function AccrualGrid({
       role="grid"
       aria-label="Accrual grid"
     >
-      <table className="w-full border-collapse">
+      <table className="border-collapse table-fixed" style={{ width: tableWidth }}>
+        <colgroup>
+          {allColumns.map((col) => (
+            <col key={col.id} style={{ width: col.getSize() }} />
+          ))}
+        </colgroup>
         <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
           {/* Year group row */}
           <tr className="bg-background">
