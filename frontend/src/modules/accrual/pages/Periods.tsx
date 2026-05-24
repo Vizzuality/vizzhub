@@ -21,7 +21,7 @@ export function Periods(): JSX.Element {
       {isLoading ? (
         <p>Loading…</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="w-full text-sm [&_th]:px-3 [&_td]:px-3 [&_th:first-child]:pl-0 [&_td:first-child]:pl-0 [&_th:last-child]:pr-0 [&_td:last-child]:pr-0">
           <thead>
             <tr className="text-left text-muted-foreground border-b">
               <th className="py-2">Start date</th>
