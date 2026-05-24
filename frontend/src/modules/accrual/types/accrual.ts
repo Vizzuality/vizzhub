@@ -5,6 +5,8 @@ export interface AccrualPeriod {
   closed_at: string | null;
   created_at: string;
   created_by: string | null;
+  /** ECB USD/EUR rate effective at start_date (units of USD per 1 EUR). */
+  usd_rate: string | null;
 }
 
 export interface AccrualPeriodCreate {

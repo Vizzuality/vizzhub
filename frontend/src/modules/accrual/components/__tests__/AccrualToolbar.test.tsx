@@ -3,17 +3,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccrualToolbar } from '@/modules/accrual/components/AccrualToolbar';
 
-const defaultFilters = { year_from: 2026, year_to: 2026, status: 'live' as const, currency: 'all' };
+const defaultFilters = { year_from: 2026, year_to: 2026, issues_only: false };
 
 describe('AccrualToolbar', () => {
   it('renders the current year range', () => {
-    render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} currencies={['USD', 'GBP']} />);
+    render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} />);
     expect(screen.getByText('2026')).toBeInTheDocument();
   });
 
   it('next-year arrow shifts both year_from and year_to forward', async () => {
     const onChange = vi.fn();
-    render(<AccrualToolbar filters={defaultFilters} onChange={onChange} currencies={['USD']} />);
+    render(<AccrualToolbar filters={defaultFilters} onChange={onChange} />);
     await userEvent.click(screen.getByRole('button', { name: /next year/i }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ year_from: 2027, year_to: 2027 }),
@@ -22,7 +22,7 @@ describe('AccrualToolbar', () => {
 
   it('previous-year arrow shifts both year_from and year_to back', async () => {
     const onChange = vi.fn();
-    render(<AccrualToolbar filters={defaultFilters} onChange={onChange} currencies={['USD']} />);
+    render(<AccrualToolbar filters={defaultFilters} onChange={onChange} />);
     await userEvent.click(screen.getByRole('button', { name: /previous year/i }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ year_from: 2025, year_to: 2025 }),
@@ -33,9 +33,8 @@ describe('AccrualToolbar', () => {
     const onChange = vi.fn();
     render(
       <AccrualToolbar
-        filters={{ year_from: 2024, year_to: 2026, status: 'live', currency: 'all' }}
+        filters={{ year_from: 2024, year_to: 2026, issues_only: false }}
         onChange={onChange}
-        currencies={['USD']}
       />,
     );
     await userEvent.click(screen.getByRole('button', { name: /next year/i }));
@@ -44,47 +43,11 @@ describe('AccrualToolbar', () => {
     );
   });
 
-  it('status select changes status', async () => {
-    const onChange = vi.fn();
-    render(<AccrualToolbar filters={defaultFilters} onChange={onChange} currencies={['USD']} />);
-    await userEvent.click(screen.getByRole('combobox', { name: /status/i }));
-    await userEvent.click(screen.getByRole('option', { name: /all/i }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ status: 'all' }));
-  });
-
-  it('currency select offers each currency plus "all"', async () => {
-    render(
-      <AccrualToolbar
-        filters={defaultFilters}
-        onChange={vi.fn()}
-        currencies={['USD', 'GBP', 'CAD']}
-      />,
-    );
-    await userEvent.click(screen.getByRole('combobox', { name: /currency/i }));
-    expect(screen.getByRole('option', { name: /all/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /USD/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /GBP/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /CAD/i })).toBeInTheDocument();
-  });
-
-  it('includes EUR in the dropdown when projects use EUR', async () => {
-    render(
-      <AccrualToolbar
-        filters={defaultFilters}
-        onChange={vi.fn()}
-        currencies={['EUR', 'USD']}
-      />,
-    );
-    await userEvent.click(screen.getByRole('combobox', { name: /currency/i }));
-    expect(screen.getByRole('option', { name: /EUR/i })).toBeInTheDocument();
-  });
-
   it('disables the previous-year arrow at the lower bound', () => {
     render(
       <AccrualToolbar
         filters={{ ...defaultFilters, year_from: 2024 }}
         onChange={vi.fn()}
-        currencies={[]}
         minYear={2024}
         maxYear={2030}
       />,
@@ -98,7 +61,6 @@ describe('AccrualToolbar', () => {
       <AccrualToolbar
         filters={{ ...defaultFilters, year_to: 2030 }}
         onChange={vi.fn()}
-        currencies={[]}
         minYear={2024}
         maxYear={2030}
       />,
@@ -108,7 +70,7 @@ describe('AccrualToolbar', () => {
   });
 
   it('leaves both arrows enabled when bounds are unset', () => {
-    render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} currencies={[]} />);
+    render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: /previous year/i })).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /next year/i })).not.toBeDisabled();
   });

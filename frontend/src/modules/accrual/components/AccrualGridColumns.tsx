@@ -13,9 +13,9 @@ import type {
   AccrualHealthStatus,
 } from '@/modules/accrual/types/accrual';
 
-// Pixel offsets for each of the 6 sticky-left columns.
-// code=0, name=60, status=260, currency=340, budget=410, budget_eur=540
-export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 60, 260, 340, 410, 540];
+// Pixel offsets for each of the 5 sticky-left columns.
+// code=0, name=60, status=260, budget=340, budget_eur=470
+export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 60, 260, 340, 470];
 
 const fmt = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -191,14 +191,6 @@ export function buildColumns(
       header: 'Status',
       size: 80,
       cell: ({ row }) => <StatusDotCellRenderer project={row.original} />,
-    },
-    {
-      id: 'currency',
-      header: 'CCY',
-      size: 70,
-      cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">{row.original.currency ?? '—'}</span>
-      ),
     },
     {
       id: 'budget',

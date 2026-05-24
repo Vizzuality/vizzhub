@@ -26,6 +26,7 @@ export function Periods(): JSX.Element {
             <tr className="text-left text-muted-foreground border-b">
               <th className="py-2">Start date</th>
               <th>Status</th>
+              <th className="text-right">USD / EUR</th>
               <th>Closed at</th>
             </tr>
           </thead>
@@ -34,6 +35,9 @@ export function Periods(): JSX.Element {
               <tr key={p.id} className="border-b">
                 <td className="py-2 font-mono">{p.start_date}</td>
                 <td>{p.status}</td>
+                <td className="text-right tabular-nums">
+                  {p.usd_rate ? Number(p.usd_rate).toFixed(4) : '—'}
+                </td>
                 <td className="text-muted-foreground">
                   {p.closed_at ? new Date(p.closed_at).toLocaleString() : '—'}
                 </td>

@@ -16,19 +16,12 @@ export function Accrual(): JSX.Element {
   const [filters, setFilters] = useState<AccrualFilters>({
     year_from: CURRENT_YEAR,
     year_to: CURRENT_YEAR,
-    status: 'live',
-    currency: 'all',
     issues_only: false,
   });
 
   const apiFilters = useMemo(
-    () => ({
-      year_from: filters.year_from,
-      year_to: filters.year_to,
-      ...(filters.status !== 'all' && { status: filters.status }),
-      ...(filters.currency !== 'all' && { currency: filters.currency }),
-    }),
-    [filters],
+    () => ({ year_from: filters.year_from, year_to: filters.year_to }),
+    [filters.year_from, filters.year_to],
   );
 
   const { data, isLoading, error } = useAccrualGrid(apiFilters);
@@ -66,26 +59,39 @@ export function Accrual(): JSX.Element {
     }
   };
 
+  // Projects with at least one non-zero cell in the visible range. The grid
+  // endpoint already clips cells by [year_from, year_to], so a simple set
+  // suffices — no extra date check.
+  const projectsWithCells = useMemo(() => {
+    if (!data) return new Set<string>();
+    const ids = new Set<string>();
+    for (const c of data.cells) {
+      if (Number(c.amount) !== 0) ids.add(c.project_id);
+    }
+    return ids;
+  }, [data]);
+
   const visibleProjects = useMemo(() => {
     if (!data) return [];
-    if (!filters.issues_only) return data.projects;
-    return data.projects.filter(
+    const withCells = data.projects.filter((p) => projectsWithCells.has(p.id));
+    if (!filters.issues_only) return withCells;
+    return withCells.filter(
       (p) => p.health.status === 'critical' || p.health.status === 'warning',
     );
-  }, [data, filters.issues_only]);
+  }, [data, projectsWithCells, filters.issues_only]);
 
-  const issuesCount = useMemo(() => {
-    if (!data) return 0;
-    return data.projects.filter(
-      (p) => p.health.status === 'critical' || p.health.status === 'warning',
-    ).length;
-  }, [data]);
+  const issuesCount = useMemo(
+    () =>
+      visibleProjects.filter((p) => p.health.status === 'critical' || p.health.status === 'warning')
+        .length,
+    [visibleProjects],
+  );
 
   function renderGrid(): JSX.Element {
     if (error) return <p className="text-sm text-destructive">Failed to load grid.</p>;
     if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
     if (visibleProjects.length === 0) {
-      return <p className="text-sm text-muted-foreground">No projects match the current filters.</p>;
+      return <p className="text-sm text-muted-foreground">No projects with accrual data in this range.</p>;
     }
     return (
       <AccrualGrid
@@ -107,7 +113,6 @@ export function Accrual(): JSX.Element {
       <AccrualToolbar
         filters={filters}
         onChange={setFilters}
-        currencies={data?.available_currencies ?? []}
         minYear={data?.bounds?.min_year}
         maxYear={data?.bounds?.max_year}
       />

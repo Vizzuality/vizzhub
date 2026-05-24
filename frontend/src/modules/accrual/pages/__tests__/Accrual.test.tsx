@@ -47,6 +47,6 @@ describe('Accrual page', () => {
         <Accrual />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/no projects match the current filters/i)).toBeInTheDocument();
+    expect(screen.getByText(/no projects with accrual data in this range/i)).toBeInTheDocument();
   });
 });
