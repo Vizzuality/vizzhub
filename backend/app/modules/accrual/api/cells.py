@@ -42,6 +42,30 @@ _HEALTH_WARNING_THRESHOLD = Decimal("5")
 _HEALTH_CRITICAL_THRESHOLD = Decimal("20")
 
 
+def _diff_eur_pct(
+    budget: Decimal | None, sum_cells: Decimal
+) -> tuple[Decimal | None, Decimal | None]:
+    if budget is None or budget == 0:
+        return None, None
+    diff_eur = (sum_cells - budget).quantize(Decimal("0.01"))
+    diff_pct = (abs(diff_eur) / budget * Decimal("100")).quantize(Decimal("0.01"))
+    return diff_eur, diff_pct
+
+
+def _resolve_health_status(
+    *, code_is_duplicated: bool, reasons: list[str], diff_pct: Decimal | None
+) -> str:
+    if code_is_duplicated or "no_cells" in reasons:
+        return "critical"
+    if diff_pct is not None and diff_pct > _HEALTH_CRITICAL_THRESHOLD:
+        return "critical"
+    if diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
+        return "warning"
+    if "no_excel_data" in reasons:
+        return "no_data"
+    return "ok"
+
+
 def _compute_health(
     *,
     budget: Decimal | None,
@@ -59,14 +83,8 @@ def _compute_health(
       using uniform redistribute only — the CEO has no monthly forecast for it).
     - ``ok``: the rest.
     """
+    diff_eur, diff_pct = _diff_eur_pct(budget, sum_cells)
     reasons: list[str] = []
-    diff_eur: Decimal | None = None
-    diff_pct: Decimal | None = None
-
-    if budget is not None and budget != 0:
-        diff_eur = (sum_cells - budget).quantize(Decimal("0.01"))
-        diff_pct = (abs(diff_eur) / budget * Decimal("100")).quantize(Decimal("0.01"))
-
     if code_is_duplicated:
         reasons.append("multi_project_dup_code")
     if budget is not None and budget > 0 and sum_cells == 0:
@@ -76,22 +94,10 @@ def _compute_health(
     if diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
         reasons.append("value_divergence")
 
-    status_value: str
-    if (
-        code_is_duplicated
-        or "no_cells" in reasons
-        or (diff_pct is not None and diff_pct > _HEALTH_CRITICAL_THRESHOLD)
-    ):
-        status_value = "critical"
-    elif diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
-        status_value = "warning"
-    elif "no_excel_data" in reasons:
-        status_value = "no_data"
-    else:
-        status_value = "ok"
-
     return {
-        "status": status_value,
+        "status": _resolve_health_status(
+            code_is_duplicated=code_is_duplicated, reasons=reasons, diff_pct=diff_pct
+        ),
         "diff_eur": str(diff_eur) if diff_eur is not None else None,
         "diff_pct": float(diff_pct) if diff_pct is not None else None,
         "reasons": reasons,
@@ -116,6 +122,37 @@ def _serialize(cell: ProjectAccrualCellDB) -> dict:
         "eur_amount": str(cell.amount),
         "source": cell.source,
         "updated_at": cell.updated_at.isoformat(),
+    }
+
+
+def _serialize_grid_project(
+    p: ProjectDB,
+    pm_name: str | None,
+    *,
+    sum_cells: Decimal,
+    has_overrides: bool,
+    duplicated_codes: set[str],
+) -> dict:
+    budget_str = str(p.budget) if p.budget is not None else None
+    return {
+        "id": str(p.id),
+        "name": p.name,
+        "code": p.code,
+        "currency": p.currency,
+        "budget": budget_str,
+        "original_budget": str(p.original_budget) if p.original_budget is not None else None,
+        "budget_eur": budget_str,
+        "status": p.status,
+        "start_date": p.start_date.isoformat() if p.start_date else None,
+        "end_date": p.end_date.isoformat() if p.end_date else None,
+        "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
+        "project_manager_name": pm_name,
+        "health": _compute_health(
+            budget=Decimal(p.budget) if p.budget is not None else None,
+            sum_cells=sum_cells,
+            has_overrides=has_overrides,
+            code_is_duplicated=bool(p.code) and p.code in duplicated_codes,
+        ),
     }
 
 
@@ -234,35 +271,16 @@ async def get_grid(
     )
     duplicated_codes = {row[0] for row in dup_codes_result.all()}
 
-    projects: list[dict] = []
-    for p, pm_name in rows:
-        sum_cells = sum_by_pid.get(p.id, Decimal("0"))
-        has_overrides = has_overrides_by_pid.get(p.id, False)
-        health = _compute_health(
-            budget=Decimal(p.budget) if p.budget is not None else None,
-            sum_cells=sum_cells,
-            has_overrides=has_overrides,
-            code_is_duplicated=p.code in duplicated_codes if p.code else False,
+    projects = [
+        _serialize_grid_project(
+            p,
+            pm_name,
+            sum_cells=sum_by_pid.get(p.id, Decimal("0")),
+            has_overrides=has_overrides_by_pid.get(p.id, False),
+            duplicated_codes=duplicated_codes,
         )
-        projects.append(
-            {
-                "id": str(p.id),
-                "name": p.name,
-                "code": p.code,
-                "currency": p.currency,
-                "budget": str(p.budget) if p.budget is not None else None,
-                "original_budget": str(p.original_budget)
-                if p.original_budget is not None
-                else None,
-                "budget_eur": str(p.budget) if p.budget is not None else None,
-                "status": p.status,
-                "start_date": p.start_date.isoformat() if p.start_date else None,
-                "end_date": p.end_date.isoformat() if p.end_date else None,
-                "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
-                "project_manager_name": pm_name,
-                "health": health,
-            }
-        )
+        for p, pm_name in rows
+    ]
 
     cells_serialised: list[dict] = []
     if project_ids:

@@ -239,7 +239,7 @@ export function DriftFindingsSection({ kinds, title, description }: DriftFinding
             checked={includeResolved}
             onChange={(e) => setIncludeResolved(e.target.checked)}
           />
-          Include resolved
+          <span>Include resolved</span>
         </label>
       </header>
 
