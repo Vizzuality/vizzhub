@@ -6,8 +6,8 @@ import {
   Blocks,
   BookOpen,
   CalendarDays,
-  CalendarRange,
   ClipboardList,
+  Coins,
   FolderKanban,
   ListTodo,
   Shield,
@@ -413,7 +413,7 @@ export function AppSidebar(): JSX.Element {
 
                   {isAdmin && (
                     <CollapsibleMenuItem
-                      icon={CalendarRange}
+                      icon={Coins}
                       label="Accrual"
                       isActive={location.pathname.startsWith('/admin/accrual')}
                       items={ACCRUAL_TABS}
