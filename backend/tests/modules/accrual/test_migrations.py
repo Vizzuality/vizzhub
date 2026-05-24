@@ -6,26 +6,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_projects_has_locked_fx_rate(db_session: AsyncSession) -> None:
+async def test_projects_does_not_have_locked_fx_rate(db_session: AsyncSession) -> None:
+    """Migration 081 dropped projects.locked_fx_rate."""
     result = await db_session.execute(
         text(
-            "SELECT column_name, data_type, is_nullable, numeric_precision, numeric_scale "
-            "FROM information_schema.columns "
+            "SELECT column_name FROM information_schema.columns "
             "WHERE table_name = 'projects' AND column_name = 'locked_fx_rate'"
         )
     )
-    row = result.one_or_none()
-    assert row is not None, "projects.locked_fx_rate missing"
-    assert row.data_type == "numeric"
-    assert row.is_nullable == "YES"
-    assert row.numeric_precision == 12
-    assert row.numeric_scale == 6
+    assert result.one_or_none() is None, "projects.locked_fx_rate must be dropped"
 
 
 @pytest.mark.asyncio
 async def test_accrual_periods_table_exists(db_session: AsyncSession) -> None:
     result = await db_session.execute(text("SELECT to_regclass('public.accrual_periods')"))
     assert result.scalar() is not None
+
+
+@pytest.mark.asyncio
+async def test_accrual_periods_does_not_have_fx_rates(db_session: AsyncSession) -> None:
+    """Migration 081 dropped accrual_periods.fx_rates."""
+    result = await db_session.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'accrual_periods' AND column_name = 'fx_rates'"
+        )
+    )
+    assert result.one_or_none() is None, "accrual_periods.fx_rates must be dropped"
 
 
 @pytest.mark.asyncio
@@ -57,6 +64,18 @@ async def test_accrual_periods_start_date_unique(db_session: AsyncSession) -> No
 async def test_project_accrual_cells_table_exists(db_session: AsyncSession) -> None:
     result = await db_session.execute(text("SELECT to_regclass('public.project_accrual_cells')"))
     assert result.scalar() is not None
+
+
+@pytest.mark.asyncio
+async def test_project_accrual_cells_does_not_have_frozen_rate(db_session: AsyncSession) -> None:
+    """Migration 081 dropped project_accrual_cells.frozen_rate."""
+    result = await db_session.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'project_accrual_cells' AND column_name = 'frozen_rate'"
+        )
+    )
+    assert result.one_or_none() is None, "project_accrual_cells.frozen_rate must be dropped"
 
 
 @pytest.mark.asyncio

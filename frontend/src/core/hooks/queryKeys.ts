@@ -160,7 +160,6 @@ export const queryKeys = {
       all: ['accrual', 'periods'] as const,
       list: () => ['accrual', 'periods', 'list'] as const,
       current: () => ['accrual', 'periods', 'current'] as const,
-      seedRates: () => ['accrual', 'periods', 'seed-rates'] as const,
       detail: (id: string) => ['accrual', 'periods', id] as const,
     },
     cells: {
@@ -175,6 +174,23 @@ export const queryKeys = {
         ['accrual', 'dashboard', 'monthly', filters] as const,
       byProject: (filters: Record<string, unknown>) =>
         ['accrual', 'dashboard', 'by-project', filters] as const,
+    },
+    drift: {
+      all: ['accrual', 'drift'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['accrual', 'drift', 'list', filters] as const,
+      summary: () => ['accrual', 'drift', 'summary'] as const,
+    },
+    aliases: {
+      all: ['accrual', 'aliases'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['accrual', 'aliases', 'list', filters] as const,
+    },
+    excelRows: {
+      all: ['accrual', 'excel-rows'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['accrual', 'excel-rows', 'list', filters] as const,
+      runs: () => ['accrual', 'excel-rows', 'runs'] as const,
     },
   },
   tracker: {

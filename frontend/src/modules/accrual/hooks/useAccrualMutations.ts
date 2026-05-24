@@ -82,103 +82,72 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     },
   });
 
-  const clearOverrideMutation = useMutation({
-    mutationFn: (cellId: string) => accrualApi.cells.clearOverride(cellId),
+  const simpleMutationCallbacks = {
     onMutate: () => setSavingState('saving'),
     onSuccess: () => {
       setSavingState('idle');
       invalidateGrid();
     },
-    onError: (err) => {
+    onError: (err: unknown) => {
       setSavingState('error');
       setErrorMessage(extractErrorMessage(err));
       invalidateGrid();
     },
+  };
+
+  const clearOverrideMutation = useMutation({
+    mutationFn: (cellId: string) => accrualApi.cells.clearOverride(cellId),
+    ...simpleMutationCallbacks,
   });
 
   const redistributeMutation = useMutation({
     mutationFn: ({ projectId, force }: { projectId: string; force?: boolean }) =>
       accrualApi.cells.redistribute(projectId, force),
-    onMutate: () => setSavingState('saving'),
-    onSuccess: () => {
-      setSavingState('idle');
-      invalidateGrid();
-    },
-    onError: (err) => {
-      setSavingState('error');
-      setErrorMessage(extractErrorMessage(err));
-      invalidateGrid();
-    },
+    ...simpleMutationCallbacks,
   });
 
   const bulkMutation = useMutation({
     mutationFn: (updates: BulkCellUpdate[]) => accrualApi.cells.bulk(updates),
-    onMutate: () => setSavingState('saving'),
-    onSuccess: () => {
-      setSavingState('idle');
-      invalidateGrid();
-    },
-    onError: (err) => {
-      setSavingState('error');
-      setErrorMessage(extractErrorMessage(err));
-      invalidateGrid();
-    },
+    ...simpleMutationCallbacks,
   });
 
   const updateCell = useCallback(
     async (cellId: string, amount: string): Promise<void> => {
-      // Find the cell in any cached grid to build the failedCells key
+      // Find the cell in any cached grid to build the failedCells key.
       const allGridData = queryClient.getQueriesData<AccrualGridResponse>({
         queryKey: queryKeys.accrual.cells.all,
       });
       let cellKey = cellId; // fallback if not cached yet
       for (const [, data] of allGridData) {
-        if (!data) continue;
-        const found = data.cells.find((c) => c.id === cellId);
+        const found = data?.cells.find((c) => c.id === cellId);
         if (found) {
           cellKey = buildCellKey(found.project_id, found.year, found.month);
           break;
         }
       }
-      try {
-        await patchMutation.mutateAsync({ cellId, amount, cellKey });
-      } catch {
-        // Error captured in onError; swallow so callers can fire-and-forget
-      }
+      // Errors captured in onError; swallow so callers can fire-and-forget.
+      await patchMutation.mutateAsync({ cellId, amount, cellKey }).catch(() => undefined);
     },
     [queryClient, patchMutation],
   );
 
+  // Mutation errors surface via savingState/errorMessage; callers can
+  // fire-and-forget without their own try/catch.
   const clearOverride = useCallback(
-    async (cellId: string): Promise<void> => {
-      try {
-        await clearOverrideMutation.mutateAsync(cellId);
-      } catch {
-        // Error captured in onError
-      }
-    },
+    (cellId: string): Promise<void> =>
+      clearOverrideMutation.mutateAsync(cellId).then(() => undefined).catch(() => undefined),
     [clearOverrideMutation],
   );
 
   const redistribute = useCallback(
-    async (projectId: string, force?: boolean): Promise<void> => {
-      try {
-        await redistributeMutation.mutateAsync({ projectId, force });
-      } catch {
-        // Error captured in onError
-      }
-    },
+    (projectId: string, force?: boolean): Promise<void> =>
+      redistributeMutation.mutateAsync({ projectId, force }).then(() => undefined).catch(() => undefined),
     [redistributeMutation],
   );
 
   const bulkUpdate = useCallback(
-    async (updates: BulkCellUpdate[]): Promise<void> => {
-      try {
-        await bulkMutation.mutateAsync(updates);
-      } catch {
-        // Error captured in onError
-      }
-    },
+    (updates: BulkCellUpdate[]): Promise<void> =>
+      bulkMutation.mutateAsync(updates).then(() => undefined).catch(() => undefined),
     [bulkMutation],
   );
 

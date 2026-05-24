@@ -39,13 +39,10 @@ async def test_get_project_cells_empty(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_redistribute_endpoint_creates_cells(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
-    from app.core.models.project import ProjectDB
-
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -59,11 +56,6 @@ async def test_redistribute_endpoint_creates_cells(
         },
     )
     pid = p.json()["id"]
-    # original_budget is write-only via ORM (importer sets it); seed it directly.
-    result = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-    proj = result.scalar_one()
-    proj.original_budget = Decimal("1200")
-    await db_session.flush()
 
     resp = await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
     assert resp.status_code == 200
@@ -74,18 +66,17 @@ async def test_redistribute_endpoint_creates_cells(
     for cell in cells:
         assert cell["is_manual_override"] is False
         assert cell["is_frozen"] is False
+        # Cells are EUR; eur_amount mirrors amount.
+        assert cell["eur_amount"] == cell["amount"]
 
 
 @pytest.mark.asyncio
 async def test_patch_cell_sets_override(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
-    from app.core.models.project import ProjectDB
-
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -99,9 +90,6 @@ async def test_patch_cell_sets_override(
         },
     )
     pid = p.json()["id"]
-    result = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-    (result.scalar_one()).original_budget = Decimal("1200")
-    await db_session.flush()
     await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
     cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
     target = next(c for c in cells if c["month"] == 5)
@@ -118,11 +106,9 @@ async def test_patch_frozen_cell_returns_409(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    from app.core.models.project import ProjectDB
-
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -136,9 +122,6 @@ async def test_patch_frozen_cell_returns_409(
         },
     )
     pid = p.json()["id"]
-    result = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-    (result.scalar_one()).original_budget = Decimal("1200")
-    await db_session.flush()
     await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
     cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
     target = next(c for c in cells if c["month"] == 5)
@@ -149,8 +132,7 @@ async def test_patch_frozen_cell_returns_409(
     cell = res.scalar_one()
     cell.is_frozen = True
     cell.frozen_at = datetime.now(UTC)
-    cell.frozen_rate = Decimal("1.10")
-    cell.frozen_eur_amount = Decimal("90.91")
+    cell.frozen_eur_amount = cell.amount
     await db_session.commit()
 
     resp = await client.patch(f"/api/accrual/cells/{target['id']}", json={"amount": 999})
@@ -160,13 +142,10 @@ async def test_patch_frozen_cell_returns_409(
 @pytest.mark.asyncio
 async def test_patch_cell_negative_amount_returns_400(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
-    from app.core.models.project import ProjectDB
-
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -180,9 +159,6 @@ async def test_patch_cell_negative_amount_returns_400(
         },
     )
     pid = p.json()["id"]
-    result = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-    (result.scalar_one()).original_budget = Decimal("1200")
-    await db_session.flush()
     await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
     cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
 
@@ -196,13 +172,10 @@ async def test_patch_cell_negative_amount_returns_400(
 @pytest.mark.asyncio
 async def test_delete_override_clears_and_redistributes(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
-    from app.core.models.project import ProjectDB
-
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -216,9 +189,6 @@ async def test_delete_override_clears_and_redistributes(
         },
     )
     pid = p.json()["id"]
-    result = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-    (result.scalar_one()).original_budget = Decimal("1200")
-    await db_session.flush()
     await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
     cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
     target = next(c for c in cells if c["month"] == 5)
@@ -245,13 +215,10 @@ async def test_grid_empty_no_projects(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_grid_returns_projects_and_cells(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
-    from app.core.models.project import ProjectDB
-
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -265,9 +232,6 @@ async def test_grid_returns_projects_and_cells(
         },
     )
     pid = p.json()["id"]
-    result = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-    (result.scalar_one()).original_budget = Decimal("1200")
-    await db_session.flush()
     await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
@@ -289,29 +253,34 @@ async def test_grid_year_range_validation(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_grid_currency_normalises_legacy_label(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
     """Legacy 'dollar' rows are included when filtering by USD."""
-    from app.core.models.project import ProjectDB
-
     dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
-    p_leg = await client.post(
+    await client.post(
         "/api/projects",
-        json={"name": "Legacy", "code": "TEST.AC.GRID.LEG", "currency": "dollar", **dated},
+        json={
+            "name": "Legacy",
+            "code": "TEST.AC.GRID.LEG",
+            "currency": "dollar",
+            "budget": 1000,
+            **dated,
+        },
     )
-    p_mod = await client.post(
+    await client.post(
         "/api/projects",
-        json={"name": "Modern", "code": "TEST.AC.GRID.MOD", "currency": "USD", **dated},
+        json={
+            "name": "Modern",
+            "code": "TEST.AC.GRID.MOD",
+            "currency": "USD",
+            "budget": 1000,
+            **dated,
+        },
     )
-    # OTH has no original_budget intentionally — excluded from grid
+    # OTH has no budget intentionally — excluded from grid
     await client.post(
         "/api/projects",
         json={"name": "Other", "code": "TEST.AC.GRID.OTH", "currency": "GBP", **dated},
     )
-    for pid in (p_leg.json()["id"], p_mod.json()["id"]):
-        r = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-        r.scalar_one().original_budget = Decimal("1000")
-    await db_session.flush()
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&currency=USD")
     assert resp.status_code == 200
@@ -322,36 +291,31 @@ async def test_grid_currency_normalises_legacy_label(
 @pytest.mark.asyncio
 async def test_grid_filter_by_status(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
     """status filter narrows projects."""
-    from app.core.models.project import ProjectDB
-
     dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
-    p_live = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Live one",
             "code": "TEST.AC.GRID.LIVE",
             "currency": "USD",
             "status": "live",
+            "budget": 1000,
             **dated,
         },
     )
-    p_prop = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Proposal",
             "code": "TEST.AC.GRID.PROP",
             "currency": "USD",
             "status": "proposal",
+            "budget": 1000,
             **dated,
         },
     )
-    for pid in (p_live.json()["id"], p_prop.json()["id"]):
-        r = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-        r.scalar_one().original_budget = Decimal("1000")
-    await db_session.flush()
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&status=live")
     assert resp.status_code == 200
@@ -363,7 +327,7 @@ async def test_grid_filter_by_status(
 async def test_bulk_cells_happy_path(client: AsyncClient) -> None:
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     p = await client.post(
         "/api/projects",
@@ -394,35 +358,30 @@ async def test_bulk_cells_happy_path(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_grid_returns_bounds_and_currencies(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
     """bounds + available_currencies reflect projects matching status+pm, not year/currency."""
-    from app.core.models.project import ProjectDB
-
-    p_old = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Old",
             "code": "TEST.AC.B1",
             "currency": "dollar",
+            "budget": 1000,
             "start_date": "2022-01-01",
             "end_date": "2024-12-01",
         },
     )
-    p_recent = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Recent",
             "code": "TEST.AC.B2",
             "currency": "GBP",
+            "budget": 1000,
             "start_date": "2026-01-01",
             "end_date": "2027-12-01",
         },
     )
-    for pid in (p_old.json()["id"], p_recent.json()["id"]):
-        r = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-        r.scalar_one().original_budget = Decimal("1000")
-    await db_session.flush()
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     assert resp.status_code == 200
@@ -445,35 +404,30 @@ async def test_grid_bounds_null_when_no_projects(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_grid_filters_projects_by_year_overlap(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
     """A project that ended before the visible range is dropped from the response."""
-    from app.core.models.project import ProjectDB
-
-    p_old = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Ended in 2024",
             "code": "TEST.AC.OVL1",
             "currency": "USD",
+            "budget": 1000,
             "start_date": "2022-01-01",
             "end_date": "2024-12-01",
         },
     )
-    p_active = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Active 2026",
             "code": "TEST.AC.OVL2",
             "currency": "USD",
+            "budget": 1000,
             "start_date": "2026-01-01",
             "end_date": "2027-12-01",
         },
     )
-    for pid in (p_old.json()["id"], p_active.json()["id"]):
-        r = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(pid)))
-        r.scalar_one().original_budget = Decimal("1000")
-    await db_session.flush()
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     codes = {p["code"] for p in resp.json()["projects"]}
@@ -485,7 +439,7 @@ async def test_grid_excludes_projects_without_dates(client: AsyncClient) -> None
     """Projects without start/end dates can't be redistributed — drop them from the grid."""
     await client.post(
         "/api/projects",
-        json={"name": "Undated", "code": "TEST.AC.OVL3", "currency": "USD"},
+        json={"name": "Undated", "code": "TEST.AC.OVL3", "currency": "USD", "budget": 1000},
     )
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     codes = {p["code"] for p in resp.json()["projects"]}
@@ -501,6 +455,7 @@ async def test_grid_excludes_projects_with_only_start_date(client: AsyncClient) 
             "name": "Open-ended",
             "code": "TEST.AC.OVL4",
             "currency": "USD",
+            "budget": 1000,
             "start_date": "2024-01-01",
         },
     )
@@ -512,19 +467,17 @@ async def test_grid_excludes_projects_with_only_start_date(client: AsyncClient) 
 @pytest.mark.asyncio
 async def test_grid_excludes_non_billable_projects(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
     """Non-billable engagements never appear in the revenue grid."""
-    from app.core.models.project import ProjectDB
-
     dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
-    p_bill = await client.post(
+    await client.post(
         "/api/projects",
         json={
             "name": "Billable",
             "code": "TEST.AC.BILL1",
             "currency": "USD",
             "is_billable": True,
+            "budget": 1000,
             **dated,
         },
     )
@@ -535,12 +488,10 @@ async def test_grid_excludes_non_billable_projects(
             "code": "TEST.AC.BILL2",
             "currency": "USD",
             "is_billable": False,
+            "budget": 1000,
             **dated,
         },
     )
-    r = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(p_bill.json()["id"])))
-    r.scalar_one().original_budget = Decimal("1000")
-    await db_session.flush()
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     codes = {p["code"] for p in resp.json()["projects"]}
@@ -551,32 +502,23 @@ async def test_grid_excludes_non_billable_projects(
 @pytest.mark.asyncio
 async def test_grid_includes_eur_in_available_currencies(
     client: AsyncClient,
-    db_session: AsyncSession,
 ) -> None:
     """Legacy 'euro' label normalises to EUR and shows up in the dropdown source."""
-    from app.core.models.project import ProjectDB
-
-    p = await client.post(
+    await client.post(
         "/api/projects",
-        json={"name": "Euro one", "code": "TEST.AC.EUR1", "currency": "euro"},
+        json={"name": "Euro one", "code": "TEST.AC.EUR1", "currency": "euro", "budget": 1000},
     )
-    r = await db_session.execute(select(ProjectDB).where(ProjectDB.id == UUID(p.json()["id"])))
-    r.scalar_one().original_budget = Decimal("1000")
-    await db_session.flush()
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     assert "EUR" in resp.json()["available_currencies"]
 
 
-# --- T4.0: original_budget grid filter ---
-
-
 @pytest.mark.asyncio
-async def test_grid_excludes_projects_without_original_budget(
+async def test_grid_excludes_projects_without_budget(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    """Projects with original_budget=NULL are excluded from the grid regardless of other fields."""
+    """Projects with budget=NULL are excluded from the grid regardless of other fields."""
     from datetime import date
 
     from app.core.models.project import ProjectDB
@@ -587,7 +529,7 @@ async def test_grid_excludes_projects_without_original_budget(
         status="live",
         currency="USD",
         is_billable=True,
-        original_budget=Decimal("100"),
+        budget=Decimal("100"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 31),
     )
@@ -597,7 +539,7 @@ async def test_grid_excludes_projects_without_original_budget(
         status="live",
         currency="USD",
         is_billable=True,
-        original_budget=None,
+        budget=None,
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 31),
     )
@@ -607,3 +549,89 @@ async def test_grid_excludes_projects_without_original_budget(
     ids = [p["id"] for p in r.json()["projects"]]
     assert str(p_in.id) in ids
     assert str(p_out.id) not in ids
+
+
+def test_compute_health_ok_when_cells_match_budget():
+    from decimal import Decimal
+
+    from app.modules.accrual.api.cells import _compute_health
+
+    h = _compute_health(
+        budget=Decimal("100"),
+        sum_cells=Decimal("100"),
+        has_overrides=True,
+        code_is_duplicated=False,
+    )
+    assert h["status"] == "ok"
+    assert h["diff_eur"] == "0.00"
+    assert h["reasons"] == []
+
+
+def test_compute_health_warning_when_diff_above_5pct():
+    from decimal import Decimal
+
+    from app.modules.accrual.api.cells import _compute_health
+
+    h = _compute_health(
+        budget=Decimal("100"),
+        sum_cells=Decimal("108"),
+        has_overrides=True,
+        code_is_duplicated=False,
+    )
+    assert h["status"] == "warning"
+    assert h["diff_pct"] == 8.0
+    assert "value_divergence" in h["reasons"]
+
+
+def test_compute_health_critical_when_diff_above_20pct():
+    from decimal import Decimal
+
+    from app.modules.accrual.api.cells import _compute_health
+
+    h = _compute_health(
+        budget=Decimal("100"),
+        sum_cells=Decimal("125"),
+        has_overrides=True,
+        code_is_duplicated=False,
+    )
+    assert h["status"] == "critical"
+    assert "value_divergence" in h["reasons"]
+
+
+def test_compute_health_critical_when_code_is_duplicated():
+    from decimal import Decimal
+
+    from app.modules.accrual.api.cells import _compute_health
+
+    h = _compute_health(
+        budget=Decimal("100"), sum_cells=Decimal("100"), has_overrides=True, code_is_duplicated=True
+    )
+    assert h["status"] == "critical"
+    assert "multi_project_dup_code" in h["reasons"]
+
+
+def test_compute_health_no_data_when_uniform_without_overrides():
+    from decimal import Decimal
+
+    from app.modules.accrual.api.cells import _compute_health
+
+    h = _compute_health(
+        budget=Decimal("100"),
+        sum_cells=Decimal("100"),
+        has_overrides=False,
+        code_is_duplicated=False,
+    )
+    assert h["status"] == "no_data"
+    assert "no_excel_data" in h["reasons"]
+
+
+def test_compute_health_critical_when_budget_but_no_cells():
+    from decimal import Decimal
+
+    from app.modules.accrual.api.cells import _compute_health
+
+    h = _compute_health(
+        budget=Decimal("100"), sum_cells=Decimal("0"), has_overrides=False, code_is_duplicated=False
+    )
+    assert h["status"] == "critical"
+    assert "no_cells" in h["reasons"]

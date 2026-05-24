@@ -129,4 +129,47 @@ describe('AccrualCell', () => {
     const node = container.querySelector('[class*="ring-destructive"]');
     expect(node).not.toBeNull();
   });
+
+  it('defaults source to excel when prop omitted', () => {
+    render(
+      <AccrualCell
+        amount="100" eurAmount="91"
+        isOverride={false} isFrozen={false} canEdit
+        onChange={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole('button');
+    expect(btn.getAttribute('data-source')).toBe('excel');
+    expect(btn.getAttribute('title')).toContain('From Excel');
+    // Excel cells have no inline stripe background.
+    expect(btn.getAttribute('style')).toBeNull();
+  });
+
+  it('renders hatched stripes for team_budget source', () => {
+    render(
+      <AccrualCell
+        amount="100" eurAmount="91"
+        isOverride={false} isFrozen={false} canEdit
+        onChange={vi.fn()} source="team_budget"
+      />,
+    );
+    const btn = screen.getByRole('button');
+    expect(btn.getAttribute('data-source')).toBe('team_budget');
+    // Inline style applies the repeating-linear-gradient stripes.
+    expect(btn.getAttribute('style')).toContain('repeating-linear-gradient');
+    expect(btn.getAttribute('title')).toContain('Team-budget fallback');
+  });
+
+  it('exposes manual source in the title and data-source attribute', () => {
+    render(
+      <AccrualCell
+        amount="100" eurAmount="91"
+        isOverride isFrozen={false} canEdit
+        onChange={vi.fn()} source="manual"
+      />,
+    );
+    const btn = screen.getByRole('button');
+    expect(btn.getAttribute('data-source')).toBe('manual');
+    expect(btn.getAttribute('title')).toContain('Manual override');
+  });
 });

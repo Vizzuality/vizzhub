@@ -11,7 +11,7 @@ import {
   STICKY_LEFT_OFFSETS,
 } from '@/modules/accrual/components/AccrualGridColumns';
 
-const STICKY_COL_COUNT = 7;
+const STICKY_COL_COUNT = STICKY_LEFT_OFFSETS.length;
 
 const fmt = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,

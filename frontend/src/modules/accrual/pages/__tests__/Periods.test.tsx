@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { ReactNode } from 'react';
 import { Periods } from '@/modules/accrual/pages/Periods';
 
 vi.mock('@/modules/accrual/hooks/usePeriods', () => ({
@@ -11,12 +10,12 @@ vi.mock('@/modules/accrual/hooks/usePeriods', () => ({
     data: [
       {
         id: 'p1', start_date: '2026-01-01', status: 'open',
-        fx_rates: { USD: '1.10' }, closed_at: null, created_at: '2026-01-01T00:00:00Z',
+        closed_at: null, created_at: '2026-01-01T00:00:00Z',
         created_by: null,
       },
       {
         id: 'p0', start_date: '2025-01-01', status: 'closed',
-        fx_rates: { USD: '1.05' }, closed_at: '2026-01-01T00:00:00Z',
+        closed_at: '2026-01-01T00:00:00Z',
         created_at: '2025-01-01T00:00:00Z', created_by: null,
       },
     ],
@@ -24,8 +23,6 @@ vi.mock('@/modules/accrual/hooks/usePeriods', () => ({
   }),
   useCurrentPeriod: () => ({ data: null }),
   useCreatePeriod: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  usePatchPeriod: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useSeedRates: () => ({ data: { USD: '1.10', GBP: '0.85' } }),
 }));
 
 const renderPage = (): void => {
@@ -48,17 +45,5 @@ describe('Periods page', () => {
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /new period/i }));
     expect(screen.getByText(/Open new accrual period/i)).toBeInTheDocument();
-  });
-
-  it('shows "Edit currencies" only on the open row', () => {
-    renderPage();
-    const editButtons = screen.getAllByRole('button', { name: /edit currencies/i });
-    expect(editButtons).toHaveLength(1);
-  });
-
-  it('opens the edit dialog on Edit currencies click', async () => {
-    renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /edit currencies/i }));
-    expect(screen.getByText(/Edit period FX rates/i)).toBeInTheDocument();
   });
 });

@@ -141,4 +141,6 @@ Support/
 # Ephemeral brainstorming outputs (Superpowers specs/plans)
 docs/superpowers/
 docs/plans/
-accrual-grid-*.png
+# Debug screenshots captured at repo root during iteration. Real app assets
+# live under frontend/public/ or frontend/src/assets/.
+/*.png

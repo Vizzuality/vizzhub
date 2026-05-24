@@ -79,7 +79,6 @@ class ProjectDB(Base):
     has_budget_alerts: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     currency: Mapped[str] = mapped_column(String(20), nullable=False, default="dollar")
     budget: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    locked_fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     original_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -123,7 +122,6 @@ class ProjectBase(BaseModel):
     has_budget_alerts: bool = True
     currency: str = Field("dollar", max_length=20)
     budget: float | None = Field(None, ge=0)
-    locked_fx_rate: float | None = Field(None, ge=0)
     notes: str | None = None
     summary: str | None = None
     jira_project_key: str | None = Field(None, max_length=50)
@@ -187,7 +185,6 @@ class ProjectUpdate(BaseModel):
     has_budget_alerts: bool | None = None
     currency: str | None = Field(None, max_length=20)
     budget: float | None = Field(None, ge=0)
-    locked_fx_rate: float | None = Field(None, ge=0)
     notes: str | None = None
     summary: str | None = None
     jira_project_key: str | None = Field(None, max_length=50)

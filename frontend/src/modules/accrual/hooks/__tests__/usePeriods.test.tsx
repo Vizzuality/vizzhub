@@ -6,13 +6,12 @@ import {
   usePeriodsList,
   useCurrentPeriod,
   useCreatePeriod,
-  usePatchPeriod,
 } from '@/modules/accrual/hooks/usePeriods';
 import { accrualApi } from '@/modules/accrual/services/accrual';
 
 vi.mock('@/modules/accrual/services/accrual', () => ({
   accrualApi: {
-    periods: { list: vi.fn(), current: vi.fn(), create: vi.fn(), patch: vi.fn() },
+    periods: { list: vi.fn(), current: vi.fn(), create: vi.fn() },
   },
 }));
 
@@ -26,7 +25,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('usePeriodsList', () => {
   it('calls list and exposes data', async () => {
     (accrualApi.periods.list as any).mockResolvedValue([
-      { id: 'p1', start_date: '2026-01-01', status: 'open', fx_rates: {} },
+      { id: 'p1', start_date: '2026-01-01', status: 'open' },
     ]);
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { result } = renderHook(() => usePeriodsList(), { wrapper: wrap(qc) });
@@ -51,18 +50,7 @@ describe('useCreatePeriod', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidate = vi.spyOn(qc, 'invalidateQueries');
     const { result } = renderHook(() => useCreatePeriod(), { wrapper: wrap(qc) });
-    await result.current.mutateAsync({ start_date: '2026-01-01', fx_rates: { USD: '1.10' } });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accrual', 'periods'] });
-  });
-});
-
-describe('usePatchPeriod', () => {
-  it('invalidates periods queries on success', async () => {
-    (accrualApi.periods.patch as any).mockResolvedValue({ id: 'p1' });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const invalidate = vi.spyOn(qc, 'invalidateQueries');
-    const { result } = renderHook(() => usePatchPeriod(), { wrapper: wrap(qc) });
-    await result.current.mutateAsync({ id: 'p1', payload: { fx_rates: { USD: '1.11' } } });
+    await result.current.mutateAsync({ start_date: '2026-01-01' });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accrual', 'periods'] });
   });
 });

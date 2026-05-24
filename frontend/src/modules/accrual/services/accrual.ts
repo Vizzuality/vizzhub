@@ -1,12 +1,19 @@
 import api from '@/core/services/client';
 import type {
+  AccrualAlias,
+  AccrualAliasBulkCreate,
+  AccrualAliasCreate,
   AccrualCell,
+  AccrualExcelRowsResponse,
   AccrualGridFilters,
   AccrualGridResponse,
+  AccrualImportRun,
   AccrualPeriod,
   AccrualPeriodCreate,
-  AccrualPeriodUpdate,
   BulkCellUpdate,
+  DriftFinding,
+  DriftFindingsResponse,
+  DriftSummaryResponse,
 } from '@/modules/accrual/types/accrual';
 
 export const accrualApi = {
@@ -21,14 +28,6 @@ export const accrualApi = {
     },
     create: async (payload: AccrualPeriodCreate): Promise<AccrualPeriod> => {
       const r = await api.post<AccrualPeriod>('/accrual/periods', payload);
-      return r.data;
-    },
-    patch: async (id: string, payload: AccrualPeriodUpdate): Promise<AccrualPeriod> => {
-      const r = await api.patch<AccrualPeriod>(`/accrual/periods/${id}`, payload);
-      return r.data;
-    },
-    seedRates: async (): Promise<Record<string, string>> => {
-      const r = await api.get<Record<string, string>>('/accrual/periods/seed-rates');
       return r.data;
     },
   },
@@ -65,6 +64,78 @@ export const accrualApi = {
     },
     bulk: async (updates: BulkCellUpdate[]): Promise<{ updated: number }> => {
       const r = await api.post<{ updated: number }>('/accrual/cells/bulk', { updates });
+      return r.data;
+    },
+  },
+  drift: {
+    list: async (params: {
+      kind?: string[];
+      resolved?: boolean;
+      project_id?: string;
+      excel_code?: string;
+      limit?: number;
+      offset?: number;
+    } = {}): Promise<DriftFindingsResponse> => {
+      // FastAPI expects repeated `?kind=a&kind=b` for list query params; axios's
+      // default array serialization uses `kind[]=...` which FastAPI ignores.
+      // Build a URLSearchParams manually to keep the wire format flat.
+      const search = new URLSearchParams();
+      params.kind?.forEach((k) => search.append('kind', k));
+      if (params.resolved !== undefined) search.append('resolved', String(params.resolved));
+      if (params.project_id) search.append('project_id', params.project_id);
+      if (params.excel_code) search.append('excel_code', params.excel_code);
+      if (params.limit !== undefined) search.append('limit', String(params.limit));
+      if (params.offset !== undefined) search.append('offset', String(params.offset));
+      const r = await api.get<DriftFindingsResponse>('/accrual/drift', { params: search });
+      return r.data;
+    },
+    summary: async (): Promise<DriftSummaryResponse> => {
+      const r = await api.get<DriftSummaryResponse>('/accrual/drift/summary');
+      return r.data;
+    },
+    resolve: async (id: string, resolution: string): Promise<DriftFinding> => {
+      const r = await api.post<DriftFinding>(`/accrual/drift/${id}/resolve`, { resolution });
+      return r.data;
+    },
+    reopen: async (id: string): Promise<DriftFinding> => {
+      const r = await api.post<DriftFinding>(`/accrual/drift/${id}/reopen`);
+      return r.data;
+    },
+  },
+  aliases: {
+    list: async (params: { excel_code?: string; project_id?: string } = {}): Promise<AccrualAlias[]> => {
+      const r = await api.get<AccrualAlias[]>('/accrual/aliases', { params });
+      return r.data;
+    },
+    create: async (payload: AccrualAliasCreate): Promise<AccrualAlias> => {
+      const r = await api.post<AccrualAlias>('/accrual/aliases', payload);
+      return r.data;
+    },
+    bulkCreate: async (payload: AccrualAliasBulkCreate): Promise<AccrualAlias[]> => {
+      const r = await api.post<AccrualAlias[]>('/accrual/aliases/bulk', payload);
+      return r.data;
+    },
+    update: async (id: string, payload: { weight?: string; notes?: string }): Promise<AccrualAlias> => {
+      const r = await api.patch<AccrualAlias>(`/accrual/aliases/${id}`, payload);
+      return r.data;
+    },
+    remove: async (id: string): Promise<void> => {
+      await api.delete(`/accrual/aliases/${id}`);
+    },
+  },
+  excelRows: {
+    list: async (params: {
+      import_run_id?: string;
+      excel_code?: string;
+      unmatched_only?: boolean;
+      limit?: number;
+      offset?: number;
+    } = {}): Promise<AccrualExcelRowsResponse> => {
+      const r = await api.get<AccrualExcelRowsResponse>('/accrual/excel-rows', { params });
+      return r.data;
+    },
+    runs: async (limit = 20): Promise<AccrualImportRun[]> => {
+      const r = await api.get<AccrualImportRun[]>('/accrual/excel-rows/runs', { params: { limit } });
       return r.data;
     },
   },

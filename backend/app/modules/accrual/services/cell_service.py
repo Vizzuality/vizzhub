@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
-from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+from app.modules.accrual.models.project_accrual_cell import CellSource, ProjectAccrualCellDB
 from app.modules.accrual.services import period_service
 
 logger = structlog.get_logger()
@@ -105,8 +105,14 @@ def _apply_redistribution(
     per_month: Decimal,
     *,
     force: bool,
+    source: CellSource,
 ) -> int:
-    """Upsert per_month into every target cell, clearing override flag when force."""
+    """Upsert per_month into every target cell, clearing override flag when force.
+
+    New cells get ``source``; existing non-override cells get their source
+    updated. Manual-override cells that are being force-overwritten also have
+    their source reset.
+    """
     for ym in target_months:
         existing_cell = by_ym.get(ym)
         if existing_cell is None:
@@ -118,12 +124,16 @@ def _apply_redistribution(
                     amount=per_month,
                     is_manual_override=False,
                     is_frozen=False,
+                    source=source.value,
                 )
             )
         else:
             existing_cell.amount = per_month
             if force:
                 existing_cell.is_manual_override = False
+                existing_cell.source = source.value
+            elif not existing_cell.is_manual_override:
+                existing_cell.source = source.value
     return len(target_months)
 
 
@@ -133,9 +143,11 @@ async def redistribute_for_project(
     project_id: UUID,
     force: bool = False,
     full_range: bool = False,
+    source: CellSource = CellSource.TEAM_BUDGET,
 ) -> int:
-    """Redistribute the project budget across its mutable months.
+    """Redistribute the project's EUR budget across its mutable months.
 
+    Uses ``Project.budget`` (which is in EUR and shared with tracker/scorecard).
     Frozen cells are never touched. Manual overrides survive unless ``force``
     is set. Returns the count of cells written/updated.
 
@@ -145,7 +157,7 @@ async def redistribute_for_project(
     their full cell grid populated regardless of the current open period.
     """
     project = (await db.execute(select(ProjectDB).where(ProjectDB.id == project_id))).scalar_one()
-    if project.original_budget is None or project.start_date is None or project.end_date is None:
+    if project.budget is None or project.start_date is None or project.end_date is None:
         return 0
 
     if full_range:
@@ -173,10 +185,12 @@ async def redistribute_for_project(
         return 0
 
     reserved = _reserved_amount(by_ym, set(months), force=force)
-    remaining_budget = max(Decimal(project.original_budget) - reserved, Decimal("0"))
+    remaining_budget = max(Decimal(project.budget) - reserved, Decimal("0"))
     per_month = _quantize(remaining_budget / Decimal(len(target_months)))
 
-    written = _apply_redistribution(db, project_id, target_months, by_ym, per_month, force=force)
+    written = _apply_redistribution(
+        db, project_id, target_months, by_ym, per_month, force=force, source=source
+    )
     await db.flush()
     logger.info(
         "accrual_redistribute_ran",
@@ -195,6 +209,7 @@ async def set_cell_amount(
     month: int,
     amount: Decimal,
     user_id: UUID | None = None,
+    source: CellSource = CellSource.MANUAL,
 ) -> ProjectAccrualCellDB:
     cell = await _get_cell(db, project_id=project_id, year=year, month=month)
     uid = str(user_id) if user_id else None
@@ -206,6 +221,7 @@ async def set_cell_amount(
             month=month,
             amount=_quantize(amount),
             is_manual_override=True,
+            source=source.value,
         )
         db.add(cell)
         await db.flush()
@@ -216,6 +232,7 @@ async def set_cell_amount(
             month=month,
             prev_amount="0",
             new_amount=str(cell.amount),
+            source=source.value,
             user_id=uid,
         )
         return cell
@@ -233,6 +250,7 @@ async def set_cell_amount(
     prev = cell.amount
     cell.amount = _quantize(amount)
     cell.is_manual_override = True
+    cell.source = source.value
     await db.flush()
     logger.info(
         "accrual_cell_overridden",
@@ -241,6 +259,7 @@ async def set_cell_amount(
         month=month,
         prev_amount=str(prev),
         new_amount=str(cell.amount),
+        source=source.value,
         user_id=uid,
     )
     return cell

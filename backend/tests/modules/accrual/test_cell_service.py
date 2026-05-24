@@ -18,7 +18,6 @@ async def test_redistribute_brand_new_uniform_split(db_session: AsyncSession) ->
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     project = ProjectDB(
@@ -26,7 +25,6 @@ async def test_redistribute_brand_new_uniform_split(db_session: AsyncSession) ->
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -54,7 +52,6 @@ async def test_redistribute_preserves_overrides(db_session: AsyncSession) -> Non
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     project = ProjectDB(
@@ -62,7 +59,6 @@ async def test_redistribute_preserves_overrides(db_session: AsyncSession) -> Non
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -119,7 +115,6 @@ async def test_redistribute_no_op_when_dates_missing(db_session: AsyncSession) -
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
     )
     db_session.add(project)
     await db_session.flush()
@@ -133,7 +128,6 @@ async def test_redistribute_force_overrides_manual(db_session: AsyncSession) -> 
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     project = ProjectDB(
@@ -141,7 +135,6 @@ async def test_redistribute_force_overrides_manual(db_session: AsyncSession) -> 
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -177,7 +170,6 @@ async def test_set_cell_amount_creates_override(db_session: AsyncSession) -> Non
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     project = ProjectDB(
@@ -185,7 +177,6 @@ async def test_set_cell_amount_creates_override(db_session: AsyncSession) -> Non
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -250,8 +241,7 @@ async def test_set_cell_amount_frozen_raises(db_session: AsyncSession) -> None:
             amount=Decimal("100"),
             is_frozen=True,
             frozen_at=datetime.now(UTC),
-            frozen_rate=Decimal("1.05"),
-            frozen_eur_amount=Decimal("95.24"),
+            frozen_eur_amount=Decimal("100"),
         )
     )
     await db_session.flush()
@@ -270,7 +260,6 @@ async def test_clear_override_redistributes(db_session: AsyncSession) -> None:
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     project = ProjectDB(
@@ -278,7 +267,6 @@ async def test_clear_override_redistributes(db_session: AsyncSession) -> None:
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -331,8 +319,7 @@ async def test_clear_override_frozen_raises(db_session: AsyncSession) -> None:
             amount=Decimal("100"),
             is_frozen=True,
             frozen_at=datetime.now(UTC),
-            frozen_rate=Decimal("1.05"),
-            frozen_eur_amount=Decimal("95.24"),
+            frozen_eur_amount=Decimal("100"),
         )
     )
     await db_session.flush()
@@ -377,7 +364,6 @@ async def test_bulk_set_cells_rollback_on_frozen(db_session: AsyncSession) -> No
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     project = ProjectDB(
@@ -385,7 +371,6 @@ async def test_bulk_set_cells_rollback_on_frozen(db_session: AsyncSession) -> No
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2026, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -402,8 +387,7 @@ async def test_bulk_set_cells_rollback_on_frozen(db_session: AsyncSession) -> No
     may = result.scalar_one()
     may.is_frozen = True
     may.frozen_at = datetime.now(UTC)
-    may.frozen_rate = Decimal("1.10")
-    may.frozen_eur_amount = Decimal("90.91")
+    may.frozen_eur_amount = may.amount
     await db_session.flush()
 
     updates = [
@@ -421,31 +405,3 @@ async def test_bulk_set_cells_rollback_on_frozen(db_session: AsyncSession) -> No
     )
     feb = feb_result.scalar_one()
     assert feb.amount == Decimal("100.00")
-
-
-# --- T4.0: original_budget guard ---
-
-
-@pytest.mark.asyncio
-async def test_redistribute_noop_when_original_budget_null(db_session: AsyncSession) -> None:
-    """redistribute_for_project returns 0 when original_budget is NULL, even with budget set."""
-    await period_service.create_period(
-        db_session,
-        start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
-        created_by=None,
-    )
-    p = ProjectDB(
-        name="t",
-        code="NOB",
-        status="live",
-        currency="USD",
-        budget=Decimal("100"),
-        original_budget=None,
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 6, 30),
-    )
-    db_session.add(p)
-    await db_session.flush()
-    n = await cell_service.redistribute_for_project(db_session, project_id=p.id)
-    assert n == 0

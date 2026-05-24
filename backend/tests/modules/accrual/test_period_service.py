@@ -1,7 +1,7 @@
 """Unit tests for period_service."""
 
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
@@ -33,13 +33,11 @@ async def test_create_first_period_no_previous(
     period = await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10", "GBP": "0.85"},
         created_by=admin_user.id,
     )
     assert period.id is not None
     assert period.status == "open"
     assert period.start_date == date(2026, 1, 1)
-    assert period.fx_rates == {"USD": "1.10", "GBP": "0.85"}
     assert period.created_by == admin_user.id
 
     result = await db_session.execute(
@@ -57,14 +55,12 @@ async def test_create_period_rejects_duplicate_start_date(
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=admin_user.id,
     )
     with pytest.raises(period_service.PeriodConflictError):
         await period_service.create_period(
             db_session,
             start_date=date(2026, 1, 1),
-            fx_rates_input={"USD": "1.10"},
             created_by=admin_user.id,
         )
 
@@ -77,39 +73,17 @@ async def test_create_second_period_closes_previous(
     first = await period_service.create_period(
         db_session,
         start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05"},
         created_by=admin_user.id,
     )
     second = await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=admin_user.id,
     )
     await db_session.refresh(first)
     assert first.status == "closed"
     assert first.closed_at is not None
     assert second.status == "open"
-
-
-@pytest.mark.asyncio
-async def test_create_period_copies_unchanged_rates(
-    db_session: AsyncSession,
-    admin_user: UserDB,
-) -> None:
-    await period_service.create_period(
-        db_session,
-        start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05", "GBP": "0.85"},
-        created_by=admin_user.id,
-    )
-    second = await period_service.create_period(
-        db_session,
-        start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},  # GBP unchanged → copied
-        created_by=admin_user.id,
-    )
-    assert second.fx_rates == {"USD": "1.10", "GBP": "0.85"}
 
 
 @pytest.mark.asyncio
@@ -120,13 +94,11 @@ async def test_get_period_for_month_returns_latest_before(
     await period_service.create_period(
         db_session,
         start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05"},
         created_by=admin_user.id,
     )
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=admin_user.id,
     )
 
@@ -145,7 +117,6 @@ async def test_get_period_for_month_returns_none_before_any_period(
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=admin_user.id,
     )
     p = await period_service.get_period_for_month(db_session, year=2025, month=12)
@@ -153,39 +124,14 @@ async def test_get_period_for_month_returns_none_before_any_period(
 
 
 @pytest.mark.asyncio
-async def test_validate_currencies_returns_missing(
-    db_session: AsyncSession,
-    admin_user: UserDB,
-) -> None:
-    db_session.add_all(
-        [
-            ProjectDB(name="A", status="live", currency="USD", budget=Decimal("100")),
-            ProjectDB(name="B", status="live", currency="GBP", budget=Decimal("200")),
-            ProjectDB(name="C", status="finished", currency="EUR", budget=Decimal("50")),
-            ProjectDB(name="D", status="proposal", currency="CHF", budget=Decimal("70")),
-        ]
-    )
-    await db_session.flush()
-    period = await period_service.create_period(
-        db_session,
-        start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},  # missing GBP, CHF (EUR is passthrough)
-        created_by=admin_user.id,
-    )
-    missing = await period_service.validate_currencies_covered(db_session, period)
-    assert set(missing) == {"GBP", "CHF"}
-
-
-@pytest.mark.asyncio
 async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession) -> None:
-    """Auto-close on rotation freezes all 2025 cells with the 2025 rate."""
+    """Auto-close on rotation freezes all 2025 cells; frozen_eur_amount == amount (EUR)."""
     from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
     from app.modules.accrual.services import cell_service
 
     await period_service.create_period(
         db_session,
         start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05"},
         created_by=None,
     )
     project = ProjectDB(
@@ -193,7 +139,6 @@ async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession
         status="live",
         currency="USD",
         budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
         start_date=date(2025, 1, 1),
         end_date=date(2025, 12, 1),
     )
@@ -205,7 +150,6 @@ async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
 
@@ -217,52 +161,7 @@ async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession
     for cell in cells:
         assert cell.is_frozen is True
         assert cell.frozen_at is not None
-        assert cell.frozen_rate == Decimal("1.05")
-        expected = (cell.amount / Decimal("1.05")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        assert cell.frozen_eur_amount == expected
-
-
-@pytest.mark.asyncio
-async def test_close_period_skips_cells_with_unresolvable_rate(
-    db_session: AsyncSession,
-) -> None:
-    """A cell whose currency has no rate anywhere is left live (warned, not crashed)."""
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
-    from app.modules.accrual.services import cell_service
-
-    # Period only covers USD, but the project is in JPY with no ECB record either.
-    await period_service.create_period(
-        db_session,
-        start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05"},
-        created_by=None,
-    )
-    project = ProjectDB(
-        name="A",
-        status="live",
-        currency="JPY",
-        budget=Decimal("1200"),
-        original_budget=Decimal("1200"),
-        start_date=date(2025, 1, 1),
-        end_date=date(2025, 12, 1),
-    )
-    db_session.add(project)
-    await db_session.flush()
-    await cell_service.redistribute_for_project(db_session, project_id=project.id)
-
-    await period_service.create_period(
-        db_session,
-        start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
-        created_by=None,
-    )
-
-    result = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
-    )
-    cells = result.scalars().all()
-    assert len(cells) == 12
-    assert all(c.is_frozen is False for c in cells)
+        assert cell.frozen_eur_amount == cell.amount
 
 
 @pytest.mark.asyncio
@@ -277,13 +176,11 @@ async def test_freeze_period_cells_idempotent_on_already_closed_period(
     p_2024 = await period_service.create_period(
         db_session,
         start_date=date(2024, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
     await period_service.create_period(
         db_session,
         start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05"},
         created_by=None,
     )
 
@@ -295,7 +192,6 @@ async def test_freeze_period_cells_idempotent_on_already_closed_period(
         currency="USD",
         is_billable=True,
         budget=Decimal("12000"),
-        original_budget=Decimal("12000"),
         start_date=date(2024, 1, 1),
         end_date=date(2024, 12, 1),
     )
@@ -330,7 +226,6 @@ async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) 
     await period_service.create_period(
         db_session,
         start_date=date(2025, 1, 1),
-        fx_rates_input={"USD": "1.05"},
         created_by=None,
     )
     # Two-year project: spans 2025-2026.
@@ -339,7 +234,6 @@ async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) 
         status="live",
         currency="USD",
         budget=Decimal("2400"),
-        original_budget=Decimal("2400"),
         start_date=date(2025, 1, 1),
         end_date=date(2026, 12, 1),
     )
@@ -351,7 +245,6 @@ async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) 
     await period_service.create_period(
         db_session,
         start_date=date(2026, 1, 1),
-        fx_rates_input={"USD": "1.10"},
         created_by=None,
     )
 

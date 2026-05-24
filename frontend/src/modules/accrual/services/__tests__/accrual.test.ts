@@ -23,17 +23,10 @@ describe('accrualApi.periods', () => {
 
   it('create POSTs the payload', async () => {
     (api.post as any).mockResolvedValue({ data: { id: 'p1' } });
-    await accrualApi.periods.create({ start_date: '2026-01-01', fx_rates: { USD: '1.10' } });
+    await accrualApi.periods.create({ start_date: '2026-01-01' });
     expect(api.post).toHaveBeenCalledWith('/accrual/periods', {
       start_date: '2026-01-01',
-      fx_rates: { USD: '1.10' },
     });
-  });
-
-  it('patch PATCHes by id', async () => {
-    (api.patch as any).mockResolvedValue({ data: { id: 'p1' } });
-    await accrualApi.periods.patch('p1', { fx_rates: { USD: '1.11' } });
-    expect(api.patch).toHaveBeenCalledWith('/accrual/periods/p1', { fx_rates: { USD: '1.11' } });
   });
 });
 

@@ -1,36 +1,16 @@
 """Pydantic schemas for AccrualPeriod."""
 
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
-
-
-def _validate_rates(v: dict[str, str] | None) -> dict[str, str] | None:
-    """Validate fx_rates: ISO-4217 codes, positive Decimal values. ``None`` passes through."""
-    if v is None:
-        return None
-    for code, rate in v.items():
-        if len(code) != 3 or not code.isupper():
-            raise ValueError(f"Invalid currency code: {code!r}")
-        try:
-            d = Decimal(rate)
-        except Exception as exc:
-            raise ValueError(f"Invalid rate for {code}: {rate!r}") from exc
-        if d <= 0:
-            raise ValueError(f"Rate for {code} must be > 0")
-    return v
+from pydantic import BaseModel
 
 
 class AccrualPeriodBase(BaseModel):
     """Base schema for AccrualPeriod requests."""
 
     start_date: date
-    fx_rates: dict[str, str]
-
-    _validate_fx_rates = field_validator("fx_rates")(_validate_rates)
 
 
 class AccrualPeriodCreate(AccrualPeriodBase):
@@ -40,11 +20,9 @@ class AccrualPeriodCreate(AccrualPeriodBase):
 
 
 class AccrualPeriodUpdate(BaseModel):
-    """Schema for updating an existing AccrualPeriod."""
+    """Schema for updating an existing AccrualPeriod (currently no editable fields)."""
 
-    fx_rates: dict[str, str] | None = None
-
-    _validate_fx_rates = field_validator("fx_rates")(_validate_rates)
+    pass
 
 
 class AccrualPeriod(AccrualPeriodBase):

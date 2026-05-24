@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field
 
 
 class AccrualCell(BaseModel):
+    """Cells store revenue in EUR directly. `frozen_eur_amount` is the snapshot
+    captured at period close (= amount at that moment, immutable thereafter)."""
+
     id: UUID
     project_id: UUID
     year: int
@@ -16,9 +19,8 @@ class AccrualCell(BaseModel):
     is_manual_override: bool
     is_frozen: bool
     frozen_at: datetime | None
-    frozen_rate: Decimal | None
     frozen_eur_amount: Decimal | None
-    eur_amount: Decimal | None = None  # computed in the API layer (live cells)
+    source: str
     updated_at: datetime
 
     model_config = {"from_attributes": True}

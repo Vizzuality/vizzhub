@@ -7,8 +7,7 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 
 from app.core.api.deps import DBSession
@@ -25,7 +24,7 @@ from app.modules.accrual.schemas.accrual_cell import (
     CellUpdate,
     RedistributeRequest,
 )
-from app.modules.accrual.services import cell_service, rate_resolver
+from app.modules.accrual.services import cell_service
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -38,20 +37,70 @@ def _parse_user_id(token: TokenData) -> UUID | None:
     return UUID(token.user_id) if token.user_id else None
 
 
-async def _serialize(db: AsyncSession, cell: ProjectAccrualCellDB) -> dict:
-    """Return the cell as a JSON-serialisable dict with eur_amount resolved for live cells."""
-    project = await db.get(ProjectDB, cell.project_id)
-    if cell.is_frozen:
-        eur = cell.frozen_eur_amount
-    else:
-        rate = await rate_resolver.resolve_rate(
-            db,
-            project=project,
-            year=cell.year,
-            month=cell.month,
-        )
-        eur = (cell.amount / rate) if rate and rate != 0 else None
+# Health thresholds (diff_pct).
+_HEALTH_WARNING_THRESHOLD = Decimal("5")
+_HEALTH_CRITICAL_THRESHOLD = Decimal("20")
 
+
+def _compute_health(
+    *,
+    budget: Decimal | None,
+    sum_cells: Decimal,
+    has_overrides: bool,
+    code_is_duplicated: bool,
+) -> dict:
+    """Derive a project's accrual-grid health from cells + budget + code uniqueness.
+
+    Statuses:
+    - ``critical``: code shared with other projects (risk of ambiguous imputation),
+      budget present but no cells at all, or |Σcells − budget| > 20%.
+    - ``warning``: |Σcells − budget| ∈ (5%, 20%].
+    - ``no_data``: cells exist but none came from the Excel importer (project is
+      using uniform redistribute only — the CEO has no monthly forecast for it).
+    - ``ok``: the rest.
+    """
+    reasons: list[str] = []
+    diff_eur: Decimal | None = None
+    diff_pct: Decimal | None = None
+
+    if budget is not None and budget != 0:
+        diff_eur = (sum_cells - budget).quantize(Decimal("0.01"))
+        diff_pct = (abs(diff_eur) / budget * Decimal("100")).quantize(Decimal("0.01"))
+
+    if code_is_duplicated:
+        reasons.append("multi_project_dup_code")
+    if budget is not None and budget > 0 and sum_cells == 0:
+        reasons.append("no_cells")
+    if not has_overrides and sum_cells > 0:
+        reasons.append("no_excel_data")
+    if diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
+        reasons.append("value_divergence")
+
+    status_value: str
+    if (
+        code_is_duplicated
+        or "no_cells" in reasons
+        or (diff_pct is not None and diff_pct > _HEALTH_CRITICAL_THRESHOLD)
+    ):
+        status_value = "critical"
+    elif diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
+        status_value = "warning"
+    elif "no_excel_data" in reasons:
+        status_value = "no_data"
+    else:
+        status_value = "ok"
+
+    return {
+        "status": status_value,
+        "diff_eur": str(diff_eur) if diff_eur is not None else None,
+        "diff_pct": float(diff_pct) if diff_pct is not None else None,
+        "reasons": reasons,
+    }
+
+
+def _serialize(cell: ProjectAccrualCellDB) -> dict:
+    """Cells are EUR-only, so ``amount`` IS the EUR figure. Frozen cells expose
+    ``frozen_eur_amount`` as the immutable snapshot captured at period close."""
     return {
         "id": str(cell.id),
         "project_id": str(cell.project_id),
@@ -61,11 +110,11 @@ async def _serialize(db: AsyncSession, cell: ProjectAccrualCellDB) -> dict:
         "is_manual_override": cell.is_manual_override,
         "is_frozen": cell.is_frozen,
         "frozen_at": cell.frozen_at.isoformat() if cell.frozen_at else None,
-        "frozen_rate": str(cell.frozen_rate) if cell.frozen_rate is not None else None,
         "frozen_eur_amount": (
             str(cell.frozen_eur_amount) if cell.frozen_eur_amount is not None else None
         ),
-        "eur_amount": str(eur) if eur is not None else None,
+        "eur_amount": str(cell.amount),
+        "source": cell.source,
         "updated_at": cell.updated_at.isoformat(),
     }
 
@@ -110,7 +159,7 @@ async def get_grid(
         select(ProjectDB, user_display_name_expr(pm).label("pm_name"))
         .outerjoin(pm, ProjectDB.project_manager_id == pm.id)
         .where(ProjectDB.is_billable.is_(True))
-        .where(ProjectDB.original_budget.is_not(None))
+        .where(ProjectDB.budget.is_not(None))
     )
     if status is not None:
         stmt = stmt.where(ProjectDB.status == status)
@@ -154,20 +203,47 @@ async def get_grid(
         and project.end_date >= range_start
     ]
 
+    # Aggregate per-project totals across ALL cells (not just the visible range)
+    # so the health badge stays stable when the user navigates years.
+    project_ids = [p.id for p, _ in rows]
+    sum_by_pid: dict[UUID, Decimal] = {}
+    has_overrides_by_pid: dict[UUID, bool] = {}
+    if project_ids:
+        agg_result = await db.execute(
+            select(
+                ProjectAccrualCellDB.project_id,
+                func.coalesce(func.sum(ProjectAccrualCellDB.amount), 0).label("total"),
+                func.bool_or(ProjectAccrualCellDB.is_manual_override).label("has_overrides"),
+            )
+            .where(ProjectAccrualCellDB.project_id.in_(project_ids))
+            .group_by(ProjectAccrualCellDB.project_id)
+        )
+        for pid, total, has_ov in agg_result.all():
+            sum_by_pid[pid] = Decimal(str(total))
+            has_overrides_by_pid[pid] = bool(has_ov)
+
+    # Detect codes shared by more than one project in the full billable set
+    # (not just the filtered subset). Multi-project codes inflate the risk of
+    # ambiguous cell imputation, so we flag them as critical.
+    dup_codes_result = await db.execute(
+        select(ProjectDB.code)
+        .where(ProjectDB.is_billable.is_(True))
+        .where(ProjectDB.code.is_not(None))
+        .group_by(ProjectDB.code)
+        .having(func.count() > 1)
+    )
+    duplicated_codes = {row[0] for row in dup_codes_result.all()}
+
     projects: list[dict] = []
     for p, pm_name in rows:
-        # Resolve the contract-signing EUR equivalent: original_budget in the
-        # project's currency, divided by the FX rate that applies at the
-        # start month (priority: locked_fx_rate -> period.fx_rates -> ECB).
-        # Mirrors the CEO's "Value €" column in the source spreadsheet.
-        budget_eur: str | None = None
-        if p.original_budget is not None and p.start_date is not None:
-            signing_rate = await rate_resolver.resolve_rate(
-                db, project=p, year=p.start_date.year, month=p.start_date.month
-            )
-            if signing_rate is not None and signing_rate != 0:
-                budget_eur = str((p.original_budget / signing_rate).quantize(Decimal("0.01")))
-
+        sum_cells = sum_by_pid.get(p.id, Decimal("0"))
+        has_overrides = has_overrides_by_pid.get(p.id, False)
+        health = _compute_health(
+            budget=Decimal(p.budget) if p.budget is not None else None,
+            sum_cells=sum_cells,
+            has_overrides=has_overrides,
+            code_is_duplicated=p.code in duplicated_codes if p.code else False,
+        )
         projects.append(
             {
                 "id": str(p.id),
@@ -178,17 +254,16 @@ async def get_grid(
                 "original_budget": str(p.original_budget)
                 if p.original_budget is not None
                 else None,
-                "budget_eur": budget_eur,
-                "locked_fx_rate": str(p.locked_fx_rate) if p.locked_fx_rate is not None else None,
+                "budget_eur": str(p.budget) if p.budget is not None else None,
                 "status": p.status,
                 "start_date": p.start_date.isoformat() if p.start_date else None,
                 "end_date": p.end_date.isoformat() if p.end_date else None,
                 "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
                 "project_manager_name": pm_name,
+                "health": health,
             }
         )
 
-    project_ids = [UUID(p["id"]) for p in projects]
     cells_serialised: list[dict] = []
     if project_ids:
         cells_result = await db.execute(
@@ -205,7 +280,7 @@ async def get_grid(
             )
         )
         cells = cells_result.scalars().all()
-        cells_serialised = [await _serialize(db, c) for c in cells]
+        cells_serialised = [_serialize(c) for c in cells]
 
     months = [
         {"year": year, "month": month}
@@ -233,7 +308,7 @@ async def get_project_cells(
         .where(ProjectAccrualCellDB.project_id == project_id)
         .order_by(ProjectAccrualCellDB.year, ProjectAccrualCellDB.month)
     )
-    return [await _serialize(db, c) for c in result.scalars().all()]
+    return [_serialize(c) for c in result.scalars().all()]
 
 
 @router.post("/projects/{project_id}/redistribute")
@@ -288,7 +363,7 @@ async def patch_cell(
     except cell_service.CellFrozenError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db.refresh(cell)
-    return await _serialize(db, cell)
+    return _serialize(cell)
 
 
 @router.delete(
@@ -323,7 +398,7 @@ async def delete_override(
         project_id=str(cell.project_id),
         user_id=user.user_id,
     )
-    return await _serialize(db, cell)
+    return _serialize(cell)
 
 
 @router.post(

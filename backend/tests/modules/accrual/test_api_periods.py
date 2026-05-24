@@ -74,90 +74,21 @@ async def test_list_periods_empty(client: AsyncClient) -> None:
 async def test_create_period_returns_201(client: AsyncClient) -> None:
     resp = await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["start_date"] == "2026-01-01"
     assert body["status"] == "open"
-    assert body["fx_rates"] == {"USD": "1.10"}
+    assert "fx_rates" not in body
 
 
 @pytest.mark.asyncio
 async def test_get_current_period(client: AsyncClient) -> None:
     await client.post(
         "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
+        json={"start_date": "2026-01-01"},
     )
     resp = await client.get("/api/accrual/periods/current")
     assert resp.status_code == 200
     assert resp.json()["status"] == "open"
-
-
-@pytest.mark.asyncio
-async def test_patch_fx_rates_on_open_period(client: AsyncClient) -> None:
-    create = await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
-    )
-    pid = create.json()["id"]
-    resp = await client.patch(
-        f"/api/accrual/periods/{pid}",
-        json={"fx_rates": {"USD": "1.11", "GBP": "0.85"}},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["fx_rates"] == {"USD": "1.11", "GBP": "0.85"}
-
-
-@pytest.mark.asyncio
-async def test_patch_fx_rates_on_closed_period_returns_409(client: AsyncClient) -> None:
-    first = await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2025-01-01", "fx_rates": {"USD": "1.05"}},
-    )
-    first_id = first.json()["id"]
-    # Creating the second closes the first.
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.10"}},
-    )
-    resp = await client.patch(
-        f"/api/accrual/periods/{first_id}",
-        json={"fx_rates": {"USD": "1.99"}},
-    )
-    assert resp.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_seed_rates_returns_latest_ecb_per_currency(
-    client: AsyncClient,
-    db_session: AsyncSession,
-) -> None:
-    from datetime import date
-    from decimal import Decimal
-
-    from app.core.models.exchange_rate import ExchangeRateDB
-
-    db_session.add_all(
-        [
-            ExchangeRateDB(rate_date=date(2026, 1, 1), currency_code="USD", rate=Decimal("1.05")),
-            ExchangeRateDB(rate_date=date(2026, 5, 1), currency_code="USD", rate=Decimal("1.10")),
-            ExchangeRateDB(rate_date=date(2026, 5, 1), currency_code="GBP", rate=Decimal("0.85")),
-        ]
-    )
-    await db_session.commit()
-
-    resp = await client.get("/api/accrual/periods/seed-rates")
-    assert resp.status_code == 200
-    body = resp.json()
-    from decimal import Decimal
-
-    assert Decimal(body["USD"]) == Decimal("1.10")  # latest, not 1.05
-    assert Decimal(body["GBP"]) == Decimal("0.85")
-    assert "EUR" not in body  # passthrough, skipped
-
-
-@pytest.mark.asyncio
-async def test_seed_rates_requires_period_manage(viewer_client: AsyncClient) -> None:
-    resp = await viewer_client.get("/api/accrual/periods/seed-rates")
-    assert resp.status_code == 403

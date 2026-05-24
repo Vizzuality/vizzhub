@@ -1,5 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Label } from '@/shared/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -13,6 +15,7 @@ export interface AccrualFilters {
   year_to: number;
   status: 'proposal' | 'live' | 'finished' | 'all';
   currency: string;
+  issues_only: boolean;
 }
 
 interface AccrualToolbarProps {
@@ -99,6 +102,17 @@ export function AccrualToolbar({
           ))}
         </SelectContent>
       </Select>
+
+      <div className="flex items-center gap-2 pl-2 border-l ml-1">
+        <Checkbox
+          id="issues_only"
+          checked={filters.issues_only}
+          onCheckedChange={(v) => onChange({ ...filters, issues_only: v === true })}
+        />
+        <Label htmlFor="issues_only" className="text-sm cursor-pointer">
+          Issues only
+        </Label>
+      </div>
     </div>
   );
 }

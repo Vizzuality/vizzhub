@@ -1,7 +1,10 @@
-"""AccrualPeriod lifecycle: create, close, lookup."""
+"""AccrualPeriod lifecycle: create, close, lookup.
+
+Cells are EUR-only, so periods don't carry FX rates. A period is just an
+open/closed lifecycle marker that freezes cells once it closes.
+"""
 
 from datetime import UTC, date, datetime
-from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 import structlog
@@ -26,26 +29,20 @@ async def create_period(
     db: AsyncSession,
     *,
     start_date: date,
-    fx_rates_input: dict[str, str],
     created_by: UUID | None,
 ) -> AccrualPeriodDB:
     """Create a new accrual period.
 
-    If a previous open period exists, close it first (Task 1.5 wires this in).
-    The new period's ``fx_rates`` merges the input with a copy of the previous
-    period's rates — currencies not present in the input are copied unchanged.
+    If a previous open period exists, close it first — the existing period's
+    cells with year/month before ``start_date`` get frozen.
     """
     open_period = await get_current_period(db)
     if open_period is not None:
         await close_period(db, open_period.id, freeze_cutoff=start_date)
 
-    merged_rates: dict[str, str] = dict(open_period.fx_rates) if open_period else {}
-    merged_rates.update(fx_rates_input)
-
     new_period = AccrualPeriodDB(
         start_date=start_date,
         status="open",
-        fx_rates=merged_rates,
         created_by=created_by,
     )
     db.add(new_period)
@@ -59,7 +56,6 @@ async def create_period(
         "accrual_period_created",
         period_id=str(new_period.id),
         start_date=str(start_date),
-        fx_rates_keys=sorted(merged_rates.keys()),
         closed_previous_id=str(open_period.id) if open_period else None,
     )
     return new_period
@@ -82,11 +78,10 @@ async def freeze_period_cells(
     Cutoff defaults to the start_date of the NEXT period (chronologically after
     the one identified by period_id). When the given period is the latest/open
     one, cutoff is None → nothing freezes. Already-frozen cells are skipped.
-    Resolves each cell's EUR amount via rate_resolver and persists frozen_*.
+    Since cells are EUR already, freezing just stamps frozen_at and copies
+    amount → frozen_eur_amount.
     """
-    from app.core.models.project import ProjectDB
     from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
-    from app.modules.accrual.services import rate_resolver
 
     period = await db.get(AccrualPeriodDB, period_id)
     if period is None:
@@ -108,9 +103,7 @@ async def freeze_period_cells(
     if effective_cutoff is not None:
         cutoff_y, cutoff_m = effective_cutoff.year, effective_cutoff.month
         cells_result = await db.execute(
-            select(ProjectAccrualCellDB, ProjectDB)
-            .join(ProjectDB, ProjectDB.id == ProjectAccrualCellDB.project_id)
-            .where(
+            select(ProjectAccrualCellDB).where(
                 ProjectAccrualCellDB.is_frozen.is_(False),
                 or_(
                     ProjectAccrualCellDB.year < cutoff_y,
@@ -122,28 +115,10 @@ async def freeze_period_cells(
             )
         )
         now = datetime.now(UTC)
-        for cell, project in cells_result.all():
-            rate = await rate_resolver.resolve_rate(
-                db,
-                project=project,
-                year=cell.year,
-                month=cell.month,
-            )
-            if rate is None or rate == 0:
-                logger.warning(
-                    "accrual_cell_freeze_skipped_unresolvable",
-                    project_id=str(cell.project_id),
-                    year=cell.year,
-                    month=cell.month,
-                )
-                continue
+        for cell in cells_result.scalars().all():
             cell.is_frozen = True
             cell.frozen_at = now
-            cell.frozen_rate = rate
-            cell.frozen_eur_amount = (cell.amount / rate).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP,
-            )
+            cell.frozen_eur_amount = cell.amount
             frozen_count += 1
 
     if frozen_count:
@@ -214,24 +189,3 @@ async def get_period_for_month(
         .limit(1)
     )
     return result.scalar_one_or_none()
-
-
-async def validate_currencies_covered(
-    db: AsyncSession,
-    period: AccrualPeriodDB,
-) -> list[str]:
-    """Return currencies used by non-archived Projects that lack a rate in the period.
-
-    EUR is always passthrough — never flagged. Projects in status='finished'
-    are included (their accruals still need a rate for unfrozen cells, if any).
-    """
-    from app.core.models.project import ProjectDB
-
-    result = await db.execute(
-        select(ProjectDB.currency)
-        .distinct()
-        .where(ProjectDB.status.in_(["proposal", "live", "finished"]))
-    )
-    used = {row[0] for row in result.all() if row[0] and row[0].upper() != "EUR"}
-    covered = set(period.fx_rates.keys())
-    return sorted(used - covered)

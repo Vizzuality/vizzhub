@@ -368,7 +368,6 @@ async def test_bootstrap_periods_per_year_with_currency_from_projects(
     _ensure_fixture,
 ):
     from datetime import date
-    from decimal import Decimal
 
     from app.core.models.project import ProjectDB
     from scripts.import_accrual_spreadsheet import bootstrap_periods, parse_spreadsheet
@@ -418,10 +417,8 @@ async def test_bootstrap_periods_per_year_with_currency_from_projects(
     assert len(open_periods) == 1, "exactly one open period at any time"
 
     p_2024 = next(p for p in created if p.start_date == date(2024, 1, 1))
-    # B001 starts 2024 with USD rate=1.1 → median is 1.1.
-    assert Decimal(p_2024.fx_rates["USD"]).normalize() == Decimal("1.1")
-    # EUR is implicit / passthrough — no key.
-    assert "EUR" not in p_2024.fx_rates
+    # Periods are now empty lifecycle markers — no fx_rates attribute.
+    assert not hasattr(p_2024, "fx_rates")
 
 
 @pytest.mark.asyncio
@@ -478,8 +475,8 @@ async def test_import_projects_sets_original_budget_and_historical_freeze(
     await db_session.refresh(p)
     # original_budget set from row.value (B001 value is 24000 in fixture).
     assert p.original_budget == Decimal("24000")
-    # locked_fx_rate untouched.
-    assert p.locked_fx_rate is None
+    # budget (EUR) set from row.value_eur (B001 value_eur is 21818.18).
+    assert p.budget == Decimal("21818.18")
 
     res = await db_session.execute(
         select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == p.id)
@@ -574,3 +571,300 @@ async def test_importer_is_idempotent_on_rerun(db_session, _ensure_fixture):
     assert second_report["original_budget_set"] == 0, "already set on first run"
     assert second_report["overrides_imported"] == 0, "cell amounts already match"
     assert frozen_again == 0, "all historical cells frozen on first run"
+
+
+# ──────────────────── Multi-project overlap matching ────────────────────
+
+
+def _multi_project_row(code: str, monthly_amounts: dict[tuple[int, int], str]):
+    """Build a SpreadsheetRow whose monthly cells use ``monthly_amounts``."""
+    from datetime import date
+
+    from scripts.import_accrual_spreadsheet import SpreadsheetRow
+
+    monthly = {k: Decimal(v) for k, v in monthly_amounts.items()}
+    total_eur = sum(monthly.values(), Decimal("0"))
+    return SpreadsheetRow(
+        type="2-Signed",
+        code=code,
+        pm=None,
+        name="multi",
+        value=total_eur * Decimal("1.08"),  # contractual in USD-ish
+        rate=Decimal("1.08"),
+        value_eur=total_eur,
+        start_date=min(date(y, m, 1) for (y, m) in monthly.keys()),
+        end_date=max(date(y, m, 28) for (y, m) in monthly.keys()),
+        duration=len(monthly),
+        monthly=monthly,
+    )
+
+
+@pytest.mark.asyncio
+async def test_multi_project_overlap_imputes_by_date_range(db_session, _ensure_fixture):
+    """When one Excel row matches N DB projects (sequential phases of the same
+    contract), each monthly cell goes to the project whose date range contains it."""
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from scripts.import_accrual_spreadsheet import import_projects
+
+    # Two phases of the same contract sharing code "ACME.X". Excel covers
+    # 2025-01..2025-06, with 1000 EUR per month.
+    db_session.add(
+        ProjectDB(
+            name="ACME X phase 1",
+            code="ACME.X",
+            status="finished",
+            currency="euro",
+            is_billable=True,
+            budget=Decimal("3000"),
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 3, 31),
+        )
+    )
+    db_session.add(
+        ProjectDB(
+            name="ACME X phase 2",
+            code="ACME.X",
+            status="live",
+            currency="euro",
+            is_billable=True,
+            budget=Decimal("3000"),
+            start_date=date(2025, 4, 1),
+            end_date=date(2025, 6, 30),
+        )
+    )
+    await db_session.flush()
+
+    row = _multi_project_row(
+        "ACME.X",
+        {(2025, m): "1000" for m in range(1, 7)},
+    )
+    report = await import_projects(db_session, [row])
+
+    # report records a multi_project_group entry
+    assert len(report["multi_project_groups"]) == 1
+    group = report["multi_project_groups"][0]
+    assert group["code"] == "ACME.X"
+    assert group["orphan_cells"] == 0
+    assert group["ambiguous_cells"] == 0
+    assert len(group["projects"]) == 2
+
+    # Phase 1 gets cells for Jan-Mar; phase 2 for Apr-Jun.
+    ps = (
+        (await db_session.execute(select(ProjectDB).where(ProjectDB.code == "ACME.X")))
+        .scalars()
+        .all()
+    )
+    by_start = {p.start_date: p for p in ps}
+    p1 = by_start[date(2025, 1, 1)]
+    p2 = by_start[date(2025, 4, 1)]
+
+    cells_1 = (
+        (
+            await db_session.execute(
+                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == p1.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    cells_2 = (
+        (
+            await db_session.execute(
+                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == p2.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    sum_1 = sum((c.amount for c in cells_1), Decimal("0"))
+    sum_2 = sum((c.amount for c in cells_2), Decimal("0"))
+    assert sum_1 == Decimal("3000")  # 3 × 1000 + budget remainder = 3000
+    assert sum_2 == Decimal("3000")
+    # Each cell is a manual_override (came from Excel).
+    overrides_1 = [c for c in cells_1 if c.is_manual_override]
+    overrides_2 = [c for c in cells_2 if c.is_manual_override]
+    assert len(overrides_1) == 3
+    assert len(overrides_2) == 3
+
+
+@pytest.mark.asyncio
+async def test_multi_project_ambiguous_cells_reported_not_imputed(db_session, _ensure_fixture):
+    """When 2+ projects cover the SAME (y, m), neither receives the cell.
+    The cell is reported as ambiguous so a human decides."""
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.core.models.project import ProjectDB
+    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from scripts.import_accrual_spreadsheet import import_projects
+
+    db_session.add(
+        ProjectDB(
+            name="overlapping A",
+            code="OVR.LAP",
+            status="live",
+            currency="euro",
+            is_billable=True,
+            budget=Decimal("1500"),
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 3, 31),
+        )
+    )
+    db_session.add(
+        ProjectDB(
+            name="overlapping B",
+            code="OVR.LAP",
+            status="live",
+            currency="euro",
+            is_billable=True,
+            budget=Decimal("1500"),
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 3, 31),
+        )
+    )
+    await db_session.flush()
+
+    row = _multi_project_row(
+        "OVR.LAP",
+        {(2025, m): "500" for m in range(1, 4)},
+    )
+    report = await import_projects(db_session, [row])
+
+    group = report["multi_project_groups"][0]
+    assert group["ambiguous_cells"] == 3  # all 3 cells covered by BOTH projects
+    assert group["orphan_cells"] == 0
+    for proj in group["projects"]:
+        assert proj["cells_imputed"] == 0  # nothing imputed when ambiguous
+
+    # No manual_override cells exist (no Excel cell went through).
+    ps = (
+        (await db_session.execute(select(ProjectDB).where(ProjectDB.code == "OVR.LAP")))
+        .scalars()
+        .all()
+    )
+    for p in ps:
+        cells = (
+            (
+                await db_session.execute(
+                    select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == p.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert not any(c.is_manual_override for c in cells), "no overrides applied"
+
+
+@pytest.mark.asyncio
+async def test_multi_project_orphan_cells_reported(db_session, _ensure_fixture):
+    """Cells outside the date range of EVERY candidate are orphans."""
+    from datetime import date
+
+    from app.core.models.project import ProjectDB
+    from scripts.import_accrual_spreadsheet import import_projects
+
+    db_session.add(
+        ProjectDB(
+            name="phase 1",
+            code="ORF.AN",
+            status="live",
+            currency="euro",
+            is_billable=True,
+            budget=Decimal("1000"),
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 2, 28),
+        )
+    )
+    db_session.add(
+        ProjectDB(
+            name="phase 2",
+            code="ORF.AN",
+            status="live",
+            currency="euro",
+            is_billable=True,
+            budget=Decimal("1000"),
+            start_date=date(2025, 5, 1),
+            end_date=date(2025, 6, 30),
+        )
+    )
+    await db_session.flush()
+
+    # Excel cells span Jan-Jun; Mar+Apr fall outside both project ranges.
+    row = _multi_project_row(
+        "ORF.AN",
+        {(2025, m): "500" for m in range(1, 7)},
+    )
+    report = await import_projects(db_session, [row])
+
+    group = report["multi_project_groups"][0]
+    assert group["orphan_cells"] == 2  # Mar + Apr
+    assert group["ambiguous_cells"] == 0
+    total_imputed = sum(p["cells_imputed"] for p in group["projects"])
+    assert total_imputed == 4  # Jan-Feb on phase 1, May-Jun on phase 2
+
+
+@pytest.mark.asyncio
+async def test_multi_project_original_budget_proportional_split(db_session, _ensure_fixture):
+    """When N projects share a row, original_budget splits proportionally to
+    each project's share of EUR imputed (only if currently NULL)."""
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.core.models.project import ProjectDB
+    from scripts.import_accrual_spreadsheet import import_projects
+
+    db_session.add(
+        ProjectDB(
+            name="big",
+            code="SPLT.IT",
+            status="live",
+            currency="dollar",
+            is_billable=True,
+            budget=Decimal("3000"),
+            original_budget=None,
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 6, 30),
+        )
+    )
+    db_session.add(
+        ProjectDB(
+            name="small",
+            code="SPLT.IT",
+            status="live",
+            currency="dollar",
+            is_billable=True,
+            budget=Decimal("1000"),
+            original_budget=None,
+            start_date=date(2025, 7, 1),
+            end_date=date(2025, 8, 31),
+        )
+    )
+    await db_session.flush()
+
+    # Excel 2025-01..2025-08, 500 EUR/month → 4000 EUR total. Big captures
+    # 6 cells = 3000, small captures 2 cells = 1000. row.value = 4000 × 1.08 = 4320 USD.
+    row = _multi_project_row(
+        "SPLT.IT",
+        {(2025, m): "500" for m in range(1, 9)},
+    )
+    report = await import_projects(db_session, [row])
+
+    assert report["original_budget_set"] == 2
+    ps = (
+        (await db_session.execute(select(ProjectDB).where(ProjectDB.code == "SPLT.IT")))
+        .scalars()
+        .all()
+    )
+    big = next(p for p in ps if p.name == "big")
+    small = next(p for p in ps if p.name == "small")
+    # Big: 3000/4000 × 4320 = 3240 USD
+    assert big.original_budget == Decimal("3240.00")
+    # Small: 1000/4000 × 4320 = 1080 USD
+    assert small.original_budget == Decimal("1080.00")

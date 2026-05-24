@@ -18,6 +18,7 @@ export function Accrual(): JSX.Element {
     year_to: CURRENT_YEAR,
     status: 'live',
     currency: 'all',
+    issues_only: false,
   });
 
   const apiFilters = useMemo(
@@ -65,15 +66,30 @@ export function Accrual(): JSX.Element {
     }
   };
 
+  const visibleProjects = useMemo(() => {
+    if (!data) return [];
+    if (!filters.issues_only) return data.projects;
+    return data.projects.filter(
+      (p) => p.health.status === 'critical' || p.health.status === 'warning',
+    );
+  }, [data, filters.issues_only]);
+
+  const issuesCount = useMemo(() => {
+    if (!data) return 0;
+    return data.projects.filter(
+      (p) => p.health.status === 'critical' || p.health.status === 'warning',
+    ).length;
+  }, [data]);
+
   function renderGrid(): JSX.Element {
     if (error) return <p className="text-sm text-destructive">Failed to load grid.</p>;
     if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-    if (data?.projects.length === 0) {
+    if (visibleProjects.length === 0) {
       return <p className="text-sm text-muted-foreground">No projects match the current filters.</p>;
     }
     return (
       <AccrualGrid
-        projects={data?.projects ?? []}
+        projects={visibleProjects}
         cells={data?.cells ?? []}
         months={data?.months ?? []}
         onCellChange={handleCellChange}
@@ -95,6 +111,15 @@ export function Accrual(): JSX.Element {
         minYear={data?.bounds?.min_year}
         maxYear={data?.bounds?.max_year}
       />
+      {issuesCount > 0 && !filters.issues_only && (
+        <button
+          type="button"
+          onClick={() => setFilters((f) => ({ ...f, issues_only: true }))}
+          className="w-full rounded border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900 hover:bg-amber-100"
+        >
+          <strong>{issuesCount}</strong> project{issuesCount === 1 ? '' : 's'} need{issuesCount === 1 ? 's' : ''} review — click to filter
+        </button>
+      )}
       {errorMessage && (
         <div className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {errorMessage}

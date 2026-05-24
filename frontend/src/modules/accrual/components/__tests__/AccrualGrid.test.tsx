@@ -18,12 +18,12 @@ const project: AccrualGridProject = {
   budget: '1200.00',
   original_budget: '1200.00',
   budget_eur: '1090.91',
-  locked_fx_rate: null,
   status: 'live',
   start_date: '2026-01-01',
   end_date: '2026-12-01',
   project_manager_id: null,
   project_manager_name: null,
+  health: { status: 'ok', diff_eur: '0.00', diff_pct: 0, reasons: [] },
 };
 
 const months: AccrualGridMonth[] = [
@@ -41,8 +41,8 @@ const cellJan: AccrualCellType = {
   is_manual_override: false,
   is_frozen: false,
   frozen_at: null,
-  frozen_rate: null,
   frozen_eur_amount: null,
+  source: 'excel',
   updated_at: '2026-05-01T00:00:00Z',
 };
 
@@ -83,8 +83,8 @@ describe('AccrualGrid', () => {
   it('renders one column header per month plus the sticky-left columns', () => {
     renderGrid();
     const headers = screen.getAllByRole('columnheader');
-    // 7 sticky cols + 2 months = 9
-    expect(headers.length).toBeGreaterThanOrEqual(9);
+    // 6 sticky cols + 2 months = 8
+    expect(headers.length).toBeGreaterThanOrEqual(8);
   });
 
   it('shows the project name as a link to the project detail page', () => {
@@ -127,5 +127,79 @@ describe('AccrualGrid', () => {
     // The jan cell should have the error styling.
     const jan = screen.getByText('100.00').closest('button');
     expect(jan?.className).toContain('ring-destructive');
+  });
+
+  it('does not render a health indicator when status is ok', () => {
+    renderGrid();
+    expect(screen.queryByTestId('health-warning')).toBeNull();
+    expect(screen.queryByTestId('health-critical')).toBeNull();
+  });
+
+  it('renders a warning icon next to the project name when health is warning', () => {
+    const warnProject: AccrualGridProject = {
+      ...project,
+      health: { status: 'warning', diff_eur: '120.00', diff_pct: 10, reasons: ['value_divergence'] },
+    };
+    renderGrid({ projects: [warnProject] });
+    expect(screen.getByTestId('health-warning')).toBeInTheDocument();
+  });
+
+  it('renders a critical icon and tooltip for dup-code projects', () => {
+    const critProject: AccrualGridProject = {
+      ...project,
+      health: {
+        status: 'critical',
+        diff_eur: null,
+        diff_pct: null,
+        reasons: ['multi_project_dup_code'],
+      },
+    };
+    renderGrid({ projects: [critProject] });
+    const icon = screen.getByTestId('health-critical');
+    expect(icon).toBeInTheDocument();
+    expect(icon.getAttribute('aria-label')).toContain('Code shared');
+  });
+
+  it('shows a diff badge next to Budget € when cells diverge', () => {
+    const warnProject: AccrualGridProject = {
+      ...project,
+      budget_eur: '1090.91',
+      health: { status: 'warning', diff_eur: '120.00', diff_pct: 11, reasons: ['value_divergence'] },
+    };
+    renderGrid({ projects: [warnProject] });
+    expect(screen.getByText('+11%')).toBeInTheDocument();
+  });
+
+  it('shows a negative diff badge when cells are under budget', () => {
+    const underProject: AccrualGridProject = {
+      ...project,
+      budget_eur: '1090.91',
+      health: {
+        status: 'critical',
+        diff_eur: '-1090.91',
+        diff_pct: 100,
+        reasons: ['no_cells'],
+      },
+    };
+    renderGrid({ projects: [underProject] });
+    expect(screen.getByText('−100%')).toBeInTheDocument();
+  });
+
+  it('omits the redundant divergence line when no_cells is present', () => {
+    const noCellsProject: AccrualGridProject = {
+      ...project,
+      health: {
+        status: 'critical',
+        diff_eur: '-1090.91',
+        diff_pct: 100,
+        reasons: ['no_cells', 'value_divergence'],
+      },
+    };
+    renderGrid({ projects: [noCellsProject] });
+    const icon = screen.getByTestId('health-critical');
+    const label = icon.getAttribute('aria-label') ?? '';
+    expect(label).toContain('Team budget set but Excel data missing');
+    expect(label).not.toContain('Cells 100.0% under budget');
+    expect(label).not.toContain('Σ accrual cells diverges');
   });
 });

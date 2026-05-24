@@ -60,7 +60,6 @@ export interface ProjectUpdate {
   has_budget_alerts?: boolean;
   currency?: string;
   budget?: number | null;
-  locked_fx_rate?: number | null;
   notes?: string | null;
   summary?: string | null;
   jira_project_key?: string;
@@ -85,6 +84,11 @@ export type PaginatedProjects = PaginatedResponse<Project>;
 export interface ProjectSummary {
   id: string;
   name: string;
+  code?: string | null;
+  currency?: string | null;
+  budget?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 export interface ProjectListParams {
