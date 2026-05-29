@@ -100,6 +100,19 @@ def _line_health(value_eur: Decimal | None, sum_cells: Decimal) -> dict:
     }
 
 
+def _serialize_line_project(project: ProjectDB, pm_name: str | None) -> dict:
+    return {
+        "id": str(project.id),
+        "code": project.code,
+        "name": project.name,
+        "status": project.status,
+        "project_manager_id": (
+            str(project.project_manager_id) if project.project_manager_id else None
+        ),
+        "project_manager_name": pm_name,
+    }
+
+
 def _serialize_grid_line(
     line: AccrualLineDB,
     projects: list[tuple[ProjectDB, str | None]],
@@ -116,19 +129,50 @@ def _serialize_grid_line(
         "currency": line.currency,
         "window_start": line.window_start.isoformat() if line.window_start else None,
         "window_end": line.window_end.isoformat() if line.window_end else None,
-        "projects": [
-            {
-                "id": str(p.id),
-                "code": p.code,
-                "name": p.name,
-                "status": p.status,
-                "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
-                "project_manager_name": pm_name,
-            }
-            for p, pm_name in projects
-        ],
+        "projects": [_serialize_line_project(p, pm_name) for p, pm_name in projects],
         "health": _line_health(line.value_eur, sum_cells),
     }
+
+
+def _line_passes_filters(
+    linked: list[tuple[ProjectDB, str | None]],
+    source: str,
+    *,
+    status: str | None,
+    project_manager_id: UUID | None,
+    source_filter: str | None,
+) -> bool:
+    """A line passes when every active filter matches. status/pm match any linked
+    project (so unlinked lines drop out once either is set)."""
+    if status is not None and not any(p.status == status for p, _ in linked):
+        return False
+    if project_manager_id is not None and not any(
+        p.project_manager_id == project_manager_id for p, _ in linked
+    ):
+        return False
+    return source_filter is None or source == source_filter
+
+
+def _compute_bounds(lines: list[AccrualLineDB]) -> dict | None:
+    """Min/max window year across the given lines, or None when none are dated."""
+    bounds_min = min(
+        (line.window_start.year for line in lines if line.window_start is not None),
+        default=None,
+    )
+    bounds_max = max(
+        (line.window_end.year for line in lines if line.window_end is not None),
+        default=None,
+    )
+    if bounds_min is None or bounds_max is None:
+        return None
+    return {"min_year": bounds_min, "max_year": bounds_max}
+
+
+def _window_overlaps_years(line: AccrualLineDB, year_from: int, year_to: int) -> bool:
+    """True when the line's window intersects [year_from, year_to]. Undated → excluded."""
+    if line.window_start is None or line.window_end is None:
+        return False
+    return line.window_start <= date(year_to, 12, 31) and line.window_end >= date(year_from, 1, 1)
 
 
 @router.get(
@@ -180,33 +224,21 @@ async def get_grid(
     for line_id, project, pm_name in lp_rows:
         projects_by_line.setdefault(line_id, []).append((project, pm_name))
 
-    def _passes_filters(line: AccrualLineDB) -> bool:
-        linked = projects_by_line.get(line.id, [])
-        if status is not None and not any(p.status == status for p, _ in linked):
-            return False
-        if project_manager_id is not None and not any(
-            p.project_manager_id == project_manager_id for p, _ in linked
-        ):
-            return False
-        if source is not None and line.source != source:
-            return False
-        return True
+    filtered = [
+        line
+        for line in lines
+        if _line_passes_filters(
+            projects_by_line.get(line.id, []),
+            line.source,
+            status=status,
+            project_manager_id=project_manager_id,
+            source_filter=source,
+        )
+    ]
 
-    filtered = [line for line in lines if _passes_filters(line)]
-
-    bounds_min = min(
-        (line.window_start.year for line in filtered if line.window_start is not None),
-        default=None,
-    )
-    bounds_max = max(
-        (line.window_end.year for line in filtered if line.window_end is not None),
-        default=None,
-    )
-    bounds = (
-        {"min_year": bounds_min, "max_year": bounds_max}
-        if bounds_min is not None and bounds_max is not None
-        else None
-    )
+    # bounds + available currencies reflect the status/pm/source set, BEFORE the
+    # year/currency narrowing — they drive the toolbar's full navigable range.
+    bounds = _compute_bounds(filtered)
     available_currencies = sorted(
         {currency_to_code(line.currency) for line in filtered if line.currency}
     )
@@ -219,17 +251,7 @@ async def get_grid(
             if line.currency and currency_to_code(line.currency) == target_code
         ]
 
-    range_start = date(year_from, 1, 1)
-    range_end = date(year_to, 12, 31)
-    filtered = [
-        line
-        for line in filtered
-        if line.window_start is not None
-        and line.window_end is not None
-        and line.window_start <= range_end
-        and line.window_end >= range_start
-    ]
-
+    filtered = [line for line in filtered if _window_overlaps_years(line, year_from, year_to)]
     line_ids = [line.id for line in filtered]
 
     # Per-line total across ALL cells so the health badge is year-navigation stable.

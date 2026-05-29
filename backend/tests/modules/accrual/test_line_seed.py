@@ -98,7 +98,6 @@ async def test_seed_builds_lines_links_and_cells(
         links_by_id={"SMK.MATCH": [_seed_world["proj_match"]]},
         unlinked_codes={"SMK.UNLINK"},
         excluded_codes={"SMK.EXCL"},
-        today=date(2026, 5, 1),
     )
 
     assert report["lines_excel"] == 1
@@ -120,7 +119,6 @@ async def test_seed_excel_line_is_verbatim(db_session: AsyncSession, _seed_world
         links_by_id={"SMK.MATCH": [_seed_world["proj_match"]]},
         unlinked_codes={"SMK.UNLINK"},
         excluded_codes={"SMK.EXCL"},
-        today=date(2026, 5, 1),
     )
     line = (
         await db_session.execute(
@@ -153,7 +151,6 @@ async def test_seed_excluded_code_produces_no_line(
         links_by_id={"SMK.MATCH": [_seed_world["proj_match"]]},
         unlinked_codes={"SMK.UNLINK"},
         excluded_codes={"SMK.EXCL"},
-        today=date(2026, 5, 1),
     )
     excl = (
         await db_session.execute(
@@ -173,7 +170,6 @@ async def test_seed_unlinked_line_has_no_projects(
         links_by_id={"SMK.MATCH": [_seed_world["proj_match"]]},
         unlinked_codes={"SMK.UNLINK"},
         excluded_codes={"SMK.EXCL"},
-        today=date(2026, 5, 1),
     )
     line = (
         await db_session.execute(
@@ -202,7 +198,6 @@ async def test_seed_refreezes_closed_period_cells(
         links_by_id={"SMK.MATCH": [_seed_world["proj_match"]]},
         unlinked_codes={"SMK.UNLINK"},
         excluded_codes={"SMK.EXCL"},
-        today=date(2026, 5, 1),
     )
     line = (
         await db_session.execute(
@@ -235,7 +230,6 @@ async def test_seed_team_budget_line_for_unmatched_project(
         links_by_id={"SMK.MATCH": [_seed_world["proj_match"]]},
         unlinked_codes={"SMK.UNLINK"},
         excluded_codes={"SMK.EXCL"},
-        today=date(2026, 5, 1),
     )
     tb_line = (
         await db_session.execute(

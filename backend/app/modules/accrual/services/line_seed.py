@@ -122,6 +122,122 @@ async def _load_aliases(db: AsyncSession) -> dict[str, list[UUID]]:
     return by_code
 
 
+def _resolve_projects(
+    norm: str,
+    excel_code: str,
+    *,
+    unlinked: set[str],
+    links_by_id: dict[str, list[UUID]],
+    aliases: dict[str, list[UUID]],
+    projects_by_id: dict[UUID, ProjectDB],
+    by_full: dict,
+    by_prefix: dict,
+) -> list[ProjectDB]:
+    """Resolve a row's linked projects. Precedence: unlinked overlay → explicit
+    by-id → persisted aliases → code match. Returns [] for unlinked lines."""
+    if norm in unlinked:
+        return []
+    if norm in links_by_id:
+        ids = links_by_id[norm]
+    elif norm in aliases:
+        ids = aliases[norm]
+    else:
+        return resolve_candidates(SimpleNamespace(code=excel_code), by_full, by_prefix)
+    return [projects_by_id[p] for p in ids if p in projects_by_id]
+
+
+async def _add_excel_line(
+    db: AsyncSession,
+    row: AccrualExcelRowDB,
+    projects: list[ProjectDB],
+    *,
+    import_run_id: UUID,
+    report: dict,
+) -> set[UUID]:
+    """Create one Excel line with verbatim cells + project links. Returns the
+    project ids it linked (so team-budget fallback can skip them)."""
+    monthly = list(row.monthly_cells or [])
+    w_start, w_end = _union_window(monthly, projects)
+    line = AccrualLineDB(
+        id=uuid4(),
+        name=row.name,
+        source=LineSource.EXCEL.value,
+        excel_code=row.excel_code,
+        import_run_id=import_run_id,
+        value_orig=row.value_orig,
+        currency=_resolve_currency(row.currency, projects, row.rate),
+        rate=row.rate,
+        value_eur=row.value_eur or Decimal("0"),
+        window_start=w_start,
+        window_end=w_end,
+    )
+    db.add(line)
+    await db.flush()
+
+    linked: set[UUID] = set()
+    for p in projects:
+        db.add(AccrualLineProjectDB(line_id=line.id, project_id=p.id))
+        linked.add(p.id)
+        report["links"] += 1
+
+    single_pid = projects[0].id if len(projects) == 1 else None
+    for c in monthly:
+        db.add(
+            ProjectAccrualCellDB(
+                line_id=line.id,
+                project_id=single_pid,
+                year=int(c["year"]),
+                month=int(c["month"]),
+                amount=Decimal(str(c["eur_amount"])),
+                is_manual_override=False,
+                is_frozen=False,
+                source=CellSource.EXCEL.value,
+            )
+        )
+        report["excel_cells"] += 1
+
+    report["lines_unlinked" if not projects else "lines_excel"] += 1
+    return linked
+
+
+async def _add_team_budget_line(db: AsyncSession, project: ProjectDB, *, report: dict) -> None:
+    """Uniform-redistribution fallback line for an eligible project with no Excel line."""
+    months = _months_between(project.start_date, project.end_date)
+    if not months:
+        return
+    per_month = (Decimal(project.budget) / Decimal(len(months))).quantize(Decimal("0.01"))
+    line = AccrualLineDB(
+        id=uuid4(),
+        name=project.name,
+        source=LineSource.TEAM_BUDGET.value,
+        excel_code=project.code,
+        value_orig=project.original_budget,
+        currency=currency_to_code(project.currency) if project.currency else None,
+        value_eur=Decimal(project.budget),
+        window_start=project.start_date,
+        window_end=project.end_date,
+    )
+    db.add(line)
+    await db.flush()
+    db.add(AccrualLineProjectDB(line_id=line.id, project_id=project.id))
+    report["links"] += 1
+    for y, m in months:
+        db.add(
+            ProjectAccrualCellDB(
+                line_id=line.id,
+                project_id=project.id,
+                year=y,
+                month=m,
+                amount=per_month,
+                is_manual_override=False,
+                is_frozen=False,
+                source=CellSource.TEAM_BUDGET.value,
+            )
+        )
+        report["team_budget_cells"] += 1
+    report["lines_team_budget"] += 1
+
+
 async def seed_lines_from_excel_rows(
     db: AsyncSession,
     *,
@@ -129,7 +245,6 @@ async def seed_lines_from_excel_rows(
     links_by_id: dict[str, list[UUID]] | None = None,
     unlinked_codes: set[str] | None = None,
     excluded_codes: set[str] | None = None,
-    today: date | None = None,
 ) -> dict:
     """Clean-rebuild accrual lines + cells from a run's Excel rows. Returns a report.
 
@@ -138,7 +253,6 @@ async def seed_lines_from_excel_rows(
     links_by_id = {(_normalize_code(k) or k): v for k, v in (links_by_id or {}).items()}
     unlinked = {_normalize_code(c) or c for c in (unlinked_codes or set())}
     excluded = {_normalize_code(c) or c for c in (excluded_codes or set())}
-    today = today or date.today()
 
     # Clean slate (one-time rebuild).
     await db.execute(delete(ProjectAccrualCellDB))
@@ -174,104 +288,33 @@ async def seed_lines_from_excel_rows(
         if norm in excluded:
             report["excluded"] += 1
             continue
-
-        if norm in unlinked:
-            projects: list[ProjectDB] = []
-        elif norm in links_by_id:
-            projects = [projects_by_id[p] for p in links_by_id[norm] if p in projects_by_id]
-        elif norm in aliases:
-            projects = [projects_by_id[p] for p in aliases[norm] if p in projects_by_id]
-        else:
-            projects = resolve_candidates(SimpleNamespace(code=row.excel_code), by_full, by_prefix)
-
-        monthly = list(row.monthly_cells or [])
-        w_start, w_end = _union_window(monthly, projects)
-        line = AccrualLineDB(
-            id=uuid4(),
-            name=row.name,
-            source=LineSource.EXCEL.value,
-            excel_code=row.excel_code,
-            import_run_id=import_run_id,
-            value_orig=row.value_orig,
-            currency=_resolve_currency(row.currency, projects, row.rate),
-            rate=row.rate,
-            value_eur=row.value_eur or Decimal("0"),
-            window_start=w_start,
-            window_end=w_end,
+        projects = _resolve_projects(
+            norm,
+            row.excel_code,
+            unlinked=unlinked,
+            links_by_id=links_by_id,
+            aliases=aliases,
+            projects_by_id=projects_by_id,
+            by_full=by_full,
+            by_prefix=by_prefix,
         )
-        db.add(line)
-        await db.flush()
-
-        for p in projects:
-            db.add(AccrualLineProjectDB(line_id=line.id, project_id=p.id))
-            linked_project_ids.add(p.id)
-            report["links"] += 1
-
-        single_pid = projects[0].id if len(projects) == 1 else None
-        for c in monthly:
-            db.add(
-                ProjectAccrualCellDB(
-                    line_id=line.id,
-                    project_id=single_pid,
-                    year=int(c["year"]),
-                    month=int(c["month"]),
-                    amount=Decimal(str(c["eur_amount"])),
-                    is_manual_override=False,
-                    is_frozen=False,
-                    source=CellSource.EXCEL.value,
-                )
-            )
-            report["excel_cells"] += 1
-
-        report["lines_unlinked" if not projects else "lines_excel"] += 1
+        linked_project_ids |= await _add_excel_line(
+            db, row, projects, import_run_id=import_run_id, report=report
+        )
 
     # Team-budget lines for eligible projects with budget+dates and no Excel line.
     for p in eligible:
-        if p.id in linked_project_ids or p.budget is None:
-            continue
-        months = _months_between(p.start_date, p.end_date)
-        if not months:
-            continue
-        per_month = (Decimal(p.budget) / Decimal(len(months))).quantize(Decimal("0.01"))
-        line = AccrualLineDB(
-            id=uuid4(),
-            name=p.name,
-            source=LineSource.TEAM_BUDGET.value,
-            excel_code=p.code,
-            value_orig=p.original_budget,
-            currency=currency_to_code(p.currency) if p.currency else None,
-            value_eur=Decimal(p.budget),
-            window_start=p.start_date,
-            window_end=p.end_date,
-        )
-        db.add(line)
-        await db.flush()
-        db.add(AccrualLineProjectDB(line_id=line.id, project_id=p.id))
-        report["links"] += 1
-        for y, m in months:
-            db.add(
-                ProjectAccrualCellDB(
-                    line_id=line.id,
-                    project_id=p.id,
-                    year=y,
-                    month=m,
-                    amount=per_month,
-                    is_manual_override=False,
-                    is_frozen=False,
-                    source=CellSource.TEAM_BUDGET.value,
-                )
-            )
-            report["team_budget_cells"] += 1
-        report["lines_team_budget"] += 1
+        if p.id not in linked_project_ids and p.budget is not None:
+            await _add_team_budget_line(db, p, report=report)
 
     await db.flush()
-    await _refreeze_closed_cells(db, today=today)
+    await _refreeze_closed_cells(db)
 
     logger.info("accrual_line_seed_completed", **report)
     return report
 
 
-async def _refreeze_closed_cells(db: AsyncSession, *, today: date) -> int:
+async def _refreeze_closed_cells(db: AsyncSession) -> int:
     """Freeze cells whose month falls before the open period's start. Idempotent.
 
     The freeze is a mechanical consequence of period boundaries (closed periods
