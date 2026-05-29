@@ -23,22 +23,39 @@ function createWrapper() {
 }
 
 const CELL_ID = 'cell-abc';
+const LINE_ID = 'line-1';
 const PROJECT_ID = 'proj-1';
+const CELL_KEY = `${LINE_ID}:2026:3`;
 
 const seedGrid: AccrualGridResponse = {
-  projects: [
+  lines: [
     {
-      id: PROJECT_ID,
-      name: 'Test Project',
+      id: LINE_ID,
+      name: 'Test Line',
+      source: 'excel',
+      excel_code: 'TST.1',
+      value_eur: '500.00',
+      value_orig: '500.00',
       currency: 'USD',
-      status: 'live',
-      project_manager_id: null,
-      project_manager_name: null,
+      window_start: '2026-03-01',
+      window_end: '2026-03-01',
+      projects: [
+        {
+          id: PROJECT_ID,
+          code: 'TST.1',
+          name: 'Test Project',
+          status: 'live',
+          project_manager_id: null,
+          project_manager_name: null,
+        },
+      ],
+      health: { status: 'ok', diff_eur: '0.00', diff_pct: 0 },
     },
   ],
   cells: [
     {
       id: CELL_ID,
+      line_id: LINE_ID,
       project_id: PROJECT_ID,
       year: 2026,
       month: 3,
@@ -53,6 +70,8 @@ const seedGrid: AccrualGridResponse = {
     },
   ],
   months: [{ year: 2026, month: 3 }],
+  bounds: { min_year: 2026, max_year: 2026 },
+  available_currencies: ['USD'],
 };
 
 function seedQueryData(client: QueryClient): void {
@@ -78,7 +97,7 @@ describe('useAccrualMutations — updateCell happy path', () => {
     });
 
     await waitFor(() => expect(result.current.savingState).toBe('idle'));
-    expect(result.current.failedCells.has(`${PROJECT_ID}:2026:3`)).toBe(false);
+    expect(result.current.failedCells.has(CELL_KEY)).toBe(false);
     expect(result.current.errorMessage).toBeNull();
   });
 
@@ -131,7 +150,7 @@ describe('useAccrualMutations — updateCell error path', () => {
 
     await waitFor(() => expect(result.current.savingState).toBe('error'));
     expect(result.current.errorMessage).not.toBeNull();
-    expect(result.current.failedCells.has(`${PROJECT_ID}:2026:3`)).toBe(true);
+    expect(result.current.failedCells.has(CELL_KEY)).toBe(true);
   });
 
   it('clearFailedCell removes the key and clears errorMessage when last', async () => {
@@ -153,7 +172,7 @@ describe('useAccrualMutations — updateCell error path', () => {
     await waitFor(() => expect(result.current.failedCells.size).toBe(1));
 
     act(() => {
-      result.current.clearFailedCell(`${PROJECT_ID}:2026:3`);
+      result.current.clearFailedCell(CELL_KEY);
     });
 
     expect(result.current.failedCells.size).toBe(0);

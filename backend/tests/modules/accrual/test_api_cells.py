@@ -1,6 +1,6 @@
 """HTTP tests for /api/accrual/cells and /api/accrual/projects/{id}/*."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -11,9 +11,60 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
-from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
+from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
+from app.modules.accrual.models.project_accrual_cell import CellSource, ProjectAccrualCellDB
 
 _DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+
+
+async def _make_line(
+    db: AsyncSession,
+    *,
+    value_eur: str = "1200",
+    source: LineSource = LineSource.EXCEL,
+    excel_code: str | None = None,
+    name: str = "Line",
+    currency: str | None = None,
+    window_start=None,
+    window_end=None,
+    cells: list[tuple[int, int, str]] | None = None,
+    project_ids: list[UUID] | None = None,
+) -> AccrualLineDB:
+    """Insert a line directly (no line-creation endpoint exists until fase 2).
+
+    The grid is line-derived now, so tests build their rows here rather than via
+    the legacy project+redistribute flow (which writes project-keyed cells with
+    no line_id and is invisible to the grid).
+    """
+    line = AccrualLineDB(
+        name=name,
+        source=source.value,
+        excel_code=excel_code,
+        value_eur=Decimal(value_eur),
+        currency=currency,
+        window_start=window_start,
+        window_end=window_end,
+    )
+    db.add(line)
+    await db.flush()
+    project_ids = project_ids or []
+    for pid in project_ids:
+        db.add(AccrualLineProjectDB(line_id=line.id, project_id=pid))
+    single_pid = project_ids[0] if len(project_ids) == 1 else None
+    for year, month, amount in cells or []:
+        db.add(
+            ProjectAccrualCellDB(
+                line_id=line.id,
+                project_id=single_pid,
+                year=year,
+                month=month,
+                amount=Decimal(amount),
+                source=CellSource.EXCEL.value,
+            )
+        )
+    await db.flush()
+    return line
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -201,11 +252,11 @@ async def test_delete_override_clears_and_redistributes(
 
 
 @pytest.mark.asyncio
-async def test_grid_empty_no_projects(client: AsyncClient) -> None:
+async def test_grid_empty_no_lines(client: AsyncClient) -> None:
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["projects"] == []
+    assert body["lines"] == []
     assert body["cells"] == []
     assert len(body["months"]) == 12
     assert body["months"][0] == {"year": 2026, "month": 1}
@@ -213,13 +264,10 @@ async def test_grid_empty_no_projects(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_grid_returns_projects_and_cells(
+async def test_grid_returns_lines_and_cells(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
-    )
     p = await client.post(
         "/api/projects",
         json={
@@ -231,17 +279,27 @@ async def test_grid_returns_projects_and_cells(
             "end_date": "2026-12-01",
         },
     )
-    pid = p.json()["id"]
-    await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
+    pid = UUID(p.json()["id"])
+    line = await _make_line(
+        db_session,
+        excel_code="TEST.AC.GRID1",
+        currency="USD",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, m, "100") for m in range(1, 13)],
+        project_ids=[pid],
+    )
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     assert resp.status_code == 200
     body = resp.json()
-    assert len(body["projects"]) == 1
-    assert body["projects"][0]["id"] == pid
-    assert body["projects"][0]["code"] == "TEST.AC.GRID1"
+    assert len(body["lines"]) == 1
+    row = body["lines"][0]
+    assert row["id"] == str(line.id)
+    assert row["excel_code"] == "TEST.AC.GRID1"
+    assert [p["id"] for p in row["projects"]] == [str(pid)]
     assert len(body["cells"]) == 12
-    assert all(c["project_id"] == pid for c in body["cells"])
+    assert all(c["line_id"] == str(line.id) for c in body["cells"])
 
 
 @pytest.mark.asyncio
@@ -251,50 +309,30 @@ async def test_grid_year_range_validation(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_grid_currency_normalises_legacy_label(
+async def test_grid_currency_filters_on_line_currency(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    """Legacy 'dollar' rows are included when filtering by USD."""
-    dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Legacy",
-            "code": "TEST.AC.GRID.LEG",
-            "currency": "dollar",
-            "budget": 1000,
-            **dated,
-        },
-    )
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Modern",
-            "code": "TEST.AC.GRID.MOD",
-            "currency": "USD",
-            "budget": 1000,
-            **dated,
-        },
-    )
-    # OTH has no budget intentionally — excluded from grid
-    await client.post(
-        "/api/projects",
-        json={"name": "Other", "code": "TEST.AC.GRID.OTH", "currency": "GBP", **dated},
-    )
+    """The currency filter matches the line's own (ISO) currency."""
+    win = {"window_start": date(2026, 1, 1), "window_end": date(2026, 12, 1)}
+    await _make_line(db_session, excel_code="USD1", currency="USD", **win)
+    await _make_line(db_session, excel_code="USD2", currency="USD", **win)
+    await _make_line(db_session, excel_code="GBP1", currency="GBP", **win)
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&currency=USD")
     assert resp.status_code == 200
-    codes = {p["code"] for p in resp.json()["projects"]}
-    assert codes == {"TEST.AC.GRID.LEG", "TEST.AC.GRID.MOD"}
+    codes = {row["excel_code"] for row in resp.json()["lines"]}
+    assert codes == {"USD1", "USD2"}
 
 
 @pytest.mark.asyncio
 async def test_grid_filter_by_status(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    """status filter narrows projects."""
-    dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
-    await client.post(
+    """status filter keeps lines with a linked project in that status."""
+    win = {"window_start": date(2026, 1, 1), "window_end": date(2026, 12, 1)}
+    live = await client.post(
         "/api/projects",
         json={
             "name": "Live one",
@@ -302,10 +340,11 @@ async def test_grid_filter_by_status(
             "currency": "USD",
             "status": "live",
             "budget": 1000,
-            **dated,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
         },
     )
-    await client.post(
+    prop = await client.post(
         "/api/projects",
         json={
             "name": "Proposal",
@@ -313,14 +352,17 @@ async def test_grid_filter_by_status(
             "currency": "USD",
             "status": "proposal",
             "budget": 1000,
-            **dated,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
         },
     )
+    await _make_line(db_session, excel_code="L-LIVE", project_ids=[UUID(live.json()["id"])], **win)
+    await _make_line(db_session, excel_code="L-PROP", project_ids=[UUID(prop.json()["id"])], **win)
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&status=live")
     assert resp.status_code == 200
-    codes = {p["code"] for p in resp.json()["projects"]}
-    assert codes == {"TEST.AC.GRID.LIVE"}
+    codes = {row["excel_code"] for row in resp.json()["lines"]}
+    assert codes == {"L-LIVE"}
 
 
 @pytest.mark.asyncio
@@ -358,42 +400,36 @@ async def test_bulk_cells_happy_path(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_grid_returns_bounds_and_currencies(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    """bounds + available_currencies reflect projects matching status+pm, not year/currency."""
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Old",
-            "code": "TEST.AC.B1",
-            "currency": "dollar",
-            "budget": 1000,
-            "start_date": "2022-01-01",
-            "end_date": "2024-12-01",
-        },
+    """bounds span every filtered line's window; available_currencies are the
+    line currencies — both independent of the year/currency filters."""
+    await _make_line(
+        db_session,
+        excel_code="TEST.AC.B1",
+        currency="USD",
+        window_start=date(2022, 1, 1),
+        window_end=date(2024, 12, 1),
     )
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Recent",
-            "code": "TEST.AC.B2",
-            "currency": "GBP",
-            "budget": 1000,
-            "start_date": "2026-01-01",
-            "end_date": "2027-12-01",
-        },
+    await _make_line(
+        db_session,
+        excel_code="TEST.AC.B2",
+        currency="GBP",
+        window_start=date(2026, 1, 1),
+        window_end=date(2027, 12, 1),
     )
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     assert resp.status_code == 200
     body = resp.json()
-    # Year filter narrows the rendered project list but bounds reflect the wider span.
+    # Year filter narrows the rendered line list but bounds reflect the wider span.
     assert body["bounds"] == {"min_year": 2022, "max_year": 2027}
-    # USD comes from the legacy 'dollar' label, normalised. EUR isn't present.
+    # USD comes from the legacy 'dollar' label, normalised.
     assert body["available_currencies"] == ["GBP", "USD"]
 
 
 @pytest.mark.asyncio
-async def test_grid_bounds_null_when_no_projects(client: AsyncClient) -> None:
+async def test_grid_bounds_null_when_no_lines(client: AsyncClient) -> None:
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
     assert resp.status_code == 200
     body = resp.json()
@@ -402,236 +438,120 @@ async def test_grid_bounds_null_when_no_projects(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_grid_filters_projects_by_year_overlap(
+async def test_grid_filters_lines_by_year_overlap(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    """A project that ended before the visible range is dropped from the response."""
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Ended in 2024",
-            "code": "TEST.AC.OVL1",
-            "currency": "USD",
-            "budget": 1000,
-            "start_date": "2022-01-01",
-            "end_date": "2024-12-01",
-        },
+    """A line whose window ended before the visible range is dropped."""
+    await _make_line(
+        db_session,
+        excel_code="TEST.AC.OVL1",
+        window_start=date(2022, 1, 1),
+        window_end=date(2024, 12, 1),
     )
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Active 2026",
-            "code": "TEST.AC.OVL2",
-            "currency": "USD",
-            "budget": 1000,
-            "start_date": "2026-01-01",
-            "end_date": "2027-12-01",
-        },
+    await _make_line(
+        db_session,
+        excel_code="TEST.AC.OVL2",
+        window_start=date(2026, 1, 1),
+        window_end=date(2027, 12, 1),
     )
 
     resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
-    codes = {p["code"] for p in resp.json()["projects"]}
+    codes = {row["excel_code"] for row in resp.json()["lines"]}
     assert codes == {"TEST.AC.OVL2"}
 
 
 @pytest.mark.asyncio
-async def test_grid_excludes_projects_without_dates(client: AsyncClient) -> None:
-    """Projects without start/end dates can't be redistributed — drop them from the grid."""
-    await client.post(
-        "/api/projects",
-        json={"name": "Undated", "code": "TEST.AC.OVL3", "currency": "USD", "budget": 1000},
-    )
-    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
-    codes = {p["code"] for p in resp.json()["projects"]}
-    assert "TEST.AC.OVL3" not in codes
-
-
-@pytest.mark.asyncio
-async def test_grid_excludes_projects_with_only_start_date(client: AsyncClient) -> None:
-    """end_date NULL → project is hidden (we don't know when it stops accruing)."""
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Open-ended",
-            "code": "TEST.AC.OVL4",
-            "currency": "USD",
-            "budget": 1000,
-            "start_date": "2024-01-01",
-        },
-    )
-    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
-    codes = {p["code"] for p in resp.json()["projects"]}
-    assert "TEST.AC.OVL4" not in codes
-
-
-@pytest.mark.asyncio
-async def test_grid_excludes_non_billable_projects(
-    client: AsyncClient,
-) -> None:
-    """Non-billable engagements never appear in the revenue grid."""
-    dated = {"start_date": "2026-01-01", "end_date": "2026-12-01"}
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Billable",
-            "code": "TEST.AC.BILL1",
-            "currency": "USD",
-            "is_billable": True,
-            "budget": 1000,
-            **dated,
-        },
-    )
-    await client.post(
-        "/api/projects",
-        json={
-            "name": "Pro bono",
-            "code": "TEST.AC.BILL2",
-            "currency": "USD",
-            "is_billable": False,
-            "budget": 1000,
-            **dated,
-        },
-    )
-
-    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
-    codes = {p["code"] for p in resp.json()["projects"]}
-    assert "TEST.AC.BILL1" in codes
-    assert "TEST.AC.BILL2" not in codes
-
-
-@pytest.mark.asyncio
-async def test_grid_includes_eur_in_available_currencies(
-    client: AsyncClient,
-) -> None:
-    """Legacy 'euro' label normalises to EUR and shows up in the dropdown source."""
-    await client.post(
-        "/api/projects",
-        json={"name": "Euro one", "code": "TEST.AC.EUR1", "currency": "euro", "budget": 1000},
-    )
-
-    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
-    assert "EUR" in resp.json()["available_currencies"]
-
-
-@pytest.mark.asyncio
-async def test_grid_excludes_projects_without_budget(
+async def test_grid_excludes_lines_without_window(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    """Projects with budget=NULL are excluded from the grid regardless of other fields."""
-    from datetime import date
+    """A line with a null window can't be placed on the year axis — dropped."""
+    await _make_line(db_session, excel_code="NOWIN", window_start=None, window_end=None)
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    codes = {row["excel_code"] for row in resp.json()["lines"]}
+    assert "NOWIN" not in codes
 
-    from app.core.models.project import ProjectDB
 
-    p_in = ProjectDB(
-        name="in",
-        code="IN",
-        status="live",
-        currency="USD",
-        is_billable=True,
-        budget=Decimal("100"),
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 12, 31),
+@pytest.mark.asyncio
+async def test_grid_filter_by_source(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """source filter keeps only lines of that provenance."""
+    win = {"window_start": date(2026, 1, 1), "window_end": date(2026, 12, 1)}
+    await _make_line(db_session, excel_code="EX1", source=LineSource.EXCEL, **win)
+    await _make_line(db_session, excel_code="TB1", source=LineSource.TEAM_BUDGET, **win)
+
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026&source=team_budget")
+    codes = {row["excel_code"] for row in resp.json()["lines"]}
+    assert codes == {"TB1"}
+
+
+@pytest.mark.asyncio
+async def test_grid_unlinked_line_renders_with_no_projects(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """A line with zero linked projects still renders (real income, no project)."""
+    await _make_line(
+        db_session,
+        name="Future grant",
+        excel_code="UNLINKED1",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, 1, "500")],
     )
-    p_out = ProjectDB(
-        name="out",
-        code="OUT",
-        status="live",
-        currency="USD",
-        is_billable=True,
-        budget=None,
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 12, 31),
-    )
-    db_session.add_all([p_in, p_out])
-    await db_session.flush()
-    r = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
-    ids = [p["id"] for p in r.json()["projects"]]
-    assert str(p_in.id) in ids
-    assert str(p_out.id) not in ids
+    resp = await client.get("/api/accrual/grid?year_from=2026&year_to=2026")
+    rows = {row["excel_code"]: row for row in resp.json()["lines"]}
+    assert "UNLINKED1" in rows
+    assert rows["UNLINKED1"]["projects"] == []
+    assert rows["UNLINKED1"]["name"] == "Future grant"
 
 
-def test_compute_health_ok_when_cells_match_budget():
-    from decimal import Decimal
+def test_line_health_ok_when_cells_match_value():
+    from app.modules.accrual.api.cells import _line_health
 
-    from app.modules.accrual.api.cells import _compute_health
-
-    h = _compute_health(
-        budget=Decimal("100"),
-        sum_cells=Decimal("100"),
-        has_overrides=True,
-        code_is_duplicated=False,
-    )
+    h = _line_health(value_eur=Decimal("100"), sum_cells=Decimal("100"))
     assert h["status"] == "ok"
     assert h["diff_eur"] == "0.00"
-    assert h["reasons"] == []
+    assert h["diff_pct"] == 0.0
 
 
-def test_compute_health_warning_when_diff_above_5pct():
-    from decimal import Decimal
+def test_line_health_warning_when_diff_above_5pct():
+    from app.modules.accrual.api.cells import _line_health
 
-    from app.modules.accrual.api.cells import _compute_health
-
-    h = _compute_health(
-        budget=Decimal("100"),
-        sum_cells=Decimal("108"),
-        has_overrides=True,
-        code_is_duplicated=False,
-    )
+    h = _line_health(value_eur=Decimal("100"), sum_cells=Decimal("108"))
     assert h["status"] == "warning"
     assert h["diff_pct"] == 8.0
-    assert "value_divergence" in h["reasons"]
 
 
-def test_compute_health_critical_when_diff_above_20pct():
-    from decimal import Decimal
+def test_line_health_critical_when_diff_above_20pct():
+    from app.modules.accrual.api.cells import _line_health
 
-    from app.modules.accrual.api.cells import _compute_health
-
-    h = _compute_health(
-        budget=Decimal("100"),
-        sum_cells=Decimal("125"),
-        has_overrides=True,
-        code_is_duplicated=False,
-    )
+    h = _line_health(value_eur=Decimal("100"), sum_cells=Decimal("125"))
     assert h["status"] == "critical"
-    assert "value_divergence" in h["reasons"]
+    assert h["diff_pct"] == 25.0
 
 
-def test_compute_health_critical_when_code_is_duplicated():
-    from decimal import Decimal
+def test_line_health_no_data_when_value_zero():
+    from app.modules.accrual.api.cells import _line_health
 
-    from app.modules.accrual.api.cells import _compute_health
-
-    h = _compute_health(
-        budget=Decimal("100"), sum_cells=Decimal("100"), has_overrides=True, code_is_duplicated=True
-    )
-    assert h["status"] == "critical"
-    assert "multi_project_dup_code" in h["reasons"]
-
-
-def test_compute_health_no_data_when_uniform_without_overrides():
-    from decimal import Decimal
-
-    from app.modules.accrual.api.cells import _compute_health
-
-    h = _compute_health(
-        budget=Decimal("100"),
-        sum_cells=Decimal("100"),
-        has_overrides=False,
-        code_is_duplicated=False,
-    )
+    h = _line_health(value_eur=Decimal("0"), sum_cells=Decimal("0"))
     assert h["status"] == "no_data"
-    assert "no_excel_data" in h["reasons"]
+    assert h["diff_pct"] is None
 
 
-def test_compute_health_critical_when_budget_but_no_cells():
-    from decimal import Decimal
+def test_line_health_no_data_when_value_none():
+    from app.modules.accrual.api.cells import _line_health
 
-    from app.modules.accrual.api.cells import _compute_health
+    h = _line_health(value_eur=None, sum_cells=Decimal("0"))
+    assert h["status"] == "no_data"
 
-    h = _compute_health(
-        budget=Decimal("100"), sum_cells=Decimal("0"), has_overrides=False, code_is_duplicated=False
-    )
+
+def test_line_health_critical_when_value_but_no_cells():
+    from app.modules.accrual.api.cells import _line_health
+
+    h = _line_health(value_eur=Decimal("100"), sum_cells=Decimal("0"))
     assert h["status"] == "critical"
-    assert "no_cells" in h["reasons"]
+    assert h["diff_pct"] == 100.0

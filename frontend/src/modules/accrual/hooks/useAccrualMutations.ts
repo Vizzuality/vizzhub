@@ -120,8 +120,8 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
       let cellKey = cellId; // fallback if not cached yet
       for (const [, data] of allGridData) {
         const found = data?.cells.find((c) => c.id === cellId);
-        if (found) {
-          cellKey = buildCellKey(found.project_id, found.year, found.month);
+        if (found && found.line_id) {
+          cellKey = buildCellKey(found.line_id, found.year, found.month);
           break;
         }
       }

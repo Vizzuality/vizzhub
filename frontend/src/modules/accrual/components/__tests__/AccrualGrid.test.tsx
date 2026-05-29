@@ -6,24 +6,31 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AccrualGrid } from '@/modules/accrual/components/AccrualGrid';
 import type {
   AccrualCell as AccrualCellType,
+  AccrualGridLine,
   AccrualGridMonth,
-  AccrualGridProject,
 } from '@/modules/accrual/types/accrual';
 
-const project: AccrualGridProject = {
-  id: 'p1',
-  code: 'A.1',
+const line: AccrualGridLine = {
+  id: 'line1',
   name: 'Project A',
+  source: 'excel',
+  excel_code: 'A.1',
+  value_eur: '1090.91',
+  value_orig: '1200.00',
   currency: 'USD',
-  budget: '1200.00',
-  original_budget: '1200.00',
-  budget_eur: '1090.91',
-  status: 'live',
-  start_date: '2026-01-01',
-  end_date: '2026-12-01',
-  project_manager_id: null,
-  project_manager_name: null,
-  health: { status: 'ok', diff_eur: '0.00', diff_pct: 0, reasons: [] },
+  window_start: '2026-01-01',
+  window_end: '2026-12-01',
+  projects: [
+    {
+      id: 'p1',
+      code: 'A.1',
+      name: 'Project A',
+      status: 'live',
+      project_manager_id: null,
+      project_manager_name: null,
+    },
+  ],
+  health: { status: 'ok', diff_eur: '0.00', diff_pct: 0 },
 };
 
 const months: AccrualGridMonth[] = [
@@ -33,6 +40,7 @@ const months: AccrualGridMonth[] = [
 
 const cellJan: AccrualCellType = {
   id: 'c-jan',
+  line_id: 'line1',
   project_id: 'p1',
   year: 2026,
   month: 1,
@@ -59,7 +67,7 @@ function renderGrid(
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <AccrualGrid
-          projects={[project]}
+          lines={[line]}
           cells={[cellJan]}
           months={months}
           onCellChange={vi.fn()}
@@ -72,9 +80,9 @@ function renderGrid(
 }
 
 describe('AccrualGrid', () => {
-  it('renders one row per project + a totals row', () => {
+  it('renders one row per line + a totals row', () => {
     renderGrid();
-    // thead has 2 rows (year group + column headers); tbody has 1 project; tfoot has 1 totals row
+    // thead has 2 rows (year group + column headers); tbody has 1 line; tfoot has 1 totals row
     const rows = screen.getAllByRole('row');
     // 2 header rows + 1 data row + 1 totals row = 4
     expect(rows).toHaveLength(4);
@@ -83,14 +91,19 @@ describe('AccrualGrid', () => {
   it('renders one column header per month plus the sticky-left columns', () => {
     renderGrid();
     const headers = screen.getAllByRole('columnheader');
-    // 6 sticky cols + 2 months = 8
-    expect(headers.length).toBeGreaterThanOrEqual(8);
+    // 5 sticky cols + 2 months = 7
+    expect(headers.length).toBeGreaterThanOrEqual(7);
   });
 
-  it('shows the project name as a link to the project detail page', () => {
+  it('shows each linked project as a link to its detail page', () => {
     renderGrid();
-    const link = screen.getByRole('link', { name: /project a/i });
+    const link = screen.getByRole('link', { name: 'A.1' });
     expect(link).toHaveAttribute('href', '/tracker/projects/p1');
+  });
+
+  it('renders "no project" for an unlinked line', () => {
+    renderGrid({ lines: [{ ...line, projects: [] }] });
+    expect(screen.getByText(/no project/i)).toBeInTheDocument();
   });
 
   it('renders the amount for months with a cell and zero for months without', () => {
@@ -108,10 +121,9 @@ describe('AccrualGrid', () => {
     expect(within(totalsRow).getByText('90.91')).toBeInTheDocument();
   });
 
-  it('triggers onCellChange when an editable cell is committed', async () => {
+  it('triggers onCellChange (keyed by line id) when an editable cell is committed', async () => {
     const onCellChange = vi.fn();
     renderGrid({ onCellChange });
-    // Find the Jan cell button and edit it
     const jan = screen.getByText('100.00').closest('button');
     expect(jan).not.toBeNull();
     await userEvent.click(jan!);
@@ -119,12 +131,11 @@ describe('AccrualGrid', () => {
     await userEvent.clear(input);
     await userEvent.type(input, '250');
     await userEvent.keyboard('{Enter}');
-    expect(onCellChange).toHaveBeenCalledWith('p1', 2026, 1, '250');
+    expect(onCellChange).toHaveBeenCalledWith('line1', 2026, 1, '250');
   });
 
-  it('shows the destructive ring on cells in failedCells', () => {
-    renderGrid({ failedCells: new Set(['p1:2026:1']) });
-    // The jan cell should have the error styling.
+  it('shows the destructive ring on cells in failedCells (keyed by line id)', () => {
+    renderGrid({ failedCells: new Set(['line1:2026:1']) });
     const jan = screen.getByText('100.00').closest('button');
     expect(jan?.className).toContain('ring-destructive');
   });
@@ -135,71 +146,44 @@ describe('AccrualGrid', () => {
     expect(screen.queryByTestId('health-critical')).toBeNull();
   });
 
-  it('renders a warning icon next to the project name when health is warning', () => {
-    const warnProject: AccrualGridProject = {
-      ...project,
-      health: { status: 'warning', diff_eur: '120.00', diff_pct: 10, reasons: ['value_divergence'] },
+  it('renders a warning icon next to the line name when health is warning', () => {
+    const warnLine: AccrualGridLine = {
+      ...line,
+      health: { status: 'warning', diff_eur: '120.00', diff_pct: 10 },
     };
-    renderGrid({ projects: [warnProject] });
+    renderGrid({ lines: [warnLine] });
     expect(screen.getByTestId('health-warning')).toBeInTheDocument();
   });
 
-  it('renders a critical icon and tooltip for dup-code projects', () => {
-    const critProject: AccrualGridProject = {
-      ...project,
-      health: {
-        status: 'critical',
-        diff_eur: null,
-        diff_pct: null,
-        reasons: ['multi_project_dup_code'],
-      },
+  it('renders a critical icon for a heavily diverging line', () => {
+    const critLine: AccrualGridLine = {
+      ...line,
+      health: { status: 'critical', diff_eur: '-1090.91', diff_pct: 100 },
     };
-    renderGrid({ projects: [critProject] });
-    const icon = screen.getByTestId('health-critical');
-    expect(icon).toBeInTheDocument();
-    expect(icon.getAttribute('aria-label')).toContain('Code shared');
+    renderGrid({ lines: [critLine] });
+    expect(screen.getByTestId('health-critical')).toBeInTheDocument();
   });
 
-  it('shows a diff badge next to Budget € when cells diverge', () => {
-    const warnProject: AccrualGridProject = {
-      ...project,
-      budget_eur: '1090.91',
-      health: { status: 'warning', diff_eur: '120.00', diff_pct: 11, reasons: ['value_divergence'] },
+  it('shows a positive diff badge next to Value € when cells exceed the line value', () => {
+    const warnLine: AccrualGridLine = {
+      ...line,
+      health: { status: 'warning', diff_eur: '120.00', diff_pct: 11 },
     };
-    renderGrid({ projects: [warnProject] });
+    renderGrid({ lines: [warnLine] });
     expect(screen.getByText('+11%')).toBeInTheDocument();
   });
 
-  it('shows a negative diff badge when cells are under budget', () => {
-    const underProject: AccrualGridProject = {
-      ...project,
-      budget_eur: '1090.91',
-      health: {
-        status: 'critical',
-        diff_eur: '-1090.91',
-        diff_pct: 100,
-        reasons: ['no_cells'],
-      },
+  it('shows a negative diff badge when cells are under the line value', () => {
+    const underLine: AccrualGridLine = {
+      ...line,
+      health: { status: 'critical', diff_eur: '-1090.91', diff_pct: 100 },
     };
-    renderGrid({ projects: [underProject] });
+    renderGrid({ lines: [underLine] });
     expect(screen.getByText('−100%')).toBeInTheDocument();
   });
 
-  it('omits the redundant divergence line when no_cells is present', () => {
-    const noCellsProject: AccrualGridProject = {
-      ...project,
-      health: {
-        status: 'critical',
-        diff_eur: '-1090.91',
-        diff_pct: 100,
-        reasons: ['no_cells', 'value_divergence'],
-      },
-    };
-    renderGrid({ projects: [noCellsProject] });
-    const icon = screen.getByTestId('health-critical');
-    const label = icon.getAttribute('aria-label') ?? '';
-    expect(label).toContain('Team budget set but Excel data missing');
-    expect(label).not.toContain('Cells 100.0% under budget');
-    expect(label).not.toContain('Σ accrual cells diverges');
+  it('badges non-excel provenance but not excel lines', () => {
+    renderGrid({ lines: [{ ...line, source: 'team_budget' }] });
+    expect(screen.getByText('Team budget')).toBeInTheDocument();
   });
 });

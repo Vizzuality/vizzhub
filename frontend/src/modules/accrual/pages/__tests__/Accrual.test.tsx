@@ -6,7 +6,7 @@ import { Accrual } from '@/modules/accrual/pages/Accrual';
 vi.mock('@/modules/accrual/hooks/useAccrualGrid', () => ({
   useAccrualGrid: () => ({
     data: {
-      projects: [],
+      lines: [],
       cells: [],
       months: [{ year: 2026, month: 1 }],
       bounds: null,
@@ -41,12 +41,12 @@ describe('Accrual page', () => {
     expect(screen.getByRole('heading', { name: /accrual grid/i })).toBeInTheDocument();
   });
 
-  it('shows an empty-state message when no projects match', () => {
+  it('shows an empty-state message when no lines match', () => {
     render(
       <MemoryRouter>
         <Accrual />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/no projects with accrual data in this range/i)).toBeInTheDocument();
+    expect(screen.getByText(/no accrual lines with data in this range/i)).toBeInTheDocument();
   });
 });

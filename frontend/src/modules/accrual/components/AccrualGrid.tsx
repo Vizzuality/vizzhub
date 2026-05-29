@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import type {
   AccrualCell as AccrualCellType,
+  AccrualGridLine,
   AccrualGridMonth,
-  AccrualGridProject,
 } from '@/modules/accrual/types/accrual';
 import {
   buildColumns,
@@ -19,16 +19,16 @@ const fmt = new Intl.NumberFormat('en-US', {
 });
 
 export interface AccrualGridProps {
-  readonly projects: AccrualGridProject[];
+  readonly lines: AccrualGridLine[];
   readonly cells: AccrualCellType[];
   readonly months: AccrualGridMonth[];
-  readonly onCellChange: (projectId: string, year: number, month: number, amount: string) => void;
+  readonly onCellChange: (lineId: string, year: number, month: number, amount: string) => void;
   readonly canEdit?: boolean;
   readonly failedCells?: ReadonlySet<string>;
 }
 
 export function AccrualGrid({
-  projects,
+  lines,
   cells,
   months,
   onCellChange,
@@ -41,14 +41,14 @@ export function AccrualGrid({
   );
 
   const table = useReactTable({
-    data: projects,
+    data: lines,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
   const monthTotals = useMemo(
-    () => computeMonthTotals(months, projects, cells),
-    [months, projects, cells],
+    () => computeMonthTotals(months, lines, cells),
+    [months, lines, cells],
   );
 
   // Group months by year for the top header row.

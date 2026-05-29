@@ -48,7 +48,7 @@ class ProjectAccrualCellDB(Base):
 
     __tablename__ = "project_accrual_cells"
     __table_args__ = (
-        UniqueConstraint("project_id", "year", "month", name="uq_accrual_cells_project_month"),
+        UniqueConstraint("line_id", "year", "month", name="uq_accrual_cells_line_month"),
         CheckConstraint("month BETWEEN 1 AND 12", name="ck_accrual_cells_month_range"),
         CheckConstraint("amount >= 0", name="ck_accrual_cells_amount_nonneg"),
         CheckConstraint(
@@ -61,13 +61,19 @@ class ProjectAccrualCellDB(Base):
         ),
         Index("ix_accrual_cells_year_month", "year", "month"),
         Index("ix_accrual_cells_project", "project_id"),
+        Index("ix_accrual_cells_line", "line_id"),
     )
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[UUID] = mapped_column(
+    line_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("accrual_lines.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    project_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)

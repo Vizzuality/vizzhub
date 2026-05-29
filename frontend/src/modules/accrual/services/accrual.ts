@@ -37,6 +37,7 @@ export const accrualApi = {
       if (filters.status !== undefined) params.status = filters.status;
       if (filters.currency !== undefined) params.currency = filters.currency;
       if (filters.project_manager_id !== undefined) params.project_manager_id = filters.project_manager_id;
+      if (filters.source !== undefined) params.source = filters.source;
       const r = await api.get<AccrualGridResponse>('/accrual/grid', { params });
       return r.data;
     },

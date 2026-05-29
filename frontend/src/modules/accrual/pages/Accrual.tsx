@@ -25,7 +25,7 @@ export function Accrual(): JSX.Element {
   );
 
   const { data, isLoading, error } = useAccrualGrid(apiFilters);
-  const { updateCell, bulkUpdate, failedCells, errorMessage } = useAccrualMutations();
+  const { updateCell, failedCells, errorMessage } = useAccrualMutations();
   const canEdit = usePermission(Action.ACCRUAL_MANAGE);
 
   // One-shot snap on first response: if the saved filter is outside the
@@ -44,58 +44,58 @@ export function Accrual(): JSX.Element {
   }, [data?.bounds]);
 
   const handleCellChange = async (
-    projectId: string,
+    lineId: string,
     year: number,
     month: number,
     amount: string,
   ): Promise<void> => {
     const existing = data?.cells.find(
-      (c) => c.project_id === projectId && c.year === year && c.month === month,
+      (c) => c.line_id === lineId && c.year === year && c.month === month,
     );
+    // Creating a brand-new cell on a line is a services-slice follow-up; for now
+    // only existing cells are editable inline.
     if (existing) {
       await updateCell(existing.id, amount);
-    } else {
-      await bulkUpdate([{ project_id: projectId, year, month, amount }]);
     }
   };
 
-  // Projects with at least one non-zero cell in the visible range. The grid
+  // Lines with at least one non-zero cell in the visible range. The grid
   // endpoint already clips cells by [year_from, year_to], so a simple set
   // suffices — no extra date check.
-  const projectsWithCells = useMemo(() => {
+  const linesWithCells = useMemo(() => {
     if (!data) return new Set<string>();
     const ids = new Set<string>();
     for (const c of data.cells) {
-      if (Number(c.amount) !== 0) ids.add(c.project_id);
+      if (c.line_id && Number(c.amount) !== 0) ids.add(c.line_id);
     }
     return ids;
   }, [data]);
 
-  const visibleProjects = useMemo(() => {
+  const visibleLines = useMemo(() => {
     if (!data) return [];
-    const withCells = data.projects.filter((p) => projectsWithCells.has(p.id));
+    const withCells = data.lines.filter((l) => linesWithCells.has(l.id));
     if (!filters.issues_only) return withCells;
     return withCells.filter(
-      (p) => p.health.status === 'critical' || p.health.status === 'warning',
+      (l) => l.health.status === 'critical' || l.health.status === 'warning',
     );
-  }, [data, projectsWithCells, filters.issues_only]);
+  }, [data, linesWithCells, filters.issues_only]);
 
   const issuesCount = useMemo(
     () =>
-      visibleProjects.filter((p) => p.health.status === 'critical' || p.health.status === 'warning')
+      visibleLines.filter((l) => l.health.status === 'critical' || l.health.status === 'warning')
         .length,
-    [visibleProjects],
+    [visibleLines],
   );
 
   function renderGrid(): JSX.Element {
     if (error) return <p className="text-sm text-destructive">Failed to load grid.</p>;
     if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-    if (visibleProjects.length === 0) {
-      return <p className="text-sm text-muted-foreground">No projects with accrual data in this range.</p>;
+    if (visibleLines.length === 0) {
+      return <p className="text-sm text-muted-foreground">No accrual lines with data in this range.</p>;
     }
     return (
       <AccrualGrid
-        projects={visibleProjects}
+        lines={visibleLines}
         cells={data?.cells ?? []}
         months={data?.months ?? []}
         onCellChange={handleCellChange}
@@ -122,7 +122,7 @@ export function Accrual(): JSX.Element {
           onClick={() => setFilters((f) => ({ ...f, issues_only: true }))}
           className="w-full rounded border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900 hover:bg-amber-100"
         >
-          <strong>{issuesCount}</strong> project{issuesCount === 1 ? '' : 's'} need{issuesCount === 1 ? 's' : ''} review — click to filter
+          <strong>{issuesCount}</strong> line{issuesCount === 1 ? '' : 's'} need{issuesCount === 1 ? 's' : ''} review — click to filter
         </button>
       )}
       {errorMessage && (

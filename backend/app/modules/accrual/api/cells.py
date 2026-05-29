@@ -18,6 +18,8 @@ from app.core.permissions.actions import Action
 from app.core.permissions.dependencies import require_permission
 from app.core.services.exchange_rate_service import currency_to_code
 from app.core.sql_helpers import user_display_name_expr
+from app.modules.accrual.models.accrual_line import AccrualLineDB
+from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
 from app.modules.accrual.schemas.accrual_cell import (
     BulkCellsRequest,
@@ -52,64 +54,13 @@ def _diff_eur_pct(
     return diff_eur, diff_pct
 
 
-def _resolve_health_status(
-    *, code_is_duplicated: bool, reasons: list[str], diff_pct: Decimal | None
-) -> str:
-    if code_is_duplicated or "no_cells" in reasons:
-        return "critical"
-    if diff_pct is not None and diff_pct > _HEALTH_CRITICAL_THRESHOLD:
-        return "critical"
-    if diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
-        return "warning"
-    if "no_excel_data" in reasons:
-        return "no_data"
-    return "ok"
-
-
-def _compute_health(
-    *,
-    budget: Decimal | None,
-    sum_cells: Decimal,
-    has_overrides: bool,
-    code_is_duplicated: bool,
-) -> dict:
-    """Derive a project's accrual-grid health from cells + budget + code uniqueness.
-
-    Statuses:
-    - ``critical``: code shared with other projects (risk of ambiguous imputation),
-      budget present but no cells at all, or |Σcells − budget| > 20%.
-    - ``warning``: |Σcells − budget| ∈ (5%, 20%].
-    - ``no_data``: cells exist but none came from the Excel importer (project is
-      using uniform redistribute only — the CEO has no monthly forecast for it).
-    - ``ok``: the rest.
-    """
-    diff_eur, diff_pct = _diff_eur_pct(budget, sum_cells)
-    reasons: list[str] = []
-    if code_is_duplicated:
-        reasons.append("multi_project_dup_code")
-    if budget is not None and budget > 0 and sum_cells == 0:
-        reasons.append("no_cells")
-    if not has_overrides and sum_cells > 0:
-        reasons.append("no_excel_data")
-    if diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
-        reasons.append("value_divergence")
-
-    return {
-        "status": _resolve_health_status(
-            code_is_duplicated=code_is_duplicated, reasons=reasons, diff_pct=diff_pct
-        ),
-        "diff_eur": str(diff_eur) if diff_eur is not None else None,
-        "diff_pct": float(diff_pct) if diff_pct is not None else None,
-        "reasons": reasons,
-    }
-
-
 def _serialize(cell: ProjectAccrualCellDB) -> dict:
     """Cells are EUR-only, so ``amount`` IS the EUR figure. Frozen cells expose
     ``frozen_eur_amount`` as the immutable snapshot captured at period close."""
     return {
         "id": str(cell.id),
-        "project_id": str(cell.project_id),
+        "line_id": str(cell.line_id) if cell.line_id else None,
+        "project_id": str(cell.project_id) if cell.project_id else None,
         "year": cell.year,
         "month": cell.month,
         "amount": str(cell.amount),
@@ -125,34 +76,58 @@ def _serialize(cell: ProjectAccrualCellDB) -> dict:
     }
 
 
-def _serialize_grid_project(
-    p: ProjectDB,
-    pm_name: str | None,
+def _line_health(value_eur: Decimal | None, sum_cells: Decimal) -> dict:
+    """A line's health = how close its scheduled cells are to its declared value.
+
+    For Excel lines the cells are the CEO's verbatim monthly forecast and
+    ``value_eur`` is the contract/total — a gap is a real "not fully scheduled"
+    signal, not an error. Compared in the SAME currency (both EUR, same source),
+    so there is no FX contamination.
+    """
+    diff_eur, diff_pct = _diff_eur_pct(value_eur, sum_cells)
+    if value_eur is None or value_eur == 0:
+        status_str = "no_data"
+    elif diff_pct is not None and diff_pct > _HEALTH_CRITICAL_THRESHOLD:
+        status_str = "critical"
+    elif diff_pct is not None and diff_pct > _HEALTH_WARNING_THRESHOLD:
+        status_str = "warning"
+    else:
+        status_str = "ok"
+    return {
+        "status": status_str,
+        "diff_eur": str(diff_eur) if diff_eur is not None else None,
+        "diff_pct": float(diff_pct) if diff_pct is not None else None,
+    }
+
+
+def _serialize_grid_line(
+    line: AccrualLineDB,
+    projects: list[tuple[ProjectDB, str | None]],
     *,
     sum_cells: Decimal,
-    has_overrides: bool,
-    duplicated_codes: set[str],
 ) -> dict:
-    budget_str = str(p.budget) if p.budget is not None else None
     return {
-        "id": str(p.id),
-        "name": p.name,
-        "code": p.code,
-        "currency": p.currency,
-        "budget": budget_str,
-        "original_budget": str(p.original_budget) if p.original_budget is not None else None,
-        "budget_eur": budget_str,
-        "status": p.status,
-        "start_date": p.start_date.isoformat() if p.start_date else None,
-        "end_date": p.end_date.isoformat() if p.end_date else None,
-        "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
-        "project_manager_name": pm_name,
-        "health": _compute_health(
-            budget=Decimal(p.budget) if p.budget is not None else None,
-            sum_cells=sum_cells,
-            has_overrides=has_overrides,
-            code_is_duplicated=bool(p.code) and p.code in duplicated_codes,
-        ),
+        "id": str(line.id),
+        "name": line.name,
+        "source": line.source,
+        "excel_code": line.excel_code,
+        "value_eur": str(line.value_eur),
+        "value_orig": str(line.value_orig) if line.value_orig is not None else None,
+        "currency": line.currency,
+        "window_start": line.window_start.isoformat() if line.window_start else None,
+        "window_end": line.window_end.isoformat() if line.window_end else None,
+        "projects": [
+            {
+                "id": str(p.id),
+                "code": p.code,
+                "name": p.name,
+                "status": p.status,
+                "project_manager_id": str(p.project_manager_id) if p.project_manager_id else None,
+                "project_manager_name": pm_name,
+            }
+            for p, pm_name in projects
+        ],
+        "health": _line_health(line.value_eur, sum_cells),
     }
 
 
@@ -168,50 +143,63 @@ async def get_grid(
     status: str | None = None,
     currency: str | None = None,
     project_manager_id: UUID | None = None,
+    source: str | None = None,
 ) -> dict:
-    """Joined projects + cells + month columns for the accrual admin grid.
+    """Accrual grid: rows are **lines** (the revenue-recognition unit), not projects.
+
+    Each line carries its linked projects as tags (0..N), its editable window, its
+    value, and a health badge (Σcells vs value_eur, same-currency so no FX noise).
+    Cells are keyed by ``line_id``.
 
     Filtering:
-    - Non-billable projects are excluded unconditionally — the grid is
-      a revenue-recognition tool, and non-billable engagements don't
-      generate revenue.
-    - status / project_manager_id / currency narrow the project set.
-    - year_from / year_to additionally require the project to have BOTH
-      start_date and end_date set, and the [start_date, end_date] range
-      must overlap the requested year span. Projects without dates can't
-      be redistributed across a timeline anyway (cell_service requires
-      both), so they don't belong in the grid.
+    - ``year_from`` / ``year_to``: keep lines whose window overlaps the span.
+    - ``status`` / ``project_manager_id``: match on any LINKED project; unlinked
+      lines are excluded when either is set.
+    - ``currency``: match the line's own currency (Excel lines); lines without a
+      currency are excluded when it is set.
+    - ``source``: ``excel`` | ``team_budget`` | ``manual``.
 
-    The response also carries ``bounds`` (min/max year across the
-    status+pm-filtered set, ignoring year+currency) and
-    ``available_currencies`` (ISO-normalised set of currencies across
-    that same set). The toolbar uses these to cap year-navigation arrows
-    and populate the currency dropdown.
+    ``bounds`` (min/max window year over the status+pm+source-filtered set) and
+    ``available_currencies`` drive the toolbar.
     """
     if year_to < year_from:
         raise HTTPException(status_code=400, detail="year_to must be >= year_from")
 
     pm = aliased(UserDB)
-    stmt = (
-        select(ProjectDB, user_display_name_expr(pm).label("pm_name"))
-        .outerjoin(pm, ProjectDB.project_manager_id == pm.id)
-        .where(ProjectDB.is_billable.is_(True))
-        .where(ProjectDB.budget.is_not(None))
-    )
-    if status is not None:
-        stmt = stmt.where(ProjectDB.status == status)
-    if project_manager_id is not None:
-        stmt = stmt.where(ProjectDB.project_manager_id == project_manager_id)
+    lines = list((await db.execute(select(AccrualLineDB))).scalars().all())
 
-    result = await db.execute(stmt)
-    rows = result.all()
+    # line_id -> [(project, pm_name)]
+    lp_rows = (
+        await db.execute(
+            select(AccrualLineProjectDB.line_id, ProjectDB, user_display_name_expr(pm).label("pm"))
+            .join(ProjectDB, ProjectDB.id == AccrualLineProjectDB.project_id)
+            .outerjoin(pm, ProjectDB.project_manager_id == pm.id)
+        )
+    ).all()
+    projects_by_line: dict[UUID, list[tuple[ProjectDB, str | None]]] = {}
+    for line_id, project, pm_name in lp_rows:
+        projects_by_line.setdefault(line_id, []).append((project, pm_name))
+
+    def _passes_filters(line: AccrualLineDB) -> bool:
+        linked = projects_by_line.get(line.id, [])
+        if status is not None and not any(p.status == status for p, _ in linked):
+            return False
+        if project_manager_id is not None and not any(
+            p.project_manager_id == project_manager_id for p, _ in linked
+        ):
+            return False
+        if source is not None and line.source != source:
+            return False
+        return True
+
+    filtered = [line for line in lines if _passes_filters(line)]
 
     bounds_min = min(
-        (p.start_date.year for p, _ in rows if p.start_date is not None),
+        (line.window_start.year for line in filtered if line.window_start is not None),
         default=None,
     )
     bounds_max = max(
-        (p.end_date.year for p, _ in rows if p.end_date is not None),
+        (line.window_end.year for line in filtered if line.window_end is not None),
         default=None,
     )
     bounds = (
@@ -219,86 +207,70 @@ async def get_grid(
         if bounds_min is not None and bounds_max is not None
         else None
     )
-    available_currencies = sorted({currency_to_code(p.currency) for p, _ in rows if p.currency})
+    available_currencies = sorted(
+        {currency_to_code(line.currency) for line in filtered if line.currency}
+    )
 
     if currency is not None:
         target_code = currency_to_code(currency)
-        rows = [
-            (project, pm_name)
-            for project, pm_name in rows
-            if project.currency and currency_to_code(project.currency) == target_code
+        filtered = [
+            line
+            for line in filtered
+            if line.currency and currency_to_code(line.currency) == target_code
         ]
 
     range_start = date(year_from, 1, 1)
     range_end = date(year_to, 12, 31)
-    rows = [
-        (project, pm_name)
-        for project, pm_name in rows
-        if project.start_date is not None
-        and project.end_date is not None
-        and project.start_date <= range_end
-        and project.end_date >= range_start
+    filtered = [
+        line
+        for line in filtered
+        if line.window_start is not None
+        and line.window_end is not None
+        and line.window_start <= range_end
+        and line.window_end >= range_start
     ]
 
-    # Aggregate per-project totals across ALL cells (not just the visible range)
-    # so the health badge stays stable when the user navigates years.
-    project_ids = [p.id for p, _ in rows]
-    sum_by_pid: dict[UUID, Decimal] = {}
-    has_overrides_by_pid: dict[UUID, bool] = {}
-    if project_ids:
-        agg_result = await db.execute(
+    line_ids = [line.id for line in filtered]
+
+    # Per-line total across ALL cells so the health badge is year-navigation stable.
+    sum_by_line: dict[UUID, Decimal] = {}
+    if line_ids:
+        agg = await db.execute(
             select(
-                ProjectAccrualCellDB.project_id,
+                ProjectAccrualCellDB.line_id,
                 func.coalesce(func.sum(ProjectAccrualCellDB.amount), 0).label("total"),
-                func.bool_or(ProjectAccrualCellDB.is_manual_override).label("has_overrides"),
             )
-            .where(ProjectAccrualCellDB.project_id.in_(project_ids))
-            .group_by(ProjectAccrualCellDB.project_id)
+            .where(ProjectAccrualCellDB.line_id.in_(line_ids))
+            .group_by(ProjectAccrualCellDB.line_id)
         )
-        for pid, total, has_ov in agg_result.all():
-            sum_by_pid[pid] = Decimal(str(total))
-            has_overrides_by_pid[pid] = bool(has_ov)
+        for lid, total in agg.all():
+            sum_by_line[lid] = Decimal(str(total))
 
-    # Detect codes shared by more than one project in the full billable set
-    # (not just the filtered subset). Multi-project codes inflate the risk of
-    # ambiguous cell imputation, so we flag them as critical.
-    dup_codes_result = await db.execute(
-        select(ProjectDB.code)
-        .where(ProjectDB.is_billable.is_(True))
-        .where(ProjectDB.code.is_not(None))
-        .group_by(ProjectDB.code)
-        .having(func.count() > 1)
-    )
-    duplicated_codes = {row[0] for row in dup_codes_result.all()}
-
-    projects = [
-        _serialize_grid_project(
-            p,
-            pm_name,
-            sum_cells=sum_by_pid.get(p.id, Decimal("0")),
-            has_overrides=has_overrides_by_pid.get(p.id, False),
-            duplicated_codes=duplicated_codes,
+    lines_serialised = [
+        _serialize_grid_line(
+            line,
+            projects_by_line.get(line.id, []),
+            sum_cells=sum_by_line.get(line.id, Decimal("0")),
         )
-        for p, pm_name in rows
+        for line in filtered
     ]
 
     cells_serialised: list[dict] = []
-    if project_ids:
+    if line_ids:
         cells_result = await db.execute(
             select(ProjectAccrualCellDB)
             .where(
-                ProjectAccrualCellDB.project_id.in_(project_ids),
+                ProjectAccrualCellDB.line_id.in_(line_ids),
                 ProjectAccrualCellDB.year >= year_from,
                 ProjectAccrualCellDB.year <= year_to,
             )
             .order_by(
-                ProjectAccrualCellDB.project_id,
+                ProjectAccrualCellDB.line_id,
                 ProjectAccrualCellDB.year,
                 ProjectAccrualCellDB.month,
             )
         )
-        cells = cells_result.scalars().all()
-        cells_serialised = [_serialize(c) for c in cells]
+        cells_serialised = [_serialize(c) for c in cells_result.scalars().all()]
 
     months = [
         {"year": year, "month": month}
@@ -306,7 +278,7 @@ async def get_grid(
         for month in range(1, 13)
     ]
     return {
-        "projects": projects,
+        "lines": lines_serialised,
         "cells": cells_serialised,
         "months": months,
         "bounds": bounds,

@@ -17,7 +17,8 @@ export type AccrualCellSource = 'excel' | 'team_budget' | 'manual';
 
 export interface AccrualCell {
   id: string;
-  project_id: string;
+  line_id: string | null;
+  project_id: string | null;
   year: number;
   month: number;
   amount: string;
@@ -43,6 +44,7 @@ export interface AccrualGridFilters {
   status?: string;
   currency?: string;
   project_manager_id?: string;
+  source?: AccrualLineSource;
 }
 
 export type AccrualHealthStatus = 'ok' | 'warning' | 'critical' | 'no_data';
@@ -51,22 +53,32 @@ export interface AccrualHealth {
   status: AccrualHealthStatus;
   diff_eur: string | null;
   diff_pct: number | null;
-  reasons: string[];
 }
 
-export interface AccrualGridProject {
+export type AccrualLineSource = 'excel' | 'team_budget' | 'manual';
+
+/** A project tag on a line (0..N per line). */
+export interface AccrualLineProject {
   id: string;
   code: string | null;
   name: string;
-  currency: string;
-  budget: string | null; // EUR budget (source of redistribute), shared with tracker/scorecard
-  original_budget: string | null; // contractual amount in the project's original currency
-  budget_eur: string | null; // = budget; kept as a distinct field for grid header clarity
   status: string;
-  start_date: string | null;
-  end_date: string | null;
   project_manager_id: string | null;
   project_manager_name: string | null;
+}
+
+/** A grid row: one revenue-recognition line. */
+export interface AccrualGridLine {
+  id: string;
+  name: string | null;
+  source: AccrualLineSource;
+  excel_code: string | null;
+  value_eur: string;
+  value_orig: string | null;
+  currency: string | null;
+  window_start: string | null;
+  window_end: string | null;
+  projects: AccrualLineProject[];
   health: AccrualHealth;
 }
 
@@ -81,7 +93,7 @@ export interface AccrualGridBounds {
 }
 
 export interface AccrualGridResponse {
-  projects: AccrualGridProject[];
+  lines: AccrualGridLine[];
   cells: AccrualCell[];
   months: AccrualGridMonth[];
   bounds: AccrualGridBounds | null;
@@ -89,8 +101,8 @@ export interface AccrualGridResponse {
 }
 
 /** Canonical key used for failedCells sets and optimistic-update maps. */
-export function buildCellKey(projectId: string, year: number, month: number): string {
-  return `${projectId}:${year}:${month}`;
+export function buildCellKey(lineId: string, year: number, month: number): string {
+  return `${lineId}:${year}:${month}`;
 }
 
 export type DriftKind =

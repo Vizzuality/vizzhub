@@ -79,15 +79,26 @@ async def test_project_accrual_cells_does_not_have_frozen_rate(db_session: Async
 
 
 @pytest.mark.asyncio
-async def test_project_accrual_cells_unique_project_month(db_session: AsyncSession) -> None:
-    result = await db_session.execute(
+async def test_project_accrual_cells_unique_line_month(db_session: AsyncSession) -> None:
+    """Migration 083 dropped the per-project unique (incompatible with multiple
+    lines on one project) and replaced it with a per-line unique."""
+    dropped = await db_session.execute(
         text(
             "SELECT conname FROM pg_constraint "
             "WHERE conrelid = 'project_accrual_cells'::regclass "
             "AND conname = 'uq_accrual_cells_project_month'"
         )
     )
-    assert result.scalar() == "uq_accrual_cells_project_month"
+    assert dropped.scalar() is None, "legacy uq_accrual_cells_project_month must be dropped"
+
+    result = await db_session.execute(
+        text(
+            "SELECT conname FROM pg_constraint "
+            "WHERE conrelid = 'project_accrual_cells'::regclass "
+            "AND conname = 'uq_accrual_cells_line_month'"
+        )
+    )
+    assert result.scalar() == "uq_accrual_cells_line_month"
 
 
 @pytest.mark.asyncio
