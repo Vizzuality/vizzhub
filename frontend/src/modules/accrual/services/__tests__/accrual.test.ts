@@ -3,7 +3,7 @@ import { accrualApi } from '@/modules/accrual/services/accrual';
 import api from '@/core/services/client';
 
 vi.mock('@/core/services/client', () => ({
-  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -55,22 +55,20 @@ describe('accrualApi.cells', () => {
     expect(api.get).toHaveBeenCalledWith('/accrual/projects/p1/cells');
   });
 
-  it('redistribute POSTs with body', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { cells_updated: 12 } });
-    await accrualApi.cells.redistribute('p1', false);
-    expect(api.post).toHaveBeenCalledWith('/accrual/projects/p1/redistribute', { force: false });
-  });
-
-  it('redistribute defaults force to false', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { cells_updated: 12 } });
-    await accrualApi.cells.redistribute('p1');
-    expect(api.post).toHaveBeenCalledWith('/accrual/projects/p1/redistribute', { force: false });
-  });
-
   it('patch PATCHes by id with amount', async () => {
     vi.mocked(api.patch).mockResolvedValue({ data: { id: 'c1' } });
     await accrualApi.cells.patch('c1', '250.00');
     expect(api.patch).toHaveBeenCalledWith('/accrual/cells/c1', { amount: '250.00' });
+  });
+
+  it('upsertOnLine PUTs (line, year, month, amount)', async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: { id: 'c1' } });
+    await accrualApi.cells.upsertOnLine('l1', 2026, 7, '500.00');
+    expect(api.put).toHaveBeenCalledWith('/accrual/lines/l1/cells', {
+      year: 2026,
+      month: 7,
+      amount: '500.00',
+    });
   });
 
   it('clearOverride DELETEs', async () => {
@@ -79,13 +77,25 @@ describe('accrualApi.cells', () => {
     expect(api.delete).toHaveBeenCalledWith('/accrual/cells/c1/override');
   });
 
-  it('bulk POSTs updates', async () => {
+  it('bulk POSTs line-keyed updates', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { updated: 3 } });
-    await accrualApi.cells.bulk([
-      { project_id: 'p1', year: 2026, month: 1, amount: '100' },
-    ]);
+    await accrualApi.cells.bulk([{ line_id: 'l1', year: 2026, month: 1, amount: '100' }]);
     expect(api.post).toHaveBeenCalledWith('/accrual/cells/bulk', {
-      updates: [{ project_id: 'p1', year: 2026, month: 1, amount: '100' }],
+      updates: [{ line_id: 'l1', year: 2026, month: 1, amount: '100' }],
     });
+  });
+});
+
+describe('accrualApi.lines', () => {
+  it('redistribute POSTs with body', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { cells_updated: 12 } });
+    await accrualApi.lines.redistribute('l1', false);
+    expect(api.post).toHaveBeenCalledWith('/accrual/lines/l1/redistribute', { force: false });
+  });
+
+  it('redistribute defaults force to false', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { cells_updated: 12 } });
+    await accrualApi.lines.redistribute('l1');
+    expect(api.post).toHaveBeenCalledWith('/accrual/lines/l1/redistribute', { force: false });
   });
 });

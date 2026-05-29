@@ -8,10 +8,10 @@ import type { AccrualGridResponse, BulkCellUpdate } from '@/modules/accrual/type
 type SavingState = 'idle' | 'saving' | 'error';
 
 export interface UseAccrualMutationsReturn {
-  updateCell: (cellId: string, amount: string) => Promise<void>;
+  updateCell: (lineId: string, year: number, month: number, amount: string) => Promise<void>;
   bulkUpdate: (updates: BulkCellUpdate[]) => Promise<void>;
   clearOverride: (cellId: string) => Promise<void>;
-  redistribute: (projectId: string, force?: boolean) => Promise<void>;
+  redistributeLine: (lineId: string, force?: boolean) => Promise<void>;
   savingState: SavingState;
   failedCells: ReadonlySet<string>;
   clearFailedCell: (key: string) => void;
@@ -26,14 +26,18 @@ function extractErrorMessage(err: unknown): string {
 
 function applyAmountToCells(
   prev: AccrualGridResponse | undefined,
-  cellId: string,
+  lineId: string,
+  year: number,
+  month: number,
   amount: string,
 ): AccrualGridResponse | undefined {
   if (!prev) return prev;
   return {
     ...prev,
     cells: prev.cells.map((c) =>
-      c.id === cellId ? { ...c, amount, is_manual_override: true } : c,
+      c.line_id === lineId && c.year === year && c.month === month
+        ? { ...c, amount, is_manual_override: true }
+        : c,
     ),
   };
 }
@@ -48,15 +52,26 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     queryClient.invalidateQueries({ queryKey: queryKeys.accrual.cells.all });
   }, [queryClient]);
 
-  const patchMutation = useMutation({
-    mutationFn: ({ cellId, amount }: { cellId: string; amount: string; cellKey: string }) =>
-      accrualApi.cells.patch(cellId, amount),
-    onMutate: async ({ cellId, amount }) => {
+  // Cells are keyed by (line_id, year, month) — a brand-new cell on an empty
+  // month is created server-side, so the same upsert covers create and update.
+  const upsertMutation = useMutation({
+    mutationFn: ({
+      lineId,
+      year,
+      month,
+      amount,
+    }: {
+      lineId: string;
+      year: number;
+      month: number;
+      amount: string;
+      cellKey: string;
+    }) => accrualApi.cells.upsertOnLine(lineId, year, month, amount),
+    onMutate: async ({ lineId, year, month, amount }) => {
       setSavingState('saving');
-      // Apply optimistic update to all cached grid queries
       queryClient.setQueriesData<AccrualGridResponse>(
         { queryKey: queryKeys.accrual.cells.all },
-        (prev) => applyAmountToCells(prev, cellId, amount),
+        (prev) => applyAmountToCells(prev, lineId, year, month, amount),
       );
     },
     onSuccess: (_data, { cellKey }) => {
@@ -101,8 +116,8 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
   });
 
   const redistributeMutation = useMutation({
-    mutationFn: ({ projectId, force }: { projectId: string; force?: boolean }) =>
-      accrualApi.cells.redistribute(projectId, force),
+    mutationFn: ({ lineId, force }: { lineId: string; force?: boolean }) =>
+      accrualApi.lines.redistribute(lineId, force),
     ...simpleMutationCallbacks,
   });
 
@@ -112,23 +127,14 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
   });
 
   const updateCell = useCallback(
-    async (cellId: string, amount: string): Promise<void> => {
-      // Find the cell in any cached grid to build the failedCells key.
-      const allGridData = queryClient.getQueriesData<AccrualGridResponse>({
-        queryKey: queryKeys.accrual.cells.all,
-      });
-      let cellKey = cellId; // fallback if not cached yet
-      for (const [, data] of allGridData) {
-        const found = data?.cells.find((c) => c.id === cellId);
-        if (found?.line_id) {
-          cellKey = buildCellKey(found.line_id, found.year, found.month);
-          break;
-        }
-      }
+    async (lineId: string, year: number, month: number, amount: string): Promise<void> => {
+      const cellKey = buildCellKey(lineId, year, month);
       // Errors captured in onError; swallow so callers can fire-and-forget.
-      await patchMutation.mutateAsync({ cellId, amount, cellKey }).catch(() => undefined);
+      await upsertMutation
+        .mutateAsync({ lineId, year, month, amount, cellKey })
+        .catch(() => undefined);
     },
-    [queryClient, patchMutation],
+    [upsertMutation],
   );
 
   // Mutation errors surface via savingState/errorMessage; callers can
@@ -139,9 +145,12 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     [clearOverrideMutation],
   );
 
-  const redistribute = useCallback(
-    (projectId: string, force?: boolean): Promise<void> =>
-      redistributeMutation.mutateAsync({ projectId, force }).then(() => undefined).catch(() => undefined),
+  const redistributeLine = useCallback(
+    (lineId: string, force?: boolean): Promise<void> =>
+      redistributeMutation
+        .mutateAsync({ lineId, force })
+        .then(() => undefined)
+        .catch(() => undefined),
     [redistributeMutation],
   );
 
@@ -165,7 +174,7 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     updateCell,
     bulkUpdate,
     clearOverride,
-    redistribute,
+    redistributeLine,
     savingState,
     failedCells,
     clearFailedCell,

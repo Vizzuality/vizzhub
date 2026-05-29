@@ -30,8 +30,17 @@ class CellUpdate(BaseModel):
     amount: Decimal = Field(..., ge=0)
 
 
+class LineCellUpsert(BaseModel):
+    """Create-or-update a cell on a line at (year, month). The inline-edit path —
+    keyed by ``line_id`` (route) so it works for multi-project and unlinked lines."""
+
+    year: int = Field(..., ge=1900, le=2100)
+    month: int = Field(..., ge=1, le=12)
+    amount: Decimal = Field(..., ge=0)
+
+
 class BulkCellUpdate(BaseModel):
-    project_id: UUID
+    line_id: UUID
     year: int = Field(..., ge=1900, le=2100)
     month: int = Field(..., ge=1, le=12)
     amount: Decimal = Field(..., ge=0)

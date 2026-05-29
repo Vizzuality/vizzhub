@@ -45,18 +45,21 @@ export const accrualApi = {
       const r = await api.get<AccrualCell[]>(`/accrual/projects/${projectId}/cells`);
       return r.data;
     },
-    redistribute: async (
-      projectId: string,
-      force = false,
-    ): Promise<{ cells_updated: number }> => {
-      const r = await api.post<{ cells_updated: number }>(
-        `/accrual/projects/${projectId}/redistribute`,
-        { force },
-      );
-      return r.data;
-    },
     patch: async (cellId: string, amount: string): Promise<AccrualCell> => {
       const r = await api.patch<AccrualCell>(`/accrual/cells/${cellId}`, { amount });
+      return r.data;
+    },
+    upsertOnLine: async (
+      lineId: string,
+      year: number,
+      month: number,
+      amount: string,
+    ): Promise<AccrualCell> => {
+      const r = await api.put<AccrualCell>(`/accrual/lines/${lineId}/cells`, {
+        year,
+        month,
+        amount,
+      });
       return r.data;
     },
     clearOverride: async (cellId: string): Promise<AccrualCell> => {
@@ -65,6 +68,18 @@ export const accrualApi = {
     },
     bulk: async (updates: BulkCellUpdate[]): Promise<{ updated: number }> => {
       const r = await api.post<{ updated: number }>('/accrual/cells/bulk', { updates });
+      return r.data;
+    },
+  },
+  lines: {
+    redistribute: async (
+      lineId: string,
+      force = false,
+    ): Promise<{ cells_updated: number }> => {
+      const r = await api.post<{ cells_updated: number }>(
+        `/accrual/lines/${lineId}/redistribute`,
+        { force },
+      );
       return r.data;
     },
   },

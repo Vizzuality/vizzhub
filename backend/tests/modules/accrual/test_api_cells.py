@@ -124,26 +124,16 @@ async def test_redistribute_endpoint_creates_cells(
 @pytest.mark.asyncio
 async def test_patch_cell_sets_override(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
+    line = await _make_line(
+        db_session,
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, m, "100") for m in range(1, 13)],
     )
-    p = await client.post(
-        "/api/projects",
-        json={
-            "name": "A",
-            "code": "TEST.AC.PATCH1",
-            "currency": "USD",
-            "budget": 1200,
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-01",
-        },
-    )
-    pid = p.json()["id"]
-    await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
-    cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
-    target = next(c for c in cells if c["month"] == 5)
+    cells = (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["cells"]
+    target = next(c for c in cells if c["line_id"] == str(line.id) and c["month"] == 5)
 
     resp = await client.patch(f"/api/accrual/cells/{target['id']}", json={"amount": 250})
     assert resp.status_code == 200, resp.text
@@ -157,28 +147,14 @@ async def test_patch_frozen_cell_returns_409(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
+    line = await _make_line(
+        db_session,
+        window_start=date(2025, 1, 1),
+        window_end=date(2025, 12, 1),
+        cells=[(2025, 3, "100")],
     )
-    p = await client.post(
-        "/api/projects",
-        json={
-            "name": "A",
-            "code": "TEST.AC.FRZ1",
-            "currency": "USD",
-            "budget": 1200,
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-01",
-        },
-    )
-    pid = p.json()["id"]
-    await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
-    cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
-    target = next(c for c in cells if c["month"] == 5)
-
     res = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.id == UUID(target["id"]))
+        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
     )
     cell = res.scalar_one()
     cell.is_frozen = True
@@ -186,69 +162,164 @@ async def test_patch_frozen_cell_returns_409(
     cell.frozen_eur_amount = cell.amount
     await db_session.commit()
 
-    resp = await client.patch(f"/api/accrual/cells/{target['id']}", json={"amount": 999})
+    resp = await client.patch(f"/api/accrual/cells/{cell.id}", json={"amount": 999})
     assert resp.status_code == 409, resp.text
 
 
 @pytest.mark.asyncio
 async def test_patch_cell_negative_amount_returns_400(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
+    line = await _make_line(
+        db_session,
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, 1, "100")],
     )
-    p = await client.post(
-        "/api/projects",
-        json={
-            "name": "A",
-            "code": "TEST.AC.NEG1",
-            "currency": "USD",
-            "budget": 1200,
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-01",
-        },
+    res = await db_session.execute(
+        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
     )
-    pid = p.json()["id"]
-    await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
-    cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
+    cell = res.scalar_one()
 
-    resp = await client.patch(
-        f"/api/accrual/cells/{cells[0]['id']}",
-        json={"amount": -10},
-    )
+    resp = await client.patch(f"/api/accrual/cells/{cell.id}", json={"amount": -10})
     assert resp.status_code == 400, resp.text
 
 
 @pytest.mark.asyncio
 async def test_delete_override_clears_and_redistributes(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
+    await client.post("/api/accrual/periods", json={"start_date": "2026-01-01"})
+    line = await _make_line(
+        db_session,
+        value_eur="1200",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, m, "100") for m in range(1, 13)],
     )
-    p = await client.post(
-        "/api/projects",
-        json={
-            "name": "A",
-            "code": "TEST.AC.CLR1",
-            "currency": "USD",
-            "budget": 1200,
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-01",
-        },
-    )
-    pid = p.json()["id"]
-    await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
-    cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
-    target = next(c for c in cells if c["month"] == 5)
+    cells = (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["cells"]
+    target = next(c for c in cells if c["line_id"] == str(line.id) and c["month"] == 5)
     await client.patch(f"/api/accrual/cells/{target['id']}", json={"amount": 300})
 
     resp = await client.delete(f"/api/accrual/cells/{target['id']}/override")
     assert resp.status_code == 200, resp.text
     assert resp.json()["is_manual_override"] is False
     assert Decimal(resp.json()["amount"]) == Decimal("100.00")
+
+
+@pytest.mark.asyncio
+async def test_upsert_line_cell_creates_on_empty_month(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """Editing a previously-empty month creates the cell as a manual override."""
+    line = await _make_line(
+        db_session,
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, 1, "100")],
+    )
+    resp = await client.put(
+        f"/api/accrual/lines/{line.id}/cells",
+        json={"year": 2026, "month": 7, "amount": 500},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["line_id"] == str(line.id)
+    assert body["year"] == 2026
+    assert body["month"] == 7
+    assert Decimal(body["amount"]) == Decimal("500.00")
+    assert body["is_manual_override"] is True
+
+
+@pytest.mark.asyncio
+async def test_upsert_line_cell_updates_existing(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    line = await _make_line(
+        db_session,
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, 3, "100")],
+    )
+    resp = await client.put(
+        f"/api/accrual/lines/{line.id}/cells",
+        json={"year": 2026, "month": 3, "amount": 650},
+    )
+    assert resp.status_code == 200, resp.text
+    assert Decimal(resp.json()["amount"]) == Decimal("650.00")
+    assert resp.json()["is_manual_override"] is True
+
+
+@pytest.mark.asyncio
+async def test_upsert_line_cell_line_not_found(client: AsyncClient) -> None:
+    resp = await client.put(
+        "/api/accrual/lines/00000000-0000-0000-0000-0000000000ff/cells",
+        json={"year": 2026, "month": 1, "amount": 100},
+    )
+    assert resp.status_code == 404, resp.text
+
+
+@pytest.mark.asyncio
+async def test_upsert_line_cell_frozen_returns_409(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    line = await _make_line(
+        db_session,
+        window_start=date(2025, 1, 1),
+        window_end=date(2025, 12, 1),
+        cells=[(2025, 3, "100")],
+    )
+    res = await db_session.execute(
+        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
+    )
+    cell = res.scalar_one()
+    cell.is_frozen = True
+    cell.frozen_at = datetime.now(UTC)
+    cell.frozen_eur_amount = cell.amount
+    await db_session.commit()
+
+    resp = await client.put(
+        f"/api/accrual/lines/{line.id}/cells",
+        json={"year": 2025, "month": 3, "amount": 999},
+    )
+    assert resp.status_code == 409, resp.text
+
+
+@pytest.mark.asyncio
+async def test_redistribute_line_spreads_value(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """POST redistribute spreads value_eur uniformly across the window's months."""
+    await client.post("/api/accrual/periods", json={"start_date": "2026-01-01"})
+    line = await _make_line(
+        db_session,
+        value_eur="1200",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+    )
+    resp = await client.post(f"/api/accrual/lines/{line.id}/redistribute", json={})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["cells_updated"] == 12
+
+    cells = (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["cells"]
+    line_cells = [c for c in cells if c["line_id"] == str(line.id)]
+    assert len(line_cells) == 12
+    assert all(Decimal(c["amount"]) == Decimal("100.00") for c in line_cells)
+
+
+@pytest.mark.asyncio
+async def test_redistribute_line_not_found(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/accrual/lines/00000000-0000-0000-0000-0000000000ff/redistribute",
+        json={},
+    )
+    assert resp.status_code == 404, resp.text
 
 
 @pytest.mark.asyncio
@@ -366,30 +437,22 @@ async def test_grid_filter_by_status(
 
 
 @pytest.mark.asyncio
-async def test_bulk_cells_happy_path(client: AsyncClient) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
+async def test_bulk_cells_happy_path(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    line = await _make_line(
+        db_session,
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
     )
-    p = await client.post(
-        "/api/projects",
-        json={
-            "name": "A",
-            "code": "TEST.AC.BLK1",
-            "currency": "USD",
-            "budget": 1200,
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-01",
-        },
-    )
-    pid = p.json()["id"]
 
     resp = await client.post(
         "/api/accrual/cells/bulk",
         json={
             "updates": [
-                {"project_id": pid, "year": 2026, "month": 2, "amount": 150},
-                {"project_id": pid, "year": 2026, "month": 3, "amount": 200},
+                {"line_id": str(line.id), "year": 2026, "month": 2, "amount": 150},
+                {"line_id": str(line.id), "year": 2026, "month": 3, "amount": 200},
             ],
         },
     )

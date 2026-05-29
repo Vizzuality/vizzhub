@@ -84,7 +84,7 @@ function seedQueryData(client: QueryClient): void {
 describe('useAccrualMutations — updateCell happy path', () => {
   it('optimistically writes amount to cached cells and clears failedCells on success', async () => {
     server.use(
-      http.patch('/api/accrual/cells/:id', () => HttpResponse.json({ id: CELL_ID })),
+      http.put('/api/accrual/lines/:lineId/cells', () => HttpResponse.json({ id: CELL_ID })),
     );
 
     const { client, wrapper } = createWrapper();
@@ -93,7 +93,7 @@ describe('useAccrualMutations — updateCell happy path', () => {
     const { result } = renderHook(() => useAccrualMutations(), { wrapper });
 
     await act(async () => {
-      await result.current.updateCell(CELL_ID, '999.00');
+      await result.current.updateCell(LINE_ID, 2026, 3, '999.00');
     });
 
     await waitFor(() => expect(result.current.savingState).toBe('idle'));
@@ -103,7 +103,7 @@ describe('useAccrualMutations — updateCell happy path', () => {
 
   it('writes the new amount optimistically into the query cache', async () => {
     server.use(
-      http.patch('/api/accrual/cells/:id', () => HttpResponse.json({ id: CELL_ID })),
+      http.put('/api/accrual/lines/:lineId/cells', () => HttpResponse.json({ id: CELL_ID })),
     );
 
     const { client, wrapper } = createWrapper();
@@ -112,7 +112,7 @@ describe('useAccrualMutations — updateCell happy path', () => {
     const { result } = renderHook(() => useAccrualMutations(), { wrapper });
 
     await act(async () => {
-      await result.current.updateCell(CELL_ID, '750.00');
+      await result.current.updateCell(LINE_ID, 2026, 3, '750.00');
     });
 
     // After onMutate the cache should carry the new amount
@@ -134,7 +134,7 @@ describe('useAccrualMutations — updateCell happy path', () => {
 describe('useAccrualMutations — updateCell error path', () => {
   it('captures errorMessage and adds key to failedCells on error', async () => {
     server.use(
-      http.patch('/api/accrual/cells/:id', () =>
+      http.put('/api/accrual/lines/:lineId/cells', () =>
         HttpResponse.json({ detail: 'server error' }, { status: 500 }),
       ),
     );
@@ -145,7 +145,7 @@ describe('useAccrualMutations — updateCell error path', () => {
     const { result } = renderHook(() => useAccrualMutations(), { wrapper });
 
     await act(async () => {
-      await result.current.updateCell(CELL_ID, '100.00');
+      await result.current.updateCell(LINE_ID, 2026, 3, '100.00');
     });
 
     await waitFor(() => expect(result.current.savingState).toBe('error'));
@@ -155,7 +155,7 @@ describe('useAccrualMutations — updateCell error path', () => {
 
   it('clearFailedCell removes the key and clears errorMessage when last', async () => {
     server.use(
-      http.patch('/api/accrual/cells/:id', () =>
+      http.put('/api/accrual/lines/:lineId/cells', () =>
         HttpResponse.json({ detail: 'boom' }, { status: 500 }),
       ),
     );
@@ -166,7 +166,7 @@ describe('useAccrualMutations — updateCell error path', () => {
     const { result } = renderHook(() => useAccrualMutations(), { wrapper });
 
     await act(async () => {
-      await result.current.updateCell(CELL_ID, '100.00');
+      await result.current.updateCell(LINE_ID, 2026, 3, '100.00');
     });
 
     await waitFor(() => expect(result.current.failedCells.size).toBe(1));
@@ -200,10 +200,10 @@ describe('useAccrualMutations — clearOverride', () => {
   });
 });
 
-describe('useAccrualMutations — redistribute', () => {
-  it('calls POST redistribute and returns to idle on success', async () => {
+describe('useAccrualMutations — redistributeLine', () => {
+  it('calls POST /accrual/lines/:id/redistribute and returns to idle on success', async () => {
     server.use(
-      http.post('/api/accrual/projects/:id/redistribute', () =>
+      http.post('/api/accrual/lines/:id/redistribute', () =>
         HttpResponse.json({ cells_updated: 5 }),
       ),
     );
@@ -212,7 +212,7 @@ describe('useAccrualMutations — redistribute', () => {
     const { result } = renderHook(() => useAccrualMutations(), { wrapper });
 
     await act(async () => {
-      await result.current.redistribute(PROJECT_ID);
+      await result.current.redistributeLine(LINE_ID);
     });
 
     await waitFor(() => expect(result.current.savingState).toBe('idle'));
@@ -233,8 +233,8 @@ describe('useAccrualMutations — bulkUpdate', () => {
 
     await act(async () => {
       await result.current.bulkUpdate([
-        { project_id: PROJECT_ID, year: 2026, month: 3, amount: '400.00' },
-        { project_id: PROJECT_ID, year: 2026, month: 4, amount: '600.00' },
+        { line_id: LINE_ID, year: 2026, month: 3, amount: '400.00' },
+        { line_id: LINE_ID, year: 2026, month: 4, amount: '600.00' },
       ]);
     });
 

@@ -32,7 +32,7 @@ export interface AccrualCell {
 }
 
 export interface BulkCellUpdate {
-  project_id: string;
+  line_id: string;
   year: number;
   month: number;
   amount: string;

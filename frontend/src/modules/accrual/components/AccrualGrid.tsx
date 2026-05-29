@@ -70,7 +70,7 @@ export function AccrualGrid({
 
   return (
     <div
-      className="relative overflow-auto rounded-md border"
+      className="relative overflow-auto overscroll-x-contain rounded-md border"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
       role="grid"
       aria-label="Accrual grid"

@@ -49,14 +49,8 @@ export function Accrual(): JSX.Element {
     month: number,
     amount: string,
   ): Promise<void> => {
-    const existing = data?.cells.find(
-      (c) => c.line_id === lineId && c.year === year && c.month === month,
-    );
-    // Creating a brand-new cell on a line is a services-slice follow-up; for now
-    // only existing cells are editable inline.
-    if (existing) {
-      await updateCell(existing.id, amount);
-    }
+    // Upsert by (line, year, month): editing an empty month creates the cell.
+    await updateCell(lineId, year, month, amount);
   };
 
   // Lines with at least one non-zero cell in the visible range. The grid

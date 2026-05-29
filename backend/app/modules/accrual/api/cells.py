@@ -24,6 +24,7 @@ from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
 from app.modules.accrual.schemas.accrual_cell import (
     BulkCellsRequest,
     CellUpdate,
+    LineCellUpsert,
     RedistributeRequest,
 )
 from app.modules.accrual.services import cell_service
@@ -359,14 +360,18 @@ async def patch_cell(
     db: DBSession,
     user: AccrualManager,
 ) -> dict:
-    """Set a cell to an explicit amount, marking it as a manual override."""
+    """Set an existing cell to an explicit amount, marking it a manual override."""
     cell = await db.get(ProjectAccrualCellDB, cell_id)
     if cell is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    if cell.line_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Cell is not attached to a line"
+        )
     try:
-        await cell_service.set_cell_amount(
+        await cell_service.set_cell_amount_by_line(
             db,
-            project_id=cell.project_id,
+            line_id=cell.line_id,
             year=cell.year,
             month=cell.month,
             amount=payload.amount,
@@ -376,6 +381,70 @@ async def patch_cell(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db.refresh(cell)
     return _serialize(cell)
+
+
+@router.put(
+    "/lines/{line_id}/cells",
+    responses={
+        404: {"description": "Line not found"},
+        409: {"description": "Cell is frozen"},
+    },
+)
+async def upsert_line_cell(
+    line_id: UUID,
+    payload: LineCellUpsert,
+    db: DBSession,
+    user: AccrualManager,
+) -> dict:
+    """Create or update a cell on a line at (year, month) — the inline-edit path.
+
+    Keyed by ``line_id`` so it works for multi-project and unlinked lines where the
+    cell carries no ``project_id``. Editing a previously-empty month creates the cell.
+    """
+    line = await db.get(AccrualLineDB, line_id)
+    if line is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+    try:
+        cell = await cell_service.set_cell_amount_by_line(
+            db,
+            line_id=line_id,
+            year=payload.year,
+            month=payload.month,
+            amount=payload.amount,
+            user_id=_parse_user_id(user),
+        )
+    except cell_service.CellFrozenError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return _serialize(cell)
+
+
+@router.post(
+    "/lines/{line_id}/redistribute",
+    responses={404: {"description": "Line not found"}},
+)
+async def redistribute_line(
+    line_id: UUID,
+    payload: RedistributeRequest,
+    db: DBSession,
+    user: AccrualManager,
+) -> dict:
+    """Spread the line's value_eur uniformly across its window's mutable months."""
+    line = await db.get(AccrualLineDB, line_id)
+    if line is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+    cells_updated = await cell_service.redistribute_for_line(
+        db,
+        line_id=line_id,
+        force=payload.force,
+    )
+    logger.info(
+        "accrual_redistribute_line_endpoint",
+        line_id=str(line_id),
+        cells_updated=cells_updated,
+        force=payload.force,
+        user_id=user.user_id,
+    )
+    return {"cells_updated": cells_updated}
 
 
 @router.delete(
@@ -394,10 +463,14 @@ async def delete_override(
     cell = await db.get(ProjectAccrualCellDB, cell_id)
     if cell is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    if cell.line_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Cell is not attached to a line"
+        )
     try:
-        await cell_service.clear_override(
+        await cell_service.clear_override_by_line(
             db,
-            project_id=cell.project_id,
+            line_id=cell.line_id,
             year=cell.year,
             month=cell.month,
         )
@@ -407,7 +480,7 @@ async def delete_override(
     logger.info(
         "accrual_override_cleared",
         cell_id=str(cell.id),
-        project_id=str(cell.project_id),
+        line_id=str(cell.line_id),
         user_id=user.user_id,
     )
     return _serialize(cell)
@@ -424,7 +497,7 @@ async def bulk_cells(
 ) -> dict:
     """Apply many cell overrides atomically. A frozen cell aborts the whole batch."""
     try:
-        results = await cell_service.bulk_set_cells(
+        results = await cell_service.bulk_set_cells_by_line(
             db,
             updates=[u.model_dump() for u in payload.updates],
             user_id=_parse_user_id(user),
