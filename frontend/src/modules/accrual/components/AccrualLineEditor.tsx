@@ -157,7 +157,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
   const { redistributeLine } = useAccrualMutations();
 
   const { data: detail } = useQuery({
-    queryKey: editId ? queryKeys.accrual.lines.detail(editId) : ['accrual', 'lines', 'none'],
+    queryKey: queryKeys.accrual.lines.detail(editId ?? 'none'),
     queryFn: () => accrualApi.lines.get(editId as string),
     enabled: Boolean(editId),
   });

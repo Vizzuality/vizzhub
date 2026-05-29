@@ -2,9 +2,15 @@
 
 from datetime import date
 from decimal import Decimal
+from typing import Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
+
+
+def _validate_window_order(start: date | None, end: date | None) -> None:
+    if start and end and start > end:
+        raise ValueError("window_start must be on or before window_end")
 
 
 class LineCreate(BaseModel):
@@ -19,9 +25,8 @@ class LineCreate(BaseModel):
     project_ids: list[UUID] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _window_ordered(self) -> "LineCreate":
-        if self.window_start and self.window_end and self.window_start > self.window_end:
-            raise ValueError("window_start must be on or before window_end")
+    def _window_ordered(self) -> Self:
+        _validate_window_order(self.window_start, self.window_end)
         return self
 
 
@@ -37,9 +42,8 @@ class LineUpdate(BaseModel):
     window_end: date | None = None
 
     @model_validator(mode="after")
-    def _window_ordered(self) -> "LineUpdate":
-        if self.window_start and self.window_end and self.window_start > self.window_end:
-            raise ValueError("window_start must be on or before window_end")
+    def _window_ordered(self) -> Self:
+        _validate_window_order(self.window_start, self.window_end)
         return self
 
 

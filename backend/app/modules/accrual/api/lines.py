@@ -3,7 +3,6 @@
 from typing import Annotated
 from uuid import UUID
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
@@ -20,7 +19,6 @@ from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.schemas.accrual_line import LineCreate, LineProjectLink, LineUpdate
 from app.modules.accrual.services import line_service
 
-logger = structlog.get_logger()
 router = APIRouter()
 
 AccrualViewer = Annotated[TokenData, Depends(require_permission(Action.ACCRUAL_VIEW))]
