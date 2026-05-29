@@ -25,7 +25,7 @@ module is generic and carries no client data.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -291,8 +291,6 @@ async def _refreeze_closed_cells(db: AsyncSession, *, today: date) -> int:
         .scalars()
         .all()
     )
-    from datetime import UTC, datetime
-
     now = datetime.now(UTC)
     frozen = 0
     for cell in cells:
