@@ -229,7 +229,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
         ]);
       }
     } else if (editId) {
-      void linkProject.mutateAsync({ id: editId, projectId });
+      linkProject.mutate({ id: editId, projectId });
     }
   };
 
@@ -237,7 +237,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
     if (isCreate) {
       setNewProjects((prev) => prev.filter((p) => p.id !== projectId));
     } else if (editId) {
-      void unlinkProject.mutateAsync({ id: editId, projectId });
+      unlinkProject.mutate({ id: editId, projectId });
     }
   };
 

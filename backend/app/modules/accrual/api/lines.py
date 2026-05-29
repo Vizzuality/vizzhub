@@ -21,6 +21,8 @@ from app.modules.accrual.services import line_service
 
 router = APIRouter()
 
+_LINE_NOT_FOUND = "Line not found"
+
 AccrualViewer = Annotated[TokenData, Depends(require_permission(Action.ACCRUAL_VIEW))]
 AccrualManager = Annotated[TokenData, Depends(require_permission(Action.ACCRUAL_MANAGE))]
 
@@ -72,7 +74,7 @@ async def _serialize_line(db: DBSession, line: AccrualLineDB) -> dict:
 async def _get_line_or_404(db: DBSession, line_id: UUID) -> AccrualLineDB:
     line = await db.get(AccrualLineDB, line_id)
     if line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
     return line
 
 
@@ -106,7 +108,7 @@ async def update_line(line_id: UUID, payload: LineUpdate, db: DBSession, _: Accr
     fields = payload.model_dump(exclude_unset=True)
     line = await line_service.update_line(db, line_id=line_id, fields=fields)
     if line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
     return await _serialize_line(db, line)
 
 
@@ -118,7 +120,7 @@ async def update_line(line_id: UUID, payload: LineUpdate, db: DBSession, _: Accr
 async def delete_line(line_id: UUID, db: DBSession, _: AccrualManager) -> None:
     """Delete a line; its cells and project links cascade."""
     if not await line_service.delete_line(db, line_id=line_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
 
 
 @router.post(
