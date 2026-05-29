@@ -51,7 +51,7 @@ const mockGrid: AccrualGridResponse = {
 
 describe('useAccrualGrid', () => {
   it('returns grid data on success', async () => {
-    (accrualApi.cells.grid as any).mockResolvedValue(mockGrid);
+    vi.mocked(accrualApi.cells.grid).mockResolvedValue(mockGrid);
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { result } = renderHook(
       () => useAccrualGrid({ year_from: 2026, year_to: 2026 }),
@@ -64,7 +64,7 @@ describe('useAccrualGrid', () => {
   });
 
   it('passes filters through to the service', async () => {
-    (accrualApi.cells.grid as any).mockResolvedValue(mockGrid);
+    vi.mocked(accrualApi.cells.grid).mockResolvedValue(mockGrid);
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const filters = { year_from: 2025, year_to: 2026, status: 'live', currency: 'USD' };
     const { result } = renderHook(() => useAccrualGrid(filters), { wrapper: wrap(qc) });
@@ -73,7 +73,7 @@ describe('useAccrualGrid', () => {
   });
 
   it('exposes isLoading before data resolves', () => {
-    (accrualApi.cells.grid as any).mockImplementation(
+    vi.mocked(accrualApi.cells.grid).mockImplementation(
       () => new Promise(() => {/* pending */}),
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

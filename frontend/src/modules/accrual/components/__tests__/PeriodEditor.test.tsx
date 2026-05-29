@@ -73,7 +73,7 @@ describe('PeriodEditor', () => {
 
   it('submits the start date and calls onClose on success', async () => {
     const onClose = vi.fn();
-    (accrualApi.periods.create as any).mockResolvedValue({
+    vi.mocked(accrualApi.periods.create).mockResolvedValue({
       id: 'p2',
       start_date: '2026-06-01',
       status: 'open',

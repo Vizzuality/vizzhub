@@ -24,7 +24,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('usePeriodsList', () => {
   it('calls list and exposes data', async () => {
-    (accrualApi.periods.list as any).mockResolvedValue([
+    vi.mocked(accrualApi.periods.list).mockResolvedValue([
       { id: 'p1', start_date: '2026-01-01', status: 'open' },
     ]);
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -36,7 +36,7 @@ describe('usePeriodsList', () => {
 
 describe('useCurrentPeriod', () => {
   it('calls current and exposes data', async () => {
-    (accrualApi.periods.current as any).mockResolvedValue({ id: 'p1', status: 'open' });
+    vi.mocked(accrualApi.periods.current).mockResolvedValue({ id: 'p1', status: 'open' });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { result } = renderHook(() => useCurrentPeriod(), { wrapper: wrap(qc) });
     await waitFor(() => expect(result.current.data).toBeDefined());
@@ -46,7 +46,7 @@ describe('useCurrentPeriod', () => {
 
 describe('useCreatePeriod', () => {
   it('invalidates periods queries on success', async () => {
-    (accrualApi.periods.create as any).mockResolvedValue({ id: 'p2' });
+    vi.mocked(accrualApi.periods.create).mockResolvedValue({ id: 'p2' });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidate = vi.spyOn(qc, 'invalidateQueries');
     const { result } = renderHook(() => useCreatePeriod(), { wrapper: wrap(qc) });
