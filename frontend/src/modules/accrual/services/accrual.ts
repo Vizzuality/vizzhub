@@ -8,6 +8,9 @@ import type {
   AccrualGridFilters,
   AccrualGridResponse,
   AccrualImportRun,
+  AccrualLineCreate,
+  AccrualLineDetail,
+  AccrualLineUpdate,
   AccrualPeriod,
   AccrualPeriodCreate,
   BulkCellUpdate,
@@ -72,6 +75,33 @@ export const accrualApi = {
     },
   },
   lines: {
+    get: async (lineId: string): Promise<AccrualLineDetail> => {
+      const r = await api.get<AccrualLineDetail>(`/accrual/lines/${lineId}`);
+      return r.data;
+    },
+    create: async (payload: AccrualLineCreate): Promise<AccrualLineDetail> => {
+      const r = await api.post<AccrualLineDetail>('/accrual/lines', payload);
+      return r.data;
+    },
+    update: async (lineId: string, payload: AccrualLineUpdate): Promise<AccrualLineDetail> => {
+      const r = await api.patch<AccrualLineDetail>(`/accrual/lines/${lineId}`, payload);
+      return r.data;
+    },
+    remove: async (lineId: string): Promise<void> => {
+      await api.delete(`/accrual/lines/${lineId}`);
+    },
+    linkProject: async (lineId: string, projectId: string): Promise<AccrualLineDetail> => {
+      const r = await api.post<AccrualLineDetail>(`/accrual/lines/${lineId}/projects`, {
+        project_id: projectId,
+      });
+      return r.data;
+    },
+    unlinkProject: async (lineId: string, projectId: string): Promise<AccrualLineDetail> => {
+      const r = await api.delete<AccrualLineDetail>(
+        `/accrual/lines/${lineId}/projects/${projectId}`,
+      );
+      return r.data;
+    },
     redistribute: async (
       lineId: string,
       force = false,

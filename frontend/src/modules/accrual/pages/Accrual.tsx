@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useAccrualGrid } from '@/modules/accrual/hooks/useAccrualGrid';
 import { useAccrualMutations } from '@/modules/accrual/hooks/useAccrualMutations';
 import { AccrualGrid } from '@/modules/accrual/components/AccrualGrid';
 import { AccrualToolbar } from '@/modules/accrual/components/AccrualToolbar';
 import type { AccrualFilters } from '@/modules/accrual/components/AccrualToolbar';
+import { AccrualLineEditor } from '@/modules/accrual/components/AccrualLineEditor';
+import { Button } from '@/shared/components/ui/button';
 import { usePermission, Action } from '@/core/permissions';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -27,6 +30,8 @@ export function Accrual(): JSX.Element {
   const { data, isLoading, error } = useAccrualGrid(apiFilters);
   const { updateCell, failedCells, errorMessage } = useAccrualMutations();
   const canEdit = usePermission(Action.ACCRUAL_MANAGE);
+  // null = editor closed; 'new' = create mode; otherwise the line id being edited.
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   // One-shot snap on first response: if the saved filter is outside the
   // data's range, fold it back in so the user lands on actual data.
@@ -95,6 +100,7 @@ export function Accrual(): JSX.Element {
         onCellChange={handleCellChange}
         canEdit={canEdit}
         failedCells={failedCells}
+        onEditLine={canEdit ? setEditingLineId : undefined}
       />
     );
   }
@@ -103,6 +109,12 @@ export function Accrual(): JSX.Element {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Accrual grid</h1>
+        {canEdit && (
+          <Button size="sm" onClick={() => setEditingLineId('new')}>
+            <Plus className="mr-1 h-4 w-4" />
+            New line
+          </Button>
+        )}
       </div>
       <AccrualToolbar
         filters={filters}
@@ -125,6 +137,9 @@ export function Accrual(): JSX.Element {
         </div>
       )}
       {renderGrid()}
+      {canEdit && editingLineId !== null && (
+        <AccrualLineEditor lineId={editingLineId} onClose={() => setEditingLineId(null)} />
+      )}
     </div>
   );
 }

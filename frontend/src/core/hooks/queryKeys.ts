@@ -169,6 +169,10 @@ export const queryKeys = {
       byProject: (projectId: string) =>
         ['accrual', 'cells', 'project', projectId] as const,
     },
+    lines: {
+      all: ['accrual', 'lines'] as const,
+      detail: (id: string) => ['accrual', 'lines', id] as const,
+    },
     dashboard: {
       monthly: (filters: Record<string, unknown>) =>
         ['accrual', 'dashboard', 'monthly', filters] as const,

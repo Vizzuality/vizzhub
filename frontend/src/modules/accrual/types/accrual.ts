@@ -82,6 +82,39 @@ export interface AccrualGridLine {
   health: AccrualHealth;
 }
 
+/** A line with its linked projects — the line-editor detail shape. */
+export interface AccrualLineDetail {
+  id: string;
+  name: string | null;
+  source: AccrualLineSource;
+  excel_code: string | null;
+  value_eur: string;
+  value_orig: string | null;
+  currency: string | null;
+  window_start: string | null;
+  window_end: string | null;
+  projects: AccrualLineProject[];
+}
+
+export interface AccrualLineCreate {
+  name?: string | null;
+  value_eur: string | number;
+  value_orig?: string | number | null;
+  currency?: string | null;
+  window_start?: string | null;
+  window_end?: string | null;
+  project_ids?: string[];
+}
+
+export interface AccrualLineUpdate {
+  name?: string | null;
+  value_eur?: string | number;
+  value_orig?: string | number | null;
+  currency?: string | null;
+  window_start?: string | null;
+  window_end?: string | null;
+}
+
 export interface AccrualGridMonth {
   year: number;
   month: number;

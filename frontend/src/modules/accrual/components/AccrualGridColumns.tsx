@@ -83,15 +83,34 @@ function LineCodeCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX
   );
 }
 
-function LineNameCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX.Element {
+function LineNameCellRenderer({
+  line,
+  onEditLine,
+}: {
+  readonly line: AccrualGridLine;
+  readonly onEditLine?: (lineId: string) => void;
+}): JSX.Element {
   // Only flag non-Excel provenance — Excel is the norm, so badging it is noise.
   const badge = line.source === 'excel' ? null : SOURCE_BADGE[line.source];
+  const label = line.name ?? '(unnamed line)';
+  const name = onEditLine ? (
+    <button
+      type="button"
+      onClick={() => onEditLine(line.id)}
+      className="block min-w-0 truncate text-left text-sm hover:underline"
+      title={`Edit ${line.name ?? 'line'}`}
+    >
+      {label}
+    </button>
+  ) : (
+    <span className="block min-w-0 truncate text-sm" title={line.name ?? undefined}>
+      {label}
+    </span>
+  );
   return (
     <span className="flex items-center gap-1.5 min-w-0">
       <HealthIndicator health={line.health} />
-      <span className="block min-w-0 truncate text-sm" title={line.name ?? undefined}>
-        {line.name ?? '(unnamed line)'}
-      </span>
+      {name}
       {badge ? (
         <span className={`shrink-0 rounded px-1 text-[9px] font-medium ${badge.cls}`}>
           {badge.label}
@@ -170,6 +189,7 @@ export function buildColumns(
   onCellChange: (lineId: string, year: number, month: number, amount: string) => void,
   canEdit: boolean,
   failedCells: ReadonlySet<string> | undefined,
+  onEditLine?: (lineId: string) => void,
 ): ColumnDef<AccrualGridLine>[] {
   const cellIndex = indexCells(cells);
   const sticky: ColumnDef<AccrualGridLine>[] = [
@@ -183,7 +203,7 @@ export function buildColumns(
       id: 'name',
       header: 'Line',
       size: 200,
-      cell: ({ row }) => <LineNameCellRenderer line={row.original} />,
+      cell: ({ row }) => <LineNameCellRenderer line={row.original} onEditLine={onEditLine} />,
     },
     {
       id: 'projects',

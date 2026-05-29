@@ -25,6 +25,7 @@ export interface AccrualGridProps {
   readonly onCellChange: (lineId: string, year: number, month: number, amount: string) => void;
   readonly canEdit?: boolean;
   readonly failedCells?: ReadonlySet<string>;
+  readonly onEditLine?: (lineId: string) => void;
 }
 
 export function AccrualGrid({
@@ -34,10 +35,11 @@ export function AccrualGrid({
   onCellChange,
   canEdit = false,
   failedCells,
+  onEditLine,
 }: AccrualGridProps): JSX.Element {
   const columns = useMemo(
-    () => buildColumns(months, cells, onCellChange, canEdit, failedCells),
-    [months, cells, onCellChange, canEdit, failedCells],
+    () => buildColumns(months, cells, onCellChange, canEdit, failedCells, onEditLine),
+    [months, cells, onCellChange, canEdit, failedCells, onEditLine],
   );
 
   const table = useReactTable({
