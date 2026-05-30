@@ -14,8 +14,8 @@ import type {
 } from '@/modules/accrual/types/accrual';
 
 // Pixel offsets for each of the 5 sticky-left columns.
-// code=0, name=80, projects=280, original=440, value=550
-export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 80, 280, 440, 550];
+// code=0, name=160, projects=360, original=520, value=630
+export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 160, 360, 520, 630];
 
 const fmt = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -83,13 +83,7 @@ function LineCodeCellRenderer({
   readonly onEditLine?: (lineId: string) => void;
 }): JSX.Element {
   return (
-    <span className="flex items-center gap-1 min-w-0">
-      <span
-        className="truncate text-xs text-muted-foreground tabular-nums"
-        title={line.excel_code ?? undefined}
-      >
-        {line.excel_code ?? '—'}
-      </span>
+    <span className="flex items-center gap-1.5">
       {onEditLine ? (
         <button
           type="button"
@@ -101,6 +95,9 @@ function LineCodeCellRenderer({
           <Pencil className="h-3 w-3" />
         </button>
       ) : null}
+      <span className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+        {line.excel_code ?? '—'}
+      </span>
     </span>
   );
 }
@@ -149,7 +146,7 @@ function LineProjectsCellRenderer({ line }: { readonly line: AccrualGridLine }):
         <Link
           key={p.id}
           to={`/tracker/projects/${p.id}`}
-          className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground hover:underline"
+          className="rounded border px-1 text-[10px] tabular-nums text-muted-foreground hover:bg-muted hover:text-foreground"
           title={p.name}
         >
           {p.code ?? p.name}
@@ -215,7 +212,7 @@ export function buildColumns(
     {
       id: 'code',
       header: 'Code',
-      size: 80,
+      size: 160,
       cell: ({ row }) => <LineCodeCellRenderer line={row.original} onEditLine={onEditLine} />,
     },
     {
