@@ -1,4 +1,4 @@
-"""HTTP endpoints for accrual cells and per-project operations."""
+"""HTTP endpoints for accrual cells (line-keyed) and the grid view."""
 
 from datetime import date
 from decimal import Decimal
@@ -18,9 +18,9 @@ from app.core.permissions.actions import Action
 from app.core.permissions.dependencies import require_permission
 from app.core.services.exchange_rate_service import currency_to_code
 from app.core.sql_helpers import user_display_name_expr
+from app.modules.accrual.models.accrual_cell import AccrualCellDB
 from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
-from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
 from app.modules.accrual.schemas.accrual_cell import (
     BulkCellsRequest,
     CellUpdate,
@@ -55,13 +55,12 @@ def _diff_eur_pct(
     return diff_eur, diff_pct
 
 
-def _serialize(cell: ProjectAccrualCellDB) -> dict:
+def _serialize(cell: AccrualCellDB) -> dict:
     """Cells are EUR-only, so ``amount`` IS the EUR figure. Frozen cells expose
     ``frozen_eur_amount`` as the immutable snapshot captured at period close."""
     return {
         "id": str(cell.id),
-        "line_id": str(cell.line_id) if cell.line_id else None,
-        "project_id": str(cell.project_id) if cell.project_id else None,
+        "line_id": str(cell.line_id),
         "year": cell.year,
         "month": cell.month,
         "amount": str(cell.amount),
@@ -260,11 +259,11 @@ async def get_grid(
     if line_ids:
         agg = await db.execute(
             select(
-                ProjectAccrualCellDB.line_id,
-                func.coalesce(func.sum(ProjectAccrualCellDB.amount), 0).label("total"),
+                AccrualCellDB.line_id,
+                func.coalesce(func.sum(AccrualCellDB.amount), 0).label("total"),
             )
-            .where(ProjectAccrualCellDB.line_id.in_(line_ids))
-            .group_by(ProjectAccrualCellDB.line_id)
+            .where(AccrualCellDB.line_id.in_(line_ids))
+            .group_by(AccrualCellDB.line_id)
         )
         for lid, total in agg.all():
             sum_by_line[lid] = Decimal(str(total))
@@ -281,16 +280,16 @@ async def get_grid(
     cells_serialised: list[dict] = []
     if line_ids:
         cells_result = await db.execute(
-            select(ProjectAccrualCellDB)
+            select(AccrualCellDB)
             .where(
-                ProjectAccrualCellDB.line_id.in_(line_ids),
-                ProjectAccrualCellDB.year >= year_from,
-                ProjectAccrualCellDB.year <= year_to,
+                AccrualCellDB.line_id.in_(line_ids),
+                AccrualCellDB.year >= year_from,
+                AccrualCellDB.year <= year_to,
             )
             .order_by(
-                ProjectAccrualCellDB.line_id,
-                ProjectAccrualCellDB.year,
-                ProjectAccrualCellDB.month,
+                AccrualCellDB.line_id,
+                AccrualCellDB.year,
+                AccrualCellDB.month,
             )
         )
         cells_serialised = [_serialize(c) for c in cells_result.scalars().all()]
@@ -309,44 +308,6 @@ async def get_grid(
     }
 
 
-@router.get("/projects/{project_id}/cells")
-async def get_project_cells(
-    project_id: UUID,
-    db: DBSession,
-    _: AccrualViewer,
-) -> list[dict]:
-    """Return all cells for a project ordered by (year, month)."""
-    result = await db.execute(
-        select(ProjectAccrualCellDB)
-        .where(ProjectAccrualCellDB.project_id == project_id)
-        .order_by(ProjectAccrualCellDB.year, ProjectAccrualCellDB.month)
-    )
-    return [_serialize(c) for c in result.scalars().all()]
-
-
-@router.post("/projects/{project_id}/redistribute")
-async def redistribute(
-    project_id: UUID,
-    payload: RedistributeRequest,
-    db: DBSession,
-    user: AccrualManager,
-) -> dict:
-    """Redistribute the project's budget across mutable months."""
-    cells_updated = await cell_service.redistribute_for_project(
-        db,
-        project_id=project_id,
-        force=payload.force,
-    )
-    logger.info(
-        "accrual_redistribute_endpoint",
-        project_id=str(project_id),
-        cells_updated=cells_updated,
-        force=payload.force,
-        user_id=user.user_id,
-    )
-    return {"cells_updated": cells_updated}
-
-
 @router.patch(
     "/cells/{cell_id}",
     responses={
@@ -361,7 +322,7 @@ async def patch_cell(
     user: AccrualManager,
 ) -> dict:
     """Set an existing cell to an explicit amount, marking it a manual override."""
-    cell = await db.get(ProjectAccrualCellDB, cell_id)
+    cell = await db.get(AccrualCellDB, cell_id)
     if cell is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if cell.line_id is None:
@@ -460,7 +421,7 @@ async def delete_override(
     user: AccrualManager,
 ) -> dict:
     """Clear a manual override and redistribute the freed budget across remaining months."""
-    cell = await db.get(ProjectAccrualCellDB, cell_id)
+    cell = await db.get(AccrualCellDB, cell_id)
     if cell is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if cell.line_id is None:

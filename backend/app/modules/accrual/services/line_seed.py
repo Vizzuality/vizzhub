@@ -11,7 +11,7 @@ Design contract (see docs/accrual_lines_design.md):
   cell-for-cell). ``value_eur`` is the row total; any gap to Σcells is a real,
   visible "not fully scheduled" divergence.
 - A line links to 0..N projects. Resolution precedence: explicit by-id overlay
-  (triage decisions for empty/duplicate codes) > persisted aliases > code match.
+  (triage decisions for empty/duplicate codes) > code match.
   Rows in ``unlinked_codes`` become unlinked lines (real income, no project).
   Rows in ``excluded_codes`` are dropped (genuine errors/duplicates).
 - Projects with budget+dates and no Excel line get a ``team_budget`` line
@@ -24,7 +24,6 @@ module is generic and carries no client data.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -36,11 +35,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
 from app.core.services.exchange_rate_service import currency_to_code
-from app.modules.accrual.models.accrual_alias import AccrualAliasDB
+from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_excel_row import AccrualExcelRowDB
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
-from app.modules.accrual.models.project_accrual_cell import CellSource, ProjectAccrualCellDB
 from app.modules.accrual.services import period_service
 from app.modules.accrual.services.importer.matcher import index_projects, resolve_candidates
 from app.modules.accrual.services.importer.parser import _normalize_code
@@ -112,35 +110,22 @@ async def _load_eligible_projects(db: AsyncSession) -> list[ProjectDB]:
     return [p for p in result.scalars().all() if p.start_date and p.end_date]
 
 
-async def _load_aliases(db: AsyncSession) -> dict[str, list[UUID]]:
-    result = await db.execute(select(AccrualAliasDB))
-    by_code: dict[str, list[UUID]] = defaultdict(list)
-    for a in result.scalars().all():
-        norm = _normalize_code(a.excel_code)
-        if norm:
-            by_code[norm].append(a.project_id)
-    return by_code
-
-
 def _resolve_projects(
     norm: str,
     excel_code: str,
     *,
     unlinked: set[str],
     links_by_id: dict[str, list[UUID]],
-    aliases: dict[str, list[UUID]],
     projects_by_id: dict[UUID, ProjectDB],
     by_full: dict,
     by_prefix: dict,
 ) -> list[ProjectDB]:
     """Resolve a row's linked projects. Precedence: unlinked overlay → explicit
-    by-id → persisted aliases → code match. Returns [] for unlinked lines."""
+    by-id → code match. Returns [] for unlinked lines."""
     if norm in unlinked:
         return []
     if norm in links_by_id:
         ids = links_by_id[norm]
-    elif norm in aliases:
-        ids = aliases[norm]
     else:
         return resolve_candidates(SimpleNamespace(code=excel_code), by_full, by_prefix)
     return [projects_by_id[p] for p in ids if p in projects_by_id]
@@ -180,12 +165,10 @@ async def _add_excel_line(
         linked.add(p.id)
         report["links"] += 1
 
-    single_pid = projects[0].id if len(projects) == 1 else None
     for c in monthly:
         db.add(
-            ProjectAccrualCellDB(
+            AccrualCellDB(
                 line_id=line.id,
-                project_id=single_pid,
                 year=int(c["year"]),
                 month=int(c["month"]),
                 amount=Decimal(str(c["eur_amount"])),
@@ -223,9 +206,8 @@ async def _add_team_budget_line(db: AsyncSession, project: ProjectDB, *, report:
     report["links"] += 1
     for y, m in months:
         db.add(
-            ProjectAccrualCellDB(
+            AccrualCellDB(
                 line_id=line.id,
-                project_id=project.id,
                 year=y,
                 month=m,
                 amount=per_month,
@@ -255,7 +237,7 @@ async def seed_lines_from_excel_rows(
     excluded = {_normalize_code(c) or c for c in (excluded_codes or set())}
 
     # Clean slate (one-time rebuild).
-    await db.execute(delete(ProjectAccrualCellDB))
+    await db.execute(delete(AccrualCellDB))
     await db.execute(delete(AccrualLineProjectDB))
     await db.execute(delete(AccrualLineDB))
     await db.flush()
@@ -263,7 +245,6 @@ async def seed_lines_from_excel_rows(
     eligible = await _load_eligible_projects(db)
     projects_by_id = {p.id: p for p in eligible}
     by_full, by_prefix = index_projects(eligible)
-    aliases = await _load_aliases(db)
 
     rows_result = await db.execute(
         select(AccrualExcelRowDB)
@@ -293,7 +274,6 @@ async def seed_lines_from_excel_rows(
             row.excel_code,
             unlinked=unlinked,
             links_by_id=links_by_id,
-            aliases=aliases,
             projects_by_id=projects_by_id,
             by_full=by_full,
             by_prefix=by_prefix,
@@ -326,11 +306,7 @@ async def _refreeze_closed_cells(db: AsyncSession) -> int:
         return 0
     cutoff = open_period.start_date
     cells = (
-        (
-            await db.execute(
-                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.is_frozen.is_(False))
-            )
-        )
+        (await db.execute(select(AccrualCellDB).where(AccrualCellDB.is_frozen.is_(False))))
         .scalars()
         .all()
     )

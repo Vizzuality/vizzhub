@@ -10,9 +10,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
+from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
-from app.modules.accrual.models.project_accrual_cell import CellSource, ProjectAccrualCellDB
 
 _DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -131,7 +131,7 @@ async def test_delete_line_cascades_cells(client: AsyncClient, db_session: Async
     )
     line_id = UUID(create.json()["id"])
     db_session.add(
-        ProjectAccrualCellDB(
+        AccrualCellDB(
             line_id=line_id,
             year=2026,
             month=1,
@@ -145,7 +145,7 @@ async def test_delete_line_cascades_cells(client: AsyncClient, db_session: Async
     assert resp.status_code == 204, resp.text
 
     remaining = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line_id)
+        select(AccrualCellDB).where(AccrualCellDB.line_id == line_id)
     )
     assert remaining.scalars().all() == []
     gone = await db_session.execute(select(AccrualLineDB).where(AccrualLineDB.id == line_id))

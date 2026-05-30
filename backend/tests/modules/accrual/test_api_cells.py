@@ -1,4 +1,4 @@
-"""HTTP tests for /api/accrual/cells and /api/accrual/projects/{id}/*."""
+"""HTTP tests for /api/accrual/cells, /api/accrual/lines/{id}/cells and the grid."""
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -11,9 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.user import UserDB
+from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
-from app.modules.accrual.models.project_accrual_cell import CellSource, ProjectAccrualCellDB
 
 _DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -48,15 +48,12 @@ async def _make_line(
     )
     db.add(line)
     await db.flush()
-    project_ids = project_ids or []
-    for pid in project_ids:
+    for pid in project_ids or []:
         db.add(AccrualLineProjectDB(line_id=line.id, project_id=pid))
-    single_pid = project_ids[0] if len(project_ids) == 1 else None
     for year, month, amount in cells or []:
         db.add(
-            ProjectAccrualCellDB(
+            AccrualCellDB(
                 line_id=line.id,
-                project_id=single_pid,
                 year=year,
                 month=month,
                 amount=Decimal(amount),
@@ -74,51 +71,6 @@ async def _ensure_dev_user(db_session: AsyncSession) -> None:
     if not result.scalar_one_or_none():
         db_session.add(UserDB(id=_DEV_USER_ID, email="dev@test.com"))
         await db_session.flush()
-
-
-@pytest.mark.asyncio
-async def test_get_project_cells_empty(client: AsyncClient) -> None:
-    p = await client.post(
-        "/api/projects", json={"name": "A", "code": "TEST.AC.GET1", "currency": "USD"}
-    )
-    pid = p.json()["id"]
-    resp = await client.get(f"/api/accrual/projects/{pid}/cells")
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-@pytest.mark.asyncio
-async def test_redistribute_endpoint_creates_cells(
-    client: AsyncClient,
-) -> None:
-    await client.post(
-        "/api/accrual/periods",
-        json={"start_date": "2026-01-01"},
-    )
-    p = await client.post(
-        "/api/projects",
-        json={
-            "name": "A",
-            "code": "TEST.AC.RD1",
-            "currency": "USD",
-            "budget": 1200,
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-01",
-        },
-    )
-    pid = p.json()["id"]
-
-    resp = await client.post(f"/api/accrual/projects/{pid}/redistribute", json={})
-    assert resp.status_code == 200
-    assert resp.json()["cells_updated"] == 12
-
-    cells = (await client.get(f"/api/accrual/projects/{pid}/cells")).json()
-    assert len(cells) == 12
-    for cell in cells:
-        assert cell["is_manual_override"] is False
-        assert cell["is_frozen"] is False
-        # Cells are EUR; eur_amount mirrors amount.
-        assert cell["eur_amount"] == cell["amount"]
 
 
 @pytest.mark.asyncio
@@ -153,9 +105,7 @@ async def test_patch_frozen_cell_returns_409(
         window_end=date(2025, 12, 1),
         cells=[(2025, 3, "100")],
     )
-    res = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
-    )
+    res = await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
     cell = res.scalar_one()
     cell.is_frozen = True
     cell.frozen_at = datetime.now(UTC)
@@ -177,9 +127,7 @@ async def test_patch_cell_negative_amount_returns_400(
         window_end=date(2026, 12, 1),
         cells=[(2026, 1, "100")],
     )
-    res = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
-    )
+    res = await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
     cell = res.scalar_one()
 
     resp = await client.patch(f"/api/accrual/cells/{cell.id}", json={"amount": -10})
@@ -274,9 +222,7 @@ async def test_upsert_line_cell_frozen_returns_409(
         window_end=date(2025, 12, 1),
         cells=[(2025, 3, "100")],
     )
-    res = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
-    )
+    res = await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
     cell = res.scalar_one()
     cell.is_frozen = True
     cell.frozen_at = datetime.now(UTC)

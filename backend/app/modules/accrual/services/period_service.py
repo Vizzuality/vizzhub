@@ -81,7 +81,7 @@ async def freeze_period_cells(
     Since cells are EUR already, freezing just stamps frozen_at and copies
     amount → frozen_eur_amount.
     """
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
 
     period = await db.get(AccrualPeriodDB, period_id)
     if period is None:
@@ -103,13 +103,13 @@ async def freeze_period_cells(
     if effective_cutoff is not None:
         cutoff_y, cutoff_m = effective_cutoff.year, effective_cutoff.month
         cells_result = await db.execute(
-            select(ProjectAccrualCellDB).where(
-                ProjectAccrualCellDB.is_frozen.is_(False),
+            select(AccrualCellDB).where(
+                AccrualCellDB.is_frozen.is_(False),
                 or_(
-                    ProjectAccrualCellDB.year < cutoff_y,
+                    AccrualCellDB.year < cutoff_y,
                     and_(
-                        ProjectAccrualCellDB.year == cutoff_y,
-                        ProjectAccrualCellDB.month < cutoff_m,
+                        AccrualCellDB.year == cutoff_y,
+                        AccrualCellDB.month < cutoff_m,
                     ),
                 ),
             )

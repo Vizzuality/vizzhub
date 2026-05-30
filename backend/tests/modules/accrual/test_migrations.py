@@ -61,40 +61,45 @@ async def test_accrual_periods_start_date_unique(db_session: AsyncSession) -> No
 
 
 @pytest.mark.asyncio
-async def test_project_accrual_cells_table_exists(db_session: AsyncSession) -> None:
-    result = await db_session.execute(text("SELECT to_regclass('public.project_accrual_cells')"))
-    assert result.scalar() is not None
+async def test_accrual_cells_table_renamed(db_session: AsyncSession) -> None:
+    """Migration 084 renamed project_accrual_cells → accrual_cells."""
+    assert (
+        await db_session.execute(text("SELECT to_regclass('public.accrual_cells')"))
+    ).scalar() is not None
+    assert (
+        await db_session.execute(text("SELECT to_regclass('public.project_accrual_cells')"))
+    ).scalar() is None
 
 
 @pytest.mark.asyncio
-async def test_project_accrual_cells_does_not_have_frozen_rate(db_session: AsyncSession) -> None:
-    """Migration 081 dropped project_accrual_cells.frozen_rate."""
+async def test_accrual_cells_dropped_project_id(db_session: AsyncSession) -> None:
+    """Migration 084 dropped the denormalised project_id; cells are line-keyed."""
     result = await db_session.execute(
         text(
             "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name = 'project_accrual_cells' AND column_name = 'frozen_rate'"
+            "WHERE table_name = 'accrual_cells' AND column_name = 'project_id'"
         )
     )
-    assert result.one_or_none() is None, "project_accrual_cells.frozen_rate must be dropped"
+    assert result.one_or_none() is None, "accrual_cells.project_id must be dropped"
 
 
 @pytest.mark.asyncio
-async def test_project_accrual_cells_unique_line_month(db_session: AsyncSession) -> None:
-    """Migration 083 dropped the per-project unique (incompatible with multiple
-    lines on one project) and replaced it with a per-line unique."""
-    dropped = await db_session.execute(
+async def test_accrual_cells_line_id_not_null(db_session: AsyncSession) -> None:
+    result = await db_session.execute(
         text(
-            "SELECT conname FROM pg_constraint "
-            "WHERE conrelid = 'project_accrual_cells'::regclass "
-            "AND conname = 'uq_accrual_cells_project_month'"
+            "SELECT is_nullable FROM information_schema.columns "
+            "WHERE table_name = 'accrual_cells' AND column_name = 'line_id'"
         )
     )
-    assert dropped.scalar() is None, "legacy uq_accrual_cells_project_month must be dropped"
+    assert result.scalar() == "NO", "accrual_cells.line_id must be NOT NULL"
 
+
+@pytest.mark.asyncio
+async def test_accrual_cells_unique_line_month(db_session: AsyncSession) -> None:
     result = await db_session.execute(
         text(
             "SELECT conname FROM pg_constraint "
-            "WHERE conrelid = 'project_accrual_cells'::regclass "
+            "WHERE conrelid = 'accrual_cells'::regclass "
             "AND conname = 'uq_accrual_cells_line_month'"
         )
     )
@@ -102,12 +107,20 @@ async def test_project_accrual_cells_unique_line_month(db_session: AsyncSession)
 
 
 @pytest.mark.asyncio
-async def test_project_accrual_cells_month_check(db_session: AsyncSession) -> None:
+async def test_accrual_cells_month_check(db_session: AsyncSession) -> None:
     result = await db_session.execute(
         text(
             "SELECT conname FROM pg_constraint "
-            "WHERE conrelid = 'project_accrual_cells'::regclass "
+            "WHERE conrelid = 'accrual_cells'::regclass "
             "AND conname = 'ck_accrual_cells_month_range'"
         )
     )
     assert result.scalar() == "ck_accrual_cells_month_range"
+
+
+@pytest.mark.asyncio
+async def test_import_era_tables_dropped(db_session: AsyncSession) -> None:
+    """Migration 084 retired the Excel-import era (aliases + drift findings)."""
+    for table in ("accrual_aliases", "accrual_drift_findings"):
+        result = await db_session.execute(text(f"SELECT to_regclass('public.{table}')"))
+        assert result.scalar() is None, f"{table} must be dropped"

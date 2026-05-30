@@ -1,4 +1,4 @@
-"""ProjectAccrualCellDB — per-project per-month accrual cell."""
+"""AccrualCellDB — per-line per-month accrual cell."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -34,11 +34,11 @@ class CellSource(StrEnum):
 _CELL_SOURCES_CHECK = ", ".join(f"'{s.value}'" for s in CellSource)
 
 
-class ProjectAccrualCellDB(Base):
-    """One revenue-accrual cell per project per calendar month.
+class AccrualCellDB(Base):
+    """One revenue-accrual cell per line per calendar month.
 
-    Cells are created/updated by the redistribute_for_project service whenever
-    tracker data changes. Amount is always in EUR (mirroring the CEO's source
+    Cells hang off a line (``line_id``) — the revenue-recognition unit — never a
+    project directly. Amount is always in EUR (mirroring the CEO's source
     spreadsheet, where every monthly figure is already in EUR). A cell can be
     manually overridden (is_manual_override) which pins the amount and stops
     automatic redistribution from touching it. When an accrual period is closed,
@@ -46,7 +46,7 @@ class ProjectAccrualCellDB(Base):
     set and the cell becomes immutable.
     """
 
-    __tablename__ = "project_accrual_cells"
+    __tablename__ = "accrual_cells"
     __table_args__ = (
         UniqueConstraint("line_id", "year", "month", name="uq_accrual_cells_line_month"),
         CheckConstraint("month BETWEEN 1 AND 12", name="ck_accrual_cells_month_range"),
@@ -60,20 +60,14 @@ class ProjectAccrualCellDB(Base):
             name="ck_accrual_cells_source",
         ),
         Index("ix_accrual_cells_year_month", "year", "month"),
-        Index("ix_accrual_cells_project", "project_id"),
         Index("ix_accrual_cells_line", "line_id"),
     )
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    line_id: Mapped[UUID | None] = mapped_column(
+    line_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("accrual_lines.id", ondelete="CASCADE"),
-        nullable=True,
-    )
-    project_id: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
     )
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)

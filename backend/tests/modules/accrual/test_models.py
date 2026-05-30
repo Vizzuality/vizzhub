@@ -1,4 +1,4 @@
-"""Model-layer tests for accrual_periods and project_accrual_cells."""
+"""Model-layer tests for accrual_periods and accrual_cells."""
 
 from datetime import date
 from decimal import Decimal
@@ -47,16 +47,22 @@ async def test_closed_period_requires_closed_at(db_session: AsyncSession) -> Non
     assert "ck_accrual_periods_closed_status_consistent" in msg or "check" in msg
 
 
+async def _make_line(db_session: AsyncSession) -> "object":
+    from app.modules.accrual.models.accrual_line import AccrualLineDB
+
+    line = AccrualLineDB(name="Test", value_eur=Decimal("1200"))
+    db_session.add(line)
+    await db_session.flush()
+    return line
+
+
 @pytest.mark.asyncio
 async def test_persist_live_cell(db_session: AsyncSession) -> None:
-    from app.core.models.project import ProjectDB
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
 
-    project = ProjectDB(name="Test", status="live", currency="USD", budget=Decimal("1200"))
-    db_session.add(project)
-    await db_session.flush()
-    cell = ProjectAccrualCellDB(
-        project_id=project.id,
+    line = await _make_line(db_session)
+    cell = AccrualCellDB(
+        line_id=line.id,
         year=2026,
         month=3,
         amount=Decimal("100"),
@@ -70,14 +76,11 @@ async def test_persist_live_cell(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_frozen_cell_requires_three_stamp_fields(db_session: AsyncSession) -> None:
-    from app.core.models.project import ProjectDB
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
 
-    project = ProjectDB(name="Test", status="live", currency="USD", budget=Decimal("1200"))
-    db_session.add(project)
-    await db_session.flush()
-    cell = ProjectAccrualCellDB(
-        project_id=project.id,
+    line = await _make_line(db_session)
+    cell = AccrualCellDB(
+        line_id=line.id,
         year=2025,
         month=6,
         amount=Decimal("100"),
@@ -91,15 +94,12 @@ async def test_frozen_cell_requires_three_stamp_fields(db_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_month_check_rejects_13(db_session: AsyncSession) -> None:
-    from app.core.models.project import ProjectDB
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
 
-    project = ProjectDB(name="Test", status="live", currency="USD", budget=Decimal("1200"))
-    db_session.add(project)
-    await db_session.flush()
+    line = await _make_line(db_session)
     db_session.add(
-        ProjectAccrualCellDB(
-            project_id=project.id,
+        AccrualCellDB(
+            line_id=line.id,
             year=2026,
             month=13,
             amount=Decimal("100"),

@@ -16,12 +16,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
+from app.modules.accrual.models.accrual_cell import AccrualCellDB
 from app.modules.accrual.models.accrual_excel_row import AccrualExcelRowDB
 from app.modules.accrual.models.accrual_import_run import AccrualImportRunDB
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
-from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
 from app.modules.accrual.services.line_seed import seed_lines_from_excel_rows
 
 
@@ -126,11 +126,7 @@ async def test_seed_excel_line_is_verbatim(db_session: AsyncSession, _seed_world
         )
     ).scalar_one()
     cells = (
-        (
-            await db_session.execute(
-                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
-            )
-        )
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)))
         .scalars()
         .all()
     )
@@ -207,9 +203,7 @@ async def test_seed_refreezes_closed_period_cells(
     by_month = {
         (c.year, c.month): c
         for c in (
-            await db_session.execute(
-                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == line.id)
-            )
+            await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
         )
         .scalars()
         .all()
@@ -239,11 +233,7 @@ async def test_seed_team_budget_line_for_unmatched_project(
     assert tb_line.excel_code == "SMK.TB"
     assert tb_line.value_eur == Decimal("600")
     cells = (
-        (
-            await db_session.execute(
-                select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.line_id == tb_line.id)
-            )
-        )
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == tb_line.id)))
         .scalars()
         .all()
     )

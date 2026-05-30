@@ -9,7 +9,6 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 from app.modules.accrual.services import period_service
@@ -123,39 +122,30 @@ async def test_get_period_for_month_returns_none_before_any_period(
     assert p is None
 
 
+async def _seed_line(db: AsyncSession, *, start: date, end: date, value: str) -> "object":
+    """Insert a line with a window so redistribute_for_line can populate its cells."""
+    from app.modules.accrual.models.accrual_line import AccrualLineDB
+
+    line = AccrualLineDB(name="L", value_eur=Decimal(value), window_start=start, window_end=end)
+    db.add(line)
+    await db.flush()
+    return line
+
+
 @pytest.mark.asyncio
 async def test_close_period_freezes_cells_before_cutoff(db_session: AsyncSession) -> None:
     """Auto-close on rotation freezes all 2025 cells; frozen_eur_amount == amount (EUR)."""
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
     from app.modules.accrual.services import cell_service
 
-    await period_service.create_period(
-        db_session,
-        start_date=date(2025, 1, 1),
-        created_by=None,
-    )
-    project = ProjectDB(
-        name="A",
-        status="live",
-        currency="USD",
-        budget=Decimal("1200"),
-        start_date=date(2025, 1, 1),
-        end_date=date(2025, 12, 1),
-    )
-    db_session.add(project)
-    await db_session.flush()
-    await cell_service.redistribute_for_project(db_session, project_id=project.id)
+    await period_service.create_period(db_session, start_date=date(2025, 1, 1), created_by=None)
+    line = await _seed_line(db_session, start=date(2025, 1, 1), end=date(2025, 12, 1), value="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)
 
     # Rotating to 2026 should auto-close 2025 with cutoff (2026, 1).
-    await period_service.create_period(
-        db_session,
-        start_date=date(2026, 1, 1),
-        created_by=None,
-    )
+    await period_service.create_period(db_session, start_date=date(2026, 1, 1), created_by=None)
 
-    result = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
-    )
+    result = await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
     cells = sorted(result.scalars().all(), key=lambda c: (c.year, c.month))
     assert len(cells) == 12
     for cell in cells:
@@ -169,37 +159,21 @@ async def test_freeze_period_cells_idempotent_on_already_closed_period(
     db_session: AsyncSession,
 ) -> None:
     """When called twice on a closed period, the second call returns 0 (idempotent)."""
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
     from app.modules.accrual.services import cell_service
 
     # Two periods: 2024 (will close), 2025 (open).
     p_2024 = await period_service.create_period(
-        db_session,
-        start_date=date(2024, 1, 1),
-        created_by=None,
+        db_session, start_date=date(2024, 1, 1), created_by=None
     )
-    await period_service.create_period(
-        db_session,
-        start_date=date(2025, 1, 1),
-        created_by=None,
-    )
+    await period_service.create_period(db_session, start_date=date(2025, 1, 1), created_by=None)
 
-    # Create a project + cells AFTER 2024 was already closed.
-    project = ProjectDB(
-        name="X",
-        code="FRZ",
-        status="live",
-        currency="USD",
-        is_billable=True,
-        budget=Decimal("12000"),
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 1),
+    # Create a line + cells AFTER 2024 was already closed. full_range=True bypasses
+    # the open-period (2025) clip to populate the historical 2024 cells.
+    line = await _seed_line(
+        db_session, start=date(2024, 1, 1), end=date(2024, 12, 1), value="12000"
     )
-    db_session.add(project)
-    await db_session.flush()
-    # full_range=True: current open period is 2025, so we must bypass the clip
-    # to populate historical 2024 cells for a project that ends in 2024-12.
-    await cell_service.redistribute_for_project(db_session, project_id=project.id, full_range=True)
+    await cell_service.redistribute_for_line(db_session, line_id=line.id, full_range=True)
 
     # First freeze: 12 cells freeze.
     n1 = await period_service.freeze_period_cells(db_session, period_id=p_2024.id)
@@ -209,10 +183,7 @@ async def test_freeze_period_cells_idempotent_on_already_closed_period(
     n2 = await period_service.freeze_period_cells(db_session, period_id=p_2024.id)
     assert n2 == 0, "second call is a no-op"
 
-    # Verify all 2024 cells are now frozen.
-    result = await db_session.execute(
-        select(ProjectAccrualCellDB).where(ProjectAccrualCellDB.project_id == project.id)
-    )
+    result = await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
     cells = result.scalars().all()
     assert all(c.is_frozen for c in cells)
 
@@ -220,38 +191,21 @@ async def test_freeze_period_cells_idempotent_on_already_closed_period(
 @pytest.mark.asyncio
 async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) -> None:
     """Cells dated 2026-onwards must NOT freeze when 2025 closes at cutoff 2026-01."""
-    from app.modules.accrual.models.project_accrual_cell import ProjectAccrualCellDB
+    from app.modules.accrual.models.accrual_cell import AccrualCellDB
     from app.modules.accrual.services import cell_service
 
-    await period_service.create_period(
-        db_session,
-        start_date=date(2025, 1, 1),
-        created_by=None,
-    )
-    # Two-year project: spans 2025-2026.
-    project = ProjectDB(
-        name="A",
-        status="live",
-        currency="USD",
-        budget=Decimal("2400"),
-        start_date=date(2025, 1, 1),
-        end_date=date(2026, 12, 1),
-    )
-    db_session.add(project)
-    await db_session.flush()
-    written = await cell_service.redistribute_for_project(db_session, project_id=project.id)
+    await period_service.create_period(db_session, start_date=date(2025, 1, 1), created_by=None)
+    # Two-year line: spans 2025-2026.
+    line = await _seed_line(db_session, start=date(2025, 1, 1), end=date(2026, 12, 1), value="2400")
+    written = await cell_service.redistribute_for_line(db_session, line_id=line.id)
     assert written == 24, "redistribute should populate all 24 months (2025-01 .. 2026-12)"
 
-    await period_service.create_period(
-        db_session,
-        start_date=date(2026, 1, 1),
-        created_by=None,
-    )
+    await period_service.create_period(db_session, start_date=date(2026, 1, 1), created_by=None)
 
     result = await db_session.execute(
-        select(ProjectAccrualCellDB)
-        .where(ProjectAccrualCellDB.project_id == project.id)
-        .order_by(ProjectAccrualCellDB.year, ProjectAccrualCellDB.month)
+        select(AccrualCellDB)
+        .where(AccrualCellDB.line_id == line.id)
+        .order_by(AccrualCellDB.year, AccrualCellDB.month)
     )
     cells = result.scalars().all()
     cells_2025 = [c for c in cells if c.year == 2025]
