@@ -5,7 +5,12 @@ export interface AccrualPeriod {
   closed_at: string | null;
   created_at: string;
   created_by: string | null;
-  /** ECB USD/EUR rate effective at start_date (units of USD per 1 EUR). */
+  /**
+   * The CEO's per-currency rate for this period (units of foreign per 1 EUR) —
+   * the source of truth for conversion, e.g. `{ USD: '1.08', GBP: '0.87' }`.
+   */
+  fx_rates: Record<string, string>;
+  /** ECB USD/EUR rate at start_date — fallback only, shown when fx_rates lacks USD. */
   usd_rate: string | null;
 }
 
