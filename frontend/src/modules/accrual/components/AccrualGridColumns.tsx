@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, AlertCircle, Info, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, Pencil, type LucideIcon } from 'lucide-react';
 import { MONTHS_SHORT } from '@/shared/constants/dates';
 import { AccrualCell } from '@/modules/accrual/components/AccrualCell';
 import { buildCellKey } from '@/modules/accrual/types/accrual';
@@ -14,8 +14,8 @@ import type {
 } from '@/modules/accrual/types/accrual';
 
 // Pixel offsets for each of the 5 sticky-left columns.
-// code=0, name=60, projects=260, original=420, value=530
-export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 60, 260, 420, 530];
+// code=0, name=80, projects=280, original=440, value=550
+export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 80, 280, 440, 550];
 
 const fmt = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -75,33 +75,52 @@ function HealthIndicator({ health }: { readonly health: AccrualHealth }): JSX.El
   );
 }
 
-function LineCodeCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX.Element {
-  return (
-    <span className="truncate text-xs text-muted-foreground tabular-nums" title={line.excel_code ?? undefined}>
-      {line.excel_code ?? '—'}
-    </span>
-  );
-}
-
-function LineNameCellRenderer({
+function LineCodeCellRenderer({
   line,
   onEditLine,
 }: {
   readonly line: AccrualGridLine;
   readonly onEditLine?: (lineId: string) => void;
 }): JSX.Element {
+  return (
+    <span className="flex items-center gap-1 min-w-0">
+      <span
+        className="truncate text-xs text-muted-foreground tabular-nums"
+        title={line.excel_code ?? undefined}
+      >
+        {line.excel_code ?? '—'}
+      </span>
+      {onEditLine ? (
+        <button
+          type="button"
+          onClick={() => onEditLine(line.id)}
+          className="shrink-0 text-muted-foreground/60 hover:text-foreground"
+          title={`Edit ${line.name ?? 'line'}`}
+          aria-label={`Edit ${line.name ?? 'line'}`}
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
+function LineNameCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX.Element {
   // Only flag non-Excel provenance — Excel is the norm, so badging it is noise.
   const badge = line.source === 'excel' ? null : SOURCE_BADGE[line.source];
   const label = line.name ?? '(unnamed line)';
-  const name = onEditLine ? (
-    <button
-      type="button"
-      onClick={() => onEditLine(line.id)}
-      className="block min-w-0 truncate text-left text-sm hover:underline"
-      title={`Edit ${line.name ?? 'line'}`}
+  // Link the name to its tracker project only when the line maps to exactly one
+  // project. For multi-project or unlinked lines the target is ambiguous, so the
+  // name stays plain text — the Projects column carries the per-project links.
+  const soleProject = line.projects.length === 1 ? line.projects[0] : null;
+  const name = soleProject ? (
+    <Link
+      to={`/tracker/projects/${soleProject.id}`}
+      className="block min-w-0 truncate text-sm hover:underline"
+      title={line.name ?? undefined}
     >
       {label}
-    </button>
+    </Link>
   ) : (
     <span className="block min-w-0 truncate text-sm" title={line.name ?? undefined}>
       {label}
@@ -196,14 +215,14 @@ export function buildColumns(
     {
       id: 'code',
       header: 'Code',
-      size: 60,
-      cell: ({ row }) => <LineCodeCellRenderer line={row.original} />,
+      size: 80,
+      cell: ({ row }) => <LineCodeCellRenderer line={row.original} onEditLine={onEditLine} />,
     },
     {
       id: 'name',
       header: 'Line',
       size: 200,
-      cell: ({ row }) => <LineNameCellRenderer line={row.original} onEditLine={onEditLine} />,
+      cell: ({ row }) => <LineNameCellRenderer line={row.original} />,
     },
     {
       id: 'projects',

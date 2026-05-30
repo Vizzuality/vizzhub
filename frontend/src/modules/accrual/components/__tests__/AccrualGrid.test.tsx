@@ -106,6 +106,38 @@ describe('AccrualGrid', () => {
     expect(screen.getByText(/no project/i)).toBeInTheDocument();
   });
 
+  it('links the line name to its tracker project when it maps to a single project', () => {
+    renderGrid();
+    const nameLink = screen.getByRole('link', { name: 'Project A' });
+    expect(nameLink).toHaveAttribute('href', '/tracker/projects/p1');
+  });
+
+  it('renders the line name as plain text (no link) for a multi-project line', () => {
+    const multi: AccrualGridLine = {
+      ...line,
+      projects: [
+        { ...line.projects[0] },
+        { ...line.projects[0], id: 'p2', code: 'A.2', name: 'Project A2' },
+      ],
+    };
+    renderGrid({ lines: [multi] });
+    expect(screen.queryByRole('link', { name: 'Project A' })).toBeNull();
+    expect(screen.getByText('Project A')).toBeInTheDocument();
+  });
+
+  it('renders an edit button next to the code when onEditLine is provided', async () => {
+    const onEditLine = vi.fn();
+    renderGrid({ onEditLine });
+    const editBtn = screen.getByRole('button', { name: /edit project a/i });
+    await userEvent.click(editBtn);
+    expect(onEditLine).toHaveBeenCalledWith('line1');
+  });
+
+  it('does not render the edit button when onEditLine is absent (no manage permission)', () => {
+    renderGrid({ onEditLine: undefined });
+    expect(screen.queryByRole('button', { name: /edit project a/i })).toBeNull();
+  });
+
   it('renders the amount for months with a cell and zero for months without', () => {
     renderGrid();
     // Jan has 100.00, Feb has none → at least one "0.00" in the document
