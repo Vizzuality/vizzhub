@@ -62,6 +62,10 @@ class ProjectDB(Base):
             "NOT (is_billable AND is_absence)",
             name="ck_projects_not_billable_and_absence",
         ),
+        CheckConstraint(
+            "currency IN ('euro', 'dollar', 'EUR', 'USD', 'GBP', 'CAD')",
+            name="ck_projects_currency_valid",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)

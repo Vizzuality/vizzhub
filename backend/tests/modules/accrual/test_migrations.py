@@ -24,15 +24,15 @@ async def test_accrual_periods_table_exists(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_accrual_periods_does_not_have_fx_rates(db_session: AsyncSession) -> None:
-    """Migration 081 dropped accrual_periods.fx_rates."""
+async def test_accrual_periods_has_fx_rates(db_session: AsyncSession) -> None:
+    """Migration 086 re-added accrual_periods.fx_rates (per-currency CEO rate)."""
     result = await db_session.execute(
         text(
             "SELECT column_name FROM information_schema.columns "
             "WHERE table_name = 'accrual_periods' AND column_name = 'fx_rates'"
         )
     )
-    assert result.one_or_none() is None, "accrual_periods.fx_rates must be dropped"
+    assert result.one_or_none() is not None, "accrual_periods.fx_rates must exist"
 
 
 @pytest.mark.asyncio

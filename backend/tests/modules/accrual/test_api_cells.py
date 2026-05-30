@@ -26,6 +26,7 @@ async def _make_line(
     excel_code: str | None = None,
     name: str = "Line",
     currency: str | None = None,
+    value_orig: str | None = None,
     window_start=None,
     window_end=None,
     cells: list[tuple[int, int, str]] | None = None,
@@ -43,6 +44,7 @@ async def _make_line(
         excel_code=excel_code,
         value_eur=Decimal(value_eur),
         currency=currency,
+        value_orig=Decimal(value_orig) if value_orig is not None else None,
         window_start=window_start,
         window_end=window_end,
     )
@@ -317,6 +319,46 @@ async def test_grid_returns_lines_and_cells(
     assert [p["id"] for p in row["projects"]] == [str(pid)]
     assert len(body["cells"]) == 12
     assert all(c["line_id"] == str(line.id) for c in body["cells"])
+
+
+@pytest.mark.asyncio
+async def test_grid_data_quality_note_on_foreign_line_without_original(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """A non-EUR Excel line missing its original amount is flagged; others are not."""
+    win = {"window_start": date(2026, 1, 1), "window_end": date(2026, 12, 1)}
+    flagged = await _make_line(
+        db_session,
+        excel_code="DQ.GBP",
+        currency="GBP",
+        value_orig=None,
+        cells=[(2026, 1, "100")],
+        **win,
+    )
+    eur_line = await _make_line(
+        db_session,
+        excel_code="DQ.EUR",
+        currency="EUR",
+        cells=[(2026, 1, "100")],
+        **win,
+    )
+    usd_ok = await _make_line(
+        db_session,
+        excel_code="DQ.USD",
+        currency="USD",
+        value_orig="108",
+        cells=[(2026, 1, "100")],
+        **win,
+    )
+
+    rows = {
+        r["id"]: r
+        for r in (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["lines"]
+    }
+    assert rows[str(flagged.id)]["data_quality_note"] is not None
+    assert rows[str(eur_line.id)]["data_quality_note"] is None
+    assert rows[str(usd_ok.id)]["data_quality_note"] is None
 
 
 @pytest.mark.asyncio

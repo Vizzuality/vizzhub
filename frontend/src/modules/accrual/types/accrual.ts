@@ -80,6 +80,7 @@ export interface AccrualGridLine {
   window_end: string | null;
   projects: AccrualLineProject[];
   health: AccrualHealth;
+  data_quality_note: string | null;
 }
 
 /** A line with its linked projects — the line-editor detail shape. */

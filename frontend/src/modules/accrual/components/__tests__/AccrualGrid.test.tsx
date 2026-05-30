@@ -31,6 +31,7 @@ const line: AccrualGridLine = {
     },
   ],
   health: { status: 'ok', diff_eur: '0.00', diff_pct: 0 },
+  data_quality_note: null,
 };
 
 const months: AccrualGridMonth[] = [
@@ -212,6 +213,19 @@ describe('AccrualGrid', () => {
     };
     renderGrid({ lines: [underLine] });
     expect(screen.getByText('−100%')).toBeInTheDocument();
+  });
+
+  it('renders a data-quality warning with the note as tooltip when set', () => {
+    const note = 'Original amount unreliable: the source recorded a wrong currency or rate.';
+    renderGrid({ lines: [{ ...line, data_quality_note: note }] });
+    const icon = screen.getByTestId('data-quality-warning');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute('aria-label', note);
+  });
+
+  it('renders no data-quality warning when the note is null', () => {
+    renderGrid();
+    expect(screen.queryByTestId('data-quality-warning')).toBeNull();
   });
 
   it('badges non-excel provenance but not excel lines', () => {

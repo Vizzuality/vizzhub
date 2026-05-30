@@ -75,6 +75,19 @@ function HealthIndicator({ health }: { readonly health: AccrualHealth }): JSX.El
   );
 }
 
+function DataQualityIndicator({ note }: { readonly note: string | null }): JSX.Element | null {
+  if (!note) return null;
+  return (
+    <AlertTriangle
+      data-testid="data-quality-warning"
+      className="h-3.5 w-3.5 shrink-0 text-amber-500"
+      aria-label={note}
+    >
+      <title>{note}</title>
+    </AlertTriangle>
+  );
+}
+
 function LineCodeCellRenderer({
   line,
   onEditLine,
@@ -126,6 +139,7 @@ function LineNameCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX
   return (
     <span className="flex items-center gap-1.5 min-w-0">
       <HealthIndicator health={line.health} />
+      <DataQualityIndicator note={line.data_quality_note} />
       {name}
       {badge ? (
         <span className={`shrink-0 rounded px-1 text-[9px] font-medium ${badge.cls}`}>

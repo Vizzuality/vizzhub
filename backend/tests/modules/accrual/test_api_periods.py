@@ -80,7 +80,7 @@ async def test_create_period_returns_201(client: AsyncClient) -> None:
     body = resp.json()
     assert body["start_date"] == "2026-01-01"
     assert body["status"] == "open"
-    assert "fx_rates" not in body
+    assert body["fx_rates"] == {}
 
 
 @pytest.mark.asyncio

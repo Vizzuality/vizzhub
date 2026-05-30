@@ -31,6 +31,10 @@ class AccrualPeriod(AccrualPeriodBase):
 
     ``usd_rate`` is the ECB USD/EUR rate effective at ``start_date`` (units of
     USD per 1 EUR). Not stored — looked up on read from ``exchange_rates``.
+
+    ``fx_rates`` is the per-currency rate the CEO actually used that period
+    (stored, e.g. ``{"USD": "1.08", "GBP": "0.85"}`` — units of foreign per 1
+    EUR). Authoritative audit trail; the ECB ``usd_rate`` is reference only.
     """
 
     id: UUID
@@ -39,5 +43,6 @@ class AccrualPeriod(AccrualPeriodBase):
     created_at: datetime
     created_by: UUID | None
     usd_rate: Decimal | None = None
+    fx_rates: dict[str, str] = {}
 
     model_config = {"from_attributes": True}

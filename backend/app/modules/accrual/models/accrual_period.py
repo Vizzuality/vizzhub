@@ -1,6 +1,7 @@
 """AccrualPeriodDB — open/closed lifecycle for accounting periods."""
 
 from datetime import date, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -13,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -26,8 +28,9 @@ class AccrualPeriodDB(Base):
     Only one open period at a time (enforced by partial unique index).
     Closed periods are immutable snapshots of all cells whose (year, month)
     falls within them. Status tracks lifecycle: open → closed via the
-    scheduled close operation. Cells are stored in EUR directly, so no
-    per-period FX rate snapshot is needed.
+    scheduled close operation. Cells are stored in EUR directly; ``fx_rates``
+    records the per-currency rate the CEO used that period (audit trail +
+    derivation input), it does not alter any cell figure.
     """
 
     __tablename__ = "accrual_periods"
@@ -54,4 +57,7 @@ class AccrualPeriodDB(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+    )
+    fx_rates: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )

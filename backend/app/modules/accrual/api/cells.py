@@ -19,7 +19,7 @@ from app.core.permissions.dependencies import require_permission
 from app.core.services.exchange_rate_service import currency_to_code
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.models.accrual_cell import AccrualCellDB
-from app.modules.accrual.models.accrual_line import AccrualLineDB
+from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.schemas.accrual_cell import (
     BulkCellsRequest,
@@ -100,6 +100,26 @@ def _line_health(value_eur: Decimal | None, sum_cells: Decimal) -> dict:
     }
 
 
+def _data_quality_note(line: AccrualLineDB) -> str | None:
+    """Flag a foreign-currency Excel line missing its original amount.
+
+    A non-EUR Excel line should carry the original-currency amount it was billed
+    in. When it does not, the source mis-recorded the amount/rate (e.g. a USD
+    rate on a GBP contract) and the provenance was cleared. The EUR figure stays
+    authoritative — this note explains the blank original column.
+    """
+    if (
+        line.source == LineSource.EXCEL
+        and line.currency not in (None, "EUR")
+        and line.value_orig is None
+    ):
+        return (
+            "Original amount unreliable: the source recorded a wrong currency or "
+            "rate, so it was cleared. The EUR figure is authoritative."
+        )
+    return None
+
+
 def _serialize_line_project(project: ProjectDB, pm_name: str | None) -> dict:
     return {
         "id": str(project.id),
@@ -131,6 +151,7 @@ def _serialize_grid_line(
         "window_end": line.window_end.isoformat() if line.window_end else None,
         "projects": [_serialize_line_project(p, pm_name) for p, pm_name in projects],
         "health": _line_health(line.value_eur, sum_cells),
+        "data_quality_note": _data_quality_note(line),
     }
 
 
