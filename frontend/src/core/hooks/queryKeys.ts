@@ -179,23 +179,6 @@ export const queryKeys = {
       byProject: (filters: Record<string, unknown>) =>
         ['accrual', 'dashboard', 'by-project', filters] as const,
     },
-    drift: {
-      all: ['accrual', 'drift'] as const,
-      list: (filters: Record<string, unknown>) =>
-        ['accrual', 'drift', 'list', filters] as const,
-      summary: () => ['accrual', 'drift', 'summary'] as const,
-    },
-    aliases: {
-      all: ['accrual', 'aliases'] as const,
-      list: (filters: Record<string, unknown>) =>
-        ['accrual', 'aliases', 'list', filters] as const,
-    },
-    excelRows: {
-      all: ['accrual', 'excel-rows'] as const,
-      list: (filters: Record<string, unknown>) =>
-        ['accrual', 'excel-rows', 'list', filters] as const,
-      runs: () => ['accrual', 'excel-rows', 'runs'] as const,
-    },
   },
   tracker: {
     periods: {

@@ -49,12 +49,6 @@ describe('accrualApi.cells.grid', () => {
 });
 
 describe('accrualApi.cells', () => {
-  it('listByProject calls GET /accrual/projects/{id}/cells', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: [] });
-    await accrualApi.cells.listByProject('p1');
-    expect(api.get).toHaveBeenCalledWith('/accrual/projects/p1/cells');
-  });
-
   it('patch PATCHes by id with amount', async () => {
     vi.mocked(api.patch).mockResolvedValue({ data: { id: 'c1' } });
     await accrualApi.cells.patch('c1', '250.00');
