@@ -166,8 +166,6 @@ export const queryKeys = {
       all: ['accrual', 'cells'] as const,
       grid: (filters: Record<string, unknown>) =>
         ['accrual', 'cells', 'grid', filters] as const,
-      byProject: (projectId: string) =>
-        ['accrual', 'cells', 'project', projectId] as const,
     },
     lines: {
       all: ['accrual', 'lines'] as const,

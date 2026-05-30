@@ -359,8 +359,8 @@ async def upsert_line_cell(
 ) -> dict:
     """Create or update a cell on a line at (year, month) — the inline-edit path.
 
-    Keyed by ``line_id`` so it works for multi-project and unlinked lines where the
-    cell carries no ``project_id``. Editing a previously-empty month creates the cell.
+    Keyed by ``line_id`` so it works for multi-project and unlinked lines.
+    Editing a previously-empty month creates the cell.
     """
     line = await db.get(AccrualLineDB, line_id)
     if line is None:

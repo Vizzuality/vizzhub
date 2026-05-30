@@ -18,12 +18,6 @@ describe('queryKeys', () => {
         'grid',
         { status: 'pending' },
       ]);
-      expect(queryKeys.accrual.cells.byProject('proj1')).toEqual([
-        'accrual',
-        'cells',
-        'project',
-        'proj1',
-      ]);
     });
 
     it('exposes dashboard query keys', () => {
