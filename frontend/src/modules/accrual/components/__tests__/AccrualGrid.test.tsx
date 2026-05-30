@@ -32,6 +32,7 @@ const line: AccrualGridLine = {
   ],
   health: { status: 'ok', diff_eur: '0.00', diff_pct: 0 },
   data_quality_note: null,
+  rate: null,
 };
 
 const months: AccrualGridMonth[] = [
@@ -226,6 +227,11 @@ describe('AccrualGrid', () => {
   it('renders no data-quality warning when the note is null', () => {
     renderGrid();
     expect(screen.queryByTestId('data-quality-warning')).toBeNull();
+  });
+
+  it('shows the per-line CEO rate next to the original amount when present', () => {
+    renderGrid({ lines: [{ ...line, value_orig: '1200.00', currency: 'USD', rate: '1.08' }] });
+    expect(screen.getByText(/@ 1\.0800/)).toBeInTheDocument();
   });
 
   it('badges non-excel provenance but not excel lines', () => {

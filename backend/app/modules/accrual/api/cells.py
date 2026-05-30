@@ -147,6 +147,7 @@ def _serialize_grid_line(
         "value_eur": str(line.value_eur),
         "value_orig": str(line.value_orig) if line.value_orig is not None else None,
         "currency": line.currency,
+        "rate": str(line.rate) if line.rate is not None else None,
         "window_start": line.window_start.isoformat() if line.window_start else None,
         "window_end": line.window_end.isoformat() if line.window_end else None,
         "projects": [_serialize_line_project(p, pm_name) for p, pm_name in projects],
