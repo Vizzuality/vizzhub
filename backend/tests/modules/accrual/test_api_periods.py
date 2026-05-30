@@ -84,6 +84,58 @@ async def test_create_period_returns_201(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_period_with_fx_rates(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/accrual/periods",
+        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.08", "GBP": "0.87"}},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["fx_rates"] == {"USD": "1.08", "GBP": "0.87"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "fx_rates",
+    [{"usd": "1.08"}, {"US": "1.08"}, {"USD": "0"}, {"USD": "-1"}, {"USD": "abc"}],
+)
+async def test_create_period_rejects_invalid_fx_rates(client: AsyncClient, fx_rates: dict) -> None:
+    resp = await client.post(
+        "/api/accrual/periods",
+        json={"start_date": "2026-01-01", "fx_rates": fx_rates},
+    )
+    assert resp.status_code == 400, resp.text
+
+
+@pytest.mark.asyncio
+async def test_patch_period_fx_rates(client: AsyncClient) -> None:
+    created = (await client.post("/api/accrual/periods", json={"start_date": "2026-01-01"})).json()
+    resp = await client.patch(
+        f"/api/accrual/periods/{created['id']}",
+        json={"fx_rates": {"USD": "1.10", "CAD": "1.46"}},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["fx_rates"] == {"USD": "1.10", "CAD": "1.46"}
+
+
+@pytest.mark.asyncio
+async def test_patch_period_not_found(client: AsyncClient) -> None:
+    resp = await client.patch(
+        f"/api/accrual/periods/{uuid4()}",
+        json={"fx_rates": {"USD": "1.08"}},
+    )
+    assert resp.status_code == 404, resp.text
+
+
+@pytest.mark.asyncio
+async def test_patch_period_requires_period_manage(viewer_client: AsyncClient) -> None:
+    resp = await viewer_client.patch(
+        f"/api/accrual/periods/{uuid4()}",
+        json={"fx_rates": {"USD": "1.08"}},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_get_current_period(client: AsyncClient) -> None:
     await client.post(
         "/api/accrual/periods",

@@ -16,6 +16,7 @@ from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 from app.modules.accrual.schemas.accrual_period import (
     AccrualPeriod,
     AccrualPeriodCreate,
+    AccrualPeriodUpdate,
 )
 from app.modules.accrual.services import period_service
 
@@ -63,7 +64,27 @@ async def create_period(
             db,
             start_date=payload.start_date,
             created_by=UUID(user.user_id),
+            fx_rates=payload.fx_rates,
         )
     except period_service.PeriodConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return await _build_response(db, period)
+
+
+@router.patch(
+    "/{period_id}",
+    response_model=AccrualPeriod,
+    responses={404: {"description": "Period not found"}},
+)
+async def update_period(
+    period_id: UUID,
+    payload: AccrualPeriodUpdate,
+    db: DBSession,
+    _: PeriodAdmin,
+) -> AccrualPeriod:
+    """Replace a period's CEO fx_rates. Does not touch the period's frozen cells."""
+    try:
+        period = await period_service.update_fx_rates(db, period_id, payload.fx_rates)
+    except period_service.PeriodError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return await _build_response(db, period)

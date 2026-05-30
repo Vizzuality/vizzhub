@@ -4,6 +4,7 @@ import { accrualApi } from '@/modules/accrual/services/accrual';
 import type {
   AccrualPeriod,
   AccrualPeriodCreate,
+  AccrualPeriodUpdate,
 } from '@/modules/accrual/types/accrual';
 
 export function usePeriodsList() {
@@ -24,6 +25,17 @@ export function useCreatePeriod() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: AccrualPeriodCreate) => accrualApi.periods.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.accrual.periods.all });
+    },
+  });
+}
+
+export function useUpdatePeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: AccrualPeriodUpdate }) =>
+      accrualApi.periods.update(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.accrual.periods.all });
     },

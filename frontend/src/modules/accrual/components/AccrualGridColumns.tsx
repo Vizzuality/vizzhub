@@ -178,7 +178,7 @@ function LineOriginalCellRenderer({ line }: { readonly line: AccrualGridLine }):
         <span className="ml-1 text-muted-foreground">{line.currency}</span>
       ) : null}
       {line.rate ? (
-        <span className="ml-1 text-muted-foreground" title="CEO rate for this line (foreign per €)">
+        <span className="ml-1 text-muted-foreground" title="Rate for this line (foreign per €)">
           @ {Number(line.rate).toFixed(4)}
         </span>
       ) : null}

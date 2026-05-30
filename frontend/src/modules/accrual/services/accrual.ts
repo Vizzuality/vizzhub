@@ -8,6 +8,7 @@ import type {
   AccrualLineUpdate,
   AccrualPeriod,
   AccrualPeriodCreate,
+  AccrualPeriodUpdate,
   BulkCellUpdate,
 } from '@/modules/accrual/types/accrual';
 
@@ -23,6 +24,10 @@ export const accrualApi = {
     },
     create: async (payload: AccrualPeriodCreate): Promise<AccrualPeriod> => {
       const r = await api.post<AccrualPeriod>('/accrual/periods', payload);
+      return r.data;
+    },
+    update: async (id: string, payload: AccrualPeriodUpdate): Promise<AccrualPeriod> => {
+      const r = await api.patch<AccrualPeriod>(`/accrual/periods/${id}`, payload);
       return r.data;
     },
   },

@@ -23,6 +23,7 @@ vi.mock('@/modules/accrual/hooks/usePeriods', () => ({
   }),
   useCurrentPeriod: () => ({ data: null }),
   useCreatePeriod: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdatePeriod: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 const renderPage = (): void => {

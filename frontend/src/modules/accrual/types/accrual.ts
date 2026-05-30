@@ -16,6 +16,12 @@ export interface AccrualPeriod {
 
 export interface AccrualPeriodCreate {
   start_date: string;
+  /** Per-currency CEO rate (foreign per €), e.g. { USD: '1.08', GBP: '0.87' }. */
+  fx_rates?: Record<string, string>;
+}
+
+export interface AccrualPeriodUpdate {
+  fx_rates: Record<string, string>;
 }
 
 export type AccrualCellSource = 'excel' | 'team_budget' | 'manual';

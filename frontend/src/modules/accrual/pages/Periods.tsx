@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { usePeriodsList, useCurrentPeriod } from '@/modules/accrual/hooks/usePeriods';
 import { PeriodEditor } from '@/modules/accrual/components/PeriodEditor';
@@ -20,7 +20,7 @@ function PeriodRates({ period }: { readonly period: AccrualPeriod }): JSX.Elemen
   }
   if (period.usd_rate) {
     return (
-      <span className="tabular-nums text-muted-foreground" title="ECB fallback — no CEO rate set">
+      <span className="tabular-nums text-muted-foreground" title="ECB fallback — no rate set">
         USD {Number(period.usd_rate).toFixed(4)} <span className="text-[10px]">ECB</span>
       </span>
     );
@@ -32,6 +32,7 @@ export function Periods(): JSX.Element {
   const { data: periods = [], isLoading } = usePeriodsList();
   const { data: currentPeriod = null } = useCurrentPeriod();
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editPeriod, setEditPeriod] = useState<AccrualPeriod | null>(null);
 
   return (
     <div className="p-6 space-y-4">
@@ -52,6 +53,7 @@ export function Periods(): JSX.Element {
               <th>Status</th>
               <th className="text-right">FX rate (per €)</th>
               <th>Closed at</th>
+              <th className="w-8" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -65,6 +67,16 @@ export function Periods(): JSX.Element {
                 <td className="text-muted-foreground">
                   {p.closed_at ? new Date(p.closed_at).toLocaleString() : '—'}
                 </td>
+                <td className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Edit FX rates for ${p.start_date}`}
+                    onClick={() => setEditPeriod(p)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -75,6 +87,14 @@ export function Periods(): JSX.Element {
           open
           onClose={() => setEditorOpen(false)}
           previousPeriod={currentPeriod}
+        />
+      )}
+      {editPeriod && (
+        <PeriodEditor
+          open
+          onClose={() => setEditPeriod(null)}
+          previousPeriod={currentPeriod}
+          period={editPeriod}
         />
       )}
     </div>

@@ -1,7 +1,9 @@
 """AccrualPeriod lifecycle: create, close, lookup.
 
-Cells are EUR-only, so periods don't carry FX rates. A period is just an
-open/closed lifecycle marker that freezes cells once it closes.
+A period is an open/closed lifecycle marker that freezes cells once it closes,
+and carries the CEO's per-currency ``fx_rates`` — the source of truth for
+currency→EUR conversion that period (ECB is fallback only). Cells stay EUR;
+the rate is metadata + the conversion input for new data.
 """
 
 from datetime import UTC, date, datetime
@@ -30,11 +32,13 @@ async def create_period(
     *,
     start_date: date,
     created_by: UUID | None,
+    fx_rates: dict[str, str] | None = None,
 ) -> AccrualPeriodDB:
     """Create a new accrual period.
 
     If a previous open period exists, close it first — the existing period's
-    cells with year/month before ``start_date`` get frozen.
+    cells with year/month before ``start_date`` get frozen. ``fx_rates`` is the
+    CEO's per-currency rate for the period (validated by the schema).
     """
     open_period = await get_current_period(db)
     if open_period is not None:
@@ -44,6 +48,7 @@ async def create_period(
         start_date=start_date,
         status="open",
         created_by=created_by,
+        fx_rates=fx_rates or {},
     )
     db.add(new_period)
     try:
@@ -59,6 +64,27 @@ async def create_period(
         closed_previous_id=str(open_period.id) if open_period else None,
     )
     return new_period
+
+
+async def update_fx_rates(
+    db: AsyncSession,
+    period_id: UUID,
+    fx_rates: dict[str, str],
+) -> AccrualPeriodDB:
+    """Replace a period's CEO fx_rates (validated by the schema). Works on open
+    or closed periods — the rate is the source of truth and the CEO may correct
+    it after close without re-touching the already-frozen EUR cells."""
+    period = await db.get(AccrualPeriodDB, period_id)
+    if period is None:
+        raise PeriodError(f"Period {period_id} not found")
+    period.fx_rates = fx_rates
+    await db.flush()
+    logger.info(
+        "accrual_period_fx_updated",
+        period_id=str(period_id),
+        currencies=sorted(fx_rates.keys()),
+    )
+    return period
 
 
 async def get_current_period(db: AsyncSession) -> AccrualPeriodDB | None:

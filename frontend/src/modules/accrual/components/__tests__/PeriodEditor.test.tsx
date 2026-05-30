@@ -8,7 +8,7 @@ import { accrualApi } from '@/modules/accrual/services/accrual';
 
 vi.mock('@/modules/accrual/services/accrual', () => ({
   accrualApi: {
-    periods: { list: vi.fn(), current: vi.fn(), create: vi.fn() },
+    periods: { list: vi.fn(), current: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
 }));
 
@@ -89,7 +89,53 @@ describe('PeriodEditor', () => {
     await user.clear(input);
     await user.type(input, '2026-06-01');
     await user.click(screen.getByRole('button', { name: /open period/i }));
-    expect(accrualApi.periods.create).toHaveBeenCalledWith({ start_date: '2026-06-01' });
+    expect(accrualApi.periods.create).toHaveBeenCalledWith({
+      start_date: '2026-06-01',
+      fx_rates: {},
+    });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('creates a period with the entered CEO fx rate', async () => {
+    const user = userEvent.setup();
+    vi.mocked(accrualApi.periods.create).mockResolvedValue({
+      id: 'p2', start_date: '2026-06-01', status: 'open', closed_at: null,
+      created_at: '', created_by: null, fx_rates: { USD: '1.08' }, usd_rate: null,
+    });
+    renderWith(<PeriodEditor open onClose={vi.fn()} previousPeriod={null} />);
+    await user.click(screen.getByRole('button', { name: /add currency/i }));
+    await user.type(screen.getByLabelText(/currency 1/i), 'usd');
+    await user.type(screen.getByLabelText(/rate 1/i), '1.08');
+    await user.click(screen.getByRole('button', { name: /open period/i }));
+    expect(accrualApi.periods.create).toHaveBeenCalledWith(
+      expect.objectContaining({ fx_rates: { USD: '1.08' } }),
+    );
+  });
+
+  it('edits an existing period: prefills rates and PATCHes on save', async () => {
+    const user = userEvent.setup();
+    vi.mocked(accrualApi.periods.update).mockResolvedValue({
+      id: 'p1', start_date: '2025-01-01', status: 'closed', closed_at: null,
+      created_at: '', created_by: null, fx_rates: { USD: '1.08' }, usd_rate: null,
+    });
+    renderWith(
+      <PeriodEditor
+        open
+        onClose={vi.fn()}
+        previousPeriod={null}
+        period={{
+          id: 'p1', start_date: '2025-01-01', status: 'closed', closed_at: null,
+          created_at: '', created_by: null, fx_rates: { USD: '1.05' }, usd_rate: null,
+        }}
+      />,
+    );
+    // Prefilled with the existing rate, and start date is read-only (no date input).
+    expect((screen.getByLabelText(/rate 1/i) as HTMLInputElement).value).toBe('1.05');
+    expect(screen.queryByLabelText(/start date/i)).toBeNull();
+    const rate = screen.getByLabelText(/rate 1/i);
+    await user.clear(rate);
+    await user.type(rate, '1.08');
+    await user.click(screen.getByRole('button', { name: /save rates/i }));
+    expect(accrualApi.periods.update).toHaveBeenCalledWith('p1', { fx_rates: { USD: '1.08' } });
   });
 });
