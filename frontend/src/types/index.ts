@@ -1,5 +1,6 @@
 // Project types
 export type {
+  BudgetPreviewResponse,
   PaginatedProjects,
   ProgramSummary,
   Project,

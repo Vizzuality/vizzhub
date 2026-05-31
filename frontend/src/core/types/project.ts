@@ -109,3 +109,7 @@ export interface ProgramSummary {
   created_at: string;
   updated_at: string;
 }
+
+export interface BudgetPreviewResponse {
+  budget_eur: number | null;
+}

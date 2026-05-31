@@ -1,4 +1,5 @@
 import type {
+  BudgetPreviewResponse,
   PaginatedProjects,
   Project,
   ProjectCreate,
@@ -49,6 +50,17 @@ export const projectsApi = {
 
   get: async (id: string): Promise<Project> => {
     const response = await api.get<Project>(`/projects/${id}`);
+    return response.data;
+  },
+
+  budgetPreview: async (params: {
+    original_budget: number;
+    currency: string;
+    start_date: string;
+  }): Promise<BudgetPreviewResponse> => {
+    const response = await api.get<BudgetPreviewResponse>('/projects/budget-preview', {
+      params,
+    });
     return response.data;
   },
 

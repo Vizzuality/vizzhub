@@ -18,6 +18,8 @@ export const queryKeys = {
     projectManagers: ['projects', 'project-managers'] as const,
     scorecardSummary: ['projects', 'scorecard-summary'] as const,
     detail: (id: string) => ['projects', id] as const,
+    budgetPreview: (amount: number, currency: string, startDate: string) =>
+      ['projects', 'budget-preview', amount, currency, startDate] as const,
   },
   metrics: {
     byProject: (projectId: string) => ['metrics', projectId] as const,
