@@ -102,6 +102,18 @@ async def _find_derived_line(db: AsyncSession, project_id: UUID) -> AccrualLineD
     return result.scalars().first()
 
 
+async def _project_has_any_line(db: AsyncSession, project_id: UUID) -> bool:
+    """True if the project is linked to ANY accrual line (a contract already
+    models it — Excel/manual/team_budget). Used to avoid creating a duplicate
+    derived line on top of an existing contract line."""
+    result = await db.execute(
+        select(AccrualLineProjectDB.line_id)
+        .where(AccrualLineProjectDB.project_id == project_id)
+        .limit(1)
+    )
+    return result.first() is not None
+
+
 async def _refresh_derived_line(
     db: AsyncSession,
     line: AccrualLineDB,
@@ -169,6 +181,12 @@ async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualL
     existing = await _find_derived_line(db, project_id)
     if existing is not None:
         return await _refresh_derived_line(db, existing, value_eur=value_eur, rate=rate)
+
+    # A project already linked to a contract line (Excel/manual) must not get a
+    # second, derived line — that would double-count its revenue.
+    if await _project_has_any_line(db, project_id):
+        logger.info("accrual_derived_line_skipped_existing_line", project_id=str(project_id))
+        return None
 
     line = AccrualLineDB(
         id=uuid4(),

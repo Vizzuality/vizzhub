@@ -188,3 +188,48 @@ async def test_update_does_not_touch_frozen_cells(db_session: AsyncSession) -> N
         .all()
     )
     assert sum(c.amount for c in still_frozen) == frozen_total  # untouched
+
+
+@pytest.mark.asyncio
+async def test_upsert_skips_when_project_has_excel_line(db_session: AsyncSession) -> None:
+    from app.modules.accrual.models.accrual_line import AccrualLineDB
+
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    # Project already belongs to a contract (Excel) line — must not get a derived one.
+    excel_line = AccrualLineDB(
+        name="contract",
+        source=LineSource.EXCEL.value,
+        value_eur=Decimal("5000"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 4, 1),
+    )
+    db_session.add(excel_line)
+    await db_session.flush()
+    db_session.add(AccrualLineProjectDB(line_id=excel_line.id, project_id=project.id))
+    await db_session.flush()
+
+    result = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    assert result is None
+    # Only the Excel line exists; no team_budget line was created.
+    lines = (await db_session.execute(select(AccrualLineDB))).scalars().all()
+    assert len(lines) == 1
+    assert lines[0].source == LineSource.EXCEL.value
+
+
+@pytest.mark.asyncio
+async def test_upsert_refreshes_existing_team_budget_line(db_session: AsyncSession) -> None:
+    # Sanity: when the project's own team_budget line exists, it is still refreshed (not skipped).
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    first = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    assert first is not None
+    project.original_budget = Decimal("2000")
+    await db_session.flush()
+    second = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    assert second.id == first.id
+    assert second.value_eur == Decimal("2000.00")
