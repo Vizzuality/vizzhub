@@ -7,8 +7,8 @@ interface RecognitionByMonthChartProps {
   readonly months: DashboardMonth[];
 }
 
-const RECOGNIZED_COLOR = 'hsl(var(--chart-1, 142 71% 45%))';
-const FORECAST_COLOR = 'hsl(var(--muted-foreground))';
+const RECOGNIZED_COLOR = 'var(--score-green)';
+const FORECAST_COLOR = 'var(--muted-foreground)';
 
 export function RecognitionByMonthChart({ months }: RecognitionByMonthChartProps): JSX.Element {
   const data = months.map((m) => ({

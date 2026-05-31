@@ -7,8 +7,8 @@ interface YtdBurnupChartProps {
   readonly months: DashboardMonth[];
 }
 
-const RECOGNIZED_COLOR = 'hsl(var(--chart-1, 142 71% 45%))';
-const PLAN_COLOR = 'hsl(var(--muted-foreground))';
+const RECOGNIZED_COLOR = 'var(--score-green)';
+const PLAN_COLOR = 'var(--muted-foreground)';
 
 export function YtdBurnupChart({ months }: YtdBurnupChartProps): JSX.Element {
   const planTotal = months.reduce((sum, m) => sum + m.amount_eur, 0);
