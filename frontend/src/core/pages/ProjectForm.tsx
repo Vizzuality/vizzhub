@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
+import type {
+  BudgetPreviewResponse,
+  ProjectCreate,
+  ProjectStatus,
+  ProgramSummary,
+} from '@/core/types/project';
 import {
   useProject,
   useCreateProject,
@@ -18,7 +23,7 @@ import {
   useCurrentPeriodMetrics,
   useUpdateProjectBudget,
 } from '@/core/hooks/useProjectBudget';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
@@ -197,12 +202,31 @@ function getApiErrorMessage(error: unknown): string {
 }
 
 function sanitizeAmount(input: string): string {
-  let raw = input.replace(/[^\d.]/g, '');
+  let raw = input.replaceAll(/[^\d.]/g, '');
   const firstDot = raw.indexOf('.');
   if (firstDot !== -1) {
-    raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '');
+    raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replaceAll('.', '');
   }
   return raw;
+}
+
+function deriveBudgetPreviewState(
+  query: UseQueryResult<BudgetPreviewResponse>,
+  originalBudget: string,
+  currency: string,
+  startDate: string,
+): { previewEur: number | null | undefined; noRate: boolean } {
+  const previewEur = query.data?.budget_eur;
+  const hasInputs =
+    !!originalBudget && Number.parseFloat(originalBudget) > 0 && !!currency && !!startDate;
+  const noRate = hasInputs && !query.isLoading && query.isFetched && previewEur == null;
+  return { previewEur, noRate };
+}
+
+function formatBudgetEur(isLoading: boolean, previewEur: number | null | undefined): string {
+  if (isLoading) return 'Calculating…';
+  if (previewEur != null) return formatCurrency(previewEur, 'EUR');
+  return '—';
 }
 
 function CurrencyAmountInput({
@@ -211,13 +235,13 @@ function CurrencyAmountInput({
   onChange,
   currency,
   placeholder,
-}: {
+}: Readonly<{
   id: string;
   value: string;
   onChange: (value: string) => void;
   currency: string;
   placeholder?: string;
-}): JSX.Element {
+}>): JSX.Element {
   const [focused, setFocused] = useState(false);
   const numeric = Number.parseFloat(value);
   const display =
@@ -426,11 +450,12 @@ export default function ProjectForm(): JSX.Element {
     currency: currency ?? '',
     startDate: startDate ?? '',
   });
-  const previewEur = budgetPreview.data?.budget_eur;
-  const hasPreviewInputs =
-    !!originalBudget && Number.parseFloat(originalBudget) > 0 && !!currency && !!startDate;
-  const noRate =
-    hasPreviewInputs && !budgetPreview.isLoading && budgetPreview.isFetched && previewEur == null;
+  const { previewEur, noRate } = deriveBudgetPreviewState(
+    budgetPreview,
+    originalBudget ?? '',
+    currency ?? '',
+    startDate ?? '',
+  );
   const currentStatus = watch('status');
   const currentProgramId = watch('program_id');
   const currentManagerId = watch('project_manager_id');
@@ -927,13 +952,7 @@ export default function ProjectForm(): JSX.Element {
                         readOnly
                         tabIndex={-1}
                         className="bg-muted"
-                        value={
-                          budgetPreview.isLoading
-                            ? 'Calculating…'
-                            : previewEur != null
-                              ? formatCurrency(previewEur, 'EUR')
-                              : '—'
-                        }
+                        value={formatBudgetEur(budgetPreview.isLoading, previewEur)}
                       />
                       {noRate && (
                         <p className="text-sm text-destructive">No exchange rate for this currency / start date.</p>
