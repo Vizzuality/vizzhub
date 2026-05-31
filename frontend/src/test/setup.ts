@@ -16,8 +16,36 @@ afterAll(() => server.close());
 // Browser API mocks (required by UI libraries)
 // ---------------------------------------------------------------------------
 
+// Reports a fixed non-zero size so Recharts' ResponsiveContainer renders SVG in
+// jsdom (which never lays out elements). Width/height match a typical chart pane.
+const MOCK_CHART_WIDTH = 800;
+const MOCK_CHART_HEIGHT = 400;
+
 class ResizeObserverMock implements ResizeObserver {
-  observe(): void { /* no-op mock */ }
+  private readonly callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+
+  observe(target: Element): void {
+    const contentRect = {
+      width: MOCK_CHART_WIDTH,
+      height: MOCK_CHART_HEIGHT,
+      top: 0,
+      left: 0,
+      right: MOCK_CHART_WIDTH,
+      bottom: MOCK_CHART_HEIGHT,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRectReadOnly;
+    this.callback(
+      [{ target, contentRect } as ResizeObserverEntry],
+      this,
+    );
+  }
+
   unobserve(): void { /* no-op mock */ }
   disconnect(): void { /* no-op mock */ }
 }
