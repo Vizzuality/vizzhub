@@ -95,7 +95,7 @@ The first sub-section ("Phase 0 baseline-debt") tracks rules frozen at the code-
 
 ##### Code organization (files >400 LOC)
 
-- **Files exceed 400 LOC** — ~~`backend/app/core/api/projects_v2.py`~~ **[projects_v2 split FIXED 16bdff4d]**, `backend/app/core/api/admin_users.py` (416 LOC) [warning] — `admin_users.py` split still deferred; high refactor cost vs. current value, cohesive CRUD module. Revisit when adding a new concern.
+- **Files exceed 400 LOC** — ~~`backend/app/core/api/projects_v2.py`~~ **[projects_v2 split FIXED a265d4fd]**, `backend/app/core/api/admin_users.py` (416 LOC) [warning] — `admin_users.py` split still deferred; high refactor cost vs. current value, cohesive CRUD module. Revisit when adding a new concern.
   - Module: `core/api`
   - Detail: `admin_users.py` mixes user CRUD + role management + Slack sync + impersonation. (`projects_v2.py` budget + links concerns extracted 2026-05-31 → `projects_budget.py` + `projects_links.py`; CRUD remains at 420 LOC.)
   - Fix: Split `admin_users.py` into `admin_users.py` (CRUD) + `admin_user_roles.py` + `admin_user_slack.py` + `admin_impersonation.py`.
