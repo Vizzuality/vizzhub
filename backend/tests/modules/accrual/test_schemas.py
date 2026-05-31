@@ -10,6 +10,11 @@ from app.modules.accrual.schemas import (
     BulkCellUpdate,
     CellUpdate,
 )
+from app.modules.accrual.schemas.accrual_dashboard import (
+    DashboardKpis,
+    DashboardMonth,
+    DashboardSummary,
+)
 
 
 def test_cell_update_rejects_negative_amount() -> None:
@@ -27,13 +32,6 @@ def test_bulk_cell_update_rejects_month_zero() -> None:
 def test_bulk_cells_request_accepts_empty_list() -> None:
     request = BulkCellsRequest(updates=[])
     assert request.updates == []
-
-
-from app.modules.accrual.schemas.accrual_dashboard import (
-    DashboardKpis,
-    DashboardMonth,
-    DashboardSummary,
-)
 
 
 def test_dashboard_summary_serializes_floats() -> None:

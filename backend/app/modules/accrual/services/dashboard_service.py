@@ -48,6 +48,10 @@ async def _amounts_by_ym(
 
 
 def _amount_for_status(status: str, live: Decimal, frozen: Decimal) -> Decimal:
+    # Closed months report the frozen snapshot. `frozen` already coalesces to live
+    # when frozen_eur_amount is NULL — this covers a period closed with no successor
+    # (freeze_cutoff resolves to nothing, so its cells are never frozen): live is
+    # then the only value available and the best estimate.
     return frozen if status == "closed" else live
 
 
