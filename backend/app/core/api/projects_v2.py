@@ -4,6 +4,7 @@ import calendar
 import math
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -29,6 +30,7 @@ from app.core.models.user import UserDB
 from app.core.permissions import Action, require_permission
 from app.core.services.project_provisioning import provision_project_accrual
 from app.core.sql_helpers import user_display_name_expr
+from app.modules.accrual.public import convert_original_budget
 from app.modules.scorecard.public import (
     MetricsService,
     Milestone,
@@ -199,6 +201,10 @@ class ProjectManagerOption(BaseModel):
     name: str
 
 
+class BudgetPreviewResponse(BaseModel):
+    budget_eur: float | None
+
+
 @router.get("/project-managers")
 async def list_project_managers(
     current_user: CurrentUser,
@@ -236,6 +242,29 @@ async def create_project(
         user_id=admin.user_id,
     )
     return _project_to_response(db_project)
+
+
+@router.get("/budget-preview")
+@limiter.limit("120/minute")
+async def budget_preview(
+    request: Request,
+    current_user: ProjectManager,
+    db: DBSession,
+    original_budget: Annotated[float, Query(ge=0)],
+    currency: str,
+    start_date: date,
+) -> BudgetPreviewResponse:
+    """Preview the derived EUR budget for the project form (read-only).
+
+    Delegates to accrual's FX math; returns budget_eur=None when no rate resolves.
+    """
+    eur = await convert_original_budget(
+        db,
+        original_budget=Decimal(str(original_budget)),
+        currency=currency,
+        start_date=start_date,
+    )
+    return BudgetPreviewResponse(budget_eur=float(eur) if eur is not None else None)
 
 
 @router.get("/{project_id}", responses={404: {"description": "Project not found"}})

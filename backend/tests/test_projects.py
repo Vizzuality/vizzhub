@@ -318,6 +318,48 @@ class TestOriginalBudgetProvisioning:
         assert lines[0].value_eur == Decimal("800.00")
 
 
+class TestBudgetPreview:
+    """GET /api/projects/budget-preview derives the EUR budget for the form."""
+
+    @pytest.mark.asyncio
+    async def test_preview_derives_eur_for_currency_with_rate(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import date
+
+        from app.modules.accrual.models.accrual_period import AccrualPeriodDB
+
+        db_session.add(
+            AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.25"})
+        )
+        await db_session.flush()
+
+        resp = await client.get(
+            "/api/projects/budget-preview",
+            params={"original_budget": 1000, "currency": "dollar", "start_date": "2026-01-01"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == {"budget_eur": 800.0}  # 1000 / 1.25
+
+    @pytest.mark.asyncio
+    async def test_preview_passthrough_for_eur(self, client: AsyncClient) -> None:
+        resp = await client.get(
+            "/api/projects/budget-preview",
+            params={"original_budget": 5000, "currency": "euro", "start_date": "2026-01-01"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == {"budget_eur": 5000.0}
+
+    @pytest.mark.asyncio
+    async def test_preview_null_when_no_rate(self, client: AsyncClient, db_session) -> None:
+        resp = await client.get(
+            "/api/projects/budget-preview",
+            params={"original_budget": 1000, "currency": "GBP", "start_date": "2026-01-01"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == {"budget_eur": None}
+
+
 class TestProjectManagerFilter:
     """Test project_manager_id filter and /project-managers endpoint."""
 
