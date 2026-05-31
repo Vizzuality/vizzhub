@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.modules.accrual.api import cells as cells_router
+from app.modules.accrual.api import dashboard as dashboard_router
 from app.modules.accrual.api import lines as lines_router
 from app.modules.accrual.api import periods as periods_router
 
@@ -28,4 +29,9 @@ router.include_router(
 router.include_router(
     lines_router.router,
     tags=["accrual:lines"],
+)
+router.include_router(
+    dashboard_router.router,
+    prefix="/dashboard",
+    tags=["accrual:dashboard"],
 )
