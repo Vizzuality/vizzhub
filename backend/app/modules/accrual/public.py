@@ -3,4 +3,6 @@
 Other modules should import from here, never from accrual internals.
 """
 
-# Cross-module exports will be added in Slice 3 (aggregations).
+from app.modules.accrual.services.budget_derivation import convert_original_budget
+
+__all__ = ["convert_original_budget"]
