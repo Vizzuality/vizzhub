@@ -4,8 +4,13 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.project import ProjectDB
+from app.modules.accrual.models.accrual_cell import AccrualCellDB
+from app.modules.accrual.models.accrual_line import LineSource
+from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 from app.modules.accrual.services import budget_derivation
 
@@ -51,3 +56,63 @@ async def test_convert_returns_none_when_no_rate(db_session: AsyncSession) -> No
         db_session, original_budget=Decimal("1000"), currency="ZWL", start_date=date(2026, 6, 1)
     )
     assert result is None
+
+
+async def _make_project(db: AsyncSession, **kw) -> ProjectDB:
+    defaults = dict(
+        name="P",
+        code="P.1",
+        currency="dollar",
+        budget=None,
+        original_budget=Decimal("1000"),
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 4, 1),
+    )
+    defaults.update(kw)
+    p = ProjectDB(**defaults)
+    db.add(p)
+    await db.flush()
+    return p
+
+
+@pytest.mark.asyncio
+async def test_upsert_creates_team_budget_line_with_spread(db_session: AsyncSession) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)  # 4 months, 1000 USD @ 1.00 -> 1000 EUR
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    assert line is not None
+    assert line.source == LineSource.TEAM_BUDGET.value
+    assert line.value_eur == Decimal("1000.00")
+    assert line.currency == "USD"
+    assert line.rate == Decimal("1.00")
+    assert line.window_start == date(2026, 1, 1)
+    assert line.window_end == date(2026, 4, 1)
+    cells = (
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)))
+        .scalars()
+        .all()
+    )
+    assert len(cells) == 4  # Jan..Apr inclusive
+    assert sum(c.amount for c in cells) == Decimal("1000.00")
+    link = (
+        await db_session.execute(
+            select(AccrualLineProjectDB).where(AccrualLineProjectDB.line_id == line.id)
+        )
+    ).scalar_one()
+    assert link.project_id == project.id
+
+
+@pytest.mark.asyncio
+async def test_upsert_noop_when_not_derivable(db_session: AsyncSession) -> None:
+    project = await _make_project(db_session, original_budget=None)
+    assert await budget_derivation.upsert_derived_line(db_session, project_id=project.id) is None
+
+
+@pytest.mark.asyncio
+async def test_upsert_noop_when_no_rate(db_session: AsyncSession) -> None:
+    # CAD passes the projects currency CHECK constraint but has no FX rate seeded
+    # in this test DB, so the line is non-derivable -> no-op.
+    project = await _make_project(db_session, currency="CAD")
+    assert await budget_derivation.upsert_derived_line(db_session, project_id=project.id) is None
