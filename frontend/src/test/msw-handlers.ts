@@ -866,6 +866,27 @@ export const handlers = [
     });
   }),
 
+  // Accrual — Dashboard
+  http.get(`${BASE}/accrual/dashboard/summary`, ({ request }) => {
+    const year = Number(new URL(request.url).searchParams.get('year')) || 2026;
+    return HttpResponse.json({
+      year,
+      available_years: [2025, 2026],
+      months: Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        amount_eur: 0,
+        status: 'none',
+      })),
+      kpis: {
+        recognized_ytd_eur: 0,
+        recognized_quarter_eur: 0,
+        contracted_total_eur: 0,
+        backlog_eur: 0,
+        manual_pct: 0,
+      },
+    });
+  }),
+
   // Auth — AuthContext uses raw fetch with full URLs, not axios with relative paths.
   // Handlers must use the full origin to match.
   http.get('http://localhost:8000/api/auth/me', () => {

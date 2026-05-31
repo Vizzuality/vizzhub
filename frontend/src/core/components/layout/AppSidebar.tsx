@@ -70,6 +70,7 @@ const ADMIN_ITEMS = [
 
 const ACCRUAL_TABS = [
   { to: '/admin/accrual', label: 'Grid' },
+  { to: '/admin/accrual/dashboard', label: 'Dashboard' },
   { to: '/admin/accrual/periods', label: 'Periods' },
 ] as const;
 
