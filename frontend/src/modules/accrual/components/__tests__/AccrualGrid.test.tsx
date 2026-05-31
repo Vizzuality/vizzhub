@@ -32,6 +32,7 @@ const line: AccrualGridLine = {
   ],
   health: { status: 'ok', diff_eur: '0.00', diff_pct: 0 },
   data_quality_note: null,
+  dates_diverged: false,
   rate: null,
 };
 
@@ -222,6 +223,14 @@ describe('AccrualGrid', () => {
     const icon = screen.getByTestId('data-quality-warning');
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute('aria-label', note);
+  });
+
+  it('shows a divergence warning when project dates differ from the window', () => {
+    renderGrid({ lines: [{ ...line, id: 'l-div', dates_diverged: true }] });
+    const warnings = screen.getAllByTestId('data-quality-warning');
+    expect(
+      warnings.some((w) => (w.getAttribute('aria-label') ?? '').includes('Project dates differ')),
+    ).toBe(true);
   });
 
   it('renders no data-quality warning when the note is null', () => {

@@ -42,6 +42,10 @@ export interface MonthColumnMeta {
   readonly month: number;
 }
 
+const DATE_DIVERGENCE_NOTE =
+  'Project dates differ from the accrual recognition window. ' +
+  'The window is not updated automatically; adjust it here if needed.';
+
 const SOURCE_BADGE: Record<AccrualLineSource, { label: string; cls: string }> = {
   excel: { label: 'Excel', cls: 'bg-sky-100 text-sky-700' },
   team_budget: { label: 'Team budget', cls: 'bg-muted text-muted-foreground' },
@@ -140,6 +144,7 @@ function LineNameCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX
     <span className="flex items-center gap-1.5 min-w-0">
       <HealthIndicator health={line.health} />
       <DataQualityIndicator note={line.data_quality_note} />
+      {line.dates_diverged ? <DataQualityIndicator note={DATE_DIVERGENCE_NOTE} /> : null}
       {name}
       {badge ? (
         <span className={`shrink-0 rounded px-1 text-[9px] font-medium ${badge.cls}`}>

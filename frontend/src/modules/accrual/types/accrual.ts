@@ -92,6 +92,7 @@ export interface AccrualGridLine {
   projects: AccrualLineProject[];
   health: AccrualHealth;
   data_quality_note: string | null;
+  dates_diverged: boolean;
   /** The CEO's per-line Excel rate (foreign per €) — audit + override of the period rate. Display-only. */
   rate: string | null;
 }
