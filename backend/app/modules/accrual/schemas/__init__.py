@@ -7,6 +7,12 @@ from app.modules.accrual.schemas.accrual_cell import (
     CellUpdate,
     RedistributeRequest,
 )
+from app.modules.accrual.schemas.accrual_dashboard import (
+    DashboardKpis,
+    DashboardMonth,
+    DashboardSummary,
+    MonthStatus,
+)
 from app.modules.accrual.schemas.accrual_period import (
     AccrualPeriod,
     AccrualPeriodCreate,
@@ -22,4 +28,8 @@ __all__ = [
     "BulkCellUpdate",
     "CellUpdate",
     "RedistributeRequest",
+    "DashboardKpis",
+    "DashboardMonth",
+    "DashboardSummary",
+    "MonthStatus",
 ]
