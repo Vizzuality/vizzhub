@@ -317,6 +317,37 @@ class TestOriginalBudgetProvisioning:
         assert len(lines) == 1
         assert lines[0].value_eur == Decimal("800.00")
 
+    @pytest.mark.asyncio
+    async def test_replace_without_rate_preserves_existing_budget(
+        self, client: AsyncClient
+    ) -> None:
+        """Editing onto an underivable currency (no rate) must not null the budget.
+
+        The form omits budget (it is derived). When no rate resolves, provisioning
+        no-ops, so the prior budget must be preserved rather than wiped to null.
+        """
+        created = await client.post(
+            "/api/projects",
+            json={"name": "Keep", "code": "KEEP.1", "budget": 50000},
+        )
+        assert created.status_code == 201, created.text
+        project_id = created.json()["id"]
+
+        # PUT replace omitting budget, with a currency that has no seeded rate.
+        resp = await client.put(
+            f"/api/projects/{project_id}",
+            json={
+                "name": "Keep",
+                "code": "KEEP.1",
+                "currency": "GBP",
+                "original_budget": 1000,
+                "start_date": "2026-01-01",
+                "end_date": "2026-04-01",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        assert float(resp.json()["budget"]) == 50000.0  # preserved, not nulled
+
 
 class TestBudgetPreview:
     """GET /api/projects/budget-preview derives the EUR budget for the form."""

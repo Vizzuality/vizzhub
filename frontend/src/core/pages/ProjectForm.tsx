@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import type { ProjectCreate, ProjectStatus, ProgramSummary } from '@/core/types/project';
 import {
   useProject,
@@ -23,10 +23,12 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
 import { useProjectSettings, useUpdateProjectSettings } from '@/modules/tracker/hooks/useProjectCosts';
+import { useBudgetPreview } from '@/core/hooks/useBudgetPreview';
 import { trackerApi } from '@/modules/tracker/services/tracker';
 import BudgetLinesEditor from '@/modules/tracker/components/BudgetLinesEditor';
 import type { BudgetLineCreate } from '@/modules/tracker/types/tracker';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '@/shared/constants/dates';
+import { formatCurrency, formatAmount } from '@/shared/utils/evmCalculations';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -93,7 +95,7 @@ interface ProjectFormData {
   end_date: string;
   notes: string;
   summary: string;
-  budget_total: string;
+  original_budget: string;
   contract_rate: string;
   milestones: { name: string; planned_date: string; actual_date: string }[];
   links: { title: string; url: string; link_type: string }[];
@@ -143,6 +145,7 @@ interface ProjectData {
   notes?: string | null;
   summary?: string | null;
   budget?: number | null;
+  original_budget?: number | null;
 }
 
 function buildFormDefaults(
@@ -164,7 +167,9 @@ function buildFormDefaults(
     end_date: project.end_date ?? '',
     notes: project.notes ?? '',
     summary: project.summary ?? '',
-    budget_total: project.budget?.toString() ?? '',
+    // Fallback to budget (EUR) only for legacy projects predating the 2026-05-31
+    // original_budget backfill; all active projects now have original_budget populated.
+    original_budget: (project.original_budget ?? project.budget)?.toString() ?? '',
     contract_rate: contractRate?.toString() ?? '175',
     milestones: milestones?.length
       ? milestones.map((m) => ({
@@ -189,6 +194,48 @@ function getApiErrorMessage(error: unknown): string {
     return error.message;
   }
   return 'An unexpected error occurred. Please try again.';
+}
+
+function sanitizeAmount(input: string): string {
+  let raw = input.replace(/[^\d.]/g, '');
+  const firstDot = raw.indexOf('.');
+  if (firstDot !== -1) {
+    raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '');
+  }
+  return raw;
+}
+
+function CurrencyAmountInput({
+  id,
+  value,
+  onChange,
+  currency,
+  placeholder,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  currency: string;
+  placeholder?: string;
+}): JSX.Element {
+  const [focused, setFocused] = useState(false);
+  const numeric = Number.parseFloat(value);
+  const display =
+    !focused && value !== '' && Number.isFinite(numeric)
+      ? formatAmount(numeric, currency)
+      : value;
+  return (
+    <Input
+      id={id}
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder}
+      value={display}
+      onChange={(e) => onChange(sanitizeAmount(e.target.value))}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    />
+  );
 }
 
 function HeaderActions({
@@ -313,7 +360,7 @@ export default function ProjectForm(): JSX.Element {
       end_date: '',
       notes: '',
       summary: '',
-      budget_total: '',
+      original_budget: '',
       contract_rate: '175',
       milestones: [{ ...EMPTY_MILESTONE }],
       links: [{ ...EMPTY_LINK }],
@@ -372,6 +419,18 @@ export default function ProjectForm(): JSX.Element {
   }, [isEditMode, project, formInitialized, currentMetrics, linksReady, settingsReady, initialLinks, projectSettings, reset]);
 
   const startDate = watch('start_date');
+  const originalBudget = watch('original_budget');
+  const currency = watch('currency');
+  const budgetPreview = useBudgetPreview({
+    originalBudget: originalBudget ?? '',
+    currency: currency ?? '',
+    startDate: startDate ?? '',
+  });
+  const previewEur = budgetPreview.data?.budget_eur;
+  const hasPreviewInputs =
+    !!originalBudget && Number.parseFloat(originalBudget) > 0 && !!currency && !!startDate;
+  const noRate =
+    hasPreviewInputs && !budgetPreview.isLoading && budgetPreview.isFetched && previewEur == null;
   const currentStatus = watch('status');
   const currentProgramId = watch('program_id');
   const currentManagerId = watch('project_manager_id');
@@ -424,6 +483,11 @@ export default function ProjectForm(): JSX.Element {
       return;
     }
 
+    if (noRate) {
+      setApiError('No exchange rate is available for this currency and start date; budget cannot be derived.');
+      return;
+    }
+
     if (data.status === 'proposal') {
       setPendingSubmitData(data);
       setProposalDialogOpen(true);
@@ -448,7 +512,7 @@ export default function ProjectForm(): JSX.Element {
       has_dependabot_alerts: hasDependabotAlerts,
       has_budget_alerts: hasBudgetAlerts,
       currency: data.currency,
-      budget: data.budget_total ? Number.parseFloat(data.budget_total) : null,
+      original_budget: data.original_budget ? Number.parseFloat(data.original_budget) : null,
       program_id: data.program_id || null,
       project_manager_id: data.project_manager_id || null,
       jira_project_key: data.jira_project_key || undefined,
@@ -650,8 +714,8 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  {/* Row 2: Program, Currency */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Row 2: Program */}
+                  <div>
                     <div className="space-y-2 min-w-0">
                       <TooltipProvider>
                         <div className="h-5 flex items-center gap-2">
@@ -743,14 +807,6 @@ export default function ProjectForm(): JSX.Element {
                         </div>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="currency" className="h-5 flex items-center">Currency (invoices only, budget & rate in €) *</Label>
-                      <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
-                        {currencyOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </NativeSelect>
-                    </div>
                   </div>
 
                   {/* Row 3: Project Manager, Status */}
@@ -823,23 +879,64 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  {/* Row 4: Budget, Contract Rate */}
+                  {/* Row: Budget (original currency), Currency */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="budget_total" className="h-5 flex items-center">Budget (EUR) *</Label>
-                      <Input
-                        id="budget_total"
-                        type="number"
-                        step="any"
-                        min="0"
-                        placeholder="e.g., 100000"
-                        {...register('budget_total', {
+                      <Label htmlFor="original_budget" className="h-5 flex items-center">Budget in original currency *</Label>
+                      <Controller
+                        name="original_budget"
+                        control={control}
+                        rules={{
                           required: 'Budget is required',
-                          min: { value: 0, message: 'Must be positive' },
-                        })}
+                          validate: (v) => {
+                            const n = Number.parseFloat(v);
+                            return (Number.isFinite(n) && n >= 0) || 'Must be positive';
+                          },
+                        }}
+                        render={({ field }) => (
+                          <CurrencyAmountInput
+                            id="original_budget"
+                            currency={currency}
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                            placeholder="e.g., 100000"
+                          />
+                        )}
                       />
-                      {errors.budget_total && (
-                        <p className="text-sm text-destructive">{errors.budget_total.message}</p>
+                      {errors.original_budget && (
+                        <p className="text-sm text-destructive">{errors.original_budget.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="currency" className="h-5 flex items-center">Currency *</Label>
+                      <NativeSelect id="currency" className="w-full" {...register('currency', { required: true })}>
+                        {currencyOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  </div>
+
+                  {/* Row: Budget (EUR, derived read-only), Contract Rate */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="budget_eur" className="h-5 flex items-center">Budget (EUR)</Label>
+                      <Input
+                        id="budget_eur"
+                        type="text"
+                        readOnly
+                        tabIndex={-1}
+                        className="bg-muted"
+                        value={
+                          budgetPreview.isLoading
+                            ? 'Calculating…'
+                            : previewEur != null
+                              ? formatCurrency(previewEur, 'EUR')
+                              : '—'
+                        }
+                      />
+                      {noRate && (
+                        <p className="text-sm text-destructive">No exchange rate for this currency / start date.</p>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -860,7 +957,7 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                   </div>
 
-                  {/* Row 4: Start Date, End Date */}
+                  {/* Row: Start Date, End Date */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="start_date" className="h-5 flex items-center">Start Date *</Label>
@@ -1170,7 +1267,7 @@ export default function ProjectForm(): JSX.Element {
                 <CardContent className="pt-6 space-y-3">
                   <Button
                     type="submit"
-                    disabled={isMutating}
+                    disabled={isMutating || noRate}
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {isMutating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

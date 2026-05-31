@@ -97,7 +97,12 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.has_dependabot_alerts = data.has_dependabot_alerts
     project.has_budget_alerts = data.has_budget_alerts
     project.currency = data.currency
-    project.budget = data.budget
+    # budget is a derived field: provision_project_accrual recomputes it from
+    # original_budget + the period FX rate. Only honour an explicit incoming budget;
+    # never null an existing value when the caller omits it (the form does), so an
+    # underivable edit (no rate) preserves the prior budget instead of wiping it.
+    if data.budget is not None:
+        project.budget = data.budget
     project.original_budget = data.original_budget
     project.notes = data.notes
     project.summary = data.summary

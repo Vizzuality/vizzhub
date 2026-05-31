@@ -28,7 +28,8 @@ const projectNoDependabot = {
   has_dependabot_alerts: false,
   has_budget_alerts: true,
   currency: 'euro',
-  budget: 100000,
+  budget: 90000,
+  original_budget: 100000,
   notes: null,
   summary: null,
   jira_project_key: 'TEST',
@@ -83,7 +84,10 @@ async function fillRequiredFields(
 ): Promise<void> {
   await user.type(screen.getByLabelText(/name \*/i), overrides.name ?? 'Test Project');
   await user.type(screen.getByLabelText(/code \*/i), overrides.code ?? 'TST.001');
-  await user.type(screen.getByRole('spinbutton', { name: /budget/i }), overrides.budget ?? '50000');
+  await user.type(
+    screen.getByLabelText(/Budget in original currency/i),
+    overrides.budget ?? '50000',
+  );
   fireEvent.change(screen.getByLabelText(/start date/i), { target: { value: '2026-01-01' } });
   fireEvent.change(screen.getByLabelText(/end date/i), { target: { value: '2026-12-31' } });
 }
@@ -152,7 +156,7 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      const currencySelect = screen.getByLabelText(/currency/i);
+      const currencySelect = screen.getByLabelText('Currency *');
       const options = within(currencySelect).getAllByRole('option');
       expect(options).toHaveLength(2);
       expect(options[0]).toHaveTextContent('US Dollar (USD)');
@@ -581,6 +585,9 @@ describe('ProjectForm', () => {
       let capturedPayload: Record<string, unknown> | null = null;
 
       server.use(
+        http.get(`${BASE}/projects/budget-preview`, () => {
+          return HttpResponse.json({ budget_eur: 90000 });
+        }),
         http.get(`${BASE}/projects/:id`, () => {
           return HttpResponse.json(projectNoDependabot);
         }),
@@ -635,6 +642,10 @@ describe('ProjectForm', () => {
       }, { timeout: 5000 });
 
       expect(capturedPayload!.name).toBe('Updated Project');
+      // Edit seam: the PUT carries original_budget (seeded from the project) and
+      // never sends budget — the backend derives it.
+      expect(capturedPayload!.original_budget).toBe(100000);
+      expect(capturedPayload!).not.toHaveProperty('budget');
     });
   });
 
@@ -681,6 +692,72 @@ describe('ProjectForm', () => {
       await user.click(newBtn);
 
       expect(screen.getByPlaceholderText('Program name')).toBeInTheDocument();
+    });
+  });
+
+  describe('ProjectForm — original_budget', () => {
+    it('renders the original-currency budget field and a read-only EUR field', async () => {
+      server.use(
+        http.get('/api/projects/budget-preview', () => HttpResponse.json({ budget_eur: 800 })),
+      );
+      renderCreate();
+      expect(await screen.findByLabelText(/Budget in original currency/i)).toBeInTheDocument();
+      expect(screen.getByText(/Budget \(EUR\)/i)).toBeInTheDocument();
+      // Currency label no longer carries the "(invoices only...)" parenthetical
+      expect(screen.queryByText(/invoices only/i)).not.toBeInTheDocument();
+    });
+
+    it('submits original_budget and omits budget', async () => {
+      const user = userEvent.setup();
+      let captured: Record<string, unknown> | null = null;
+      server.use(
+        http.get('/api/admin/integrations/status', () => HttpResponse.json(slackDisconnected)),
+        http.get('/api/projects/budget-preview', () => HttpResponse.json({ budget_eur: 800 })),
+        http.post('/api/projects', async ({ request }) => {
+          captured = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 'new-1' }, { status: 201 });
+        }),
+      );
+      renderCreate();
+      await screen.findByText('New Project');
+      await user.click(screen.getByLabelText('Dependabot Alerts'));
+      await user.type(screen.getByLabelText(/^Name/i), 'P1');
+      await user.type(screen.getByLabelText(/^Code/i), 'P.1');
+      await user.type(screen.getByLabelText(/Budget in original currency/i), '1000');
+      await user.type(screen.getByLabelText(/Start Date/i), '2026-01-01');
+      await user.type(screen.getByLabelText(/End Date/i), '2026-12-31');
+      await user.click(screen.getByRole('button', { name: /Create Project/i }));
+      await waitFor(() => expect(captured).not.toBeNull());
+      expect(captured!.original_budget).toBe(1000);
+      expect(captured!).not.toHaveProperty('budget');
+    });
+
+    it('blocks submit when preview returns no rate', async () => {
+      const user = userEvent.setup();
+      let posted = false;
+      server.use(
+        http.get('/api/admin/integrations/status', () => HttpResponse.json(slackDisconnected)),
+        http.get('/api/projects/budget-preview', () => HttpResponse.json({ budget_eur: null })),
+        http.post('/api/projects', () => {
+          posted = true;
+          return HttpResponse.json({ id: 'x' }, { status: 201 });
+        }),
+      );
+      renderCreate();
+      await screen.findByText('New Project');
+      await user.click(screen.getByLabelText('Dependabot Alerts'));
+      await user.type(screen.getByLabelText(/^Name/i), 'P1');
+      await user.type(screen.getByLabelText(/^Code/i), 'P.1');
+      await user.type(screen.getByLabelText(/Budget in original currency/i), '1000');
+      await user.type(screen.getByLabelText(/Start Date/i), '2026-01-01');
+      await user.type(screen.getByLabelText(/End Date/i), '2026-12-31');
+      // Wait for the inline "no exchange rate" field hint to appear (query settled)
+      await screen.findByText(/No exchange rate for this currency/i, { exact: false }, { timeout: 3000 });
+      await user.click(screen.getByRole('button', { name: /Create Project/i }));
+      // Both the inline field hint and the API error banner show a no-rate message
+      const noRateMessages = await screen.findAllByText(/no exchange rate/i);
+      expect(noRateMessages.length).toBeGreaterThanOrEqual(1);
+      expect(posted).toBe(false);
     });
   });
 });

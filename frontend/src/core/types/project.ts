@@ -38,7 +38,8 @@ export interface ProjectCreate {
   has_dependabot_alerts?: boolean;
   has_budget_alerts?: boolean;
   currency: string;
-  budget: number | null;
+  budget?: number | null;
+  original_budget?: number | null;
   notes?: string | null;
   summary?: string | null;
   jira_project_key?: string;

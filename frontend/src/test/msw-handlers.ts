@@ -408,6 +408,10 @@ export const handlers = [
     return HttpResponse.json({ ...defaultPaginatedProjects, page });
   }),
 
+  http.get(`${BASE}/projects/budget-preview`, () => {
+    return HttpResponse.json({ budget_eur: null });
+  }),
+
   http.get(`${BASE}/projects/:id`, ({ params }) => {
     return HttpResponse.json({ ...defaultProject, id: params.id });
   }),

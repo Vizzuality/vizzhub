@@ -32,13 +32,26 @@ const ISO_LOCALE_MAP: Record<string, string> = {
   CAD: 'en-CA',
 };
 
-export function formatCurrency(value: number, currency = 'euro', decimals = 0): string {
+export function localeForCurrency(currency = 'euro'): { locale: string; code: string } {
   const legacy = LEGACY_CURRENCY_MAP[currency];
   const code = legacy ? legacy.code : (currency || 'EUR').toUpperCase();
   const locale = legacy ? legacy.locale : (ISO_LOCALE_MAP[code] ?? 'en-US');
+  return { locale, code };
+}
+
+export function formatCurrency(value: number, currency = 'euro', decimals = 0): string {
+  const { locale, code } = localeForCurrency(currency);
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: code,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
+export function formatAmount(value: number, currency = 'euro', decimals = 2): string {
+  const { locale } = localeForCurrency(currency);
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
