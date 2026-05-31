@@ -79,6 +79,28 @@ async def test_closed_month_uses_frozen_amount_and_counts_as_recognized(
 
 
 @pytest.mark.asyncio
+async def test_closed_month_ignores_live_amount_drift_after_freeze(
+    db_session: AsyncSession,
+) -> None:
+    """A closed month reports the frozen snapshot, not the live amount. Drift the
+    live amount post-freeze and confirm the dashboard still reports the frozen value."""
+    await period_service.create_period(db_session, start_date=date(2026, 1, 1), created_by=None)
+    line = await _line(db_session)
+    cell = await _cell(db_session, line, year=2026, month=1, amount="700")
+    period = await period_service.get_period_for_month(db_session, year=2026, month=1)
+    await period_service.close_period(db_session, period.id, freeze_cutoff=date(2026, 2, 1))
+
+    # Drift the live amount after the freeze; the frozen snapshot stays at 700.
+    cell.amount = Decimal("900")
+    await db_session.flush()
+
+    summary = await dashboard_service.build_summary(db_session, year=2026, today=date(2026, 5, 15))
+    jan = next(m for m in summary.months if m.month == 1)
+    assert jan.amount_eur == 700.0
+    assert summary.kpis.recognized_ytd_eur == 700.0
+
+
+@pytest.mark.asyncio
 async def test_backlog_is_contracted_minus_recognized_floored_at_zero(
     db_session: AsyncSession,
 ) -> None:
