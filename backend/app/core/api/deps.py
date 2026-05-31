@@ -24,6 +24,7 @@ DBSession = Annotated[AsyncSession, Depends(get_db)]
 ScoringConfigDep = Annotated[ScoringConfig, Depends(get_scoring_config)]
 CurrentUser = Annotated[TokenData, Depends(get_current_user)]
 AdminUser = Annotated[TokenData, Depends(require_permission(Action.ALL))]
+ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 
 
 def get_score_cache(request: Request) -> ScoreCacheService | None:

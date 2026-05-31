@@ -1,51 +1,45 @@
 """Project CRUD endpoints (/api/projects)."""
 
-import calendar
 import math
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 
-from app.config import get_scoring_config
+from app.core.api import projects_budget, projects_links
 from app.core.api.deps import (
     CurrentUser,
     DBSession,
     OptionalScoreCache,
+    ProjectManager,
     get_project_or_404,
     limiter,
 )
-from app.core.auth import TokenData
-from app.core.models.link import Link, LinkDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.core.models.user import UserDB
-from app.core.permissions import Action, require_permission
 from app.core.services.project_provisioning import provision_project_accrual
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.public import convert_original_budget
 from app.modules.scorecard.public import (
-    MetricsService,
-    Milestone,
     PaginatedProjectsResponse,
     ProjectSummary,
-    SnapshotType,
     delete_project_metrics,
     refresh_tracker_evm,
 )
 
-ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
-
 logger = structlog.get_logger()
 
 router = APIRouter()
+router.include_router(projects_budget.router)
+router.include_router(projects_links.router)
 
 ALLOWED_SORT_FIELDS = {"name", "created_at", "status"}
 MAX_PAGE_SIZE = 100
@@ -424,134 +418,3 @@ async def delete_project(
         code=project.code,
         user_id=admin.user_id,
     )
-
-
-# ---------------------------------------------------------------------------
-# Budget (EVM + milestones) endpoint
-# ---------------------------------------------------------------------------
-
-
-class ProjectBudgetUpdate(BaseModel):
-    milestones: list[Milestone] | None = None
-
-
-def _metrics_to_budget_response(metrics: Any, year: int, month: int) -> dict:
-    """Build budget response from a scorecard metrics record."""
-    milestones = metrics.milestones if metrics.milestones else []
-    return {
-        "period_year": year,
-        "period_month": month,
-        "milestones": milestones,
-    }
-
-
-@router.put("/{project_id}/budget")
-@limiter.limit("60/minute")
-async def update_project_budget(
-    request: Request,
-    current_user: CurrentUser,
-    db: DBSession,
-    project_id: UUID,
-    payload: ProjectBudgetUpdate,
-    cache: OptionalScoreCache,
-) -> dict:
-    """Update milestones and budget_total for current period.
-
-    EVM fields (cost_to_date, percent_completed, percent_planned) are now
-    derived from the tracker module, not manually entered.
-    """
-    project = await get_project_or_404(db, project_id)
-
-    today = date.today()
-    year, month = today.year, today.month
-    config = get_scoring_config()
-
-    data: dict = {
-        "period_start": date(year, month, 1),
-        "period_end": date(year, month, calendar.monthrange(year, month)[1]),
-    }
-    if project.budget is not None:
-        data["budget_total"] = float(project.budget)
-    if payload.milestones is not None:
-        data["milestones"] = [m.model_dump(mode="json") for m in payload.milestones]
-
-    has_budget_data = any(k not in ("period_start", "period_end") for k in data)
-    if not has_budget_data:
-        existing = await MetricsService.get_metrics(db, str(project_id), year, month)
-        if existing:
-            return _metrics_to_budget_response(existing, year, month)
-        return {"period_year": year, "period_month": month, "milestones": []}
-
-    metrics = await MetricsService.upsert_metrics(
-        db, project_id, year, month, SnapshotType.CUMULATIVE, config, data
-    )
-
-    await refresh_tracker_evm(db, project_id, score_cache=cache)
-
-    return _metrics_to_budget_response(metrics, year, month)
-
-
-# --- Links ---
-
-
-@router.get("/{project_id}/links")
-@limiter.limit("100/minute")
-async def get_project_links(
-    request: Request,
-    current_user: CurrentUser,
-    db: DBSession,
-    project_id: UUID,
-) -> list[Link]:
-    """Get all links for a project."""
-    await get_project_or_404(db, project_id)
-
-    link_type_order = func.array_position(
-        ["code", "project-management", "app-environments", "design"],
-        LinkDB.link_type,
-    )
-    result = await db.execute(
-        select(LinkDB)
-        .where(LinkDB.project_id == project_id)
-        .order_by(link_type_order, LinkDB.title)
-    )
-    return [Link.model_validate(row) for row in result.scalars().all()]
-
-
-class ProjectLinkInput(BaseModel):
-    title: str | None = None
-    url: str | None = None
-    link_type: str | None = None
-
-
-@router.put("/{project_id}/links")
-@limiter.limit("30/minute")
-async def replace_project_links(
-    request: Request,
-    current_user: ProjectManager,
-    db: DBSession,
-    project_id: UUID,
-    payload: list[ProjectLinkInput],
-) -> list[Link]:
-    """Replace all links for a project. Deletes existing and creates new ones."""
-    await get_project_or_404(db, project_id)
-
-    await db.execute(delete(LinkDB).where(LinkDB.project_id == project_id))
-
-    new_links = []
-    for link_data in payload:
-        if not link_data.title and not link_data.url:
-            continue
-        link = LinkDB(
-            project_id=project_id,
-            title=link_data.title,
-            url=link_data.url,
-            link_type=link_data.link_type,
-        )
-        db.add(link)
-        new_links.append(link)
-
-    await db.flush()
-    for link in new_links:
-        await db.refresh(link)
-
-    return [Link.model_validate(link) for link in new_links]
