@@ -27,6 +27,7 @@ from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.core.models.user import UserDB
 from app.core.permissions import Action, require_permission
+from app.core.services.project_provisioning import provision_project_accrual
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.scorecard.public import (
     MetricsService,
@@ -95,6 +96,7 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.has_budget_alerts = data.has_budget_alerts
     project.currency = data.currency
     project.budget = data.budget
+    project.original_budget = data.original_budget
     project.notes = data.notes
     project.summary = data.summary
     project.jira_project_key = data.jira_project_key.upper() if data.jira_project_key else None
@@ -225,6 +227,8 @@ async def create_project(
     db.add(db_project)
     await db.flush()
     await db.refresh(db_project)
+    await provision_project_accrual(db, project=db_project)
+    await db.refresh(db_project)
     logger.info(
         "project_created",
         project_id=str(db_project.id),
@@ -272,11 +276,13 @@ async def replace_project(
     old_budget, old_start, old_end = project.budget, project.start_date, project.end_date
     _apply_project_data(project, data)
     await db.flush()
+    result = await provision_project_accrual(db, project=project)
     await db.refresh(project)
     if (
         project.budget != old_budget
         or project.start_date != old_start
         or project.end_date != old_end
+        or result.budget_changed
     ):
         await refresh_tracker_evm(db, project_id, score_cache=cache)
     logger.info(
@@ -304,6 +310,7 @@ async def update_project(
         "is_billable",
         "currency",
         "budget",
+        "original_budget",
         "notes",
         "summary",
         "jira_project_key",
@@ -331,8 +338,16 @@ async def update_project(
         setattr(project, field, value)
     await db.flush()
     await db.refresh(project)
+    result = await provision_project_accrual(db, project=project)
+    await db.refresh(project)
 
-    if "budget" in update_data or "start_date" in update_data or "end_date" in update_data:
+    if (
+        "budget" in update_data
+        or "start_date" in update_data
+        or "end_date" in update_data
+        or "original_budget" in update_data
+        or result.budget_changed
+    ):
         await refresh_tracker_evm(db, project_id, score_cache=cache)
 
     logger.info(

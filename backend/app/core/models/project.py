@@ -126,6 +126,7 @@ class ProjectBase(BaseModel):
     has_budget_alerts: bool = True
     currency: str = Field("dollar", max_length=20)
     budget: float | None = Field(None, ge=0)
+    original_budget: float | None = Field(None, ge=0)
     notes: str | None = None
     summary: str | None = None
     jira_project_key: str | None = Field(None, max_length=50)
@@ -189,6 +190,7 @@ class ProjectUpdate(BaseModel):
     has_budget_alerts: bool | None = None
     currency: str | None = Field(None, max_length=20)
     budget: float | None = Field(None, ge=0)
+    original_budget: float | None = Field(None, ge=0)
     notes: str | None = None
     summary: str | None = None
     jira_project_key: str | None = Field(None, max_length=50)

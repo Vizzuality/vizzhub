@@ -279,6 +279,45 @@ class TestLightweightMode:
         assert data[1]["name"] == "Zulu"
 
 
+class TestOriginalBudgetProvisioning:
+    """Test original_budget derives project.budget and an accrual line."""
+
+    @pytest.mark.asyncio
+    async def test_create_project_with_original_budget_derives_line(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from datetime import date
+        from decimal import Decimal
+
+        from sqlalchemy import select
+
+        from app.modules.accrual.models.accrual_line import AccrualLineDB
+        from app.modules.accrual.models.accrual_period import AccrualPeriodDB
+
+        db_session.add(
+            AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.25"})
+        )
+        await db_session.flush()
+
+        resp = await client.post(
+            "/api/projects",
+            json={
+                "name": "Acme",
+                "code": "ACME.1",
+                "currency": "dollar",
+                "original_budget": 1000,
+                "start_date": "2026-01-01",
+                "end_date": "2026-04-01",
+            },
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert float(body["budget"]) == 800.0  # 1000 / 1.25, derived
+        lines = (await db_session.execute(select(AccrualLineDB))).scalars().all()
+        assert len(lines) == 1
+        assert lines[0].value_eur == Decimal("800.00")
+
+
 class TestProjectManagerFilter:
     """Test project_manager_id filter and /project-managers endpoint."""
 

@@ -30,11 +30,14 @@ async def test_original_budget_in_get_response(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_original_budget_not_writable_via_patch(client, db_session):
+async def test_original_budget_writable_via_patch(client, db_session):
+    # Task 6 wired original_budget into PATCHABLE_FIELDS so it flows through the
+    # accrual provisioning path. A non-derivable project (no currency rate / dates)
+    # persists the raw original_budget without deriving budget.
     p = ProjectDB(name="t", code="ORIG-3", status="live")
     db_session.add(p)
     await db_session.flush()
     r = await client.patch(f"/api/projects/{p.id}", json={"original_budget": "500.00"})
-    # Pydantic ignores unknown fields silently; verify it wasn't persisted.
+    assert r.status_code == 200
     await db_session.refresh(p)
-    assert p.original_budget is None
+    assert p.original_budget == Decimal("500.00")
