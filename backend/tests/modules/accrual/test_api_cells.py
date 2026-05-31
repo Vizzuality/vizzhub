@@ -587,6 +587,132 @@ async def test_grid_unlinked_line_renders_with_no_projects(
     assert rows["UNLINKED1"]["name"] == "Future grant"
 
 
+@pytest.mark.asyncio
+async def test_grid_flags_dates_diverged(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """A single-project line whose window differs from the project's contract
+    dates is flagged; a matching single-project line and a multi-project line
+    are not."""
+    diverged_proj = await client.post(
+        "/api/projects",
+        json={
+            "name": "Diverged",
+            "code": "TEST.AC.DIV",
+            "currency": "euro",
+            "budget": 100,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
+        },
+    )
+    matching_proj = await client.post(
+        "/api/projects",
+        json={
+            "name": "Matching",
+            "code": "TEST.AC.MATCH",
+            "currency": "euro",
+            "budget": 100,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
+        },
+    )
+    sibling_a = await client.post(
+        "/api/projects",
+        json={
+            "name": "Sibling A",
+            "code": "TEST.AC.SIBA",
+            "currency": "euro",
+            "budget": 100,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
+        },
+    )
+    sibling_b = await client.post(
+        "/api/projects",
+        json={
+            "name": "Sibling B",
+            "code": "TEST.AC.SIBB",
+            "currency": "euro",
+            "budget": 100,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
+        },
+    )
+
+    diverged = await _make_line(
+        db_session,
+        name="Diverged",
+        source=LineSource.TEAM_BUDGET,
+        value_eur="100",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 6, 1),  # differs from project end (2026-12-01)
+        project_ids=[UUID(diverged_proj.json()["id"])],
+    )
+    matching = await _make_line(
+        db_session,
+        name="Matching",
+        source=LineSource.TEAM_BUDGET,
+        value_eur="100",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),  # equals project dates
+        project_ids=[UUID(matching_proj.json()["id"])],
+    )
+    multi = await _make_line(
+        db_session,
+        name="Multi",
+        source=LineSource.TEAM_BUDGET,
+        value_eur="100",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 6, 1),
+        project_ids=[UUID(sibling_a.json()["id"]), UUID(sibling_b.json()["id"])],
+    )
+
+    rows = {
+        r["id"]: r
+        for r in (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["lines"]
+    }
+    assert rows[str(diverged.id)]["dates_diverged"] is True
+    assert rows[str(matching.id)]["dates_diverged"] is False
+    assert rows[str(multi.id)]["dates_diverged"] is False
+
+
+@pytest.mark.asyncio
+async def test_grid_excel_line_never_flagged_dates_diverged(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """An Excel line sets its window from the Excel month span (union with contract
+    dates), so a single-project Excel line whose window differs from the project's
+    contract dates is by design — never an R6 divergence."""
+    excel_proj = await client.post(
+        "/api/projects",
+        json={
+            "name": "Excel Divergent",
+            "code": "TEST.AC.XLS",
+            "currency": "euro",
+            "budget": 100,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-01",
+        },
+    )
+    excel = await _make_line(
+        db_session,
+        name="Excel Divergent",
+        source=LineSource.EXCEL,
+        value_eur="100",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 6, 1),  # differs from project end (2026-12-01) by design
+        project_ids=[UUID(excel_proj.json()["id"])],
+    )
+
+    rows = {
+        r["id"]: r
+        for r in (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["lines"]
+    }
+    assert rows[str(excel.id)]["dates_diverged"] is False
+
+
 def test_line_health_ok_when_cells_match_value():
     from app.modules.accrual.api.cells import _line_health
 

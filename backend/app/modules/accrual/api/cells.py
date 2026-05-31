@@ -133,6 +133,18 @@ def _serialize_line_project(project: ProjectDB, pm_name: str | None) -> dict:
     }
 
 
+def _dates_diverged(line: AccrualLineDB, projects: list[tuple[ProjectDB, str | None]]) -> bool:
+    """True when a single-project DERIVED (team_budget) line's window no longer
+    matches the project's contract dates (R6). Only team_budget lines derive from
+    project dates; Excel lines set their window from the Excel month span (so a
+    difference there is by design, not a divergence) and unlinked / multi-project
+    lines have no single contract to compare against."""
+    if line.source != LineSource.TEAM_BUDGET.value or len(projects) != 1:
+        return False
+    project = projects[0][0]
+    return line.window_start != project.start_date or line.window_end != project.end_date
+
+
 def _serialize_grid_line(
     line: AccrualLineDB,
     projects: list[tuple[ProjectDB, str | None]],
@@ -153,6 +165,7 @@ def _serialize_grid_line(
         "projects": [_serialize_line_project(p, pm_name) for p, pm_name in projects],
         "health": _line_health(line.value_eur, sum_cells),
         "data_quality_note": _data_quality_note(line),
+        "dates_diverged": _dates_diverged(line, projects),
     }
 
 
