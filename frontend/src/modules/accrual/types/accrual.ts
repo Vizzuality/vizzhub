@@ -152,3 +152,26 @@ export interface AccrualGridResponse {
 export function buildCellKey(lineId: string, year: number, month: number): string {
   return `${lineId}:${year}:${month}`;
 }
+
+export type MonthStatus = 'closed' | 'open' | 'none';
+
+export interface DashboardMonth {
+  month: number;
+  amount_eur: number;
+  status: MonthStatus;
+}
+
+export interface DashboardKpis {
+  recognized_ytd_eur: number;
+  recognized_quarter_eur: number;
+  contracted_total_eur: number;
+  backlog_eur: number;
+  manual_pct: number;
+}
+
+export interface AccrualDashboardSummary {
+  year: number;
+  available_years: number[];
+  months: DashboardMonth[];
+  kpis: DashboardKpis;
+}

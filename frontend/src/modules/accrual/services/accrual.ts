@@ -1,6 +1,7 @@
 import api from '@/core/services/client';
 import type {
   AccrualCell,
+  AccrualDashboardSummary,
   AccrualGridFilters,
   AccrualGridResponse,
   AccrualLineCreate,
@@ -103,6 +104,14 @@ export const accrualApi = {
         `/accrual/lines/${lineId}/redistribute`,
         { force },
       );
+      return r.data;
+    },
+  },
+  dashboard: {
+    summary: async (year: number): Promise<AccrualDashboardSummary> => {
+      const r = await api.get<AccrualDashboardSummary>('/accrual/dashboard/summary', {
+        params: { year },
+      });
       return r.data;
     },
   },
