@@ -19,7 +19,7 @@ from app.core.services.exchange_rate_service import currency_to_code, get_latest
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
-from app.modules.accrual.services import period_service
+from app.modules.accrual.services import cell_service, period_service
 
 logger = structlog.get_logger()
 
@@ -102,8 +102,47 @@ async def _find_derived_line(db: AsyncSession, project_id: UUID) -> AccrualLineD
     return result.scalars().first()
 
 
-async def _refresh_derived_line(db, line, *, value_eur, rate):
-    raise NotImplementedError("update path implemented in Task 4")
+async def _refresh_derived_line(
+    db: AsyncSession,
+    line: AccrualLineDB,
+    *,
+    value_eur: Decimal,
+    rate: Decimal | None,
+) -> AccrualLineDB:
+    """Recompute value/rate and redistribute open months only (R4); window is
+    sovereign (R5) — never re-derived from project dates here."""
+    line.value_eur = value_eur
+    line.rate = rate
+    await db.flush()
+
+    frozen_total = sum(
+        (
+            c.amount
+            for c in (
+                await db.execute(
+                    select(AccrualCellDB).where(
+                        AccrualCellDB.line_id == line.id, AccrualCellDB.is_frozen.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        ),
+        Decimal("0"),
+    )
+    if frozen_total > value_eur:
+        logger.warning(
+            "accrual_line_budget_underwater",
+            line_id=str(line.id),
+            value_eur=str(value_eur),
+            frozen_total=str(frozen_total),
+        )
+
+    await cell_service.redistribute_for_line(
+        db, line_id=line.id, force=False, source=CellSource.TEAM_BUDGET
+    )
+    logger.info("accrual_derived_line_refreshed", line_id=str(line.id), value_eur=str(value_eur))
+    return line
 
 
 async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualLineDB | None:
