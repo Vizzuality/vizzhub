@@ -166,7 +166,7 @@ export interface DashboardKpis {
   recognized_quarter_eur: number;
   contracted_total_eur: number;
   backlog_eur: number;
-  manual_pct: number;
+  plan_recognized_pct: number;
 }
 
 export interface AccrualDashboardSummary {

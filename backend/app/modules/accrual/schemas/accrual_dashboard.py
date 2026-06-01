@@ -24,7 +24,7 @@ class DashboardKpis(BaseModel):
     recognized_quarter_eur: float
     contracted_total_eur: float
     backlog_eur: float
-    manual_pct: float
+    plan_recognized_pct: float
 
 
 class DashboardSummary(BaseModel):

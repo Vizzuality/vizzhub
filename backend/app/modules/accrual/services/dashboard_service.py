@@ -10,7 +10,7 @@ cutoff `max(open_period_start, current_month)` captures both halves.
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.accrual.models.accrual_cell import AccrualCellDB
@@ -80,27 +80,6 @@ async def _contracted_total(db: AsyncSession) -> Decimal:
     ).scalar_one()
 
 
-async def _manual_pct(db: AsyncSession) -> float:
-    total = (
-        await db.execute(select(func.coalesce(func.sum(AccrualCellDB.amount), _ZERO)))
-    ).scalar_one()
-    if total == _ZERO:
-        return 0.0
-    manual = (
-        await db.execute(
-            select(
-                func.coalesce(
-                    func.sum(
-                        case((AccrualCellDB.is_manual_override, AccrualCellDB.amount), else_=_ZERO)
-                    ),
-                    _ZERO,
-                )
-            )
-        )
-    ).scalar_one()
-    return float(manual / total * 100)
-
-
 def _quarter_months(today: date) -> set[int]:
     start = ((today.month - 1) // 3) * 3 + 1
     return {start, start + 1, start + 2}
@@ -113,7 +92,7 @@ def _build_kpis(
     cutoff: YearMonth,
     quarter_months: set[int],
     contracted: Decimal,
-    manual_pct: float,
+    year_plan: Decimal,
 ) -> DashboardKpis:
     recognized_ytd = _ZERO
     recognized_quarter = _ZERO
@@ -131,12 +110,16 @@ def _build_kpis(
     if backlog < _ZERO:
         backlog = _ZERO
 
+    # Share of the selected year's planned recognition (all 12 months) already
+    # recognized — the burn-up curve's endpoint expressed as a single figure.
+    plan_recognized_pct = float(recognized_ytd / year_plan * 100) if year_plan != _ZERO else 0.0
+
     return DashboardKpis(
         recognized_ytd_eur=_to_float(recognized_ytd),
         recognized_quarter_eur=_to_float(recognized_quarter),
         contracted_total_eur=_to_float(contracted),
         backlog_eur=_to_float(backlog),
-        manual_pct=manual_pct,
+        plan_recognized_pct=plan_recognized_pct,
     )
 
 
@@ -152,6 +135,7 @@ async def build_summary(db: AsyncSession, *, year: int, today: date) -> Dashboar
         )
         for month in range(1, 13)
     ]
+    year_plan = sum((amount_by_ym.get((year, m), _ZERO) for m in range(1, 13)), _ZERO)
 
     kpis = _build_kpis(
         amount_by_ym,
@@ -159,7 +143,7 @@ async def build_summary(db: AsyncSession, *, year: int, today: date) -> Dashboar
         cutoff=cutoff,
         quarter_months=_quarter_months(today),
         contracted=await _contracted_total(db),
-        manual_pct=await _manual_pct(db),
+        year_plan=year_plan,
     )
     return DashboardSummary(
         year=year,

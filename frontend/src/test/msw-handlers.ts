@@ -882,7 +882,7 @@ export const handlers = [
         recognized_quarter_eur: 0,
         contracted_total_eur: 0,
         backlog_eur: 0,
-        manual_pct: 0,
+        plan_recognized_pct: 0,
       },
     });
   }),

@@ -134,10 +134,13 @@ async def test_backlog_is_contracted_minus_all_recognized(db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_manual_pct_and_available_years(db_session: AsyncSession) -> None:
+async def test_plan_recognized_pct_and_available_years(db_session: AsyncSession) -> None:
+    await _rotate_to(db_session, 2026)
     line = await _line(db_session)
-    await _cell(db_session, line, year=2025, month=6, amount="100", is_manual_override=True)
-    await _cell(db_session, line, year=2026, month=6, amount="300")
+    await _cell(db_session, line, year=2025, month=1, amount="999")  # only for available_years
+    await _cell(db_session, line, year=2026, month=2, amount="400")  # recognized (elapsed)
+    await _cell(db_session, line, year=2026, month=8, amount="600")  # forecast (future)
     summary = await dashboard_service.build_summary(db_session, year=2026, today=date(2026, 6, 1))
     assert summary.available_years == [2025, 2026]
-    assert summary.kpis.manual_pct == 25.0
+    # year_plan (2026) = 400 + 600 = 1000; recognized_ytd = 400 → 40%
+    assert summary.kpis.plan_recognized_pct == 40.0

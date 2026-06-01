@@ -30,7 +30,7 @@ export function DashboardKpis({ kpis }: DashboardKpisProps): JSX.Element {
       <KpiCard label="Recognized YTD" value={formatCurrency(kpis.recognized_ytd_eur)} />
       <KpiCard label="This quarter" value={formatCurrency(kpis.recognized_quarter_eur)} />
       <KpiCard label="Backlog" value={formatCurrency(kpis.backlog_eur)} />
-      <KpiCard label="Manual share" value={`${kpis.manual_pct.toFixed(1)}%`} />
+      <KpiCard label="Year plan recognized" value={`${kpis.plan_recognized_pct.toFixed(0)}%`} />
     </div>
   );
 }

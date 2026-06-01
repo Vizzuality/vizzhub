@@ -35,7 +35,7 @@ describe('AccrualDashboard', () => {
             recognized_quarter_eur: 300,
             contracted_total_eur: 5000,
             backlog_eur: 3800,
-            manual_pct: 0,
+            plan_recognized_pct: 57,
           },
         }),
       ),

@@ -44,7 +44,7 @@ def test_dashboard_summary_serializes_floats() -> None:
             recognized_quarter_eur=100.5,
             contracted_total_eur=1000.0,
             backlog_eur=899.5,
-            manual_pct=12.5,
+            plan_recognized_pct=12.5,
         ),
     )
     dumped = summary.model_dump()
