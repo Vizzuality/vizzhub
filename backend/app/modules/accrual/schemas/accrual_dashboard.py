@@ -4,11 +4,12 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-MonthStatus = Literal["closed", "open", "none"]
+MonthStatus = Literal["recognized", "forecast"]
 
 
 class DashboardMonth(BaseModel):
-    """One calendar month of the selected year."""
+    """One calendar month of the selected year. ``recognized`` = already elapsed or
+    sitting in a closed period; ``forecast`` = current/future months still to come."""
 
     month: int
     amount_eur: float

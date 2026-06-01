@@ -38,7 +38,7 @@ def test_dashboard_summary_serializes_floats() -> None:
     summary = DashboardSummary(
         year=2026,
         available_years=[2025, 2026],
-        months=[DashboardMonth(month=1, amount_eur=100.5, status="closed")],
+        months=[DashboardMonth(month=1, amount_eur=100.5, status="recognized")],
         kpis=DashboardKpis(
             recognized_ytd_eur=100.5,
             recognized_quarter_eur=100.5,
@@ -50,4 +50,4 @@ def test_dashboard_summary_serializes_floats() -> None:
     dumped = summary.model_dump()
     assert dumped["months"][0]["amount_eur"] == 100.5
     assert dumped["kpis"]["backlog_eur"] == 899.5
-    assert dumped["months"][0]["status"] == "closed"
+    assert dumped["months"][0]["status"] == "recognized"
