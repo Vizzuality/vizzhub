@@ -8,17 +8,33 @@ interface YtdBurnupChartProps {
   readonly months: DashboardMonth[];
 }
 
-export function YtdBurnupChart({ months }: YtdBurnupChartProps): JSX.Element {
-  const planTotal = months.reduce((sum, m) => sum + m.amount_eur, 0);
-  let cumulative = 0;
-  const data = months.map((m) => {
-    if (m.status === 'recognized') cumulative += m.amount_eur;
+export interface BurnupPoint {
+  label: string;
+  recognized: number;
+  plan: number;
+}
+
+/**
+ * Two running totals: `recognized` advances only on recognized months (so it plateaus
+ * at today), `plan` advances every month (the planned recognition schedule, rising to
+ * the year total by December). The gap ahead is the remaining recognition runway.
+ */
+export function buildBurnupSeries(months: DashboardMonth[]): BurnupPoint[] {
+  let recognizedCumulative = 0;
+  let planCumulative = 0;
+  return months.map((m) => {
+    planCumulative += m.amount_eur;
+    if (m.status === 'recognized') recognizedCumulative += m.amount_eur;
     return {
       label: MONTHS_SHORT[m.month - 1] ?? String(m.month),
-      recognized: cumulative,
-      plan: planTotal,
+      recognized: recognizedCumulative,
+      plan: planCumulative,
     };
   });
+}
+
+export function YtdBurnupChart({ months }: YtdBurnupChartProps): JSX.Element {
+  const data = buildBurnupSeries(months);
   return (
     <ResponsiveContainer width="100%" height={320}>
       <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
