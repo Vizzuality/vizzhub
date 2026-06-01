@@ -50,7 +50,7 @@ class TestInvoices:
             json={
                 "amount": 5000,
                 "code": "INV-001",
-                "due_date": "2026-06-01",
+                "due_date": "2030-06-01",
                 "milestone": "Milestone 1",
             },
         )
