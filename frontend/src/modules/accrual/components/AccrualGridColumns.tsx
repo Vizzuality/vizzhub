@@ -56,10 +56,10 @@ const fmt = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
-function formatAmount(val: string | null | undefined): string {
+export function formatAmount(val: string | number | null | undefined): string {
   if (val === null || val === undefined) return '—';
   const n = Number(val);
-  return Number.isNaN(n) ? val : fmt.format(n);
+  return Number.isNaN(n) ? String(val) : fmt.format(n);
 }
 
 function resolveEurAmount(cell: AccrualCellType): number {
@@ -102,10 +102,17 @@ const HEALTH_ICON: Record<
   no_data: { Icon: Info, testId: 'health-no-data', colorClass: 'text-muted-foreground' },
 };
 
-function HealthIndicator({ health }: { readonly health: AccrualHealth }): JSX.Element | null {
-  if (health.status === 'ok') return null;
-  const { Icon, testId, colorClass } = HEALTH_ICON[health.status];
-  const title = healthTooltip(health);
+function IndicatorIcon({
+  Icon,
+  title,
+  testId,
+  colorClass,
+}: {
+  readonly Icon: LucideIcon;
+  readonly title: string;
+  readonly testId: string;
+  readonly colorClass: string;
+}): JSX.Element {
   return (
     <Icon data-testid={testId} className={`h-3.5 w-3.5 shrink-0 ${colorClass}`} aria-label={title}>
       <title>{title}</title>
@@ -113,16 +120,28 @@ function HealthIndicator({ health }: { readonly health: AccrualHealth }): JSX.El
   );
 }
 
+function HealthIndicator({ health }: { readonly health: AccrualHealth }): JSX.Element | null {
+  if (health.status === 'ok') return null;
+  const { Icon, testId, colorClass } = HEALTH_ICON[health.status];
+  return (
+    <IndicatorIcon
+      Icon={Icon}
+      title={healthTooltip(health)}
+      testId={testId}
+      colorClass={colorClass}
+    />
+  );
+}
+
 function DataQualityIndicator({ note }: { readonly note: string | null }): JSX.Element | null {
   if (!note) return null;
   return (
-    <AlertTriangle
-      data-testid="data-quality-warning"
-      className="h-3.5 w-3.5 shrink-0 text-amber-500"
-      aria-label={note}
-    >
-      <title>{note}</title>
-    </AlertTriangle>
+    <IndicatorIcon
+      Icon={AlertTriangle}
+      title={note}
+      testId="data-quality-warning"
+      colorClass="text-amber-500"
+    />
   );
 }
 

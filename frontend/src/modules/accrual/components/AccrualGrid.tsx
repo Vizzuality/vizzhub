@@ -9,15 +9,11 @@ import {
   buildColumns,
   computeMonthTotals,
   DEFAULT_STATIC_IDS,
+  formatAmount,
   type AccrualSort,
 } from '@/modules/accrual/components/AccrualGridColumns';
 
 const ROW_HEIGHT = 36;
-
-const fmt = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 export interface AccrualGridProps {
   readonly lines: AccrualGridLine[];
@@ -193,7 +189,7 @@ export function AccrualGrid({
                 key={`total_${m.year}_${m.month}`}
                 className="border-l px-2 py-1.5 text-right text-xs font-semibold tabular-nums"
               >
-                {fmt.format(monthTotals.get(`${m.year}_${m.month}`) ?? 0)}
+                {formatAmount(monthTotals.get(`${m.year}_${m.month}`) ?? 0)}
               </td>
             ))}
           </tr>
