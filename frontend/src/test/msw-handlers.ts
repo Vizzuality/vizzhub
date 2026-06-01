@@ -875,7 +875,7 @@ export const handlers = [
       months: Array.from({ length: 12 }, (_, i) => ({
         month: i + 1,
         amount_eur: 0,
-        status: 'none',
+        status: 'forecast',
       })),
       kpis: {
         recognized_ytd_eur: 0,

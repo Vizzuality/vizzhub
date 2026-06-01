@@ -28,7 +28,7 @@ describe('AccrualDashboard', () => {
           months: Array.from({ length: 12 }, (_, i) => ({
             month: i + 1,
             amount_eur: 100,
-            status: 'closed',
+            status: 'recognized',
           })),
           kpis: {
             recognized_ytd_eur: 1200,

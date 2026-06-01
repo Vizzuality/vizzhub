@@ -6,7 +6,7 @@ import type { DashboardMonth } from '@/modules/accrual/types/accrual';
 const MONTHS: DashboardMonth[] = Array.from({ length: 12 }, (_, i) => ({
   month: i + 1,
   amount_eur: 1000,
-  status: i < 4 ? 'closed' : 'open',
+  status: i < 4 ? 'recognized' : 'forecast',
 }));
 
 describe('YtdBurnupChart', () => {

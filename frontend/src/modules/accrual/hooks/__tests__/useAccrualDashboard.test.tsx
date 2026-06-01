@@ -21,7 +21,7 @@ describe('useAccrualDashboard', () => {
         return HttpResponse.json({
           year,
           available_years: [2025, 2026],
-          months: [{ month: 1, amount_eur: 100, status: 'closed' }],
+          months: [{ month: 1, amount_eur: 100, status: 'recognized' }],
           kpis: {
             recognized_ytd_eur: 100,
             recognized_quarter_eur: 100,

@@ -153,7 +153,7 @@ export function buildCellKey(lineId: string, year: number, month: number): strin
   return `${lineId}:${year}:${month}`;
 }
 
-export type MonthStatus = 'closed' | 'open' | 'none';
+export type MonthStatus = 'recognized' | 'forecast';
 
 export interface DashboardMonth {
   month: number;
